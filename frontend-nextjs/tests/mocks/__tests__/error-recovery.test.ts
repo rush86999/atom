@@ -6,6 +6,32 @@
  * timeout scenarios, and network errors with proper tracking.
  */
 
+/**
+ * MSW Node.js Compatibility Patterns
+ *
+ * IMPORTANT: MSW 1.x res.networkError() doesn't work in Node.js/jsdom environment.
+ * Use 503 Service Unavailable responses instead:
+ *
+ * // WRONG (broken in Node.js):
+ * return res.networkError('Connection failed');
+ *
+ * // CORRECT (works in Node.js):
+ * return res(
+ *   ctx.status(503),
+ *   ctx.json({ error: 'Service unavailable', code: 'SERVICE_UNAVAILABLE' })
+ * );
+ *
+ * Error Shape Patterns:
+ * - Network errors: error.code === 'ERR_NETWORK' or error.code === 'SERVICE_UNAVAILABLE'
+ * - API errors: error.response?.status (404, 500, 503, etc.)
+ * - Timeout errors: error.code === 'ECONNABORTED'
+ *
+ * Retry Logic in Tests:
+ * - Disable retries with { retry: false } in apiClient calls
+ * - Or mock apiClient entirely to bypass retry logic
+ * - Suppress console.log for retry messages: jest.spyOn(console, 'log').mockImplementation(() => {})
+ */
+
 import { createRecoveryScenario, createRetryTracker, errorRecoveryHandlers } from '../scenarios/error-recovery';
 import { rest } from 'msw';
 import { server } from '../server';
