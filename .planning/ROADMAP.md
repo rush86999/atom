@@ -35,7 +35,15 @@
 4. Coverage measurement is unblocked (jest can generate accurate coverage reports)
 5. Backend tests maintain 100% pass rate (no regressions from frontend fixes)
 
-**Plans**: TBD
+**Plans**:
+- [x] 291-01-PLAN.md — Fix MSW network error simulation and axios retry issues (300-500 API tests)
+- [ ] 291-02-PLAN.md — Fix import errors and missing type definitions (200-300 integration tests)
+- [ ] 291-03-PLAN.md — Full suite verification, categorization, and documentation
+
+**Wave Structure**:
+- Wave 1: Plan 01 (API error tests) - autonomous
+- Wave 2: Plan 02 (Integration tests) - autonomous, depends on 01
+- Wave 3: Plan 03 (Verification + checkpoint) - has checkpoint, depends on 01, 02
 
 ---
 
@@ -121,7 +129,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 291. Frontend Test Suite Fixes | 0/3 | Not started | - |
+| 291. Frontend Test Suite Fixes | 1/3 | In Progress|  |
 | 292. Coverage Baselines & Prioritization | 0/2 | Not started | - |
 | 293. Coverage Wave 1 (30% Target) | 0/4 | Not started | - |
 | 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
@@ -199,4 +207,5 @@ Phase 295 (70% Wave + Docs)
 ---
 
 *Roadmap created: 2026-04-13*
-*Next: /gsd-plan-phase 291*
+*Phase 291 plans created: 2026-04-13*
+*Next: /gsd-execute-phase 291*
