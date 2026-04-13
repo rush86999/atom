@@ -228,17 +228,25 @@ class TestCapabilityGateErrorHandling:
 
     def test_returns_false_on_errors(self, auto_dev_db_session):
         """Test returns False on errors."""
-        service = AutoDevCapabilityService(auto_dev_db_session)
+        from unittest.mock import patch, PropertyMock
 
-        service.graduation = None  # No graduation service
+        # Mock the graduation property to return None (simulating missing service)
+        with patch.object(
+            AutoDevCapabilityService,
+            'graduation',
+            new_callable=PropertyMock,
+            return_value=None
+        ):
+            service = AutoDevCapabilityService(auto_dev_db_session)
 
-        result = service.can_use(
-            agent_id="agent-001",
-            capability="auto_dev.memento_skills",
-            workspace_settings={"auto_dev": {"enabled": True}},
-        )
+            result = service.can_use(
+                agent_id="agent-001",
+                capability="auto_dev.memento_skills",
+                workspace_settings={"auto_dev": {"enabled": True}},
+            )
 
-        assert result is False
+            # Should return False when graduation service is unavailable
+            assert result is False
 
 
 class TestCapabilityGateDailyLimits:
