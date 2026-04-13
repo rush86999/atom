@@ -1292,16 +1292,35 @@ export const formSubmissionHandlers = [
   }),
 
   // Form submission with network error simulation
-  rest.post('/api/forms/network-error', (req, res) => {
-    // Simulate network failure by not responding properly
-    // This will trigger a network error in the client
-    return res.networkError('Network connection failed');
+  // Node.js/jsdom compatible: res.networkError() doesn't work in Node.js (MSW 1.x limitation)
+  rest.post('/api/forms/network-error', (req, res, ctx) => {
+    // Simulate network failure with 503 Service Unavailable
+    return res(
+      ctx.status(503),
+      ctx.json({
+        success: false,
+        error_code: 'NETWORK_ERROR',
+        error: 'Network connection failed',
+        message: 'Failed to reach the server. Please check your connection.',
+        timestamp: new Date().toISOString(),
+      })
+    );
   }),
 
   // Form submission with connection refused simulation
-  rest.post('/api/forms/connection-refused', (req, res) => {
-    // Simulate connection refused (server not reachable)
-    return res.networkError('Connection refused');
+  // Node.js/jsdom compatible: res.networkError() doesn't work in Node.js (MSW 1.x limitation)
+  rest.post('/api/forms/connection-refused', (req, res, ctx) => {
+    // Simulate connection refused with 503 Service Unavailable
+    return res(
+      ctx.status(503),
+      ctx.json({
+        success: false,
+        error_code: 'CONNECTION_REFUSED',
+        error: 'Connection refused',
+        message: 'The server refused the connection. Please try again later.',
+        timestamp: new Date().toISOString(),
+      })
+    );
   }),
 ];
 
