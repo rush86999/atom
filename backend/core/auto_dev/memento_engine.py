@@ -84,17 +84,34 @@ class MementoEngine(BaseLearningEngine):
             error_trace = ""
             tool_calls = []
             for seg in segments:
-                # Use metadata_json instead of metadata (SQLAlchemy metadata is different)
-                meta = getattr(seg, "metadata_json", {}) or {}
-                if meta.get("error"):
-                    error_trace += f"{meta['error']}\n"
-                if meta.get("tool_name"):
-                    tool_calls.append(
-                        {
-                            "tool_name": meta["tool_name"],
-                            "status": meta.get("status", "unknown"),
-                        }
-                    )
+                # Extract from content field (EpisodeSegment has content, not metadata_json)
+                content = seg.content or ""
+
+                # Parse error information from content
+                if "error" in content.lower() or "failed" in content.lower():
+                    error_trace += f"{content}\n"
+
+                # Parse tool calls from content
+                # Format: "Tool call: <tool_name> - <status>"
+                if "tool call:" in content.lower():
+                    parts = content.split(":")
+                    if len(parts) >= 2:
+                        tool_info = parts[1].strip()
+                        tool_name = tool_info.split("-")[0].strip()
+                        status = "unknown"
+                        if "-" in tool_info:
+                            status = tool_info.split("-")[1].strip().lower()
+                            if "failed" in status:
+                                status = "failed"
+                            elif "success" in status:
+                                status = "success"
+
+                        tool_calls.append(
+                            {
+                                "tool_name": tool_name,
+                                "status": status,
+                            }
+                        )
 
             task_desc = episode.task_description or ""
 
@@ -193,22 +210,34 @@ class MementoEngine(BaseLearningEngine):
         all_passed = True
 
         for i, inputs in enumerate(test_inputs or [{}]):
-            result = await sandbox.execute_raw_python(
-                tenant_id=tenant_id,
-                code=code,
-                input_params=inputs,
-            )
-            passed = result.get("status") == "success"
-            if not passed:
+            try:
+                result = await sandbox.execute_raw_python(
+                    tenant_id=tenant_id,
+                    code=code,
+                    input_params=inputs,
+                )
+                passed = result.get("status") == "success"
+                if not passed:
+                    all_passed = False
+                results.append(
+                    {
+                        "test_index": i,
+                        "passed": passed,
+                        "output": result.get("output", ""),
+                        "execution_seconds": result.get("execution_seconds", 0),
+                    }
+                )
+            except Exception as e:
+                # Handle sandbox errors gracefully
                 all_passed = False
-            results.append(
-                {
-                    "test_index": i,
-                    "passed": passed,
-                    "output": result.get("output", ""),
-                    "execution_seconds": result.get("execution_seconds", 0),
-                }
-            )
+                results.append(
+                    {
+                        "test_index": i,
+                        "passed": False,
+                        "output": f"Sandbox error: {str(e)}",
+                        "execution_seconds": 0,
+                    }
+                )
 
         return {
             "passed": all_passed,

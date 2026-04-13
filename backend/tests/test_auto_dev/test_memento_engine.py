@@ -336,21 +336,18 @@ class TestMementoEngineSkillPromotion:
     @pytest.mark.asyncio
     async def test_promote_skill_creates_community_skill(self, auto_dev_db_session, sample_skill_candidate):
         """Test promote_skill() creates CommunitySkill."""
-        # Mock SkillBuilderService
+        from unittest.mock import patch, MagicMock
+
+        # Mock SkillBuilderService and SkillMetadata
         mock_builder = MagicMock()
         mock_builder.create_skill_package = MagicMock(return_value={"success": True})
 
-        import sys
-        original_module = sys.modules.get("core.skill_builder_service")
+        mock_skill_metadata = MagicMock()
 
-        class MockSkillBuilderService:
-            def __init__(self):
-                pass
+        # Patch where the import happens, not where it's used
+        with patch("core.skill_builder_service.SkillBuilderService", return_value=mock_builder), \
+             patch("core.skill_builder_service.SkillMetadata", mock_skill_metadata):
 
-        sys.modules["core.skill_builder_service"] = MockSkillBuilderService
-        sys.modules["core.skill_builder_service"].SkillBuilderService = lambda: mock_builder
-
-        try:
             engine = MementoEngine(db=auto_dev_db_session)
 
             # Update candidate to validated
@@ -363,11 +360,6 @@ class TestMementoEngineSkillPromotion:
             auto_dev_db_session.refresh(sample_skill_candidate)
             assert sample_skill_candidate.validation_status == "promoted"
             assert sample_skill_candidate.promoted_at is not None
-        finally:
-            if original_module:
-                sys.modules["core.skill_builder_service"] = original_module
-            else:
-                sys.modules.pop("core.skill_builder_service", None)
 
     @pytest.mark.asyncio
     async def test_promote_skill_handles_not_validated_candidate(self, auto_dev_db_session, sample_skill_candidate):
