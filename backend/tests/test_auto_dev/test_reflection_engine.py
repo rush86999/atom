@@ -45,23 +45,36 @@ class TestReflectionEnginePatternDetection:
     @pytest.mark.asyncio
     async def test_identifies_repeated_failure_patterns(self, auto_dev_db_session, sample_task_event):
         """Test identifies repeated failure patterns."""
+        from unittest.mock import AsyncMock
+
         engine = ReflectionEngine(db=auto_dev_db_session, failure_threshold=2)
         # Mock capability gate to allow processing
         engine._should_process_agent = lambda agent_id, tenant_id: True
+        # Mock _trigger_memento to avoid database query
+        engine._trigger_memento = AsyncMock()
 
-        # Process same failure twice
+        # Process first failure
         await engine.process_failure(sample_task_event)
+        # Check buffer has 1 failure
+        assert len(engine._failure_buffer[sample_task_event.agent_id]) == 1
+
+        # Process second failure (should trigger)
         await engine.process_failure(sample_task_event)
 
-        # Should trigger on second occurrence
-        assert len(engine._failure_buffer[sample_task_event.agent_id]) >= 1
+        # Verify _trigger_memento was called (pattern detected)
+        engine._trigger_memento.assert_called_once()
+        # Note: Buffer is cleared after triggering, so we check the call happened
 
     @pytest.mark.asyncio
     async def test_groups_by_error_type(self, auto_dev_db_session):
         """Test groups by error type."""
-        engine = ReflectionEngine(db=auto_dev_db_session)
+        from unittest.mock import AsyncMock
+
+        engine = ReflectionEngine(db=auto_dev_db_session, failure_threshold=3)
         # Mock capability gate to allow processing
         engine._should_process_agent = lambda agent_id, tenant_id: True
+        # Mock _trigger_memento to avoid database query
+        engine._trigger_memento = AsyncMock()
 
         event1 = TaskEvent(
             episode_id="ep-001",
