@@ -216,6 +216,20 @@ afterAll(() => {
   server.close();
 });
 
+// Suppress console.log for retry messages during tests
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
+
+beforeEach(() => {
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
+});
+
 /**
  * Task 1: MSW Server Configuration Tests
  *
