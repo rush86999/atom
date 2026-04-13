@@ -5,3 +5,6 @@
 
 // Export API-generated types
 export * from '../src/types/api-generated';
+
+// Export integration-specific types
+export * from './integration-types';
