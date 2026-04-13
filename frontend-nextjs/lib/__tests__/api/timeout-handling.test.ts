@@ -52,11 +52,17 @@ afterAll(() => server.close());
 
 // Mock console.error to avoid cluttering test output
 const originalError = console.error;
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
+
 beforeEach(() => {
-  console.error = jest.fn();
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 });
+
 afterEach(() => {
-  console.error = originalError;
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
 });
 
 describe('API Timeout Handling', () => {
