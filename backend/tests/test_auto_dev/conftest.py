@@ -169,6 +169,7 @@ def auto_dev_db_session():
     Test database session with Auto-Dev models.
 
     Creates ToolMutation, WorkflowVariant, SkillCandidate tables.
+    Also creates AgentEpisode and EpisodeSegment tables for testing.
     Transaction rollback after each test.
     Pre-populated test data.
     """
@@ -180,7 +181,17 @@ def auto_dev_db_session():
 
     # Create all tables
     from core.auto_dev.models import Base
+    from core.database import Base as MainBase
+
     Base.metadata.create_all(engine)
+
+    # Create agent-related tables for Episode testing
+    try:
+        from core.models import AgentEpisode, EpisodeSegment
+        MainBase.metadata.create_all(engine)
+    except Exception:
+        # If models not available, skip
+        pass
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
