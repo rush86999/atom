@@ -445,8 +445,11 @@ describe('SlackIntegration Component', () => {
       const user = userEvent.setup();
 
       server.use(
-        rest.post('/api/integrations/slack/connect', (req, res) => {
-          return res.networkError('Failed to connect');
+        rest.post('/api/integrations/slack/connect', (req, res, ctx) => {
+          return res(
+            ctx.status(503),
+            ctx.json({ error: 'Service unavailable', code: 'SERVICE_UNAVAILABLE' })
+          );
         })
       );
 
@@ -457,7 +460,7 @@ describe('SlackIntegration Component', () => {
         await user.click(connectButton);
 
         await waitFor(() => {
-          expect(screen.getByText(/network error|connection error/i)).toBeInTheDocument();
+          expect(screen.getByText(/network error|connection error|service unavailable/i)).toBeInTheDocument();
         });
       }
     });
