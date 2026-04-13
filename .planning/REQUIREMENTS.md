@@ -1,99 +1,69 @@
-# Requirements: Atom - v10.0 Quality & Stability
+# Requirements: Atom v11.0 Coverage Completion
 
-**Defined:** 2026-04-02
-**Core Value:** Quality and stability enable reliable development and deployment of AI-powered automation features
+**Defined:** 2026-04-13
+**Core Value:** Pragmatic test coverage (70% target) enables reliable development and deployment of AI-powered automation features
 
-## v10.0 Requirements
+## v11 Requirements
 
-Requirements for quality and stability milestone. Each maps to roadmap phases.
+Requirements for v11.0 milestone: Fix test suite, expand coverage to 70% (backend and frontend), update documentation.
 
-### Build Fixes
+### Test Suite Health
 
-- [x] **BUILD-01**: Frontend builds successfully without errors ✅
-- [x] **BUILD-02**: Backend builds successfully without errors ✅
-- [x] **BUILD-03**: All syntax errors resolved (e.g., asana_service.py) ✅
-- [x] **BUILD-04**: Build process documented and reproducible ✅
+- [ ] **TEST-01**: Frontend tests achieve 100% pass rate (currently 71.2%, 1,504 failing tests)
+- [ ] **TEST-02**: Backend tests maintain 100% pass rate (currently 99.3%)
+- [ ] **TEST-03**: All test infrastructure blockers resolved (import errors, missing models)
+- [ ] **TEST-04**: Test suite can run to completion without errors (unblocks coverage measurement)
+- [ ] **TEST-05**: Frontend test failures categorized and documented (root causes, severity)
 
-### Test Discovery & Documentation
+### Backend Coverage Expansion
 
-- [x] **TEST-01**: Full test suite runs successfully (no syntax/import errors) ✅
-- [x] **TEST-02**: All test failures documented with evidence and reproduction steps ✅
-- [x] **TEST-03**: Test failures categorized by severity (critical/high/medium/low) ✅
-- [x] **TEST-04**: Test failure report generated with prioritization ✅
+- [ ] **COV-B-01**: Backend baseline measured accurately (confirm 18.25% with actual line coverage)
+- [ ] **COV-B-02**: Backend coverage expanded to 30% (target high-impact files >200 lines, <10% coverage)
+- [ ] **COV-B-03**: Backend coverage expanded to 50% (medium-impact files, API routes, core services)
+- [ ] **COV-B-04**: Backend coverage expanded to 70% (final push, all remaining gaps)
+- [ ] **COV-B-05**: High-impact file list generated and prioritized (>200 lines, <10% coverage)
 
-### Test Failure Fixes
+### Frontend Coverage Expansion
 
-- [x] **FIX-01**: All critical test failures fixed (agents, workflows, API endpoints) ✅
-- [x] **FIX-02**: All high-priority test failures fixed (core services, integrations) ✅
-- [~] **FIX-03**: All medium and low priority test failures fixed ⚠️ (21 P2 fixes complete, 17 P3 remain)
-- [ ] **FIX-04**: 100% test pass rate achieved (zero failures or errors) ❌ (94% pass rate, 17 failures remain)
+- [ ] **COV-F-01**: Frontend baseline measured accurately after test fixes (confirm current coverage)
+- [ ] **COV-F-02**: Frontend coverage expanded to 30% (target high-impact components)
+- [ ] **COV-F-03**: Frontend coverage expanded to 50% (broader coverage, state management, hooks)
+- [ ] **COV-F-04**: Frontend coverage expanded to 70% (final push, edge cases, error paths)
+- [ ] **COV-F-05**: High-impact component list generated and prioritized
 
-### Backend Coverage
+### Quality Gates Maintenance
 
-- [x] **COV-B-01**: Backend coverage baseline measured (actual line coverage) ✅
-- [ ] **COV-B-02**: Backend coverage reaches 70% (progressive threshold) ❌ (18.25% actual, -51.75pp gap)
-- [~] **COV-B-03**: Backend coverage reaches 75% (progressive threshold) ⚠️ (property tests added, coverage 18.25%)
-- [ ] **COV-B-04**: Backend coverage reaches 80% (final target) ❌ (18.25% actual, -61.75pp gap)
-- [~] **COV-B-05**: High-impact files covered (>200 lines, targeted first) ⚠️ (1/115 files ≥70% coverage)
-
-### Frontend Coverage
-
-- [x] **COV-F-01**: Frontend coverage baseline measured ✅
-- [ ] **COV-F-02**: Frontend coverage reaches 70% (progressive threshold) ❌ (14.61% actual, -55.39pp gap)
-- [ ] **COV-F-03**: Frontend coverage reaches 75% (progressive threshold) ❌ (14.61% actual, -60.39pp gap)
-- [ ] **COV-F-04**: Frontend coverage reaches 80% (final target) ❌ (14.61% actual, -65.39pp gap)
-- [~] **COV-F-05**: Critical components covered (auth, agents, workflows, canvas) ⚠️ (auth 0% coverage)
-
-### TDD Bug Fixes
-
-- [~] **TDD-01**: Bug fixes follow test-first approach (red-green-refactor) ⚠️ (partial, TDD used for some fixes)
-- [~] **TDD-02**: Failing tests written before fixing bugs ⚠️ (partial, not consistently applied)
-- [~] **TDD-03**: All bug fixes have corresponding tests ⚠️ (partial, most fixes have tests)
-- [x] **TDD-04**: TDD workflow documented with examples ✅
-
-### Property-Based Testing
-
-- [x] **PROP-01**: Property-based tests for critical invariants (governance, LLM, episodes) ✅
-- [x] **PROP-02**: Property-based tests for business logic (workflows, skills, canvas) ✅
-- [x] **PROP-03**: Property-based tests for data integrity (database, transactions) ✅
-- [x] **PROP-04**: Property-based test documentation (invariants catalog) ✅
-
-### Quality Gates
-
-- [x] **QUAL-01**: Coverage thresholds enforced in CI/CD (70% → 75% → 80%) ✅
-- [x] **QUAL-02**: 100% test pass rate enforced in CI/CD ✅
-- [x] **QUAL-03**: Build gates prevent merging if build fails ✅
-- [x] **QUAL-04**: Quality metrics dashboard (coverage, pass rate, trends) ✅
+- [ ] **QUAL-01**: Quality gates enforce 70% threshold throughout expansion (prevent regression)
+- [ ] **QUAL-02**: Coverage trend tracking active (measure progress, detect regressions)
+- [ ] **QUAL-03**: PR comment bot provides per-commit feedback (coverage diff, trends)
+- [ ] **QUAL-04**: Emergency bypass mechanism available with audit logging
 
 ### Documentation
 
-- [x] **DOC-01**: Build process documented (frontend and backend) ✅
-- [x] **DOC-02**: Test execution documented (how to run, interpret results) ✅
-- [x] **DOC-03**: Bug fix process documented (TDD workflow) ✅
-- [x] **DOC-04**: Coverage report documentation (how to measure, improve) ✅
+- [ ] **DOC-01**: Coverage guide updated with v11.0 lessons learned (patterns, pitfalls)
+- [ ] **DOC-02**: High-impact file prioritization documented (methodology, criteria)
+- [ ] **DOC-03**: Test suite health monitoring documented (maintenance practices, failure categorization)
+- [ ] **DOC-04**: Coverage expansion completion report (final metrics, achievements, next steps)
 
 ## v2 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Deferred to future milestone. Not in v11.0 scope.
 
-### Advanced Quality Features
-
-- **ADV-01**: Mutation testing for test quality validation
-- **ADV-02**: Fuzzing for security vulnerability discovery
-- **ADV-03**: Chaos engineering for failure testing
-- **ADV-04**: Performance regression testing
+### Future Enhancements
+- **FUTURE-01**: AI-assisted test generation (Cover-Agent, CoverUp evaluation)
+- **FUTURE-02**: Mutation testing for critical paths (mutmut integration)
+- **FUTURE-03**: Complexity-aware coverage targets (higher for critical paths, lower for utilities)
+- **FUTURE-04**: Branch coverage focused testing (currently 3.87% vs 17.13% line coverage)
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| v9.0 Collaboration features | Deferred - focus on quality first |
-| v6.0 BYOK Migration | Separate technical milestone |
-| Mobile/desktop builds | Focus on web platform first |
-| Advanced testing (fuzzing, chaos) | v2 feature - out of scope for v10.0 |
-| Performance optimization | Quality first, performance later |
+| New test coverage tools | All required infrastructure already operational from v10.0 |
+| Property test expansion | 96 tests complete (Phase 253a), documented in Phase 257 |
+| E2E test expansion | 495+ E2E tests complete (v7.0), out of scope for coverage milestone |
+| Mobile/Desktop coverage | Focus on backend (Python) and frontend (Next.js) only |
+| 80% coverage target | Pragmatic 70% based on v10.0 experience (80% unrealistic) |
 
 ## Traceability
 
@@ -101,50 +71,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01 | Phase 247 | Pending |
-| BUILD-02 | Phase 247 | Pending |
-| BUILD-03 | Phase 247 | Pending |
-| BUILD-04 | Phase 247 | Pending |
-| TEST-01 | Phase 248 | Pending |
-| TEST-02 | Phase 248 | Pending |
-| TEST-03 | Phase 248 | Pending |
-| TEST-04 | Phase 248 | Pending |
-| FIX-01 | Phase 249 | Pending |
-| FIX-02 | Phase 249 | Pending |
-| FIX-03 | Phase 250 | Complete |
-| FIX-04 | Phase 250 | Complete |
+| TEST-01 | Phase 250 | Pending |
+| TEST-02 | Phase 250 | Pending |
+| TEST-03 | Phase 250 | Pending |
+| TEST-04 | Phase 250 | Pending |
+| TEST-05 | Phase 250 | Pending |
 | COV-B-01 | Phase 251 | Pending |
-| COV-B-02 | Phase 251 | Pending |
-| COV-B-03 | Phase 252 | Complete |
-| COV-B-04 | Phase 253 | Pending |
-| COV-B-05 | Phase 251-253 | Complete |
-| COV-F-01 | Phase 254 | Complete |
-| COV-F-02 | Phase 254 | Complete |
-| COV-F-03 | Phase 255 | Pending |
-| COV-F-04 | Phase 256 | Pending |
-| COV-F-05 | Phase 254-256 | Complete |
-| TDD-01 | Phase 249-250 | Pending |
-| TDD-02 | Phase 249-250 | Pending |
-| TDD-03 | Phase 249-250 | Pending |
-| TDD-04 | Phase 257 | Pending |
-| PROP-01 | Phase 252 | Complete |
-| PROP-02 | Phase 252 | Complete |
-| PROP-03 | Phase 253 | Complete |
-| PROP-04 | Phase 257 | Pending |
-| QUAL-01 | Phase 258 | Complete |
-| QUAL-02 | Phase 258 | Complete |
-| QUAL-03 | Phase 258 | Complete |
-| QUAL-04 | Phase 258 | Complete |
-| DOC-01 | Phase 247 | Pending |
-| DOC-02 | Phase 248 | Pending |
-| DOC-03 | Phase 257 | Complete |
-| DOC-04 | Phase 258 | Complete |
+| COV-B-02 | Phase 253b | Pending |
+| COV-B-03 | Phase 259 | Pending |
+| COV-B-04 | Phase 261 | Pending |
+| COV-B-05 | Phase 251 | Pending |
+| COV-F-01 | Phase 254 | Pending |
+| COV-F-02 | Phase 255 | Pending |
+| COV-F-03 | Phase 256 | Pending |
+| COV-F-04 | Phase 260 | Pending |
+| COV-F-05 | Phase 254 | Pending |
+| QUAL-01 | Phase 258 | Pending |
+| QUAL-02 | Phase 258 | Pending |
+| QUAL-03 | Phase 258 | Pending |
+| QUAL-04 | Phase 258 | Pending |
+| DOC-01 | Phase 262 | Pending |
+| DOC-02 | Phase 262 | Pending |
+| DOC-03 | Phase 262 | Pending |
+| DOC-04 | Phase 262 | Pending |
 
 **Coverage:**
-- v10.0 requirements: 36 total
-- Mapped to phases: 36
-- Unmapped: 0 ✓
+- v11 requirements: 24 total
+- Mapped to phases: 24 (100%)
+- Unmapped: 0
 
 ---
-*Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Requirements defined: 2026-04-13*
+*Last updated: 2026-04-13 after research synthesis*
