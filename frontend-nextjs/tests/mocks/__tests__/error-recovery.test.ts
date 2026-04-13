@@ -10,15 +10,21 @@ import { createRecoveryScenario, createRetryTracker, errorRecoveryHandlers } fro
 import { rest } from 'msw';
 import { server } from '../server';
 
-describe('Error Recovery MSW Handlers', () => {
+// Suppress console.log for retry messages during tests
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
 
-  beforeEach(() => {
-    server.listen();
-  });
+beforeEach(() => {
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  server.listen();
+});
 
-  afterEach(() => {
-    server.resetHandlers();
-  });
+afterEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
+  server.resetHandlers();
+});
 
   afterAll(() => {
     server.close();

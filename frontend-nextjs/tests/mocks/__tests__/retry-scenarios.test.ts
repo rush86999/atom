@@ -15,6 +15,20 @@ import {
   retryHandlers,
 } from '../scenarios/retry-scenarios';
 
+// Suppress console.log for retry messages during tests
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
+
+beforeEach(() => {
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
+});
+
 describe('Retry Scenario Handlers', () => {
   describe('createFlakyEndpoint', () => {
     it('should create a GET handler by default', () => {
