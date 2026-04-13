@@ -17,6 +17,20 @@
 import { retry } from '@lifeomic/attempt';
 import { isRetryableError } from '@/lib/error-mapping';
 
+// Suppress console.log for retry messages during tests
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
+
+beforeEach(() => {
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
+});
+
 describe('API Retry Logic Configuration', () => {
   describe('1. Exponential Backoff Configuration', () => {
     it('should have correct retry configuration', () => {
