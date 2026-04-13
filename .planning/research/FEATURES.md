@@ -1,390 +1,893 @@
-# Feature Research: Automated Bug Discovery
+# Feature Landscape: Coverage Expansion to 70%
 
-**Domain:** Automated QA Testing & Bug Discovery for AI Automation Platform
-**Researched:** March 24, 2026
-**Confidence:** HIGH (based on existing v7.0 implementation and testing infrastructure)
+**Domain:** Test Coverage Expansion for AI Automation Platform
+**Researched:** 2026-04-13
+**Overall confidence:** HIGH (based on existing Phase 8.5 research, Phase 258 verification, and industry standards)
 
-## Feature Landscape
+---
 
-### Table Stakes (Users Expect These)
+## Executive Summary
 
-Core automated bug discovery capabilities expected in any comprehensive QA platform. Missing these means the platform feels incomplete for production reliability.
+Comprehensive test coverage expansion typically follows a **layered approach**: fix test infrastructure blockers → measure baseline → target high-impact files → enforce quality gates → iterate with progressive thresholds. For v11.0's goal of reaching 70% coverage (backend 18.25% → 70%, frontend 14.61% → 70%), the key is **prioritizing by impact** (files >200 lines with <10% coverage) and **maintaining quality gates** throughout the expansion process.
+
+**Different from v10.0:** v10.0 achieved quality infrastructure (gates, documentation, property tests) but left coverage at 18.25% backend / 14.61% frontend. v11.0 focuses on **execution** of coverage expansion waves with realistic 70% targets (pragmatic vs. v10.0's 80%).
+
+**Key insight:** Industry standard for production code is 70-80% coverage. 70% is the **minimum acceptable threshold** (Google uses 60%, many enterprise teams target 75%). 100% is counterproductive (diminishing returns, test maintenance burden).
+
+---
+
+## Key Findings
+
+**Stack:** pytest-cov (backend), Jest/nyc (frontend), property-based testing (Hypothesis), quality gates (CI/CD enforcement)
+**Architecture:** Layered expansion strategy (baseline → high-impact files → API routes → edge cases)
+**Critical pitfall:** Starting with low-value files (small utilities) provides minimal coverage impact vs. targeting largest zero-coverage files first
+
+---
+
+## Table Stakes
+
+Features users expect for a production-ready coverage expansion. Missing = expansion feels incomplete or unsustainable.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Fuzzing** | Discovers edge cases and crash-causing inputs that human testers miss | MEDIUM | Coverage-guided fuzzing (Atheris) for Python code, targets parsing, validation, serialization |
-| **Property-Based Testing** | Validates system invariants across thousands of auto-generated inputs | LOW | Already implemented: 239 property test files using Hypothesis with 113K+ lines of test code |
-| **Load/Stress Testing** | Identifies performance bottlenecks and breaking points under load | MEDIUM | Already implemented: k6 scripts for baseline (10 users), moderate (50 users), high (100 users) |
-| **Network Failure Simulation** | Tests system resilience to degraded network conditions | LOW | Already implemented: offline mode, 3G slow, database drop, API timeout tests |
-| **Headless Browser Automation** | Validates UI workflows and discovers client-side bugs | LOW | Already implemented: 495+ Playwright E2E tests across web/mobile/desktop |
-| **Automated Bug Reporting** | Captures and files bugs without manual intervention | MEDIUM | Already implemented: BugFilingService with GitHub integration, supports screenshots/logs/traces |
-| **Memory Leak Detection** | Finds resource leaks that cause long-term degradation | MEDIUM | Already implemented: Heap snapshot comparison for agent execution loops |
-| **Performance Regression Detection** | Catches performance degradations before they reach production | MEDIUM | Already implemented: Lighthouse CI, performance thresholds, p(95) latency tracking |
+| **Baseline measurement** | Cannot improve what you don't measure; need starting point for progress tracking | Low | ✅ DONE (Phase 251: 18.25% backend, Phase 254: 14.61% frontend) |
+| **Coverage report generation** | HTML reports show exact missing lines; JSON enables trend tracking | Low | ✅ DONE (pytest-cov, nyc configured) |
+| **High-impact file identification** | Testing largest files first maximizes coverage increase per hour spent | Medium | ⚠️ PARTIAL (Phase 251 identified 77 zero-coverage backend files; frontend less clear) |
+| **Quality gate enforcement** | Prevents coverage regression; gates enforce minimum standards | Medium | ✅ DONE (Phase 258: 70% → 75% → 80% progressive thresholds, CI/CD blocking) |
+| **Test infrastructure unblocking** | Cannot expand coverage if tests cannot run (syntax errors, missing models, import errors) | High | ⚠️ PARTIAL (Phase 266 schema migration unblocked 900+ tests; 300+ still blocked by import errors) |
+| **Coverage trend tracking** | Shows progress over time; identifies concerning drops (↑↓→ indicators) | Low | ✅ DONE (Phase 258: quality_metrics.json with 30-day history) |
+| **Property-based testing integration** | Catches edge cases unit tests miss; validates invariants across thousands of inputs | High | ✅ DONE (Phase 252: 96 property tests, 100% pass rate) |
+| **Branch coverage measurement** | More accurate than line coverage; catches untested conditional branches | Low | ✅ DONE (pytest-cov branch=true configured, but only 3.87% branch coverage achieved) |
+| **Documentation of coverage targets** | Clear goals prevent scope creep; progressive thresholds manage expectations | Low | ✅ DONE (docs/testing/COVERAGE_REPORT_GUIDE.md, 1,377 lines of QA docs) |
 
-### Differentiators (Competitive Advantage)
+**Status:** 7/9 table stakes complete (78%). Missing: clear frontend high-impact file list, remaining test infrastructure unblocking.
 
-Features that set Atom's bug discovery apart from generic QA platforms. These represent innovative approaches to automated testing.
+---
+
+## Differentiators
+
+Features that set coverage expansion apart from basic "write more tests" approaches. Not expected, but highly valued for efficiency and sustainability.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Multi-Agent Fuzzing Orchestration** | Uses AI agents to generate fuzzing strategies based on code coverage gaps | HIGH | Train agents to analyze coverage reports and generate targeted fuzz inputs for low-coverage paths |
-| **Chaos Engineering for Distributed Systems** | Proactively injects failures to test resilience of agent orchestration, LLM routing, episodic memory | HIGH | Simulate LLM provider failures, database connection drops, Redis crashes, WebSocket disconnections |
-| **Property-Based Testing with AI-Generated Invariants** | Uses LLM to analyze code and suggest properties to test | MEDIUM | Extend existing Hypothesis tests with AI-discovered invariants from code analysis |
-| **Cross-Platform Bug Correlation** | Detects if bug manifests across web, mobile, desktop | MEDIUM | Already have 495+ E2E tests - add correlation layer to detect cross-platform patterns |
-| **Semantic Bug Clustering** | Groups similar bugs automatically using LLM embeddings | MEDIUM | Uses existing canvas summary LLM service to cluster bug reports by semantic similarity |
-| **Predictive Bug Discovery** | Uses historical bug data to predict high-risk areas | HIGH | Train models on past bug locations to suggest fuzzing/targeted testing focus areas |
-| **Real-Time Bug Discovery in CI/CD** | Discovers and files bugs during pipeline execution | MEDIUM | Already implemented: Nightly/weekly stress test workflows in phase 236 |
-| **Business Logic Fuzzing** | Fuzzes business rules (agent governance, episodic memory, graduation) | HIGH | Custom fuzz generators for domain-specific inputs (confidence scores, maturity levels, episode boundaries) |
-| **Contract Fuzzing for API Routes** | Fuzzes OpenAPI contracts to find schema violations | MEDIUM | Already planned: Schemathesis integration (in requirements-testing.txt) |
+| **AI-assisted test generation** | 10x faster baseline creation for zero-coverage files; targets uncovered lines automatically | Medium | ⚠️ EVALUATE (Cover-Agent, CoverUp available; efficacy on complex business logic unvalidated) |
+| **Wave-based expansion strategy** | Breaks 50pp gap into manageable chunks (waves of 5-10pp); maintains momentum with measurable progress | Low | ✅ PLANNED (v11.0 multi-wave approach: fix tests → backend waves → frontend waves) |
+| **Progressive threshold enforcement** | Realistic targets (70% → 75% → 80%) vs. unrealistic 80% overnight; reduces developer resistance | Low | ✅ DONE (Phase 258 quality-gate-config.yml) |
+| **Diff coverage enforcement** | Prevents PRs from dropping coverage; focuses on new code, not historical debt | Medium | ⚠️ CONFIGURED (diff-cover available; enforcement unclear in Phase 258) |
+| **Mutation testing for quality validation** | Verifies tests actually catch bugs (not just execute code); identifies weak tests | High | ❌ NOT IMPLEMENTED (mutmut available; Phase 8.5 research noted as "future enhancement") |
+| **Flaky test detection and quarantine** | Prevents unreliable tests from blocking PRs; maintains trust in test suite | Medium | ✅ DONE (pytest-rerunfailures configured, 3 reruns; SQLite quarantine for known flaky tests) |
+| **Coverage-per-component breakdown** | Identifies weak modules (e.g., fleet_admiral.py 0% vs. governance_cache.py 85.2%); guides targeting | Low | ✅ DONE (Phase 266 report shows component-level coverage) |
+| **Emergency bypass mechanism** | Allows temporary gate disable for emergencies; prevents gate from blocking critical fixes | Low | ✅ DONE (EMERGENCY_BYPASS env var in quality gate config) |
+| **Assert-to-test ratio tracking** | Identifies test proliferation (many asserts, few tests) vs. meaningful coverage | Low | ❌ NOT TRACKED (Phase 154 research mentioned; implementation unclear) |
+| **Complexity-aware coverage targets** | Higher coverage for critical paths (auth, payments) vs. lower for utilities (helpers, DTOs) | Medium | ❌ NOT IMPLEMENTED (uniform 70% target across all files) |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+**Status:** 5/10 differentiators implemented (50%). v11.0 should consider complexity-aware targets (critical paths vs. utilities).
 
-Features that seem valuable but create more problems than they solve.
+---
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Full System Chaos (Random Everything)** | "Test everything by breaking everything" | Too noisy, generates false positives, hard to reproduce | Targeted chaos engineering: specific failure modes in specific components |
-| **100% Code Coverage via Fuzzing** | "Find all possible bugs" | Diminishing returns, slows down CI, doesn't guarantee quality | Focus on critical path coverage (agent execution, LLM routing, governance) |
-| **Fuzzing in Production** | "Find bugs in real conditions" | Too risky, can crash production systems, customer impact | Fuzzing in staging with production-like traffic replay |
-| **Automated Bug Fixing** | "Not just discover bugs, fix them" | AI-generated fixes often introduce new bugs, require human review anyway | Automated bug triage and prioritization with human-in-the-loop fixing |
-| **Fuzz All Third-Party Dependencies** | "Ensure libs are secure" | Not our responsibility, vendors should do their own testing | Fuzz integration points with third-party libs, not libs themselves |
-| **Chaos Engineering on Database** | "Test resilience to data loss" | Data corruption risk, hard to clean up, recovery time | Database failure simulation (connection drops, not actual data corruption) |
+## Anti-Features
+
+Features to explicitly NOT build during coverage expansion.
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **100% coverage enforcement** | Diminishing returns; tests implementation details not behavior; high maintenance burden | Target 70-80% (industry standard); focus on business logic, not edge cases |
+| **Coverage for coverage's sake** | Tests without assertions (execute code but don't validate); false confidence | Enforce test quality (assertions, behavior validation); use mutation testing to identify weak tests |
+| **Manual coverage tracking** | Spreadsheets, manual calculations are error-prone; not CI-integrated | Use pytest-cov/nyc for automated measurement; quality_metrics.json for trend tracking |
+| **Custom coverage calculation scripts** | Reinventing the wheel; coverage.py/coverage.py are industry standards | Use pytest-cov (backend), nyc (frontend); customize via .coverage-rc not new scripts |
+| **Testing implementation details** | Brittle tests (break on refactoring); test behavior, not internal state | Test public APIs and observable behavior; use black-box testing for integration tests |
+| **Over-mocking external dependencies** | Tests pass but production fails; mocks hide real integration issues | Use integration tests for end-to-end validation; mock only external services (APIs, databases) |
+| **Neglecting branch coverage** | Line coverage looks good (80%) but branch coverage poor (30%); misses conditional paths | Enable branch coverage in pytest-cov; write tests for both true/false branches |
+| **Ignoring frontend test failures** | 1,504 failing frontend tests (28.8% failure rate) block accurate coverage measurement | Fix frontend tests first (Phase 250 approach); then expand coverage |
+| **Starting with low-value files** | Testing 50-line helpers provides minimal impact; coverage increases <1% | Prioritize by lines of code (largest zero-coverage files first) |
+| **Writing tests without coverage targets** | Tests may not address uncovered lines; redundant effort | Always run `--cov-report=term-missing` to see exact missing lines; target gaps explicitly |
+
+---
 
 ## Feature Dependencies
 
 ```
-[Fuzzing - Atheris]
-    └──requires──> [Coverage Reports (pytest-cov)]
-                   └──requires──> [Test Infrastructure (pytest)]
-
-[Property-Based Testing - Hypothesis]
-    └──requires──> [Test Database Fixtures]
-    └──enhances──> [API Contract Testing (Schemathesis)]
-
-[Load Testing - k6]
-    └──requires──> [Staging Environment]
-    └──requires──> [Baseline Metrics]
-
-[Network Failure Simulation]
-    └──requires──> [Playwright E2E Tests]
-    └──requires──> [Network Emulation (Chromium DevTools Protocol)]
-
-[Automated Bug Filing]
-    └──requires──> [GitHub Integration]
-    └──requires──> [Test Metadata Collection]
-    └──enhances──> [All Test Types (load, network, memory, etc.)]
-
-[Chaos Engineering]
-    └──requires──> [Container Orchestration (Docker/Kubernetes)]
-    └──requires──> [Service Discovery]
-    └──conflicts──> [Shared Development Environment]
-
-[Memory Leak Detection]
-    └──requires──> [Headless Browser with Heap Profiling]
-    └──requires──> [Baseline Heap Snapshots]
-
-[Cross-Platform Bug Correlation]
-    └──requires──> [Web E2E Tests (Playwright)]
-    └──requires──> [Mobile E2E Tests (Detox/API-level)]
-    └──requires──> [Desktop E2E Tests (Tauri)]
-
-[Semantic Bug Clustering]
-    └──requires──> [LLM Service (OpenAI/Anthropic)]
-    └──requires──> [Bug Metadata (screenshots, logs, traces)]
+Test Fixes → Coverage Measurement (baseline)
+Coverage Measurement → High-Impact File Identification
+High-Impact File Identification → Wave 1 Coverage Expansion
+Wave 1 → Wave 2 → Wave 3 (iterative waves)
+Quality Gates → All Waves (enforcement throughout)
+Coverage Expansion → Mutation Testing (quality validation)
+Coverage Expansion → Documentation Updates (trends, strategies)
 ```
 
-### Dependency Notes
+**Critical Path:** Fix failing tests (unblock measurement) → Measure baseline → Identify high-impact files → Execute Wave 1 → Enforce quality gates → Wave 2 → Wave 3 → Target 70%
 
-- **Fuzzing requires Coverage Reports:** Atheris coverage-guided fuzzing needs baseline coverage to identify unexplored code paths. Already have pytest-cov infrastructure.
-- **Property-Based Testing enhances API Contract Testing:** Hypothesis strategies can generate test data for Schemathesis OpenAPI contract fuzzing.
-- **Load Testing requires Staging Environment:** k6 load tests should run against staging, not production, to avoid customer impact. Already have docker-compose-e2e.yml for isolated testing.
-- **Network Failure Simulation requires E2E Tests:** Playwright's CDPSession enables network emulation (offline, slow 3G, latency). Already have 91 E2E tests with network fixtures.
-- **Automated Bug Filing enhances all test types:** BugFilingService integrates with load, network, memory, mobile, desktop, visual, and a11y tests. Already implemented in phase 236-08.
-- **Chaos Engineering conflicts with Shared Dev Environment:** Chaos experiments (pod kills, network failures) disrupt other developers. Need isolated chaos environment or scheduled chaos windows.
-- **Memory Leak Detection requires Heap Profiling:** Playwright's page.heapSnapshot() can capture JS memory usage. Already have memory leak tests in phase 236.
-- **Cross-Platform Correlation requires all platform tests:** Need web, mobile, and desktop tests running to detect if bug manifests across platforms. Already have 495+ E2E tests from phase 236.
-- **Semantic Bug Clustering requires LLM Service:** Uses existing canvas summary service or BYOK LLM to generate embeddings for bug clustering. Already have LLMService infrastructure.
+**Parallel Paths:** Backend waves and frontend waves can run in parallel (different teams, different coverage files)
 
-## MVP Definition
+---
 
-### Launch With (v1)
+## MVP Recommendation
 
-Minimum viable bug discovery platform to validate automated testing approach.
+**For v11.0 Coverage Completion (70% target):**
 
-- [ ] **Fuzzing with Atheris** — Discovers crash-causing inputs in critical parsing/validation code (CSV parsing, JSON validation, input sanitization)
-  - **Why essential:** Finds edge cases human testers miss, high ROI for parsing-heavy code
-  - **Implementation:** Already have fuzz_helpers.py and 3 fuzz test files (financial_parsing, security_validation)
-  - **Target:** 10 fuzz test cases covering core input parsing paths
+### Prioritize (MVP - Must Have)
 
-- [ ] **Property-Based Testing Expansion** — Validates system invariants across thousands of auto-generated inputs
-  - **Why essential:** Already have 239 property test files (113K+ lines), need to expand coverage
-  - **Implementation:** Use existing Hypothesis conftest.py with strategies for agents, LLM, governance
-  - **Target:** Add 50 property tests for critical paths (agent execution, LLM routing, episodic memory)
+1. **Frontend Test Fixes** (Phase 250-style)
+   - Fix 1,504 failing tests (28.8% failure rate → 100% pass rate)
+   - Unblock accurate frontend coverage measurement
+   - **Complexity:** High (many failures, diverse root causes)
+   - **Impact:** HIGH - cannot expand coverage without working tests
 
-- [ ] **Load Testing with k6** — Identifies performance bottlenecks under load
-  - **Why essential:** Catches performance regressions before production, ensures scalability
-  - **Implementation:** Already have k6 setup and 4 load test scripts (baseline, moderate, high, web UI)
-  - **Target:** Run weekly load tests in CI/CD, file bugs for p(95) latency >500ms
+2. **Backend High-Impact File Coverage** (Wave 1)
+   - Target files >200 lines with <10% coverage
+   - Current low-hanging fruit: `fleet_admiral.py` (0%, 856 lines), `atom_meta_agent.py` (0%, 645 lines), `queen_agent.py` (0%, 523 lines)
+   - **Complexity:** Medium (large files, but clear coverage gaps)
+   - **Impact:** HIGH - largest coverage increase per hour spent
 
-- [ ] **Network Failure Simulation** — Tests resilience to degraded network conditions
-  - **Why essential:** Real-world networks fail, system should degrade gracefully
-  - **Implementation:** Already have 4 network test files (offline, slow 3G, database drop, API timeout)
-  - **Target:** 10 network failure scenarios covering critical user flows
+3. **Frontend High-Impact File Coverage** (Wave 1)
+   - Identify zero-coverage files >200 lines (frontend less clear than backend)
+   - Target auth, agents, workflows, canvas components (critical paths)
+   - **Complexity:** Medium (needs frontend coverage baseline refinement)
+   - **Impact:** HIGH - frontend has larger gap (-55.39pp to 70% vs. backend -51.75pp)
 
-- [ ] **Automated Bug Filing** — Captures and files bugs without manual intervention
-  - **Why essential:** Reduces toil, ensures bugs are captured immediately
-  - **Implementation:** Already have BugFilingService with GitHub integration
-  - **Target:** All test types file bugs on failure with screenshots/logs/traces
+4. **Quality Gate Maintenance**
+   - Enforce 70% threshold throughout expansion
+   - Monitor trends (↑↓→ indicators)
+   - Prevent coverage regression
+   - **Complexity:** Low (infrastructure exists, monitor and adjust)
+   - **Impact:** MEDIUM - prevents backsliding, maintains standards
 
-### Add After Validation (v1.x)
+### Defer (Post-MVP)
 
-Features to add once core bug discovery is working and yielding results.
+5. **Mutation Testing** (Quality Validation)
+   - Use mutmut to verify test quality
+   - Identify weak tests (execute code but don't catch bugs)
+   - **Complexity:** High (new tool, test execution time increases)
+   - **Impact:** MEDIUM - improves test quality but not required for 70% target
+   - **Defer to:** v11.1 or v12.0 (after 70% achieved)
 
-- [ ] **Memory Leak Detection** — Finds resource leaks in long-running processes
-  - **Trigger:** After discovering 2+ memory-related bugs in production
-  - **Implementation:** Heap snapshot comparison for agent execution loops
-  - **Target:** Detect 10MB+ memory increase over 100 agent executions
+6. **AI-Assisted Test Generation**
+   - Evaluate Cover-Agent, CoverUp for baseline test creation
+   - **Complexity:** Medium (tool setup, prompt engineering, result validation)
+   - **Impact:** HIGH if effective (10x faster), LOW if poor quality
+   - **Defer to:** Wave 2 or 3 (after manual approach establishes patterns)
 
-- [ ] **Performance Regression Detection** — Catches performance degradations
-  - **Trigger:** After performance complaints from users
-  - **Implementation:** Lighthouse CI integration with performance thresholds
-  - **Target:** Alert on >20% performance regression
+7. **Complexity-Aware Coverage Targets**
+   - Higher targets for critical paths (80-90% for auth, payments, data loss prevention)
+   - Lower targets for utilities (50-60% for helpers, DTOs)
+   - **Complexity:** Medium (file classification, policy definition, enforcement)
+   - **Impact:** MEDIUM - more realistic targets, but adds complexity
+   - **Defer to:** After 70% uniform target achieved
 
-- [ ] **API Contract Fuzzing** — Fuzzes OpenAPI contracts
-  - **Trigger:** After discovering API schema violation bugs
-  - **Implementation:** Schemathesis integration (already in requirements-testing.txt)
-  - **Target:** Fuzz all /api/v1 endpoints for schema compliance
+8. **Assert-to-Test Ratio Tracking**
+   - Identify test proliferation (many asserts, few tests)
+   - **Complexity:** Low (add metric to quality_metrics.json)
+   - **Impact:** LOW - nice-to-have metric, not critical for 70% target
+   - **Defer to:** v11.1 (quality refinement phase)
 
-- [ ] **Cross-Platform Bug Correlation** — Detects cross-platform bug patterns
-  - **Trigger:** After having 100+ bugs filed across platforms
-  - **Implementation:** Correlation layer on top of existing BugFilingService
-  - **Target:** Auto-link bugs that manifest on web + mobile + desktop
+---
 
-### Future Consideration (v2+)
+## Industry Benchmarks (2026)
 
-Advanced features for mature bug discovery platform.
+| Metric | Industry Standard | Atom v10.0 Actual | v11.0 Target |
+|--------|-------------------|-------------------|--------------|
+| **Backend Coverage** | 70-80% (Google 60%, enterprise 75%) | 18.25% | 70% |
+| **Frontend Coverage** | 70-80% (complex UIs often 60-70%) | 14.61% | 70% |
+| **Test Pass Rate** | 100% (blocking gate) | 71.2% frontend, 99.3% backend | 100% |
+| **Branch Coverage** | 60-70% (more meaningful than line) | 3.87% backend | 50% (stretch goal) |
+| **Property Tests** | 30+ invariants (Hypothesis guide) | 96 tests (100% pass) | Maintain + expand |
+| **Flaky Test Rate** | <1% (ideal), <5% (acceptable) | Unknown (reruns configured) | <5% |
+| **Test Execution Time** | <30 min (full suite) | 74 seconds (backend, 928 tests) | <10 min (backend+frontend) |
+| **Coverage Regression** | 0% (blocked by gate) | Enforced (Phase 258) | Maintain enforcement |
 
-- [ ] **Chaos Engineering** — Proactive failure injection for distributed systems
-  - **Why defer:** Requires isolated environment, risks disrupting other developers
-  - **Prerequisite:** Dedicated staging environment with scheduled chaos windows
-  - **Target:** Simulate LLM provider failures, database drops, Redis crashes
+**Sources:** Phase 8.5 research (HIGH confidence), Phase 258 verification (HIGH confidence), industry standards from testing documentation (MEDIUM confidence - based on training data, web search unavailable due to rate limits).
 
-- [ ] **Multi-Agent Fuzzing Orchestration** — AI-driven fuzzing strategy generation
-  - **Why defer:** Requires training data on effective fuzzing strategies
-  - **Prerequisite:** 100+ fuzzing runs with coverage data
-  - **Target:** Agents generate fuzz inputs for low-coverage paths
+---
 
-- [ ] **Semantic Bug Clustering** — Groups similar bugs automatically
-  - **Why defer:** Requires significant bug dataset for clustering accuracy
-  - **Prerequisite:** 500+ filed bugs with rich metadata
-  - **Target:** Auto-group duplicate bugs, suggest merge candidates
+## Coverage Expansion Strategies
 
-- [ ] **Predictive Bug Discovery** — Uses historical data to predict high-risk areas
-  - **Why defer:** Requires ML model training on past bug locations
-  - **Prerequisite:** 1000+ bugs with code location metadata
-  - **Target:** Suggest fuzzing focus areas based on risk score
+### Strategy 1: High-Impact File Prioritization (Recommended for v11.0)
 
-## Feature Prioritization Matrix
+**What:** Target largest zero-coverage files first for maximum coverage increase per hour.
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| **Fuzzing with Atheris** | HIGH (finds crash bugs) | MEDIUM (have infrastructure, need test cases) | P1 |
-| **Property-Based Testing Expansion** | HIGH (validates invariants) | LOW (have 239 files, need more) | P1 |
-| **Load Testing with k6** | HIGH (catches perf regressions) | LOW (have scripts, need CI integration) | P1 |
-| **Network Failure Simulation** | HIGH (real-world resilience) | LOW (have tests, need expansion) | P1 |
-| **Automated Bug Filing** | HIGH (reduces toil) | MEDIUM (have service, need integration) | P1 |
-| **Memory Leak Detection** | MEDIUM (long-term stability) | MEDIUM (need heap profiling) | P2 |
-| **Performance Regression Detection** | MEDIUM (UX quality) | MEDIUM (need Lighthouse CI) | P2 |
-| **API Contract Fuzzing** | MEDIUM (API correctness) | MEDIUM (Schemathesis integration) | P2 |
-| **Cross-Platform Bug Correlation** | LOW (convenience) | HIGH (need correlation layer) | P3 |
-| **Chaos Engineering** | HIGH (resilience) | HIGH (need isolated env) | P3 |
-| **Multi-Agent Fuzzing Orchestration** | MEDIUM (smart fuzzing) | HIGH (need training data) | P3 |
-| **Semantic Bug Clustering** | LOW (organization) | HIGH (need bug dataset) | P3 |
-| **Predictive Bug Discovery** | LOW (optimization) | HIGH (need ML model) | P3 |
+**When to use:** Starting from low baseline (<20% coverage), need quick wins to demonstrate progress.
 
-**Priority key:**
-- **P1 (Must have for v1):** Core bug discovery capabilities that find high-impact bugs with reasonable cost
-- **P2 (Should have, add when possible):** Valuable features that address specific pain points
-- **P3 (Nice to have, future consideration):** Advanced features requiring significant infrastructure or data
+**Example (Backend - Phase 266 data):**
+```
+Top 5 zero-coverage files:
+1. fleet_admiral.py: 0% (856 lines) → Target 50% (+428 lines)
+2. atom_meta_agent.py: 0% (645 lines) → Target 50% (+323 lines)
+3. queen_agent.py: 0% (523 lines) → Target 50% (+262 lines)
+4. agent_routes.py: 2.1% (18/850 lines) → Target 50% (+407 lines)
+5. workflow_routes.py: 3.4% (28/820 lines) → Target 50% (+382 lines)
 
-## Competitor Feature Analysis
+Total potential: +1,802 lines (10% of overall backend coverage)
+Estimated effort: 3-5 days (for 50% coverage on these 5 files)
+```
 
-| Feature | Generic QA Platforms | AI Testing Tools | Our Approach (Atom) |
-|---------|---------------------|------------------|---------------------|
-| **Fuzzing** | AFL/libFuzzer integration, mostly C/C++ | Limited fuzzing support | Python-focused Atheris fuzzing for business logic |
-| **Property-Based Testing** | Hypothesis/QuickCheck plugins | Manual property definition | 239 existing property test files + AI-generated invariants (future) |
-| **Load Testing** | JMeter, k6, Gatling | Basic load tests | k6 integration with CI/CD and automated bug filing |
-| **Network Simulation** | Basic throttling | Limited | Chromium DevTools Protocol integration with offline/3G/timeout tests |
-| **Automated Bug Filing** | Jira integration, manual | Limited | GitHub integration with rich metadata (screenshots, logs, traces) |
-| **Cross-Platform** | Separate tools per platform | Web-focused | Unified Playwright + Detox + Tauri tests with correlation |
-| **Chaos Engineering** | Chaos Monkey, Chaos Mesh | Rare | Targeted chaos for agent/LLM/governance systems (future) |
-| **AI-Enhanced** | Test selection, flaky detection | AI-generated tests | AI-driven fuzzing strategies, semantic clustering, predictive discovery (future) |
+**Pros:**
+- Maximizes coverage increase per hour
+- Demonstrates visible progress quickly
+- Focuses on complex business logic (not utilities)
 
-**Our differentiators:**
-1. **Python business logic fuzzing:** Focus on agent governance, LLM routing, episodic memory (not just parsing)
-2. **Property-based testing at scale:** 239 files, 113K+ lines, covering domain-specific invariants
-3. **Integrated bug filing:** Automatic GitHub filing with screenshots, logs, traces, reproducible cases
-4. **Cross-platform correlation:** Detect if bug manifests across web/mobile/desktop
-5. **AI-enhanced discovery:** Multi-agent fuzzing orchestration, semantic clustering, predictive risk scoring (v2+)
+**Cons:**
+- Large files can be intimidating
+- May miss integration dependencies
+- Requires understanding of complex systems
 
-## Existing Implementation Status
+**Implementation:**
+1. Run `pytest --cov-report=json` to generate coverage.json
+2. Parse JSON, filter by `percent_covered == 0` and `num_statements > 200`
+3. Sort by `num_statements` descending
+4. For each file: write tests targeting public methods, happy path, error cases
+5. Re-run coverage, verify increase
 
-Based on analysis of existing codebase (v7.0 shipped March 24, 2026):
+**See also:** Phase 8.5 RESEARCH.md "Pattern 4: Coverage-Driven Test Generation"
 
-### ✅ Already Implemented (v7.0)
+---
 
-1. **Property-Based Testing**
-   - Files: 239 property test files in `/backend/tests/property_tests/`
-   - Lines: 113,598 lines of property test code
-   - Framework: Hypothesis with conftest.py (strategies, settings, fixtures)
-   - Coverage: agent_governance, llm, episodes, workflows, models, api, security, etc.
+### Strategy 2: Wave-Based Expansion (Recommended for v11.0)
 
-2. **Fuzzing Infrastructure**
-   - Files: `fuzz_helpers.py` with Atheris wrapper utilities
-   - Tests: 3 fuzz test files (financial_parsing, security_validation)
-   - Features: FuzzTestCase class, exception handling, crash reporting
+**What:** Break 50pp gap into waves of 5-10pp, execute sequentially with quality gates.
 
-3. **Load Testing**
-   - Tool: k6 (Grafana k6 load testing tool)
-   - Scripts: 4 load test files (baseline 10 users, moderate 50 users, high 100 users, web UI)
-   - Scenarios: API endpoints, web UI user flows
-   - Location: `/backend/tests/load/`
+**When to use:** Large gap (>40pp), need maintainable pace with continuous validation.
 
-4. **Network Failure Simulation**
-   - Files: 4 network test files in `/backend/tests/e2e_ui/tests/`
-   - Scenarios: offline mode, slow 3G, database drop, API timeout
-   - Framework: Playwright with CDPSession for network emulation
+**Example (Backend - 18.25% → 70%):**
+```
+Wave 1: 18.25% → 30% (+11.75pp, ~10,600 lines)
+- Target: High-impact files (>200 lines, <10% coverage)
+- Duration: 1 week
+- Files: fleet_admiral, atom_meta_agent, queen_agent, agent_routes, workflow_routes
 
-5. **Headless Browser Automation**
-   - Tests: 495+ E2E tests (Phase 236 v7.0)
-   - Framework: Playwright Python 1.58.0
-   - Coverage: authentication, agents, canvas, workflows, stress testing
-   - Location: `/backend/tests/e2e_ui/tests/`
+Wave 2: 30% → 45% (+15pp, ~13,600 lines)
+- Target: API routes (100+ endpoints), governance, canvas, LLM service
+- Duration: 1 week
+- Files: api/*.py (routes), core/agent_governance_service.py, core/llm/*.py
 
-6. **Automated Bug Filing**
-   - Service: `BugFilingService` with GitHub integration
-   - Features: Idempotent filing, rich metadata, screenshots, logs, traces
-   - Tests: `test_automated_bug_filing.py` (615 lines)
-   - Supports: load, network, memory, mobile, desktop, visual, a11y tests
+Wave 3: 45% → 60% (+15pp, ~13,600 lines)
+- Target: Core services, episodic memory, workflow engine
+- Duration: 1 week
+- Files: core/episode_*.py, core/workflow_engine.py, tools/*.py
 
-7. **Memory Leak Detection**
-   - File: `test_memory_leak_detection.py` (150 lines)
-   - Method: Heap snapshot comparison for agent execution loops
-   - Detection: 10MB+ memory increase triggers bug filing
+Wave 4: 60% → 70% (+10pp, ~9,100 lines)
+- Target: Edge cases, error paths, integration tests
+- Duration: 1 week
+- Files: All modules <70%, focus on remaining gaps
+```
 
-8. **Performance Regression Detection**
-   - File: `test_performance_regression.py` (163 lines)
-   - Tool: Lighthouse CI integration
-   - Metrics: p(95) latency, error rate, performance thresholds
+**Pros:**
+- Manageable chunks (5-10pp per wave)
+- Continuous validation (quality gates after each wave)
+- Maintains momentum (visible progress weekly)
+- Parallelizable (backend Wave 1 and frontend Wave 1 can run simultaneously)
 
-9. **Cross-Platform Testing**
-   - Web: Playwright (Chromium)
-   - Mobile: Detox (React Native) - API-level testing
-   - Desktop: Tauri testing
-   - Location: `/backend/tests/e2e_ui/tests/cross-platform/`
+**Cons:**
+- Requires upfront planning (wave definitions, file lists)
+- May need to adjust targets based on actual progress
+- Risk of "leftover" difficult files in later waves
 
-10. **Visual Regression Testing**
-    - Tool: Percy visual regression
-    - Tests: 26 tests, 78+ snapshots
-    - Location: `/backend/tests/e2e_ui/tests/visual/`
+**Implementation:**
+1. Define wave targets (percentage gaps, file lists, durations)
+2. Execute Wave 1, enforce quality gates (70% threshold for new code, diff coverage)
+3. Measure coverage, update trends in quality_metrics.json
+4. Adjust Wave 2 targets based on Wave 1 learnings
+5. Repeat until 70% achieved
 
-11. **Accessibility Testing**
-    - Tool: jest-axe (WCAG compliance)
-    - Tests: 53 accessibility tests
-    - Location: `/backend/tests/e2e_ui/tests/a11y/`
+**See also:** Phase 258 quality-gate-config.yml (progressive thresholds), Phase 266 report (gap analysis)
 
-### 🚧 Partially Implemented (Needs Expansion)
+---
 
-1. **Fuzzing Coverage**
-   - **Status:** Have infrastructure (fuzz_helpers.py), only 3 fuzz test files
-   - **Need:** Expand to 10+ fuzz test cases covering critical paths
-   - **Target Areas:** Agent governance, LLM routing, episodic memory, input validation
+### Strategy 3: Property-Based Testing Integration (Complementary)
 
-2. **Property-Based Testing Coverage**
-   - **Status:** 239 files is extensive, but may have gaps in new features
-   - **Need:** Add 50 property tests for v7.0+ features (GraphRAG, entity types, world model)
-   - **Target:** Ensure all critical paths have property tests
+**What:** Use property tests to validate invariants across thousands of inputs, catching edge cases unit tests miss.
 
-3. **Chaos Engineering**
-   - **Status:** Not implemented
-   - **Need:** Infrastructure for failure injection (LLM provider failures, DB drops)
-   - **Recommendation:** Defer to v2+ (requires isolated environment)
+**When to use:** Critical business logic (financial calculations, data integrity, state management).
 
-### ❌ Not Implemented (Future Work)
+**Example (Backend - Phase 252):**
+```
+Property tests created: 96 tests, 100% pass rate
+Invariants validated:
+- Governance: Agent maturity checks, permission enforcement
+- Episodes: Segment ordering, metadata consistency
+- Database: Transaction atomicity, constraint validation
+- LLM: API round-trips, response structure validation
 
-1. **API Contract Fuzzing**
-   - **Tool:** Schemathesis (in requirements-testing.txt but not configured)
-   - **Need:** Integration with OpenAPI specs, automated contract validation
-   - **Target:** Fuzz all /api/v1 endpoints for schema compliance
+Example invariant (test_state_update_immutability):
+@given(st.integers(), st.text())
+@settings(max_examples=100)
+def test_state_update_immutability(initial_count, initial_name):
+    """
+    INVARIANT: State update should not mutate input state
+    VALIDATED_BUG: Shallow copy caused reference sharing
+    """
+    state = {"count": initial_count, "name": initial_name}
+    state_copy = copy.deepcopy(state)
+    update_state(state, {"count": initial_count + 1})
+    assert state == state_copy  # Original unchanged
+```
 
-2. **Multi-Agent Fuzzing Orchestration**
-   - **Status:** Concept only
-   - **Need:** Train agents to generate fuzzing strategies based on coverage gaps
-   - **Prerequisite:** Coverage data + training dataset
+**Pros:**
+- Finds edge cases (null, empty, large numbers, Unicode)
+- Validates invariants across thousands of inputs
+- Documents system behavior through invariants
+- Catches bugs unit tests miss (off-by-one, boundary conditions)
 
-3. **Semantic Bug Clustering**
-   - **Status:** Concept only
-   - **Need:** LLM-based embedding generation for bug reports
-   - **Prerequisite:** 500+ filed bugs with metadata
+**Cons:**
+- Slower than unit tests (100+ examples per test)
+- Requires invariant identification (not all code has clear invariants)
+- Debugging failures can be complex (shrunk counterexamples)
 
-4. **Predictive Bug Discovery**
-   - **Status:** Concept only
-   - **Need:** ML model trained on historical bug locations
-   - **Prerequisite:** 1000+ bugs with code location metadata
+**Implementation:**
+1. Identify invariants (from docs/testing/property-testing.md INVARIANTS.md)
+2. Write property test with Hypothesis (backend) or FastCheck (frontend)
+3. Set max_examples based on test speed (50-200)
+4. Run continuously, investigate failures
+5. Document VALIDATED_BUG findings in docstrings
 
-## Target Areas for Bug Discovery (Atom-Specific)
+**See also:** docs/testing/property-testing.md (1,413 lines), Phase 252 verification (96 property tests)
 
-Based on Atom's architecture and v8.0 goals (discover 50+ bugs):
+---
 
-### 1. API Layer
-- **Critical endpoints:** `/api/v1/agents/execute`, `/api/v1/chat/stream`, `/api/v1/workflows/trigger`
-- **Failure modes:** Timeout, invalid JSON, missing fields, concurrent requests
-- **Discovery methods:** Fuzzing (request payloads), property tests (response invariants), load testing (concurrent requests)
+### Strategy 4: AI-Assisted Test Generation (Evaluate for Wave 2+)
 
-### 2. Agent & LLM Systems
-- **Critical components:** Agent governance, LLM routing, cognitive tier system, streaming responses
-- **Failure modes:** Governance cache inconsistency, LLM provider fallback failures, stream interruption, memory leaks in long-running agents
-- **Discovery methods:** Fuzzing (agent configurations), property tests (governance invariants), chaos engineering (LLM provider failures)
+**What:** Use AI tools (Cover-Agent, CoverUp) to generate baseline tests automatically.
 
-### 3. User Workflows
-- **Critical flows:** Agent creation, chat/streaming, canvas presentation, workflow execution, skill installation
-- **Failure modes:** State desynchronization, WebSocket disconnection, canvas rendering errors, workflow DAG validation failures
-- **Discovery methods:** E2E tests (495+ existing), network simulation (offline, timeout), cross-platform correlation
+**When to use:** Zero-coverage files with clear interfaces (no complex business logic).
 
-### 4. Data Layer
-- **Critical components:** PostgreSQL, Redis (WebSocket), LanceDB (episodic memory), GraphRAG
-- **Failure modes:** Connection pool exhaustion, transaction rollbacks, cache inconsistency, vector search failures
-- **Discovery methods:** Property tests (ACID invariants), chaos engineering (database drops), load testing (query performance)
+**Example (Phase 8.5 research):**
+```bash
+# Install Cover-Agent
+pip install cover-agent
+
+# Generate tests for zero-coverage file
+cover-agent \
+  --source-file=core/workflow_analytics_endpoints.py \
+  --test-file=tests/unit/test_workflow_analytics_endpoints.py \
+  --coverage-report=tests/coverage_reports/metrics/coverage.json \
+  --test-cmd="pytest tests/unit/test_workflow_analytics_endpoints.py -v" \
+  --max-iterations=10
+
+# Review generated tests, adjust as needed
+# Run coverage to verify increase
+pytest tests/unit/test_workflow_analytics_endpoints.py \
+  --cov=core/workflow_analytics_endpoints.py \
+  --cov-report=term-missing
+```
+
+**Pros:**
+- 10x faster baseline creation (minutes vs. hours)
+- Targets uncovered lines automatically
+- Reduces repetitive test writing
+
+**Cons:**
+- Quality varies (may miss edge cases, over-mock)
+- Requires manual review and adjustment
+- Efficacy on complex business logic unvalidated
+
+**Implementation:**
+1. Select zero-coverage file with simple interface (DTOs, utilities)
+2. Run Cover-Agent with coverage report
+3. Review generated tests (check assertions, mocking)
+4. Add edge cases, fix over-mocked dependencies
+5. Re-run coverage, verify increase
+6. If effective, scale to similar files; if not, revert to manual
+
+**See also:** Phase 8.5 RESEARCH.md "AI-Assisted Test Generation" section
+
+---
+
+## Quality Gates (Table Stakes + Differentiators)
+
+### Gate 1: Coverage Threshold Enforcement (✅ IMPLEMENTED)
+
+**What:** CI/CD blocks PRs if coverage below threshold (70% baseline, progressive to 80%).
+
+**Status:** ✅ DONE (Phase 258)
+- `.github/workflows/quality-gate.yml` enforces 70% threshold
+- Progressive: 70% → 75% (2026-05-01) → 80% (2026-06-01)
+- Backend and frontend enforced separately
+- Exits with error code if below threshold
+- Posts PR comments with coverage results
+
+**Configuration:**
+```yaml
+# .github/quality-gate-config.yml
+coverage_thresholds:
+  backend:
+    phase_1: 70  # 2026-04-13 to 2026-04-30
+    phase_2: 75  # 2026-05-01 to 2026-05-31
+    phase_3: 80  # 2026-06-01 onwards
+  frontend:
+    phase_1: 70
+    phase_2: 75
+    phase_3: 80
+```
+
+**See also:** Phase 258 verification (QUAL-01, QUAL-02, QUAL-03 satisfied)
+
+---
+
+### Gate 2: 100% Test Pass Rate Enforcement (✅ IMPLEMENTED)
+
+**What:** CI/CD blocks PRs if any test fails (all tests must pass before merge).
+
+**Status:** ✅ DONE (Phase 258)
+- Quality gate runs pytest (backend) and vitest (frontend)
+- Build fails if any test fails (exit code 1)
+- `test_pass_rate.required: 100` with `enforcement: block`
+
+**Rationale:** Prevents broken tests from entering main branch; maintains trust in test suite.
+
+**See also:** Phase 258 verification (QUAL-02 satisfied)
+
+---
+
+### Gate 3: Build Gate (✅ IMPLEMENTED)
+
+**What:** CI/CD prevents merging if build fails (tests, coverage, linting).
+
+**Status:** ✅ DONE (Phase 258)
+- `build_gates.block_on_failure: true`
+- Quality gate job runs after backend-tests and frontend-tests
+- Blocks merge if coverage below threshold or tests fail
+
+**Rationale:** Enforces quality standards before code integration; prevents broken builds.
+
+**See also:** Phase 258 verification (QUAL-03 satisfied)
+
+---
+
+### Gate 4: Diff Coverage Enforcement (⚠️ CONFIGURED, UNCLEAR ENFORCEMENT)
+
+**What:** Prevents PRs from dropping coverage (focus on new code, not historical debt).
+
+**Status:** ⚠️ PARTIAL (diff-cover available, enforcement unclear)
+- Phase 8.5 research mentioned diff-cover for PR coverage enforcement
+- Phase 258 verification did not confirm diff-cover integration
+- May need configuration update
+
+**Expected behavior:**
+```bash
+# Check PR coverage diff
+diff-cover coverage.json --compare-branch=origin/main --fail-under=70
+```
+
+**Rationale:** Prevents coverage regression in new code; allows historical debt to be addressed incrementally.
+
+**Action item:** Verify diff-cover enforcement in quality-gate.yml, add if missing.
+
+---
+
+### Gate 5: Emergency Bypass (✅ IMPLEMENTED)
+
+**What:** Temporary mechanism to disable gates for critical fixes (prevents gate from blocking urgent work).
+
+**Status:** ✅ DONE (Phase 258)
+- `EMERGENCY_BYPASS` environment variable
+- Allows gate bypass when set to `true`
+- Documented in quality gate config
+
+**Usage:**
+```yaml
+# .github/workflows/quality-gate.yml
+- name: Enforce Coverage Threshold
+  if: env.EMERGENCY_BYPASS != 'true'
+  run: |
+    python .github/scripts/enforce-coverage.py
+```
+
+**Rationale:** Rarely needed, but prevents gate from being a blocker in emergencies. Use sparingly, document reasons.
+
+---
+
+## Measurement Tools (Table Stakes)
+
+### Tool 1: pytest-cov (Backend) ✅
+
+**What:** pytest plugin for coverage.py integration, generates HTML/JSON reports.
+
+**Version:** 4.1+
+**Status:** ✅ CONFIGURED (backend/.coverage-rc)
+- Measures line and branch coverage
+- Generates HTML reports (htmlcov/)
+- Generates JSON reports (coverage.json)
+- Integrates with pytest (single command: `pytest --cov`)
+
+**Usage:**
+```bash
+# Measure backend coverage
+pytest tests/ --cov=core --cov=api --cov=tools --cov-report=html --cov-report=json
+
+# View missing lines
+pytest tests/unit/test_workflow_engine.py --cov=core/workflow_engine.py --cov-report=term-missing
+
+# Output shows exact missing lines:
+# core/workflow_engine.py:456: line 456 not covered
+# core/workflow_engine.py:478: line 478 not covered
+```
+
+**Configuration:**
+```ini
+# backend/.coverage-rc
+[run]
+source = core, api, tools
+omit =
+    tests/*
+    */migrations/*
+    */__pycache__/*
+    venv/*
+
+[report]
+branch = true  # Enable branch coverage
+precision = 2  # 2 decimal places
+```
+
+**See also:** Phase 8.5 RESEARCH.md "Standard Stack" section
+
+---
+
+### Tool 2: nyc (Istanbul) (Frontend) ✅
+
+**What:** JavaScript/TypeScript coverage tool, integrates with Jest/vitest.
+
+**Version:** Latest (npm package)
+**Status:** ✅ CONFIGURED (frontend-nextjs/.coverage-rc)
+- Measures line, branch, function, statement coverage
+- Generates HTML reports (coverage/)
+- Integrates with vitest (`npm run test:coverage`)
+
+**Usage:**
+```bash
+# Measure frontend coverage
+npm run test:coverage
+
+# View HTML report
+open coverage/index.html
+
+# Exclude files from coverage
+# frontend-nextjs/.coverage-rc
+{
+  "exclude": [
+    "**/*.d.ts",
+    "**/*.stories.tsx",
+    "node_modules/"
+  ],
+  "threshold": {
+    "global": {
+      "lines": 70,
+      "branches": 70,
+      "functions": 70,
+      "statements": 70
+    }
+  }
+}
+```
+
+**See also:** Phase 254 verification (frontend baseline 14.61%)
+
+---
+
+### Tool 3: Hypothesis (Property-Based Testing) ✅
+
+**What:** Python property-based testing framework, generates thousands of inputs.
+
+**Version:** 6.151.5
+**Status:** ✅ CONFIGURED (96 property tests, 100% pass rate)
+- Finds edge cases unit tests miss
+- Shrinks failures to minimal counterexamples
+- Validates invariants (immutability, round-trip, idempotency)
+
+**Usage:**
+```python
+from hypothesis import given, settings
+import hypothesis.strategies as st
+
+@given(st.integers(), st.text())
+@settings(max_examples=100)
+def test_state_update_immutability(initial_count, initial_name):
+    """
+    INVARIANT: State update should not mutate input state
+    """
+    state = {"count": initial_count, "name": initial_name}
+    state_copy = copy.deepcopy(state)
+    update_state(state, {"count": initial_count + 1})
+    assert state == state_copy  # Original unchanged
+```
+
+**Best practices:**
+- Set `max_examples` based on test speed (50-200)
+- Use deterministic seeds for reproducibility (`@settings(seed=12345)`)
+- Document invariants in docstrings
+- Add VALIDATED_BUG section when bugs found
+
+**See also:** docs/testing/property-testing.md (1,413 lines), Phase 252 verification
+
+---
+
+### Tool 4: quality_metrics.json (Trend Tracking) ✅
+
+**What:** JSON file storing historical coverage data, trend indicators, gap analysis.
+
+**Version:** Custom script (`.github/scripts/calculate-quality-metrics.py`)
+**Status:** ✅ IMPLEMENTED (Phase 258)
+- Maintains 30-day history
+- Calculates trends (↑↓→ indicators)
+- Computes gaps to target
+- Generates dashboard from JSON
+
+**Schema:**
+```json
+{
+  "last_updated": "2026-04-12T23:30:00Z",
+  "backend": {
+    "coverage_percent": 18.25,
+    "lines_covered": 6179,
+    "total_lines": 33861,
+    "gap_to_target": 51.75,
+    "trend": "↑ 2.3pp",
+    "history": [
+      {"date": "2026-04-01", "coverage": 15.95},
+      {"date": "2026-04-08", "coverage": 17.13},
+      {"date": "2026-04-12", "coverage": 18.25}
+    ]
+  },
+  "frontend": {
+    "coverage_percent": 14.61,
+    "lines_covered": 12450,
+    "total_lines": 85195,
+    "gap_to_target": 55.39,
+    "trend": "→ 0.0pp",
+    "history": [...]
+  }
+}
+```
+
+**Usage:**
+```bash
+# Update metrics (run by quality-metrics.yml workflow)
+python .github/scripts/calculate-quality-metrics.py
+
+# Generate dashboard
+python .github/scripts/generate-dashboard.py
+
+# View dashboard
+cat docs/testing/QUALITY_DASHBOARD.md
+```
+
+**See also:** Phase 258 verification (quality_metrics.json verified, dashboard generated)
+
+---
+
+## Complexity Assessment
+
+| Feature | Complexity | Reasoning |
+|---------|------------|-----------|
+| **Baseline measurement** | Low | Tooling exists (pytest-cov, nyc), automated execution |
+| **Coverage report generation** | Low | Built-in to pytest-cov/nyc, HTML/JSON output |
+| **High-impact file identification** | Medium | Requires parsing coverage.json, filtering, sorting (but scriptable) |
+| **Quality gate enforcement** | Medium | CI/CD integration (GitHub Actions), threshold configuration, enforcement logic |
+| **Test infrastructure unblocking** | High | Diverse root causes (syntax errors, missing models, imports), requires investigation |
+| **Coverage trend tracking** | Low | JSON storage, Python script for calculation (already implemented) |
+| **Property-based testing integration** | High | Requires invariant identification, strategy composition, test debugging |
+| **Branch coverage measurement** | Low | Enable in pytest-cov config (`branch = true`), automatic measurement |
+| **AI-assisted test generation** | Medium | Tool setup, prompt engineering, result validation, manual adjustment |
+| **Wave-based expansion strategy** | Medium | Upfront planning (wave definitions, file lists), execution management |
+| **Mutation testing** | High | New tool (mutmut), test execution time increases, weak test identification |
+| **Diff coverage enforcement** | Medium | diff-cover integration, PR comparison, threshold configuration |
+| **Flaky test detection** | Medium | pytest-rerunfailures configuration, SQLite quarantine, monitoring |
+
+**Overall complexity:** MEDIUM (6/13 features high complexity, 5/13 medium, 2/13 low)
+
+**v11.0 focus:** Low-Medium complexity features (baseline, reports, high-impact identification, quality gates, wave execution). Defer High complexity (mutation testing, AI generation) to v11.1+.
+
+---
+
+## Roadmap Implications
+
+Based on research, suggested phase structure for v11.0:
+
+### Phase 250 (Replay): Frontend Test Fixes
+- **Addresses:** 1,504 failing tests (28.8% failure rate → 100% pass rate)
+- **Avoids:** Coverage expansion on broken test suite (inaccurate measurement)
+- **Dependencies:** None (unblocks all frontend work)
+- **Duration:** 1 week
+- **Complexity:** High (many failures, diverse root causes)
+- **Expected outcome:** Frontend tests passing, accurate coverage measurement possible
+
+### Phase 251 (Replay): Backend Coverage Baseline
+- **Addresses:** Confirm backend baseline (18.25%), identify high-impact files
+- **Avoids:** Wasting time on low-value files (small utilities)
+- **Dependencies:** None (baseline already measured in Phase 251, verify current state)
+- **Duration:** 2-3 days
+- **Complexity:** Low (tooling exists, parsing coverage.json)
+- **Expected outcome:** High-impact file list (>200 lines, <10% coverage), confirmed baseline
+
+### Phase 252 (Replay): Backend Property Tests
+- **Addresses:** Maintain 96 property tests (100% pass rate), expand invariants
+- **Avoids:** Weak unit tests (execute code but don't validate invariants)
+- **Dependencies:** Phase 251 (need baseline to identify gaps)
+- **Duration:** 3-5 days
+- **Complexity:** High (invariant identification, strategy composition)
+- **Expected outcome:** +10-20 property tests, coverage increase from invariants validated
+
+### Phase 253b (Replay): Backend Coverage Wave 1
+- **Addresses:** Backend 18.25% → 30% (+11.75pp, ~10,600 lines)
+- **Targets:** High-impact files (>200 lines, <10% coverage)
+- **Files:** fleet_admiral.py (0%, 856 lines), atom_meta_agent.py (0%, 645 lines), queen_agent.py (0%, 523 lines), agent_routes.py (2.1%), workflow_routes.py (3.4%)
+- **Dependencies:** Phase 251 (high-impact file list), Phase 252 (property tests for invariants)
+- **Duration:** 1 week
+- **Complexity:** Medium (large files, but clear gaps)
+- **Expected outcome:** Backend coverage 30%, quality gates passing
+
+### Phase 254 (Replay): Frontend Coverage Baseline
+- **Addresses:** Confirm frontend baseline (14.61%), identify high-impact files
+- **Avoids:** Wasting time on low-value components
+- **Dependencies:** Phase 250 (frontend tests passing)
+- **Duration:** 2-3 days
+- **Complexity:** Low (tooling exists, parsing coverage.json)
+- **Expected outcome:** Frontend high-impact file list, confirmed baseline
+
+### Phase 255 (Replay): Frontend Coverage Wave 1
+- **Addresses:** Frontend 14.61% → 30% (+15.39pp, ~13,100 lines)
+- **Targets:** High-impact components (>200 lines, <10% coverage), auth, agents, workflows, canvas
+- **Dependencies:** Phase 254 (high-impact file list), Phase 250 (tests passing)
+- **Duration:** 1 week
+- **Complexity:** Medium (component testing, mocking, integration)
+- **Expected outcome:** Frontend coverage 30%, quality gates passing
+
+### Phase 256 (Replay): Frontend Coverage Wave 2
+- **Addresses:** Frontend 30% → 50% (+20pp, ~17,000 lines)
+- **Targets:** API routes, state management (useCanvasState, reducers), hooks, utilities
+- **Dependencies:** Phase 255 (Wave 1 complete)
+- **Duration:** 1 week
+- **Complexity:** Medium (broader coverage, edge cases)
+- **Expected outcome:** Frontend coverage 50%
+
+### Phase 257: TDD & Property Test Documentation (✅ DONE)
+- **Addresses:** Document TDD workflow, property test patterns
+- **Status:** ✅ COMPLETE (Phase 258 verification: 1,377 lines of QA docs)
+- **Skip:** Already done
+
+### Phase 258: Quality Gates & Final Documentation (✅ DONE)
+- **Addresses:** Quality gate enforcement, metrics dashboard, documentation
+- **Status:** ✅ COMPLETE (Phase 258 verification: all requirements satisfied)
+- **Skip:** Already done
+
+### Phase 259 (New): Backend Coverage Wave 2
+- **Addresses:** Backend 30% → 50% (+20pp, ~18,100 lines)
+- **Targets:** API routes (100+ endpoints), governance, canvas, LLM service
+- **Dependencies:** Phase 253b (Wave 1 complete)
+- **Duration:** 1 week
+- **Complexity:** Medium (API integration testing, mocking)
+- **Expected outcome:** Backend coverage 50%
+
+### Phase 260 (New): Frontend Coverage Wave 3
+- **Addresses:** Frontend 50% → 70% (+20pp, ~17,000 lines)
+- **Targets:** Remaining gaps, edge cases, error paths, integration tests
+- **Dependencies:** Phase 256 (Wave 2 complete)
+- **Duration:** 1 week
+- **Complexity:** Medium-High (edge cases, error handling)
+- **Expected outcome:** Frontend coverage 70% ✅ TARGET ACHIEVED
+
+### Phase 261 (New): Backend Coverage Wave 3
+- **Addresses:** Backend 50% → 70% (+20pp, ~18,100 lines)
+- **Targets:** Core services, episodic memory, workflow engine, tools
+- **Dependencies:** Phase 259 (Wave 2 complete)
+- **Duration:** 1 week
+- **Complexity:** Medium-High (complex business logic, integration)
+- **Expected outcome:** Backend coverage 70% ✅ TARGET ACHIEVED
+
+### Phase 262 (New): Verification & Documentation
+- **Addresses:** Final verification, trend analysis, documentation updates
+- **Targets:** Confirm 70% backend/frontend, update QUALITY_DASHBOARD.md, document lessons learned
+- **Dependencies:** Phase 260 (frontend 70%), Phase 261 (backend 70%)
+- **Duration:** 2-3 days
+- **Complexity:** Low (verification, reporting)
+- **Expected outcome:** v11.0 complete, 70% coverage achieved, documentation updated
+
+**Phase ordering rationale:**
+1. **Fix tests first** (Phase 250) - Cannot measure coverage accurately if tests fail
+2. **Measure baselines** (Phase 251, 254) - Identify high-impact files, establish starting point
+3. **Property tests** (Phase 252) - Validate invariants before coverage expansion (catch design flaws early)
+4. **Wave 1 parallel** (Phase 253b, 255) - Backend and frontend can run in parallel (different teams, different files)
+5. **Wave 2 parallel** (Phase 259, 256) - Continue expansion, maintain momentum
+6. **Wave 3 parallel** (Phase 261, 260) - Final push to 70% target
+7. **Verification** (Phase 262) - Confirm targets, document results, celebrate success
+
+**Research flags for phases:**
+- **Phase 250 (frontend test fixes):** Needs deeper research into failure root causes (syntax errors, missing models, Pydantic v2 migration, import errors)
+- **Phase 252 (property tests):** Standard patterns established (docs/testing/property-testing.md), unlikely to need research
+- **Phase 253b, 255-261 (coverage waves):** Standard execution (write tests, measure coverage, enforce gates), unlikely to need research
+
+**Estimated timeline:** 8-10 weeks (including parallel waves, assuming 2-3 phases can run simultaneously)
+- **Critical path:** 250 → 251 → 253b → 259 → 261 → 262 (backend: ~6 weeks)
+- **Frontend path:** 250 → 254 → 255 → 256 → 260 (parallel with backend, ~5 weeks)
+- **Buffer:** 1-2 weeks for unexpected issues (test infrastructure blockers, integration complexity)
+- **Stretch goal:** Complete in 6-7 weeks with aggressive parallelization
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| **Stack** | HIGH | pytest-cov, nyc, Hypothesis are industry standards, verified in Phase 258 |
+| **Coverage Strategies** | HIGH | Based on Phase 8.5 research (comprehensive), Phase 266 report (proven results) |
+| **Quality Gates** | HIGH | Phase 258 verified all requirements satisfied (6/6), infrastructure production-ready |
+| **Property Testing** | HIGH | 1,413-line guide, 96 tests with 100% pass rate, patterns established |
+| **Frontend Coverage** | MEDIUM | Baseline measured (14.61%), but high-impact file identification less clear than backend |
+| **AI Test Generation** | MEDIUM | Tools verified (Cover-Agent, CoverUp), but efficacy on complex business logic unvalidated |
+| **Mutation Testing** | MEDIUM | mutmut available, but not implemented; Phase 8.5 research noted as "future enhancement" |
+| **Wave-Based Execution** | HIGH | Strategy based on Phase 266 success (doubled coverage from 8.5% to 17.13%) |
+
+**Overall confidence:** HIGH (based on existing research, verified infrastructure, proven strategies)
+
+**Gaps to Address:**
+1. **Frontend high-impact file list** - Phase 254 identified baseline (14.61%), but need clearer zero-coverage file prioritization (backend has 77 zero-coverage files, frontend less clear)
+2. **AI test generation efficacy** - Cover-Agent evaluation needed (test on simple files first, measure quality vs. manual approach)
+3. **Test infrastructure blockers** - Phase 266 unblocked 900+ tests with schema migration, but 300+ still blocked by import errors (google_calendar_service, asana_real_service, microsoft365_service)
+4. **Branch coverage focus** - Currently 3.87% branch coverage (vs. 17.13% line coverage); need explicit branch testing strategy (write tests for both true/false branches)
+
+---
 
 ## Sources
 
-**Existing Implementation (High Confidence):**
-- Atom v7.0 codebase analysis (1,692 test files)
-- Phase 236 plans and summaries (9 plans, 9 summaries, verification report)
-- `/backend/tests/property_tests/` - 239 property test files
-- `/backend/tests/fuzzy_tests/` - Fuzzing infrastructure with Atheris
-- `/backend/tests/load/` - k6 load testing scripts
-- `/backend/tests/e2e_ui/tests/` - 495+ E2E tests
-- `/backend/tests/bug_discovery/` - Automated bug filing service
+### Primary (HIGH confidence)
 
-**Documentation (High Confidence):**
-- `CLAUDE.md` - Project architecture and features
-- `.planning/MILESTONES.md` - v7.0 milestone (495+ tests, bug discovery)
-- `backend/requirements-testing.txt` - Testing dependencies (Atheris, Schemathesis, Hypothesis)
-- `backend/tests/e2e_ui/README.md` - E2E testing infrastructure
+- **Phase 8.5 RESEARCH.md** - Comprehensive Python test coverage research (556 lines)
+  - Coverage: pytest-cov, coverage.py, Hypothesis, AI test generation (Cover-Agent, CoverUp)
+  - Patterns: Unit test structure, FastAPI testing, async service testing, coverage-driven generation
+  - Pitfalls: Starting with low-value files, testing without targets, ignoring branch coverage
+  - File: `/Users/rushiparikh/projects/atom/.planning/phases/08.5-coverage-expansion/08.5-coverage-expansion-RESEARCH.md`
 
-**Training Data (Medium Confidence - Web Search Unavailable):**
-- Fuzzing best practices (Atheris, AFL, libFuzzer patterns)
-- Property-based testing methodologies (Hypothesis, QuickCheck)
-- Chaos engineering principles (Chaos Monkey, Chaos Mesh)
+- **Phase 258 VERIFICATION.md** - Quality gates and documentation verification
+  - Coverage: Quality infrastructure (gates, metrics, dashboard), progressive thresholds (70% → 75% → 80%)
+  - Requirements satisfied: 6/6 (QUAL-01 through QUAL-04, DOC-03, DOC-04)
+  - Artifacts: 17 files (5 config, 6 scripts, 5 docs, 1 workflow), 1,377 lines of QA docs
+  - Status: ✅ PASSED, production-ready
+  - File: `/Users/rushiparikh/projects/atom/.planning/phases/258-quality-gates-final-documentation/258-VERIFICATION.md`
 
-**Gaps (Low Confidence - Need Web Search):**
-- 2026 fuzzing tool landscape updates
-- Latest chaos engineering tools for Python/FastAPI
-- Property-based testing adoption in AI/ML systems
-- Competitor analysis for AI-enhanced bug discovery
+- **Phase 266 Final Coverage Report** - Backend coverage 17.13% (doubled from 8.5%)
+  - Coverage: Schema migration unblocking, coverage doubling, gap analysis to 80%
+  - High-impact files: fleet_admiral.py (0%, 856 lines), atom_meta_agent.py (0%, 645 lines), queen_agent.py (0%, 523 lines)
+  - Remaining blockers: Import errors (300+ tests), missing models (200+ tests), Pydantic v2 migration (150+ tests)
+  - File: `/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/266_final_coverage_report.md`
+
+- **Property Testing Patterns Guide** - 1,413-line comprehensive guide
+  - Coverage: 12 patterns (invariant-first, state machine, round-trip, generator composition, idempotency, boundary values, associative/commutative, algebraic properties, compression, normalization, parallel execution, resource management)
+  - Frameworks: Hypothesis (Python), FastCheck (TypeScript), proptest (Rust)
+  - Best practices: VALIDATED_BUG documentation, deterministic seeds, numRuns tuning, test isolation, generator customization, error message quality
+  - File: `/Users/rushiparikh/projects/atom/docs/testing/property-testing.md`
+
+### Secondary (MEDIUM confidence)
+
+- **Milestone v10.0 Audit Report** - Requirements gaps analysis
+  - Coverage: 12/15 phases verified (80%), 4/15 have VERIFICATION.md (27%)
+  - Requirements: 25/36 satisfied (69%), 8/36 partial (22%), 3/36 unsatisfied (8%)
+  - Gaps: Missing VERIFICATION.md for 11 phases, requirements checkboxes outdated
+  - File: `/Users/rushiparikh/projects/atom/.planning/MILESTONE-v10.0-AUDIT.md`
+
+- **PROJECT.md** - Current state and v11.0 goals
+  - Coverage: v11.0 targets (70% backend/frontend, fix 1,504 failing tests, high-impact file prioritization)
+  - Strategy: Frontend test fixes first, backend coverage waves, frontend coverage expansion, pragmatic 70% targets
+  - Success metrics: 100% test pass rate, 70% coverage (backend + frontend), quality gates maintained
+  - File: `/Users/rushiparikh/projects/atom/.planning/PROJECT.md`
+
+### Tertiary (LOW confidence)
+
+- **Industry Standards for Coverage Targets** - Based on training knowledge (web search unavailable due to rate limits)
+  - Google: 60% acceptable, 80% excellent
+  - Enterprise: 75-80% typical target
+  - 100%: Counterproductive (diminishing returns, test maintenance burden)
+  - **Note:** Verify with current sources when web search available (rate limit resets 2026-05-01)
+
+- **Coverage Expansion Best Practices** - Based on Phase 8.5 research and training knowledge
+  - Prioritize high-impact files (>200 lines, <10% coverage)
+  - Use wave-based expansion (5-10pp per wave)
+  - Enforce quality gates throughout (prevent regression)
+  - Combine unit tests with property tests (invariants + edge cases)
+  - **Note:** Strategies validated by Phase 266 success (doubled coverage), but industry best practices should be verified when web search available
 
 ---
-*Feature research for: Automated Bug Discovery in Atom AI Automation Platform*
-*Researched: March 24, 2026*
-*Confidence: HIGH (based on extensive existing implementation)*
+
+**Document Version:** 1.0
+**Last Updated:** 2026-04-13
+**Maintainer:** v11.0 Research Team
+
+**For questions or updates, see:** `.planning/research/STACK.md` (technology stack), `.planning/research/ARCHITECTURE.md` (architecture patterns), `.planning/research/PITFALLS.md` (domain pitfalls)
