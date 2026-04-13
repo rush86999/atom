@@ -25,7 +25,7 @@
 | 257 - TDD & Property Test Documentation | 2/2 | ✅ COMPLETE | 2026-04-12 |
 | 258 - Quality Gates & Final Documentation | 3/3 | ✅ COMPLETE | 2026-04-12 |
 | 264 - Coverage Expansion Wave 7 (FINAL) | 1/1 | ✅ COMPLETE | 2026-04-12 |
-| 290 - Comprehensive Test Suite (Gap Closure) | 2/2 | Complete   | 2026-04-12 |
+| 290 - Comprehensive Test Suite (Gap Closure) | 3/3 | Complete    | 2026-04-13 |
 
 **Overall:** 32/49 plans complete (65.3%)
 
@@ -393,5 +393,5 @@ Milestone is complete when:
   6. Integration tests properly set up with database sessions
 **Plans**: 3 plans (gap closure - iterative)
 - [x] 290-02-PLAN.md — Fix 24 failing tests and achieve 80%+ coverage (6 tasks, reduced from 24 to 8 failures)
-- [ ] 290-03-PLAN.md — Fix remaining 8 failing tests and achieve 80% coverage (4 tasks: memento metadata, reflection persistence, capability gate mock, container sandbox import)
+- [x] 290-03-PLAN.md — Fix remaining 8 failing tests and achieve 80% coverage (4 tasks: memento metadata, reflection persistence, capability gate mock, container sandbox import)
 
