@@ -18,6 +18,7 @@ mobile
 menubar
 docs
 scripts
+!scripts/start-dual-app.sh
 tests
 archive
 dist
