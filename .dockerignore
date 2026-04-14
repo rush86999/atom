@@ -11,8 +11,8 @@ node_modules
 .pytest_cache
 .mypy_cache
 .ruff_cache
-backend
-infra
+# backend (Allowing for Docker build)
+# infra
 packages
 mobile
 menubar
