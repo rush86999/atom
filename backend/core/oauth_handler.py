@@ -36,7 +36,15 @@ class OAuthConfig:
     
     def is_configured(self) -> bool:
         """Check if OAuth credentials are configured"""
-        return bool(self.client_id and self.client_secret and self.redirect_uri)
+        is_missing = []
+        if not self.client_id: is_missing.append("CLIENT_ID")
+        if not self.client_secret: is_missing.append("CLIENT_SECRET")
+        if not self.redirect_uri: is_missing.append("REDIRECT_URI")
+        
+        if is_missing:
+            logger.warning(f"OAuth partly disabled. Missing: {', '.join(is_missing)}")
+            return False
+        return True
 
 
 class OAuthHandler:
@@ -48,9 +56,16 @@ class OAuthHandler:
     def get_authorization_url(self, state: Optional[str] = None) -> str:
         """Generate OAuth authorization URL"""
         if not self.config.is_configured():
+            missing = []
+            if not self.config.client_id: missing.append("CLIENT_ID")
+            if not self.config.client_secret: missing.append("CLIENT_SECRET")
+            if not self.config.redirect_uri: missing.append("REDIRECT_URI")
+            
+            error_msg = f"OAuth not configured. Missing environment variables: {', '.join(missing)}"
+            logger.error(error_msg)
             raise HTTPException(
                 status_code=500,
-                detail="OAuth not configured. Please set environment variables."
+                detail=error_msg
             )
         
         scope_str = " ".join(self.config.scopes)

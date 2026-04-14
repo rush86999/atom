@@ -744,13 +744,20 @@ try:
     except ImportError as e:
         logger.warning(f"MCP routes not found: {e}")
 
-    # 5. Unified OAuth Routes
     try:
         from api.oauth_routes import router as oauth_router
         app.include_router(oauth_router)
         logger.info("✓ Unified OAuth Routes Loaded")
     except ImportError as e:
         logger.warning(f"OAuth routes not found: {e}")
+
+    # 5.1 Legacy Redirects
+    try:
+        from api.legacy_redirects import router as legacy_redirects_router
+        app.include_router(legacy_redirects_router)
+        logger.info("✓ Legacy Redirect Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Legacy redirect routes not found: {e}")
 
     try:
         from api.social_media_routes import router as social_media_router
