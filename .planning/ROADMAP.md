@@ -11,7 +11,7 @@
 ## Phases
 
 - [x] **Phase 291: Frontend Test Suite Fixes** - Fix 1,504 failing tests to unblock coverage measurement (completed 2026-04-24)
-- [ ] **Phase 292: Coverage Baselines & Prioritization** - Establish accurate baselines and identify high-impact files
+- [x] **Phase 292: Coverage Baselines & Prioritization** - Establish accurate baselines and identify high-impact files (completed 2026-04-24)
 - [ ] **Phase 293: Coverage Wave 1 (30% Target)** - Backend and frontend coverage to 30% with high-impact files
 - [ ] **Phase 294: Coverage Wave 2 (50% Target)** - Backend and frontend coverage to 50% with medium-impact files
 - [ ] **Phase 295: Coverage Wave 3 (70% Target) & Documentation** - Final push to 70% with documentation
@@ -63,8 +63,8 @@
 5. Coverage measurement methodology validated (coverage.json structure verified, field names checked)
 
 **Plans**:
-- [ ] 292-01-PLAN.md -- Measure and validate backend + frontend coverage baselines (COV-B-01, COV-F-01)
-- [ ] 292-02-PLAN.md -- Generate tiered high-impact prioritization lists for backend and frontend (COV-B-05, COV-F-05)
+- [x] 292-01-PLAN.md -- Measure and validate backend + frontend coverage baselines (COV-B-01, COV-F-01)
+- [x] 292-02-PLAN.md -- Generate tiered high-impact prioritization lists for backend and frontend (COV-B-05, COV-F-05)
 
 **Wave Structure**:
 - Wave 1: Plan 01 (Baseline measurement) - autonomous
@@ -136,7 +136,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 291. Frontend Test Suite Fixes | 4/3 | Complete   | 2026-04-24 |
-| 292. Coverage Baselines & Prioritization | 0/2 | Not started | - |
+| 292. Coverage Baselines & Prioritization | 2/2 | Complete   | 2026-04-24 |
 | 293. Coverage Wave 1 (30% Target) | 0/4 | Not started | - |
 | 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
 | 295. Coverage Wave 3 (70% Target) & Documentation | 0/5 | Not started | - |
