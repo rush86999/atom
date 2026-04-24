@@ -64,27 +64,25 @@ def mock_analytics_engine():
         mock_alert.notification_channels = ["email"]
         mock_engine.create_alert.return_value = mock_alert
 
-        # Mock performance metrics
-        mock_perf = MagicMock()
-        mock_perf.__dict__ = {
-            "workflow_id": "wf-001",
-            "time_window": "24h",
-            "total_executions": 100,
-            "successful_executions": 95,
-            "failed_executions": 5,
-            "average_duration_ms": 250.0,
-            "median_duration_ms": 200.0,
-            "p95_duration_ms": 500.0,
-            "p99_duration_ms": 1000.0,
-            "error_rate": 0.05,
-            "most_common_errors": [],
-            "average_cpu_usage": 45.0,
-            "peak_memory_usage": 512.0,
-            "average_step_duration": {},
-            "unique_users": 10,
-            "executions_by_user": {},
-            "timestamp": datetime(2024, 1, 1, 0, 0, 0)
-        }
+        # Mock performance metrics - use Mock instead of MagicMock to avoid _mock_methods issue
+        mock_perf = Mock()
+        mock_perf.workflow_id = "wf-001"
+        mock_perf.time_window = "24h"
+        mock_perf.total_executions = 100
+        mock_perf.successful_executions = 95
+        mock_perf.failed_executions = 5
+        mock_perf.average_duration_ms = 250.0
+        mock_perf.median_duration_ms = 200.0
+        mock_perf.p95_duration_ms = 500.0
+        mock_perf.p99_duration_ms = 1000.0
+        mock_perf.error_rate = 0.05
+        mock_perf.most_common_errors = []
+        mock_perf.average_cpu_usage = 45.0
+        mock_perf.peak_memory_usage = 512.0
+        mock_perf.average_step_duration = {}
+        mock_perf.unique_users = 10
+        mock_perf.executions_by_user = {}
+        mock_perf.timestamp = datetime(2024, 1, 1, 0, 0, 0)
         mock_engine.get_workflow_performance_metrics.return_value = mock_perf
 
         # Mock system overview
@@ -98,6 +96,18 @@ def mock_analytics_engine():
         mock_engine.active_alerts = {
             "alert-123": mock_alert
         }
+
+        # Mock get_active_alerts to return list
+        mock_engine.get_active_alerts.return_value = [mock_alert]
+
+        # Mock delete_alert
+        mock_engine.delete_alert.return_value = True
+
+        # Mock toggle_alert
+        mock_engine.toggle_alert.return_value = True
+
+        # Mock get_alert
+        mock_engine.get_alert.return_value = mock_alert
 
         yield mock_engine
 

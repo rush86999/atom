@@ -72,7 +72,7 @@ def sample_training_proposal():
     proposal.title = "Complete Training Module"
     proposal.description = "Training for basic skills"
     proposal.proposal_type = ProposalType.TRAINING.value
-    proposal.status = ProposalStatus.PENDING.value
+    proposal.status = ProposalStatus.PROPOSED.value
     proposal.capability_gaps = ["skill1", "skill2"]
     proposal.learning_objectives = ["objective1"]
     proposal.estimated_duration_hours = 10
@@ -102,7 +102,7 @@ def sample_action_proposal():
     proposal.title = "Execute Action"
     proposal.description = "Proposed action for approval"
     proposal.proposal_type = ProposalType.ACTION.value
-    proposal.status = ProposalStatus.PENDING.value
+    proposal.status = ProposalStatus.PROPOSED.value
     proposal.proposed_action = {"action": "data_update"}
     proposal.reasoning = "Needs approval for data modification"
     proposal.reversible = True
