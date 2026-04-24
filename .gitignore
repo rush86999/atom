@@ -436,9 +436,8 @@ credentials copy.md
 credentials.md
 prompts.md
 
-# Claude Code settings (may contain API keys)
-.claude/settings.local.json
-.claude/settings.json
+# Claude Code settings (may contain API keys and sensitive config)
+.claude/
 
 # Backup files
 *.bak

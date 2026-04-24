@@ -30,6 +30,49 @@ pytest tests/ -v
 python -m uvicorn main:app --reload --port 8000
 ```
 
+## Security Guidelines
+
+### NEVER Commit These Files
+
+**CRITICAL**: The following files and directories contain sensitive information and must NEVER be committed to the repository:
+
+- **`.claude/`** - Contains Claude Code API keys and sensitive configuration
+- **`.env` files** - All environment variables with API keys, secrets, and credentials
+- **`secrets.json`** - Any secret keys or tokens
+- **`*.pem`, `*.key`** - SSL/TLS certificates and private keys
+- **`credentials.json`** - OAuth credentials and API keys
+- **`backend/token.json`** - Authentication tokens
+
+These are already in `.gitignore`, but always verify with `git status` before committing.
+
+### If You Accidentally Commit Secrets
+
+If you accidentally commit sensitive information:
+
+1. **Immediately rotate the compromised keys** - Change API keys, passwords, tokens
+2. **Remove from git history** - Use `git filter-repo` or BFG Repo-Cleaner (NOT just `git rm`)
+3. **Force push carefully** - Only after confirming history is clean
+4. **Notify maintainers** - Inform the team immediately
+
+Example cleanup command (use with caution):
+```bash
+# Remove file from history
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch .claude/settings.local.json" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Force push (ONLY after confirming)
+git push origin --force --all
+```
+
+### Code Security
+
+- Never hardcode API keys, credentials, or secrets
+- Use environment variables for all sensitive configuration
+- Follow OWASP security guidelines
+- Validate and sanitize all user inputs
+- Keep dependencies updated and scan for vulnerabilities
+
 ## Contribution Guidelines
 
 ### Making Changes
