@@ -81,13 +81,20 @@
 **Requirements**: COV-B-02, COV-F-02
 
 **Success Criteria** (what must be TRUE):
-1. Backend coverage reaches 30% (from 18.25%, +11.75pp improvement)
-2. Frontend coverage reaches 30% (from 14.61%, +15.39pp improvement)
-3. High-impact backend files tested (fleet_admiral.py, atom_meta_agent.py, queen_agent.py, API routes)
-4. High-impact frontend components tested (prioritized by lines and criticality)
-5. Quality gates enforce 70% threshold throughout expansion (no regression allowed)
+1. Backend coverage maintains 30%+ (currently 36.72% from Phase 292 baseline; Tier 1 files now have meaningful test coverage)
+2. Frontend coverage reaches 30% (from 15.14%, ~+14.86pp improvement)
+3. **Backend Tier 1 files tested**: workflow_analytics_endpoints, workflow_parameter_validator, maturity_routes, supervisor_learning_service, feedback_service
+4. **Frontend Critical and High components tested**: chat components (CanvasHost, ChatInput, ChatHeader, MessageList, AgentWorkspace, ChatHistorySidebar, ArtifactSidebar, SearchResults), integration components (HubSpotSearch, ZoomIntegration, GoogleDriveIntegration, OneDriveIntegration, HubSpotIntegration, IntegrationHealthDashboard, MondayIntegration, HubSpotPredictiveAnalytics, GoogleWorkspaceIntegration)
+5. Combined coverage trend recorded for backend (unchanged from 36.72%) and frontend (improving toward 30%)
 
-**Plans**: TBD
+**Plans**:
+- [ ] 293-01-PLAN.md -- Backend Tier 1 high-priority files tests (COV-B-02)
+- [ ] 293-02-PLAN.md -- Frontend Critical chat component tests (COV-F-02)
+- [ ] 293-03-PLAN.md -- Frontend High integration + lib tests + combined coverage verification (COV-F-02)
+
+**Wave Structure**:
+- Wave 1: Plan 01 (backend Tier 1 tests), Plan 02 (frontend Critical tests) - parallel
+- Wave 2: Plan 03 (frontend High tests + combined coverage measurement) - depends on 01, 02
 
 ---
 
@@ -137,7 +144,7 @@
 |-------|----------------|--------|-----------|
 | 291. Frontend Test Suite Fixes | 4/3 | Complete   | 2026-04-24 |
 | 292. Coverage Baselines & Prioritization | 2/2 | Complete    | 2026-04-24 |
-| 293. Coverage Wave 1 (30% Target) | 0/4 | Not started | - |
+| 293. Coverage Wave 1 (30% Target) | 0/3 | Not started | - |
 | 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
 | 295. Coverage Wave 3 (70% Target) & Documentation | 0/5 | Not started | - |
 
@@ -214,4 +221,5 @@ Phase 295 (70% Wave + Docs)
 
 *Roadmap created: 2026-04-13*
 *Phase 292 plans created: 2026-04-24*
-*Next: /gsd-execute-phase 292*
+*Phase 293 plans created: 2026-04-24*
+*Next: /gsd-execute-phase 293*
