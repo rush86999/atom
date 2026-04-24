@@ -37,7 +37,8 @@ const server = setupServer(
   }),
 );
 
-beforeAll(() => server.listen());
+// Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 

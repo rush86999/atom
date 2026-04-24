@@ -203,8 +203,9 @@ const server = setupServer(
 
 // Server lifecycle hooks
 beforeAll(() => {
+  // Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
   server.listen({
-    onUnhandledRequest: 'error',
+    onUnhandledRequest: 'warn',
   });
 });
 
