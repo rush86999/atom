@@ -18,6 +18,31 @@ Object.defineProperties(globalThis, {
 
 import "@testing-library/jest-dom";
 
+// Mock fetch API - MUST be done before any test imports
+// This ensures all code sees the mocked fetch, not the original
+//
+// Helper function to create mock response objects with all required methods
+// Use this in tests when you need to create custom mock responses:
+//   mockFetch.mockResolvedValueOnce(createMockResponse({ ok: false, status: 404 }))
+global.createMockResponse = (overrides: any = {}) => ({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  json: async () => ({}),
+  text: async () => '',
+  blob: async () => new Blob(),
+  arrayBuffer: async () => new ArrayBuffer(0),
+  headers: {},
+  clone: function() { return { ...this, json: this.json, text: this.text, blob: this.blob, arrayBuffer: this.arrayBuffer }; },
+  ...overrides,
+});
+
+const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
+
+// Assign to both global.fetch and globalThis.fetch to ensure all references work
+global.fetch = mockFetch as any;
+(globalThis as any).fetch = mockFetch;
+
 // Configure jest-axe for accessibility testing
 import { toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
@@ -128,27 +153,6 @@ jest.mock('got', () => ({
   get: jest.fn(() => Promise.resolve({ body: '{}' })),
   extend: jest.fn(() => jest.fn(() => Promise.resolve({ body: '{}' }))),
 }));
-
-// Mock fetch API - properly typed as jest mock to support mockImplementation, mockResolvedValue, etc.
-//
-// Helper function to create mock response objects with all required methods
-// Use this in tests when you need to create custom mock responses:
-//   mockFetch.mockResolvedValueOnce(createMockResponse({ ok: false, status: 404 }))
-global.createMockResponse = (overrides: any = {}) => ({
-  ok: true,
-  status: 200,
-  statusText: 'OK',
-  json: async () => ({}),
-  text: async () => '',
-  blob: async () => new Blob(),
-  arrayBuffer: async () => new ArrayBuffer(0),
-  headers: {},
-  clone: function() { return { ...this, json: this.json, text: this.text, blob: this.blob, arrayBuffer: this.arrayBuffer }; },
-  ...overrides,
-});
-
-const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
-global.fetch = mockFetch as any;
 
 // Mock WebSocket - define constants first
 const WEBSOCKET_CONNECTING = 0;
