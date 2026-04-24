@@ -1,4 +1,20 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Atom Frontend - Next.js
+
+This is a [Next.js](https://nextjs.org/) project for the Atom AI-powered business automation platform.
+
+## ⚠️ Security Notice
+
+**NEVER commit sensitive files to version control:**
+
+- `.claude/` - Claude Code API keys and configuration
+- `.env.local` - Environment variables with secrets
+- `.env*` - Any environment files containing API keys
+- `*.pem`, `*.key` - TLS certificates and private keys
+- `**/credentials.json` - OAuth credentials, API keys
+
+These files are in `.gitignore`. Always verify with `git status` before committing.
+
+**See:** [CONTRIBUTING.md](../CONTRIBUTING.md#security-guidelines) for complete security guidelines.
 
 ## Getting Started
 

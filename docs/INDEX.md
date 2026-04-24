@@ -52,6 +52,20 @@
 
 ---
 
+## 🔒 Security & Compliance
+
+⚠️ **IMPORTANT**: Before contributing, read [CONTRIBUTING.md](../CONTRIBUTING.md#security-guidelines) for critical security guidelines.
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | **Security guidelines** - NEVER commit .claude/, .env, secrets, credentials | Apr 23, 2026 |
+| [security/SECURITY_OVERVIEW.md](security/SECURITY_OVERVIEW.md) | Security audit report (A- rating) | Oct 19, 2025 |
+| [security/python-packages.md](security/python-packages.md) | Python package security & vulnerability scanning | Feb 19, 2026 |
+| [security/packages.md](security/packages.md) | Package supply chain security | Feb 19, 2026 |
+| [guides/ADMINISTRATORS/SECURITY_CONFIG.md](guides/ADMINISTRATORS/SECURITY_CONFIG.md) | Security configuration for administrators | - |
+
+---
+
 ## 🛒 Commercial Marketplace (atomagentos.com)
 
 ⚠️ **Commercial Service:** The marketplace is a proprietary service requiring connection to atomagentos.com. See [LICENSE.md](../LICENSE.md#marketplace-commercial-appendix) for details.

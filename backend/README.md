@@ -2,6 +2,21 @@
 
 AI-powered business automation platform with multi-agent governance.
 
+## ⚠️ Security Notice
+
+**NEVER commit sensitive files to version control:**
+
+- `.claude/` - Claude Code API keys and configuration
+- `.env*` - Environment variables with secrets
+- `secrets.json` - Secret keys and tokens
+- `*.pem`, `*.key` - TLS certificates and private keys
+- `**/credentials.json` - OAuth credentials, API keys
+- `token.json` - Authentication tokens
+
+These files are in `.gitignore`. Always verify with `git status` before committing.
+
+**See:** [CONTRIBUTING.md](../CONTRIBUTING.md#security-guidelines) for complete security guidelines.
+
 ## Quick Start
 
 ### Install via pip

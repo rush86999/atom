@@ -46,6 +46,32 @@
 
 ---
 
+## ⚠️ Security: NEVER Commit These Files
+
+**CRITICAL**: The following files and directories contain sensitive information and must NEVER be committed to the repository:
+
+| File/Directory | Content | Risk |
+|----------------|---------|------|
+| **`.claude/`** | Claude Code API keys and configuration | API key exposure |
+| **`.env*`** | Environment variables with secrets | Credential leakage |
+| **`secrets.json`** | Secret keys and tokens | Full system compromise |
+| **`*.pem`, `*.key`** | TLS certificates and private keys | Man-in-the-middle attacks |
+| **`credentials.json`** | OAuth credentials, API keys | Unauthorized access |
+| **`backend/token.json`** | Authentication tokens | Session hijacking |
+
+### Verification Before Committing
+Always run `git status` before committing. Verify these files are NOT in the staged changes.
+
+### If You Accidentally Commit Secrets
+1. **IMMEDIATELY rotate all compromised keys** - Change API keys, passwords, tokens
+2. **Remove from git history** - Use `git filter-repo` or BFG Repo-Cleaner (NOT just `git rm`)
+3. **Force push carefully** - Only after confirming history is clean
+4. **Notify team** - Inform maintainers immediately
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed cleanup instructions.
+
+---
+
 ## Architecture Overview
 
 ### Multi-Agent System with Governance

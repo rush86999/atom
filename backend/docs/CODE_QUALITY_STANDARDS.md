@@ -767,6 +767,71 @@ def test_upload_and_extract_success(authenticated_admin_client,
 
 **Reference:** See `.planning/phases/216-fix-business-facts-test-failures/216-PATTERN-DOC.md` for complete patterns with before/after examples from Phase 216 fixes.
 
+## Security Best Practices
+
+### NEVER Commit Sensitive Files
+
+**CRITICAL**: The following files MUST NEVER be committed to version control:
+
+| File Pattern | Content | Risk Level |
+|--------------|---------|------------|
+| `.claude/` | Claude Code API keys and settings | **CRITICAL** |
+| `.env*` | Environment variables with secrets | **CRITICAL** |
+| `secrets.json` | Secret keys and tokens | **CRITICAL** |
+| `*.pem`, `*.key` | TLS certificates and private keys | **CRITICAL** |
+| `**/credentials.json` | OAuth credentials, API keys | **CRITICAL** |
+| `backend/token.json` | Authentication tokens | **HIGH** |
+
+### Pre-Commit Verification
+
+Always verify before committing:
+
+```bash
+# Check what you're about to commit
+git status
+git diff --staged
+
+# Search for accidental secrets in staged files
+git diff --staged | grep -i "sk-"     # OpenAI keys
+git diff --staged | grep -i "api_key" # API keys
+git diff --staged | grep -i "password" # Passwords
+```
+
+### Secrets in Code
+
+**NEVER hardcode secrets**:
+
+```python
+# ❌ WRONG - Hardcoded secret
+API_KEY = "sk-ant-1234567890abcdef"
+
+# ✅ CORRECT - Environment variable
+API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not API_KEY:
+    raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+```
+
+### Handling Accidental Commits
+
+If you accidentally commit secrets:
+
+1. **IMMEDIATELY rotate all compromised keys**
+2. **Remove from git history** (use `git filter-repo` or BFG Repo-Cleaner)
+3. **Force push carefully** (only after confirming clean)
+4. **Notify maintainers**
+
+```bash
+# Example: Remove file from history
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch .claude/settings.local.json" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Force push (ONLY after confirming)
+git push origin --force --all
+```
+
+**See**: [CONTRIBUTING.md](../../CONTRIBUTING.md#security-guidelines) for complete security guidelines.
+
 ## Code Review Checklist
 
 Before submitting a PR, verify:
