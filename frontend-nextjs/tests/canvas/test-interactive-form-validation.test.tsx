@@ -247,7 +247,7 @@ describe('InteractiveForm - Validation Tests', () => {
     it('should validate unique email via API', async () => {
       global.fetch = jest.fn();
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -279,7 +279,7 @@ describe('InteractiveForm - Validation Tests', () => {
     it('should handle async validation errors', async () => {
       global.fetch = jest.fn();
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const validateUniqueEmail = async (email: string): Promise<{ valid: boolean; error?: string }> => {
         try {

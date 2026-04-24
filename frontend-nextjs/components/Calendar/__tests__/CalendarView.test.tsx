@@ -408,7 +408,7 @@ describe('CalendarView Component', () => {
         expect(screen.getByTestId('calendar')).toBeInTheDocument();
       });
 
-      const fetchCallsBefore = (global.fetch as jest.Mock).mock.calls.length;
+      const fetchCallsBefore = (global.mockFetch as jest.Mock).mock.calls.length;
 
       // Create event
       const createButton = screen.getByRole('button', { name: /new event/i });
@@ -427,7 +427,7 @@ describe('CalendarView Component', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        const fetchCallsAfter = (global.fetch as jest.Mock).mock.calls.length;
+        const fetchCallsAfter = (global.mockFetch as jest.Mock).mock.calls.length;
         expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
       });
     });

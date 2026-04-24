@@ -23,7 +23,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         edges: [],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: () => Promise.resolve({
@@ -60,7 +60,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should read a workflow via GET /api/workflows/:id', async () => {
       const workflowId = 'workflow-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -88,7 +88,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         description: 'Updated description',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -122,7 +122,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should delete a workflow via DELETE /api/workflows/:id', async () => {
       const workflowId = 'workflow-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -157,7 +157,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         data: { action: 'send-email' },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: () => Promise.resolve({
@@ -185,7 +185,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         data: { action: 'send-sms' },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -215,7 +215,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
       const workflowId = 'workflow-123';
       const nodeId = 'node-1';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -247,7 +247,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         type: 'default',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: () => Promise.resolve({
@@ -272,7 +272,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
       const workflowId = 'workflow-123';
       const edgeId = 'edge-1';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -302,7 +302,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         options: { async: true },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -330,7 +330,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should get execution status via GET /api/executions/:id', async () => {
       const executionId = 'exec-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -354,7 +354,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should stop execution via POST /api/executions/:id/stop', async () => {
       const executionId = 'exec-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -385,7 +385,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         { id: 'node-3', type: 'condition' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: () => Promise.resolve({
@@ -413,7 +413,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
       const workflowId = 'workflow-123';
       const nodeIds = ['node-1', 'node-2', 'node-3'];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -449,7 +449,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -480,7 +480,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
         edges: [],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -513,7 +513,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should search workflows via GET /api/workflows?search=query', async () => {
       const searchQuery = 'email';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -538,7 +538,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
     it('should filter workflows by tag via GET /api/workflows?tag=tagName', async () => {
       const tag = 'automation';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({

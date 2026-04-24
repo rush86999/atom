@@ -89,7 +89,7 @@ describe('HubSpot API Service', () => {
 
   describe('getAuthStatus', () => {
     it('should return connected status when authenticated', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           connected: true,
@@ -106,7 +106,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return disconnected status when not authenticated', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ connected: false }),
       });
@@ -117,7 +117,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return disconnected status on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const result = await hubspotApi.getAuthStatus();
 
@@ -127,7 +127,7 @@ describe('HubSpot API Service', () => {
 
   describe('connectHubSpot', () => {
     it('should return auth URL on success', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           success: true,
@@ -144,7 +144,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return error on failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
 
       const result = await hubspotApi.connectHubSpot();
 
@@ -157,7 +157,7 @@ describe('HubSpot API Service', () => {
 
   describe('disconnectHubSpot', () => {
     it('should return success on disconnect', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true }),
       });
@@ -168,7 +168,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return error on disconnect failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Disconnect failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Disconnect failed'));
 
       const result = await hubspotApi.disconnectHubSpot();
 
@@ -186,7 +186,7 @@ describe('HubSpot API Service', () => {
         { id: '2', email: 'test2@example.com' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           contacts: mockContacts,
@@ -205,7 +205,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should build query string with params', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ contacts: [], total: 0, hasMore: false }),
       });
@@ -216,14 +216,14 @@ describe('HubSpot API Service', () => {
         properties: ['email', 'name'],
       });
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       expect(fetchCall[0]).toContain('limit=10');
       expect(fetchCall[0]).toContain('after=cursor123');
       expect(fetchCall[0]).toContain('properties=email%2Cname');
     });
 
     it('should handle missing response data gracefully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -238,7 +238,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return empty list on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('API error'));
 
       const result = await hubspotApi.getContacts();
 
@@ -254,7 +254,7 @@ describe('HubSpot API Service', () => {
     it('should return contact by ID', async () => {
       const mockContact = { id: '123', email: 'contact@example.com' };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ contact: mockContact }),
       });
@@ -265,7 +265,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return null on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Not found'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Not found'));
 
       const result = await hubspotApi.getContact('123');
 
@@ -273,7 +273,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return null when contact not in response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -289,7 +289,7 @@ describe('HubSpot API Service', () => {
       const contactData = { email: 'new@example.com', name: 'New Contact' };
       const createdContact = { id: '456', ...contactData };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ contact: createdContact }),
       });
@@ -311,7 +311,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return error on failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Creation failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Creation failed'));
 
       const result = await hubspotApi.createContact({ email: 'test@example.com' });
 
@@ -327,7 +327,7 @@ describe('HubSpot API Service', () => {
       const updates = { email: 'updated@example.com' };
       const updatedContact = { id: '123', ...updates };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ contact: updatedContact }),
       });
@@ -349,7 +349,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return error on failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Update failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Update failed'));
 
       const result = await hubspotApi.updateContact('123', { email: 'test@example.com' });
 
@@ -362,7 +362,7 @@ describe('HubSpot API Service', () => {
 
   describe('deleteContact', () => {
     it('should delete contact successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -380,7 +380,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return error on failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Delete failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Delete failed'));
 
       const result = await hubspotApi.deleteContact('123');
 
@@ -401,7 +401,7 @@ describe('HubSpot API Service', () => {
         quarterlyGrowth: 25.3,
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAnalytics,
       });
@@ -412,7 +412,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return default values on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Analytics error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Analytics error'));
 
       const result = await hubspotApi.getAnalytics();
 
@@ -433,7 +433,7 @@ describe('HubSpot API Service', () => {
         { id: '2', name: 'Campaign 2', status: 'paused', createdAt: '2024-01-02' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ campaigns: mockCampaigns }),
       });
@@ -444,7 +444,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return empty array on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Campaigns error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Campaigns error'));
 
       const result = await hubspotApi.getCampaigns();
 
@@ -466,7 +466,7 @@ describe('HubSpot API Service', () => {
         },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ pipelines: mockPipelines }),
       });
@@ -477,7 +477,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return empty array on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Pipelines error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Pipelines error'));
 
       const result = await hubspotApi.getPipelines();
 
@@ -492,7 +492,7 @@ describe('HubSpot API Service', () => {
         { id: '2', name: 'Hot Leads', listType: 'DYNAMIC', createdAt: '2024-01-02' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ lists: mockLists }),
       });
@@ -503,7 +503,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return empty array on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Lists error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Lists error'));
 
       const result = await hubspotApi.getLists();
 
@@ -519,7 +519,7 @@ describe('HubSpot API Service', () => {
         forecast: [100, 110, 120],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockPredictions,
       });
@@ -530,7 +530,7 @@ describe('HubSpot API Service', () => {
     });
 
     it('should return default structure on error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('AI error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('AI error'));
 
       const result = await hubspotApi.getAIPredictions();
 
@@ -546,7 +546,7 @@ describe('HubSpot API Service', () => {
     it('should log and throw on HTTP errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
@@ -565,7 +565,7 @@ describe('HubSpot API Service', () => {
 
   describe('fetchWithErrorHandling', () => {
     it('should merge custom headers with defaults', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: 'test' }),
       });

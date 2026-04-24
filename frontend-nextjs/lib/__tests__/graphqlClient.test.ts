@@ -31,7 +31,7 @@ describe('GraphQL Client', () => {
     });
 
     it('should throw error when fetch fails (404)', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 404,
         statusText: 'Not Found',
@@ -43,7 +43,7 @@ describe('GraphQL Client', () => {
     });
 
     it('should throw error when response has GraphQL errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [{ message: 'Syntax error' }],
@@ -58,7 +58,7 @@ describe('GraphQL Client', () => {
     it('should log errors to console', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       await expect(executeGraphQLQuery('query { test }')).rejects.toThrow();
       expect(consoleSpy).toHaveBeenCalled();

@@ -78,7 +78,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('calls refreshMemoryStats on mount when enableMemory is true', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -108,7 +108,7 @@ describe('useChatMemory Hook', () => {
 
   describe('2. Memory Storage Tests', () => {
     test('stores memory via API call', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -152,7 +152,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('adds new memory to local memories array', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -197,7 +197,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('limits memories to contextWindow size', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValue({
           ok: true,
           json: async () => ({
@@ -249,7 +249,7 @@ describe('useChatMemory Hook', () => {
     // but testing the intermediate state is unreliable
 
     test('sets error on store failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
         new Error('Network error')
       );
 
@@ -307,7 +307,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('refreshes stats after successful store', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -350,7 +350,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('handles network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
         new Error('Connection failed')
       );
 
@@ -383,7 +383,7 @@ describe('useChatMemory Hook', () => {
 
   describe('3. Memory Context Tests', () => {
     test('retrieves memory context via API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -430,7 +430,7 @@ describe('useChatMemory Hook', () => {
         { id: 'mem-2', content: 'Message 2', role: 'assistant' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -466,7 +466,7 @@ describe('useChatMemory Hook', () => {
         { id: 'lt-1', content: 'Old conversation', role: 'user' },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -496,7 +496,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('returns context with relevanceScore', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -545,7 +545,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('returns empty context on error (not null)', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
         new Error('API error')
       );
 
@@ -569,7 +569,7 @@ describe('useChatMemory Hook', () => {
 
   describe('4. Session Management Tests', () => {
     test('clears session memory via API call', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -598,7 +598,7 @@ describe('useChatMemory Hook', () => {
 
     test('clears local memories array on clear', async () => {
       // First store a memory
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -652,7 +652,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('clears memoryContext on clear', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -683,7 +683,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('refreshes stats after clear', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -732,7 +732,7 @@ describe('useChatMemory Hook', () => {
 
   describe('5. Memory Stats Tests', () => {
     test('retrieves stats via API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -778,7 +778,7 @@ describe('useChatMemory Hook', () => {
         lancedbAvailable: true,
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -802,7 +802,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('does not set error on stats failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
         new Error('Stats error')
       );
 
@@ -844,7 +844,7 @@ describe('useChatMemory Hook', () => {
 
   describe('6. Derived State Tests', () => {
     test('hasRelevantContext is true when relevanceScore > 0.3 and has memories', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -874,7 +874,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('hasRelevantContext is false when relevanceScore <= 0.3', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -918,7 +918,7 @@ describe('useChatMemory Hook', () => {
 
   describe('7. Auto-Store Tests', () => {
     test('auto-stores messages when autoStoreMessages is true', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -971,7 +971,7 @@ describe('useChatMemory Hook', () => {
     });
 
     test('calls storeMemory with correct metadata', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           status: 'success',
@@ -1004,7 +1004,7 @@ describe('useChatMemory Hook', () => {
       );
 
       const callArgs = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body
+        (global.mockFetch as jest.Mock).mock.calls[0][1].body
       );
 
       expect(callArgs.metadata.intent).toBe('answer_question');

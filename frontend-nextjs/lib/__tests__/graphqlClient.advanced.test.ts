@@ -28,7 +28,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should return data on successful query', async () => {
       const mockData = { user: { id: '1', name: 'Test User' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -52,14 +52,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const mockData = { user: { id: '1' } };
       const variables = { userId: '1' };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
 
       await executeGraphQLQuery('query GetUser($userId: ID!) { user(id: $userId) { id } }', variables);
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual(variables);
@@ -68,14 +68,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass operationName in request body', async () => {
       const mockData = { user: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
 
       await executeGraphQLQuery('query GetUser { user { id } }', undefined, 'GetUser');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.operationName).toBe('GetUser');
@@ -84,7 +84,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass userId parameter (for logging)', async () => {
       const mockData = { user: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -95,7 +95,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle empty data response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: null }),
       });
@@ -106,7 +106,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle missing data field', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -119,7 +119,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
 
   describe('executeGraphQLQuery - Error Handling', () => {
     it('should throw error on single GraphQL error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [{ message: 'Syntax error' }],
@@ -130,7 +130,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should throw combined error on multiple GraphQL errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [
@@ -147,7 +147,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should not throw when errors array is empty', async () => {
       const mockData = { user: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData, errors: [] }),
       });
@@ -160,7 +160,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should log error to console on failure', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network failure'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network failure'));
 
       await expect(executeGraphQLQuery('query { user { id } }')).rejects.toThrow();
 
@@ -170,7 +170,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle 500 Internal Server Error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
@@ -182,7 +182,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle 401 Unauthorized', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
@@ -194,7 +194,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle 403 Forbidden', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 403,
         statusText: 'Forbidden',
@@ -210,7 +210,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should execute mutation successfully', async () => {
       const mockData = { createUser: { id: '123', name: 'New User' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -227,14 +227,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const mockData = { updateUser: { id: '1', name: 'Updated' } };
       const variables = { id: '1', name: 'Updated' };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
 
       await executeGraphQLMutation('mutation UpdateUser($id: ID!, $name: String!) { updateUser(id: $id, name: $name) { id name } }', variables);
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual(variables);
@@ -243,14 +243,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass operationName to mutation', async () => {
       const mockData = { deleteUser: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
 
       await executeGraphQLMutation('mutation DeleteUser { deleteUser { id } }', undefined, 'DeleteUser');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.operationName).toBe('DeleteUser');
@@ -259,7 +259,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass userId parameter to mutation', async () => {
       const mockData = { createUser: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -270,7 +270,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle mutation errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [{ message: 'Validation error' }],
@@ -281,7 +281,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle mutation HTTP errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         statusText: 'Bad Request',
@@ -295,7 +295,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should execute query through client', async () => {
       const mockData = { user: { id: '1', name: 'Test' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -309,7 +309,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass variables through client query', async () => {
       const mockData = { user: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -317,7 +317,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const client = createGraphQLClient();
       await client.query('query GetUser($id: ID!) { user(id: $id) { id } }', { id: '1' });
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual({ id: '1' });
@@ -326,7 +326,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass operationName through client query', async () => {
       const mockData = { user: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -334,14 +334,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const client = createGraphQLClient();
       await client.query('query GetUser { user { id } }', undefined, 'GetUser');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.operationName).toBe('GetUser');
     });
 
     it('should handle client query errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [{ message: 'Query error' }],
@@ -354,7 +354,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle client query HTTP errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Server Error',
@@ -370,7 +370,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should execute mutation through client', async () => {
       const mockData = { createUser: { id: '123', name: 'New' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -384,7 +384,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass variables through client mutate', async () => {
       const mockData = { updateUser: { id: '1', name: 'Updated' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -392,7 +392,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const client = createGraphQLClient();
       await client.mutate('mutation UpdateUser($name: String!) { updateUser(name: $name) { id name } }', { name: 'Updated' });
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual({ name: 'Updated' });
@@ -401,7 +401,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     it('should pass operationName through client mutate', async () => {
       const mockData = { deleteUser: { id: '1' } };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: mockData }),
       });
@@ -409,14 +409,14 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const client = createGraphQLClient();
       await client.mutate('mutation DeleteUser { deleteUser { id } }', undefined, 'DeleteUser');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.operationName).toBe('DeleteUser');
     });
 
     it('should handle client mutate errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           errors: [{ message: 'Mutation error' }],
@@ -429,7 +429,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should handle client mutate HTTP errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         statusText: 'Bad Request',
@@ -443,7 +443,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
 
   describe('createGraphQLClient - Custom Headers', () => {
     it('should merge custom headers with defaults', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: {} }),
       });
@@ -456,7 +456,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       const client = createGraphQLClient({ headers: customHeaders });
       await client.query('query { user { id } }');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
 
       expect(fetchCall[1].headers).toEqual({
         'Content-Type': 'application/json',
@@ -467,7 +467,7 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
     });
 
     it('should allow overriding default headers', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: {} }),
       });
@@ -480,13 +480,13 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
 
       await client.query('query { user { id } }');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
 
       expect(fetchCall[1].headers['x-hasura-admin-secret']).toBe('different-secret');
     });
 
     it('should use custom headers for query but mutate uses defaults (known limitation)', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ data: {} }),
@@ -503,8 +503,8 @@ describe('GraphQL Client - Advanced Coverage Tests', () => {
       await client.query('query { user }');
       await client.mutate('mutation { createUser }');
 
-      const queryCall = (global.fetch as jest.Mock).mock.calls[0];
-      const mutateCall = (global.fetch as jest.Mock).mock.calls[1];
+      const queryCall = (global.mockFetch as jest.Mock).mock.calls[0];
+      const mutateCall = (global.mockFetch as jest.Mock).mock.calls[1];
 
       // Query uses custom headers
       expect(queryCall[1].headers['X-Request-ID']).toBe('req-123');

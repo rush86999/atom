@@ -34,7 +34,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -97,7 +97,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should initiate OAuth authorization', async () => {
       const integrationId = 'slack';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -120,7 +120,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         state: 'state-456',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -150,7 +150,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         error_description: 'User denied access',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: () => Promise.resolve({
@@ -193,7 +193,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should test API key validity', async () => {
       const apiKey = 'test-api-key-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -215,7 +215,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should handle invalid API keys', async () => {
       const invalidKey = 'invalid-key';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: () => Promise.resolve({
@@ -254,7 +254,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         events: ['message.created', 'channel.updated'],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -280,7 +280,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should verify webhook delivery', async () => {
       const webhookId = 'webhook-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -304,7 +304,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should check connection health', async () => {
       const integrationId = 'slack';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -326,7 +326,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should detect unhealthy connections', async () => {
       const integrationId = 'salesforce';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -348,7 +348,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should retry unhealthy connections', async () => {
       let attemptCount = 0;
 
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         attemptCount++;
         if (attemptCount < 3) {
           return Promise.resolve({
@@ -395,7 +395,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -421,7 +421,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should load integration settings', async () => {
       const integrationId = 'slack';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -471,7 +471,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
     it('should disconnect integration', async () => {
       const integrationId = 'slack';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,

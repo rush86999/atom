@@ -30,7 +30,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -57,7 +57,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -98,7 +98,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -133,7 +133,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -191,7 +191,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       ];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -223,7 +223,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -245,7 +245,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
       const parameterType = 'email';
       const partialInput = 'tes';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -272,7 +272,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     it('should fetch available variables via GET /api/workflows/:id/variables', async () => {
       const workflowId = 'workflow-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -307,7 +307,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -335,7 +335,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     it('should get test results via GET /api/nodes/tests/:testId', async () => {
       const testId = 'test-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -365,7 +365,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     it('should validate configuration on each change', async () => {
       let validationCallCount = 0;
 
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         validationCallCount++;
         return Promise.resolve({
           ok: true,
@@ -396,7 +396,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     it('should debounce validation calls', async () => {
       let validationCallCount = 0;
 
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         validationCallCount++;
         return Promise.resolve({
           ok: true,
@@ -431,7 +431,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     it('should fetch configuration history via GET /api/nodes/:id/history', async () => {
       const nodeId = 'node-123';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -468,7 +468,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
       const nodeId = 'node-123';
       const historyId = 'hist-1';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -497,13 +497,13 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       await expect(fetch('/api/nodes/node-123/config')).rejects.toThrow('Network error');
     });
 
     it('should handle 404 errors for non-existent nodes', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 404,
         json: () => Promise.resolve({
@@ -518,7 +518,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
     });
 
     it('should handle validation errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: () => Promise.resolve({

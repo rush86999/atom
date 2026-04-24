@@ -23,7 +23,7 @@ describe('ResetPassword Component', () => {
       query: { token: mockToken },
       pathname: '/auth/reset-password',
     });
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.mockFetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({ valid: true }),
     });
@@ -56,7 +56,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show invalid link message when token is invalid', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({ valid: false }),
       });
@@ -70,7 +70,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show invalid link message when verification fails', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       render(<ResetPassword />);
 
@@ -150,7 +150,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show loading state during submission', async () => {
-      (global.fetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
+      (global.mockFetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
       const passwordInput = screen.getByPlaceholderText(/new password/i);
       const confirmPasswordInput = screen.getByPlaceholderText(/confirm password/i);
       const submitButton = screen.getByRole('button', { name: /reset password/i });
@@ -272,7 +272,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show error message on failed reset', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ valid: true }),
       }).mockResolvedValueOnce({
@@ -352,7 +352,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ valid: true }),
       }).mockRejectedValueOnce(new Error('Network error'));

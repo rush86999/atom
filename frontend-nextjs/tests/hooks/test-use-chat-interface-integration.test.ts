@@ -181,7 +181,7 @@ describe('useChatInterface - Integration Tests', () => {
 
       expect(result.current.isLoading).toBe(false);
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Hello!' }),
       });
@@ -205,7 +205,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
 
       await act(async () => {
         try {
@@ -225,7 +225,7 @@ describe('useChatInterface - Integration Tests', () => {
       );
 
       // Set error state
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('First error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('First error'));
 
       await act(async () => {
         try {
@@ -238,7 +238,7 @@ describe('useChatInterface - Integration Tests', () => {
       expect(result.current.error).toBe('First error');
 
       // Send new message - should clear error
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Success' }),
       });
@@ -257,7 +257,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Response' }),
       });
@@ -281,7 +281,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Received attachments' }),
       });
@@ -295,7 +295,7 @@ describe('useChatInterface - Integration Tests', () => {
         result.current.sendMessage('Check this out', attachments)
       );
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.attachments).toEqual(attachments);
@@ -306,7 +306,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       let caughtError: Error | undefined;
 
@@ -328,7 +328,7 @@ describe('useChatInterface - Integration Tests', () => {
       );
 
       // First call fails
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Failed'));
 
       await act(async () => {
         try {
@@ -342,7 +342,7 @@ describe('useChatInterface - Integration Tests', () => {
       expect(result.current.messages).toHaveLength(0);
 
       // Retry succeeds
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Success!' }),
       });
@@ -374,7 +374,7 @@ describe('useChatInterface - Integration Tests', () => {
         },
       });
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         body: mockStream,
       });
@@ -392,7 +392,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Stream failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Stream failed'));
 
       await act(async () => {
         try {
@@ -414,7 +414,7 @@ describe('useChatInterface - Integration Tests', () => {
       );
 
       // First response
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'First response' }),
       });
@@ -427,7 +427,7 @@ describe('useChatInterface - Integration Tests', () => {
       expect(result.current.messages[1].content).toBe('First response');
 
       // Regenerate
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Second response' }),
       });
@@ -445,7 +445,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Response' }),
       });
@@ -472,7 +472,7 @@ describe('useChatInterface - Integration Tests', () => {
       );
 
       let sendCount = 0;
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         sendCount++;
         return Promise.resolve({
           ok: true,
@@ -498,7 +498,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ response: 'Response' }),
       });
@@ -523,7 +523,7 @@ describe('useChatInterface - Integration Tests', () => {
         mockUseChatInterface({ agentId: 'agent-123', sessionId: 'session-123' })
       );
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ response: 'Empty received' }),
       });
@@ -542,7 +542,7 @@ describe('useChatInterface - Integration Tests', () => {
 
       const longMessage = 'A'.repeat(10000);
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ response: 'Long message received' }),
       });
@@ -561,7 +561,7 @@ describe('useChatInterface - Integration Tests', () => {
 
       const specialMessage = 'Hello 🚀! Test <script>alert("xss")</script>';
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ response: 'Received' }),
       });

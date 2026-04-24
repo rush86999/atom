@@ -114,7 +114,8 @@ describe('WhatsAppBusinessIntegration', () => {
     jest.clearAllMocks();
 
     // Mock successful health check
-    (global.fetch as jest.Mock).mockImplementation((url) => {
+    // Use global.mockFetch instead of global.fetch because MSW intercepts fetch
+    (global.mockFetch as jest.Mock).mockImplementation((url) => {
       if (url === '/api/whatsapp/health') {
         return Promise.resolve({
           ok: true,
@@ -291,7 +292,7 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('handles disconnected state correctly', async () => {
     // Mock disconnected health response
-    (global.fetch as jest.Mock).mockImplementation((url) => {
+    (global.mockFetch as jest.Mock).mockImplementation((url) => {
       if (url === '/api/whatsapp/health') {
         return Promise.resolve({
           ok: true,
@@ -353,7 +354,7 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('handles API errors gracefully', async () => {
     // Mock error response
-    (global.fetch as jest.Mock).mockImplementation((url) => {
+    (global.mockFetch as jest.Mock).mockImplementation((url) => {
       if (url === '/api/whatsapp/send') {
         return Promise.resolve({
           ok: false,

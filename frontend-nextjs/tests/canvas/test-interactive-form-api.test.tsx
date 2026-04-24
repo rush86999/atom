@@ -21,7 +21,7 @@ describe('InteractiveForm - API Integration Tests', () => {
         age: 30,
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -59,7 +59,7 @@ describe('InteractiveForm - API Integration Tests', () => {
         email: 'invalid-email', // Invalid email
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: () => Promise.resolve({
@@ -85,7 +85,7 @@ describe('InteractiveForm - API Integration Tests', () => {
     });
 
     it('should handle network errors during submission', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       await expect(
         fetch('/api/canvas/forms/submit', {
@@ -99,7 +99,7 @@ describe('InteractiveForm - API Integration Tests', () => {
     it('should retry failed submissions', async () => {
       let attemptCount = 0;
 
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         attemptCount++;
         if (attemptCount < 3) {
           return Promise.reject(new Error('Temporary failure'));
@@ -139,7 +139,7 @@ describe('InteractiveForm - API Integration Tests', () => {
       formData.append('file', file);
       formData.append('canvasId', 'canvas-123');
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -207,7 +207,7 @@ describe('InteractiveForm - API Integration Tests', () => {
 
   describe('Form Validation with API', () => {
     it('should validate field via API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -235,7 +235,7 @@ describe('InteractiveForm - API Integration Tests', () => {
     });
 
     it('should receive validation errors from API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve({
@@ -265,7 +265,7 @@ describe('InteractiveForm - API Integration Tests', () => {
     it('should debounce validation requests', async () => {
       let validationCount = 0;
 
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         validationCount++;
         return Promise.resolve({
           ok: true,
@@ -311,7 +311,7 @@ describe('InteractiveForm - API Integration Tests', () => {
         email: 'john@example.com',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -341,7 +341,7 @@ describe('InteractiveForm - API Integration Tests', () => {
         savedAt: new Date().toISOString(),
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -363,7 +363,7 @@ describe('InteractiveForm - API Integration Tests', () => {
       const step2Data = { age: 30, city: 'New York' };
       const step3Data = { subscribe: true, preferences: ['newsletter'] };
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -391,14 +391,14 @@ describe('InteractiveForm - API Integration Tests', () => {
       });
 
       expect(global.fetch).toHaveBeenCalledTimes(3);
-      expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe('/api/canvas/forms/step/1');
-      expect((global.fetch as jest.Mock).mock.calls[2][0]).toBe('/api/canvas/forms/step/3');
+      expect((global.mockFetch as jest.Mock).mock.calls[0][0]).toBe('/api/canvas/forms/step/1');
+      expect((global.mockFetch as jest.Mock).mock.calls[2][0]).toBe('/api/canvas/forms/step/3');
     });
 
     it('should validate each step before proceeding', async () => {
       const step1Data = { name: '', email: '' }; // Invalid
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: () => Promise.resolve({
@@ -424,7 +424,7 @@ describe('InteractiveForm - API Integration Tests', () => {
 
   describe('Conditional Logic', () => {
     it('should fetch conditional field configuration', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,

@@ -25,7 +25,7 @@ describe('API Backend Helper', () => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_API_URL = 'https://api.test.com';
     // Reset fetch to default implementation
-    (global.fetch as jest.Mock).mockReset();
+    (global.mockFetch as jest.Mock).mockReset();
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('API Backend Helper', () => {
 
     it('should make successful GET request', async () => {
       const mockResponse = { data: 'test' };
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -67,7 +67,7 @@ describe('API Backend Helper', () => {
       const mockResponse = { success: true };
       const requestBody = { foo: 'bar' };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -87,7 +87,7 @@ describe('API Backend Helper', () => {
     });
 
     it('should merge custom headers with defaults', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -117,7 +117,7 @@ describe('API Backend Helper', () => {
       jest.useFakeTimers();
 
       // Fail twice, succeed on third try
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({
@@ -137,13 +137,13 @@ describe('API Backend Helper', () => {
 
       jest.useRealTimers();
       // Reset mocks after using fake timers
-      (global.fetch as jest.Mock).mockReset();
+      (global.mockFetch as jest.Mock).mockReset();
     });
 
     it('should throw error after max retries (3 attempts)', async () => {
       // Always fail - using mockRejectedValueOnce 3 times ensures only 3 calls fail
       const fetchError = new Error('Network error');
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockRejectedValueOnce(fetchError)
         .mockRejectedValueOnce(fetchError)
         .mockRejectedValueOnce(fetchError);
@@ -166,7 +166,7 @@ describe('API Backend Helper', () => {
 
     it('should handle HTTP error responses (non-2xx status)', async () => {
       // Set up mock to always return 404 error
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: false,
         status: 404,
         statusText: 'Not Found',
@@ -183,7 +183,7 @@ describe('API Backend Helper', () => {
     it('should handle 500 status with retries', async () => {
       jest.useFakeTimers();
 
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: false,
           status: 500,
@@ -206,12 +206,12 @@ describe('API Backend Helper', () => {
 
       jest.useRealTimers();
       // Reset mocks after using fake timers
-      (global.fetch as jest.Mock).mockReset();
+      (global.mockFetch as jest.Mock).mockReset();
     });
 
     it('should use custom operation name in error messages', async () => {
       const fetchError = new Error('Network error');
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockRejectedValueOnce(fetchError)
         .mockRejectedValueOnce(fetchError)
         .mockRejectedValueOnce(fetchError);
@@ -244,7 +244,7 @@ describe('API Backend Helper', () => {
 
     it('should call backend with auth code', async () => {
       const mockTokens = { access_token: 'abc123', refresh_token: 'xyz789' };
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTokens,
       });
@@ -264,7 +264,7 @@ describe('API Backend Helper', () => {
     it('should handle exchange errors with retries', async () => {
       jest.useFakeTimers();
 
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({
           ok: true,
@@ -337,7 +337,7 @@ describe('API Backend Helper', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockIntegration,
       });
@@ -355,14 +355,14 @@ describe('API Backend Helper', () => {
     });
 
     it('should include userId and resource in GraphQL query', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ Calendar_Integration: [] }),
       });
 
       await getMinimalCalendarIntegrationByResource('user-456', 'outlook');
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual({
@@ -394,7 +394,7 @@ describe('API Backend Helper', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockIntegrations,
       });
@@ -409,7 +409,7 @@ describe('API Backend Helper', () => {
     });
 
     it('should include all three parameters in GraphQL query', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ Calendar_Integration: [] }),
       });
@@ -420,7 +420,7 @@ describe('API Backend Helper', () => {
         'mobile'
       );
 
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
 
       expect(body.variables).toEqual({
@@ -445,7 +445,7 @@ describe('API Backend Helper', () => {
         attendees: ['user1@example.com', 'user2@example.com'],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -467,7 +467,7 @@ describe('API Backend Helper', () => {
 
       const meetingData = { title: 'Test' };
 
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({
           ok: true,
@@ -583,7 +583,7 @@ describe('API Backend Helper', () => {
     it('should use localhost as default when NEXT_PUBLIC_API_URL not set', () => {
       delete process.env.NEXT_PUBLIC_API_URL;
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -597,7 +597,7 @@ describe('API Backend Helper', () => {
     it('should use custom API URL when set', () => {
       process.env.NEXT_PUBLIC_API_URL = 'https://custom.api.com';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });

@@ -40,7 +40,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -67,7 +67,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
     });
 
     it('should handle save errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       await expect(fetch('/api/workflows', {
         method: 'POST',
@@ -78,7 +78,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
 
     it('should retry failed save operations', async () => {
       let attemptCount = 0;
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         attemptCount++;
         if (attemptCount < 3) {
           return Promise.reject(new Error('Temporary failure'));
@@ -117,7 +117,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
         edges: [],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -133,7 +133,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
     });
 
     it('should handle 404 errors when loading non-existent workflow', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 404,
         json: () => Promise.resolve({
@@ -150,7 +150,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
     it('should cache loaded workflows to avoid redundant API calls', async () => {
       const cache = new Map();
 
-      (global.fetch as jest.Mock).mockImplementation((url) => {
+      (global.mockFetch as jest.Mock).mockImplementation((url) => {
         if (cache.has(url)) {
           return Promise.resolve({
             ok: true,
@@ -255,7 +255,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
   describe('Optimistic UI Updates', () => {
     it('should update UI optimistically before API confirmation', async () => {
       let apiCallCount = 0;
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.mockFetch as jest.Mock).mockImplementation(() => {
         apiCallCount++;
         return Promise.resolve({
           ok: true,
@@ -288,7 +288,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
         edges: [],
       };
 
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API failed'));
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('API failed'));
 
       try {
         // Optimistic update
@@ -332,7 +332,7 @@ describe('WorkflowBuilder - API Integration Tests', () => {
         })),
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ success: true }),
       });

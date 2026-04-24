@@ -21,7 +21,7 @@ describe('ForgotPassword Component', () => {
       push: mockPush,
       pathname: '/auth/forgot-password',
     });
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.mockFetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
     });
@@ -93,7 +93,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should show loading state during submission', async () => {
-      (global.fetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
+      (global.mockFetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
       const emailInput = screen.getByPlaceholderText(/email address/i);
       const submitButton = screen.getByRole('button', { name: /send reset link/i });
 
@@ -157,7 +157,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should show error message on failed submission', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ detail: 'User not found' }),
       });
@@ -174,7 +174,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should show generic error message when no detail provided', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({}),
       });
@@ -221,7 +221,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should show error message in accessible div', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ detail: 'Error' }),
       });
@@ -253,7 +253,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.mockFetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       render(<ForgotPassword />);
       const emailInput = screen.getByPlaceholderText(/email address/i);
@@ -280,7 +280,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should clear error state on new submission', async () => {
-      (global.fetch as jest.Mock)
+      (global.mockFetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: false,
           json: async () => ({ detail: 'Network error' }),
@@ -360,7 +360,7 @@ describe('ForgotPassword Component', () => {
     });
 
     it('should sanitize error messages from API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.mockFetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ detail: '<script>alert("xss")</script>' }),
       });
