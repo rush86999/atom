@@ -1700,7 +1700,11 @@ def pytest_exception_interact(node, call, report):
     # Only file bugs for failed tests
     if report.failed:
         # Check if test is a bug discovery test
-        item = node.obj
+        try:
+            item = node.obj
+        except Exception:
+            # Collection error nodes don't have obj -- skip bug filing
+            return
         if hasattr(item, 'pytestmark'):
             markers = [marker.name for marker in item.pytestmark]
             discovery_markers = ['fuzzing', 'chaos', 'browser', 'discovery']

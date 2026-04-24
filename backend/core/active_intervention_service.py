@@ -4,10 +4,10 @@ from typing import Any, Dict, List, Optional
 
 # Import Integration Services
 try:
-try:
+    try:
         from integrations.stripe_service import stripe_service
-    HAS_STRIPE = True
-except ImportError:
+        HAS_STRIPE = True
+    except ImportError:
         # Stripe is SaaS-specific billing integration
         stripe_service = None
         HAS_STRIPE = False
