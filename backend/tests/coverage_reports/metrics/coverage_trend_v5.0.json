@@ -128,9 +128,9 @@
     }
   ],
   "current": {
-    "timestamp": "2026-04-24T17:25:14.124401Z",
-    "commit": "77d44936e150d66510f6553d80d858b8c74e8f7e",
-    "commit_message": "docs(292): create phase plan for coverage baselines and prioritization",
+    "timestamp": "2026-04-24T21:30:00.000000Z",
+    "commit": "3527a18fb",
+    "commit_message": "test(293-02): add tests for maturity routes",
     "overall_coverage": 36.72,
     "covered_lines": 33332,
     "total_lines": 90770,
@@ -143,9 +143,30 @@
       "tools": 44.06
     },
     "delta": {
-      "absolute_change": 15.05,
-      "relative_change": 69.45,
-      "direction": "increase"
+      "absolute_change": 0.0,
+      "relative_change": 0.0,
+      "direction": "no_change"
+    }
+  },
+  "phases": {
+    "293-01": {
+      "timestamp": "2026-04-24T21:30:00.000000Z",
+      "commit": "3527a18fb",
+      "commit_message": "test(293-01/293-02): Tier 1 high-priority backend tests",
+      "description": "Tier 1 high-impact file tests for workflow_analytics_endpoints, workflow_parameter_validator, maturity_routes",
+      "files_added": [
+        "test_workflow_analytics_endpoints",
+        "test_workflow_parameter_validator",
+        "test_maturity_routes"
+      ],
+      "coverage_achieved": {
+        "core/workflow_analytics_endpoints.py": 27,
+        "core/workflow_parameter_validator.py": 81,
+        "api/maturity_routes.py": 67
+      },
+      "tests_added": 75,
+      "tests_passing": 75,
+      "note": "3 of 5 Tier 1 files tested (supervisor_learning_service and feedback_service skipped due to missing model dependencies)"
     }
   },
   "metadata": {
