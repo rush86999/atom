@@ -4,7 +4,7 @@
 **Created:** 2026-04-13
 **Granularity:** Coarse (aggressive phase compression)
 **Timeline:** 4-6 weeks
-**Status:** 🚧 ACTIVE
+**Status:** ACTIVE
 
 ---
 
@@ -36,9 +36,9 @@
 5. Backend tests maintain 100% pass rate (no regressions from frontend fixes)
 
 **Plans**:
-- [x] 291-01-PLAN.md — Fix MSW network error simulation and axios retry issues (300-500 API tests)
-- [x] 291-02-PLAN.md — Fix import errors and missing type definitions (200-300 integration tests)
-- [x] 291-03-PLAN.md — Full suite verification, categorization, and documentation
+- [x] 291-01-PLAN.md -- Fix MSW network error simulation and axios retry issues (300-500 API tests)
+- [x] 291-02-PLAN.md -- Fix import errors and missing type definitions (200-300 integration tests)
+- [x] 291-03-PLAN.md -- Full suite verification, categorization, and documentation
 
 **Wave Structure**:
 - Wave 1: Plan 01 (API error tests) - autonomous
@@ -62,7 +62,13 @@
 4. Frontend high-impact component list generated (prioritized by lines of code, business criticality)
 5. Coverage measurement methodology validated (coverage.json structure verified, field names checked)
 
-**Plans**: TBD
+**Plans**:
+- [ ] 292-01-PLAN.md -- Measure and validate backend + frontend coverage baselines (COV-B-01, COV-F-01)
+- [ ] 292-02-PLAN.md -- Generate tiered high-impact prioritization lists for backend and frontend (COV-B-05, COV-F-05)
+
+**Wave Structure**:
+- Wave 1: Plan 01 (Baseline measurement) - autonomous
+- Wave 2: Plan 02 (Prioritization) - autonomous, depends on 01
 
 ---
 
@@ -113,8 +119,8 @@
 **Requirements**: COV-B-04, COV-F-04, QUAL-01, QUAL-02, QUAL-03, QUAL-04, DOC-01, DOC-02, DOC-03, DOC-04
 
 **Success Criteria** (what must be TRUE):
-1. Backend coverage reaches 70% (from 50%, +20pp improvement) ✅ TARGET ACHIEVED
-2. Frontend coverage reaches 70% (from 50%, +20pp improvement) ✅ TARGET ACHIEVED
+1. Backend coverage reaches 70% (from 50%, +20pp improvement) TARGET ACHIEVED
+2. Frontend coverage reaches 70% (from 50%, +20pp improvement) TARGET ACHIEVED
 3. Quality gates enforce 70% threshold (CI/CD prevents coverage regression)
 4. Coverage trend tracking active (PR comment bot provides per-commit feedback)
 5. Coverage guide updated with v11.0 lessons learned (patterns, pitfalls, high-impact prioritization)
@@ -141,13 +147,13 @@
 
 ```
 Phase 291 (Fix Tests)
-    ↓
+    |
 Phase 292 (Baselines)
-    ↓
+    |
 Phase 293 (30% Wave)
-    ↓
+    |
 Phase 294 (50% Wave)
-    ↓
+    |
 Phase 295 (70% Wave + Docs)
 ```
 
@@ -161,15 +167,15 @@ Phase 295 (70% Wave + Docs)
 
 **Why this phase structure:**
 
-1. **Test health first** (Phase 291) — 1,504 failing frontend tests (28.8% failure rate) block accurate coverage measurement. v10.0 showed measurement is unreliable when tests fail.
+1. **Test health first** (Phase 291) -- 1,504 failing frontend tests (28.8% failure rate) block accurate coverage measurement. v10.0 showed measurement is unreliable when tests fail.
 
-2. **Baseline before expansion** (Phase 292) — v10.0's critical error was service-level estimates (74.6%) vs actual line coverage (8.50%). Accurate baselines prevent false confidence.
+2. **Baseline before expansion** (Phase 292) -- v10.0's critical error was service-level estimates (74.6%) vs actual line coverage (8.50%). Accurate baselines prevent false confidence.
 
-3. **Wave-based approach** (Phases 293-295) — 50pp gap broken into manageable chunks (30% → 50% → 70%). Maintains momentum with visible progress. Avoids burnout from monolithic "80% overnight" goal.
+3. **Wave-based approach** (Phases 293-295) -- 50pp gap broken into manageable chunks (30% - 50% - 70%). Maintains momentum with visible progress. Avoids burnout from monolithic "80% overnight" goal.
 
-4. **High-impact prioritization** — Files >200 lines with <10% coverage first. Maximizes coverage increase per hour. Avoids testing trivial code (DTOs, constants) to hit arbitrary targets.
+4. **High-impact prioritization** -- Files >200 lines with <10% coverage first. Maximizes coverage increase per hour. Avoids testing trivial code (DTOs, constants) to hit arbitrary targets.
 
-5. **Pragmatic 70% target** — v10.0 experience showed 80% is unrealistic (achieved 18.25% backend, 14.61% frontend). 70% is ambitious but achievable.
+5. **Pragmatic 70% target** -- v10.0 experience showed 80% is unrealistic (achieved 18.25% backend, 14.61% frontend). 70% is ambitious but achievable.
 
 **Coarse granularity applied:**
 - Research suggested 10+ phases (detailed breakdown)
@@ -188,14 +194,14 @@ Phase 295 (70% Wave + Docs)
 
 **Completed:** 2026-04-13
 **Duration:** 12 days (vs 1 week planned)
-**Status:** ✅ Complete with documented gaps
+**Status:** Complete with documented gaps
 
 **Achievements:**
-- ✅ Frontend & backend builds working (zero errors)
-- ✅ 100% test pass rate achieved (17 failures fixed)
-- ✅ Quality infrastructure production-ready (CI/CD gates, metrics)
-- ✅ Property tests complete (120 invariants cataloged)
-- ✅ Documentation comprehensive (5,000+ lines)
+- Frontend and backend builds working (zero errors)
+- 100% test pass rate achieved (17 failures fixed)
+- Quality infrastructure production-ready (CI/CD gates, metrics)
+- Property tests complete (120 invariants cataloged)
+- Documentation comprehensive (5,000+ lines)
 
 **Documented Gaps (v11.0 focus):**
 - Backend coverage: 18.25% vs 80% target (-61.75pp gap)
@@ -207,5 +213,5 @@ Phase 295 (70% Wave + Docs)
 ---
 
 *Roadmap created: 2026-04-13*
-*Phase 291 plans created: 2026-04-13*
-*Next: /gsd-execute-phase 291*
+*Phase 292 plans created: 2026-04-24*
+*Next: /gsd-execute-phase 292*
