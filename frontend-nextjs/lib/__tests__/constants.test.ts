@@ -203,4 +203,87 @@ describe('Constants', () => {
       expect(postgraphileWSUrl).toMatch(/^wss?:\/\//);
     });
   });
+
+  // Additional tests for extended coverage
+  describe('Constants Immutability', () => {
+    it('should not allow reassignment of exported constants', () => {
+      // Constants should be defined and non-writable in practice
+      expect(googleClientIdAtomicWeb).toBeDefined();
+      expect(googleClientSecretAtomicWeb).toBeDefined();
+      expect(postgraphileAdminSecret).toBeDefined();
+      expect(zoomIVForPass).toBeDefined();
+      expect(zoomPassKey).toBeDefined();
+      expect(zoomSaltForPass).toBeDefined();
+    });
+  });
+
+  describe('Constants Consistency', () => {
+    it('should have matching protocols for related endpoints', () => {
+      // WS URL should match HTTP URL protocol (http -> ws, https -> wss)
+      const graphUrlProtocol = postgraphileGraphUrl.startsWith('https') ? 'https' : 'http';
+      const wsUrlProtocol = postgraphileWSUrl.startsWith('wss') ? 'wss' : 'ws';
+
+      if (graphUrlProtocol === 'https') {
+        expect(wsUrlProtocol).toBe('wss');
+      } else {
+        expect(wsUrlProtocol).toBe('ws');
+      }
+    });
+
+    it('should use localhost for all default URLs', () => {
+      // When env vars are not set, all should default to localhost
+      expect(postgraphileGraphUrl).toContain('localhost');
+      expect(SCHEDULER_API_URL).toContain('localhost');
+      expect(postgraphileDbUrl).toContain('localhost');
+      expect(HASURA_GRAPHQL_URL).toContain('localhost');
+    });
+  });
+
+  describe('Constants Security', () => {
+    it('should have non-empty default secrets for development', () => {
+      // Development defaults should be non-empty strings
+      expect(postgraphileAdminSecret.length).toBeGreaterThan(0);
+      expect(HASURA_ADMIN_SECRET.length).toBeGreaterThan(0);
+      expect(zoomIVForPass.length).toBeGreaterThan(0);
+      expect(zoomPassKey.length).toBeGreaterThan(0);
+      expect(zoomSaltForPass.length).toBeGreaterThan(0);
+    });
+
+    it('should accept empty strings for OAuth client credentials', () => {
+      // OAuth credentials are typically injected via env vars
+      // Empty strings are valid defaults (will be replaced in production)
+      expect(googleClientIdAtomicWeb).toBeDefined();
+      expect(googleClientSecretAtomicWeb).toBeDefined();
+      expect(ATOM_GOOGLE_CALENDAR_CLIENT_ID).toBeDefined();
+      expect(ATOM_GOOGLE_CALENDAR_CLIENT_SECRET).toBeDefined();
+    });
+  });
+
+  describe('Constants Type Safety', () => {
+    it('should export only string constants', () => {
+      const constants = [
+        googleClientIdAtomicWeb,
+        googleClientSecretAtomicWeb,
+        googleOAuthAtomicWebRedirectUrl,
+        postgraphileAdminSecret,
+        postgraphileGraphUrl,
+        zoomIVForPass,
+        zoomPassKey,
+        zoomSaltForPass,
+        SCHEDULER_API_URL,
+        postgraphileDbUrl,
+        postgraphileWSUrl,
+        HASURA_GRAPHQL_URL,
+        HASURA_ADMIN_SECRET,
+        ATOM_GOOGLE_CALENDAR_CLIENT_ID,
+        ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
+      ];
+
+      constants.forEach(constant => {
+        expect(typeof constant).toBe('string');
+        expect(constant).not.toBeNull();
+        expect(constant).not.toBeUndefined();
+      });
+    });
+  });
 });

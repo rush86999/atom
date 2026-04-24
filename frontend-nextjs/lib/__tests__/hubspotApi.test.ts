@@ -542,6 +542,178 @@ describe('HubSpot API Service', () => {
     });
   });
 
+  // Additional tests for extended coverage
+  describe('getCompanies', () => {
+    it('should return companies list', async () => {
+      const mockCompanies = [
+        { id: '1', name: 'Company 1', domain: 'company1.com' },
+        { id: '2', name: 'Company 2', domain: 'company2.com' },
+      ];
+
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          companies: mockCompanies,
+          total: 2,
+          hasMore: false,
+        }),
+      });
+
+      const result = await hubspotApi.getCompanies();
+
+      expect(result).toEqual({
+        companies: mockCompanies,
+        total: 2,
+        hasMore: false,
+      });
+    });
+
+    it('should handle empty companies list', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ companies: [], total: 0, hasMore: false }),
+      });
+
+      const result = await hubspotApi.getCompanies();
+
+      expect(result.companies).toEqual([]);
+    });
+
+    it('should return empty list on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('API error'));
+
+      const result = await hubspotApi.getCompanies();
+
+      expect(result).toEqual({
+        companies: [],
+        total: 0,
+        hasMore: false,
+      });
+    });
+  });
+
+  describe('getDeals', () => {
+    it('should return deals list', async () => {
+      const mockDeals = [
+        { id: '1', amount: 10000, stage: 'proposal' },
+        { id: '2', amount: 25000, stage: 'negotiation' },
+      ];
+
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          deals: mockDeals,
+          total: 2,
+          hasMore: false,
+        }),
+      });
+
+      const result = await hubspotApi.getDeals();
+
+      expect(result).toEqual({
+        deals: mockDeals,
+        total: 2,
+        hasMore: false,
+      });
+    });
+
+    it('should handle pagination parameters', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deals: [], total: 0, hasMore: false }),
+      });
+
+      await hubspotApi.getDeals({
+        limit: 50,
+        after: 'cursor123',
+        properties: ['amount', 'stage'],
+      });
+
+      const fetchCall = (global.mockFetch as jest.Mock).mock.calls[0];
+      expect(fetchCall[0]).toContain('limit=50');
+      expect(fetchCall[0]).toContain('after=cursor123');
+      expect(fetchCall[0]).toContain('properties=amount%2Cstage');
+    });
+  });
+
+  describe('createDeal', () => {
+    it('should create deal successfully', async () => {
+      const dealData = { amount: 50000, stage: 'proposal' };
+      const createdDeal = { id: '789', ...dealData };
+
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deal: createdDeal }),
+      });
+
+      const result = await hubspotApi.createDeal(dealData);
+
+      expect(result).toEqual({
+        success: true,
+        deal: createdDeal,
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/hubspot/deals',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify(dealData),
+        })
+      );
+    });
+  });
+
+  describe('updateDeal', () => {
+    it('should update deal successfully', async () => {
+      const updates = { amount: 75000 };
+      const updatedDeal = { id: '123', ...updates };
+
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deal: updatedDeal }),
+      });
+
+      const result = await hubspotApi.updateDeal('123', updates);
+
+      expect(result).toEqual({
+        success: true,
+        deal: updatedDeal,
+      });
+    });
+  });
+
+  describe('searchContacts', () => {
+    it('should search contacts successfully', async () => {
+      const mockContacts = [
+        { id: '1', email: 'john@example.com', firstName: 'John' },
+      ];
+
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ contacts: mockContacts }),
+      });
+
+      const result = await hubspotApi.searchContacts('john');
+
+      expect(result).toEqual(mockContacts);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/hubspot/contacts/search',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ query: 'john', filters: undefined }),
+        })
+      );
+    });
+
+    it('should return empty array on search error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('Search error'));
+
+      const result = await hubspotApi.searchContacts('test');
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('HTTP error handling', () => {
     it('should log and throw on HTTP errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
