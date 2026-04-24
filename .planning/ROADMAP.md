@@ -136,7 +136,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 291. Frontend Test Suite Fixes | 4/3 | Complete   | 2026-04-24 |
-| 292. Coverage Baselines & Prioritization | 2/2 | Complete   | 2026-04-24 |
+| 292. Coverage Baselines & Prioritization | 2/2 | Complete    | 2026-04-24 |
 | 293. Coverage Wave 1 (30% Target) | 0/4 | Not started | - |
 | 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
 | 295. Coverage Wave 3 (70% Target) & Documentation | 0/5 | Not started | - |
