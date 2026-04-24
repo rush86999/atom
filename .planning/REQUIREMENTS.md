@@ -9,11 +9,11 @@ Requirements for v11.0 milestone: Fix test suite, expand coverage to 70% (backen
 
 ### Test Suite Health
 
-- [ ] **TEST-01**: Frontend tests achieve 100% pass rate (currently 71.2%, 1,504 failing tests)
-- [ ] **TEST-02**: Backend tests maintain 100% pass rate (currently 99.3%)
-- [ ] **TEST-03**: All test infrastructure blockers resolved (import errors, missing models)
-- [ ] **TEST-04**: Test suite can run to completion without errors (unblocks coverage measurement)
-- [ ] **TEST-05**: Frontend test failures categorized and documented (root causes, severity)
+- [x] **TEST-01**: Frontend tests achieve 100% pass rate (currently 71.2%, 1,504 failing tests)
+- [x] **TEST-02**: Backend tests maintain 100% pass rate (currently 99.3%)
+- [x] **TEST-03**: All test infrastructure blockers resolved (import errors, missing models)
+- [x] **TEST-04**: Test suite can run to completion without errors (unblocks coverage measurement)
+- [x] **TEST-05**: Frontend test failures categorized and documented (root causes, severity)
 
 ### Backend Coverage Expansion
 
@@ -71,11 +71,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 291 | Pending |
-| TEST-02 | Phase 291 | Pending |
-| TEST-03 | Phase 291 | Pending |
-| TEST-04 | Phase 291 | Pending |
-| TEST-05 | Phase 291 | Pending |
+| TEST-01 | Phase 291 | Complete |
+| TEST-02 | Phase 291 | Complete |
+| TEST-03 | Phase 291 | Complete |
+| TEST-04 | Phase 291 | Complete |
+| TEST-05 | Phase 291 | Complete |
 | COV-B-01 | Phase 292 | Pending |
 | COV-B-02 | Phase 293 | Pending |
 | COV-B-03 | Phase 294 | Pending |
