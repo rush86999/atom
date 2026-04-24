@@ -130,17 +130,19 @@ jest.mock('got', () => ({
 }));
 
 // Mock fetch API - properly typed as jest mock to support mockImplementation, mockResolvedValue, etc.
-const mockFetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    status: 200,
-    json: async () => ({}),
-    text: async () => '',
-    blob: async () => new Blob(),
-    arrayBuffer: async () => new ArrayBuffer(0),
-    headers: {},
-  })
-);
+const createMockResponse = () => ({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  json: async () => ({}),
+  text: async () => '',
+  blob: async () => new Blob(),
+  arrayBuffer: async () => new ArrayBuffer(0),
+  headers: {},
+  clone: function() { return { ...this }; },
+});
+
+const mockFetch = jest.fn(() => Promise.resolve(createMockResponse()));
 global.fetch = mockFetch as any;
 
 // Mock WebSocket - define constants first
