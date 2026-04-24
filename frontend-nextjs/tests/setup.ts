@@ -40,7 +40,12 @@ global.createMockResponse = (overrides: any = {}) => ({
 const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
 
 // Assign to both global.fetch and globalThis.fetch to ensure all references work
-global.fetch = mockFetch as any;
+// Use Object.defineProperty to ensure it's writable
+Object.defineProperty(global, 'fetch', {
+  value: mockFetch,
+  writable: true,
+  configurable: true,
+});
 (globalThis as any).fetch = mockFetch;
 
 // Export mockFetch for tests that need to access it directly
