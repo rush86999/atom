@@ -1,3 +1,7 @@
+// Jest setup for Phase 293
+// Increase default timeout for async operations (fetch mocks, waitFor)
+jest.setTimeout(10000); // 10 seconds
+
 // Polyfill for MSW 2.x - must come before any other imports
 import * as WebStreamsPolyfill from 'web-streams-polyfill';
 import { TextEncoder, TextDecoder } from 'util';
