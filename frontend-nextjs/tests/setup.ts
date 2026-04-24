@@ -43,6 +43,10 @@ const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockRespon
 global.fetch = mockFetch as any;
 (globalThis as any).fetch = mockFetch;
 
+// Export mockFetch for tests that need to access it directly
+// Tests can import it with: import { mockFetch } from '@/tests/setup'
+(global as any).mockFetch = mockFetch;
+
 // Configure jest-axe for accessibility testing
 import { toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
