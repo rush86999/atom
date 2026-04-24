@@ -54,12 +54,48 @@
     "last_executed": "2026-03-15T21:45:12.123456"
   },
   "test-workflow": {
-    "execution_count": 35,
-    "success_count": 3,
+    "execution_count": 37,
+    "success_count": 5,
     "failure_count": 32,
-    "total_duration_seconds": 0.103013,
-    "total_time_saved_seconds": 180.0,
-    "total_business_value": 30.0,
-    "last_executed": "2026-04-12T16:52:59.094294"
+    "total_duration_seconds": 0.107316,
+    "total_time_saved_seconds": 300.0,
+    "total_business_value": 50.0,
+    "last_executed": "2026-04-24T17:18:33.276765"
+  },
+  "test-state-persist": {
+    "execution_count": 1,
+    "success_count": 1,
+    "failure_count": 0,
+    "total_duration_seconds": 0.091456,
+    "total_time_saved_seconds": 60.0,
+    "total_business_value": 10.0,
+    "last_executed": "2026-04-24T16:54:14.418852"
+  },
+  "test-notify-step": {
+    "execution_count": 2,
+    "success_count": 2,
+    "failure_count": 0,
+    "total_duration_seconds": 0.129787,
+    "total_time_saved_seconds": 120.0,
+    "total_business_value": 20.0,
+    "last_executed": "2026-04-24T17:18:49.592488"
+  },
+  "test-notify-start": {
+    "execution_count": 1,
+    "success_count": 1,
+    "failure_count": 0,
+    "total_duration_seconds": 0.042682,
+    "total_time_saved_seconds": 60.0,
+    "total_business_value": 10.0,
+    "last_executed": "2026-04-24T17:18:49.485330"
+  },
+  "test-log-wf": {
+    "execution_count": 1,
+    "success_count": 1,
+    "failure_count": 0,
+    "total_duration_seconds": 0.06091,
+    "total_time_saved_seconds": 60.0,
+    "total_business_value": 10.0,
+    "last_executed": "2026-04-24T17:19:50.495469"
   }
 }

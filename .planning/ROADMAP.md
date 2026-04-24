@@ -88,13 +88,17 @@
 5. Combined coverage trend recorded for backend (unchanged from 36.72%) and frontend (improving toward 30%)
 
 **Plans**:
-- [ ] 293-01-PLAN.md -- Backend Tier 1 high-priority files tests (COV-B-02)
-- [ ] 293-02-PLAN.md -- Frontend Critical chat component tests (COV-F-02)
-- [ ] 293-03-PLAN.md -- Frontend High integration + lib tests + combined coverage verification (COV-F-02)
+- [x] 293-01-PLAN.md -- Backend Tier 1 high-priority files tests (COV-B-02)
+- [x] 293-02-PLAN.md -- Frontend Critical chat component tests (COV-F-02)
+- [x] 293-03-PLAN.md -- Frontend High integration + lib tests + combined coverage verification (COV-F-02)
+- [ ] 293-04-PLAN.md -- Gap closure: Backend test mock fixes (COV-B-02)
+- [ ] 293-05-PLAN.md -- Gap closure: Frontend async timeout fixes (COV-F-02)
+- [ ] 293-06-PLAN.md -- Gap closure: Frontend coverage push (COV-F-02)
 
 **Wave Structure**:
 - Wave 1: Plan 01 (backend Tier 1 tests), Plan 02 (frontend Critical tests) - parallel
 - Wave 2: Plan 03 (frontend High tests + combined coverage measurement) - depends on 01, 02
+- Wave 4: Plans 04, 05, 06 (gap closure from verification) - parallel, depends on 01, 02, 03
 
 ---
 
@@ -144,7 +148,7 @@
 |-------|----------------|--------|-----------|
 | 291. Frontend Test Suite Fixes | 4/3 | Complete   | 2026-04-24 |
 | 292. Coverage Baselines & Prioritization | 2/2 | Complete    | 2026-04-24 |
-| 293. Coverage Wave 1 (30% Target) | 0/3 | Not started | - |
+| 293. Coverage Wave 1 (30% Target) | 3/6 | In Progress | 2026-04-24 |
 | 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
 | 295. Coverage Wave 3 (70% Target) & Documentation | 0/5 | Not started | - |
 
@@ -222,4 +226,5 @@ Phase 295 (70% Wave + Docs)
 *Roadmap created: 2026-04-13*
 *Phase 292 plans created: 2026-04-24*
 *Phase 293 plans created: 2026-04-24*
+*Phase 293 gap closure plans created: 2026-04-24*
 *Next: /gsd-execute-phase 293*
