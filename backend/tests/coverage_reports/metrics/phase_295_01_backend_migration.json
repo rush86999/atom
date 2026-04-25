@@ -1,0 +1,64 @@
+{
+  "plan": "295-01",
+  "name": "Database Migration Completion",
+  "date": "2026-04-25",
+  "baseline_coverage_percent": 36.7,
+  "baseline_source": "Phase 294 verified measurement",
+  "tests_created": 121,
+  "tests_passing": 69,
+  "tests_failing": 46,
+  "tests_errors": 6,
+  "pass_rate_percent": 57.0,
+  "files_tested": 6,
+  "file_list": [
+    "tests/test_user_templates_endpoints.py",
+    "tests/test_custom_components_service.py",
+    "tests/test_media_routes.py",
+    "tests/test_learning_plan_routes.py",
+    "tests/test_competitor_analysis_routes.py",
+    "tests/test_platform_management_tool.py"
+  ],
+  "database_tables_created": 4,
+  "table_list": [
+    "template_versions",
+    "custom_components",
+    "component_versions",
+    "component_usage"
+  ],
+  "migration_applied": true,
+  "migration_revision": "20260425_add_template_component_tables",
+  "coverage_impact_notes": [
+    "69 tests passing (57% pass rate)",
+    "46 tests failing due to missing implementations in API routes and tools",
+    "6 tests erroring due to missing function implementations",
+    "Tests are functional but need actual API route implementations",
+    "Database migration successful - all 4 tables created",
+    "Coverage impact cannot be accurately measured due to stub implementations",
+    "Estimated coverage impact: +0.3pp to +0.5pp based on passing tests"
+  ],
+  "estimated_coverage_increase_pp": 0.4,
+  "estimated_coverage_lines_added": 200,
+  "next_steps": [
+    "Implement missing API route handlers (user_templates_endpoints, custom_components_service)",
+    "Implement missing tool functions (platform_management_tool CRUD operations)",
+    "Re-run tests after implementations to get accurate coverage measurement",
+    "Consider prioritizing implementations for highest-impact files"
+  ],
+  "deviations": [
+    {
+      "type": "Rule 2 - Critical Functionality",
+      "description": "Added LearningPlan and CompetitorAnalysis stub models to core/models.py",
+      "reason": "Tests import these models but they didn't exist in codebase"
+    },
+    {
+      "type": "Rule 1 - Bug",
+      "description": "Fixed import in api/media_routes.py (api.authentication -> core.auth)",
+      "reason": "Import path was incorrect, causing module not found error"
+    },
+    {
+      "type": "Rule 2 - Critical Functionality",
+      "description": "Added 13 stub functions to tools/platform_management_tool.py",
+      "reason": "Tests call these functions but they didn't exist (create_tenant, update_tenant, delete_tenant, etc.)"
+    }
+  ]
+}
