@@ -29,9 +29,16 @@ class TestAgentRegistration:
         mock_activity_publisher = Mock()
 
         # Mock query to return None (agent doesn't exist)
+        # First call: register_or_update_agent checks for existing agent
+        # Second call: can_perform_action (if called) checks for agent
         mock_query = Mock()
         mock_query.first.return_value = None
         mock_db.query.return_value = mock_query
+
+        # Mock the query chain for filtering
+        mock_filtered_query = Mock()
+        mock_filtered_query.first.return_value = None
+        mock_query.filter.return_value = mock_filtered_query
 
         with patch('core.agent_governance_service.ContinuousLearningService'):
             service = AgentGovernanceService(
@@ -106,7 +113,7 @@ class TestActionPermissions:
         student_agent = AgentRegistry(
             id="student-001",
             name="Student Agent",
-            status=AgentStatus.STUDENT,
+            status=AgentStatus.STUDENT.value,  # Use .value for enum
             confidence_score=0.4,
             workspace_id="test"
         )
@@ -136,7 +143,7 @@ class TestActionPermissions:
         student_agent = AgentRegistry(
             id="student-002",
             name="Student Agent",
-            status=AgentStatus.STUDENT,
+            status=AgentStatus.STUDENT.value,  # Use .value for enum
             confidence_score=0.4,
             workspace_id="test"
         )
@@ -167,27 +174,38 @@ class TestActionPermissions:
         autonomous_agent = AgentRegistry(
             id="autonomous-001",
             name="Autonomous Agent",
-            status=AgentStatus.AUTONOMOUS,
+            status=AgentStatus.AUTONOMOUS.value,  # Use .value for enum
             confidence_score=0.95,
             workspace_id="test"
         )
+
+        # Mock the query chain: query().filter().first()
+        mock_filtered_query = Mock()
+        mock_filtered_query.first.return_value = autonomous_agent
+
         mock_query = Mock()
-        mock_query.first.return_value = autonomous_agent
+        mock_query.filter.return_value = mock_filtered_query
         mock_db.query.return_value = mock_query
 
+        # Mock budget enforcement service at the import location
+        mock_budget_check = {"allowed": True}
+        mock_budget_instance = Mock()
+        mock_budget_instance.check_budget_before_action = Mock(return_value=mock_budget_check)
+
         with patch('core.agent_governance_service.ContinuousLearningService'):
-            service = AgentGovernanceService(
-                db=mock_db,
-                workspace_id="test",
-                activity_publisher=mock_activity_publisher
-            )
+            with patch('core.budget_enforcement_service.BudgetEnforcementService', return_value=mock_budget_instance):
+                service = AgentGovernanceService(
+                    db=mock_db,
+                    workspace_id="test",
+                    activity_publisher=mock_activity_publisher
+                )
 
-            result = service.can_perform_action(
-                agent_id="autonomous-001",
-                action_type="delete"
-            )
+                result = service.can_perform_action(
+                    agent_id="autonomous-001",
+                    action_type="delete"
+                )
 
-            assert result["allowed"] is True
+                assert result["allowed"] is True
 
     def test_supervised_requires_approval_for_critical_actions(self):
         """Test that SUPERVISED agents require approval for critical actions."""
@@ -197,7 +215,7 @@ class TestActionPermissions:
         supervised_agent = AgentRegistry(
             id="supervised-001",
             name="Supervised Agent",
-            status=AgentStatus.SUPERVISED,
+            status=AgentStatus.SUPERVISED.value,  # Use .value for enum
             confidence_score=0.8,
             workspace_id="test"
         )
@@ -236,17 +254,17 @@ class TestActionComplexity:
                 activity_publisher=mock_activity_publisher
             )
 
-            # Level 1: Read operations
-            assert service.ACTION_COMPLEXITY.get("get_status") == 1
-            assert service.ACTION_COMPLEXITY.get("list_records") == 1
+            # Level 1: Read operations (using actual keys from ACTION_COMPLEXITY)
+            assert service.ACTION_COMPLEXITY.get("get") == 1
+            assert service.ACTION_COMPLEXITY.get("list") == 1
 
             # Level 2: Streaming
-            assert service.ACTION_COMPLEXITY.get("stream_response") == 2
-            assert service.ACTION_COMPLEXITY.get("chat") == 2
+            assert service.ACTION_COMPLEXITY.get("analyze") == 2
+            assert service.ACTION_COMPLEXITY.get("suggest") == 2
 
             # Level 3: State changes
-            assert service.ACTION_COMPLEXITY.get("create_record") == 3
-            assert service.ACTION_COMPLEXITY.get("update_record") == 3
+            assert service.ACTION_COMPLEXITY.get("create") == 3
+            assert service.ACTION_COMPLEXITY.get("update") == 3
 
             # Level 4: Critical operations
             assert service.ACTION_COMPLEXITY.get("delete") == 4
@@ -319,8 +337,12 @@ class TestErrorHandling:
         mock_activity_publisher = Mock()
 
         # Mock query to return None (agent not found)
+        # Need to mock the filter chain properly
+        mock_filtered_query = Mock()
+        mock_filtered_query.first.return_value = None
+
         mock_query = Mock()
-        mock_query.first.return_value = None
+        mock_query.filter.return_value = mock_filtered_query
         mock_db.query.return_value = mock_query
 
         with patch('core.agent_governance_service.ContinuousLearningService'):
@@ -346,25 +368,36 @@ class TestErrorHandling:
         paused_agent = AgentRegistry(
             id="paused-001",
             name="Paused Agent",
-            status=AgentStatus.PAUSED,
+            status=AgentStatus.PAUSED.value,  # Use .value for enum
             confidence_score=0.8,
             workspace_id="test"
         )
+
+        # Mock the query chain: query().filter().first()
+        mock_filtered_query = Mock()
+        mock_filtered_query.first.return_value = paused_agent
+
         mock_query = Mock()
-        mock_query.first.return_value = paused_agent
+        mock_query.filter.return_value = mock_filtered_query
         mock_db.query.return_value = mock_query
 
+        # Mock budget enforcement service at the import location
+        mock_budget_check = {"allowed": True}
+        mock_budget_instance = Mock()
+        mock_budget_instance.check_budget_before_action = Mock(return_value=mock_budget_check)
+
         with patch('core.agent_governance_service.ContinuousLearningService'):
-            service = AgentGovernanceService(
-                db=mock_db,
-                workspace_id="test",
-                activity_publisher=mock_activity_publisher
-            )
+            with patch('core.budget_enforcement_service.BudgetEnforcementService', return_value=mock_budget_instance):
+                service = AgentGovernanceService(
+                    db=mock_db,
+                    workspace_id="test",
+                    activity_publisher=mock_activity_publisher
+                )
 
-            result = service.can_perform_action(
-                agent_id="paused-001",
-                action_type="get_status"
-            )
+                result = service.can_perform_action(
+                    agent_id="paused-001",
+                    action_type="get_status"
+                )
 
-            assert result["allowed"] is False
-            assert "paused" in result["reason"].lower()
+                assert result["allowed"] is False
+                assert "paused" in result["reason"].lower()
