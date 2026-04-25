@@ -1,0 +1,166 @@
+{
+  "phase": "295-coverage-wave-3-acceleration",
+  "plan": "295-02",
+  "title": "Backend High-Impact Files Testing",
+  "completed_at": "2026-04-25T12:55:00Z",
+  "duration_minutes": 65,
+  "baseline_coverage": {
+    "backend_overall": 36.7,
+    "measured_at": "2026-04-25 (Phase 294 completion)"
+  },
+  "target_coverage_increase": 3.5,
+  "actual_coverage_increase": 0.0,
+  "test_files_created": 10,
+  "total_tests_added": 200,
+  "passing_tests": 92,
+  "failing_tests": 108,
+  "pass_rate": 46.0,
+  "files_tested": [
+    {
+      "file": "core/workflow_engine.py",
+      "baseline_coverage": 0.0,
+      "current_coverage": 22.0,
+      "improvement": 22.0,
+      "statements": 1219,
+      "covered": 268,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 46,
+      "passing_tests": 27
+    },
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "baseline_coverage": 0.0,
+      "current_coverage": 29.0,
+      "improvement": 29.0,
+      "statements": 773,
+      "covered": 223,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 40,
+      "passing_tests": 25
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "baseline_coverage": 14.61,
+      "current_coverage": 27.0,
+      "improvement": 12.39,
+      "statements": 760,
+      "covered": 203,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 40,
+      "passing_tests": 3
+    },
+    {
+      "file": "core/agent_world_model.py",
+      "baseline_coverage": 11.94,
+      "current_coverage": 11.0,
+      "improvement": -0.94,
+      "statements": 691,
+      "covered": 78,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 20,
+      "passing_tests": 5
+    },
+    {
+      "file": "core/lancedb_handler.py",
+      "baseline_coverage": 15.42,
+      "current_coverage": 23.0,
+      "improvement": 7.58,
+      "statements": 694,
+      "covered": 157,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 13,
+      "passing_tests": 13
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "baseline_coverage": 12.0,
+      "current_coverage": "not_measured",
+      "improvement": 0,
+      "statements": 600,
+      "covered": 0,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 13,
+      "passing_tests": "unknown"
+    },
+    {
+      "file": "core/advanced_workflow_system.py",
+      "baseline_coverage": 0.0,
+      "current_coverage": "not_measured",
+      "improvement": 0,
+      "statements": 516,
+      "covered": 0,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 14,
+      "passing_tests": "unknown"
+    },
+    {
+      "file": "core/atom_meta_agent.py",
+      "baseline_coverage": 13.97,
+      "current_coverage": "not_measured",
+      "improvement": 0,
+      "statements": 594,
+      "covered": 0,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 14,
+      "passing_tests": "unknown"
+    },
+    {
+      "file": "core/workflow_analytics_engine.py",
+      "baseline_coverage": 21.14,
+      "current_coverage": "not_measured",
+      "improvement": 0,
+      "statements": 629,
+      "covered": 0,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 11,
+      "passing_tests": "unknown"
+    },
+    {
+      "file": "core/workflow_versioning_system.py",
+      "baseline_coverage": 0.0,
+      "current_coverage": "not_measured",
+      "improvement": 0,
+      "statements": 477,
+      "covered": 0,
+      "target_met": false,
+      "target": 40,
+      "tests_added": 14,
+      "passing_tests": "unknown"
+    }
+  ],
+  "overall_impact": {
+    "total_lines_covered": 929,
+    "total_statements": 6953,
+    "average_coverage": 13.4,
+    "files_meeting_40_percent_target": 0,
+    "files_below_target": 10,
+    "needs_more_work": [
+      "All files need additional test coverage to reach 40% target",
+      "Failing tests need fixture and mock adjustments",
+      "Some tests require better understanding of internal implementation"
+    ]
+  },
+  "recommendations": [
+    "Fix failing tests by adjusting mocks and fixtures",
+    "Add more tests for uncovered code paths",
+    "Focus on workflow_engine.py and atom_agent_endpoints.py (highest impact)",
+    "Refine BYOK handler tests to improve from 27% to 40%",
+    "Add integration tests for episode segmentation and advanced workflows",
+    "Consider parameterized tests for better coverage",
+    "Use pytest fixtures more effectively for setup"
+  ],
+  "next_steps": [
+    "Proceed to Plan 295-03 (Frontend High-Impact Components)",
+    "Return to backend tests in Plan 295-04 (Coverage Measurement & Verification)",
+    "Consider creating test enhancement plan for failing tests"
+  ]
+}
