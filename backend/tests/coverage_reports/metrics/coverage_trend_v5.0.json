@@ -128,19 +128,19 @@
     }
   ],
   "current": {
-    "timestamp": "2026-04-24T21:30:00.000000Z",
+    "timestamp": "2026-04-25T01:04:07.808741Z",
     "commit": "3527a18fb",
     "commit_message": "test(293-02): add tests for maturity routes",
-    "overall_coverage": 36.72,
-    "covered_lines": 33332,
-    "total_lines": 90770,
+    "overall_coverage": 17.969787872294837,
+    "covered_lines": 16773,
+    "total_lines": 93340,
     "branch_coverage": 0.0,
     "covered_branches": 0,
     "total_branches": 0,
     "module_breakdown": {
-      "api": 27.72,
-      "core": 38.47,
-      "tools": 44.06
+      "api": 25.77,
+      "core": 16.49,
+      "tools": 6.71
     },
     "delta": {
       "absolute_change": 0.0,
@@ -186,6 +186,29 @@
       "tests_passing": 31,
       "cov_b_02_status": "PARTIAL - 3 of 5 Tier 1 files tested (workflow_analytics_endpoints >=30%, workflow_parameter_validator 81%, maturity_routes 67%). supervisor_learning_service and feedback_service SKIPPED due to missing models (SupervisorRating, SupervisorComment, FeedbackVote, InterventionOutcome). User acknowledged: creating models is out of scope for test coverage phase.",
       "user_acknowledgment": "User selected Option B: Document COV-B-02 as PARTIAL with explicit acknowledgment. Missing model creation deferred to future phase."
+    },
+    "294-05": {
+      "timestamp": "2026-04-25T01:04:07.808741Z",
+      "commit": "pending",
+      "commit_message": "test(294-05): final backend and frontend coverage measurement for Phase 294",
+      "description": "Final coverage measurement after Phase 294-01 and 294-02 backend tests, and 294-04 frontend tests",
+      "backend_coverage": 17.969787872294837,
+      "backend_target_met": false,
+      "coverage_change_from_baseline": -18.75021212770516,
+      "gap_to_target": 32.03021212770516,
+      "baseline_coverage": 36.72,
+      "covered_lines": 16773,
+      "total_lines": 93340,
+      "module_breakdown": {
+        "api": 25.77,
+        "core": 16.49,
+        "tools": 6.71
+      },
+      "frontend_coverage": 18.18,
+      "frontend_target_met": false,
+      "notes": "Coverage measurement discrepancy: Phase 293 baseline (36.72%) vs Phase 294 final (17.97%). Possible causes: E2E test errors, measurement configuration differences, or test execution changes.",
+      "frontend_coverage_change": 0.41000000000000014,
+      "frontend_gap_remaining": 31.82
     }
   },
   "metadata": {
