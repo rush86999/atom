@@ -1,0 +1,605 @@
+"""
+Comprehensive BYOK Handler Tests
+
+Tests for core/llm/byok_handler.py covering:
+- Provider selection (OpenAI, Anthropic, DeepSeek, Gemini)
+- API key validation and rotation
+- Streaming responses (token-by-token)
+- Error handling (rate limits, invalid keys)
+- Cost tracking and quota management
+- Fallback and retry logic
+
+Target: 40%+ coverage (760 statements → cover ~300 lines, current 14.61%)
+"""
+
+import os
+os.environ["TESTING"] = "1"
+
+import pytest
+import asyncio
+from datetime import datetime, timezone
+from typing import Dict, Any, List
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from enum import Enum
+
+# Import BYOKHandler and related classes
+from core.llm.byok_handler import BYOKHandler, QueryComplexity
+
+
+# ============================================================================
+# FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def mock_config():
+    """Mock BYOK configuration."""
+    return {
+        "providers": {
+            "openai": {
+                "models": ["gpt-4", "gpt-3.5-turbo"],
+                "api_key": "sk-test-openai",
+                "enabled": True
+            },
+            "anthropic": {
+                "models": ["claude-3-opus", "claude-3-sonnet"],
+                "api_key": "sk-ant-test",
+                "enabled": True
+            },
+            "deepseek": {
+                "models": ["deepseek-chat"],
+                "api_key": "sk-test-deepseek",
+                "enabled": True
+            }
+        },
+        "primary_provider": "openai"
+    }
+
+
+@pytest.fixture
+def mock_pricing_data():
+    """Mock pricing data for cost tracking."""
+    return {
+        "openai": {
+            "gpt-4": {"input": 0.03, "output": 0.06},
+            "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015}
+        },
+        "anthropic": {
+            "claude-3-opus": {"input": 0.015, "output": 0.075},
+            "claude-3-sonnet": {"input": 0.003, "output": 0.015}
+        }
+    }
+
+
+@pytest.fixture
+def byok_handler(mock_config):
+    """Create BYOKHandler instance for testing."""
+    with patch('core.llm.byok_handler.load_config') as mock_load:
+        mock_load.return_value = mock_config
+        handler = BYOKHandler()
+        return handler
+
+
+# ============================================================================
+# TEST CLASS: TestProviderSelection
+# ============================================================================
+
+class TestProviderSelection:
+    """Test provider by config, fallback logic, provider health checks."""
+
+    def test_get_provider_fallback_order_openai(self, byok_handler):
+        """Test fallback order for OpenAI primary provider."""
+        fallback = byok_handler._get_provider_fallback_order("openai")
+        assert "openai" in fallback
+        assert isinstance(fallback, list)
+
+    def test_get_provider_fallback_order_anthropic(self, byok_handler):
+        """Test fallback order for Anthropic primary provider."""
+        fallback = byok_handler._get_provider_fallback_order("anthropic")
+        assert "anthropic" in fallback
+        assert isinstance(fallback, list)
+
+    def test_get_provider_fallback_order_unknown(self, byok_handler):
+        """Test fallback order for unknown provider."""
+        fallback = byok_handler._get_provider_fallback_order("unknown_provider")
+        assert isinstance(fallback, list)
+
+    def test_filter_by_capabilities_matching(self, byok_handler):
+        """Test filtering providers by matching capabilities."""
+        # Assuming 'vision' is a capability
+        result = byok_handler._filter_by_capabilities("gpt-4", "vision")
+        # Should return bool
+        assert isinstance(result, bool)
+
+    def test_filter_by_capabilities_no_capability(self, byok_handler):
+        """Test filtering when no capability specified."""
+        result = byok_handler._filter_by_capabilities("gpt-4", None)
+        # Should return True when no capability filter
+        assert result is True
+
+    def test_filter_by_health_healthy_provider(self, byok_handler):
+        """Test filtering healthy provider."""
+        with patch.object(byok_handler, '_health_status', {"openai": "healthy"}):
+            result = byok_handler._filter_by_health("openai")
+            assert result is True
+
+    def test_filter_by_health_unhealthy_provider(self, byok_handler):
+        """Test filtering unhealthy provider."""
+        with patch.object(byok_handler, '_health_status', {"openai": "unhealthy"}):
+            result = byok_handler._filter_by_health("openai")
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_optimal_provider_basic(self, byok_handler):
+        """Test getting optimal provider for basic query."""
+        with patch.object(byok_handler, '_filter_by_health', return_value=True):
+            provider = await byok_handler.get_optimal_provider(
+                prompt="Hello world",
+                task_type="chat"
+            )
+            assert provider is not None
+
+    @pytest.mark.asyncio
+    async def test_get_ranked_providers(self, byok_handler):
+        """Test getting ranked list of providers."""
+        with patch.object(byok_handler, '_filter_by_health', return_value=True):
+            ranked = await byok_handler.get_ranked_providers(
+                prompt="Test prompt",
+                task_type="chat"
+            )
+            assert isinstance(ranked, list)
+            assert len(ranked) > 0
+
+
+# ============================================================================
+# TEST CLASS: TestQueryComplexity
+# ============================================================================
+
+class TestQueryComplexityAnalysis:
+    """Test query complexity analysis and classification."""
+
+    def test_analyze_query_complexity_simple(self, byok_handler):
+        """Test analyzing simple query."""
+        complexity = byok_handler.analyze_query_complexity("Hello", task_type="chat")
+        assert isinstance(complexity, QueryComplexity)
+
+    def test_analyze_query_complexity_medium(self, byok_handler):
+        """Test analyzing medium complexity query."""
+        prompt = "Analyze the following data and provide insights: " + "x" * 500
+        complexity = byok_handler.analyze_query_complexity(prompt, task_type="analysis")
+        assert isinstance(complexity, QueryComplexity)
+
+    def test_analyze_query_complexity_complex(self, byok_handler):
+        """Test analyzing complex query."""
+        prompt = "Write a detailed report " + "x" * 2000
+        complexity = byok_handler.analyze_query_complexity(prompt, task_type="writing")
+        assert isinstance(complexity, QueryComplexity)
+
+
+# ============================================================================
+# TEST CLASS: TestContextWindow
+# ============================================================================
+
+class TestContextWindow:
+    """Test context window management."""
+
+    def test_get_context_window_known_model(self, byok_handler):
+        """Test getting context window for known model."""
+        with patch.object(byok_handler, '_model_context_windows', {"gpt-4": 8192}):
+            window = byok_handler.get_context_window("gpt-4")
+            assert window == 8192
+
+    def test_get_context_window_unknown_model(self, byok_handler):
+        """Test getting context window for unknown model."""
+        window = byok_handler.get_context_window("unknown-model")
+        # Should return default
+        assert window > 0
+
+    def test_truncate_to_context_no_truncation(self, byok_handler):
+        """Test text truncation when within context window."""
+        short_text = "Hello world"
+        with patch.object(byok_handler, 'get_context_window', return_value=8192):
+            truncated = byok_handler.truncate_to_context(short_text, "gpt-4")
+            assert truncated == short_text
+
+    def test_truncate_to_context_needs_truncation(self, byok_handler):
+        """Test text truncation when exceeding context window."""
+        long_text = "x" * 10000
+        with patch.object(byok_handler, 'get_context_window', return_value=1000):
+            truncated = byok_handler.truncate_to_context(long_text, "gpt-4")
+            assert len(truncated) < len(long_text)
+
+
+# ============================================================================
+# TEST CLASS: TestResponseGeneration
+# ============================================================================
+
+class TestResponseGeneration:
+    """Test response generation methods."""
+
+    @pytest.mark.asyncio
+    async def test_generate_response_basic(self, byok_handler):
+        """Test basic response generation."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.choices = [Mock(message=Mock(content="Test response"))]
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            response = await byok_handler.generate_response(
+                prompt="Hello",
+                provider="openai",
+                model="gpt-3.5-turbo"
+            )
+            assert response is not None
+
+    @pytest.mark.asyncio
+    async def test_generate_response_with_system_prompt(self, byok_handler):
+        """Test response generation with system prompt."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.choices = [Mock(message=Mock(content="Response"))]
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            response = await byok_handler.generate_response(
+                prompt="Hello",
+                provider="openai",
+                model="gpt-3.5-turbo",
+                system_prompt="You are a helpful assistant."
+            )
+            assert response is not None
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response(self, byok_handler):
+        """Test structured JSON response generation."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.choices = [Mock(message=Mock(content='{"result": "success"}'))]
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            response = await byok_handler.generate_structured_response(
+                prompt="Generate JSON",
+                provider="openai",
+                model="gpt-3.5-turbo"
+            )
+            assert response is not None
+
+
+# ============================================================================
+# TEST CLASS: TestStreamingResponses
+# ============================================================================
+
+class TestStreamingResponses:
+    """Test token streaming, chunk parsing, early termination."""
+
+    @pytest.mark.asyncio
+    async def test_stream_completion(self, byok_handler):
+        """Test streaming completion."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_chunk = Mock()
+            mock_chunk.choices = [Mock(delta=Mock(content="Test"))]
+            mock_client.chat.completions.create = AsyncMock(
+                return_value=iter([mock_chunk, mock_chunk])
+            )
+            byok_handler._clients["openai"] = mock_client
+
+            chunks = []
+            async for chunk in byok_handler.stream_completion(
+                prompt="Hello",
+                provider="openai",
+                model="gpt-3.5-turbo"
+            ):
+                chunks.append(chunk)
+
+            assert len(chunks) > 0
+
+
+# ============================================================================
+# TEST CLASS: TestErrorHandling
+# ============================================================================
+
+class TestErrorHandling:
+    """Test rate limits, invalid keys, timeout errors, provider down."""
+
+    @pytest.mark.asyncio
+    async def test_generate_response_rate_limit_error(self, byok_handler):
+        """Test handling rate limit errors."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            # Simulate rate limit error
+            import openai
+            mock_client.chat.completions.create = AsyncMock(
+                side_effect=openai.RateLimitError("Rate limit exceeded")
+            )
+            byok_handler._clients["openai"] = mock_client
+
+            # Should handle error gracefully
+            with pytest.raises(Exception):
+                await byok_handler.generate_response(
+                    prompt="Hello",
+                    provider="openai",
+                    model="gpt-3.5-turbo"
+                )
+
+    @pytest.mark.asyncio
+    async def test_generate_response_invalid_api_key(self, byok_handler):
+        """Test handling invalid API key."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            # Simulate authentication error
+            import openai
+            mock_client.chat.completions.create = AsyncMock(
+                side_effect=openai.AuthenticationError("Invalid API key")
+            )
+            byok_handler._clients["openai"] = mock_client
+
+            with pytest.raises(Exception):
+                await byok_handler.generate_response(
+                    prompt="Hello",
+                    provider="openai",
+                    model="gpt-3.5-turbo"
+                )
+
+    @pytest.mark.asyncio
+    async def test_generate_response_timeout(self, byok_handler):
+        """Test handling timeout errors."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_client.chat.completions.create = AsyncMock(
+                side_effect=asyncio.TimeoutError("Request timeout")
+            )
+            byok_handler._clients["openai"] = mock_client
+
+            with pytest.raises((asyncio.TimeoutError, Exception)):
+                await byok_handler.generate_response(
+                    prompt="Hello",
+                    provider="openai",
+                    model="gpt-3.5-turbo"
+                )
+
+
+# ============================================================================
+# TEST CLASS: TestCostTracking
+# ============================================================================
+
+class TestCostTracking:
+    """Test token counting, cost calculation, quota enforcement."""
+
+    def test_get_provider_comparison(self, byok_handler):
+        """Test getting provider cost comparison."""
+        with patch.object(byok_handler, '_provider_pricing', {
+            "openai": {"gpt-4": {"input": 0.03, "output": 0.06}}
+        }):
+            comparison = byok_handler.get_provider_comparison()
+            assert isinstance(comparison, dict)
+
+    def test_get_cheapest_models(self, byok_handler):
+        """Test getting cheapest models."""
+        with patch.object(byok_handler, '_provider_pricing', {
+            "openai": {"gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015}},
+            "anthropic": {"claude-3-haiku": {"input": 0.00025, "output": 0.00125}}
+        }):
+            cheapest = byok_handler.get_cheapest_models(limit=5)
+            assert isinstance(cheapest, list)
+            assert len(cheapest) <= 5
+
+    @pytest.mark.asyncio
+    async def test_refresh_pricing(self, byok_handler):
+        """Test refreshing pricing data."""
+        with patch('core.llm.byok_handler.fetch_pricing_data', new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = {
+                "openai": {"gpt-4": {"input": 0.03, "output": 0.06}}
+            }
+
+            result = await byok_handler.refresh_pricing(force=True)
+            assert isinstance(result, dict)
+
+
+# ============================================================================
+# TEST CLASS: TestEmbeddings
+# ============================================================================
+
+class TestEmbeddings:
+    """Test embedding generation."""
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding(self, byok_handler):
+        """Test generating single embedding."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.data = [Mock(embedding=[0.1, 0.2, 0.3])]
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            embedding = await byok_handler.generate_embedding(
+                text="Test text",
+                provider="openai",
+                model="text-embedding-ada-002"
+            )
+            assert embedding is not None
+            assert len(embedding) > 0
+
+    @pytest.mark.asyncio
+    async def test_generate_embeddings_batch(self, byok_handler):
+        """Test generating embeddings for multiple texts."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.data = [
+                Mock(embedding=[0.1, 0.2, 0.3]),
+                Mock(embedding=[0.4, 0.5, 0.6])
+            ]
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            embeddings = await byok_handler.generate_embeddings_batch(
+                texts=["Text 1", "Text 2"],
+                provider="openai",
+                model="text-embedding-ada-002"
+            )
+            assert embeddings is not None
+            assert len(embeddings) == 2
+
+
+# ============================================================================
+# TEST CLASS: TestCognitiveTier
+# ============================================================================
+
+class TestCognitiveTier:
+    """Test cognitive tier classification."""
+
+    def test_classify_cognitive_tier_simple(self, byok_handler):
+        """Test classifying simple query cognitive tier."""
+        tier = byok_handler.classify_cognitive_tier(
+            prompt="Hello",
+            task_type="chat"
+        )
+        assert tier is not None
+        assert hasattr(tier, 'value')
+
+    def test_classify_cognitive_tier_complex(self, byok_handler):
+        """Test classifying complex query cognitive tier."""
+        tier = byok_handler.classify_cognitive_tier(
+            prompt="Write a detailed analysis " + "x" * 1000,
+            task_type="analysis"
+        )
+        assert tier is not None
+
+
+# ============================================================================
+# TEST CLASS: TestProviderInfo
+# ============================================================================
+
+class TestProviderInfo:
+    """Test provider information and availability."""
+
+    def test_get_available_providers(self, byok_handler):
+        """Test getting list of available providers."""
+        providers = byok_handler.get_available_providers()
+        assert isinstance(providers, list)
+        assert len(providers) > 0
+
+    def test_get_routing_info(self, byok_handler):
+        """Test getting routing information for a prompt."""
+        with patch.object(byok_handler, 'get_optimal_provider', new_callable=AsyncMock) as mock_optimal:
+            mock_optimal.return_value = ("openai", "gpt-3.5-turbo")
+
+            info = byok_handler.get_routing_info("Test prompt", task_type="chat")
+            assert isinstance(info, dict)
+
+
+# ============================================================================
+# TEST CLASS: TestInitialization
+# ============================================================================
+
+class TestInitialization:
+    """Test BYOKHandler initialization."""
+
+    def test_byok_handler_initialization_default(self):
+        """Test BYOKHandler initialization with default config."""
+        with patch('core.llm.byok_handler.load_config') as mock_load:
+            mock_load.return_value = {"providers": {}, "primary_provider": "openai"}
+            handler = BYOKHandler()
+            assert handler is not None
+
+    def test_byok_handler_initialization_with_config(self, mock_config):
+        """Test BYOKHandler initialization with custom config."""
+        with patch('core.llm.byok_handler.load_config') as mock_load:
+            mock_load.return_value = mock_config
+            handler = BYOKHandler()
+            assert handler is not None
+
+    def test_initialize_clients(self, mock_config):
+        """Test client initialization for providers."""
+        with patch('core.llm.byok_handler.load_config') as mock_load:
+            mock_load.return_value = mock_config
+            handler = BYOKHandler()
+            # Should initialize clients without error
+            assert handler is not None
+
+
+# ============================================================================
+# TEST CLASS: TestSpecializedMethods
+# ============================================================================
+
+class TestSpecializedMethods:
+    """Test specialized BYOKHandler methods."""
+
+    @pytest.mark.asyncio
+    async def test_generate_transcription(self, byok_handler):
+        """Test audio transcription generation."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.text = "Transcribed text"
+            mock_client.audio.transcriptions.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            transcription = await byok_handler.generate_transcription(
+                audio_file_path="test_audio.mp3",
+                provider="openai",
+                model="whisper-1"
+            )
+            assert transcription is not None
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier(self, byok_handler):
+        """Test generation with automatic cognitive tier selection."""
+        with patch.object(byok_handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = "Response"
+
+            response = await byok_handler.generate_with_cognitive_tier(
+                prompt="Test prompt",
+                task_type="chat"
+            )
+            assert response is not None
+
+
+# ============================================================================
+# TEST CLASS: TestEdgeCases
+# ============================================================================
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    @pytest.mark.asyncio
+    async def test_empty_prompt(self, byok_handler):
+        """Test handling empty prompt."""
+        with patch.object(byok_handler, '_clients', {"openai": Mock()}):
+            mock_client = Mock()
+            mock_response = Mock()
+            mock_response.choices = [Mock(message=Mock(content=""))]
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+            byok_handler._clients["openai"] = mock_client
+
+            response = await byok_handler.generate_response(
+                prompt="",
+                provider="openai",
+                model="gpt-3.5-turbo"
+            )
+            # Should handle empty prompt
+            assert response is not None or response == ""
+
+    def test_very_long_context_window(self, byok_handler):
+        """Test getting context window for very large models."""
+        with patch.object(byok_handler, '_model_context_windows', {
+            "gpt-4-turbo": 128000
+        }):
+            window = byok_handler.get_context_window("gpt-4-turbo")
+            assert window == 128000
+
+    @pytest.mark.asyncio
+    async def test_all_providers_down(self, byok_handler):
+        """Test behavior when all providers are unhealthy."""
+        with patch.object(byok_handler, '_filter_by_health', return_value=False):
+            with pytest.raises(Exception):
+                await byok_handler.get_optimal_provider(
+                    prompt="Test",
+                    task_type="chat"
+                )
