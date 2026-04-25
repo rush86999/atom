@@ -45,11 +45,11 @@
 - [x] **Phase 298: Backend Acceleration Wave 6** - Test 4 coordination/integration files (83 tests, 91.6% pass rate)
 - [x] **Phase 299: Coverage Verification & Milestone Completion** - Comprehensive coverage reports, gap analysis, roadmap for Phase 300+ (VERIFIED: 25.8% backend, 7 phases to 45%)
 - [x] **Phase 300: Orchestration Wave 1 - Top 3 Files** - ✅ COMPLETE with deviation. Tests created in Phase 295-02 (106 tests vs 38 planned, 54% pass rate, 300-01-SUMMARY.md)
-- [ ] **Phase 301: Orchestration Wave 2 - Next 3 Files** - Test atom_meta_agent.py, workflow_debugger.py, hybrid_data_ingestion.py (target: 31.2% coverage)
+- [ ] **Phase 301: Services Wave 1 - BYOK & Vector & Episodes** - Test llm/byok_handler.py, lancedb_handler.py, episode_segmentation_service.py (target: 27.8-28.2% coverage, +2.0-2.4pp)
 - [ ] **Phase 302: Services Wave 1 - Top 3 Files** - Test llm/byok_handler.py, episode_segmentation_service.py, lancedb_handler.py (target: 33.9% coverage)
 - [ ] **Phase 303: Services Wave 2 - Next 3 Files** - Test learning_service_full.py + 2 more (target: 36.6% coverage)
 - [ ] **Phase 304: API Endpoints Wave 1** - Test 5-6 zero-coverage API files (target: 39.3% coverage)
-- [ ] **Phase 305: API Endpoints Wave 2** - Test 5-6 zero-coverage API files (target: 42.0% coverage)
+- [ ] **Phase 302: Services Wave 2 - Learning & Analytics** - Test learning_service_full.py + 2 more service files (target: 30.5-31.2% coverage, +2.7-3.0pp)
 - [ ] **Phase 306: Final Push** - Test remaining high-impact files (target: 44.7% → 45% coverage)
 
 ---
@@ -100,6 +100,39 @@
 - b4b012db3: docs(300-01): complete plan execution summary
 
 **Recommendation**: Create dedicated fix plan for 43 test failures (estimated 4-6 hours) to achieve 100% pass rate and accurate coverage measurement
+
+---
+
+### Phase 301: Services Wave 1 - BYOK & Vector & Episodes (PLANNING)
+
+**Goal**: Create comprehensive tests for 3 high-impact service files (LLM routing, vector database, episodic memory) to achieve 25-35% coverage on each file
+
+**Depends on**: Phase 300
+
+**Requirements**: None (acceleration phase)
+
+**Status**: 📝 PLANNING
+
+**Plans**: 1 plan
+- [ ] 301-01-PLAN.md — Create comprehensive tests for 3 high-impact service files
+
+**Target Files**:
+- `core/llm/byok_handler.py` (1839 lines, 14.61% current coverage → 30-35% target) - 649 uncovered lines
+- `core/lancedb_handler.py` (1416 lines, 15.42% current coverage → 30-35% target) - 587 uncovered lines
+- `core/episode_segmentation_service.py` (1540 lines, 12% current coverage → 25-30% target) - 528 uncovered lines
+
+**Expected Deliverables**:
+- test_byok_handler.py — 12-15 tests, 550-650 lines (LLM provider routing, token counting, streaming)
+- test_lancedb_handler.py — 12-15 tests, 450-550 lines (vector operations, search, table management)
+- test_episode_segmentation_service.py — 11-15 tests, 500-600 lines (time gaps, topic changes, episode lifecycle)
+
+**Expected Outcomes**:
+- Total tests: 35-45 tests
+- Total test lines: 1,650-1,800 lines
+- Lines covered: ~750-900 lines (1,764 total uncovered from Phase 299 gap analysis)
+- Backend coverage increase: +2.0-2.4pp (from 25.8% to 27.8-28.2%)
+
+**Patterns**: Follow Phase 297-298 patterns (AsyncMock, patch at import, database fixtures, success + error paths)
 
 ---
 
@@ -201,7 +234,7 @@
 | 298. Backend Acceleration Wave 6 | 1/1 | Complete | 25.8% (actual) | -13pp (scale issue) |
 | 299. Coverage Verification & Milestone | 1/1 | Complete | 25.8% | 0pp (baseline verified) |
 | 300. Orchestration Wave 1 | 0/1 | Planning | 28.3-28.7% | +2.5-2.9pp (target) |
-| 301. Orchestration Wave 2 | 0/1 | Not started | 31.2% | +2.7pp (target) |
+| 301. Services Wave 1 | 0/1 | Planning | 27.8-28.2% | +2.0-2.4pp (target) |
 | 302. Services Wave 1 | 0/1 | Not started | 33.9% | +2.7pp (target) |
 | 303. Services Wave 2 | 0/1 | Not started | 36.6% | +2.7pp (target) |
 | 304. API Endpoints Wave 1 | 0/1 | Not started | 39.3% | +2.7pp (target) |
@@ -286,8 +319,8 @@
 
 ### Backend Expansion to 45% (Phases 300-306)
 - **Wave 1 (Phase 300)**: Top 3 orchestration files (workflow_engine, atom_agent_endpoints, agent_world_model)
-- **Wave 2 (Phase 301)**: Next 3 orchestration files (atom_meta_agent, workflow_debugger, hybrid_data_ingestion)
-- **Wave 3 (Phase 302)**: Top 3 service files (llm/byok_handler, episode_segmentation_service, lancedb_handler)
+- **Wave 2 (Phase 301)**: Top 3 service files (llm/byok_handler, lancedb_handler, episode_segmentation_service)
+- **Wave 3 (Phase 302)**: Next 3 service files (learning_service_full, advanced_workflow_system, workflow_versioning_system)
 - **Wave 4 (Phase 303)**: Next 3 service files (learning_service_full + 2 more)
 - **Wave 5-6 (Phases 304-305)**: API endpoints (10-12 zero-coverage API files)
 - **Wave 7 (Phase 306)**: Final push to 45% (remaining high-impact files)
