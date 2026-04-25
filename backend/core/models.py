@@ -9192,6 +9192,90 @@ class TemplateExecution(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class TemplateVersion(Base):
+    """
+    User workflow template versions for version control and rollback.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for template versioning.
+    """
+    __tablename__ = "template_versions"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    template_id = Column(String(255), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    parameters = Column(JSONColumn, nullable=True)  # Template parameter definitions
+    steps = Column(JSONColumn, nullable=True)  # Template step definitions
+    created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    change_summary = Column(Text, nullable=True)  # Description of changes in this version
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class CustomComponent(Base):
+    """
+    Custom canvas components for user-defined HTML/CSS/JS.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for custom components.
+    """
+    __tablename__ = "custom_components"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    display_name = Column(String(255), nullable=False)
+    component_type = Column(String(50), nullable=False)  # chart, form, custom, etc.
+    html_content = Column(Text, nullable=True)
+    css_content = Column(Text, nullable=True)
+    js_content = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_sanitized = Column(Boolean, default=False, nullable=False)  # Security validation flag
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ComponentVersion(Base):
+    """
+    Version history for custom components.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for component versioning.
+    """
+    __tablename__ = "component_versions"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    component_id = Column(String(255), ForeignKey("custom_components.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+    html_content = Column(Text, nullable=True)
+    css_content = Column(Text, nullable=True)
+    js_content = Column(Text, nullable=True)
+    change_summary = Column(Text, nullable=True)
+    created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ComponentUsage(Base):
+    """
+    Usage tracking for custom components.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for component usage tracking.
+    """
+    __tablename__ = "component_usage"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    component_id = Column(String(255), ForeignKey("custom_components.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String(255), nullable=False, index=True)
+    execution_context = Column(JSONColumn, nullable=True)
+    executed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class MeetingAttendanceStatus(Base):
     """
     Meeting attendance tracking.
