@@ -46,15 +46,57 @@
 - [x] **Phase 299: Coverage Verification & Milestone Completion** - Comprehensive coverage reports, gap analysis, roadmap for Phase 300+ (VERIFIED: 25.8% backend, 7 phases to 45%)
 - [x] **Phase 300: Orchestration Wave 1 - Top 3 Files** - ✅ COMPLETE with deviation. Tests created in Phase 295-02 (106 tests vs 38 planned, 54% pass rate, 300-01-SUMMARY.md)
 - [x] **Phase 301: Services Wave 1 - BYOK & Vector & Episodes** - ✅ COMPLETE with deviation. Tests created 2026-04-25 (54 tests vs 35-45 planned, 10% pass rate, 301-01-SUMMARY.md)
-- [ ] **Phase 302: Services Wave 2 - Next 3 Files** - Test learning_service_full.py + 2 more (target: 30.5-31.2% coverage, +2.7-3.0pp)
-- [ ] **Phase 303: Services Wave 2 - Next 3 Files** - Test learning_service_full.py + 2 more (target: 36.6% coverage)
+- [x] **Phase 302: Services Wave 2 - Next 3 Files** - ✅ COMPLETE with deviation. 12 stub tests discovered (23% of tests), 0pp coverage increase (302-01-SUMMARY.md)
+**Plans**: 3 plans
+- [ ] 303-01-PLAN.md — Rewrite test_advanced_workflow_system.py (6 stub tests → 15 proper AsyncMock tests, target: 25-30% coverage)
+- [ ] 303-02-PLAN.md — Rewrite test_workflow_versioning_system.py (6 stub tests → 15 proper AsyncMock tests, target: 25-30% coverage)
+- [ ] 303-03-PLAN.md — Audit bulk-created tests from Phase 295-02 and April 25, 2026, create quality standards document
 - [ ] **Phase 304: API Endpoints Wave 1** - Test 5-6 zero-coverage API files (target: 39.3% coverage)
-- [ ] **Phase 302: Services Wave 2 - Learning & Analytics** - Test learning_service_full.py + 2 more service files (target: 30.5-31.2% coverage, +2.7-3.0pp)
+- [ ] **Phase 305: API Endpoints Wave 2** - Test remaining zero-coverage API files (target: 42.0% coverage)
 - [ ] **Phase 306: Final Push** - Test remaining high-impact files (target: 44.7% → 45% coverage)
 
 ---
 
 ## Phase Details
+
+### Phase 302: Services Wave 2 - Next 3 Files (PLANNING)
+
+**Goal**: Create comprehensive tests for next 3 high-impact service files with highest coverage gaps (excluding Phases 295-301) to achieve 25-30% coverage on each file
+
+**Depends on**: Phase 301
+
+**Requirements**: None (acceleration phase)
+
+**Status**: 🔄 PLANNING
+
+**Plans**: 1 plan
+- [ ] 302-01-PLAN.md — Create or verify tests for advanced_workflow_system.py, workflow_versioning_system.py, graphrag_engine.py
+
+**Target Files** (from Phase 299 gap analysis, excluding already tested):
+- `core/advanced_workflow_system.py` (516 lines, 26.0% current coverage → 25-30% target) - 382 uncovered lines
+- `core/workflow_versioning_system.py` (477 lines, 21.2% current coverage → 25-30% target) - 376 uncovered lines
+- `core/graphrag_engine.py` (409 lines, 16.4% current coverage → 25-30% target) - 342 uncovered lines
+
+**Expected Deliverables**:
+- test_advanced_workflow_system.py — 15 tests, ~400 lines (dynamic generation, conditional branching, loops, parallel execution)
+- test_workflow_versioning_system.py — 15 tests, ~400 lines (version creation, rollback, diff, migration)
+- test_graphrag_engine.py — 14 tests, ~600 lines (entity extraction, local/global search, community detection)
+
+**Expected Outcomes**:
+- Total tests: 44 tests (15 + 15 + 14)
+- Total test lines: ~1,400 lines
+- Target coverage: 25-30% per file (~350-420 lines covered from 1,100 uncovered)
+- Expected backend coverage increase: +1.5-2.0pp (350-420 lines / 91,078 total lines)
+- Expected backend coverage after Phase 302: 27.3-27.8% (from 25.8% baseline)
+
+**Pre-CHECK Required**: Following Phase 300-301 pattern, verify if tests already exist before creating new tests:
+- test_advanced_workflow_system.py (created April 25, 2026 - 100 lines, minimal tests)
+- test_workflow_versioning_system.py (created April 25, 2026 - 96 lines, minimal tests)
+- test_graphrag_engine.py (created April 12, 2026 - 733 lines, comprehensive tests)
+
+**Patterns**: Follow Phase 297-298 patterns (AsyncMock, patch at import, database fixtures, success + error paths)
+
+---
 
 ### Phase 300: Orchestration Wave 1 - Top 3 Files (COMPLETE)
 
@@ -260,12 +302,12 @@
 | 297. Backend Acceleration Wave 5 | 1/1 | Complete | 39.8-40.6% | +1.2-1.5pp |
 | 298. Backend Acceleration Wave 6 | 1/1 | Complete | 25.8% (actual) | -13pp (scale issue) |
 | 299. Coverage Verification & Milestone | 1/1 | Complete | 25.8% | 0pp (baseline verified) |
-| 300. Orchestration Wave 1 | 0/1 | Planning | 28.3-28.7% | +2.5-2.9pp (target) |
-| 301. Services Wave 1 | 0/1 | Planning | 27.8-28.2% | +2.0-2.4pp (target) |
-| 302. Services Wave 1 | 0/1 | Not started | 33.9% | +2.7pp (target) |
-| 303. Services Wave 2 | 0/1 | Not started | 36.6% | +2.7pp (target) |
-| 304. API Endpoints Wave 1 | 0/1 | Not started | 39.3% | +2.7pp (target) |
-| 305. API Endpoints Wave 2 | 0/1 | Not started | 42.0% | +2.7pp (target) |
+| 300. Orchestration Wave 1 | 1/1 | Complete (deviation) | 25.8% | 0pp (tests existed, failing) |
+| 301. Services Wave 1 | 1/1 | Complete (deviation) | 25.8% | 0pp (tests existed, failing) |
+| 302. Services Wave 2 | 0/1 | Planning | 27.3-27.8% | +1.5-2.0pp (target) |
+| 303. Services Wave 3 | 0/1 | Not started | 30.5-31.2% | +2.7pp (target) |
+| 304. API Endpoints Wave 1 | 0/1 | Not started | 33.9% | +2.7pp (target) |
+| 305. API Endpoints Wave 2 | 0/1 | Not started | 36.6% | +2.7pp (target) |
 | 306. Final Push | 0/1 | Not started | 45.0% | +3.0pp (target) |
 
 **Note**: Phase 298 shows apparent decrease due to comprehensive coverage measurement revealing actual baseline (91K total lines vs. previous estimates of ~50-60K lines). Phase 299 verified 25.8% as authoritative baseline.
@@ -320,6 +362,20 @@
 - **Tests Needed**: ~38 tests (19 + 10 + 9)
 - **Expected Coverage**: 28.3-28.7% (+2.5-2.9pp from 25.8% baseline)
 
+### Phase 301 Objectives (Services Wave 1)
+- **Target Files**: byok_handler.py, lancedb_handler.py, episode_segmentation_service.py
+- **Coverage Target**: 25-35% per file (not 100%)
+- **Lines to Cover**: ~1,764 lines (649 + 587 + 528)
+- **Tests Needed**: ~35-45 tests
+- **Expected Coverage**: 27.8-28.2% (+2.0-2.4pp from 25.8% baseline)
+
+### Phase 302 Objectives (Services Wave 2)
+- **Target Files**: advanced_workflow_system.py, workflow_versioning_system.py, graphrag_engine.py
+- **Coverage Target**: 25-30% per file (not 100%)
+- **Lines to Cover**: ~1,100 lines (382 + 376 + 342)
+- **Tests Needed**: ~44 tests (15 + 15 + 14)
+- **Expected Coverage**: 27.3-27.8% (+1.5-2.0pp from 25.8% baseline)
+
 ### Ultimate Goals
 - **Backend Coverage**: 45% (41,000 of 91,078 lines)
 - **Frontend Coverage**: 25% (6,569 of ~26,275 lines)
@@ -347,8 +403,8 @@
 ### Backend Expansion to 45% (Phases 300-306)
 - **Wave 1 (Phase 300)**: Top 3 orchestration files (workflow_engine, atom_agent_endpoints, agent_world_model)
 - **Wave 2 (Phase 301)**: Top 3 service files (llm/byok_handler, lancedb_handler, episode_segmentation_service)
-- **Wave 3 (Phase 302)**: Next 3 service files (learning_service_full, advanced_workflow_system, workflow_versioning_system)
-- **Wave 4 (Phase 303)**: Next 3 service files (learning_service_full + 2 more)
+- **Wave 3 (Phase 302)**: Next 3 service files (advanced_workflow_system, workflow_versioning_system, graphrag_engine)
+- **Wave 4 (Phase 303)**: Next 3 service files (highest remaining gaps)
 - **Wave 5-6 (Phases 304-305)**: API endpoints (10-12 zero-coverage API files)
 - **Wave 7 (Phase 306)**: Final push to 45% (remaining high-impact files)
 - **Strategy**: Target 25-30% coverage per file (not 100% line coverage)
@@ -375,6 +431,7 @@
 4. **Missing production modules**: 3 modules documented (specialist_matcher, recruitment_analytics_service, fleet_optimization_service)
 5. **Patterns established**: AsyncMock, patch at import, fixtures working well
 6. **Roadmap validated**: 7 phases (300-306) to reach 45% coverage, data-backed effort calculation
+7. **Phase 300-301 deviations**: Tests already existed from previous phases, requiring verification instead of creation
 
 ### Risks
 1. **Timeline risk**: Coverage growth may be slower than estimated (1.1pp per phase in Phases 295-298)
@@ -382,6 +439,7 @@
 3. **Quality risk**: Test pass rate may drop as more tests added (currently 100%)
 4. **Missing modules risk**: Production code references non-existent modules (3 documented)
 5. **Scale risk**: 91K line codebase dilutes overall coverage impact
+6. **Test existence risk**: Phase 300-301 deviations suggest tests may already exist for Phase 302 targets
 
 ### Opportunities
 1. **Accurate baseline**: Phase 299 verified 25.8% as authoritative baseline
@@ -393,5 +451,62 @@
 ---
 
 *Last Updated: 2026-04-25*
-*Next Action: Execute Phase 300 - Orchestration Wave 1 (Top 3 Files)*
+*Next Action: Execute Phase 302 - Services Wave 2 (Next 3 Files)*
 *Milestone: Backend Coverage Expansion to 45% (Actual: 25.8% backend, Target: 45% backend)*
+
+### Phase 303: Quality-Focused Stub Test Fixes (PLANNING)
+
+**Goal**: Fix 12 stub tests from Phases 295-302 that don't import target modules, audit bulk-created tests for similar issues, and establish quality standards for all future tests
+
+**Depends on**: Phase 302
+
+**Requirements**: None (quality acceleration phase)
+
+**Status**: 🔄 PLANNING
+
+**Plans**: 2-3 plans
+- [ ] 303-01-PLAN.md — Rewrite test_advanced_workflow_system.py (6 stub tests → proper AsyncMock tests)
+- [ ] 303-02-PLAN.md — Rewrite test_workflow_versioning_system.py (6 stub tests → proper AsyncMock tests)
+- [ ] 303-03-PLAN.md — Audit bulk-created tests from Phase 295-02 and April 25, 2026 for stub patterns
+
+**Critical Issue from Phase 302**: 12 of 52 tests (23%) are stubs that don't import target modules, contributing 0% to coverage despite existing in the test suite
+
+**Target Stub Test Files**:
+- `tests/test_advanced_workflow_system.py` (101 lines, 6 stub tests, 0% coverage)
+- `tests/test_workflow_versioning_system.py` (96 lines, 6 stub tests, 0% coverage)
+
+**Audit Scope** (Phase 295-02 bulk creation + April 25, 2026):
+- test_byok_handler.py (Phase 301: 40 tests, 10% pass rate)
+- test_lancedb_handler.py (Phase 301: 7 tests, 43% pass rate)
+- test_episode_segmentation_service.py (Phase 301: 7 tests, 0% pass rate)
+- test_atom_agent_endpoints.py (Phase 300: 40 tests)
+- test_workflow_engine.py (Phase 300: 46 tests)
+- test_agent_world_model.py (Phase 300: 20 tests)
+
+**Expected Deliverables**:
+- test_advanced_workflow_system.py — Rewrite 6 stub tests → 15 proper AsyncMock tests (~400 lines, 25-30% coverage)
+- test_workflow_versioning_system.py — Rewrite 6 stub tests → 15 proper AsyncMock tests (~400 lines, 25-30% coverage)
+- 303-AUDIT-REPORT.md — Comprehensive audit of all bulk-created tests, identifying stubs, fixture issues, and quality gaps
+
+**Expected Outcomes**:
+- Stub tests eliminated: 12 tests rewritten to follow Phase 297-298 patterns
+- Coverage increase: +0.5-0.8pp (from 2 files with 0% → 25-30% coverage)
+- Test pass rate improvement: 95%+ for rewritten tests
+- Quality standards documented: Stub test detection checklist, AsyncMock patterns reference
+
+**Pre-CHECK Required**: Verify which bulk-created tests have stub patterns:
+1. Check if test file imports the target module (e.g., `from core.advanced_workflow_system import`)
+2. Check if tests use proper AsyncMock fixtures (not generic Python assertions)
+3. Run tests to measure actual coverage (not just test count)
+
+**Patterns**: Follow Phase 297-298 quality standards (AsyncMock, patch at import, database fixtures, success + error paths, 95%+ pass rate)
+
+**Success Criteria**:
+- [ ] 12 stub tests rewritten as proper AsyncMock tests
+- [ ] test_advanced_workflow_system.py achieves 25-30% coverage (from 0%)
+- [ ] test_workflow_versioning_system.py achieves 25-30% coverage (from 0%)
+- [ ] Audit report documents all stub tests across bulk-created test suites
+- [ ] Test pass rate 95%+ for rewritten tests
+- [ ] Backend coverage increases to ~26.3-26.6% (from 25.8%)
+
+---
