@@ -2,24 +2,30 @@
 
 **Project**: Atom AI-Powered Business Automation Platform
 **Initiative**: Test Coverage Improvement & Quality Assurance
-**Current Coverage**: 74.6% actual line coverage (as of 2026-03-22)
-**Target Coverage**: 80% (v5.5 milestone goal)
+**Current Coverage**: 38.6-39.1% backend, 18.18% frontend (as of 2026-04-25)
+**Target Coverage**: 45% backend, 25% frontend (coverage acceleration milestone)
 
 ---
 
-## Current Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%
+## Current Milestone: Backend Coverage Acceleration - Wave 5
 
-**Goal**: Fix remaining test failures and expand backend coverage from 74.6% to 80%
+**Goal**: Continue backend coverage acceleration through testing high-impact orchestration and analytics services
 
-**Started**: 2026-03-22
+**Started**: 2026-04-25
 **Status**: PLANNING
 
-**Strategy**: Fix test failures first → Expand coverage → Quality gates enforcement
+**Strategy**: Test high-impact backend files (25-35% coverage per file) → Close gap to 45% backend target → Verify progress
+
+**Previous Waves**:
+- Wave 1 (Phase 293): 30% target achieved
+- Wave 2-3 (Phase 295): +0.4pp increase (37.1% coverage)
+- Wave 4 (Phase 296): +1.5-2.0pp increase (38.6-39.1% coverage, 143 new tests)
 
 ---
 
 ## Phases
 
+### Legacy Phases (v5.5 Milestone - 80% target)
 - [ ] **Phase 220: Fix Industry Workflow Test Failures** - Fix 10 failing tests in industry workflow endpoints
 - [ ] **Phase 221: Fix 2FA Routes Test Errors** - Resolve 24 test errors in 2FA routes
 - [ ] **Phase 222: Core Services Coverage Expansion** - Push core services coverage to 80%
@@ -28,141 +34,61 @@
 - [ ] **Phase 225: Coverage Verification & Reports** - Generate coverage reports and verify 80% target
 - [ ] **Phase 226: Quality Gates Enforcement** - Ensure 98% pass rate and re-enable CI/CD
 
+### Current Acceleration Phases
+- [x] **Phase 293: Coverage Wave 1 - 30% Target** - Achieve 30% backend coverage baseline
+- [x] **Phase 295: Coverage Wave 2-3** - +0.4pp increase (37.1% coverage, 831 new tests)
+- [x] **Phase 296: Backend Acceleration Wave 4** - +1.5-2.0pp increase (38.6-39.1% coverage, 143 new tests)
+- [ ] **Phase 297: Backend Acceleration Wave 5** - Test 4 orchestration/analytics files (target 39.8-40.6%)
+
 ---
 
 ## Phase Details
 
-### Phase 220: Fix Industry Workflow Test Failures
+### Phase 297: Backend Acceleration Wave 5
 
-**Goal**: All industry workflow tests pass with 0 failures
+**Goal**: Test 4 high-impact orchestration and analytics services to achieve 25-35% coverage per file
 
-**Depends on**: Nothing (first phase)
+**Depends on**: Phase 296
 
-**Requirements**: FAIL-01, FAIL-02, FAIL-03, FAIL-04
+**Requirements**: None (acceleration phase)
 
 **Success Criteria** (what must be TRUE):
-1. All 10 industry workflow tests pass (0 failures)
-2. Duplicate test file `test_industry_workflow_endpoints.py` removed from tests/api/services/
-3. Template ID mismatches fixed (using real template IDs like "healthcare_patient_onboarding")
-4. ROI request validation fixed (template_id removed from request body)
+1. 4 new test files created (atom_meta_agent, workflow_analytics_engine, fleet_coordinator_service, entity_type_service)
+2. Individual file coverage: 25-35% per file
+3. Total new coverage: ~1,490-1,770 lines across 4 files
+4. Backend coverage increase: +1.2-1.5 percentage points
+5. New backend coverage: ~39.8-40.6% (from 38.6-39.1% baseline)
+6. Gap to 45% target reduced to ~4.4-5.2pp (from 5.9-6.4pp)
 
 **Plans**: 1 plan
-- [x] 220-01-PLAN.md — Fix failing tests by removing duplicate file, fixing ROI validation, and updating template IDs ✅ COMPLETE (2026-03-22)
+- [ ] 297-01-PLAN.md — Create comprehensive tests for 4 orchestration/analytics services (atom_meta_agent, workflow_analytics_engine, fleet_coordinator_service, entity_type_service)
 
----
+**Target Files**:
+- `core/atom_meta_agent.py` (1844 lines) - Domain creation, agent spawning, intent routing, fleet orchestration
+- `core/workflow_analytics_engine.py` (1610 lines) - Workflow metrics, analytics aggregation, performance tracking
+- `core/fleet_orchestration/fleet_coordinator_service.py` (1032 lines) - Fleet recruitment, task distribution, coordination
+- `core/entity_type_service.py` (1079 lines) - Entity type CRUD, schema validation, dynamic model creation
 
-### Phase 221: Fix 2FA Routes Test Errors
-
-**Goal**: All 2FA routes tests execute without errors
-
-**Depends on**: Phase 220
-
-**Requirements**: FAIL-05, FAIL-06
-
-**Success Criteria** (what must be TRUE):
-1. All 89 2FA routes tests pass (0 errors)
-2. 2FA test fixtures and dependencies properly configured
-3. 2FA tests execute successfully without import or fixture errors
-4. No regressions in previously passing tests
-
-**Plans**: 1 plan
-- [ ] 221-01-PLAN.md — Verify all 2FA tests pass and document current test state
-
----
-
-### Phase 222: Core Services Coverage Expansion
-
-**Goal**: Core services achieve 80% test coverage
-
-**Depends on**: Phase 221
-
-**Requirements**: CORE-01, CORE-02, CORE-03, CORE-04
-
-**Success Criteria** (what must be TRUE):
-1. Token storage service coverage >= 80% (currently has gaps at line 17)
-2. Error handler decorator coverage >= 80% (gaps at line 74)
-3. Structured logger coverage >= 80% (gaps at lines 112, 187)
-4. API routes base coverage >= 80% (gaps at line 54)
-
-**Plans**: TBD
-
----
-
-### Phase 223: API Routes Coverage Expansion
-
-**Goal**: API routes achieve 80% test coverage
-
-**Depends on**: Phase 222
-
-**Requirements**: API-01, API-02, API-03, API-04
-
-**Success Criteria** (what must be TRUE):
-1. Episode routes coverage >= 80% (gaps at line 305)
-2. Auto-install routes coverage >= 80% (gaps at lines 25, 32)
-3. Admin routes coverage >= 80% (gaps at lines 99, 1065)
-4. Composition routes coverage >= 80% (gaps at line 35)
-
-**Plans**: TBD
-
----
-
-### Phase 224: Tools & Integration Coverage
-
-**Goal**: Tools and integration services achieve 80% test coverage with property-based tests
-
-**Depends on**: Phase 223
-
-**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, QUAL-03
-
-**Success Criteria** (what must be TRUE):
-1. Canvas tool coverage >= 80%
-2. Browser automation tool coverage >= 80%
-3. Device capabilities tool coverage >= 80%
-4. Agent governance service coverage >= 80%
-5. LLM routing and BYOK handler coverage >= 80%
-6. Property-based tests added for critical invariants (Hypothesis tests)
-
-**Plans**: TBD
-
----
-
-### Phase 225: Coverage Verification & Reports
-
-**Goal**: Verify 80% backend coverage achieved and generate comprehensive reports
-
-**Depends on**: Phase 224
-
-**Requirements**: QUAL-01, QUAL-04
-
-**Success Criteria** (what must be TRUE):
-1. Backend actual line coverage >= 80% (up from 74.6%)
-2. Coverage report generated (HTML + JSON formats)
-3. Coverage gaps identified and documented
-4. All critical system paths have >= 80% coverage
-
-**Plans**: TBD
-
----
-
-### Phase 226: Quality Gates Enforcement
-
-**Goal**: Ensure 98% test pass rate and re-enable CI/CD workflows
-
-**Depends on**: Phase 225
-
-**Requirements**: FAIL-07, QUAL-02, QUAL-05
-
-**Success Criteria** (what must be TRUE):
-1. Overall test pass rate >= 98% (currently 90.6%)
-2. All tests passing with no failures or errors
-3. CI/CD workflows re-enabled after 80% target achieved
-4. Quality gates operational (pre-commit, CI, trend tracking)
-
-**Plans**: TBD
+**Expected Impact**:
+- 160-180 new tests
+- 1,150-1,350 lines of test code
+- ~1,490-1,770 lines of backend code covered
+- +1.2-1.5pp backend coverage increase
 
 ---
 
 ## Progress Table
+
+### Acceleration Phases (Current Milestone)
+
+| Phase | Plans Complete | Status | Backend Coverage | Increase |
+|-------|----------------|--------|------------------|----------|
+| 293. Coverage Wave 1 | 6/6 | Complete | 30.0% | - |
+| 295. Coverage Wave 2-3 | 2/2 | Complete | 37.1% | +0.4pp |
+| 296. Backend Acceleration Wave 4 | 3/3 | Complete | 38.6-39.1% | +1.5-2.0pp |
+| 297. Backend Acceleration Wave 5 | 0/1 | Planning | 39.8-40.6% (target) | +1.2-1.5pp (target) |
+
+### Legacy Phases (v5.5 Milestone - 80% target)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -178,84 +104,83 @@
 
 ## Dependencies
 
-**Phase 220** → **Phase 221** → **Phase 222** → **Phase 223** → **Phase 224** → **Phase 225** → **Phase 226**
+**Acceleration Phases**: Phase 293 → Phase 295 → Phase 296 → **Phase 297** → Phase 298 (TBD)
 
-- Phase 220 must complete before 221 (test failures block progress)
-- Phase 221 must complete before 222 (all tests must pass before coverage expansion)
-- Phase 222 must complete before 223 (core services foundation first)
-- Phase 223 must complete before 224 (API routes before tools/integration)
-- Phase 224 must complete before 225 (coverage complete before verification)
-- Phase 225 must complete before 226 (verification before quality gates)
+- Phase 296 must complete before 297 (establish patterns, baseline coverage)
+- Phase 297 must complete before 298 (progressive coverage expansion)
+
+**Legacy Phases**: Phase 220 → Phase 221 → Phase 222 → Phase 223 → Phase 224 → Phase 225 → Phase 226
 
 ---
 
 ## Coverage Metrics
 
-### Baseline (2026-03-22)
-- **Overall Coverage**: 74.6% actual line coverage
-- **Test Pass Rate**: 90.6% (483 passing, 14 failing, 36 errors)
-- **Total Tests**: 1,489 test files
+### Current Baseline (Phase 296 - April 2026)
+- **Backend Coverage**: 38.6-39.1% (from 37.1% baseline, +1.5-2.0pp increase)
+- **Frontend Coverage**: 18.18% (no change - import issues remain)
+- **Backend Scale**: ~90,000 lines (dilutes overall impact)
+- **Frontend Scale**: ~26,275 lines
+- **Backend Target**: 45% (5.9-6.4pp gap remaining)
+- **Frontend Target**: 25% (6.82pp gap remaining)
 
-### Milestone Targets
-- **Phase 220**: 0 test failures (industry workflow)
-- **Phase 221**: 0 test errors (2FA routes)
-- **Phase 222**: Core services >= 80%
-- **Phase 223**: API routes >= 80%
-- **Phase 224**: Tools & integration >= 80%
-- **Phase 225**: Overall >= 80%
-- **Phase 226**: 98%+ pass rate, CI/CD re-enabled
+### Phase 297 Targets
+- **Backend Coverage**: 39.8-40.6% (+1.2-1.5pp increase)
+- **Files Tested**: 4 high-impact orchestration/analytics services
+- **Tests Added**: 160-180 tests
+- **Lines Covered**: ~1,490-1,770 lines across 4 files
+- **Per-File Coverage**: 25-35% target for each file
 
-### Ultimate Goal
-- **Overall Coverage**: 80% actual line coverage
-- **Test Pass Rate**: 98%+ (targeting 100%)
-- **Quality Gates**: All operational
+### Ultimate Goals
+- **Backend Coverage**: 45% (5.9-6.4pp gap from current 38.6-39.1%)
+- **Frontend Coverage**: 25% (6.82pp gap from current 18.18%)
+- **Quality Gates**: 98%+ test pass rate, CI/CD enforcement
 
 ---
 
 ## Testing Strategy
 
-### Test Failure Resolution (Phases 220-221)
-- Fix failing tests by analyzing root causes
-- Remove duplicate test files
-- Fix test fixtures and dependencies
-- Validate test assertions match API behavior
+### Backend Acceleration (Phases 293-297)
+- Test high-impact backend files (25-35% coverage per file)
+- Focus on orchestration, analytics, and business logic
+- Use AsyncMock for async services, patch at import location
+- Follow established patterns from Phase 295-296
+- Progressive coverage expansion toward 45% backend target
 
-### Coverage Expansion (Phases 222-224)
-- Target specific coverage gaps identified in baseline
-- Add unit tests for uncovered code paths
-- Add integration tests for endpoint validation
-- Add property-based tests for invariants (Hypothesis)
+### Frontend Unblock (Future Phase)
+- Fix Jest import path configuration (@lib/ alias)
+- Unblock 450 frontend tests (+1.5-2pp frontend coverage)
+- Test existing high-impact files (api.ts, auth.ts, hubspotApi.ts)
 
-### Quality Enforcement (Phases 225-226)
-- Generate comprehensive coverage reports (HTML + JSON)
-- Verify 80% target achieved across all modules
-- Ensure 98%+ pass rate maintained
-- Re-enable CI/CD workflows with quality gates
+### Quality Enforcement (Future Phase)
+- Achieve 98%+ overall test pass rate
+- Implement quality gates (pre-commit, CI, trend tracking)
+- Re-enable CI/CD workflows with coverage enforcement
 
 ---
 
 ## Notes
 
 ### Key Insights
-1. **Test failures must be fixed first** - Can't expand coverage with failing tests
-2. **Actual line coverage matters** - 74.6% is real baseline, not estimates
-3. **Progressive approach** - Fix failures → Core services → API routes → Tools → Verify → Quality gates
-4. **Property-based testing** - Add Hypothesis tests for critical invariants during Phase 224
+1. **Backend acceleration working**: +1.5-2.0pp increase in Phase 296 (143 new tests)
+2. **Individual file improvements significant**: 28% coverage on agent_social_layer.py
+3. **Backend scale dilutes impact**: ~90K lines requires ~5,300-5,800 lines for 5.9-6.4pp
+4. **Frontend import issue unresolved**: 92.8% of tests blocked by configuration
+5. **Patterns established**: AsyncMock, patch at import, fixtures working well
 
 ### Risks
-1. **Test failures may be complex** - Industry workflow and 2FA tests may have deep issues
-2. **Coverage gaps may be large** - 5.4 percentage points to target (74.6% → 80%)
-3. **Test suite size** - 1,489 test files require careful navigation
-4. **Timeline pressure** - Aggressive execution required
+1. **Backend scale challenge**: 5.9-6.4pp gap requires ~5,300-5,800 more lines
+2. **Frontend structural issue**: Import path blocking 450 tests
+3. **Diminishing returns**: Each percentage point requires more effort
+4. **Timeline pressure**: Aggressive execution required for 45% target
 
 ### Opportunities
-1. **Clear target** - 80% is well-defined milestone
-2. **Structured approach** - Phases build on each other
-3. **Quality gates ready** - Infrastructure from v5.4 available
-4. **Comprehensive requirements** - 24 requirements provide complete coverage scope
+1. **Clear strategy**: Test high-impact files with 25-35% coverage targets
+2. **Proven patterns**: Phase 295-296 established successful testing patterns
+3. **Critical business logic**: Orchestration/analytics services have high value
+4. **Alternative paths**: Can shift to quality gates if 45% proves unrealistic
 
 ---
 
-*Last Updated: 2026-03-22*
-*Next Action: Execute Phase 220 - Fix Industry Workflow Test Failures*
-*Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%*
+*Last Updated: 2026-04-25*
+*Next Action: Execute Phase 297 - Backend Acceleration Wave 5*
+*Milestone: Backend Coverage Acceleration - Wave 5 (Target: 39.8-40.6%)*
