@@ -52,7 +52,7 @@
 - [x] **Phase 301: Services Wave 1 - BYOK & Vector & Episodes** - ✅ COMPLETE with deviation. Tests created 2026-04-25 (54 tests vs 35-45 planned, 10% pass rate, 301-01-SUMMARY.md)
 - [x] **Phase 302: Services Wave 2 - Next 3 Files** - ✅ COMPLETE with deviation. 12 stub tests discovered (23% of tests), 0pp coverage increase (302-01-SUMMARY.md)
 - [x] **Phase 303: Quality-Focused Stub Test Fixes** - ✅ COMPLETE. Stub tests eliminated (12 → 0), quality standards established (303-QUALITY-STANDARDS.md), +0.22pp coverage (26.02% backend)
-- [ ] **Phase 304: Coverage Wave - Quality Standards Applied** - 🔄 PLANNING. Test 3 high-impact files (workflow_debugger.py, hybrid_data_ingestion.py, workflow_template_system.py) with Phase 303 quality standards
+- [x] **Phase 304: Coverage Wave - Quality Standards Applied** - 🔄 PLANNING. Test 3 high-impact files (workflow_debugger.py, hybrid_data_ingestion.py, workflow_template_system.py) with Phase 303 quality standards (completed 2026-04-25)
 - [ ] **Phase 305: Coverage Wave - Quality Standards Continued** - Test next 3 high-impact files with quality standards
 - [ ] **Phase 306: Final Push to 45%** - Test remaining high-impact files to reach 45% backend coverage
 
@@ -98,9 +98,9 @@
 **Status**: 🔄 PLANNING
 
 **Plans**: 3 plans
-- [ ] 304-01-PLAN.md — Test workflow_debugger.py (1,387 lines, 11.8% → 25-30% coverage, 20-25 tests)
-- [ ] 304-02-PLAN.md — Test hybrid_data_ingestion.py (1,008 lines, 12.7% → 25-30% coverage, 18-22 tests)
-- [ ] 304-03-PLAN.md — Test workflow_template_system.py (1,363 lines, <10% → 25-30% coverage, 22-28 tests)
+- [x] 304-01-PLAN.md — Test workflow_debugger.py (1,387 lines, 11.8% → 25-30% coverage, 20-25 tests)
+- [x] 304-02-PLAN.md — Test hybrid_data_ingestion.py (1,008 lines, 12.7% → 25-30% coverage, 18-22 tests)
+- [x] 304-03-PLAN.md — Test workflow_template_system.py (1,363 lines, <10% → 25-30% coverage, 22-28 tests)
 
 **Target Files** (from Phase 299 gap analysis, excluding Phases 295-303):
 - `core/workflow_debugger.py` (1,387 lines, 11.8% current coverage → 25-30% target) - 175 lines to cover
