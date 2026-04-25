@@ -1,0 +1,36 @@
+{
+  "phase": "295",
+  "timestamp": "2026-04-25T09:25:00Z",
+  "baseline_coverage": 18.18,
+  "current_coverage": 18.18,
+  "coverage_increase_pp": 0.0,
+  "target_increase_pp": 6.82,
+  "target_met": false,
+  "gap_to_target": 6.82,
+  "phase_295_impact": {
+    "plan_295_03": {
+      "tests_added": 485,
+      "tests_passing": 35,
+      "tests_blocked": 450,
+      "coverage_impact_pp": 0.0,
+      "description": "Frontend high-impact components tested (only tokenEncryption runnable)",
+      "import_path_issues": "Files in src/lib/ not accessible via @lib/ alias in jest config"
+    }
+  },
+  "overall_assessment": {
+    "frontend_codebase_lines": "~26,275",
+    "phase_295_tests_runnable": "35 of 485 (7.2%)",
+    "phase_295_tests_blocked": "450 of 485 (92.8%)",
+    "blocker_reason": "Structural issue: jest config maps @lib/ to lib/ but source files split between lib/ and src/lib/",
+    "individual_file_coverage": {
+      "lib/tokenEncryption.ts": "~80% estimated (35 tests, 100% pass rate)"
+    },
+    "potential_coverage_if_unblocked": "+1.5pp to +2pp if all 485 tests could run"
+  },
+  "recommendations": [
+    "Fix jest config to include src/lib/ in @lib/ alias path mapping",
+    "Move src/lib/ files to lib/ to match jest config",
+    "Use direct relative imports instead of @lib/ alias",
+    "Re-run tests after import path fix to measure actual coverage"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "phase": "295",
+  "timestamp": "2026-04-25T09:21:00Z",
+  "baseline_coverage": 36.7,
+  "current_coverage": 37.1,
+  "coverage_increase_pp": 0.4,
+  "target_increase_pp": 8.3,
+  "target_met": false,
+  "gap_to_target": 7.9,
+  "phase_295_impact": {
+    "plan_295_01": {
+      "tests_added": 121,
+      "tests_passing": 69,
+      "coverage_impact_pp": 0.4,
+      "description": "Database migration completed, 4 tables created"
+    },
+    "plan_295_02": {
+      "tests_added": 225,
+      "tests_passing": 73,
+      "coverage_impact_pp": 0.0,
+      "individual_file_improvements": {
+        "workflow_engine.py": "+22pp (268 lines)",
+        "atom_agent_endpoints.py": "+29pp (223 lines)",
+        "byok_handler.py": "+12.39pp (203 lines)",
+        "lancedb_handler.py": "+7.58pp (157 lines)",
+        "agent_world_model.py": "framework established"
+      },
+      "total_lines_covered": 929,
+      "description": "10 high-impact files tested, but backend too large for overall impact"
+    }
+  },
+  "overall_assessment": {
+    "backend_codebase_lines": "~90,000",
+    "phase_295_lines_covered": 929,
+    "phase_295_percentage_impact": "1.03% of total codebase",
+    "individual_file_improvements": "Significant (7-29pp on 5 files)",
+    "overall_percentage_change": "Minimal due to codebase scale"
+  }
+}

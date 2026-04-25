@@ -1,0 +1,76 @@
+{
+  "phase": "295",
+  "timestamp": "2026-04-25T13:33:38.964121Z",
+  "platforms": {
+    "backend": {
+      "coverage_pct": 37.1,
+      "covered_lines": "N/A (massive codebase)",
+      "total_lines": "~90,000",
+      "baseline_coverage": 36.7,
+      "coverage_increase_pp": 0.4,
+      "target_met": false,
+      "gap_to_target": 7.9
+    },
+    "frontend": {
+      "coverage_pct": 18.18,
+      "covered_lines": "N/A",
+      "total_lines": "~26,275",
+      "baseline_coverage": 18.18,
+      "coverage_increase_pp": 0.0,
+      "target_met": false,
+      "gap_to_target": 6.82
+    }
+  },
+  "overall": {
+    "coverage_pct": 29.53,
+    "backend_weight": 0.6,
+    "frontend_weight": 0.4
+  },
+  "targets": {
+    "backend": 45.0,
+    "frontend": 25.0,
+    "backend_met": false,
+    "frontend_met": false,
+    "both_met": false
+  },
+  "phase_295_summary": {
+    "plans_completed": 4,
+    "tests_added": {
+      "backend": "346 tests (121 from 295-01, 225 from 295-02)",
+      "frontend": "485 tests (from 295-03)",
+      "total": "831 tests"
+    },
+    "tests_passing": {
+      "backend": "142 tests (69 from 295-01, 73 from 295-02)",
+      "frontend": "35 tests (tokenEncryption only)",
+      "total": "177 tests"
+    },
+    "duration_hours": "2-3 hours (estimated)",
+    "key_achievements": [
+      "Database migrations completed (Plan 295-01)",
+      "10 high-impact backend files tested (Plan 295-02)",
+      "Individual file coverage improvements: 7-29pp on 5 files",
+      "929 lines of backend code covered",
+      "Frontend test infrastructure created (Plan 295-03)",
+      "Comprehensive coverage reports generated"
+    ],
+    "major_blockers": [
+      "Backend: Codebase scale (~90K lines) dilutes overall coverage impact",
+      "Frontend: Import path issues block 92.8% of tests (450 of 485)",
+      "Frontend: Many planned components don't exist in codebase"
+    ]
+  },
+  "recommendations": {
+    "backend": [
+      "Continue high-impact file testing (next 10 files)",
+      "Focus on individual file improvements (40% target per file)",
+      "Accept that overall percentage moves slowly due to codebase scale"
+    ],
+    "frontend": [
+      "Fix jest config to include src/lib/ in @lib/ alias",
+      "Verify file existence before planning tests",
+      "Test existing high-impact files (api.ts, auth.ts, hubspotApi.ts)",
+      "Consider if 25% target is realistic with current codebase size"
+    ]
+  }
+}
