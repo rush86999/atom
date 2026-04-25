@@ -117,7 +117,12 @@
 4. Frontend state management and hooks tested (broader coverage beyond components)
 5. Coverage trend tracking shows consistent progress (no plateaus or regressions)
 
-**Plans**: TBD
+**Plans**:
+- [ ] 294-01-PLAN.md -- Backend Tier 2 files testing (6 files, ~1.2pp increase)
+- [x] 294-02-PLAN.md -- Backend Tier 2 files testing (6 files, ~1.1pp increase)
+- [ ] 294-03-PLAN.md -- Frontend codebase survey and coverage baseline
+- [x] 294-04-PLAN.md -- Frontend components and libs testing (15 files, ~7pp increase)
+- [ ] 294-05-PLAN.md -- Final coverage measurement and verification
 
 ---
 
@@ -148,8 +153,8 @@
 |-------|----------------|--------|-----------|
 | 291. Frontend Test Suite Fixes | 4/3 | Complete   | 2026-04-24 |
 | 292. Coverage Baselines & Prioritization | 2/2 | Complete    | 2026-04-24 |
-| 293. Coverage Wave 1 (30% Target) | 3/6 | In Progress | 2026-04-24 |
-| 294. Coverage Wave 2 (50% Target) | 0/3 | Not started | - |
+| 293. Coverage Wave 1 (30% Target) | 8/7 | Complete   | 2026-04-24 |
+| 294. Coverage Wave 2 (50% Target) | 2/5 | In Progress|  |
 | 295. Coverage Wave 3 (70% Target) & Documentation | 0/5 | Not started | - |
 
 ---
