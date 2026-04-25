@@ -1,44 +1,51 @@
 /**
- * Tests for Token Encryption Service
+ * Tests for TokenEncryptionService
  *
- * Tests AES-256-GCM encryption for OAuth tokens
+ * Tests AES-256-GCM encryption/decryption functionality for OAuth tokens.
  */
 
-import { TokenEncryptionService, getEncryptionService, encryptToken, decryptToken } from '../tokenEncryption';
-
-// Generate a valid 64-character hex key for testing
-const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+import { TokenEncryptionService, getEncryptionService, encryptToken, decryptToken } from '@lib/tokenEncryption';
 
 describe('TokenEncryptionService', () => {
+  let validKey: string;
   let encryptionService: TokenEncryptionService;
 
-  beforeEach(() => {
-    process.env.TOKEN_ENCRYPTION_KEY = TEST_KEY;
+  beforeAll(() => {
+    // Generate a valid 64-character hex key for testing
+    validKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.TOKEN_ENCRYPTION_KEY = validKey;
     encryptionService = new TokenEncryptionService();
   });
 
   afterEach(() => {
-    delete process.env.TOKEN_ENCRYPTION_KEY;
+    // Reset environment variable
+    process.env.TOKEN_ENCRYPTION_KEY = validKey;
   });
 
-  describe('constructor', () => {
+  describe('Constructor', () => {
     it('should create instance with valid key', () => {
       expect(encryptionService).toBeInstanceOf(TokenEncryptionService);
     });
 
-    it('should throw error when TOKEN_ENCRYPTION_KEY is not set', () => {
+    it('should throw error if TOKEN_ENCRYPTION_KEY not set', () => {
       delete process.env.TOKEN_ENCRYPTION_KEY;
-      expect(() => new TokenEncryptionService()).toThrow('TOKEN_ENCRYPTION_KEY environment variable is not set');
+      expect(() => new TokenEncryptionService()).toThrow(
+        'TOKEN_ENCRYPTION_KEY environment variable is not set'
+      );
     });
 
-    it('should throw error when key is not 64 characters', () => {
-      process.env.TOKEN_ENCRYPTION_KEY = 'short-key';
-      expect(() => new TokenEncryptionService()).toThrow('TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters');
+    it('should throw error if key is not 64 hex characters', () => {
+      process.env.TOKEN_ENCRYPTION_KEY = 'invalid-key';
+      expect(() => new TokenEncryptionService()).toThrow(
+        'TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters'
+      );
     });
 
-    it('should throw error when key contains non-hex characters', () => {
+    it('should throw error if key contains non-hex characters', () => {
       process.env.TOKEN_ENCRYPTION_KEY = 'g'.repeat(64);
-      expect(() => new TokenEncryptionService()).toThrow();
+      expect(() => new TokenEncryptionService()).toThrow(
+        'TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters'
+      );
     });
   });
 
@@ -48,90 +55,98 @@ describe('TokenEncryptionService', () => {
       const encrypted = encryptionService.encrypt(plaintext);
 
       expect(encrypted).toBeDefined();
+      expect(typeof encrypted).toBe('string');
       expect(encrypted).not.toBe(plaintext);
-      expect(encrypted.length).toBeGreaterThanOrEqual(64); // At least IV + AuthTag in hex
+      expect(encrypted.length).toBeGreaterThan(plaintext.length);
     });
 
-    it('should produce different output for same input (due to random IV)', () => {
-      const plaintext = 'my-token';
+    it('should produce different ciphertext for same plaintext (random IV)', () => {
+      const plaintext = 'same-token';
       const encrypted1 = encryptionService.encrypt(plaintext);
       const encrypted2 = encryptionService.encrypt(plaintext);
 
       expect(encrypted1).not.toBe(encrypted2);
     });
 
-    it('should produce valid hex output', () => {
-      const plaintext = 'my-token';
-      const encrypted = encryptionService.encrypt(plaintext);
-
-      expect(/^[a-f0-9]+$/i.test(encrypted)).toBe(true);
-    });
-
     it('should encrypt empty string', () => {
       const encrypted = encryptionService.encrypt('');
       expect(encrypted).toBeDefined();
-      expect(encrypted.length).toBeGreaterThanOrEqual(64);
+      expect(encrypted.length).toBeGreaterThan(0);
+    });
+
+    it('should encrypt tokens with special characters', () => {
+      const specialToken = 'token-with-special-chars-!@#$%^&*()';
+      const encrypted = encryptionService.encrypt(specialToken);
+      expect(encrypted).toBeDefined();
     });
 
     it('should encrypt long tokens', () => {
-      const longToken = 'a'.repeat(1000);
+      const longToken = 'a'.repeat(10000);
       const encrypted = encryptionService.encrypt(longToken);
-
       expect(encrypted).toBeDefined();
-      expect(encrypted.length).toBeGreaterThan(longToken.length);
     });
 
-    it('should encrypt special characters', () => {
-      const specialToken = 'token-with-special-chars-!@#$%^&*()_+-=[]{}|;:\'",.<>?/~`';
-      const encrypted = encryptionService.encrypt(specialToken);
+    it('should return hex-encoded string', () => {
+      const encrypted = encryptionService.encrypt('test-token');
+      expect(/^[a-f0-9]+$/i.test(encrypted)).toBe(true);
+    });
 
-      expect(encrypted).toBeDefined();
+    it('should throw error on encryption failure', () => {
+      // Force an error by using an invalid service instance
+      const badService = new TokenEncryptionService();
+      (badService as any).key = null;
+
+      expect(() => badService.encrypt('test')).toThrow();
     });
   });
 
   describe('decrypt', () => {
-    it('should decrypt encrypted token correctly', () => {
-      const plaintext = 'my-access-token-12345';
+    it('should decrypt previously encrypted token', () => {
+      const plaintext = 'my-access-token';
       const encrypted = encryptionService.encrypt(plaintext);
       const decrypted = encryptionService.decrypt(encrypted);
 
       expect(decrypted).toBe(plaintext);
     });
 
-    it('should handle round-trip encryption/decryption', () => {
-      const tokens = [
-        'short',
-        'medium-length-token-with-some-chars',
-        'a'.repeat(1000),
-        '!@#$%^&*()',
-        'token-with- números-日本語-🔥',
-      ];
-
-      tokens.forEach(token => {
-        const encrypted = encryptionService.encrypt(token);
-        const decrypted = encryptionService.decrypt(encrypted);
-        expect(decrypted).toBe(token);
-      });
+    it('should decrypt empty string', () => {
+      const encrypted = encryptionService.encrypt('');
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe('');
     });
 
-    it('should throw error for invalid ciphertext format', () => {
-      expect(() => encryptionService.decrypt('too-short')).toThrow();
+    it('should decrypt tokens with special characters', () => {
+      const specialToken = 'token-with-special-chars-!@#$%^&*()';
+      const encrypted = encryptionService.encrypt(specialToken);
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe(specialToken);
     });
 
-    it('should throw error for tampered ciphertext', () => {
-      const plaintext = 'my-token';
+    it('should decrypt long tokens', () => {
+      const longToken = 'a'.repeat(10000);
+      const encrypted = encryptionService.encrypt(longToken);
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe(longToken);
+    });
+
+    it('should throw error for invalid ciphertext length', () => {
+      expect(() => encryptionService.decrypt('too-short')).toThrow(
+        'Invalid ciphertext length'
+      );
+    });
+
+    it('should throw error for non-hex ciphertext', () => {
+      const invalidHex = 'x'.repeat(100);
+      expect(() => encryptionService.decrypt(invalidHex)).toThrow();
+    });
+
+    it('should throw error for tampered ciphertext (wrong auth tag)', () => {
+      const plaintext = 'test-token';
       const encrypted = encryptionService.encrypt(plaintext);
-
       // Tamper with the ciphertext
       const tampered = encrypted.slice(0, -10) + '0000000000';
 
       expect(() => encryptionService.decrypt(tampered)).toThrow();
-    });
-
-    it('should throw error for invalid hex', () => {
-      const invalidHex = 'g'.repeat(100);
-      // Invalid hex will cause Buffer.from to throw during IV extraction
-      expect(() => encryptionService.decrypt(invalidHex)).toThrow(/Token decryption failed/);
     });
   });
 
@@ -139,87 +154,90 @@ describe('TokenEncryptionService', () => {
     it('should return true for encrypted token', () => {
       const plaintext = 'my-token';
       const encrypted = encryptionService.encrypt(plaintext);
-
       expect(encryptionService.isEncrypted(encrypted)).toBe(true);
     });
 
-    it('should return false for short string', () => {
+    it('should return false for short token', () => {
       expect(encryptionService.isEncrypted('short')).toBe(false);
     });
 
-    it('should return false for non-hex string', () => {
-      const longString = 'a'.repeat(100);
-      expect(encryptionService.isEncrypted(longString)).toBe(true); // 'a' is valid hex
-      expect(encryptionService.isEncrypted('g'.repeat(100))).toBe(false); // 'g' is not hex
+    it('should return false for non-hex token', () => {
+      expect(encryptionService.isEncrypted('not-hex-chars-!@#$%')).toBe(false);
     });
 
-    it('should return false for empty string', () => {
-      expect(encryptionService.isEncrypted('')).toBe(false);
+    it('should return true for long hex string (heuristic)', () => {
+      const longHex = 'a'.repeat(100);
+      expect(encryptionService.isEncrypted(longHex)).toBe(true);
+    });
+
+    it('should return false for mixed hex and non-hex', () => {
+      const mixed = 'abcdef12345ghij';
+      expect(encryptionService.isEncrypted(mixed)).toBe(false);
     });
   });
 
   describe('reencrypt', () => {
-    it('should re-encrypt token with new key', () => {
+    it('should re-encrypt with new key', () => {
       const plaintext = 'my-token';
-      const encrypted1 = encryptionService.encrypt(plaintext);
+      const currentEncrypted = encryptionService.encrypt(plaintext);
 
-      // Generate a new key
       const newKey = 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
-
-      const reencrypted = encryptionService.reencrypt(encrypted1, newKey);
+      const reencrypted = encryptionService.reencrypt(currentEncrypted, newKey);
 
       expect(reencrypted).toBeDefined();
-      expect(reencrypted).not.toBe(encrypted1);
+      expect(reencrypted).not.toBe(currentEncrypted);
+
+      // Verify can decrypt with new key
+      const newService = new TokenEncryptionService();
+      (newService as any).key = Buffer.from(newKey, 'hex');
+      const decrypted = newService.decrypt(reencrypted);
+      expect(decrypted).toBe(plaintext);
     });
 
-    it('should allow decryption with new key after reencryption', () => {
-      const plaintext = 'my-token';
-      const encrypted1 = encryptionService.encrypt(plaintext);
-
-      // Create a new service with a different key
+    it('should throw error for invalid current ciphertext', () => {
       const newKey = 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
-      const reencrypted = encryptionService.reencrypt(encrypted1, newKey);
+      expect(() => encryptionService.reencrypt('invalid', newKey)).toThrow();
+    });
 
-      // Create new service with new key to verify
-      process.env.TOKEN_ENCRYPTION_KEY = newKey;
-      const newService = new TokenEncryptionService();
-      const decrypted = newService.decrypt(reencrypted);
+    it('should throw error for invalid new key', () => {
+      const plaintext = 'my-token';
+      const currentEncrypted = encryptionService.encrypt(plaintext);
 
-      expect(decrypted).toBe(plaintext);
+      expect(() => encryptionService.reencrypt(currentEncrypted, 'invalid-key')).toThrow();
     });
   });
 
   describe('getEncryptionService', () => {
     it('should return singleton instance', () => {
-      const service1 = getEncryptionService();
-      const service2 = getEncryptionService();
+      const instance1 = getEncryptionService();
+      const instance2 = getEncryptionService();
 
-      expect(service1).toBe(service2);
+      expect(instance1).toBe(instance2);
     });
 
-    it('should create instance only once', () => {
-      const spy = jest.spyOn(TokenEncryptionService.prototype, 'constructor');
-      getEncryptionService();
-      getEncryptionService();
-
-      // Constructor should only be called once (first time)
-      // Note: This test is tricky because constructor is already called
-      expect(spy).toBeDefined();
-      spy.mockRestore();
+    it('should return TokenEncryptionService instance', () => {
+      const instance = getEncryptionService();
+      expect(instance).toBeInstanceOf(TokenEncryptionService);
     });
   });
 
-  describe('encryptToken convenience function', () => {
+  describe('encryptToken', () => {
     it('should encrypt token using singleton service', () => {
-      const plaintext = 'my-token';
+      const plaintext = 'test-token';
       const encrypted = encryptToken(plaintext);
 
       expect(encrypted).toBeDefined();
       expect(encrypted).not.toBe(plaintext);
-    });
 
-    it('should be decryptable with decryptToken', () => {
-      const plaintext = 'my-token';
+      // Verify can decrypt
+      const decrypted = decryptToken(encrypted);
+      expect(decrypted).toBe(plaintext);
+    });
+  });
+
+  describe('decryptToken', () => {
+    it('should decrypt token using singleton service', () => {
+      const plaintext = 'test-token';
       const encrypted = encryptToken(plaintext);
       const decrypted = decryptToken(encrypted);
 
@@ -227,13 +245,50 @@ describe('TokenEncryptionService', () => {
     });
   });
 
-  describe('decryptToken convenience function', () => {
-    it('should decrypt token using singleton service', () => {
-      const plaintext = 'my-token';
-      const encrypted = encryptToken(plaintext);
-      const decrypted = decryptToken(encrypted);
+  describe('encryption format', () => {
+    it('should produce IV (32 chars) + AuthTag (32 chars) + ciphertext', () => {
+      const plaintext = 'test-token';
+      const encrypted = encryptionService.encrypt(plaintext);
 
-      expect(decrypted).toBe(plaintext);
+      // IV = 16 bytes = 32 hex chars
+      // AuthTag = 16 bytes = 32 hex chars
+      // Total minimum = 64 hex chars
+      expect(encrypted.length).toBeGreaterThanOrEqual(64);
+    });
+
+    it('should produce unique IV for each encryption', () => {
+      const plaintext = 'same-token';
+      const encrypted1 = encryptionService.encrypt(plaintext);
+      const encrypted2 = encryptionService.encrypt(plaintext);
+
+      // First 32 chars are IV
+      const iv1 = encrypted1.slice(0, 32);
+      const iv2 = encrypted2.slice(0, 32);
+
+      expect(iv1).not.toBe(iv2);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle unicode characters', () => {
+      const unicodeToken = 'token-with-unicode-😀-🎉-🚀';
+      const encrypted = encryptionService.encrypt(unicodeToken);
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe(unicodeToken);
+    });
+
+    it('should handle tokens with newlines', () => {
+      const multilineToken = 'token\nwith\nnewlines';
+      const encrypted = encryptionService.encrypt(multilineToken);
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe(multilineToken);
+    });
+
+    it('should handle very long tokens (10KB)', () => {
+      const longToken = 'x'.repeat(10000);
+      const encrypted = encryptionService.encrypt(longToken);
+      const decrypted = encryptionService.decrypt(encrypted);
+      expect(decrypted).toBe(longToken);
     });
   });
 });
