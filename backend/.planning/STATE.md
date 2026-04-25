@@ -24,10 +24,10 @@ progress:
 
 ## Current Position
 
-**Phase**: Phase 303 - Quality-Focused Stub Test Fixes
-**Plan**: 03 - Audit Bulk-Created Tests + Quality Standards
+**Phase**: Phase 305 - Quality Gates & Final Verification
+**Plan**: 04 - Documentation & Roadmap Recommendations
 **Status**: ✅ COMPLETE
-**Last activity**: 2026-04-25 — Phase 303 completed successfully. Stub test problem eliminated (12 → 0 tests). Rewrote test_advanced_workflow_system.py (6 stubs → 24 proper tests, 27% coverage) and test_workflow_versioning_system.py (6 stubs → 17 proper tests, 15% coverage). Created 3 quality standards documents (1,430 lines) with stub test detection checklist, AsyncMock patterns, and quality gates for Phase 304+. Backend coverage increased to 26.02% (from 25.8%, +0.22pp). Quality-first approach established to prevent future stub test creation.
+**Last activity**: 2026-04-25 — Phase 305 completed successfully. Conducted comprehensive quality assessment of Phases 300-304. Test pass rate crisis identified: 40% aggregate (94/235 passing vs 95% target). Roadmap analysis complete: original 7-phase estimate to 45% was 5x too optimistic. Actual velocity: 0.57pp per phase. Adjusted target from 45% to 35% (15 phases, ~30 hours). Created 305-PHASE-SUMMARY.md and 305-ROADMAP-RECOMMENDATIONS.md with realistic roadmap options. Backend coverage remains 26.59% (no change, assessment phase).
 
 Progress: [██████████] 100%
 
@@ -43,7 +43,31 @@ Progress: [██████████] 100%
 - **Lines Missing**: 67,580
 - **Test Pass Rate**: 100% (12/12 agent_governance_service tests, Phase 298: 76/83 = 91.6%)
 - **Files Measured**: 675
-- **Coverage Gap**: 19.2 percentage points to 45% target
+- **Coverage Gap to 45%**: 19.2 percentage points (32 phases at 0.57pp per phase)
+- **Coverage Gap to 35%**: 9.2 percentage points (15 phases at 0.57pp per phase) ✅ ADJUSTED TARGET
+
+### Current Coverage (Phase 305 - After Quality Assessment)
+
+- **Overall Coverage**: 26.59% backend (no change from Phase 304)
+- **Total Lines**: 91,078
+- **Lines Covered**: 24,223
+- **Lines Missing**: 66,855
+- **Target Coverage**: 35% (adjusted from 45% based on Phase 305 analysis)
+- **Coverage Gap to 35%**: 8.41pp (7,652 lines needed, ~15 phases)
+- **Coverage Gap to 45%**: 18.41pp (16,747 lines needed, ~32 phases)
+
+### Test Quality Metrics (Phase 305 Assessment)
+
+- **Total Tests (Phases 300-304)**: 235 tests
+- **Passing Tests**: 94 (40%)
+- **Failing Tests**: 141 (60%)
+- **Target Pass Rate**: 95%+
+- **Quality Crisis**: 60% of tests failing due to API signature mismatches, model attribute errors, enum value errors
+
+**Breakdown by Phase**:
+- Phase 300: 57/106 passing (54%) - workflow_engine, atom_agent_endpoints, agent_world_model
+- Phase 301: 3/54 passing (5.5%) - byok_handler, lancedb_handler, episode_segmentation_service
+- Phase 304: 34/75 passing (45.3%) - workflow_debugger, hybrid_data_ingestion, workflow_template_system
 
 ### Previous Estimates (Phases 293-298 - Now Known to be Inaccurate)
 
@@ -310,6 +334,55 @@ Progress: [██████████] 100%
 
 ---
 
+### Phase 305: Quality Gates & Final Verification (Complete)
+
+**Goal**: Conduct comprehensive quality assessment, analyze roadmap feasibility, adjust targets based on actual velocity
+
+**Completed Tasks**:
+
+- ✅ Aggregated test quality metrics from Phases 300-304
+- ✅ Analyzed roadmap feasibility based on actual velocity
+- ✅ Created 305-PHASE-SUMMARY.md (comprehensive phase summary)
+- ✅ Created 305-ROADMAP-RECOMMENDATIONS.md (3 roadmap options)
+- ✅ Updated ROADMAP.md with Phase 305 completion
+- ✅ Updated STATE.md with current position and roadmap to 35%
+
+**Test Quality Assessment**:
+
+- **Total Tests (Phases 300-304)**: 235 tests
+- **Passing Tests**: 94 (40%)
+- **Failing Tests**: 141 (60%)
+- **Target Pass Rate**: 95%+
+- **Quality Crisis**: 60% of tests failing due to API signature mismatches, model attribute errors, enum value errors
+
+**Roadmap Analysis**:
+
+- **Original Estimate (Phase 299)**: 7 phases to 45% (~14 hours)
+- **Actual Velocity**: 0.57pp per phase (Phase 304 measured)
+- **Phases to 45%**: 32 phases (~64 hours) - 5x longer than estimated
+- **Phases to 35%**: 15 phases (~30 hours) - realistic intermediate milestone
+
+**Target Adjustment**:
+
+- **Original Target**: 45% backend coverage
+- **Adjusted Target**: 35% backend coverage ✅ RECOMMENDED
+- **Rationale**: Quality-focused approach, milestone-based decision at 35%, re-evaluate before continuing to 45%
+- **Time Savings**: 30 hours vs 64 hours (53% time savings)
+
+**Commits**:
+
+- *(pending)*: docs(305-04): complete phase summary and roadmap recommendations
+
+**Impact**:
+
+- **Assessment Complete**: Comprehensive quality gate analysis
+- **Roadmap Realistic**: 32 phases to 45%, 15 phases to 35%
+- **Target Adjusted**: 35% (from 45%) based on actual velocity
+- **Decision Framework**: Re-evaluate at Phase 320 (35% coverage)
+- **Quality Standards**: 303-QUALITY-STANDARDS.md applied to all future phases
+
+---
+
 ## Roadmap Summary
 
 ### Phases 293-298: Backend Acceleration Initiative (Complete)
@@ -338,9 +411,9 @@ Progress: [██████████] 100%
 - ✅ STATE.md: Updated with current position and Phase 299 execution
 - ⏳ ROADMAP.md: To be updated with Phase 299 and Phase 300+ entries
 
-### Phases 300-306: Coverage Expansion to 45% (Recommended)
+### Phases 306-320: Coverage Expansion to 35% (Recommended) ✅
 
-**Goal**: Achieve 45% backend coverage through 7 focused phases
+**Goal**: Achieve 35% backend coverage through 15 focused phases
 
 **Strategy**:
 
@@ -349,65 +422,63 @@ Progress: [██████████] 100%
 - Use AsyncMock patterns from Phase 297-298
 - Monitor growth rate and adjust if diminishing returns emerge
 
-**Timeline**: ~14 hours (7 phases × 2 hours per phase)
+**Timeline**: ~30 hours (15 phases × 2 hours per phase)
 
-**Expected Coverage Growth**:
+**Expected Coverage Growth** (to 35%):
 
-- Phase 300: 28.5% (+2.7pp)
-- Phase 301: 31.2% (+2.7pp)
-- Phase 302: 33.9% (+2.7pp)
-- Phase 303: 36.6% (+2.7pp)
-- Phase 304: 39.3% (+2.7pp)
-- Phase 305: 42.0% (+2.7pp)
-- Phase 306: 44.7% (+2.7pp) → **Round to 45%**
+- Phase 306: 27.16% (+0.57pp)
+- Phase 307-310: +2.28pp (29.44%)
+- Phase 311-320: +5.56pp (35%)
+- **Total**: +8.41pp (26.59% → 35%)
+
+**Re-evaluation at Phase 320**: Decide whether to continue to 45% (17 additional phases, ~34 hours) or stop at 35%
+
+**Expected Coverage Growth** (if continuing to 45%):
+
+- Phase 321-330: +5.7pp (40.7%)
+- Phase 331-337: +4.3pp (45%)
 
 ---
 
 ## Next Actions
 
-### Immediate (Complete Phase 299)
+### Immediate (Execute Phase 306)
 
-1. **Complete Task 5: Generate VERIFICATION.md report**
-   - Document all Phase 299 findings and deliverables
-   - Verify all 12 checklist items complete
-   - Create comprehensive milestone completion report
+1. **Execute Phase 306: Fix Phase 300 test failures**
+   - Fix 49 failing tests from Phase 300 (workflow_engine, atom_agent_endpoints, agent_world_model)
+   - Read production code first to understand actual APIs
+   - Update test expectations to match actual method signatures, model fields, enum values
+   - Target: 95%+ pass rate (101/106 tests passing)
+   - Estimated time: 2-3 hours
 
-2. **Update ROADMAP.md with Phase 299 and Phase 300+ entries**
-   - Add Phase 299 completion status
-   - Add Phases 300-306 roadmap with objectives and timelines
-   - Update milestone targets (45% by Phase 306)
+2. **Continue Phase 306: Coverage expansion**
+   - Test 3 high-impact files with 25-35% coverage target
+   - Apply Phase 303 quality standards (PRE-CHECK, no stub tests, 95%+ pass rate)
+   - Maintain quality-first approach
 
-3. **Commit Phase 299 deliverables**
-   - 299-COVERAGE-REPORT.md
-   - 299-GAP-ANALYSIS.md
-   - 299-ROADMAP.md
-   - 299-VERIFICATION.md
-   - Updated STATE.md and ROADMAP.md
+### Short Term (Phases 306-320: Reach 35% coverage)
 
-### Short Term (Prepare for Phase 300)
+3. **Execute 15 phases to reach 35% backend coverage**
+   - Target: 35% backend coverage (+8.41pp from 26.59%)
+   - Timeline: 15 phases × 2 hours = 30 hours (~4 working days)
+   - File strategy: Top 15 highest-impact files from Phase 299 gap analysis
+   - Quality target: 95%+ pass rate for all new tests
+   - Fix existing failing tests: 141 tests (8-12 hours estimated)
 
-4. **Fix missing production modules**
-   - Create stub for specialist_matcher (2-4 hours)
-   - Create stub for recruitment_analytics_service (2-3 hours)
-   - Remove or stub fleet_optimization_service (3-4 hours)
-   - **Total**: 7-11 hours (can be done in parallel with Phase 300)
+4. **Re-evaluate at Phase 320 (35% coverage)**
+   - Assess pass rate quality (target: 95%+)
+   - Assess velocity sustainability (target: 0.57pp per phase)
+   - Assess ROI of additional coverage
+   - Decision: Continue to 45% (17 phases, ~34 hours) or stop at 35%
 
-5. **Phase 300 kickoff: Orchestration Wave 1**
-   - Test workflow_engine.py (1,219 lines, 6.8% → 35%)
-   - Test atom_agent_endpoints.py (779 lines, 12.3% → 35%)
-   - Test agent_world_model.py (712 lines, 11.9% → 35%)
-   - **Target**: 954 lines to cover, ~38 tests
+### Medium Term (Phases 321-337: Continue to 45% if approved)
 
-### Medium Term (Phases 301-306 Execution)
-
-6. **Execute Phases 301-306: Complete coverage expansion to 45%**
-   - Phase 301: Orchestration Wave 2 (~21 tests)
-   - Phase 302: Services Wave 1 (~25 tests)
-   - Phase 303: Services Wave 2 (~20 tests)
-   - Phase 304: API Endpoints Wave 1 (~32 tests)
-   - Phase 305: API Endpoints Wave 2 (~32 tests)
-   - Phase 306: Final Push (~32 tests)
-   - **Total**: ~162 tests, ~4,000 lines, +13.5pp
+5. **Execute 17 additional phases to reach 45% backend coverage**
+   - Target: 45% backend coverage (+18.41pp from 26.59%)
+   - Timeline: 32 phases total × 2 hours = 64 hours (~8 working days)
+   - Remaining after Phase 320: 17 phases (~34 hours)
+   - File strategy: Remaining high-impact orchestration, services, API files
+   - Quality target: Maintain 95%+ pass rate
 
 ---
 
