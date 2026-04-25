@@ -9276,6 +9276,54 @@ class ComponentUsage(Base):
     executed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class LearningPlan(Base):
+    """
+    AI-generated personalized learning plans with progress tracking.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for learning plan management.
+    """
+    __tablename__ = "learning_plans"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    topic = Column(String(255), nullable=False)
+    current_skill_level = Column(String(50), nullable=False)
+    learning_goals = Column(JSONColumn, nullable=True)
+    time_commitment = Column(String(50), nullable=False)
+    duration_weeks = Column(Integer, nullable=False)
+    preferred_format = Column(JSONColumn, nullable=True)
+    modules = Column(JSONColumn, nullable=True)  # Learning modules
+    progress = Column(Integer, default=0)  # 0-100
+    status = Column(String(50), default="active")  # active, completed, archived
+    notion_database_id = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class CompetitorAnalysis(Base):
+    """
+    AI-powered competitor analysis using web scraping and LLM integration.
+
+    Stub model for Phase 294 to unblock tests.
+    TODO: Implement full schema for competitor analysis.
+    """
+    __tablename__ = "competitor_analyses"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    competitors = Column(JSONColumn, nullable=False)  # List of competitor names/URLs
+    analysis_depth = Column(String(50), nullable=False)  # basic, standard, comprehensive
+    focus_areas = Column(JSONColumn, nullable=True)
+    insights = Column(JSONColumn, nullable=True)  # Analysis results
+    status = Column(String(50), default="pending")  # pending, running, completed, failed
+    notion_database_id = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class MeetingAttendanceStatus(Base):
     """
     Meeting attendance tracking.

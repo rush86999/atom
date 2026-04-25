@@ -51,7 +51,7 @@ from tools.media_tool import (
     sonos_groups,
 )
 
-from api.authentication import get_current_user
+from core.auth import get_current_user
 from core.models import User
 
 logger = logging.getLogger(__name__)

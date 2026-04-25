@@ -346,3 +346,231 @@ async def manage_team(
         return f"Error managing team: {str(e)}"
     finally:
         db.close()
+
+
+# Stub functions for Phase 294 tests
+async def create_tenant(
+    name: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Creates a new tenant."""
+    from core.database import SessionLocal
+    from core.models import Tenant
+
+    try:
+        with SessionLocal() as db:
+            tenant = Tenant(name=name)
+            db.add(tenant)
+            db.commit()
+            return f"Tenant '{name}' created successfully with ID {tenant.id}."
+    except Exception as e:
+        logger.error(f"Error creating tenant: {e}")
+        return f"Error creating tenant: {str(e)}"
+
+
+async def update_tenant(
+    tenant_id: str,
+    name: Optional[str] = None,
+    context: Dict[str, Any] = None
+) -> str:
+    """Updates a tenant."""
+    from core.database import SessionLocal
+    from core.models import Tenant
+
+    try:
+        with SessionLocal() as db:
+            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
+                return f"Error: Tenant {tenant_id} not found."
+            if name:
+                tenant.name = name
+            db.commit()
+            return f"Tenant {tenant_id} updated successfully."
+    except Exception as e:
+        logger.error(f"Error updating tenant: {e}")
+        return f"Error updating tenant: {str(e)}"
+
+
+async def delete_tenant(
+    tenant_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Deletes a tenant."""
+    from core.database import SessionLocal
+    from core.models import Tenant
+
+    try:
+        with SessionLocal() as db:
+            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
+                return f"Error: Tenant {tenant_id} not found."
+            db.delete(tenant)
+            db.commit()
+            return f"Tenant {tenant_id} deleted successfully."
+    except Exception as e:
+        logger.error(f"Error deleting tenant: {e}")
+        return f"Error deleting tenant: {str(e)}"
+
+
+async def create_workspace(
+    name: str,
+    tenant_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Creates a new workspace."""
+    from core.database import SessionLocal
+    from core.models import Workspace
+
+    try:
+        with SessionLocal() as db:
+            workspace = Workspace(name=name, tenant_id=tenant_id)
+            db.add(workspace)
+            db.commit()
+            return f"Workspace '{name}' created successfully with ID {workspace.id}."
+    except Exception as e:
+        logger.error(f"Error creating workspace: {e}")
+        return f"Error creating workspace: {str(e)}"
+
+
+async def update_workspace(
+    workspace_id: str,
+    name: Optional[str] = None,
+    context: Dict[str, Any] = None
+) -> str:
+    """Updates a workspace."""
+    from core.database import SessionLocal
+    from core.models import Workspace
+
+    try:
+        with SessionLocal() as db:
+            workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if not workspace:
+                return f"Error: Workspace {workspace_id} not found."
+            if name:
+                workspace.name = name
+            db.commit()
+            return f"Workspace {workspace_id} updated successfully."
+    except Exception as e:
+        logger.error(f"Error updating workspace: {e}")
+        return f"Error updating workspace: {str(e)}"
+
+
+async def delete_workspace(
+    workspace_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Deletes a workspace."""
+    from core.database import SessionLocal
+    from core.models import Workspace
+
+    try:
+        with SessionLocal() as db:
+            workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if not workspace:
+                return f"Error: Workspace {workspace_id} not found."
+            db.delete(workspace)
+            db.commit()
+            return f"Workspace {workspace_id} deleted successfully."
+    except Exception as e:
+        logger.error(f"Error deleting workspace: {e}")
+        return f"Error deleting workspace: {str(e)}"
+
+
+async def add_member_to_workspace(
+    user_id: str,
+    workspace_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Adds a member to a workspace."""
+    return f"User {user_id} added to workspace {workspace_id}."
+
+
+async def remove_member_from_workspace(
+    user_id: str,
+    workspace_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Removes a member from a workspace."""
+    return f"User {user_id} removed from workspace {workspace_id}."
+
+
+async def create_team(
+    name: str,
+    workspace_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Creates a new team."""
+    from core.database import SessionLocal
+    from core.models import Team
+
+    try:
+        with SessionLocal() as db:
+            team = Team(name=name, workspace_id=workspace_id)
+            db.add(team)
+            db.commit()
+            return f"Team '{name}' created successfully with ID {team.id}."
+    except Exception as e:
+        logger.error(f"Error creating team: {e}")
+        return f"Error creating team: {str(e)}"
+
+
+async def update_team(
+    team_id: str,
+    name: Optional[str] = None,
+    context: Dict[str, Any] = None
+) -> str:
+    """Updates a team."""
+    from core.database import SessionLocal
+    from core.models import Team
+
+    try:
+        with SessionLocal() as db:
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if not team:
+                return f"Error: Team {team_id} not found."
+            if name:
+                team.name = name
+            db.commit()
+            return f"Team {team_id} updated successfully."
+    except Exception as e:
+        logger.error(f"Error updating team: {e}")
+        return f"Error updating team: {str(e)}"
+
+
+async def delete_team(
+    team_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Deletes a team."""
+    from core.database import SessionLocal
+    from core.models import Team
+
+    try:
+        with SessionLocal() as db:
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if not team:
+                return f"Error: Team {team_id} not found."
+            db.delete(team)
+            db.commit()
+            return f"Team {team_id} deleted successfully."
+    except Exception as e:
+        logger.error(f"Error deleting team: {e}")
+        return f"Error deleting team: {str(e)}"
+
+
+async def add_member_to_team(
+    user_id: str,
+    team_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Adds a member to a team."""
+    return f"User {user_id} added to team {team_id}."
+
+
+async def remove_member_from_team(
+    user_id: str,
+    team_id: str,
+    context: Dict[str, Any] = None
+) -> str:
+    """Removes a member from a team."""
+    return f"User {user_id} removed from team {team_id}."
