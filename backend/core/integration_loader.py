@@ -15,9 +15,12 @@ logger = logging.getLogger(__name__)
 VALID_MODULE_PATTERN = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$')
 
 class IntegrationLoader:
-    def __init__(self):
+    def __init__(self, timeout: int = None):
         self.integrations = []
-        self.timeout_seconds = 5  # Timeout for each integration load
+        # Use environment variable or provided timeout, default to 5 seconds
+        import os
+        default_timeout = int(os.getenv("INTEGRATION_LOAD_TIMEOUT", "5"))
+        self.timeout_seconds = timeout if timeout is not None else default_timeout
 
     def _validate_module_path(self, module_path: str) -> bool:
         """Validate module path to prevent directory traversal attacks"""
@@ -59,7 +62,7 @@ class IntegrationLoader:
             return None
 
         # Log progress
-        logger.info(f"  Loading {module_path}...")
+        logger.debug(f"  Loading {module_path}...")
         start_time = time.time()
 
         try:
@@ -75,7 +78,6 @@ class IntegrationLoader:
                         "router": router,
                         "status": "loaded"
                     })
-                    logger.info(f"[OK] {module_path} loaded")
                     return router
                 except FuturesTimeoutError:
                     logger.warning(f"  ✗ TIMEOUT {module_path} (>{self.timeout_seconds}s)")
