@@ -19,7 +19,7 @@ UPSTREAM_SERVICE_REGISTRY = {
     "hubspot": "integrations.adapters.hubspot_adapter:HubSpotAdapter",
 }
 
-class IntegrationRegistryv2:
+class IntegrationRegistryV2:
     """
     Registry for managing integration service instances in Upstream.
     
@@ -140,4 +140,4 @@ class IntegrationRegistryv2:
             )
 
 # Singleton global registry for easy access
-registry = IntegrationRegistryv2()
+registry = IntegrationRegistryV2()
