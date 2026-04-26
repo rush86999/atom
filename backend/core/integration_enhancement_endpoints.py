@@ -46,7 +46,7 @@ class TransformDataRequest(BaseModel):
 class BulkOperationRequest(BaseModel):
     operation_type: str  # create, update, delete, upsert
     integration_id: str
-    items: List[Dict[str, Any]]
+    items: List[Dict[str, Any]] = Field(max_length=1000)  # Prevent DoS through massive payloads
     batch_size: int = 100
     parallel_processing: bool = True
     stop_on_error: bool = False
