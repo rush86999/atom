@@ -462,12 +462,35 @@ Deadlines: [list]"""
         return entity
 
     def _extract_email_addresses(self, data: List[str]) -> List[str]:
-        """Extract email addresses from list of strings"""
+        """
+        Extract and validate email addresses from list of strings.
+
+        Uses email-validator library for robust RFC 5322 compliant validation.
+
+        Args:
+            data: List of strings that may contain email addresses
+
+        Returns:
+            Unique list of valid email addresses found in the input
+        """
         emails = []
         for item in data:
             if isinstance(item, str):
-                found = self.email_pattern.findall(item)
-                emails.extend(found)
+                # Find potential email matches using regex (first pass)
+                potential_emails = self.email_pattern.findall(item)
+                for email in potential_emails:
+                    try:
+                        # Validate using email-validator for RFC 5322 compliance
+                        from email_validator import validate_email, EmailNotValidError
+                        valid = validate_email(email, check_deliverability=False)
+                        emails.append(valid.email)
+                    except ImportError:
+                        # Fallback to regex-only if email-validator not available
+                        logger.warning("email-validator not available, using regex-only validation")
+                        emails.append(email)
+                    except EmailNotValidError:
+                        # Skip invalid emails
+                        continue
         return list(set(emails))
 
     def _extract_domains(self, emails: List[str]) -> List[str]:
