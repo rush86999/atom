@@ -4,7 +4,7 @@ Provides real-time metrics, health monitoring, and configuration management
 for all communication platform integrations.
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -149,9 +149,9 @@ class IntegrationDashboard:
             "outlook": IntegrationHealth()
         }
 
-        # Timing history for percentile calculation
-        self.fetch_times: Dict[str, List[float]] = defaultdict(list)
-        self.process_times: Dict[str, List[float]] = defaultdict(list)
+        # Timing history for percentile calculation (using deque with maxlen for automatic trimming)
+        self.fetch_times: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.process_times: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
 
         # Configuration
         self.configurations: Dict[str, Dict[str, Any]] = {}
@@ -203,12 +203,8 @@ class IntegrationDashboard:
         metrics.messages_fetched += message_count
         metrics.last_fetch_time = now
 
-        # Track timing
+        # Track timing (deque automatically trims to 1000 samples)
         self.fetch_times[integration].append(fetch_time_ms)
-
-        # Keep only last 1000 samples
-        if len(self.fetch_times[integration]) > 1000:
-            self.fetch_times[integration] = self.fetch_times[integration][-1000:]
 
         # Update timing metrics
         metrics.avg_fetch_time_ms = sum(self.fetch_times[integration]) / len(self.fetch_times[integration])
@@ -275,12 +271,8 @@ class IntegrationDashboard:
         metrics.attachment_count += attachment_count
         metrics.fetch_size_bytes += data_size_bytes
 
-        # Track timing
+        # Track timing (deque automatically trims to 1000 samples)
         self.process_times[integration].append(process_time_ms)
-
-        # Keep only last 1000 samples
-        if len(self.process_times[integration]) > 1000:
-            self.process_times[integration] = self.process_times[integration][-1000:]
 
         # Update timing metrics
         metrics.avg_process_time_ms = sum(self.process_times[integration]) / len(self.process_times[integration])
