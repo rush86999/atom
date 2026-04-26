@@ -25,12 +25,8 @@ class OutlookIntegration(MemoryIntegrationMixin):
     def get_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.access_token:
-            if 'outlook' == 'github':
-                headers["Authorization"] = f"token {self.access_token}"
-            elif 'outlook' in ['slack', 'teams', 'outlook']:
-                headers["Authorization"] = f"Bearer {self.access_token}"
-            else:
-                headers["Authorization"] = f"Bearer {self.access_token}"
+            # Outlook uses Bearer token authentication
+            headers["Authorization"] = f"Bearer {self.access_token}"
         return headers
     
     async def get_user_info(self) -> Optional[Dict]:
