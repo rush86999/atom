@@ -6,6 +6,7 @@ category, and manage tenant-level configuration.
 
 CRITICAL: All methods use tenant_id parameter for multi-tenant security.
 """
+import uuid
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from core.models import TenantIntegrationConfig
@@ -31,6 +32,23 @@ class IntegrationCatalogService:
         self.db = db
         self.registry = IntegrationRegistry()
 
+    def _validate_tenant_id(self, tenant_id: str) -> str:
+        """Validate tenant_id is a valid UUID format.
+
+        Args:
+            tenant_id: Tenant ID string to validate
+
+        Returns:
+            Validated tenant ID string
+
+        Raises:
+            ValueError: If tenant_id is not a valid UUID
+        """
+        try:
+            return str(uuid.UUID(tenant_id))
+        except (ValueError, AttributeError):
+            raise ValueError(f"Invalid tenant_id format: {tenant_id}")
+
     async def search_integrations(
         self,
         tenant_id: str,
@@ -47,6 +65,9 @@ class IntegrationCatalogService:
         Returns:
             List of integrations matching search query with tenant status
         """
+        # Validate tenant_id to prevent injection
+        tenant_id = self._validate_tenant_id(tenant_id)
+
         all_integrations = self.registry.get_all_integrations()
         query_lower = query.lower()
 
@@ -83,6 +104,9 @@ class IntegrationCatalogService:
         Returns:
             List of integrations in category with tenant status
         """
+        # Validate tenant_id to prevent injection
+        tenant_id = self._validate_tenant_id(tenant_id)
+
         all_integrations = self.registry.get_all_integrations()
 
         # Filter by category
@@ -133,6 +157,9 @@ class IntegrationCatalogService:
         Returns:
             Full configuration with integration details or None
         """
+        # Validate tenant_id to prevent injection
+        tenant_id = self._validate_tenant_id(tenant_id)
+
         # Get integration details
         integration = self.registry.get_integration(integration_id)
         if not integration:
@@ -171,6 +198,9 @@ class IntegrationCatalogService:
         Raises:
             ValueError: If sync settings are invalid
         """
+        # Validate tenant_id to prevent injection
+        tenant_id = self._validate_tenant_id(tenant_id)
+
         # Validate sync settings if provided
         if sync_settings:
             self._validate_sync_settings(sync_settings)
