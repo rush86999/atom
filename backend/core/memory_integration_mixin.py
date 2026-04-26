@@ -282,10 +282,20 @@ class MemoryIntegrationMixin(ABC):
                                 job.failed_records += 1
                                 continue
 
-                            # Store in LanceDB
-                            await self.lancedb.add_documents([entity])
-
-                            job.processed_records += 1
+                            # Store in LanceDB with retry logic
+                            max_retries = 3
+                            for attempt in range(max_retries):
+                                try:
+                                    await self.lancedb.add_documents([entity])
+                                    job.processed_records += 1
+                                    break  # Success, exit retry loop
+                                except Exception as db_error:
+                                    if attempt == max_retries - 1:
+                                        # Re-raise on final attempt
+                                        raise db_error
+                                    # Exponential backoff
+                                    await asyncio.sleep(1 * (attempt + 1))
+                                    logger.warning(f"Retry {attempt + 1}/{max_retries} for entity {entity.get('id')}: {db_error}")
 
                         except Exception as e:
                             logger.error(f"Error processing entity: {e}")
