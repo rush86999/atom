@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: Frontend Builder
 # ==========================================
-FROM node:18-slim AS frontend-builder
+FROM node:22-slim AS frontend-builder
 WORKDIR /app
 COPY frontend-nextjs/package.json frontend-nextjs/package-lock.json* ./
 RUN npm install --legacy-peer-deps
@@ -25,14 +25,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # ==========================================
 FROM python:3.11-slim AS runner
 
-# Install Node.js 18 in the Python environment
+# Install Node.js 22 in the Python environment
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Create non-root user for security (matching backend Dockerfile)
+RUN useradd -m -u 1000 atomuser && \
+    chown -R atomuser:atomuser /app
 
 # Copy Python packages from backend-builder
 COPY --from=backend-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -49,7 +53,11 @@ COPY --from=frontend-builder /app/public /app/frontend-nextjs/public
 
 # Copy Startup Script
 COPY scripts/start-dual-app.sh /app/start-dual-app.sh
-RUN chmod +x /app/start-dual-app.sh
+RUN chmod +x /app/start-dual-app.sh && \
+    chown -R atomuser:atomuser /app
+
+# Switch to non-root user
+USER atomuser
 
 # Environment Variables
 ENV PORT=3000
