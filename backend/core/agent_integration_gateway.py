@@ -298,12 +298,18 @@ class AgentIntegrationGateway:
 
     async def _handle_fetch_insights(self, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if platform == "meta":
+            # Validate service exists
+            if meta_business_service is None:
+                return {"status": "failed", "error": "Meta Business service not available"}
             insights = await meta_business_service.get_ad_insights(params.get("account_id"))
             return {"status": "success", "data": insights}
         elif platform in ["google_ads", "tiktok_ads"]:
+            # Validate service exists
+            if marketing_service is None:
+                return {"status": "failed", "error": "Marketing service not available"}
             insights = await marketing_service.get_campaign_performance(MarketingPlatform(platform))
             return {"status": "success", "data": insights}
-            
+
         return {"status": "error", "message": "No insights provider for platform"}
 
     async def _handle_fetch_logic(self, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
