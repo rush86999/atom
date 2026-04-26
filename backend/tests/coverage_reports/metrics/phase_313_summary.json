@@ -1,0 +1,17 @@
+{
+  "phase": "313-coverage-wave-6-business-intelligence",
+  "plan": "01",
+  "baseline_coverage": 28.7,
+  "current_coverage": 54.56238361266294,
+  "coverage_increase": 25.862383612662942,
+  "target_increase": 0.8,
+  "status": "PASS",
+  "target_files": [
+    "core/formula_extractor.py",
+    "core/budget_enforcement_service.py"
+  ],
+  "file_coverage": {
+    "core/formula_extractor.py": 49.840255591054316,
+    "core/budget_enforcement_service.py": 61.160714285714285
+  }
+}
