@@ -507,3 +507,89 @@ async def health_check():
         raise HTTPException(
             status_code=503, detail=f"Outlook service is unhealthy: {str(e)}"
         )
+
+
+# Memory backfill endpoint
+@router.post("/memory/backfill", summary="Backfill Outlook emails to memory")
+async def backfill_outlook_memory(
+    start_date: Optional[str] = Query(None, description="Start date (ISO format)"),
+    end_date: Optional[str] = Query(None, description="End date (ISO format)"),
+    limit: int = Query(500, description="Maximum emails to fetch", ge=1, le=10000)
+):
+    """
+    Backfill Outlook emails to memory (LanceDB + entity extraction).
+
+    Fetches emails from Outlook, extracts entities (people, organizations),
+    generates embeddings, and stores in memory for semantic search.
+
+    **Response:**
+    ```json
+    {
+        "success": true,
+        "job_id": "uuid",
+        "status": "started",
+        "message": "Backfill started for Outlook"
+    }
+    ```
+    """
+    try:
+        from integrations.outlook_integration import outlook_integration
+        from datetime import datetime as dt
+
+        # Parse dates
+        start_dt = None
+        end_dt = None
+
+        if start_date:
+            start_dt = dt.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            end_dt = dt.fromisoformat(end_date.replace('Z', '+00:00'))
+
+        # Trigger backfill
+        result = await outlook_integration.backfill_to_memory(
+            start_date=start_dt,
+            end_date=end_dt,
+            limit=limit
+        )
+
+        return {
+            "success": True,
+            "service": "outlook",
+            "operation": "backfill_memory",
+            "data": result,
+            "message": "Outlook backfill started successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Error backfilling Outlook memory: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to backfill Outlook memory: {str(e)}"
+        )
+
+
+@router.get("/memory/backfill/status/{job_id}", summary="Get backfill job status")
+async def get_backfill_status(job_id: str):
+    """Get status of an Outlook backfill job"""
+    try:
+        from core.memory_integration_mixin import MemoryIntegrationMixin
+
+        status = MemoryIntegrationMixin.get_job_status(job_id)
+
+        if not status:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+        return {
+            "success": True,
+            "service": "outlook",
+            "operation": "backfill_status",
+            "data": status,
+            "message": f"Status for job {job_id}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting backfill status: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get backfill status: {str(e)}"
+        )
