@@ -40,6 +40,7 @@ from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm_usage_tracker import llm_usage_tracker
 from core.lux_config import lux_config
 from core.models import GovernanceDocument, AgentExecution, Tenant, Workspace, ModelCatalog
+from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
@@ -168,14 +169,23 @@ class BYOKHandler:
         cognitive_classifier: Optional[CognitiveClassifier] = None,
         cache_router: Optional[CacheAwareRouter] = None,
         db_session=None,
-        tier_service: Optional[CognitiveTierService] = None
+        tier_service: Optional[CognitiveTierService] = None,
+        user_id: Optional[str] = None  # OAuth: User ID for credential resolution
     ):
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id
+        self.user_id = user_id  # OAuth: Store user ID for credential service
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
         self.async_clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
+
+        # OAuth: Initialize credential service for unified credential resolution
+        self.credential_service = LLMCredentialService(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id
+        ) if user_id else None
 
         # Use injected dependencies or create defaults
         self.cognitive_classifier = cognitive_classifier or CognitiveClassifier()  # Phase 68: Cognitive tier system
@@ -338,9 +348,50 @@ class BYOKHandler:
             del providers_config["lux"]
 
         for provider_id, config in providers_config.items():
-            # Check if BYOK is configured for this provider and workspace
-            if self.byok_manager.is_configured(self.workspace_id, provider_id):
+            # OAuth + BYOK: Try credential service first (OAuth → BYOK → ENV)
+            api_key = None
+            credential_source = None
+
+            if self.credential_service:
+                try:
+                    # Import asyncio for async call in sync context
+                    import asyncio
+                    # Try to get credential from service (OAuth priority)
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    # Try to get credential with OAuth priority
+                        credential_type, credential_value = loop.run_until_complete(
+                            self.credential_service.get_credential(provider_id)
+                        )
+                        api_key = credential_value
+                        credential_source = credential_type
+                        logger.info(f"Using {credential_source.upper()} credential for {provider_id}")
+                    except Exception as e:
+                        logger.debug(f"Credential service not available for {provider_id}: {e}")
+
+            # Fallback to BYOK if credential service didn't provide one
+            if not api_key and self.byok_manager.is_configured(self.workspace_id, provider_id):
                 api_key = self.byok_manager.get_api_key(provider_id)
+                credential_source = "byok"
+
+            # Final fallback to environment variables
+            if not api_key:
+                env_key = f"{provider_id.upper()}_API_KEY"
+                api_key = os.getenv(env_key)
+
+                # Special case: Gemini can use GOOGLE_API_KEY
+                if not api_key and provider_id == "gemini":
+                    api_key = os.getenv("GOOGLE_API_KEY")
+
+                if api_key:
+                    credential_source = "env"
+
+            # Initialize client if we have an API key
+            if api_key:
                 try:
                     self.clients[provider_id] = OpenAI(
                         api_key=api_key,
@@ -351,36 +402,11 @@ class BYOKHandler:
                             api_key=api_key,
                             base_url=config["base_url"]
                         )
-                    logger.info(f"Initialized BYOK client for {provider_id}")
+                    logger.info(f"Initialized {provider_id} client using {credential_source.upper()} credential")
                 except Exception as e:
                     logger.error(f"Failed to initialize {provider_id} client: {e}")
             else:
-                # Fallback to env for development if BYOK not configured
-                env_key = f"{provider_id.upper()}_API_KEY"
-                api_key = os.getenv(env_key)
-                
-                # Special case: Gemini can use GOOGLE_API_KEY
-                if not api_key and provider_id == "gemini":
-                    api_key = os.getenv("GOOGLE_API_KEY")
-                if api_key:
-                    try:
-                        if config.get("base_url"):
-                            self.clients[provider_id] = OpenAI(
-                                api_key=api_key,
-                                base_url=config["base_url"]
-                            )
-                            if AsyncOpenAI:
-                                self.async_clients[provider_id] = AsyncOpenAI(
-                                    api_key=api_key,
-                                    base_url=config["base_url"]
-                                )
-                        else:
-                            self.clients[provider_id] = OpenAI(api_key=api_key)
-                            if AsyncOpenAI:
-                                self.async_clients[provider_id] = AsyncOpenAI(api_key=api_key)
-                        logger.info(f"Initialized BYOK client for {provider_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to initialize {provider_id} client: {e}")
+                logger.debug(f"No credential available for {provider_id}, skipping initialization")
 
     def get_context_window(self, model_name: str) -> int:
         """

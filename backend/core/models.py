@@ -6829,6 +6829,63 @@ class OAuthToken(Base):
         return f"<OAuthToken(id={self.id}, client_id={self.client_id}, user_id={self.user_id}, is_active={self.is_active})>"
 
 
+class LLMOAuthCredential(Base):
+    """
+    OAuth 2.0 credentials for LLM providers.
+
+    Stores OAuth tokens for LLM provider authentication (Google AI Studio,
+    OpenAI, Anthropic, Hugging Face) with automatic refresh support.
+    """
+    __tablename__ = "llm_oauth_credentials"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Core fields
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(String(50), nullable=False, index=True)  # 'google', 'openai', 'anthropic', 'huggingface'
+
+    # OAuth tokens (encrypted at rest using Fernet)
+    access_token = Column(Text, nullable=False)  # Encrypted access token
+    refresh_token = Column(Text, nullable=True)  # Encrypted refresh token
+    token_type = Column(String(20), default="Bearer")
+
+    # Token metadata
+    scope = Column(String(500), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    refresh_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Account info (fetched from provider)
+    account_email = Column(String(255), nullable=True)
+    account_name = Column(String(255), nullable=True)
+
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_validated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Usage tracking
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    usage_count = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="llm_oauth_credentials")
+    tenant = relationship("Tenant", backref="llm_oauth_credentials")
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_llm_oauth_user_provider', 'user_id', 'provider_id'),
+        Index('idx_llm_oauth_tenant_provider', 'tenant_id', 'provider_id'),
+        Index('idx_llm_oauth_is_active', 'is_active'),
+    )
+
+    def __repr__(self):
+        return f"<LLMOAuthCredential(id={self.id}, provider_id={self.provider_id}, user_id={self.user_id}, is_active={self.is_active})>"
+
+
 # ============================================================================
 # JWT Token Management Models
 # ============================================================================

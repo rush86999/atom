@@ -234,7 +234,39 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to start Redis Bridge: {e}")
     else:
         logger.info("Skipping Redis Bridge (ENABLE_REDIS=false)")
-    
+
+    # 6. Initialize External Data Fetchers (Pricing & Benchmarks)
+    # Ensures BPC routing has fresh data from external APIs on startup
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
+
+        logger.info("Initializing external data fetchers...")
+
+        # Warm up pricing cache (use cache if valid, otherwise fetch)
+        pricing_fetcher = get_pricing_fetcher()
+        await pricing_fetcher.refresh_pricing(force=False)
+
+        if pricing_fetcher.last_fetch:
+            cache_age = (datetime.now() - pricing_fetcher.last_fetch).total_seconds() / 3600
+            logger.info(f"  ✓ Pricing cache: {len(pricing_fetcher.pricing_cache)} models (age: {cache_age:.1f}h)")
+        else:
+            logger.warning("  ⚠ Pricing cache empty (will fetch on first use)")
+
+        # Warm up benchmark cache (use cache if valid, otherwise fetch)
+        benchmark_fetcher = get_benchmark_fetcher()
+        await benchmark_fetcher.refresh_benchmarks(force=False)
+
+        if benchmark_fetcher.last_fetch:
+            cache_age = (datetime.now() - benchmark_fetcher.last_fetch).total_seconds() / 3600
+            logger.info(f"  ✓ Benchmark cache: {len(benchmark_fetcher.benchmark_cache)} models (age: {cache_age:.1f}h)")
+        else:
+            logger.warning("  ⚠ Benchmark cache empty (will fetch on first use)")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize external data fetchers: {e}")
+        logger.warning("  ⚠ BPC routing may use stale fallback data until APIs recover")
+
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
 
@@ -443,6 +475,14 @@ try:
         logger.info("✓ JIT Verification Routes Loaded")
     except ImportError as e:
         logger.warning(f"JIT Verification routes not found: {e}")
+
+    # 1.8 LLM OAuth Routes (Safe Import)
+    try:
+        from api.llm_oauth_routes import router as llm_oauth_router
+        app.include_router(llm_oauth_router, prefix="") # Already has valid prefix
+        logger.info("✓ LLM OAuth Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"LLM OAuth routes not found: {e}")
 
     # 2. Workflow Engine
     try:
