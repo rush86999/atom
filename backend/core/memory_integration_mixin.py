@@ -265,10 +265,22 @@ class MemoryIntegrationMixin(ABC):
                 if self.lancedb:
                     for entity in entities:
                         try:
-                            # Generate embedding
-                            text = entity.get("text", "")
-                            if text:
+                            # Validate entity structure
+                            if not entity.get("id"):
+                                logger.warning(f"Skipping entity without ID: {entity}")
+                                job.failed_records += 1
+                                continue
+
+                            # Generate embedding with text length validation
+                            text = entity.get("text", "").strip()
+                            MIN_TEXT_LENGTH = 10  # Minimum characters for meaningful embedding
+
+                            if text and len(text) >= MIN_TEXT_LENGTH:
                                 entity["vector"] = self.embedding_service.generate_embedding(text)
+                            else:
+                                logger.warning(f"Skipping entity {entity.get('id')} with insufficient text (length: {len(text)})")
+                                job.failed_records += 1
+                                continue
 
                             # Store in LanceDB
                             await self.lancedb.add_documents([entity])
