@@ -1,0 +1,21 @@
+{
+  "phase": "311-coverage-wave-4-guidance-monitoring",
+  "plan": "01",
+  "baseline_coverage": 27.1,
+  "current_coverage": 57.175925925925924,
+  "coverage_increase": 30.075925925925922,
+  "target_increase": 0.8,
+  "status": "PASS",
+  "target_files": [
+    "core/error_guidance_engine.py",
+    "core/supervision_service.py",
+    "core/health_monitoring_service.py",
+    "core/embedding_service.py"
+  ],
+  "file_coverage": {
+    "core/error_guidance_engine.py": 84.04255319148936,
+    "core/supervision_service.py": 47.706422018348626,
+    "core/health_monitoring_service.py": 59.21052631578947,
+    "core/embedding_service.py": 42.17391304347826
+  }
+}
