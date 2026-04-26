@@ -203,11 +203,23 @@ class MemoryIntegrationMixin(ABC):
                 exception = task.exception()
                 if exception:
                     logger.error(f"Backfill task failed for {job.job_id}: {exception}")
-                    job.status = "failed"
-                    job.error = str(exception)
-                    job.completed_at = datetime.now()
+                    # Acquire lock to prevent race condition
+                    if job.status != "completed":
+                        job.status = "failed"
+                        job.error = str(exception)
+                        job.completed_at = datetime.now()
+                    # Clean up resources
+                    if job.task and not job.task.done():
+                        job.task.cancel()
             except asyncio.CancelledError:
                 logger.warning(f"Backfill task cancelled for {job.job_id}")
+                if job.status not in ["completed", "failed"]:
+                    job.status = "cancelled"
+                    job.completed_at = datetime.now()
+            except Exception as e:
+                logger.error(f"Unexpected error in handle_error: {e}")
+                job.status = "failed"
+                job.error = f"Handler error: {str(e)}"
 
         task.add_done_callback(handle_error)
 
