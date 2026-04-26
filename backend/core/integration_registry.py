@@ -8,12 +8,16 @@ Removes all SaaS-specific patterns (tenant_id, billing, quota, multi-tenancy).
 import time
 import asyncio
 import importlib
+import re
 from typing import Dict, Any, Optional, Type, List
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from core.structured_logger import get_logger
 
 logger = get_logger(__name__)
+
+# Validate module paths to prevent directory traversal attacks
+VALID_MODULE_PATTERN = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$')
 
 
 # Default connector_id to service_class_path mapping
@@ -170,6 +174,18 @@ class IntegrationRegistry:
         # Static registry only (no database in single-tenant upstream)
         return DEFAULT_SERVICE_REGISTRY.get(connector_id)
 
+    def _validate_module_path(self, module_path: str) -> bool:
+        """Validate module path to prevent directory traversal attacks"""
+        if not VALID_MODULE_PATTERN.match(module_path):
+            raise ValueError(f"Invalid module path: {module_path}")
+
+        # Block dangerous modules
+        blocked_prefixes = ['os.', 'sys.', 'subprocess.', 'eval']
+        if any(module_path.startswith(prefix) for prefix in blocked_prefixes):
+            raise ValueError(f"Restricted module: {module_path}")
+
+        return True
+
     def _load_service_class_with_timeout(
         self,
         service_class_path: str,
@@ -190,6 +206,9 @@ class IntegrationRegistry:
         try:
             module_path, class_name = service_class_path.split(":")
 
+            # Validate module path before loading
+            self._validate_module_path(module_path)
+
             # Use ThreadPoolExecutor for timeout protection
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(importlib.import_module, module_path)
@@ -201,7 +220,7 @@ class IntegrationRegistry:
         except FuturesTimeoutError:
             logger.error(f"Timeout loading {service_class_path} after {timeout}s")
             return None
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, ValueError) as e:
             logger.error(f"Failed to load {service_class_path}: {e}")
             return None
         except Exception as e:

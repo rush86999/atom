@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 from functools import wraps
 import importlib
 import logging
+import re
 import sys
 import time
 
@@ -10,13 +11,31 @@ from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline
 
 logger = logging.getLogger(__name__)
 
+# Validate module paths to prevent directory traversal attacks
+VALID_MODULE_PATTERN = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$')
+
 class IntegrationLoader:
     def __init__(self):
         self.integrations = []
         self.timeout_seconds = 5  # Timeout for each integration load
 
+    def _validate_module_path(self, module_path: str) -> bool:
+        """Validate module path to prevent directory traversal attacks"""
+        if not VALID_MODULE_PATTERN.match(module_path):
+            raise ValueError(f"Invalid module path: {module_path}")
+
+        # Block dangerous modules
+        blocked_prefixes = ['os.', 'sys.', 'subprocess.', 'eval']
+        if any(module_path.startswith(prefix) for prefix in blocked_prefixes):
+            raise ValueError(f"Restricted module: {module_path}")
+
+        return True
+
     def _load_module_with_timeout(self, module_path, router_name):
         """Load module in a separate thread with timeout"""
+        # Validate module path before loading
+        self._validate_module_path(module_path)
+
         try:
             module = importlib.import_module(module_path)
             router = getattr(module, router_name)
