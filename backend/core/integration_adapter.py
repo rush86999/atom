@@ -3,8 +3,10 @@ Base Integration Adapter
 Abstract interface for all integrations
 """
 from abc import ABC, abstractmethod
+import ipaddress
 import logging
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -77,21 +79,57 @@ class HTTPIntegrationAdapter(IntegrationAdapter):
     HTTP-based integration adapter
     Preferred for most integrations - no heavy SDKs
     """
-    
+
+    def _validate_url(self, url: str) -> None:
+        """Validate URL to prevent SSRF attacks.
+
+        Args:
+            url: URL to validate
+
+        Raises:
+            ValueError: If URL is invalid or points to internal/private address
+        """
+        try:
+            parsed = urlparse(url)
+
+            # Block internal hostnames
+            blocked_hostnames = ['localhost', '127.0.0.1', '0.0.0.0', '::1']
+            if parsed.hostname in blocked_hostnames:
+                raise ValueError(f"Internal URLs not allowed: {parsed.hostname}")
+
+            # Block private IP addresses
+            if parsed.hostname:
+                try:
+                    ip = ipaddress.ip_address(parsed.hostname)
+                    if ip.is_private:
+                        raise ValueError(f"Private IP addresses not allowed: {parsed.hostname}")
+                except ValueError:
+                    # Not an IP address, hostname is fine
+                    pass
+
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            logger.warning(f"URL validation failed for {url}: {e}")
+
     async def execute(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute HTTP request to integration API
-        
+
         Args:
             action: API endpoint/action
             payload: Request payload
-            
+
         Returns:
             Response JSON
         """
         client = await self.get_client()
-        
+
         url = f"{self.base_url}/{action}" if self.base_url else action
+
+        # Validate URL to prevent SSRF attacks
+        self._validate_url(url)
+
         headers = {}
         
         if self.api_key:
