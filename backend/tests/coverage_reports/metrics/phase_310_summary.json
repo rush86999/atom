@@ -1,0 +1,27 @@
+{
+  "phase": "310-coverage-wave-3-episodic-marketplace",
+  "plan": "01",
+  "baseline_coverage": 26.3,
+  "current_coverage_estimate": 26.71,
+  "coverage_increase": 0.413,
+  "target_increase": 0.8,
+  "status": "PARTIAL",
+  "target_files": [
+    "core/episode_service.py",
+    "core/episode_retrieval_service.py",
+    "core/graduation_exam.py",
+    "core/workflow_marketplace.py"
+  ],
+  "file_coverage": {
+    "core/episode_service.py": 15.728155339805825,
+    "core/episode_retrieval_service.py": 34.375,
+    "core/graduation_exam.py": 29.07488986784141,
+    "core/workflow_marketplace.py": 37.42857142857143
+  },
+  "test_results": {
+    "total_tests": 107,
+    "passed": 79,
+    "failed": 28,
+    "pass_rate": 73.8
+  }
+}
