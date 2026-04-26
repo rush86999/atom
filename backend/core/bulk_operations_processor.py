@@ -10,6 +10,7 @@ from enum import Enum
 import json
 import logging
 from pathlib import Path
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -28,7 +29,7 @@ class OperationStatus(Enum):
 
 @dataclass
 class BulkJob:
-    """Bulk operation job"""
+    """Bulk operation job with thread-safe progress tracking"""
     job_id: str
     operation: BulkOperation
     status: OperationStatus
@@ -51,6 +52,22 @@ class BulkJob:
             self.results = []
         if self.total_items == 0:
             self.total_items = len(self.operation.items)
+        # Add lock for thread-safe progress updates
+        self._lock = threading.Lock()
+
+    @property
+    def progress_percentage(self) -> float:
+        """Thread-safe progress percentage calculation"""
+        with self._lock:
+            if self.total_items == 0:
+                return 0.0
+            return (self.processed_items / self.total_items) * 100
+
+    @progress_percentage.setter
+    def progress_percentage(self, value: float):
+        """Set progress percentage (kept for compatibility, uses calculated value)"""
+        # Actual value is calculated in getter
+        pass
 
 class IntegrationBulkProcessor:
     """Advanced bulk operations processor with optimization"""
