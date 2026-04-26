@@ -95,10 +95,10 @@ class MemoryIntegrationMixin(ABC):
             self.lancedb = None
             logger.warning(f"LanceDB handler not available for {integration_id}")
 
-        # Check for OpenAI key (store only existence, not the key itself)
+        # LLM extraction is opt-in via secure configuration only
+        # Never store credential-related flags in object state
         import os
-        self._has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
-        self.use_llm_extraction = self._has_openai_key
+        self.use_llm_extraction = os.getenv("ENABLE_LLM_EXTRACTION", "false").lower() == "true"
 
     @abstractmethod
     async def fetch_records(
