@@ -46,7 +46,7 @@ class LLMRegistryService:
         self.cache = RegistryCacheService() if use_cache else None
         self.use_cache = use_cache
 
-    async def fetch_and_store(self) -> Dict[str, int]:
+    async def fetch_and_store(self, tenant_id: str) -> Dict[str, int]:
         """
         Fetch models from all sources and store them in the database.
 
@@ -148,7 +148,7 @@ class LLMRegistryService:
 
         return stats
 
-    def upsert_model(self, model_data: Dict[str, Any]) -> LLMModel:
+    def upsert_model(self, tenant_id: str, model_data: Dict[str, Any]) -> LLMModel:
         """
         Create or update a model in the database.
 
@@ -227,6 +227,7 @@ class LLMRegistryService:
 
     async def get_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str,
         use_cache: bool = True,
@@ -313,6 +314,7 @@ class LLMRegistryService:
 
     async def list_models(
         self,
+        tenant_id: str,
         provider: Optional[str] = None,
         include_deprecated: bool = False,
         use_cache: bool = True
@@ -398,6 +400,7 @@ class LLMRegistryService:
 
     def get_models_by_capability(
         self,
+        tenant_id: str,
         capability: str,
         use_cache: bool = False
     ) -> List[LLMModel]:
@@ -436,6 +439,7 @@ class LLMRegistryService:
 
     def get_models_by_capabilities(
         self,
+        tenant_id: str,
         capabilities: List[str],
         match_all: bool = False,
         use_cache: bool = False
@@ -482,6 +486,7 @@ class LLMRegistryService:
 
     def delete_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str
     ) -> bool:
@@ -510,7 +515,10 @@ class LLMRegistryService:
 
         return False
 
-    async def refresh_cache(self) -> Dict[str, int]:
+    async def refresh_cache(
+        self,
+        tenant_id: str
+    ) -> Dict[str, int]:
         """
         Refresh the model cache with fresh data from database.
 
@@ -568,6 +576,7 @@ class LLMRegistryService:
 
     def register_lux_model(
         self,
+        tenant_id: str,
         enabled: bool = True
     ) -> Optional[LLMModel]:
         """
@@ -621,6 +630,7 @@ class LLMRegistryService:
 
     def get_computer_use_models(
         self,
+        tenant_id: str,
         use_cache: bool = False
     ) -> List[LLMModel]:
         """
@@ -649,7 +659,10 @@ class LLMRegistryService:
             .all()
         )
 
-    async def invalidate_cache(self) -> int:
+    async def invalidate_cache(
+        self,
+        tenant_id: str
+    ) -> int:
         """
         Invalidate all cached data for a tenant.
 
@@ -679,6 +692,7 @@ class LLMRegistryService:
 
     async def detect_and_add_new_models(
         self,
+        tenant_id: str,
         fetched_models: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Detect and add new models from fetched API data.
@@ -732,6 +746,7 @@ class LLMRegistryService:
 
     def get_new_models_since(
         self,
+        tenant_id: str,
         since: datetime
     ) -> List[LLMModel]:
         """Get models discovered since a given timestamp.
@@ -754,6 +769,7 @@ class LLMRegistryService:
 
     async def detect_deprecated_models(
         self,
+        tenant_id: str,
         fetched_models: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Detect models that have been removed from provider APIs.
@@ -815,6 +831,7 @@ class LLMRegistryService:
 
     def mark_model_deprecated(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str,
         reason: str = 'manually_flagged'
@@ -844,6 +861,7 @@ class LLMRegistryService:
 
     def restore_deprecated_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str
     ) -> Optional[LLMModel]:
@@ -894,6 +912,7 @@ class LLMRegistryService:
 
     async def update_quality_scores_from_lmsys(
         self,
+        tenant_id: str,
         use_cache: bool = True
     ) -> Dict[str, Any]:
         """Update model quality scores from LMSYS Chatbot Arena.
@@ -978,6 +997,7 @@ class LLMRegistryService:
 
     def assign_heuristic_quality_scores(
         self,
+        tenant_id: str,
         overwrite_existing: bool = False
     ) -> Dict[str, Any]:
         """Assign heuristic quality scores to models without LMSYS data.
@@ -1052,6 +1072,7 @@ class LLMRegistryService:
 
     async def get_top_models_by_quality(
         self,
+        tenant_id: str,
         limit: int = 10,
         min_quality: float = 80.0
     ) -> List[LLMModel]:

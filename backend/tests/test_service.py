@@ -194,26 +194,29 @@ class TestProviderManagement:
 class TestModelCatalog:
     """Tests for model listing, searching, and querying."""
 
-    def test_list_models_empty(self, registry_service: LLMRegistryService):
+    @pytest.mark.asyncio
+    async def test_list_models_empty(self, registry_service: LLMRegistryService):
         """Test listing models when none exist."""
         tenant_id = 'test-tenant'
 
-        models = registry_service.list_models(tenant_id)
+        models = await registry_service.list_models(tenant_id)
 
         assert models == []
 
-    def test_list_models_returns_all(self, registry_service: LLMRegistryService, sample_model_data: dict):
+    @pytest.mark.asyncio
+    async def test_list_models_returns_all(self, registry_service: LLMRegistryService, sample_model_data: dict):
         """Test listing all models for tenant."""
         tenant_id = 'test-tenant'
 
         registry_service.upsert_model(tenant_id, sample_model_data)
 
-        models = registry_service.list_models(tenant_id)
+        models = await registry_service.list_models(tenant_id)
 
         assert len(models) == 1
         assert models[0].model_name == 'gpt-4'
 
-    def test_list_models_filters_by_provider(self, registry_service: LLMRegistryService, sample_model_data: dict):
+    @pytest.mark.asyncio
+    async def test_list_models_filters_by_provider(self, registry_service: LLMRegistryService, sample_model_data: dict):
         """Test listing models filters by provider."""
         tenant_id = 'test-tenant'
 
@@ -226,7 +229,7 @@ class TestModelCatalog:
         registry_service.upsert_model(tenant_id, anthropic_data)
 
         # Filter by OpenAI
-        openai_models = registry_service.list_models(tenant_id, provider='openai')
+        openai_models = await registry_service.list_models(tenant_id, provider='openai')
 
         assert len(openai_models) == 1
         assert openai_models[0].provider == 'openai'
@@ -348,7 +351,8 @@ class TestAPIAbstraction:
 
         assert model is None
 
-    def test_delete_model_not_found_returns_false(self, registry_service: LLMRegistryService):
+    @pytest.mark.asyncio
+    async def test_delete_model_not_found_returns_false(self, registry_service: LLMRegistryService):
         """Test delete_model returns False when model doesn't exist."""
         tenant_id = 'test-tenant'
 
@@ -416,7 +420,8 @@ class TestRegistryConfiguration:
         assert result['deprecated'] == 1
         assert result['reason'] == 'removed_from_api'
 
-    def test_mark_model_deprecated(self, registry_service: LLMRegistryService, sample_model_data: dict):
+    @pytest.mark.asyncio
+    async def test_mark_model_deprecated(self, registry_service: LLMRegistryService, sample_model_data: dict):
         """Test marking a model as deprecated."""
         tenant_id = 'test-tenant'
 
@@ -433,7 +438,8 @@ class TestRegistryConfiguration:
         assert model.is_deprecated is True
         assert model.deprecation_reason == 'test_deprecation'
 
-    def test_restore_deprecated_model(self, registry_service: LLMRegistryService, sample_model_data: dict):
+    @pytest.mark.asyncio
+    async def test_restore_deprecated_model(self, registry_service: LLMRegistryService, sample_model_data: dict):
         """Test restoring a deprecated model."""
         tenant_id = 'test-tenant'
 
@@ -482,7 +488,8 @@ class TestQualityScores:
 
         assert result['assigned'] >= 1
 
-    def test_get_top_models_by_quality(self, registry_service: LLMRegistryService, sample_model_data: dict):
+    @pytest.mark.asyncio
+    async def test_get_top_models_by_quality(self, registry_service: LLMRegistryService, sample_model_data: dict):
         """Test getting top models by quality score."""
         tenant_id = 'test-tenant'
 
