@@ -1,0 +1,26 @@
+{
+  "phase": "318-coverage-wave-11-scaling-workflows",
+  "plan": "01",
+  "baseline_coverage": 32.7,
+  "target_files_coverage": 37.27175080558539,
+  "target_files": [
+    "core/fleet_orchestration/scaling_proposal_service.py",
+    "core/workflow_ui_endpoints.py",
+    "core/fleet_orchestration/fleet_scaler_service.py",
+    "core/competitive_advantage_dashboard.py"
+  ],
+  "file_coverage": {
+    "core/fleet_orchestration/scaling_proposal_service.py": 52.69230769230769,
+    "core/workflow_ui_endpoints.py": 20.394736842105264,
+    "core/fleet_orchestration/fleet_scaler_service.py": 36.0655737704918,
+    "core/competitive_advantage_dashboard.py": 48.78048780487805
+  },
+  "total_lines": 931,
+  "covered_lines": 347,
+  "test_count": 102,
+  "passing_tests": 50,
+  "failing_tests": 52,
+  "pass_rate": 49.0,
+  "status": "PARTIAL",
+  "notes": "Pass rate below 95% target due to API signature mismatches and missing dependencies. Coverage achieved: 37% average across target files."
+}
