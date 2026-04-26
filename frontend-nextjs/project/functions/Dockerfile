@@ -1,7 +1,7 @@
 # Dockerfile for Atom Functions
 # Builds the functions service from the new location in frontend-nextjs/project/functions
 
-FROM node:18-alpine AS base
+FROM node:22-alpine AS base
 
 # Install Python and build dependencies
 RUN apk add --no-cache \
