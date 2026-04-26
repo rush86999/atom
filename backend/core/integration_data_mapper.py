@@ -77,6 +77,8 @@ class DataTransformer:
     """Handles field-level data transformations"""
 
     def __init__(self):
+        self.transformer = None
+        self.failed_transforms: List[Dict[str, Any]] = []
         self.transform_functions = {
             TransformationType.DIRECT_COPY: self._direct_copy,
             TransformationType.VALUE_MAPPING: self._value_mapping,
@@ -114,7 +116,17 @@ class DataTransformer:
             return self._convert_type(transformed_value, mapping.target_type)
 
         except Exception as e:
-            logger.error(f"Failed to transform field {mapping.source_field}: {e}")
+            # Track transformation failures for monitoring
+            error_info = {
+                "field": mapping.source_field,
+                "target_field": mapping.target_field,
+                "error": str(e),
+                "required": mapping.required,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.failed_transforms.append(error_info)
+            logger.warning(f"Transform failed for {mapping.source_field}: {e}")
+
             if mapping.required:
                 raise
             return mapping.default_value
