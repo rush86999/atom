@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.auth import get_current_user
 from .bulk_operations_processor import BulkOperation, IntegrationBulkProcessor, get_bulk_processor
 from .integration_data_mapper import (
     FieldMapping,
@@ -115,9 +116,14 @@ async def get_schema_details(
 @router.post("/api/v1/integrations/schemas")
 async def register_schema(
     request: SchemaRegistrationRequest,
-    data_mapper: IntegrationDataMapper = Depends(get_data_mapper)
+    data_mapper: IntegrationDataMapper = Depends(get_data_mapper),
+    current_user: Any = Depends(get_current_user)
 ):
-    """Register a new integration schema"""
+    """Register a new integration schema (requires authentication)"""
+    # Check user permissions - admin only for schema registration
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin access required for schema registration")
+
     try:
         schema = IntegrationSchema(
             integration_id=request.integration_id,
@@ -171,9 +177,10 @@ async def list_mappings(
 @router.post("/api/v1/integrations/mappings")
 async def create_mapping(
     request: CreateMappingRequest,
-    data_mapper: IntegrationDataMapper = Depends(get_data_mapper)
+    data_mapper: IntegrationDataMapper = Depends(get_data_mapper),
+    current_user: Any = Depends(get_current_user)
 ):
-    """Create a new data mapping between schemas"""
+    """Create a new data mapping between schemas (requires authentication)"""
     try:
         # Convert request models to FieldMapping objects
         field_mappings = []
@@ -279,9 +286,10 @@ async def validate_data(
 @router.post("/api/v1/integrations/bulk")
 async def submit_bulk_operation(
     request: BulkOperationRequest,
-    bulk_processor: IntegrationBulkProcessor = Depends(get_bulk_processor)
+    bulk_processor: IntegrationBulkProcessor = Depends(get_bulk_processor),
+    current_user: Any = Depends(get_current_user)
 ):
-    """Submit a bulk operation for processing"""
+    """Submit a bulk operation for processing (requires authentication)"""
     try:
         operation = BulkOperation(
             operation_type=request.operation_type,
