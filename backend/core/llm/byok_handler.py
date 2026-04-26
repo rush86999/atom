@@ -316,6 +316,7 @@ class BYOKHandler:
             "minimax": {"base_url": "https://api.minimax.io/v1"},  # MiniMax M2.7 (OpenAI-compatible)
             "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
+            "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
         }
 
         # Separate sync and async clients
@@ -357,6 +358,10 @@ class BYOKHandler:
                 # Fallback to env for development if BYOK not configured
                 env_key = f"{provider_id.upper()}_API_KEY"
                 api_key = os.getenv(env_key)
+                
+                # Special case: Gemini can use GOOGLE_API_KEY
+                if not api_key and provider_id == "gemini":
+                    api_key = os.getenv("GOOGLE_API_KEY")
                 if api_key:
                     try:
                         if config.get("base_url"):
@@ -1528,11 +1533,11 @@ class BYOKHandler:
         # Pick a vision-only model (Janus)
         # For now, we'll try to use a specialized provider or default to a cheap vision model if Janus isn't configured
         # 1. Try Gemini Flash (Cheapest Vision)
-        if "google_flash" in self.clients:
-            provider = "google_flash"
-            model = "gemini-2.0-flash" if "gemini-2.0" in str(self.clients["google_flash"]) else "gemini-1.5-flash"
+        if "gemini" in self.clients:
+            provider = "gemini"
+            model = "gemini-2.0-flash-exp"  # Latest Gemini Flash model
         # 2. Try Deepseek / Janus
-        elif provider in self.clients:
+        elif "deepseek" in self.clients:
             provider = "deepseek"
             model = "janus-pro-7b"
         # 3. Last resort - GPT-4o-mini
