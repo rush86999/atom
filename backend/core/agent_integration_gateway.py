@@ -162,64 +162,73 @@ class AgentIntegrationGateway:
     async def _handle_send_message(self, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
         recipient_id = params.get("recipient_id")
         content = params.get("content")
-        
+
         if platform == "meta":
+            # Validate service exists
+            if meta_business_service is None:
+                return {"status": "failed", "error": "Meta Business service not available"}
             sub_platform = MetaPlatform(params.get("platform", "messenger"))
             success = await meta_business_service.send_message(sub_platform, recipient_id, content)
             return {"status": "success" if success else "failed"}
-        
+
         if platform == "whatsapp":
             # Direct call to existing whatsapp integration
             result = await atom_whatsapp_integration.send_intelligent_message(recipient_id, content)
             return {"status": "success" if result.get("success") else "failed", "error": result.get("error")}
-            
+
         if platform == "agent":
             # Route back to Universal Bridge for Agent-to-Agent feedback
             from integrations.universal_webhook_bridge import universal_webhook_bridge
-            
+
             payload = {
                 "agent_id": params.get("sender_agent_id", "atom_main"),
                 "target_id": recipient_id,
                 "message": content
             }
             return await universal_webhook_bridge.process_incoming_message("agent", payload)
-            
+
         if platform == "discord":
             # Direct call to discord integration
             success = await atom_discord_integration.send_message(recipient_id, content)
             return {"status": "success" if success else "failed"}
-            
+
         if platform == "teams":
-            # Direct call to teams enhanced service
+            # Validate service exists
+            if teams_enhanced_service is None:
+                return {"status": "failed", "error": "Teams Enhanced service not available"}
             result = await teams_enhanced_service.send_message(recipient_id, content, params.get("thread_ts"))
             return {"status": "success" if result else "failed"}
-            
+
         if platform == "telegram":
             # Direct call to telegram integration
             result = await atom_telegram_integration.send_intelligent_message(recipient_id, content)
             return {"status": "success" if result.get("success") else "failed", "error": result.get("error")}
-            
+
         if platform == "google_chat":
-            # Direct call to google chat enhanced service
+            # Validate service exists
+            if google_chat_enhanced_service is None:
+                return {"status": "failed", "error": "Google Chat Enhanced service not available"}
             result = await google_chat_enhanced_service.send_message(recipient_id, content, params.get("thread_ts"))
             return {"status": "success" if result else "failed"}
-            
+
         if platform == "slack":
-            # Direct call to slack enhanced service
+            # Validate service exists
+            if slack_enhanced_service is None:
+                return {"status": "failed", "error": "Slack Enhanced service not available"}
             result = await slack_enhanced_service.send_message(
-                workspace_id=params.get("workspace_id", "default"), 
-                channel_id=recipient_id, 
-                text=content, 
+                workspace_id=params.get("workspace_id", "default"),
+                channel_id=recipient_id,
+                text=content,
                 thread_ts=params.get("thread_ts")
             )
             return {"status": "success" if result.get("ok") else "failed", "error": result.get("error")}
-            
+
         if platform == "twilio":
             # Direct call to twilio service
             from integrations.twilio_service import twilio_service
             result = await twilio_service.send_sms(to=recipient_id, body=content)
             return {"status": "success" if result else "failed"}
-            
+
         if platform == "matrix":
             # Direct call to matrix service (to be created)
             try:
@@ -228,7 +237,7 @@ class AgentIntegrationGateway:
                 return {"status": "success" if result else "failed"}
             except ImportError:
                 return {"status": "failed", "error": "Matrix service not found"}
-            
+
         if platform == "messenger":
             # Direct call to messenger service
             try:
@@ -237,7 +246,7 @@ class AgentIntegrationGateway:
                 return {"status": "success" if result else "failed"}
             except ImportError:
                 return {"status": "failed", "error": "Messenger service not found"}
-                
+
         if platform == "line":
             # Direct call to line service
             try:
@@ -246,7 +255,7 @@ class AgentIntegrationGateway:
                 return {"status": "success" if result else "failed"}
             except ImportError:
                 return {"status": "failed", "error": "Line service not found"}
-            
+
         if platform == "signal":
             # Direct call to signal service
             try:
@@ -257,7 +266,9 @@ class AgentIntegrationGateway:
                 return {"status": "failed", "error": "Signal service not found"}
 
         if platform == "openclaw":
-             # Direct call to OpenClaw service
+             # Validate service exists
+             if openclaw_service is None:
+                 return {"status": "failed", "error": "OpenClaw service not available"}
              result = await openclaw_service.send_message(
                  recipient_id=recipient_id,
                  content=content,
