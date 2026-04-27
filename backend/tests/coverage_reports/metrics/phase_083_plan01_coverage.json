@@ -1,0 +1,27 @@
+{
+  "phase": "083",
+  "plan": "01",
+  "file": "core/episode_service.py",
+  "percent_covered": 66.02,
+  "lines_covered": 176,
+  "lines_total": 515,
+  "baseline_percent": 14.37,
+  "baseline_lines": 74,
+  "test_count": 50,
+  "passing_tests": 34,
+  "failing_tests": 16,
+  "target_percent": 70,
+  "target_met": false,
+  "improvement_percent": 51.65,
+  "test_categories": [
+    "Episode Creation",
+    "Episode Retrieval",
+    "Graduation Readiness",
+    "Feedback System",
+    "Canvas Integration",
+    "Skill Performance",
+    "Archival",
+    "Error Handling",
+    "Proposal Episodes"
+  ]
+}
