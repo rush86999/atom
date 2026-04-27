@@ -1,6 +1,6 @@
 # Coverage Baseline v3.2 - Bug Finding & Coverage Expansion
 
-**Baseline Date:** 2026-02-24
+**Baseline Date:** 2026-04-27
 **Phase:** 81-04
 **Milestone:** v3.2 Bug Finding & Coverage Expansion
 **Baseline Established:** Phase 81, Plan 04
@@ -9,33 +9,31 @@
 
 This document establishes the coverage baseline for the v3.2 milestone "Bug Finding & Coverage Expansion". The baseline represents the starting point from which all progress will be measured through Phase 90 completion.
 
-**Baseline Coverage:** 15.23% overall (3x improvement from v1.0 baseline of 5.13%)
+**Baseline Coverage:** 36.72% overall (7.16x improvement from v1.0 baseline of 5.13%)
 
-The baseline indicates significant opportunity for coverage expansion across all modules, with core services showing 18.18% coverage and tools at 19.91%.
+The baseline indicates strong foundation for coverage expansion across all modules, with core services showing 38.47% coverage, api at 27.72%, and tools leading at 44.06%.
 
 ## Baseline Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Overall Coverage** | 15.23% |
-| **Lines Covered** | 8,272 |
-| **Lines Total** | 45,366 |
-| **Lines Missing** | 37,094 |
-| **Files Analyzed** | 312 |
-| **Trend vs v1.0 Baseline** | +10.10% (197% improvement) |
-| **Trend vs Peak (Phase 19)** | -6.77% (regression from 22.0%) |
+| **Overall Coverage** | 36.72% |
+| **Lines Covered** | 33,332 |
+| **Lines Total** | 90,770 |
+| **Lines Missing** | 57,438 |
+| **Files Analyzed** | 693 |
+| **Trend vs v1.0 Baseline** | +31.59% (615.8% improvement) |
+| **Improvement Factor** | 7.16x |
 
 ### Historical Context
 
 | Milestone | Phase | Date | Coverage | Lines Covered | Lines Total |
 |-----------|-------|------|----------|---------------|-------------|
 | **v1.0 Baseline** | 01 | 2026-02-17 | 5.13% | 2,901 | 56,529 |
-| **Peak Coverage** | 19 | 2026-02-17 | 22.0% | ~12,439 | ~56,560 |
-| **Gap Closure** | 19 | 2026-02-18 | 15.23% | ~8,619 | ~56,560 |
-| **Canvas Summaries** | 21 | 2026-02-18 | 21.59% | ~12,210 | ~56,560 |
-| **v3.2 Baseline** | 81 | 2026-02-24 | 15.23% | 8,272 | 45,366 |
+| **Phase 81-01** | 81 | 2026-04-27 | 36.72% | 33,332 | 90,770 |
+| **v3.2 Baseline** | 81 | 2026-04-27 | 36.72% | 33,332 | 90,770 |
 
-**Note:** The reduction in total lines (56,529 → 45,366) reflects codebase pruning and restructuring between v1.0 and v3.2. The current baseline represents a more focused, production-ready codebase.
+**Note:** The increase in total lines (56,529 → 90,770) reflects comprehensive codebase growth and expanded test coverage scope. The current baseline represents a production-ready codebase with 7.16x improvement from v1.0.
 
 ## Module Breakdown
 
@@ -43,67 +41,64 @@ The baseline indicates significant opportunity for coverage expansion across all
 
 | Module | Coverage | Lines Covered | Lines Total | Coverage Gap |
 |--------|----------|---------------|-------------|--------------|
-| **core** | 18.18% | 7,996 | 43,980 | 81.82% |
-| **api** | 0.00% | 0 | 0 | N/A |
-| **tools** | 19.91% | 276 | 1,386 | 80.09% |
+| **core** | 38.47% | 27,786 | 72,233 | 61.53% |
+| **api** | 27.72% | 4,449 | 16,047 | 72.28% |
+| **tools** | 44.06% | 1,097 | 2,490 | 55.94% |
 
-**Note:** API routes show 0% in current measurement scope. API coverage requires separate test configuration.
+**Note:** Tools module leads with 44.06% coverage. Core module has largest opportunity (61.53% gap). API module needs significant testing investment (72.28% gap).
 
 ### Coverage Distribution
 
 | Range | File Count | Percentage |
 |-------|------------|------------|
-| **0% Coverage** | 275 | 88% |
-| **1-20% Coverage** | 20 | 6% |
-| **21-50% Coverage** | 10 | 3% |
-| **51-70% Coverage** | 4 | 1% |
-| **71-90% Coverage** | 2 | 1% |
-| **90%+ Coverage** | 1 | <1% |
+| **0% Coverage** | 144 | 20.8% |
+| **1-20% Coverage** | 116 | 16.7% |
+| **21-50% Coverage** | 236 | 34.1% |
+| **51-70% Coverage** | 95 | 13.7% |
+| **71-90% Coverage** | 58 | 8.4% |
+| **90%+ Coverage** | 35 | 5.1% |
 
 ### High-Impact Files (>200 lines, <30% coverage)
 
-From Phase 81-02 analysis, **49 high-impact files** identified with **14,511 uncovered lines**:
+From Phase 81-02 analysis, **60 high-impact files** identified with **15,481 uncovered lines**:
 
 | Rank | File | Uncovered Lines | Total Lines | Coverage | Priority |
 |------|------|-----------------|-------------|----------|----------|
-| 1 | workflow_engine.py | 994 | 994 | 0% | P1 |
-| 2 | episode_segmentation_service.py | 380 | 422 | 10% | P0 |
-| 3 | agent_meta_agent.py | 331 | 331 | 0% | P1 |
-| 4 | lancedb_handler.py | 324 | 494 | 34% | P1 |
-| 5 | hybrid_data_ingestion.py | 314 | 314 | 0% | P2 |
-| 6 | formula_extractor.py | 313 | 313 | 0% | P2 |
-| 7 | proposal_service.py | 309 | 339 | 9% | P2 |
-| 8 | student_training_service.py | 285 | 285 | 0% | P0 |
-| 9 | supervision_service.py | 276 | 276 | 0% | P0 |
-| 10 | auto_document_ingestion.py | 274 | 479 | 43% | P2 |
+| 1 | core/workflow_engine.py | 878 | 1,219 | 27.97% | P2 |
+| 2 | core/agent_world_model.py | 621 | 691 | 10.13% | P1 |
+| 3 | core/lancedb_handler.py | 543 | 694 | 21.76% | P2 |
+| 4 | core/atom_agent_endpoints.py | 533 | 773 | 31.05% | P1 |
+| 5 | core/atom_meta_agent.py | 484 | 594 | 18.52% | P1 |
 
-**P0 Tier (Governance & Safety):**
-- episode_segmentation_service.py (380 uncovered)
-- supervision_service.py (276 uncovered)
-- student_training_service.py (285 uncovered)
+**P0 Tier (Governance, LLM, Safety):**
+- core/llm/registry/service.py (234 uncovered lines, 13.65% coverage)
+- core/cache.py (207 uncovered lines, 29.83% coverage)
+- core/supervision_service.py (191 uncovered lines, 12.39% coverage)
 
-**Total P0 Opportunity:** 941 uncovered lines across 3 critical files
+**Total P0 Opportunity:** 632 uncovered lines across 3 critical files
 
 ## Target Coverage (v3.2 Completion)
 
 ### Overall Targets
 
-| Metric | Baseline | Target | Gap | Incremental |
-|--------|----------|--------|-----|-------------|
-| **Overall Coverage** | 15.23% | **25%** | 9.77% | +4,434 lines |
-| **Core Services** | 18.18% | **50%** | 31.82% | +13,993 lines |
-| **High-Impact Files** | 10% avg | **60% avg** | 50% | ~7,255 lines |
-| **P0 Tier Files** | 5% avg | **70% avg** | 65% | ~612 lines |
+| Metric | Baseline | Target | Gap | Status |
+|--------|----------|--------|-----|--------|
+| **Overall Coverage** | 36.72% | **25%** | -11.72% | ✅ ALREADY EXCEEDED |
+| **Core Services** | 38.47% | **50%** | 11.53% | In progress |
+| **High-Impact Files** | 13.9% avg | **60% avg** | 46.1% | ~7,255 lines needed |
+| **P0 Tier Files** | 18.2% avg | **70% avg** | 51.8% | ~632 lines needed |
+
+**Note:** Overall coverage target (25%) already exceeded with 36.72% baseline. Focus shifts to module-level and file-level targets.
 
 ### File-Level Targets by Priority
 
 | Priority Tier | File Count | Baseline Coverage | Target Coverage | Lines to Add |
 |---------------|------------|-------------------|-----------------|--------------|
-| **P0 (Critical)** | 3 | 5% avg | 70% | ~612 |
-| **P1 (High)** | 14 | 8% avg | 60% | ~3,500 |
-| **P2 (Medium)** | 23 | 12% avg | 50% | ~4,600 |
-| **P3 (Low)** | 9 | 15% avg | 40% | ~2,200 |
-| **TOTAL** | **49** | **10% avg** | **60% avg** | **~10,912** |
+| **P0 (Critical)** | 3 | 18.2% avg | 70% | ~442 |
+| **P1 (High)** | 4 | 16.3% avg | 60% | ~1,800 |
+| **P2 (Medium)** | 4 | 20.8% avg | 50% | ~1,200 |
+| **P3 (Low)** | 49 | 13.5% avg | 40% | ~7,500 |
+| **TOTAL** | **60** | **13.9% avg** | **60% avg** | **~10,942** |
 
 **Note:** Targets are prioritized by business criticality (P0-P3 tiers) and opportunity size (uncovered lines).
 
@@ -145,21 +140,20 @@ v1.0 (5.13%) ──► Peak (22.0%) ──► Regression (15.23%) ──► v3.2
 
 ### Primary Goals
 
-- [ ] **Overall coverage reaches 25%** (from baseline of 15.23%)
-  - Gap: 9.77%
-  - Lines to add: 4,434
+- [x] **Overall coverage reaches 25%** (from baseline of 36.72%)
+  - ✅ MET: 36.72% exceeds 25% target by 11.72pp
   - Verification: `python tests/coverage_reports/trend_tracker.py`
 
 - [ ] **High-impact files (>200 lines) reach 60% average coverage**
-  - Files affected: 49
-  - Current average: 10%
+  - Files affected: 60
+  - Current average: 13.9%
   - Target: ~7,255 lines added
   - Verification: Check coverage.json for file-level metrics
 
 - [ ] **P0 tier files (governance, episodes, LLM) reach 70% coverage**
-  - Files: episode_segmentation_service.py, supervision_service.py, student_training_service.py
-  - Current average: 5%
-  - Target: ~612 lines added
+  - Files: llm/registry/service.py, cache.py, supervision_service.py
+  - Current average: 18.2%
+  - Target: ~442 lines added
   - Verification: Per-file coverage in coverage.json
 
 - [ ] **No regressions** (trend never decreases >1% between phases)
@@ -260,12 +254,12 @@ At Phase 90 completion, the following comparisons will be made against this base
 
 ### Critical Path Coverage (Phase 81-03)
 
-All 4 critical business paths currently at **0% coverage** (16/16 steps below 50% threshold):
+All 4 critical business paths currently at **31.25% average coverage** (5/16 steps covered):
 
-1. **Agent Execution Path** - 0% (0/4 steps covered)
-2. **Episode Creation Path** - 0% (0/4 steps covered)
-3. **Canvas Presentation Path** - 0% (0/4 steps covered)
-4. **Graduation Promotion Path** - 0% (0/4 steps covered)
+1. **Agent Execution Flow** - CRITICAL risk (0% → target 25%)
+2. **Canvas Presentation Flow** - CRITICAL risk (0% → target 25%)
+3. **Graduation Promotion Flow** - HIGH risk (50% → target 75%)
+4. **Episode Creation Flow** - MEDIUM risk (75% → target 87.5%)
 
 **Integration:** Phase 85 will develop 20 integration test scenarios to cover these critical paths.
 
@@ -317,7 +311,7 @@ All 4 critical business paths currently at **0% coverage** (16/16 steps below 50
 
 ---
 
-**Baseline Established:** 2026-02-24
+**Baseline Established:** 2026-04-27
 **Baseline Version:** v3.2
 **Phase:** 81-04
 **Milestone:** Bug Finding & Coverage Expansion
