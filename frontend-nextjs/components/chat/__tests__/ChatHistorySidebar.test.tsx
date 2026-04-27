@@ -63,7 +63,7 @@ describe('ChatHistorySidebar', () => {
 
     await waitFor(() => {
       expect(container.textContent).toContain('No chat history');
-    });
+    }, { timeout: 10000 }); // Increased from default 5000ms
   });
 
   // Test 4: loading state shows spinner

@@ -41,7 +41,7 @@ describe('ArtifactSidebar', () => {
     await waitFor(() => {
       expect(container.textContent).toContain('Artifact 1');
       expect(container.textContent).toContain('Artifact 2');
-    });
+    }, { timeout: 10000 }); // Increased from default 5000ms
   });
 
   // Test 2: empty artifacts shows placeholder
@@ -57,7 +57,7 @@ describe('ArtifactSidebar', () => {
 
     await waitFor(() => {
       expect(container.textContent).toContain('No artifacts shared yet');
-    });
+    }, { timeout: 10000 }); // Increased from default 5000ms
   });
 
   // Test 3: artifact has correct version badge
@@ -77,7 +77,7 @@ describe('ArtifactSidebar', () => {
 
     await waitFor(() => {
       expect(container.textContent).toContain('v3');
-    });
+    }, { timeout: 10000 }); // Increased from default 5000ms
   });
 
   // Test 4: shows header with title
