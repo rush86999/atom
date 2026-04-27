@@ -1,0 +1,19 @@
+{
+  "phase": "083",
+  "plan": "03",
+  "file": "core/agent_world_model.py",
+  "file_lines": 691,
+  "percent_covered": 16.931982633863964,
+  "lines_covered": 117,
+  "lines_total": 691,
+  "test_count": 50,
+  "tests_passing": 5,
+  "tests_failing": 19,
+  "tests_errors": 23,
+  "target_percent": 65,
+  "baseline_percent": 10.13,
+  "baseline_lines": 70,
+  "improvement_percent": 6.8,
+  "improvement_lines": 47,
+  "generated_at": "ea4d6d28-0677-4a08-9835-4c516a4b6955"
+}
