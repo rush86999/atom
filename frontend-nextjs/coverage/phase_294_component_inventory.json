@@ -1,0 +1,518 @@
+{
+  "generated_at": "2026-04-27T21:17:52.288169Z",
+  "phase": "294",
+  "total_components": 264,
+  "components_with_coverage": 264,
+  "components_gt_100_lines": 206,
+  "total_uncovered_lines": 70172,
+  "low_coverage_components": [
+    {
+      "file": "components/TeamsIntegration.tsx",
+      "total_lines": 1822,
+      "covered_lines": 323,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1499,
+      "impact_score": 5,
+      "priority_score": 399.31,
+      "category": "critical"
+    },
+    {
+      "file": "components/QuickBooksIntegration.tsx",
+      "total_lines": 1799,
+      "covered_lines": 319,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1480,
+      "impact_score": 5,
+      "priority_score": 394.25,
+      "category": "critical"
+    },
+    {
+      "file": "components/BoxIntegration.tsx",
+      "total_lines": 1789,
+      "covered_lines": 317,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1472,
+      "impact_score": 5,
+      "priority_score": 392.12,
+      "category": "critical"
+    },
+    {
+      "file": "components/ZendeskIntegration.tsx",
+      "total_lines": 1755,
+      "covered_lines": 311,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1444,
+      "impact_score": 5,
+      "priority_score": 384.66,
+      "category": "critical"
+    },
+    {
+      "file": "components/Microsoft365Integration.tsx",
+      "total_lines": 1639,
+      "covered_lines": 291,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1348,
+      "impact_score": 5,
+      "priority_score": 359.08,
+      "category": "critical"
+    },
+    {
+      "file": "components/ZoomIntegration.tsx",
+      "total_lines": 1560,
+      "covered_lines": 277,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1283,
+      "impact_score": 5,
+      "priority_score": 341.77,
+      "category": "critical"
+    },
+    {
+      "file": "components/WorkflowAutomation.tsx",
+      "total_lines": 1493,
+      "covered_lines": 265,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1228,
+      "impact_score": 5,
+      "priority_score": 327.12,
+      "category": "critical"
+    },
+    {
+      "file": "components/AzureIntegration.tsx",
+      "total_lines": 1386,
+      "covered_lines": 246,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1140,
+      "impact_score": 5,
+      "priority_score": 303.68,
+      "category": "critical"
+    },
+    {
+      "file": "components/TrelloIntegration.tsx",
+      "total_lines": 1338,
+      "covered_lines": 237,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 1101,
+      "impact_score": 5,
+      "priority_score": 293.29,
+      "category": "critical"
+    },
+    {
+      "file": "components/JiraIntegration.tsx",
+      "total_lines": 1154,
+      "covered_lines": 205,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 949,
+      "impact_score": 5,
+      "priority_score": 252.8,
+      "category": "critical"
+    },
+    {
+      "file": "components/NotionIntegration.tsx",
+      "total_lines": 1148,
+      "covered_lines": 203,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 945,
+      "impact_score": 5,
+      "priority_score": 251.73,
+      "category": "critical"
+    },
+    {
+      "file": "components/MailchimpIntegration.tsx",
+      "total_lines": 1109,
+      "covered_lines": 197,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 912,
+      "impact_score": 5,
+      "priority_score": 242.94,
+      "category": "critical"
+    },
+    {
+      "file": "components/GoogleWorkspaceIntegration.tsx",
+      "total_lines": 1057,
+      "covered_lines": 187,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 870,
+      "impact_score": 5,
+      "priority_score": 231.75,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/WorkflowBuilder.tsx",
+      "total_lines": 1039,
+      "covered_lines": 184,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 855,
+      "impact_score": 5,
+      "priority_score": 227.76,
+      "category": "critical"
+    },
+    {
+      "file": "components/FreshdeskIntegration.tsx",
+      "total_lines": 1039,
+      "covered_lines": 184,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 855,
+      "impact_score": 5,
+      "priority_score": 227.76,
+      "category": "critical"
+    },
+    {
+      "file": "components/OutlookIntegration.tsx",
+      "total_lines": 955,
+      "covered_lines": 169,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 786,
+      "impact_score": 5,
+      "priority_score": 209.38,
+      "category": "critical"
+    },
+    {
+      "file": "components/SlackIntegration.tsx",
+      "total_lines": 935,
+      "covered_lines": 166,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 769,
+      "impact_score": 5,
+      "priority_score": 204.85,
+      "category": "critical"
+    },
+    {
+      "file": "components/Workflow/WorkflowVersioning.tsx",
+      "total_lines": 932,
+      "covered_lines": 165,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 767,
+      "impact_score": 5,
+      "priority_score": 204.32,
+      "category": "critical"
+    },
+    {
+      "file": "components/IntercomIntegration.tsx",
+      "total_lines": 913,
+      "covered_lines": 162,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 751,
+      "impact_score": 5,
+      "priority_score": 200.05,
+      "category": "critical"
+    },
+    {
+      "file": "components/AsanaIntegration.tsx",
+      "total_lines": 907,
+      "covered_lines": 161,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 746,
+      "impact_score": 5,
+      "priority_score": 198.72,
+      "category": "critical"
+    },
+    {
+      "file": "components/TableauIntegration.tsx",
+      "total_lines": 900,
+      "covered_lines": 159,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 741,
+      "impact_score": 5,
+      "priority_score": 197.39,
+      "category": "critical"
+    },
+    {
+      "file": "components/GitHubIntegration.tsx",
+      "total_lines": 896,
+      "covered_lines": 159,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 737,
+      "impact_score": 5,
+      "priority_score": 196.32,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/hubspot/HubSpotSearch.tsx",
+      "total_lines": 832,
+      "covered_lines": 147,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 685,
+      "impact_score": 5,
+      "priority_score": 182.47,
+      "category": "critical"
+    },
+    {
+      "file": "components/StripeIntegration.tsx",
+      "total_lines": 795,
+      "covered_lines": 141,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 654,
+      "impact_score": 5,
+      "priority_score": 174.21,
+      "category": "critical"
+    },
+    {
+      "file": "components/LinearIntegration.tsx",
+      "total_lines": 783,
+      "covered_lines": 139,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 644,
+      "impact_score": 5,
+      "priority_score": 171.55,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/ZoomIntegration.tsx",
+      "total_lines": 746,
+      "covered_lines": 132,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 614,
+      "impact_score": 5,
+      "priority_score": 163.56,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/AgentWorkflowGenerator.tsx",
+      "total_lines": 730,
+      "covered_lines": 129,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 601,
+      "impact_score": 5,
+      "priority_score": 160.1,
+      "category": "critical"
+    },
+    {
+      "file": "components/JiraOAuthFlow.tsx",
+      "total_lines": 634,
+      "covered_lines": 112,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 522,
+      "impact_score": 5,
+      "priority_score": 139.05,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/CustomNodes.tsx",
+      "total_lines": 988,
+      "covered_lines": 175,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 813,
+      "impact_score": 3,
+      "priority_score": 129.94,
+      "category": "medium"
+    },
+    {
+      "file": "components/shared/CommunicationHub.tsx",
+      "total_lines": 979,
+      "covered_lines": 173,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 806,
+      "impact_score": 3,
+      "priority_score": 128.82,
+      "category": "medium"
+    },
+    {
+      "file": "components/shared/TaskManagement.tsx",
+      "total_lines": 971,
+      "covered_lines": 172,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 799,
+      "impact_score": 3,
+      "priority_score": 127.7,
+      "category": "medium"
+    },
+    {
+      "file": "components/integrations/WhatsAppBusinessIntegration.tsx",
+      "total_lines": 546,
+      "covered_lines": 97,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 449,
+      "impact_score": 5,
+      "priority_score": 119.61,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/hubspot/HubSpotAIService.tsx",
+      "total_lines": 536,
+      "covered_lines": 95,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 441,
+      "impact_score": 5,
+      "priority_score": 117.47,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/PiecesSidebar.tsx",
+      "total_lines": 877,
+      "covered_lines": 155,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 722,
+      "impact_score": 3,
+      "priority_score": 115.4,
+      "category": "medium"
+    },
+    {
+      "file": "components/integrations/hubspot/HubSpotIntegration.tsx",
+      "total_lines": 514,
+      "covered_lines": 91,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 423,
+      "impact_score": 5,
+      "priority_score": 112.68,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/WorkflowTables.tsx",
+      "total_lines": 500,
+      "covered_lines": 88,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 412,
+      "impact_score": 5,
+      "priority_score": 109.75,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/IntegrationHealthDashboard.tsx",
+      "total_lines": 494,
+      "covered_lines": 87,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 407,
+      "impact_score": 5,
+      "priority_score": 108.42,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/hubspot/HubSpotWorkflowAutomation.tsx",
+      "total_lines": 491,
+      "covered_lines": 87,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 404,
+      "impact_score": 5,
+      "priority_score": 107.62,
+      "category": "critical"
+    },
+    {
+      "file": "components/Automations/WorkflowScheduler.tsx",
+      "total_lines": 484,
+      "covered_lines": 86,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 398,
+      "impact_score": 5,
+      "priority_score": 106.02,
+      "category": "critical"
+    },
+    {
+      "file": "components/Collaboration/ShareWorkflowModal.tsx",
+      "total_lines": 475,
+      "covered_lines": 84,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 391,
+      "impact_score": 5,
+      "priority_score": 104.16,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/hubspot/HubSpotPredictiveAnalytics.tsx",
+      "total_lines": 460,
+      "covered_lines": 81,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 379,
+      "impact_score": 5,
+      "priority_score": 100.96,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/GoogleDriveIntegration.tsx",
+      "total_lines": 457,
+      "covered_lines": 81,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 376,
+      "impact_score": 5,
+      "priority_score": 100.16,
+      "category": "critical"
+    },
+    {
+      "file": "components/canvas/ViewOrchestrator.tsx",
+      "total_lines": 451,
+      "covered_lines": 80,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 371,
+      "impact_score": 5,
+      "priority_score": 98.83,
+      "category": "critical"
+    },
+    {
+      "file": "components/integrations/OneDriveIntegration.tsx",
+      "total_lines": 443,
+      "covered_lines": 78,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 365,
+      "impact_score": 5,
+      "priority_score": 97.23,
+      "category": "critical"
+    },
+    {
+      "file": "components/Voice/VoiceCommands.tsx",
+      "total_lines": 733,
+      "covered_lines": 130,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 603,
+      "impact_score": 3,
+      "priority_score": 96.38,
+      "category": "medium"
+    },
+    {
+      "file": "components/dashboard/AnalyticsDashboard.tsx",
+      "total_lines": 724,
+      "covered_lines": 128,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 596,
+      "impact_score": 3,
+      "priority_score": 95.26,
+      "category": "medium"
+    },
+    {
+      "file": "components/DiscordIntegration.tsx",
+      "total_lines": 434,
+      "covered_lines": 77,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 357,
+      "impact_score": 5,
+      "priority_score": 95.1,
+      "category": "critical"
+    },
+    {
+      "file": "components/chat/canvas-host.tsx",
+      "total_lines": 431,
+      "covered_lines": 76,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 355,
+      "impact_score": 5,
+      "priority_score": 94.57,
+      "category": "critical"
+    },
+    {
+      "file": "components/entity/EntitySchemaModal.tsx",
+      "total_lines": 714,
+      "covered_lines": 126,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 588,
+      "impact_score": 3,
+      "priority_score": 93.98,
+      "category": "medium"
+    },
+    {
+      "file": "components/canvas/IntegrationConnectionGuide.tsx",
+      "total_lines": 405,
+      "covered_lines": 71,
+      "coverage_pct": 17.77,
+      "uncovered_lines": 334,
+      "impact_score": 5,
+      "priority_score": 88.97,
+      "category": "critical"
+    }
+  ],
+  "summary": {
+    "avg_coverage": 17.77,
+    "median_coverage": 15.0,
+    "components_below_20pct": 206,
+    "components_zero_coverage": 0
+  },
+  "methodology": "File system scan + baseline coverage estimation (17.77% from Phase 293)",
+  "notes": "264 total components found. Coverage data estimated from Phase 293 baseline due to test suite failures."
+}

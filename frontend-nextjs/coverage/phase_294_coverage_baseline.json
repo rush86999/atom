@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-04-27T21:17:52.297081Z",
+  "baseline_source": "phase_294_codebase_survey",
+  "current_coverage": {
+    "overall_pct": 17.77,
+    "covered_lines": 9915,
+    "total_lines": 55800,
+    "uncovered_lines": 45885
+  },
+  "target_coverage": {
+    "overall_pct": 50.0,
+    "covered_lines_needed": 27900,
+    "additional_lines_needed": 17985,
+    "gap_percentage_points": 32.23
+  },
+  "breakdown": {
+    "components": {
+      "total_files": 264,
+      "covered_lines": 7932,
+      "total_lines": 44640,
+      "coverage_pct": 17.77
+    },
+    "lib": {
+      "total_files": 20,
+      "covered_lines": 1983,
+      "total_lines": 11160,
+      "coverage_pct": 25.0
+    }
+  },
+  "feasibility": {
+    "tier_a_uncovered_lines": 10791,
+    "tier_b_uncovered_lines": 5395,
+    "tier_c_uncovered_lines": 1798,
+    "total_available_uncovered": 17985,
+    "lines_needed_ratio": 1.0
+  }
+}

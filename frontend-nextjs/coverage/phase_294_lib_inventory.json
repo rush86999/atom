@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-04-27T21:17:52.296645Z",
+  "phase": "294",
+  "total_lib_files": 20,
+  "files_with_coverage": 20,
+  "files_gt_50_lines": 13,
+  "total_uncovered_lines": 2597,
+  "untested_files": [],
+  "low_coverage_files": [],
+  "summary": {
+    "avg_coverage": 25.0,
+    "untested_count": 0,
+    "files_below_20pct": 0
+  },
+  "methodology": "File system scan + baseline coverage estimation (25% from Phase 293)",
+  "notes": "Lib utilities coverage baseline from Phase 293."
+}

@@ -1,0 +1,39 @@
+{
+  "phase": "294",
+  "timestamp": "2026-04-25T01:13:15.289507Z",
+  "baseline_coverage": 17.77,
+  "current_coverage": 18.18,
+  "target_coverage": 50.0,
+  "target_met": false,
+  "coverage_increase": 0.41000000000000014,
+  "gap_remaining": 31.82,
+  "additional_lines_needed": 8360,
+  "plans_executed": [
+    "294-03",
+    "294-04"
+  ],
+  "files_tested": 15,
+  "tests_added": 124,
+  "metrics": {
+    "lines": {
+      "covered": 4779,
+      "total": 26275,
+      "pct": 18.18
+    },
+    "statements": {
+      "pct": 18.69
+    },
+    "branches": {
+      "pct": 11.25
+    },
+    "functions": {
+      "pct": 12.78
+    }
+  },
+  "success_criteria": {
+    "coverage_increased": true,
+    "target_met": false,
+    "gap_reduced": true
+  },
+  "summary": "Frontend coverage increased from 17.77% to 18.18% (+0.41pp). Target NOT MET (50%). Gap: 31.82pp (8,360 lines needed)."
+}
