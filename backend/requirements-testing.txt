@@ -1,15 +1,9 @@
-# Property-Based Testing & Fuzzy Testing Dependencies
+# Testing Dependencies
 # For Phase 0: Foundation Setup
 
-# Property-Based Testing (already in requirements.txt)
-# hypothesis>=6.92.0,<7.0.0
-
-# API Contract Testing
-schemathesis>=3.30.0,<4.0.0  # OpenAPI contract testing with Hypothesis
-
-# Fuzzy Testing
-atheris>=2.2.0  # Coverage-guided fuzzing for Python
-# python-fuzz>=0.1.0  # NOTE: Package doesn't exist on PyPI, removed
+# REMOVED: Property-Based Testing (hypothesis) - tests removed
+# REMOVED: API Contract Testing (schemathesis) - tests removed
+# REMOVED: Fuzzy Testing (atheris) - tests removed
 
 # Mutation Testing
 mutmut>=2.4.0  # Mutation testing tool
