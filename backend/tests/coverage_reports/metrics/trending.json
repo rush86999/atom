@@ -10,44 +10,6 @@
       "trend": "stable"
     },
     {
-      "date": "2026-02-18T04:19:30.000000Z",
-      "phase": "19",
-      "plan": "19-09-gap-closure",
-      "coverage_pct": 15.23,
-      "lines_covered": 0,
-      "lines_total": 0,
-      "trend": "stable"
-    },
-    {
-      "date": "2026-02-18T08:50:47.864322",
-      "phase": "21",
-      "plan": "21-04",
-      "coverage_pct": 21.59,
-      "lines_covered": 0,
-      "lines_total": 0,
-      "trend": "stable"
-    },
-    {
-      "date": "2026-02-24T07:16:45.359706",
-      "phase": "81",
-      "plan": "01",
-      "coverage_pct": 15.23,
-      "lines_covered": 8272,
-      "lines_total": 45366,
-      "trend": "regressing"
-    },
-    {
-      "date": "2026-02-25T23:03:27Z",
-      "phase": "090",
-      "plan": "01",
-      "coverage_pct": 74.55,
-      "files_covered": 156,
-      "files_total": 205,
-      "branches_covered": 52,
-      "branches_total": 74,
-      "trend": "improving"
-    },
-    {
       "date": "2026-02-17T21:52:13.175169Z",
       "phase": "19",
       "plan": "19-01-04",
@@ -66,6 +28,24 @@
       "trend": "stable"
     },
     {
+      "date": "2026-02-18T04:19:30.000000Z",
+      "phase": "19",
+      "plan": "19-09-gap-closure",
+      "coverage_pct": 15.23,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-18T08:50:47.864322",
+      "phase": "21",
+      "plan": "21-04",
+      "coverage_pct": 21.59,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "stable"
+    },
+    {
       "date": "2026-02-18T08:50:47.864322",
       "phase": "21",
       "plan": "21-04",
@@ -84,13 +64,13 @@
       "trend": "regressing"
     },
     {
-      "date": "2026-02-25T23:03:27Z",
-      "phase": "090",
+      "date": "2026-02-24T07:16:45.359706",
+      "phase": "81",
       "plan": "01",
-      "coverage_pct": 74.55,
-      "lines_covered": 0,
-      "lines_total": 0,
-      "trend": "improving"
+      "coverage_pct": 15.23,
+      "lines_covered": 8272,
+      "lines_total": 45366,
+      "trend": "regressing"
     },
     {
       "date": "2026-02-25T18:16:09.646652Z",
@@ -100,16 +80,45 @@
       "lines_covered": 205,
       "lines_total": 205,
       "trend": "stable"
+    },
+    {
+      "date": "2026-02-25T23:03:27Z",
+      "phase": "090",
+      "plan": "01",
+      "coverage_pct": 74.55,
+      "files_covered": 156,
+      "files_total": 205,
+      "branches_covered": 52,
+      "branches_total": 74,
+      "trend": "improving"
+    },
+    {
+      "date": "2026-02-25T23:03:27Z",
+      "phase": "090",
+      "plan": "01",
+      "coverage_pct": 74.55,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "improving"
+    },
+    {
+      "date": "2026-04-27T08:07:05.768228",
+      "phase": "81",
+      "plan": "04",
+      "coverage_pct": 36.72,
+      "lines_covered": 33332,
+      "lines_total": 90770,
+      "trend": "regressing"
     }
   ],
   "baselines": {
     "v3.2": {
       "name": "v3.2",
       "phase": "81",
-      "date": "2026-02-24T07:16:45.359706",
-      "coverage_pct": 15.23,
-      "lines_covered": 8272,
-      "lines_total": 45366
+      "date": "2026-04-27T08:07:05.768228",
+      "coverage_pct": 36.72,
+      "lines_covered": 33332,
+      "lines_total": 90770
     },
     "v1.0": {
       "name": "v1.0",
@@ -133,13 +142,13 @@
   },
   "migrated_from": "phases_format",
   "latest": {
-    "date": "2026-02-25T18:16:09.646652Z",
-    "phase": "090",
-    "plan": "03",
-    "coverage_pct": 74.55,
-    "lines_covered": 205,
-    "lines_total": 205,
-    "trend": "stable"
+    "date": "2026-04-27T08:07:05.768228",
+    "phase": "81",
+    "plan": "04",
+    "coverage_pct": 36.72,
+    "lines_covered": 33332,
+    "lines_total": 90770,
+    "trend": "regressing"
   },
   "coverage_history": [
     {
