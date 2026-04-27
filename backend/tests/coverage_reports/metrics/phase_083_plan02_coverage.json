@@ -1,0 +1,12 @@
+{
+  "phase": "083",
+  "plan": "02",
+  "file": "core/episode_segmentation_service.py",
+  "percent_covered": 62.06,
+  "lines_covered": 368,
+  "lines_total": 593,
+  "test_count": 75,
+  "test_passing": 68,
+  "test_failing": 7,
+  "target_percent": 70
+}
