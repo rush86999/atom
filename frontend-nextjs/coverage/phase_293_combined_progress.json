@@ -1,0 +1,43 @@
+{
+  "phase": "293",
+  "timestamp": "2026-04-27T23:35:15Z",
+  "backend_coverage": 36.72,
+  "frontend_coverage": 18.13,
+  "frontend_target": 30.0,
+  "frontend_target_met": false,
+  "backend_target_met": true,
+  "additional_frontend_lines_needed": 3206,
+  "phase_293_02_coverage": 17.77,
+  "phase_293_06a_coverage": 18.13,
+  "phase_293_06a_tests_added": 145,
+  "phase_293_06a_files_tested": 3,
+  "coverage_increase_verified": true,
+  "frontend_target_met": false,
+  "gap_closed_group_a": 0.36,
+  "remaining_to_30_percent": 11.87,
+  "calculated_tests_needed_for_30": 160,
+  "calculation_method": "3,206 lines needed / 20 lines per test = ~160 tests total (Group A: ~80 tests, Group B: ~80 tests in 293-06b)",
+  "group_a_status": "COMPLETED - 3 lib utility files tested (crypto, error-mapping, api-admin)",
+  "group_b_pending": "Integration components and additional lib files remaining in 293-06b",
+  "files_added_in_phase_293": {
+    "backend": [
+      "test_workflow_analytics_endpoints",
+      "test_workflow_parameter_validator"
+    ],
+    "frontend": [
+      "HubSpotSearch.test",
+      "ZoomIntegration.test",
+      "GoogleDriveIntegration.test",
+      "OneDriveIntegration.test",
+      "HubSpotIntegration.test",
+      "IntegrationHealthDashboard.test",
+      "MondayIntegration.test (extended)",
+      "HubSpotPredictiveAnalytics.test (extended)",
+      "hubspotApi.test (extended)",
+      "constants.test (extended)",
+      "crypto.test (new)",
+      "error-mapping.test (new)",
+      "api-admin.test (new)"
+    ]
+  }
+}
