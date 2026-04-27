@@ -30,7 +30,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 # Optional: Other providers
 export DEEPSEEK_API_KEY="sk-..."
-export GEMINI_API_KEY="..."
+export GOOGLE_API_KEY="..."
 
 # Feature flags (automatically set by conftest.py)
 export ATOM_ENVIRONMENT=test

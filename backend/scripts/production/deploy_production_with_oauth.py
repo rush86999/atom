@@ -335,7 +335,7 @@ GITHUB_CLIENT_SECRET=
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 DEEPSEEK_API_KEY=your_deepseek_api_key
-GOOGLE_AI_API_KEY=your_google_ai_api_key
+GOOGLE_API_KEY=your_google_api_key
 
 # Monitoring & Analytics
 ENABLE_METRICS=True

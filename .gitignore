@@ -766,3 +766,6 @@ mobile/coverage/html/
 /openapi_current.json
 /openapi_*.json
 !/openapi.json
+
+# Planning directory (local development only)
+.planning/

@@ -72,7 +72,7 @@ export REDIS_URL="redis://localhost:6380"
 export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
 export DEEPSEEK_API_KEY="sk-..."
-export GEMINI_API_KEY="..."
+export GOOGLE_API_KEY="..."
 
 # Feature flags (automatically set by conftest.py)
 export STREAMING_GOVERNANCE_ENABLED=true
