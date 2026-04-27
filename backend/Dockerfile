@@ -54,6 +54,9 @@ RUN useradd -m -u 1000 atomuser && \
 # Production stage
 FROM python:3.11-slim as production
 
+# Create non-root user in production stage
+RUN useradd -m -u 1000 atomuser
+
 # Copy Python dependencies from builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
