@@ -1,6 +1,9 @@
 // Jest setup file for testing
 import '@testing-library/jest-dom';
 
+// Increase default timeout for async operations (fetch mocks, waitFor)
+jest.setTimeout(10000); // 10 seconds
+
 // Mock Next.js router
 jest.mock('next/router', () => ({
   useRouter: () => ({
