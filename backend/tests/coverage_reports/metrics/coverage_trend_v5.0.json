@@ -193,22 +193,23 @@
       "note": "3 of 5 Tier 1 files tested (supervisor_learning_service and feedback_service skipped due to missing model dependencies)"
     },
     "293-04": {
-      "timestamp": "2026-04-24T23:20:00.000000Z",
-      "commit": "20252bcb3",
-      "commit_message": "test(293-04): fix mock setup in workflow_analytics and maturity_routes tests",
-      "description": "Gap Closure: Backend Mock Fixes - Fixed AttributeError: _mock_methods in 15 tests (11 workflow_analytics, 4 maturity)",
-      "files_fixed": [
+      "timestamp": "2026-04-27T19:42:00.000000Z",
+      "commit": "7ac6ae51e",
+      "commit_message": "feat(293-04): add 13 new tests to workflow_analytics_endpoints",
+      "description": "Gap Closure: Backend Test Improvements - Confirmed no mock errors, added 13 tests to increase workflow_analytics_endpoints coverage from 34% to 44%",
+      "files_modified": [
         "test_workflow_analytics_endpoints",
         "test_maturity_routes"
       ],
       "coverage_achieved": {
-        "core/workflow_analytics_endpoints.py": 34,
+        "core/workflow_analytics_endpoints.py": 44,
         "api/maturity_routes.py": 67
       },
-      "tests_fixed": 15,
-      "errors_resolved": 15,
-      "tests_passing": 31,
-      "cov_b_02_status": "PARTIAL - 3 of 5 Tier 1 files tested (workflow_analytics_endpoints >=30%, workflow_parameter_validator 81%, maturity_routes 67%). supervisor_learning_service and feedback_service SKIPPED due to missing models (SupervisorRating, SupervisorComment, FeedbackVote, InterventionOutcome). User acknowledged: creating models is out of scope for test coverage phase.",
+      "tests_added": 13,
+      "tests_passing": 25,
+      "total_tests": 25,
+      "coverage_change": "+10pp (from 34% to 44%)",
+      "cov_b_02_status": "PARTIAL - 3 of 5 Tier 1 files tested (workflow_analytics_endpoints 44% exceeds 30% target, workflow_parameter_validator 81%, maturity_routes 67%). supervisor_learning_service and feedback_service SKIPPED due to missing models (SupervisorRating, SupervisorComment, FeedbackVote, InterventionOutcome). User acknowledged: creating models is out of scope for test coverage phase.",
       "user_acknowledgment": "User selected Option B: Document COV-B-02 as PARTIAL with explicit acknowledgment. Missing model creation deferred to future phase."
     },
     "294-05": {
