@@ -32,6 +32,7 @@ CRITICALITY_MAP = {
     # P0 - Governance & Safety (highest priority)
     "agent_governance_service": 10,
     "governance_cache": 10,
+    "cache": 10,  # For core/cache.py
     "trigger_interceptor": 10,
     "agent_context_resolver": 9,
     "supervision_service": 9,
@@ -39,12 +40,14 @@ CRITICALITY_MAP = {
     # P0 - LLM Integration (core functionality)
     "byok_handler": 10,
     "atom_agent_endpoints": 9,
+    "service": 10,  # For core/llm/registry/service.py (LLM registry is critical)
     "streaming_handler": 8,
 
     # P1 - Episodic Memory (learning system)
     "episode_segmentation_service": 9,
     "episode_retrieval_service": 8,
     "episode_lifecycle_service": 8,
+    "episode_service": 8,  # For core/episode_service.py
     "agent_graduation_service": 8,
 
     # P1 - Tools & Devices
@@ -56,10 +59,20 @@ CRITICALITY_MAP = {
     "student_training_service": 8,
     "proposal_service": 7,
 
+    # P1 - Agent orchestration
+    "atom_meta_agent": 7,
+    "fleet_admiral": 7,
+    "queen_agent": 7,
+
     # P2 - Supporting services
     "workflow_engine": 6,
     "lancedb_handler": 5,
     "embedding_service": 5,
+
+    # P2 - World model & knowledge
+    "agent_world_model": 7,
+    "graphrag_engine": 6,
+    "entity_type_service": 6,
 }
 
 
