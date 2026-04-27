@@ -1,0 +1,19 @@
+{
+  "phase": "082",
+  "plan": "02",
+  "file": "core/cache.py",
+  "percent_covered": 67.8,
+  "lines_covered": 200,
+  "lines_total": 295,
+  "test_count": 79,
+  "target_percent": 80,
+  "baseline_percent": 29.83,
+  "improvement": 37.97,
+  "missing_lines": 95,
+  "performance_targets_met": true,
+  "performance_p99_latency_ms": "<1.0",
+  "test_file": "tests/core/test_cache.py",
+  "test_file_lines": 1099,
+  "test_functions": 79,
+  "coverage_status": "68% - Redis infrastructure paths uncovered (require external services)"
+}
