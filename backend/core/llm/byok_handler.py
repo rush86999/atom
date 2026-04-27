@@ -364,14 +364,14 @@ class BYOKHandler:
                         asyncio.set_event_loop(loop)
 
                     # Try to get credential with OAuth priority
-                        credential_type, credential_value = loop.run_until_complete(
-                            self.credential_service.get_credential(provider_id)
-                        )
-                        api_key = credential_value
-                        credential_source = credential_type
-                        logger.info(f"Using {credential_source.upper()} credential for {provider_id}")
-                    except Exception as e:
-                        logger.debug(f"Credential service not available for {provider_id}: {e}")
+                    credential_type, credential_value = loop.run_until_complete(
+                        self.credential_service.get_credential(provider_id)
+                    )
+                    api_key = credential_value
+                    credential_source = credential_type
+                    logger.info(f"Using {credential_source.upper()} credential for {provider_id}")
+                except Exception as e:
+                    logger.debug(f"Credential service not available for {provider_id}: {e}")
 
             # Fallback to BYOK if credential service didn't provide one
             if not api_key and self.byok_manager.is_configured(self.workspace_id, provider_id):
