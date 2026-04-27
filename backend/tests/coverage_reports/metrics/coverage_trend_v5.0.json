@@ -149,6 +149,30 @@
     }
   },
   "phases": {
+    "294-01": {
+      "timestamp": "2026-04-27T17:25:00.000000Z",
+      "commit": "ad1620383",
+      "commit_message": "test(294-01): add comprehensive tests for learning_service_full.py (41% coverage)",
+      "description": "Tier 2 backend file tests for 6 high-impact files (learning_service_full, mobile_agent_routes, debug_routes, embedding_providers, alert_service, enhanced_learning_service)",
+      "files_added": [
+        "test_learning_service_full",
+        "test_mobile_agent_routes",
+        "test_embedding_providers"
+      ],
+      "files_skipped": [
+        "debug_routes (missing models: DebugSession, DebugInsight, DebugStateSnapshot, DebugMetric)"
+      ],
+      "coverage_achieved": {
+        "core/learning_service_full.py": 41,
+        "api/mobile_agent_routes.py": 54,
+        "core/llm/embedding/providers.py": 20,
+        "core/alert_service.py": 24,
+        "core/enhanced_learning_service.py": 68
+      },
+      "tests_added": 82,
+      "tests_passing": 40,
+      "note": "Achieved 40%+ coverage on 3 of 6 files (learning_service_full 41%, mobile_agent_routes 54%, enhanced_learning_service 68%). embedding_providers (20%) and alert_service (24%) below target. debug_routes skipped due to missing models."
+    },
     "293-01": {
       "timestamp": "2026-04-24T21:30:00.000000Z",
       "commit": "3527a18fb",
