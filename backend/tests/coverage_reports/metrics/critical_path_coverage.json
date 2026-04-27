@@ -1,16 +1,17 @@
 {
   "summary": {
     "total_paths": 4,
-    "avg_coverage_pct": 0.0,
+    "avg_coverage_pct": 31.25,
     "high_risk_paths": [
       "agent_execution",
-      "episode_creation",
       "canvas_presentation",
       "graduation_promotion"
     ],
-    "total_uncovered_steps": 16,
+    "total_uncovered_steps": 11,
     "risk_distribution": {
-      "CRITICAL": 4
+      "CRITICAL": 2,
+      "MEDIUM": 1,
+      "HIGH": 1
     }
   },
   "paths": {
@@ -27,28 +28,28 @@
           "file": "core/agent_governance_service.py",
           "function": "check_permissions",
           "is_covered": false,
-          "file_coverage_pct": 43.776824034334766
+          "file_coverage_pct": 32.278481012658226
         },
         {
           "step": "Streaming response - token-by-token LLM output",
           "file": "core/atom_agent_endpoints.py",
           "function": "stream_agent_response",
           "is_covered": false,
-          "file_coverage_pct": 33.6223506743738
+          "file_coverage_pct": 31.047865459249678
         },
         {
           "step": "LLM integration - multi-provider routing",
           "file": "core/llm/byok_handler.py",
           "function": "get_llm_response",
           "is_covered": false,
-          "file_coverage_pct": 36.3040629095675
+          "file_coverage_pct": 46.578947368421055
         },
         {
           "step": "Execution logging - audit trail",
           "file": "core/agent_governance_service.py",
           "function": "log_execution",
           "is_covered": false,
-          "file_coverage_pct": 43.776824034334766
+          "file_coverage_pct": 32.278481012658226
         }
       ],
       "failure_modes": [
@@ -60,39 +61,39 @@
     },
     "episode_creation": {
       "path_name": "episode_creation",
-      "covered_steps": 0,
-      "uncovered_steps": 4,
+      "covered_steps": 3,
+      "uncovered_steps": 1,
       "total_steps": 4,
-      "coverage_pct": 0.0,
-      "risk_level": "CRITICAL",
+      "coverage_pct": 75.0,
+      "risk_level": "MEDIUM",
       "steps": [
         {
           "step": "Time gap detection - identifies conversation pauses",
           "file": "core/episode_segmentation_service.py",
           "function": "detect_time_gap",
-          "is_covered": false,
-          "file_coverage_pct": 12.971342383107089
+          "is_covered": true,
+          "file_coverage_pct": 72.00674536256324
         },
         {
           "step": "Topic change detection - semantic context switches",
           "file": "core/episode_segmentation_service.py",
           "function": "detect_topic_changes",
-          "is_covered": false,
-          "file_coverage_pct": 12.971342383107089
+          "is_covered": true,
+          "file_coverage_pct": 72.00674536256324
         },
         {
           "step": "Episode creation - new memory record",
           "file": "core/episode_lifecycle_service.py",
           "function": "create_episode",
           "is_covered": false,
-          "file_coverage_pct": 10.852713178294573
+          "file_coverage_pct": 18.07909604519774
         },
         {
           "step": "Segment storage - persistence layer",
           "file": "core/episode_retrieval_service.py",
           "function": "store_segment",
-          "is_covered": false,
-          "file_coverage_pct": 10.571428571428571
+          "is_covered": true,
+          "file_coverage_pct": 60.625
         }
       ],
       "failure_modes": [
@@ -115,28 +116,28 @@
           "file": "tools/canvas_tool.py",
           "function": "create_canvas",
           "is_covered": false,
-          "file_coverage_pct": 40.39855072463768
+          "file_coverage_pct": 33.56164383561644
         },
         {
           "step": "Chart rendering - visualize data",
           "file": "tools/canvas_tool.py",
           "function": "render_charts",
           "is_covered": false,
-          "file_coverage_pct": 40.39855072463768
+          "file_coverage_pct": 33.56164383561644
         },
         {
           "step": "Data submission - user input handling",
           "file": "api/canvas_routes.py",
           "function": "submit_canvas_data",
           "is_covered": false,
-          "file_coverage_pct": 0.0
+          "file_coverage_pct": 46.76258992805755
         },
         {
           "step": "Governance enforcement - maturity-based access",
           "file": "core/agent_governance_service.py",
           "function": "check_governance",
           "is_covered": false,
-          "file_coverage_pct": 43.776824034334766
+          "file_coverage_pct": 32.278481012658226
         }
       ],
       "failure_modes": [
@@ -148,39 +149,39 @@
     },
     "graduation_promotion": {
       "path_name": "graduation_promotion",
-      "covered_steps": 0,
-      "uncovered_steps": 4,
+      "covered_steps": 2,
+      "uncovered_steps": 2,
       "total_steps": 4,
-      "coverage_pct": 0.0,
-      "risk_level": "CRITICAL",
+      "coverage_pct": 50.0,
+      "risk_level": "HIGH",
       "steps": [
         {
           "step": "Graduation criteria - episode count, intervention rate",
           "file": "core/agent_graduation_service.py",
           "function": "calculate_criteria",
-          "is_covered": false,
-          "file_coverage_pct": 9.44055944055944
+          "is_covered": true,
+          "file_coverage_pct": 89.65517241379311
         },
         {
           "step": "Constitutional check - safety compliance",
           "file": "core/constitutional_validator.py",
           "function": "validate_compliance",
-          "is_covered": false,
-          "file_coverage_pct": 0.0
+          "is_covered": true,
+          "file_coverage_pct": 94.28571428571429
         },
         {
           "step": "Promotion execution - maturity level change",
           "file": "core/agent_governance_service.py",
           "function": "promote_agent",
           "is_covered": false,
-          "file_coverage_pct": 43.776824034334766
+          "file_coverage_pct": 32.278481012658226
         },
         {
           "step": "Maturity update - persistence",
           "file": "core/episode_lifecycle_service.py",
           "function": "update_maturity",
           "is_covered": false,
-          "file_coverage_pct": 10.852713178294573
+          "file_coverage_pct": 18.07909604519774
         }
       ],
       "failure_modes": [

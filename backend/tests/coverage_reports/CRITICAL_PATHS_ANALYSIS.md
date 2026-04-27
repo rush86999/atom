@@ -1,6 +1,6 @@
 # Critical Path Coverage Analysis v3.2
 
-**Generated:** 2026-02-24
+**Generated:** 2026-04-27
 **Phase:** 81-03
 **Analysis Type:** Critical Business Path Risk Assessment
 **Purpose:** Understand which untested code paths pose the highest risk to core business operations
@@ -16,33 +16,36 @@ This analysis maps test coverage gaps to critical business workflows that power 
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total Critical Paths Analyzed** | 4 | - |
-| **Average Path Coverage** | 0.0% | ⚠️ **CRITICAL** |
-| **High-Risk Paths** | 4 (100%) | ⚠️ **ALL** |
-| **Total Uncovered Critical Steps** | 16 | ⚠️ **COMPLETE GAP** |
-| **CRITICAL Risk Paths** | 4 (100%) | 🔴 **URGENT** |
-| **HIGH Risk Paths** | 0 (0%) | - |
-| **MEDIUM Risk Paths** | 0 (0%) | - |
+| **Average Path Coverage** | 31.25% | ⚠️ **HIGH RISK** |
+| **High-Risk Paths** | 3 (75%) | ⚠️ **CRITICAL** |
+| **Total Uncovered Critical Steps** | 11 | ⚠️ **SIGNIFICANT GAP** |
+| **CRITICAL Risk Paths** | 2 (50%) | 🔴 **URGENT** |
+| **HIGH Risk Paths** | 1 (25%) | 🟠 **PRIORITY** |
+| **MEDIUM Risk Paths** | 1 (25%) | 🟡 **MODERATE** |
 | **LOW Risk Paths** | 0 (0%) | - |
 
 ### Key Findings
 
-🔴 **CRITICAL DISCOVERY:** All four critical business paths have **zero coverage** (all steps below 50% threshold). This represents a complete testing gap in core workflows:
+🔴 **CRITICAL DISCOVERY:** Three of four critical business paths have **CRITICAL or HIGH risk** levels with significant coverage gaps:
 
-1. **Agent Execution Flow** - No coverage on governance checks, streaming, LLM integration, or audit logging
-2. **Episode Creation Flow** - No coverage on time gap detection, topic changes, episode creation, or storage
-3. **Canvas Presentation Flow** - No coverage on canvas creation, chart rendering, data submission, or governance
-4. **Graduation Promotion Flow** - No coverage on criteria calculation, compliance checks, promotion execution, or maturity updates
+1. **Agent Execution Flow** (CRITICAL - 0% coverage) - No coverage on governance checks, streaming, LLM integration, or audit logging
+2. **Canvas Presentation Flow** (CRITICAL - 0% coverage) - No coverage on canvas creation, chart rendering, data submission, or governance
+3. **Graduation Promotion Flow** (HIGH - 50% coverage) - Half of steps uncovered, including promotion execution and maturity updates
+4. **Episode Creation Flow** (MEDIUM - 75% coverage) - Best covered path, but episode creation step still at risk
 
 ### Business Impact
 
 **Immediate Risk:**
-- Untested governance checks could allow unauthorized agent actions
-- No coverage on streaming failure handling could cause incomplete responses
-- Missing episode segmentation tests risks memory corruption
-- Untested graduation logic could promote unqualified agents to AUTONOMOUS
+- **Agent Execution (0%):** Untested governance could allow unauthorized agent actions
+- **Canvas Presentation (0%):** No coverage on data visualization or form submission
+- **Graduation (50%):** Untested promotion execution could advance unqualified agents
+- **Episode Creation (75%):** Episode creation step (18% coverage) risks memory corruption
 
 **Recommended Action:**
-All 4 critical paths require immediate integration test development (Phase 85 Priority 1).
+- **Priority 1:** Agent execution integration tests (CRITICAL risk)
+- **Priority 2:** Canvas presentation integration tests (CRITICAL risk)
+- **Priority 3:** Graduation promotion integration tests (HIGH risk)
+- **Priority 4:** Episode creation integration tests (MEDIUM risk)
 
 ---
 
@@ -65,14 +68,14 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 | Step | Function | File | Coverage | Status |
 |------|----------|------|----------|--------|
-| Governance check | `check_permissions` | agent_governance_service.py | 43.8% | ⚠️ UNCOVERED |
-| Streaming response | `stream_agent_response` | atom_agent_endpoints.py | 33.6% | ⚠️ UNCOVERED |
-| LLM integration | `get_llm_response` | byok_handler.py | 36.3% | ⚠️ UNCOVERED |
-| Execution logging | `log_execution` | agent_governance_service.py | 43.8% | ⚠️ UNCOVERED |
+| Governance check | `check_permissions` | agent_governance_service.py | 32.3% | ❌ UNCOVERED |
+| Streaming response | `stream_agent_response` | atom_agent_endpoints.py | 31.0% | ❌ UNCOVERED |
+| LLM integration | `get_llm_response` | byok_handler.py | 46.6% | ❌ UNCOVERED |
+| Execution logging | `log_execution` | agent_governance_service.py | 32.3% | ❌ UNCOVERED |
 
 **Risk Level:** 🔴 **CRITICAL**
 **Coverage:** 0% (0/4 steps covered)
-**Assessment:** All steps below 50% coverage threshold
+**Assessment:** All steps below 50% coverage threshold - complete testing gap in core functionality
 
 #### Potential Failure Modes
 
@@ -90,7 +93,12 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 4. **LLM provider fallback** - Test fallback to secondary provider on API failure
 5. **Audit trail logging** - Verify execution logged even on partial failures
 
-**Test Coverage Impact:** These 5 tests would cover the most critical business flow in Atom.
+**Unit Test Priorities (Phase 82):**
+- `agent_governance_service.py`: Target >80% coverage (currently 32.3%)
+- `atom_agent_endpoints.py`: Target >80% coverage (currently 31.0%)
+- `byok_handler.py`: Target >80% coverage (currently 46.6%)
+
+**Test Coverage Impact:** These tests would cover the most critical business flow in Atom - the core agent execution path.
 
 ---
 
@@ -100,32 +108,34 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 | Step | Function | File | Coverage | Status |
 |------|----------|------|----------|--------|
-| Time gap detection | `detect_time_gap` | episode_segmentation_service.py | 0% | ❌ UNCOVERED |
-| Topic change detection | `detect_topic_changes` | episode_segmentation_service.py | 0% | ❌ UNCOVERED |
-| Episode creation | `create_episode` | episode_lifecycle_service.py | 0% | ❌ UNCOVERED |
-| Segment storage | `store_segment` | episode_retrieval_service.py | 0% | ❌ UNCOVERED |
+| Time gap detection | `detect_time_gap` | episode_segmentation_service.py | 72.0% | ✅ COVERED |
+| Topic change detection | `detect_topic_changes` | episode_segmentation_service.py | 72.0% | ✅ COVERED |
+| Episode creation | `create_episode` | episode_lifecycle_service.py | 18.1% | ❌ UNCOVERED |
+| Segment storage | `store_segment` | episode_retrieval_service.py | 60.6% | ✅ COVERED |
 
-**Risk Level:** 🔴 **CRITICAL**
-**Coverage:** 0% (0/4 steps covered)
-**Assessment:** Complete absence of episodic memory testing
+**Risk Level:** 🟡 **MEDIUM**
+**Coverage:** 75% (3/4 steps covered)
+**Assessment:** Best covered path, but episode creation step poses data corruption risk
 
 #### Potential Failure Modes
 
-- [ ] **Time gap mis-detection creates incorrect episodes** - Untested time boundary logic could merge distinct conversations
-- [ ] **Topic change failure misses context switches** - Missing semantic detection risks corrupted memory contexts
-- [ ] **Episode creation corruption loses memory** - No tests for episode record creation or validation
-- [ ] **Storage failure causes data loss** - Untested persistence layer could silently drop segments
+- [x] **Time gap mis-detection creates incorrect episodes** - **MITIGATED**: 72% coverage on detection logic
+- [x] **Topic change failure misses context switches** - **MITIGATED**: 72% coverage on semantic detection
+- [ ] **Episode creation corruption loses memory** - **RISK**: 18.1% coverage on episode record creation
+- [x] **Storage failure causes data loss** - **MITIGATED**: 60.6% coverage on persistence layer
 
 #### Recommended Integration Tests
 
-**Priority 1 (Critical - Phase 85):**
-1. **Time gap detection boundaries** - Test 5min, 30min, 2hr gap scenarios
-2. **Topic change semantic detection** - Verify context switches between unrelated conversations
-3. **Episode creation end-to-end** - Create episode with segments, verify database persistence
-4. **Vector storage verification** - Confirm segments stored in LanceDB with embeddings
-5. **Segmentation edge cases** - Empty conversations, single-message episodes, rapid topic switches
+**Priority 4 (Medium - Phase 85):**
+1. **Episode creation edge cases** - Test empty conversations, single-message episodes
+2. **Episode creation error handling** - Test database constraint violations, rollback scenarios
+3. **End-to-end episode workflow** - Verify time gap → topic change → creation → storage flow
+4. **Vector storage verification** - Confirm episodes stored in LanceDB with embeddings
 
-**Test Coverage Impact:** Essential for WorldModel memory reliability and agent learning accuracy.
+**Unit Test Priorities (Phase 83):**
+- `episode_lifecycle_service.py`: Target >80% coverage (currently 18.1%)
+
+**Test Coverage Impact:** Episode creation is the weak link in an otherwise well-tested memory system.
 
 ---
 
@@ -135,14 +145,14 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 | Step | Function | File | Coverage | Status |
 |------|----------|------|----------|--------|
-| Canvas creation | `create_canvas` | canvas_tool.py | Not found | ❌ UNCOVERED |
-| Chart rendering | `render_charts` | canvas_tool.py | Not found | ❌ UNCOVERED |
-| Data submission | `submit_canvas_data` | canvas_routes.py | Not found | ❌ UNCOVERED |
-| Governance enforcement | `check_governance` | agent_governance_service.py | 43.8% | ⚠️ UNCOVERED |
+| Canvas creation | `create_canvas` | canvas_tool.py | 33.6% | ❌ UNCOVERED |
+| Chart rendering | `render_charts` | canvas_tool.py | 33.6% | ❌ UNCOVERED |
+| Data submission | `submit_canvas_data` | canvas_routes.py | 46.8% | ❌ UNCOVERED |
+| Governance enforcement | `check_governance` | agent_governance_service.py | 32.3% | ❌ UNCOVERED |
 
 **Risk Level:** 🔴 **CRITICAL**
 **Coverage:** 0% (0/4 steps covered)
-**Assessment:** Canvas tools not found in coverage data - complete testing gap
+**Assessment:** Complete testing gap in presentation layer - critical for user-facing functionality
 
 #### Potential Failure Modes
 
@@ -153,12 +163,16 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 #### Recommended Integration Tests
 
-**Priority 2 (High - Phase 85):**
+**Priority 2 (Critical - Phase 85):**
 1. **Canvas creation with different chart types** - Line, bar, pie charts with valid data
 2. **Chart rendering accuracy** - Verify data correctly mapped to Recharts SVG elements
 3. **Form data submission** - Test canvas data validation and database persistence
 4. **Governance enforcement on canvas** - Verify STUDENT blocked from creating forms
 5. **WebSocket canvas updates** - Test real-time canvas state synchronization
+
+**Unit Test Priorities (Phase 84):**
+- `canvas_tool.py`: Target >80% coverage (currently 33.6%)
+- `canvas_routes.py`: Target >80% coverage (currently 46.8%)
 
 **Test Coverage Impact:** Critical for AI presentation system reliability and data visualization accuracy.
 
@@ -170,32 +184,36 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 | Step | Function | File | Coverage | Status |
 |------|----------|------|----------|--------|
-| Graduation criteria | `calculate_criteria` | agent_graduation_service.py | 0% | ❌ UNCOVERED |
-| Constitutional check | `validate_compliance` | constitutional_validator.py | Not found | ❌ UNCOVERED |
-| Promotion execution | `promote_agent` | agent_governance_service.py | 43.8% | ⚠️ UNCOVERED |
-| Maturity update | `update_maturity` | episode_lifecycle_service.py | 0% | ❌ UNCOVERED |
+| Graduation criteria | `calculate_criteria` | agent_graduation_service.py | 89.7% | ✅ COVERED |
+| Constitutional check | `validate_compliance` | constitutional_validator.py | 94.3% | ✅ COVERED |
+| Promotion execution | `promote_agent` | agent_governance_service.py | 32.3% | ❌ UNCOVERED |
+| Maturity update | `update_maturity` | episode_lifecycle_service.py | 18.1% | ❌ UNCOVERED |
 
-**Risk Level:** 🔴 **CRITICAL**
-**Coverage:** 0% (0/4 steps covered)
-**Assessment:** Graduation logic completely untested
+**Risk Level:** 🟠 **HIGH**
+**Coverage:** 50% (2/4 steps covered)
+**Assessment:** Validation logic well-tested, but promotion execution and persistence are vulnerable
 
 #### Potential Failure Modes
 
-- [ ] **Criteria calculation error promotes unqualified agents** - Untested readiness scoring could advance immature agents
-- [ ] **Constitutional bypass allows non-compliant promotion** - No tests for safety validation before promotion
-- [ ] **Promotion corruption causes maturity mismatch** - Missing database transaction tests
-- [ ] **Update failure creates stale maturity state** - Untested error handling on maturity update failures
+- [x] **Criteria calculation error promotes unqualified agents** - **MITIGATED**: 89.7% coverage on readiness scoring
+- [x] **Constitutional bypass allows non-compliant promotion** - **MITIGATED**: 94.3% coverage on safety validation
+- [ ] **Promotion corruption causes maturity mismatch** - **RISK**: 32.3% coverage on promotion execution
+- [ ] **Update failure creates stale maturity state** - **RISK**: 18.1% coverage on maturity persistence
 
 #### Recommended Integration Tests
 
-**Priority 2 (High - Phase 85):**
-1. **Graduation criteria calculation** - Test episode count, intervention rate, constitutional score
-2. **Constitutional compliance validation** - Verify safety checks before promotion
-3. **End-to-end graduation flow** - Promote agent from STUDENT → INTERN → SUPERVISED → AUTONOMOUS
-4. **Readiness score calculation** - Verify 40% episodes, 30% interventions, 30% constitutional split
-5. **Promotion rejection** - Test agents denied promotion when criteria not met
+**Priority 3 (High - Phase 85):**
+1. **End-to-end graduation flow** - Promote agent from STUDENT → INTERN → SUPERVISED → AUTONOMOUS
+2. **Promotion rejection** - Test agents denied promotion when criteria not met
+3. **Promotion transaction rollback** - Test database rollback on promotion failure
+4. **Maturity update persistence** - Verify maturity state correctly saved across all episodes
+5. **Constitutional validation integration** - Test full safety check workflow
 
-**Test Coverage Impact:** Essential for agent safety - prevents premature AUTONOMOUS promotion.
+**Unit Test Priorities (Phase 82):**
+- `agent_governance_service.py`: Target >80% coverage for `promote_agent` (currently 32.3%)
+- `episode_lifecycle_service.py`: Target >80% coverage for `update_maturity` (currently 18.1%)
+
+**Test Coverage Impact:** Essential for agent safety - prevents premature AUTONOMOUS promotion of unqualified agents.
 
 ---
 
@@ -204,29 +222,35 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 ### Governance Bypass (Affects 3 Paths)
 
 **Affected Paths:**
-- Agent Execution Flow
-- Canvas Presentation Flow
-- Graduation Promotion Flow
+- Agent Execution Flow (32.3% coverage)
+- Canvas Presentation Flow (32.3% coverage)
+- Graduation Promotion Flow (32.3% coverage)
 
 **Risk:** Untested governance enforcement could allow unauthorized actions at multiple points
+
+**Common File:** `core/agent_governance_service.py` (32.3% coverage)
 
 **Mitigation:**
 - Priority 1 integration tests for all governance checkpoints
 - Property-based tests for governance invariants
 - E2E tests for maturity-based access control
+- Target >80% coverage on agent_governance_service.py
 
 ### Storage Corruption (Affects 2 Paths)
 
 **Affected Paths:**
-- Episode Creation Flow
-- Canvas Presentation Flow
+- Episode Creation Flow (episode_lifecycle_service.py at 18.1%)
+- Graduation Promotion Flow (episode_lifecycle_service.py at 18.1%)
 
-**Risk:** Untested persistence logic could silently lose data
+**Risk:** Untested persistence logic could silently lose data or corrupt state
+
+**Common File:** `core/episode_lifecycle_service.py` (18.1% coverage)
 
 **Mitigation:**
 - Database transaction rollback tests
 - Constraint violation tests
 - Data integrity verification tests
+- Target >80% coverage on episode_lifecycle_service.py
 
 ### Logging Failure (Affects All 4 Paths)
 
@@ -239,6 +263,7 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 - Test logging under failure conditions
 - Verify audit trail completeness
 - Test structured log format validation
+- Ensure logging tested even when primary operations fail
 
 ---
 
@@ -246,52 +271,47 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 
 ### Priority 1: CRITICAL Business Flows
 
-**Agent Execution End-to-End** (Risk: CRITICAL)
+**Agent Execution End-to-End** (Risk: CRITICAL - 0% coverage)
 - Test STUDENT agent blocked from high-complexity actions
 - Test AUTONOMOUS agent succeeds on full workflow
 - Test streaming interruption and recovery
 - Test LLM provider fallback
 - Test audit trail logging on failures
 
-**Episode Creation End-to-End** (Risk: CRITICAL)
-- Test time gap detection boundaries (5min, 30min, 2hr)
-- Test topic change semantic detection
-- Test episode creation with vector storage
-- Test segment retrieval and accuracy
-- Test edge cases (empty convos, single messages)
+**Estimated Impact:** +25% path coverage (0% → 25%), risk reduction CRITICAL → HIGH
 
-### Priority 2: HIGH Business Flows
+### Priority 2: CRITICAL Business Flows
 
-**Canvas Presentation End-to-End** (Risk: CRITICAL)
+**Canvas Presentation End-to-End** (Risk: CRITICAL - 0% coverage)
 - Test canvas creation with all chart types
 - Test chart rendering accuracy
 - Test form data validation and submission
 - Test governance enforcement on canvas actions
 - Test WebSocket canvas state synchronization
 
-**Graduation Promotion End-to-End** (Risk: CRITICAL)
-- Test graduation criteria calculation
-- Test constitutional compliance validation
-- Test promotion execution (STUDENT → AUTONOMOUS)
+**Estimated Impact:** +25% path coverage (0% → 25%), risk reduction CRITICAL → HIGH
+
+### Priority 3: HIGH Business Flows
+
+**Graduation Promotion End-to-End** (Risk: HIGH - 50% coverage)
+- Test graduation criteria calculation (already 89.7% covered)
+- Test constitutional compliance validation (already 94.3% covered)
+- Test promotion execution (32.3% → target >80%)
 - Test promotion rejection when criteria not met
-- Test maturity update persistence
+- Test maturity update persistence (18.1% → target >80%)
 
-### Priority 3: CROSS-CUTTING Concerns
+**Estimated Impact:** +25% path coverage (50% → 75%), risk reduction HIGH → MEDIUM
 
-**Governance Enforcement** (Affects 3 paths)
-- Property-based tests for governance invariants
-- Maturity-based access control matrix tests
-- Emergency bypass validation tests
+### Priority 4: MEDIUM Business Flows
 
-**Data Integrity** (Affects 2 paths)
-- Database transaction rollback tests
-- Constraint violation tests
-- Data validation tests
+**Episode Creation End-to-End** (Risk: MEDIUM - 75% coverage)
+- Test time gap detection boundaries (already 72% covered)
+- Test topic change semantic detection (already 72% covered)
+- Test episode creation error handling (18.1% → target >80%)
+- Test segment retrieval and accuracy (already 60.6% covered)
+- Test edge cases (empty convos, single messages)
 
-**Audit Trail** (Affects all paths)
-- Structured logging format validation
-- Log completeness tests
-- Failure condition logging tests
+**Estimated Impact:** +12.5% path coverage (75% → 87.5%), risk reduction MEDIUM → LOW
 
 ---
 
@@ -300,16 +320,37 @@ All 4 critical paths require immediate integration test development (Phase 85 Pr
 This critical path analysis directly informs unit test development in Phases 82-84:
 
 ### Phase 82: Governance & LLM Unit Tests
-- **Agent Execution Flow** coverage gaps → Unit tests for `check_permissions`, `stream_agent_response`, `get_llm_response`
-- **Graduation Promotion Flow** coverage gaps → Unit tests for `calculate_criteria`, `validate_compliance`, `promote_agent`
+**Priority Files:**
+- `agent_governance_service.py` (32.3% → target >80%)
+  - Affects: Agent Execution, Canvas Presentation, Graduation Promotion
+  - Critical functions: `check_permissions`, `promote_agent`, `log_execution`
+- `atom_agent_endpoints.py` (31.0% → target >80%)
+  - Affects: Agent Execution
+  - Critical functions: `stream_agent_response`
+- `byok_handler.py` (46.6% → target >80%)
+  - Affects: Agent Execution
+  - Critical functions: `get_llm_response`
+
+**Impact:** +48.7pp avg coverage on governance/LLM files
 
 ### Phase 83: Memory & Episode Unit Tests
-- **Episode Creation Flow** coverage gaps → Unit tests for `detect_time_gap`, `detect_topic_changes`, `create_episode`, `store_segment`
-- Vector search accuracy tests for semantic retrieval
+**Priority Files:**
+- `episode_lifecycle_service.py` (18.1% → target >80%)
+  - Affects: Episode Creation, Graduation Promotion
+  - Critical functions: `create_episode`, `update_maturity`
+
+**Impact:** +61.9pp coverage on episode lifecycle
 
 ### Phase 84: Canvas & Presentation Unit Tests
-- **Canvas Presentation Flow** coverage gaps → Unit tests for `create_canvas`, `render_charts`, `submit_canvas_data`
-- Chart rendering validation tests
+**Priority Files:**
+- `canvas_tool.py` (33.6% → target >80%)
+  - Affects: Canvas Presentation
+  - Critical functions: `create_canvas`, `render_charts`
+- `canvas_routes.py` (46.8% → target >80%)
+  - Affects: Canvas Presentation
+  - Critical functions: `submit_canvas_data`
+
+**Impact:** +39.8pp avg coverage on canvas files
 
 ### Unit Test → Integration Test Pipeline
 
@@ -344,10 +385,37 @@ Risk Level:
 ### Data Sources
 
 - **Coverage Data:** `backend/tests/coverage_reports/metrics/coverage.json`
-- **Baseline Report:** `backend/tests/coverage_reports/COVERAGE_REPORT_v3.2.md`
-- **Uncovered Catalog:** `backend/tests/coverage_reports/CRITICAL_PATHS_UNCOVERED.md`
 - **Analysis Tool:** `backend/tests/coverage_reports/critical_path_mapper.py`
 - **Results JSON:** `backend/tests/coverage_reports/metrics/critical_path_coverage.json`
+
+---
+
+## Top 5 Failure Modes by Business Impact
+
+### 1. Permission Bypass (Agent Execution Flow)
+**Impact:** CRITICAL - Unauthorized agent actions could compromise system security
+**Coverage:** 32.3% (agent_governance_service.py)
+**Mitigation:** Priority 1 integration tests + unit tests to reach >80% coverage
+
+### 2. Promotion of Unqualified Agents (Graduation Promotion Flow)
+**Impact:** HIGH - Premature AUTONOMOUS promotion could cause unsafe agent behavior
+**Coverage:** 32.3% (promote_agent), 18.1% (update_maturity)
+**Mitigation:** Priority 3 integration tests + unit tests to reach >80% coverage
+
+### 3. Chart Rendering Errors (Canvas Presentation Flow)
+**Impact:** HIGH - Incorrect data visualization could mislead users
+**Coverage:** 33.6% (canvas_tool.py)
+**Mitigation:** Priority 2 integration tests + unit tests to reach >80% coverage
+
+### 4. Episode Creation Corruption (Episode Creation Flow)
+**Impact:** MEDIUM - Memory corruption affects agent learning accuracy
+**Coverage:** 18.1% (episode_lifecycle_service.py)
+**Mitigation:** Priority 4 integration tests + unit tests to reach >80% coverage
+
+### 5. Streaming Failure (Agent Execution Flow)
+**Impact:** HIGH - Incomplete responses degrade user experience
+**Coverage:** 31.0% (atom_agent_endpoints.py)
+**Mitigation:** Priority 1 integration tests + unit tests to reach >80% coverage
 
 ---
 
@@ -355,49 +423,34 @@ Risk Level:
 
 ### Immediate Actions (Phase 82-84)
 
-1. **Develop unit tests for Agent Execution Flow** (Phase 82)
-   - Prioritize `check_permissions`, `stream_agent_response`, `get_llm_response`
-   - Target >80% coverage on agent_governance_service.py, atom_agent_endpoints.py, byok_handler.py
+1. **Phase 82: Governance & LLM Unit Tests**
+   - Target: `agent_governance_service.py` (32.3% → >80%)
+   - Target: `atom_agent_endpoints.py` (31.0% → >80%)
+   - Target: `byok_handler.py` (46.6% → >80%)
+   - Expected Impact: Agent Execution risk CRITICAL → HIGH
 
-2. **Develop unit tests for Episode Creation Flow** (Phase 83)
-   - Prioritize `detect_time_gap`, `detect_topic_changes`, `create_episode`
-   - Target >80% coverage on episode_segmentation_service.py, episode_lifecycle_service.py
+2. **Phase 83: Memory & Episode Unit Tests**
+   - Target: `episode_lifecycle_service.py` (18.1% → >80%)
+   - Expected Impact: Episode Creation risk MEDIUM → LOW, Graduation risk HIGH → MEDIUM
 
-3. **Develop unit tests for Canvas Presentation Flow** (Phase 84)
-   - Prioritize `create_canvas`, `render_charts`, `submit_canvas_data`
-   - Target >80% coverage on canvas_tool.py, canvas_routes.py
-
-4. **Develop unit tests for Graduation Promotion Flow** (Phase 82)
-   - Prioritize `calculate_criteria`, `validate_compliance`, `promote_agent`
-   - Target >80% coverage on agent_graduation_service.py, constitutional_validator.py
+3. **Phase 84: Canvas & Presentation Unit Tests**
+   - Target: `canvas_tool.py` (33.6% → >80%)
+   - Target: `canvas_routes.py` (46.8% → >80%)
+   - Expected Impact: Canvas Presentation risk CRITICAL → HIGH
 
 ### Integration Test Development (Phase 85)
 
-1. **Priority 1: Agent Execution E2E Tests**
-   - Full workflow: request → governance → streaming → LLM → logging
-   - Test all maturity levels (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
-   - Test failure modes: provider failures, streaming interruption, governance bypass
-
-2. **Priority 2: Episode Creation E2E Tests**
-   - Full workflow: conversation → segmentation → storage → retrieval
-   - Test boundary cases: time gaps, topic switches, task completion
-   - Test vector search accuracy for semantic retrieval
-
-3. **Priority 3: Canvas Presentation E2E Tests**
-   - Full workflow: canvas creation → chart rendering → data submission
-   - Test all chart types: line, bar, pie
-   - Test governance enforcement: STUDENT blocked from forms
-
-4. **Priority 4: Graduation Promotion E2E Tests**
-   - Full workflow: criteria calculation → compliance check → promotion → update
-   - Test all maturity transitions: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
-   - Test promotion rejection: unqualified agents denied
+**Priority Order:**
+1. Agent Execution E2E (CRITICAL - 0% → 25% coverage)
+2. Canvas Presentation E2E (CRITICAL - 0% → 25% coverage)
+3. Graduation Promotion E2E (HIGH - 50% → 75% coverage)
+4. Episode Creation E2E (MEDIUM - 75% → 87.5% coverage)
 
 ### Success Metrics
 
 **Phase 82-84 (Unit Tests):**
 - [ ] All critical step files achieve >80% coverage
-- [ ] 100+ new unit tests across 4 critical paths
+- [ ] 150+ new unit tests across 4 critical paths
 - [ ] Property-based tests for governance invariants
 - [ ] All failure modes covered by unit tests
 
@@ -408,26 +461,26 @@ Risk Level:
 - [ ] Integration test pass rate >95%
 
 **Overall Goal:**
-- [ ] Critical path coverage increases from 0% to >80%
-- [ ] Risk levels reduced from CRITICAL to LOW/MEDIUM
+- [ ] Average critical path coverage increases from 31.25% to >75%
+- [ ] Risk levels reduced: 2 CRITICAL → 0, 1 HIGH → 1, 1 MEDIUM → 2 LOW
 - [ ] Production deployment with confidence in core business flows
 
 ---
 
 ## Conclusion
 
-This analysis reveals **complete testing gaps** in Atom's four most critical business workflows. All 16 essential steps across agent execution, episode creation, canvas presentation, and graduation promotion have insufficient test coverage.
+This analysis reveals **significant testing gaps** in Atom's four most critical business workflows. While Episode Creation Flow has moderate coverage (75%), the other three critical paths have CRITICAL or HIGH risk levels:
 
 **Urgent Action Required:**
-1. Immediate unit test development (Phases 82-84) to build test foundation
-2. Rapid integration test development (Phase 85) to validate end-to-end workflows
-3. Focus on governance enforcement, data integrity, and audit trail completeness
+1. **Immediate unit test development** (Phases 82-84) to build test foundation
+2. **Rapid integration test development** (Phase 85) to validate end-to-end workflows
+3. **Focus on governance enforcement** (affects 3 paths) and data integrity (affects 2 paths)
 
 **Business Impact:**
-- Untested governance risks unauthorized agent actions
-- Missing episode tests threaten memory reliability
-- No canvas coverage risks data visualization errors
-- Untested graduation could prematurely promote unsafe agents
+- **Agent Execution (0%):** Untested governance risks unauthorized agent actions
+- **Canvas Presentation (0%):** No coverage risks data visualization errors
+- **Graduation (50%):** Untested promotion could advance unqualified agents
+- **Episode Creation (75%):** Episode creation step (18%) risks memory corruption
 
 **By prioritizing these 4 critical paths, we ensure the most important business flows are thoroughly tested before production deployment.**
 
@@ -435,5 +488,5 @@ This analysis reveals **complete testing gaps** in Atom's four most critical bus
 
 **Analysis Generated By:** Atom Test Coverage Initiative
 **Phase:** 81-03 (Critical Path Coverage Analysis)
-**Date:** 2026-02-24
+**Date:** 2026-04-27
 **Next Phase:** 82-04 (Governance & LLM Unit Tests)
