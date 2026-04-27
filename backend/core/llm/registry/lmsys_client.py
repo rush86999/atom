@@ -16,8 +16,9 @@ from core.cache import UniversalCacheService
 logger = logging.getLogger(__name__)
 
 # LMSYS Chatbot Arena API endpoints
-LMSYS_LEADERBOARD_URL = "https://lmarena-arena.lmsys.org/api/leaderboard"
-LMSYS_MODEL_INFO_URL = "https://lmarena-arena.lmsys.org/api/model_info"
+# Updated: 2026-04-26 - lmarena-arena.lmsys.org → arena.ai (domain changed)
+LMSYS_LEADERBOARD_URL = "https://arena.ai/api/leaderboard"
+LMSYS_MODEL_INFO_URL = "https://arena.ai/api/model_info"
 
 # Cache TTL: 24 hours (LMSYS updates daily)
 LMSYS_CACHE_TTL = 86400

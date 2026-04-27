@@ -1,1 +1,0 @@
-"""Performance property-based tests."""

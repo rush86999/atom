@@ -276,6 +276,76 @@ async def get_health_history(
         raise router.internal_error(message=f"Failed to get health history: {str(e)}")
 
 
+@router.get("/external-data")
+async def external_data_health():
+    """
+    Check health of external data sources (pricing and benchmarks).
+
+    Returns cache status, data freshness, and model counts.
+    Useful for monitoring and troubleshooting BPC routing.
+
+    No authentication required for monitoring purposes.
+    """
+    from datetime import datetime
+    from core.dynamic_pricing_fetcher import get_pricing_fetcher
+    from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
+
+    try:
+        pricing_fetcher = get_pricing_fetcher()
+        benchmark_fetcher = get_benchmark_fetcher()
+
+        # Calculate pricing cache age
+        pricing_age_hours = None
+        if pricing_fetcher.last_fetch:
+            pricing_age_hours = (datetime.now() - pricing_fetcher.last_fetch).total_seconds() / 3600
+
+        # Calculate benchmark cache age
+        benchmark_age_hours = None
+        if benchmark_fetcher.last_fetch:
+            benchmark_age_hours = (datetime.now() - benchmark_fetcher.last_fetch).total_seconds() / 3600
+
+        # Collect warnings
+        warnings = []
+
+        if pricing_age_hours and pricing_age_hours > 12:
+            warnings.append(f"Pricing data is stale ({pricing_age_hours:.1f}h old)")
+
+        if benchmark_age_hours and benchmark_age_hours > 3:
+            warnings.append(f"Benchmark data is stale ({benchmark_age_hours:.1f}h old)")
+
+        if not pricing_fetcher.pricing_cache:
+            warnings.append("Pricing cache is empty")
+
+        if not benchmark_fetcher.benchmark_cache:
+            warnings.append("Benchmark cache is empty")
+
+        return {
+            "status": "healthy" if not warnings else "degraded",
+            "timestamp": datetime.now().isoformat(),
+            "pricing": {
+                "last_fetch": pricing_fetcher.last_fetch.isoformat() if pricing_fetcher.last_fetch else None,
+                "cache_age_hours": round(pricing_age_hours, 2) if pricing_age_hours else None,
+                "model_count": len(pricing_fetcher.pricing_cache),
+                "cache_valid": pricing_fetcher._is_cache_valid(),
+                "sources": ["litellm", "openrouter"],
+                "cache_duration_hours": 24
+            },
+            "benchmarks": {
+                "last_fetch": benchmark_fetcher.last_fetch.isoformat() if benchmark_fetcher.last_fetch else None,
+                "cache_age_hours": round(benchmark_age_hours, 2) if benchmark_age_hours else None,
+                "model_count": len(benchmark_fetcher.benchmark_cache),
+                "cache_valid": benchmark_fetcher._is_cache_valid(),
+                "sources": ["lmsys", "artificial_analysis", "benchmark_moe"],
+                "cache_duration_hours": 6
+            },
+            "warnings": warnings
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get external data health: {e}")
+        return router.internal_error(message=f"Failed to get external data health: {str(e)}")
+
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""

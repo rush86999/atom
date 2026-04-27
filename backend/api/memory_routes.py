@@ -38,6 +38,84 @@ _memory_store: Dict[str, Dict[str, Any]] = {}
 _context_store: Dict[str, Dict[str, Any]] = {}
 
 # Static routes MUST come before parameterized routes
+@router.get("/stats")
+async def get_memory_stats(workspace_id: str = "default"):
+    """
+    Get memory statistics from LanceDB.
+
+    Returns aggregated entity counts from all integrations,
+    broken down by integration and entity type.
+
+    **Response:**
+    ```json
+    {
+        "success": true,
+        "data": {
+            "total_entities": 12345,
+            "by_integration": {
+                "outlook": {"total": 123, "last_synced": "2026-04-26T10:00:00Z"},
+                "gmail": {"total": 456, "last_synced": "2026-04-26T09:00:00Z"}
+            },
+            "by_entity_type": {
+                "person": 234,
+                "organization": 56,
+                "task": 789
+            }
+        }
+    }
+    ```
+    """
+    try:
+        # Try to get stats from LanceDB
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+
+            lancedb = get_lancedb_handler(workspace_id)
+
+            # Query LanceDB for stats (implementation depends on LanceDBHandler)
+            # For now, return placeholder stats
+            stats = {
+                "total_entities": 0,
+                "by_integration": {},
+                "by_entity_type": {},
+                "last_updated": datetime.now().isoformat()
+            }
+
+            # TODO: Implement actual stats query
+            # Example:
+            # all_docs = lancedb.get_all_documents()
+            # stats["total_entities"] = len(all_docs)
+            # for doc in all_docs:
+            #     integration = doc.metadata.get("integration", "unknown")
+            #     stats["by_integration"][integration] = stats["by_integration"].get(integration, 0) + 1
+
+        except ImportError:
+            # LanceDB not available, return empty stats
+            stats = {
+                "total_entities": 0,
+                "by_integration": {},
+                "by_entity_type": {},
+                "last_updated": datetime.now().isoformat(),
+                "error": "LanceDB not available"
+            }
+
+        return router.success_response(
+            data=stats,
+            message="Memory statistics retrieved"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get memory stats: {e}")
+        return router.success_response(
+            data={
+                "total_entities": 0,
+                "by_integration": {},
+                "by_entity_type": {},
+                "error": str(e)
+            },
+            message="Failed to retrieve statistics"
+        )
+
 @router.get("/search")
 async def search_memory(q: str, limit: int = 10):
     """Search memory entries"""

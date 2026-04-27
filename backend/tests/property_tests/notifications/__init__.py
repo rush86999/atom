@@ -1,1 +1,0 @@
-"""Notification property-based tests."""

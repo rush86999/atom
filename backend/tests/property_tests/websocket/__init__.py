@@ -1,1 +1,0 @@
-"""WebSocket property-based tests."""

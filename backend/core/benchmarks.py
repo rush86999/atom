@@ -2,9 +2,18 @@
 Curated Quality Scores for AI Models
 Normalized 0-100 scale based on MMLU, GSM8K, HumanEval, and LMSYS Chatbot Arena.
 Used for "Benchmark-Price-Capability" (BPC) routing logic.
+
+UPDATED: Now fetches live benchmark data from external APIs (LMSYS, Artificial Analysis, Benchmark.moe)
+Falls back to static scores if all external sources fail.
 """
 
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
 # Quality scores (0-100) - Updated Jan 2026
+# STATIC FALLBACK - Used only when all external sources fail
 MODEL_QUALITY_SCORES = {
     # absolute frontier (early 2026)
     "gemini-3-pro": 100,
@@ -50,18 +59,36 @@ MODEL_QUALITY_SCORES = {
 def get_quality_score(model_id: str) -> int:
     """
     Get the normalized quality score for a model.
-    Falls back to heuristics if exact model_id is not in the map.
+
+    PRIORITY:
+    1. Dynamic benchmark fetcher (LMSYS, Artificial Analysis, Benchmark.moe)
+    2. Static fallback scores
+    3. Heuristics for unknown models
     """
+    # Try dynamic benchmark fetcher first
+    try:
+        from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
+        fetcher = get_benchmark_fetcher()
+        dynamic_score = fetcher.get_benchmark_score(model_id)
+        if dynamic_score is not None:
+            logger.debug(f"Using dynamic benchmark score for {model_id}: {dynamic_score}")
+            return int(dynamic_score)
+    except ImportError:
+        logger.debug("Dynamic benchmark fetcher not available, using static scores")
+    except Exception as e:
+        logger.debug(f"Failed to get dynamic benchmark: {e}, using static scores")
+
+    # Fallback to static scores
     # Exact match
     if model_id in MODEL_QUALITY_SCORES:
         return MODEL_QUALITY_SCORES[model_id]
-    
+
     # Partial match
     model_lower = model_id.lower()
     for key, score in MODEL_QUALITY_SCORES.items():
         if key.lower() in model_lower:
             return score
-            
+
     # Heuristics for unknown models
     if "reasoner" in model_lower or "thinking" in model_lower or "-o1" in model_lower:
         return 95
@@ -71,7 +98,7 @@ def get_quality_score(model_id: str) -> int:
         return 88
     if "8b" in model_lower or "7b" in model_lower:
         return 75
-        
+
     return 70  # Default floor for unspecified models
 
 
@@ -100,7 +127,11 @@ MODEL_CAPABILITY_SCORES = {
 def get_capability_score(model_id: str, capability: str) -> int:
     """
     Get the capability-specific quality score for a model.
-    Falls back to general quality score if capability-specific score missing.
+
+    PRIORITY:
+    1. Dynamic benchmark fetcher (capability-aware)
+    2. Static capability scores
+    3. General quality score fallback
 
     Args:
         model_id: Model identifier
@@ -109,7 +140,20 @@ def get_capability_score(model_id: str, capability: str) -> int:
     Returns:
         Capability-specific quality score (0-100)
     """
-    # Check capability-specific scores first
+    # Try dynamic benchmark fetcher first (capability-aware)
+    try:
+        from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
+        fetcher = get_benchmark_fetcher()
+        dynamic_score = fetcher.get_capability_score(model_id, capability)
+        if dynamic_score is not None:
+            logger.debug(f"Using dynamic capability score for {model_id}/{capability}: {dynamic_score}")
+            return int(dynamic_score)
+    except ImportError:
+        logger.debug("Dynamic benchmark fetcher not available, using static scores")
+    except Exception as e:
+        logger.debug(f"Failed to get dynamic capability score: {e}, using static scores")
+
+    # Check static capability-specific scores
     if capability in MODEL_CAPABILITY_SCORES:
         capability_scores = MODEL_CAPABILITY_SCORES[capability]
 

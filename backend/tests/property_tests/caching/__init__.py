@@ -1,2 +1,0 @@
-"""Caching property-based tests."""
-

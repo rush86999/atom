@@ -5,8 +5,6 @@ Defines common interface for all integration services
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-import logging
-
 from enum import Enum
 import logging
 

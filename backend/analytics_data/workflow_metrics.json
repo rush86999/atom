@@ -97,5 +97,14 @@
     "total_time_saved_seconds": 60.0,
     "total_business_value": 10.0,
     "last_executed": "2026-04-24T17:19:50.495469"
+  },
+  "workflow-001": {
+    "execution_count": 84,
+    "success_count": 0,
+    "failure_count": 84,
+    "total_duration_seconds": 0.12198400000000004,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-04-26T00:39:09.704304"
   }
 }

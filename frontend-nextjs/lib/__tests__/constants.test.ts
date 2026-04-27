@@ -20,7 +20,7 @@ import {
   HASURA_ADMIN_SECRET,
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
-} from '../constants';
+} from '../src/constants';
 
 describe('Constants', () => {
   describe('Google OAuth Constants', () => {

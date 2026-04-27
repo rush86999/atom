@@ -1,0 +1,211 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0
+benchmark: 5.2.3 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/rushiparikh/projects/atom/backend
+configfile: pytest.ini
+plugins: Faker-40.8.0, benchmark-5.2.3, playwright-0.7.2, anyio-4.12.0, xdist-3.8.0, schemathesis-4.11.0, hypothesis-6.151.9, asyncio-1.3.0, base-url-2.1.0, langsmith-0.7.17, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+
+----------------------------- live log collection ------------------------------
+2026-04-26 10:48:23 [    INFO] Async database support enabled
+collected 69 items
+
+tests/test_formula_extractor.py::TestFormulaExtractorInit::test_initialization_with_default_workspace 
+-------------------------------- live log setup --------------------------------
+2026-04-26 10:48:23 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_formula_extractor.py::TestFormulaExtractorInit::test_initialization_with_custom_workspace PASSED [  2%]
+tests/test_formula_extractor.py::TestFormulaExtractorInit::test_supported_extensions PASSED [  4%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_sum_formula PASSED [  5%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_average_formula PASSED [  7%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_if_formula PASSED [  8%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_vlookup_formula PASSED [ 10%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_arithmetic_formula PASSED [ 11%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_detect_custom_formula PASSED [ 13%]
+tests/test_formula_extractor.py::TestFormulaDetection::test_case_insensitive_formula_detection PASSED [ 14%]
+tests/test_formula_extractor.py::TestCellReferenceExtraction::test_extract_single_cell_reference PASSED [ 15%]
+tests/test_formula_extractor.py::TestCellReferenceExtraction::test_extract_multiple_cell_references PASSED [ 17%]
+tests/test_formula_extractor.py::TestCellReferenceExtraction::test_extract_range_references FAILED [ 18%]
+tests/test_formula_extractor.py::TestCellReferenceExtraction::test_extract_absolute_references PASSED [ 20%]
+tests/test_formula_extractor.py::TestCellReferenceExtraction::test_column_letter_to_number PASSED [ 21%]
+tests/test_formula_extractor.py::TestSemanticExpression::test_create_semantic_sum_expression PASSED [ 23%]
+tests/test_formula_extractor.py::TestSemanticExpression::test_create_semantic_average_expression PASSED [ 24%]
+tests/test_formula_extractor.py::TestSemanticExpression::test_create_semantic_arithmetic_expression PASSED [ 26%]
+tests/test_formula_extractor.py::TestDomainDetection::test_detect_finance_domain PASSED [ 27%]
+tests/test_formula_extractor.py::TestDomainDetection::test_detect_sales_domain PASSED [ 28%]
+tests/test_formula_extractor.py::TestDomainDetection::test_detect_hr_domain PASSED [ 30%]
+tests/test_formula_extractor.py::TestDomainDetection::test_detect_general_domain PASSED [ 31%]
+tests/test_formula_extractor.py::TestUseCaseGeneration::test_generate_sum_use_case PASSED [ 33%]
+tests/test_formula_extractor.py::TestUseCaseGeneration::test_generate_average_use_case PASSED [ 34%]
+tests/test_formula_extractor.py::TestExcelExtraction::test_extract_from_excel_file_not_found 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:23 [   ERROR] Failed to extract formulas from /nonexistent/file.xlsx: [Errno 2] No such file or directory: '/nonexistent/file.xlsx'
+PASSED                                                                   [ 36%]
+tests/test_formula_extractor.py::TestExcelExtraction::test_extract_from_excel_success FAILED [ 37%]
+tests/test_formula_extractor.py::TestCSVExtraction::test_extract_from_csv_with_formulas 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracted 1 formulas from CSV /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-76/test_extract_from_csv_with_for0/test.csv
+PASSED                                                                   [ 39%]
+tests/test_formula_extractor.py::TestCSVExtraction::test_extract_from_csv_no_formulas 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracted 0 formulas from CSV /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-76/test_extract_from_csv_no_formu0/test.csv
+PASSED                                                                   [ 40%]
+tests/test_formula_extractor.py::TestCSVExtraction::test_detect_implicit_formulas PASSED [ 42%]
+tests/test_formula_extractor.py::TestOdsExtraction::test_extract_from_ods_without_odfpy FAILED [ 43%]
+tests/test_formula_extractor.py::TestFileFormatRouting::test_extract_from_file_routes_to_xlsx 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracting formulas from test.xlsx (type: .xlsx)
+PASSED                                                                   [ 44%]
+tests/test_formula_extractor.py::TestFileFormatRouting::test_extract_from_file_routes_to_csv 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracting formulas from test.csv (type: .csv)
+PASSED                                                                   [ 46%]
+tests/test_formula_extractor.py::TestFileFormatRouting::test_extract_from_file_routes_to_ods 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracting formulas from test.ods (type: .ods)
+PASSED                                                                   [ 47%]
+tests/test_formula_extractor.py::TestFileFormatRouting::test_extract_from_file_unsupported_format 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Extracting formulas from test.txt (type: .txt)
+2026-04-26 10:48:24 [ WARNING] Unsupported file type for formula extraction: .txt
+PASSED                                                                   [ 49%]
+tests/test_formula_extractor.py::TestFormulaStorage::test_store_formulas_success 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] Stored 1/1 formulas from test.xlsx
+PASSED                                                                   [ 50%]
+tests/test_formula_extractor.py::TestFactory::test_get_formula_extractor_default PASSED [ 52%]
+tests/test_formula_extractor.py::TestFactory::test_get_formula_extractor_custom_workspace PASSED [ 53%]
+tests/test_formula_extractor.py::TestFactory::test_get_formula_extractor_returns_new_instance PASSED [ 55%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementMode::test_enforcement_mode_constants PASSED [ 56%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementMode::test_enforcement_mode_all PASSED [ 57%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementExceptions::test_budget_error_is_exception PASSED [ 59%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementExceptions::test_insufficient_budget_error_inherits_budget_error PASSED [ 60%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementExceptions::test_budget_not_found_error_inherits_budget_error PASSED [ 62%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcementExceptions::test_concurrent_modification_error_inherits_budget_error PASSED [ 63%]
+tests/test_budget_enforcement_service.py::TestBudgetInitialization::test_initialization_with_db_session PASSED [ 65%]
+tests/test_budget_enforcement_service.py::TestBudgetInitialization::test_initialization_without_db_session PASSED [ 66%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_action_allowed PASSED [ 68%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_alert_only_mode PASSED [ 69%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_soft_stop_mode_no_active PASSED [ 71%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_soft_stop_mode_with_active PASSED [ 72%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_hard_stop_mode PASSED [ 73%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_approval_mode_with_override PASSED [ 75%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_exceeded_approval_mode_no_override PASSED [ 76%]
+tests/test_budget_enforcement_service.py::TestBudgetChecking::test_check_budget_fail_open_on_error 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-001: Service unavailable
+PASSED                                                                   [ 78%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcement::test_enforce_budget_hard_stop 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] [BudgetEnforcementService] Hard-stop enforced for tenant tenant-001: 3 episodes cancelled
+PASSED                                                                   [ 79%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcement::test_enforce_budget_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] [BudgetEnforcementService] Soft-stop enforced for tenant tenant-001
+PASSED                                                                   [ 81%]
+tests/test_budget_enforcement_service.py::TestBudgetEnforcement::test_enforce_budget_approval_mode 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] [BudgetEnforcementService] Approval mode enforced for tenant tenant-001
+PASSED                                                                   [ 82%]
+tests/test_budget_enforcement_service.py::TestEnforcementModeRetrieval::test_get_enforcement_mode_from_settings PASSED [ 84%]
+tests/test_budget_enforcement_service.py::TestEnforcementModeRetrieval::test_get_enforcement_mode_default_to_alert_only PASSED [ 85%]
+tests/test_budget_enforcement_service.py::TestEnforcementModeRetrieval::test_get_enforcement_mode_invalid_defaults_to_alert_only 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'invalid_mode' for tenant tenant-001, defaulting to alert_only
+PASSED                                                                   [ 86%]
+tests/test_budget_enforcement_service.py::TestBudgetOverride::test_get_budget_override_from_settings PASSED [ 88%]
+tests/test_budget_enforcement_service.py::TestBudgetOverride::test_is_override_valid_with_future_expiry PASSED [ 89%]
+tests/test_budget_enforcement_service.py::TestBudgetOverride::test_is_override_valid_with_past_expiry PASSED [ 91%]
+tests/test_budget_enforcement_service.py::TestBudgetOverride::test_is_override_valid_with_missing_expiry PASSED [ 92%]
+tests/test_budget_enforcement_service.py::TestActiveEpisodeManagement::test_has_active_episodes_true 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [   ERROR] [BudgetEnforcementService] Error checking active episodes: '>' not supported between instances of 'Mock' and 'int'
+FAILED                                                                   [ 94%]
+tests/test_budget_enforcement_service.py::TestActiveEpisodeManagement::test_has_active_episodes_false 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [   ERROR] [BudgetEnforcementService] Error checking active episodes: '>' not supported between instances of 'Mock' and 'int'
+PASSED                                                                   [ 95%]
+tests/test_budget_enforcement_service.py::TestActiveEpisodeManagement::test_cancel_active_episodes_success 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [   ERROR] [BudgetEnforcementService] Error cancelling episodes: 'Mock' object is not iterable
+FAILED                                                                   [ 97%]
+tests/test_budget_enforcement_service.py::TestBudgetClearing::test_clear_enforcement_state_removes_override 
+-------------------------------- live log call ---------------------------------
+2026-04-26 10:48:24 [    INFO] [BudgetEnforcementService] Cleared enforcement override for tenant tenant-001 (billing cycle reset)
+PASSED                                                                   [ 98%]
+tests/test_budget_enforcement_service.py::TestBudgetClearing::test_clear_enforcement_state_no_setting PASSED [100%]
+
+=================================== FAILURES ===================================
+__________ TestCellReferenceExtraction.test_extract_range_references ___________
+tests/test_formula_extractor.py:151: in test_extract_range_references
+    assert len(refs) == 2
+E   AssertionError: assert 1 == 2
+E    +  where 1 = len([('A', 1)])
+_____________ TestExcelExtraction.test_extract_from_excel_success ______________
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1429: in patched
+    with self.decoration_helper(patched,
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1411: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py:530: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1473: in get_original
+    raise AttributeError(
+E   AttributeError: <module 'core.formula_extractor' from '/Users/rushiparikh/projects/atom/backend/core/formula_extractor.py'> does not have the attribute 'openpyxl'
+____________ TestOdsExtraction.test_extract_from_ods_without_odfpy _____________
+tests/test_formula_extractor.py:437: in test_extract_from_ods_without_odfpy
+    with patch('core.formula_extractor.odf', side_effect=ImportError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.14/3.14.0_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:1473: in get_original
+    raise AttributeError(
+E   AttributeError: <module 'core.formula_extractor' from '/Users/rushiparikh/projects/atom/backend/core/formula_extractor.py'> does not have the attribute 'odf'
+__________ TestActiveEpisodeManagement.test_has_active_episodes_true ___________
+tests/test_budget_enforcement_service.py:550: in test_has_active_episodes_true
+    assert has_active is True
+E   assert False is True
+------------------------------ Captured log call -------------------------------
+ERROR    core.budget_enforcement_service:budget_enforcement_service.py:519 [BudgetEnforcementService] Error checking active episodes: '>' not supported between instances of 'Mock' and 'int'
+_______ TestActiveEpisodeManagement.test_cancel_active_episodes_success ________
+tests/test_budget_enforcement_service.py:580: in test_cancel_active_episodes_success
+    assert cancelled_count == 2
+E   assert 0 == 2
+------------------------------ Captured log call -------------------------------
+ERROR    core.budget_enforcement_service:budget_enforcement_service.py:549 [BudgetEnforcementService] Error cancelling episodes: 'Mock' object is not iterable
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.147 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+  tests/test_budget_enforcement_service.py: 0.087 (target: 0.15)
+  tests/test_learning_service_full.py: 0.062 (target: 0.15)
+  tests/test_supervision_learning_integration.py: 0.042 (target: 0.15)
+=============================== Coverage: 36.7% ================================
+=========================== short test summary info ============================
+FAILED tests/test_formula_extractor.py::TestCellReferenceExtraction::test_extract_range_references
+FAILED tests/test_formula_extractor.py::TestExcelExtraction::test_extract_from_excel_success
+FAILED tests/test_formula_extractor.py::TestOdsExtraction::test_extract_from_ods_without_odfpy
+FAILED tests/test_budget_enforcement_service.py::TestActiveEpisodeManagement::test_has_active_episodes_true
+FAILED tests/test_budget_enforcement_service.py::TestActiveEpisodeManagement::test_cancel_active_episodes_success
+=============================== warnings summary ===============================
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:117
+  <unknown>:117: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+<unknown>:129
+  <unknown>:129: SyntaxWarning: "\[" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\["? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 5 failed, 64 passed, 4 warnings in 11.78s ===================

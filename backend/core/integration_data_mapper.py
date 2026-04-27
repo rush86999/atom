@@ -95,7 +95,16 @@ class DataTransformer:
         mapping: FieldMapping,
         source_data: Dict[str, Any]
     ) -> Any:
-        """Transform a single field based on mapping configuration"""
+        """Transform a single field based on mapping configuration.
+
+        Args:
+            value: Value to transform
+            mapping: Field mapping configuration
+            source_data: Complete source record for conditional transformations
+
+        Returns:
+            Transformed value
+        """
         try:
             if value is None:
                 if mapping.default_value is not None:

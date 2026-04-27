@@ -107,15 +107,19 @@ class IntegrationRegistry:
     - Graceful degradation for unknown connectors
     """
 
-    def __init__(self, use_cache: bool = True):
+    def __init__(self, use_cache: bool = True, load_timeout: int = None):
         """
         Initialize IntegrationRegistry.
 
         Args:
             use_cache: Enable in-memory class caching (default True)
+            load_timeout: Timeout in seconds for loading service classes (default from env)
         """
         self.use_cache = use_cache
         self._service_cache: Dict[str, Type] = {}
+        # Use environment variable or provided timeout, default to 5 seconds
+        import os
+        self.load_timeout = load_timeout if load_timeout is not None else int(os.getenv("INTEGRATION_LOAD_TIMEOUT", "5"))
 
     def get_service_class(
         self,
@@ -147,7 +151,7 @@ class IntegrationRegistry:
         # Load service class dynamically with timeout
         service_class = self._load_service_class_with_timeout(
             service_class_path,
-            timeout=5
+            timeout=self.load_timeout
         )
 
         if service_class:

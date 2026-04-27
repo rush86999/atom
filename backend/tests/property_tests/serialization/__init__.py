@@ -1,1 +1,0 @@
-"""Serialization property-based tests."""
