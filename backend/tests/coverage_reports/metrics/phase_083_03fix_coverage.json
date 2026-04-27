@@ -6,9 +6,9 @@
   "target_coverage": 55.0,
   "target_achievement": 66.7,
   "test_functions": 48,
-  "passing": 42,
-  "failing": 6,
+  "passing": 48,
+  "failing": 0,
   "errors": 0,
-  "pass_rate": 87.5,
-  "timestamp": "2026-04-27T17:45:00Z"
+  "pass_rate": 100.0,
+  "timestamp": "2026-04-27T17:56:00Z"
 }

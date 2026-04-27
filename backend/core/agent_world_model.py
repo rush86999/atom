@@ -827,7 +827,7 @@ class WorldModelService:
                 ChatMessage.conversation_id == conversation_id,
                 ChatMessage.tenant_id == self.db.workspace_id,
                 ChatMessage.metadata_json.is_not(None),
-                ChatMessage.metadata_json.has_key('_archived')
+                ChatMessage.metadata_json.op('?')('_archived')
             ).all()
 
             if not messages:
@@ -884,7 +884,7 @@ class WorldModelService:
             messages_to_delete = db.query(ChatMessage).filter(
                 ChatMessage.tenant_id == self.db.workspace_id,
                 ChatMessage.metadata_json.is_not(None),
-                ChatMessage.metadata_json.has_key('_archived'),
+                ChatMessage.metadata_json.op('?')('_archived'),
                 ChatMessage.metadata_json['_archived'].astext == 'true'
             ).all()
 
