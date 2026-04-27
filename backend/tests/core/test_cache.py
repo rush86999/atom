@@ -805,3 +805,295 @@ class TestLocalCacheBehavior:
         hit_ratio = local_cache.hits / total_ops if total_ops > 0 else 0
 
         assert hit_ratio == 0.5  # 1 hit out of 2 operations
+
+    def test_local_cache_delete_removes_from_both_dicts(self):
+        """Delete should remove from both cache and expire_times."""
+        local_cache = SyncLocalCache()
+        local_cache.set("delete_test", "value")
+        assert "delete_test" in local_cache._cache
+        assert "delete_test" in local_cache._expire_times
+
+        local_cache.delete("delete_test")
+        assert "delete_test" not in local_cache._cache
+        assert "delete_test" not in local_cache._expire_times
+
+    def test_local_cache_custom_ttl(self):
+        """Custom TTL should override default TTL."""
+        local_cache = SyncLocalCache(default_ttl=60)
+        local_cache.set("custom_ttl_key", "value", ttl=1)
+
+        assert local_cache.get("custom_ttl_key") == "value"
+        time.sleep(1.5)
+        assert local_cache.get("custom_ttl_key") is None
+
+    def test_local_cache_overwrite_in_same_slot(self):
+        """Setting same key again should update value and TTL."""
+        local_cache = SyncLocalCache(default_ttl=10)
+        local_cache.set("overwrite_key", "value1", ttl=1)
+        time.sleep(0.5)
+        result1 = local_cache.get("overwrite_key")
+        assert result1 == "value1"
+
+        # Overwrite with longer TTL
+        local_cache.set("overwrite_key", "value2", ttl=10)
+        time.sleep(0.6)
+        # Old value should be gone
+        result2 = local_cache.get("overwrite_key")
+        # New value should still be present
+        assert result2 == "value2"
+
+    def test_local_cache_miss_increments_counter(self):
+        """Cache miss should increment misses counter."""
+        local_cache = SyncLocalCache()
+        initial_misses = local_cache.misses
+        local_cache.get("nonexistent_key")
+        assert local_cache.misses == initial_misses + 1
+
+
+class TestDeleteOperations:
+    """Test delete operations for different scenarios."""
+
+    def test_delete_from_all_cache_layers(self, cache):
+        """Delete should remove from sync_local_cache and try other layers."""
+        # Set value
+        cache.set("multi_layer_key", "value", ttl=300)
+        assert cache.get("multi_layer_key") == "value"
+
+        # Verify it's in local cache
+        namespaced = cache._namespace_key("multi_layer_key", None)
+        assert namespaced in cache.sync_local_cache._cache
+
+        # Delete
+        cache.delete("multi_layer_key")
+
+        # Verify it's gone from local cache
+        assert namespaced not in cache.sync_local_cache._cache
+        assert cache.get("multi_layer_key") is None
+
+    def test_delete_with_tenant_id(self, cache):
+        """Delete with tenant_id should only affect that tenant."""
+        cache.set("shared_key", "value1", ttl=300, tenant_id="tenant1")
+        cache.set("shared_key", "value2", ttl=300, tenant_id="tenant2")
+
+        cache.delete("shared_key", tenant_id="tenant1")
+
+        assert cache.get("shared_key", tenant_id="tenant1") is None
+        assert cache.get("shared_key", tenant_id="tenant2") == "value2"
+
+    @pytest.mark.asyncio
+    async def test_async_delete(self, cache):
+        """Async delete should work correctly."""
+        await cache.set_async("async_del_key", "value", ttl=300)
+        assert await cache.get_async("async_del_key") == "value"
+
+        await cache.delete_async("async_del_key")
+        assert await cache.get_async("async_del_key") is None
+
+
+class TestCacheDisabledBehavior:
+    """Test cache behavior when disabled."""
+
+    def test_get_returns_none_when_disabled(self, cache):
+        """Get should return None when cache is disabled."""
+        cache.enabled = False
+        result = cache.get("any_key")
+        assert result is None
+
+    def test_set_returns_false_when_disabled(self, cache):
+        """Set should return False when cache is disabled."""
+        cache.enabled = False
+        result = cache.set("any_key", "any_value", ttl=300)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_async_get_returns_none_when_disabled(self, cache):
+        """Async get should return None when cache is disabled."""
+        cache.enabled = False
+        result = await cache.get_async("any_key")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_async_set_returns_false_when_disabled(self, cache):
+        """Async set should return False when cache is disabled."""
+        cache.enabled = False
+        result = await cache.set_async("any_key", "any_value", ttl=300)
+        assert result is False
+
+
+class TestDeleteTenantAll:
+    """Test bulk tenant deletion operations."""
+
+    @pytest.mark.asyncio
+    async def test_delete_tenant_all_clears_local_caches(self, cache):
+        """Delete tenant all should clear local caches."""
+        # Set some values
+        cache.set("key1", "value1", ttl=300, tenant_id="tenant123")
+        cache.set("key2", "value2", ttl=300, tenant_id="tenant123")
+
+        # Verify they exist in local cache
+        assert cache.sync_local_cache._cache
+        initial_size = len(cache.sync_local_cache._cache)
+
+        # Delete all for tenant
+        await cache.delete_tenant_all("tenant123")
+
+        # Local caches should be cleared
+        assert len(cache.sync_local_cache._cache) < initial_size
+
+    @pytest.mark.asyncio
+    async def test_delete_tenant_all_with_pattern(self, cache):
+        """Delete tenant all should work with pattern."""
+        # Set values for tenant
+        for i in range(5):
+            cache.set(f"key_{i}", f"value_{i}", ttl=300, tenant_id="tenant_pattern")
+
+        # Delete with tenant ID
+        await cache.delete_tenant_all("tenant_pattern")
+
+        # Verify deleted
+        result = cache.get("key_0", tenant_id="tenant_pattern")
+        assert result is None
+
+
+class TestSpecialDataTypes:
+    """Test cache behavior with special data types."""
+
+    def test_cache_with_none_value(self, cache):
+        """Cache should handle None values gracefully."""
+        cache.set("none_key", None, ttl=300)
+        result = cache.get("none_key")
+        # None becomes string "None" after encoding
+        assert result is None or result == "None"
+
+    def test_cache_with_numeric_values(self, cache):
+        """Cache should handle numeric values correctly."""
+        cache.set("int_key", 42, ttl=300)
+        result = cache.get("int_key")
+        assert result == 42 or result == "42"
+
+        cache.set("float_key", 3.14, ttl=300)
+        result = cache.get("float_key")
+        assert result == 3.14 or result == "3.14"
+
+    def test_cache_with_boolean_values(self, cache):
+        """Cache should handle boolean values correctly."""
+        cache.set("bool_key", True, ttl=300)
+        result = cache.get("bool_key")
+        assert result is True or result == "True"
+
+    def test_cache_with_empty_structures(self, cache):
+        """Cache should handle empty dicts and lists."""
+        cache.set("empty_dict", {}, ttl=300)
+        result = cache.get("empty_dict")
+        assert result == {}
+
+        cache.set("empty_list", [], ttl=300)
+        result = cache.get("empty_list")
+        assert result == []
+
+    def test_cache_with_nested_structures(self, cache):
+        """Cache should handle deeply nested structures."""
+        nested = {
+            "level1": {
+                "level2": {
+                    "level3": {
+                        "data": [1, 2, 3]
+                    }
+                }
+            }
+        }
+        cache.set("nested_key", nested, ttl=300)
+        result = cache.get("nested_key")
+        assert result == nested
+
+
+class TestCacheEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_cache_with_zero_ttl(self, cache):
+        """Cache should handle zero TTL (expires immediately)."""
+        cache.set("zero_ttl_key", "value", ttl=0)
+        # May or may not be retrievable depending on implementation
+        result = cache.get("zero_ttl_key")
+        # Just verify it doesn't crash
+
+    def test_cache_with_very_long_ttl(self, cache):
+        """Cache should handle very long TTL values."""
+        cache.set("long_ttl_key", "value", ttl=86400)  # 24 hours
+        result = cache.get("long_ttl_key")
+        assert result == "value"
+
+    def test_cache_with_special_characters_in_key(self, cache):
+        """Cache should handle special characters in keys."""
+        special_keys = [
+            "key:with:colons",
+            "key/with/slashes",
+            "key-with-dashes",
+            "key_with_underscores",
+            "key.with.dots"
+        ]
+        for key in special_keys:
+            cache.set(key, f"value_for_{key}", ttl=300)
+            result = cache.get(key)
+            assert result is not None
+
+    def test_cache_with_unicode_values(self, cache):
+        """Cache should handle Unicode characters in values."""
+        unicode_values = [
+            "Hello 世界",
+            "Привет мир",
+            "مرحبا بالعالم",
+            "🎉🚀✨"
+        ]
+        for i, value in enumerate(unicode_values):
+            cache.set(f"unicode_{i}", value, ttl=300)
+            result = cache.get(f"unicode_{i}")
+            assert result == value
+
+    def test_cache_with_very_large_value(self, cache):
+        """Cache should handle large values."""
+        large_value = "x" * 10000  # 10KB string
+        cache.set("large_key", large_value, ttl=300)
+        result = cache.get("large_key")
+        assert result == large_value
+
+    def test_cache_overwrite_with_different_type(self, cache):
+        """Cache should handle overwriting with different data types."""
+        cache.set("type_change_key", "string_value", ttl=300)
+        assert cache.get("type_change_key") == "string_value"
+
+        cache.set("type_change_key", 123, ttl=300)
+        result = cache.get("type_change_key")
+        assert result == 123 or result == "123"
+
+        cache.set("type_change_key", {"new": "dict"}, ttl=300)
+        result = cache.get("type_change_key")
+        assert result == {"new": "dict"}
+
+
+class TestAsyncIncrEdgeCases:
+    """Test async increment operations edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_incr_without_ttl_uses_default(self, cache):
+        """Incr without explicit TTL should use default."""
+        val = await cache.incr_async("counter_no_ttl")
+        assert val == 1
+
+    @pytest.mark.asyncio
+    async def test_increments_are_separate_per_tenant(self, cache):
+        """Different tenants should have separate counters."""
+        val1 = await cache.incr_async("shared_counter", ttl=60, tenant_id="tenant1")
+        val2 = await cache.incr_async("shared_counter", ttl=60, tenant_id="tenant2")
+        val3 = await cache.incr_async("shared_counter", ttl=60, tenant_id="tenant1")
+
+        assert val1 == 1
+        assert val2 == 1  # Separate counter for tenant2
+        assert val3 == 2  # Incremented for tenant1
+
+    @pytest.mark.asyncio
+    async def test_incre_disabled_cache_returns_1(self, cache):
+        """Incr when cache disabled should return 1."""
+        cache.enabled = False
+        val = await cache.incr_async("disabled_counter", ttl=60)
+        assert val == 1
