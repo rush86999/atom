@@ -237,12 +237,12 @@ class TestQueryModels:
         mock_query_result = Mock()
         mock_query_result.all.return_value = []
         mock_db.query.return_value.filter.return_value = mock_query_result
-        
+
         # Service initialized with cache disabled
         assert registry_service.use_cache is False
-        
-        models = registry_service.get_models_by_capability('tenant-123', 'vision', ignore_cache=True)
-        
+
+        models = registry_service.get_models_by_capability('tenant-123', 'vision', use_cache=False)
+
         assert models is not None
 
 
