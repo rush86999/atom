@@ -234,6 +234,65 @@
       "notes": "Coverage measurement discrepancy: Phase 293 baseline (36.72%) vs Phase 294 final (17.97%). Possible causes: E2E test errors, measurement configuration differences, or test execution changes.",
       "frontend_coverage_change": 0.41000000000000014,
       "frontend_gap_remaining": 31.82
+    },
+    "296-01": {
+      "timestamp": "2026-04-27T20:00:00.000000Z",
+      "commit": "6d066ff5c",
+      "commit_message": "test(296-01): fix byok_handler tests - unskip 40 tests, fix fixture",
+      "description": "LLM & Fleet Services Testing - Created test infrastructure for 4 high-impact backend files (4,955 lines)",
+      "files_added": [
+        "test_byok_handler",
+        "test_llm_registry_service",
+        "test_fleet_coordinator_service"
+      ],
+      "tests_added": 79,
+      "tests_passing": 23,
+      "pass_rate": 29.1,
+      "note": "Unskipped 40 byok_handler tests (14 passing), added 19 llm_registry tests (9 passing), added 20 fleet_coordinator tests (0 passing initially)"
+    },
+    "296-02": {
+      "timestamp": "2026-04-27T21:00:00.000000Z",
+      "commit": "f890504d8",
+      "commit_message": "test(296-02): add tests for scaling proposal service",
+      "description": "Scaling Service Tests - Added 17 tests for scaling_proposal_service (4 passing)",
+      "files_added": [
+        "test_scaling_proposal_service"
+      ],
+      "tests_added": 17,
+      "tests_passing": 4,
+      "pass_rate": 23.5,
+      "note": "Tests cover scaling proposals, cost estimation, budget validation"
+    },
+    "296-03": {
+      "timestamp": "2026-04-27T22:00:00.000000Z",
+      "commit": "7f8298f89",
+      "commit_message": "test(296-03): fix llm_registry test - correct get_models_by_capability parameter",
+      "description": "Fix Failing Tests - Improved pass rate to 33% by fixing 3 critical API misalignments",
+      "tests_fixed": 5,
+      "pass_rate": 33.3,
+      "note": "Fixed proposal_type parameter, removed chain_id parameter, corrected use_cache parameter"
+    },
+    "296-04": {
+      "timestamp": "2026-04-28T06:00:00.000000Z",
+      "commit": "bc8d0bfcb",
+      "commit_message": "test(296-04): fix failing tests - achieve 60%+ pass rate",
+      "description": "Fix Failing Tests - 60% Target Achieved",
+      "files_modified": [
+        "test_byok_handler",
+        "test_fleet_coordinator_service"
+      ],
+      "tests_fixed": 26,
+      "tests_passing": 58,
+      "total_tests": 96,
+      "pass_rate": 60.4,
+      "backend_coverage": 36.7,
+      "per_file_results": {
+        "test_byok_handler": "20/40 (50.0%)",
+        "test_llm_registry_service": "10/19 (52.6%)",
+        "test_fleet_coordinator_service": "20/20 (100%)",
+        "test_scaling_proposal_service": "8/17 (47.1%)"
+      },
+      "note": "Achieved 60%+ pass rate target (58/96 tests). Fixed attribute patches (health_monitor, async_clients), corrected provider references (anthropic → lux), removed invalid parameters from fleet_coordinator. Coverage measured at 36.7% overall backend."
     }
   },
   "metadata": {
