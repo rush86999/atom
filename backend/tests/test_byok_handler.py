@@ -76,17 +76,34 @@ def mock_pricing_data():
 @pytest.fixture
 def byok_handler(mock_config):
     """Create BYOKHandler instance for testing."""
-    with patch('core.llm.byok_handler.load_config') as mock_load:
-        mock_load.return_value = mock_config
-        handler = BYOKHandler()
-        return handler
+    # Mock all the dependencies that BYOKHandler requires
+    with patch('core.llm.byok_handler.get_byok_manager') as mock_get_byok:
+        mock_manager = Mock()
+        mock_manager.get_credentials = Mock(return_value={})
+        mock_get_byok.return_value = mock_manager
+
+        with patch('core.llm.byok_handler.CacheAwareRouter'):
+            with patch('core.llm.byok_handler.CognitiveTierService'):
+                # Patch the locally imported get_provider_health_monitor
+                with patch('core.provider_health_monitor.get_provider_health_monitor') as mock_health:
+                    monitor = Mock()
+                    monitor.is_healthy = Mock(return_value=True)
+                    mock_health.return_value = monitor
+
+                    # Initialize BYOKHandler with proper parameters
+                    handler = BYOKHandler(
+                        workspace_id="test-workspace",
+                        tenant_id="test-tenant",
+                        provider_id="auto"
+                    )
+                    return handler
 
 
 # ============================================================================
 # TEST CLASS: TestProviderSelection
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestProviderSelection:
     """Test provider by config, fallback logic, provider health checks."""
 
@@ -158,7 +175,7 @@ class TestProviderSelection:
 # TEST CLASS: TestQueryComplexity
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestQueryComplexityAnalysis:
     """Test query complexity analysis and classification."""
 
@@ -184,7 +201,7 @@ class TestQueryComplexityAnalysis:
 # TEST CLASS: TestContextWindow
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestContextWindow:
     """Test context window management."""
 
@@ -219,7 +236,7 @@ class TestContextWindow:
 # TEST CLASS: TestResponseGeneration
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestResponseGeneration:
     """Test response generation methods."""
 
@@ -280,7 +297,7 @@ class TestResponseGeneration:
 # TEST CLASS: TestStreamingResponses
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestStreamingResponses:
     """Test token streaming, chunk parsing, early termination."""
 
@@ -311,7 +328,7 @@ class TestStreamingResponses:
 # TEST CLASS: TestErrorHandling
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestErrorHandling:
     """Test rate limits, invalid keys, timeout errors, provider down."""
 
@@ -376,7 +393,7 @@ class TestErrorHandling:
 # TEST CLASS: TestCostTracking
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestCostTracking:
     """Test token counting, cost calculation, quota enforcement."""
 
@@ -414,7 +431,7 @@ class TestCostTracking:
 # TEST CLASS: TestEmbeddings
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestEmbeddings:
     """Test embedding generation."""
 
@@ -462,7 +479,7 @@ class TestEmbeddings:
 # TEST CLASS: TestCognitiveTier
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestCognitiveTier:
     """Test cognitive tier classification."""
 
@@ -488,7 +505,7 @@ class TestCognitiveTier:
 # TEST CLASS: TestProviderInfo
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestProviderInfo:
     """Test provider information and availability."""
 
@@ -511,38 +528,72 @@ class TestProviderInfo:
 # TEST CLASS: TestInitialization
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestInitialization:
     """Test BYOKHandler initialization."""
 
     def test_byok_handler_initialization_default(self):
-        """Test BYOKHandler initialization with default config."""
-        with patch('core.llm.byok_handler.load_config') as mock_load:
-            mock_load.return_value = {"providers": {}, "primary_provider": "openai"}
-            handler = BYOKHandler()
-            assert handler is not None
+        """Test BYOKHandler initialization with default parameters."""
+        with patch('core.llm.byok_handler.get_byok_manager') as mock_get_byok:
+            mock_manager = Mock()
+            mock_get_byok.return_value = mock_manager
+            with patch('core.llm.byok_handler.CacheAwareRouter'):
+                with patch('core.llm.byok_handler.CognitiveTierService'):
+                    with patch('core.llm.byok_handler.get_provider_health_monitor') as mock_health:
+                        mock_health.return_value = Mock(is_healthy=Mock(return_value=True))
+                        handler = BYOKHandler(
+                            workspace_id="default",
+                            tenant_id="default",
+                            provider_id="auto"
+                        )
+                        assert handler is not None
+                        assert handler.workspace_id == "default"
+                        assert handler.tenant_id == "default"
 
-    def test_byok_handler_initialization_with_config(self, mock_config):
-        """Test BYOKHandler initialization with custom config."""
-        with patch('core.llm.byok_handler.load_config') as mock_load:
-            mock_load.return_value = mock_config
-            handler = BYOKHandler()
-            assert handler is not None
+    def test_byok_handler_initialization_with_custom_params(self):
+        """Test BYOKHandler initialization with custom parameters."""
+        with patch('core.llm.byok_handler.get_byok_manager') as mock_get_byok:
+            mock_manager = Mock()
+            mock_get_byok.return_value = mock_manager
+            with patch('core.llm.byok_handler.CacheAwareRouter'):
+                with patch('core.llm.byok_handler.CognitiveTierService'):
+                    with patch('core.llm.byok_handler.get_provider_health_monitor') as mock_health:
+                        mock_health.return_value = Mock(is_healthy=Mock(return_value=True))
+                        handler = BYOKHandler(
+                            workspace_id="custom-workspace",
+                            tenant_id="custom-tenant",
+                            provider_id="openai"
+                        )
+                        assert handler is not None
+                        assert handler.workspace_id == "custom-workspace"
+                        assert handler.tenant_id == "custom-tenant"
+                        assert handler.default_provider_id == "openai"
 
-    def test_initialize_clients(self, mock_config):
+    def test_initialize_clients(self):
         """Test client initialization for providers."""
-        with patch('core.llm.byok_handler.load_config') as mock_load:
-            mock_load.return_value = mock_config
-            handler = BYOKHandler()
-            # Should initialize clients without error
-            assert handler is not None
+        with patch('core.llm.byok_handler.get_byok_manager') as mock_get_byok:
+            mock_manager = Mock()
+            mock_get_byok.return_value = mock_manager
+            with patch('core.llm.byok_handler.CacheAwareRouter'):
+                with patch('core.llm.byok_handler.CognitiveTierService'):
+                    with patch('core.llm.byok_handler.get_provider_health_monitor') as mock_health:
+                        mock_health.return_value = Mock(is_healthy=Mock(return_value=True))
+                        handler = BYOKHandler(
+                            workspace_id="test",
+                            tenant_id="test",
+                            provider_id="auto"
+                        )
+                        # Should initialize clients without error
+                        assert handler is not None
+                        assert isinstance(handler.clients, dict)
+                        assert isinstance(handler.async_clients, dict)
 
 
 # ============================================================================
 # TEST CLASS: TestSpecializedMethods
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestSpecializedMethods:
     """Test specialized BYOKHandler methods."""
 
@@ -580,7 +631,7 @@ class TestSpecializedMethods:
 # TEST CLASS: TestEdgeCases
 # ============================================================================
 
-@pytest.mark.skip(reason="Fixture error: Tests patch non-existent load_config function. BYOKHandler __init__ doesn't use load_config - it accepts workspace_id, tenant_id, provider_id parameters directly.")
+
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
