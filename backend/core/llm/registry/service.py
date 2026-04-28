@@ -547,7 +547,7 @@ class LLMRegistryService:
 
         try:
             # Query all models from database
-            models = self.list_models(tenant_id, use_cache=False)
+            models = await self.list_models(tenant_id, use_cache=False)
 
             # Convert to dict format
             model_dicts = [
