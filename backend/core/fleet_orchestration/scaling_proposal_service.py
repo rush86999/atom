@@ -6,6 +6,7 @@ with cost estimates and hysteresis to prevent rapid proposal oscillation.
 """
 
 import logging
+import os
 import uuid
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone, timedelta
@@ -630,16 +631,21 @@ class ScalingProposalService:
     async def _persist_proposal(self, proposal: ScalingProposal) -> None:
         """Persist proposal to database."""
         try:
+            # Build metadata JSON from proposal fields
+            metadata = {
+                "metrics": proposal.metrics,
+                "cost_estimate": proposal.cost_estimate,
+                "duration_hours": proposal.duration_hours,
+            }
+
             model = ScalingProposalRecord(
                 id=proposal.id,
                 chain_id=proposal.chain_id,
                                 proposal_type=proposal.proposal_type.value if hasattr(proposal.proposal_type, 'value') else proposal.proposal_type,
-                current_fleet_size=proposal.current_fleet_size,
-                proposed_fleet_size=proposal.proposed_fleet_size,
+                current_agents=proposal.current_fleet_size,
+                proposed_agents=proposal.proposed_fleet_size,
                 reason=proposal.reason,
-                metrics_json=proposal.metrics,
-                cost_estimate=proposal.cost_estimate,
-                duration_hours=proposal.duration_hours,
+                metadata_json=metadata,
                 status=proposal.status.value if hasattr(proposal.status, 'value') else proposal.status,
                 expires_at=proposal.expires_at)
 
@@ -689,19 +695,25 @@ class ScalingProposalService:
 
     def _model_to_proposal(self, model: ScalingProposalRecord) -> ScalingProposal:
         """Convert database model to Pydantic model."""
+        # Extract metadata from JSON field
+        metadata = model.metadata_json or {}
+        metrics = metadata.get("metrics", {})
+        cost_estimate = metadata.get("cost_estimate", 0.0)
+        duration_hours = metadata.get("duration_hours", 0.0)
+
         return ScalingProposal(
             id=model.id,
             chain_id=model.chain_id,
                         proposal_type=model.proposal_type,
-            current_fleet_size=model.current_fleet_size,
-            proposed_fleet_size=model.proposed_fleet_size,
+            current_fleet_size=model.current_agents,
+            proposed_fleet_size=model.proposed_agents,
             reason=model.reason,
-            metrics=model.metrics_json or {},
-            cost_estimate=float(model.cost_estimate),
-            duration_hours=float(model.duration_hours),
+            metrics=metrics,
+            cost_estimate=float(cost_estimate),
+            duration_hours=float(duration_hours),
             status=model.status,
             expires_at=model.expires_at,
-            created_at=model.created_at,
+            created_at=model.created_at or datetime.now(timezone.utc),
             metadata={}
         )
 
