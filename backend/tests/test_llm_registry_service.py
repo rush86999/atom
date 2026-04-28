@@ -259,9 +259,11 @@ class TestDeleteModel:
         mock_model = Mock(spec=LLMModel)
         mock_model.id = 1
 
-        # Mock get_model to return the model directly (bypassing async issue)
-        with patch.object(registry_service, 'get_model', return_value=mock_model):
-            result = registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
+        # Mock get_model to return the model directly
+        async def mock_get_model(*args, **kwargs):
+            return mock_model
+        with patch.object(registry_service, 'get_model', mock_get_model):
+            result = await registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
 
             assert mock_db.delete.called
             assert result is True
@@ -269,10 +271,11 @@ class TestDeleteModel:
     @pytest.mark.asyncio
     async def test_delete_model_not_found(self, registry_service, mock_db):
         """Test deleting a model that doesn't exist."""
-        # Mock get_model to return None (use regular Mock, not AsyncMock)
-        mock_get_model = Mock(return_value=None)
+        # Mock get_model to return None
+        async def mock_get_model(*args, **kwargs):
+            return None
         with patch.object(registry_service, 'get_model', mock_get_model):
-            result = registry_service.delete_model('tenant-123', 'provider', 'nonexistent')
+            result = await registry_service.delete_model('tenant-123', 'provider', 'nonexistent')
 
             assert result is False
 
@@ -282,11 +285,13 @@ class TestDeleteModel:
         mock_model = Mock(spec=LLMModel)
 
         # Mock get_model to return the model
-        with patch.object(registry_service, 'get_model', return_value=mock_model):
+        async def mock_get_model(*args, **kwargs):
+            return mock_model
+        with patch.object(registry_service, 'get_model', mock_get_model):
             mock_db.delete.side_effect = Exception("Database error")
 
             try:
-                result = registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
+                result = await registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
             except Exception:
                 pass  # Expected
 
@@ -304,10 +309,11 @@ class TestModelDeprecation:
         mock_model = Mock(spec=LLMModel)
         mock_model.is_deprecated = False
 
-        # Mock get_model to return the model directly (use regular Mock, not AsyncMock)
-        mock_get_model = Mock(return_value=mock_model)
+        # Mock get_model to return the model directly
+        async def mock_get_model(*args, **kwargs):
+            return mock_model
         with patch.object(registry_service, 'get_model', mock_get_model):
-            result = registry_service.mark_model_deprecated('tenant-123', 'openai', 'gpt-4', reason='Replaced by gpt-4-turbo')
+            result = await registry_service.mark_model_deprecated('tenant-123', 'openai', 'gpt-4', reason='Replaced by gpt-4-turbo')
 
             assert mock_db.commit.called
             assert result is not None
@@ -318,10 +324,11 @@ class TestModelDeprecation:
         mock_model = Mock(spec=LLMModel)
         mock_model.is_deprecated = True
 
-        # Mock get_model to return the model directly (use regular Mock)
-        mock_get_model = Mock(return_value=mock_model)
+        # Mock get_model to return the model directly
+        async def mock_get_model(*args, **kwargs):
+            return mock_model
         with patch.object(registry_service, 'get_model', mock_get_model):
-            result = registry_service.mark_model_deprecated('tenant-123', 'provider', 'old-model', reason='Already deprecated')
+            result = await registry_service.mark_model_deprecated('tenant-123', 'provider', 'old-model', reason='Already deprecated')
 
             # Should still return the model even if already deprecated
             assert result is not None
@@ -502,7 +509,8 @@ class TestBatchOperations:
             model = registry_service.upsert_model('tenant-123', model_data)
             assert mock_db.add.called
 
-    def test_batch_delete_models(self, registry_service, mock_db):
+    @pytest.mark.asyncio
+    async def test_batch_delete_models(self, registry_service, mock_db):
         """Test deleting multiple models."""
         mock_models = [
             Mock(spec=LLMModel, id=1, model_name="model-1"),
@@ -510,8 +518,10 @@ class TestBatchOperations:
         ]
 
         for mock_model in mock_models:
-            with patch.object(registry_service, 'get_model', return_value=mock_model):
-                result = registry_service.delete_model('tenant-123', 'provider', 'model-1')
+            async def mock_get_model(*args, **kwargs):
+                return mock_model
+            with patch.object(registry_service, 'get_model', mock_get_model):
+                result = await registry_service.delete_model('tenant-123', 'provider', 'model-1')
                 assert mock_db.delete.called
 
     def test_batch_update_capabilities(self, registry_service, mock_db):
@@ -632,20 +642,13 @@ class TestModelLifecycle:
         result = registry_service.restore_deprecated_model('tenant-123', 'provider', 'model')
         assert mock_db.commit.called
 
-    def test_model_deprecation_workflow(self, registry_service, mock_db):
+    @pytest.mark.asyncio
+    async def test_model_deprecation_workflow(self, registry_service, mock_db):
         """Test complete deprecation workflow."""
         mock_model = Mock(spec=LLMModel)
         mock_model.is_deprecated = False
 
-        # Patch the database query with proper filter chain
-        # since mark_model_deprecated calls get_model without await (service bug)
-        mock_query = Mock()
-        mock_first_filter = Mock()
-        mock_first_filter.filter.return_value.first.return_value = mock_model
-        mock_query.filter.return_value = mock_first_filter
-        mock_db.query.return_value = mock_query
-
-        result = registry_service.mark_model_deprecated(
+        result = await registry_service.mark_model_deprecated(
             'tenant-123', 'provider', 'model', reason='Replaced by v2'
         )
         assert result is not None
@@ -668,20 +671,13 @@ class TestModelLifecycle:
         model = registry_service.upsert_model('tenant-123', model_data)
         assert model is not None
 
-    def test_model_soft_delete(self, registry_service, mock_db):
+    @pytest.mark.asyncio
+    async def test_model_soft_delete(self, registry_service, mock_db):
         """Test soft delete (deprecation) vs hard delete."""
         mock_model = Mock(spec=LLMModel)
 
-        # Patch the database query with proper filter chain
-        # since mark_model_deprecated calls get_model without await (service bug)
-        mock_query = Mock()
-        mock_first_filter = Mock()
-        mock_first_filter.filter.return_value.first.return_value = mock_model
-        mock_query.filter.return_value = mock_first_filter
-        mock_db.query.return_value = mock_query
-
         # Soft delete (deprecate)
-        result = registry_service.mark_model_deprecated(
+        result = await registry_service.mark_model_deprecated(
             'tenant-123', 'provider', 'model', reason='No longer needed'
         )
         assert result is not None

@@ -484,7 +484,7 @@ class LLMRegistryService:
 
         return query.all()
 
-    def delete_model(
+    async def delete_model(
         self,
         tenant_id: str,
         provider: str,
@@ -502,11 +502,11 @@ class LLMRegistryService:
             True if deleted, False if not found
 
         Example:
-            >>> deleted = service.delete_model('tenant-123', 'openai', 'gpt-4')
+            >>> deleted = await service.delete_model('tenant-123', 'openai', 'gpt-4')
             >>> if deleted:
             ...     print("Model deleted")
         """
-        model = self.get_model(tenant_id, provider, model_name)
+        model = await self.get_model(tenant_id, provider, model_name)
 
         if model:
             self.db.delete(model)
@@ -829,7 +829,7 @@ class LLMRegistryService:
             'reason': 'removed_from_api'
         }
 
-    def mark_model_deprecated(
+    async def mark_model_deprecated(
         self,
         tenant_id: str,
         provider: str,
@@ -847,7 +847,7 @@ class LLMRegistryService:
         Returns:
             Updated LLMModel or None if not found
         """
-        model = self.get_model(tenant_id, provider, model_name, use_cache=False)
+        model = await self.get_model(tenant_id, provider, model_name, use_cache=False)
         if not model:
             return None
 
