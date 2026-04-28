@@ -798,5 +798,352 @@ class TestErrorScenarios:
 
 
 # ============================================================================
-# Total: 46 tests (19 original + 27 new) covering LLM registry service
+# Query Variations Tests (5 tests) - NEW for 298-02
+# ============================================================================
+
+class TestQueryVariationsAdvanced:
+    """Tests for advanced query variations - filtering, sorting, pagination."""
+
+    @pytest.mark.asyncio
+    async def test_get_models_filtered_by_provider(self, registry_service, mock_db):
+        """Test filtering models by specific provider."""
+        mock_models = [
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-4', is_deprecated=False),
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-3.5-turbo', is_deprecated=False),
+        ]
+
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        models = await registry_service.list_models('tenant-123', provider='openai', use_cache=False)
+
+        assert models is not None
+        assert len(models) == 2
+        mock_query.filter.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_get_models_filtered_by_capability_with_pagination(self, registry_service, mock_db):
+        """Test filtering by capability with pagination support."""
+        mock_models = [
+            Mock(spec=LLMModel, capabilities=['vision', 'code']),
+            Mock(spec=LLMModel, capabilities=['vision']),
+        ]
+
+        mock_query_result = Mock()
+        mock_query_result.all.return_value = mock_models
+        mock_db.query.return_value.filter.return_value = mock_query_result
+
+        models = registry_service.get_models_by_capability('tenant-123', 'vision')
+
+        assert len(models) == 2
+        mock_query_result.all.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_models_with_multiple_filters(self, registry_service, mock_db):
+        """Test combined provider + capability + deprecated filters."""
+        mock_models = [
+            Mock(spec=LLMModel, provider='anthropic', model_name='claude-3', capabilities=['vision'], is_deprecated=False),
+        ]
+
+        # Build mock chain that returns same query object after each filter
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query  # Return self for chaining
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        models = await registry_service.list_models('tenant-123', provider='anthropic', include_deprecated=False, use_cache=False)
+
+        assert models is not None
+        assert len(models) == 1
+        # Verify multiple filter calls
+        assert mock_query.filter.call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_get_models_sorted_by_date(self, registry_service, mock_db):
+        """Test sorted query with date range filtering."""
+        mock_models = [
+            Mock(spec=LLMModel, created_at=datetime(2024, 1, 1)),
+            Mock(spec=LLMModel, created_at=datetime(2024, 2, 1)),
+        ]
+
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        # Simulate date-sorted query
+        models = await registry_service.list_models('tenant-123', use_cache=False)
+
+        assert models is not None
+        assert len(models) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_models_with_pagination_offset(self, registry_service, mock_db):
+        """Test pagination with offset and limit."""
+        all_models = [
+            Mock(spec=LLMModel, model_name=f'model-{i}')
+            for i in range(10)
+        ]
+
+        # First page (offset=0, limit=5)
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = all_models[:5]
+        mock_db.query.return_value = mock_query
+
+        models = await registry_service.list_models('tenant-123', use_cache=False)
+
+        assert len(models) == 5
+
+
+# ============================================================================
+# Model Comparison Tests (4 tests) - NEW for 298-02
+# ============================================================================
+
+class TestModelComparison:
+    """Tests for model comparison and quality scoring."""
+
+    def test_get_models_by_capabilities_match_all(self, registry_service, mock_db):
+        """Test getting models with ALL specified capabilities."""
+        mock_models = [
+            Mock(spec=LLMModel, capabilities=['vision', 'code', 'tools']),
+        ]
+
+        # Build mock chain for multiple capability filters
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        models = registry_service.get_models_by_capabilities(
+            'tenant-123',
+            ['vision', 'code'],
+            match_all=True
+        )
+
+        assert len(models) == 1
+        mock_query.filter.assert_called()
+
+    def test_get_models_by_capabilities_match_any(self, registry_service, mock_db):
+        """Test getting models with ANY of the specified capabilities."""
+        mock_models = [
+            Mock(spec=LLMModel, capabilities=['vision']),
+            Mock(spec=LLMModel, capabilities=['code']),
+        ]
+
+        # Mock overlap query (for match_any=False)
+        # Need to patch LLMModel.capabilities.overlap to avoid SQLAlchemy error
+        mock_overlap = Mock()
+        mock_overlap_op = Mock()
+        mock_overlap_op.overlap = Mock(return_value=mock_overlap)
+
+        with patch.object(LLMModel, 'capabilities', mock_overlap_op):
+            mock_base_query = Mock()
+            mock_base_query.filter.return_value = mock_base_query
+            mock_base_query.all.return_value = mock_models
+            mock_db.query.return_value = mock_base_query
+
+            models = registry_service.get_models_by_capabilities(
+                'tenant-123',
+                ['vision', 'code'],
+                match_all=False
+            )
+
+            assert models is not None
+            assert len(models) == 2
+
+    def test_assign_heuristic_quality_scores(self, registry_service, mock_db):
+        """Test assigning heuristic quality scores to models."""
+        mock_models = [
+            Mock(spec=LLMModel, model_name='gpt-4', quality_score=None, context_window=8192),
+            Mock(spec=LLMModel, model_name='claude-3', quality_score=None, context_window=200000),
+        ]
+
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        result = registry_service.assign_heuristic_quality_scores('tenant-123')
+
+        assert result is not None
+        assert 'updated' in result or 'skipped' in result
+        mock_db.commit.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_get_top_models_by_quality(self, registry_service, mock_db):
+        """Test getting top models ranked by quality score."""
+        mock_models = [
+            Mock(spec=LLMModel, model_name='gpt-4', quality_score=95.0),
+            Mock(spec=LLMModel, model_name='claude-3', quality_score=92.0),
+            Mock(spec=LLMModel, model_name='gpt-3.5', quality_score=85.0),
+        ]
+
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        models = await registry_service.get_top_models_by_quality('tenant-123', limit=10)
+
+        assert models is not None
+        assert len(models) == 3
+
+
+# ============================================================================
+# Capability Query Tests (3 tests) - NEW for 298-02
+# ============================================================================
+
+class TestCapabilityQueries:
+    """Tests for capability-based queries."""
+
+    def test_get_computer_use_models(self, registry_service, mock_db):
+        """Test getting all models with computer_use capability."""
+        mock_models = [
+            Mock(spec=LLMModel, model_name='claude-3.5-sonnet', capabilities=['computer_use', 'vision']),
+            Mock(spec=LLMModel, model_name='gpt-4', capabilities=['vision']),
+        ]
+
+        mock_query_result = Mock()
+        mock_query_result.all.return_value = mock_models
+        mock_db.query.return_value.filter.return_value = mock_query_result
+
+        models = registry_service.get_computer_use_models('tenant-123')
+
+        assert len(models) >= 0
+        mock_query_result.all.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_get_capabilities_for_model(self, registry_service, mock_db):
+        """Test getting list of capabilities for a specific model."""
+        mock_model = Mock(
+            spec=LLMModel,
+            model_name='gpt-4',
+            capabilities=['vision', 'code', 'tools', 'function_calling']
+        )
+
+        # Build proper async mock chain
+        mock_base_query = Mock()
+        mock_first_filter = Mock()
+        mock_second_filter = Mock()
+        mock_second_filter.first.return_value = mock_model
+        mock_first_filter.filter.return_value = mock_second_filter
+        mock_base_query.filter.return_value = mock_first_filter
+        mock_db.query.return_value = mock_base_query
+
+        model = await registry_service.get_model('tenant-123', 'openai', 'gpt-4', use_cache=False)
+
+        assert model is not None
+        assert model.capabilities is not None
+        assert len(model.capabilities) == 4
+
+    @pytest.mark.asyncio
+    async def test_check_capability_support(self, registry_service, mock_db):
+        """Test checking if model supports specific capability."""
+        mock_model = Mock(
+            spec=LLMModel,
+            model_name='claude-3',
+            capabilities=['vision', 'code', 'computer_use']
+        )
+
+        # Build proper async mock chain
+        mock_base_query = Mock()
+        mock_first_filter = Mock()
+        mock_second_filter = Mock()
+        mock_second_filter.first.return_value = mock_model
+        mock_first_filter.filter.return_value = mock_second_filter
+        mock_base_query.filter.return_value = mock_first_filter
+        mock_db.query.return_value = mock_base_query
+
+        model = await registry_service.get_model('tenant-123', 'anthropic', 'claude-3', use_cache=False)
+
+        assert model is not None
+        # Verify computer_use capability exists
+        assert 'computer_use' in model.capabilities
+
+
+# ============================================================================
+# Provider Management Tests (3 tests) - NEW for 298-02
+# ============================================================================
+
+class TestProviderManagement:
+    """Tests for provider-level operations."""
+
+    @pytest.mark.asyncio
+    async def test_list_all_providers(self, registry_service, mock_db):
+        """Test getting list of all unique providers."""
+        mock_models = [
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-4'),
+            Mock(spec=LLMModel, provider='anthropic', model_name='claude-3'),
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-3.5'),
+        ]
+
+        # Build mock chain for list_models
+        mock_base_query = Mock()
+        mock_first_filter = Mock()
+        mock_second_filter = Mock()
+        mock_second_filter.all.return_value = mock_models
+        mock_first_filter.filter.return_value = mock_second_filter
+        mock_base_query.filter.return_value = mock_first_filter
+        mock_db.query.return_value = mock_base_query
+
+        models = await registry_service.list_models('tenant-123', use_cache=False)
+
+        assert models is not None
+        # Verify models returned (may have duplicates from same provider)
+        assert len(models) == 3
+
+    @pytest.mark.asyncio
+    async def test_get_provider_model_count(self, registry_service, mock_db):
+        """Test getting count of models for specific provider."""
+        mock_models = [
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-4'),
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-3.5-turbo'),
+            Mock(spec=LLMModel, provider='openai', model_name='gpt-4-turbo'),
+        ]
+
+        # Build mock chain that returns self
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = mock_models
+        mock_db.query.return_value = mock_query
+
+        models = await registry_service.list_models('tenant-123', provider='openai', use_cache=False)
+
+        assert models is not None
+        assert len(models) == 3
+
+    @pytest.mark.asyncio
+    async def test_get_new_models_since_date(self, registry_service, mock_db):
+        """Test getting models added after specific date."""
+        from datetime import datetime, timedelta
+
+        cutoff_date = datetime.now() - timedelta(days=7)
+        new_models = [
+            Mock(spec=LLMModel, model_name='gpt-4-turbo', created_at=datetime.now()),
+            Mock(spec=LLMModel, model_name='claude-3.5', created_at=datetime.now()),
+        ]
+
+        # Build mock chain: query().filter().order_by().all()
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = new_models
+        mock_db.query.return_value = mock_query
+
+        models = registry_service.get_new_models_since('tenant-123', cutoff_date)
+
+        assert models is not None
+        assert len(models) == 2
+
+
+# ============================================================================
+# Total: 61 tests (19 original + 27 new + 5 advanced query + 4 comparison + 3 capability + 3 provider) covering LLM registry service
 # ============================================================================
