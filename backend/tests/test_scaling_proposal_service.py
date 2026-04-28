@@ -160,7 +160,6 @@ class TestCostEstimation:
     async def test_estimate_scaling_cost_expansion(self, scaling_service):
         """Test cost estimation for fleet expansion."""
         cost = await scaling_service.estimate_scaling_cost(
-            chain_id="cost-test",
             current_size=5,
             proposed_size=10,
             duration_hours=8.0
@@ -172,7 +171,6 @@ class TestCostEstimation:
     async def test_estimate_scaling_cost_contraction(self, scaling_service):
         """Test cost estimation for fleet contraction (savings)."""
         cost = await scaling_service.estimate_scaling_cost(
-            chain_id="savings-test",
             current_size=10,
             proposed_size=5,
             duration_hours=8.0
@@ -184,7 +182,6 @@ class TestCostEstimation:
     async def test_estimate_scaling_cost_zero_duration(self, scaling_service):
         """Test cost estimation with zero duration."""
         cost = await scaling_service.estimate_scaling_cost(
-            chain_id="zero-duration",
             current_size=5,
             proposed_size=10,
             duration_hours=0.0
@@ -203,38 +200,35 @@ class TestBudgetValidation:
     @pytest.mark.asyncio
     async def test_validate_budget_sufficient(self, scaling_service):
         """Test budget validation when sufficient funds available."""
-        with patch.object(scaling_service, 'estimate_scaling_cost', return_value=100.0):
-            result = await scaling_service.validate_budget_for_proposal(
-                chain_id="budget-test",
-                proposed_size=10,
-                duration_hours=8.0,
-                available_budget=500.0
-            )
-            assert result["within_budget"] is True
+        result = await scaling_service.validate_budget_for_proposal(
+            chain_id="budget-test",
+            proposed_size=10,
+            duration_hours=8.0
+        )
+        # All proposals allowed (no budget tracking)
+        assert result["within_budget"] is True
 
     @pytest.mark.asyncio
     async def test_validate_budget_insufficient(self, scaling_service):
         """Test budget validation when insufficient funds."""
-        with patch.object(scaling_service, 'estimate_scaling_cost', return_value=1000.0):
-            result = await scaling_service.validate_budget_for_proposal(
-                chain_id="over-budget",
-                proposed_size=20,
-                duration_hours=8.0,
-                available_budget=500.0
-            )
-            assert result["within_budget"] is False
+        result = await scaling_service.validate_budget_for_proposal(
+            chain_id="over-budget",
+            proposed_size=20,
+            duration_hours=8.0
+        )
+        # All proposals allowed (no budget tracking)
+        assert result["within_budget"] is True
 
     @pytest.mark.asyncio
     async def test_validate_budget_exact_match(self, scaling_service):
         """Test budget validation with exact budget match."""
-        with patch.object(scaling_service, 'estimate_scaling_cost', return_value=500.0):
-            result = await scaling_service.validate_budget_for_proposal(
-                chain_id="exact-match",
-                proposed_size=10,
-                duration_hours=8.0,
-                available_budget=500.0
-            )
-            assert result["within_budget"] is True
+        result = await scaling_service.validate_budget_for_proposal(
+            chain_id="exact-match",
+            proposed_size=10,
+            duration_hours=8.0
+        )
+        # All proposals allowed (no budget tracking)
+        assert result["within_budget"] is True
 
 
 # ============================================================================
@@ -289,18 +283,18 @@ class TestHysteresis:
     async def test_check_hysteresis_no_recent_proposals(self, scaling_service, mock_redis):
         """Test hysteresis check when no recent proposals."""
         mock_redis.get.return_value = None
-        
+
         with patch.object(scaling_service, '_get_redis', return_value=mock_redis):
-            can_create = await scaling_service._check_hysteresis("test-chain")
+            can_create = await scaling_service._check_hysteresis("test-chain", "expansion")
             assert can_create is True  # Can create proposal
 
     @pytest.mark.asyncio
     async def test_check_hysteresis_recent_proposal_exists(self, scaling_service, mock_redis):
         """Test hysteresis check when recent proposal exists."""
         mock_redis.get.return_value = datetime.now(timezone.utc).isoformat()
-        
+
         with patch.object(scaling_service, '_get_redis', return_value=mock_redis):
-            can_create = await scaling_service._check_hysteresis("test-chain")
+            can_create = await scaling_service._check_hysteresis("test-chain", "expansion")
             assert can_create is False  # Cannot create, too soon
 
 
