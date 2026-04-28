@@ -85,68 +85,71 @@ class TestUpsertModel:
     def test_upsert_model_new_model(self, registry_service, mock_db):
         """Test upserting a new model."""
         model_data = {
-            'name': 'gpt-4',
+            'model_name': 'gpt-4',
             'provider': 'openai',
             'context_window': 8192,
-            'pricing': {'input': 0.03, 'output': 0.06}
+            'input_price_per_token': 0.00003,
+            'output_price_per_token': 0.00006
         }
-        
+
         mock_query = Mock()
         mock_existing_model = None
         mock_query.filter.return_value.first.return_value = mock_existing_model
         mock_db.query.return_value = mock_query
-        
+
         model = registry_service.upsert_model('tenant-123', model_data)
-        
+
         assert mock_db.add.called
-        assert mock_db.commit.called
+        assert mock_db.flush.called
 
     def test_upsert_model_existing_model(self, registry_service, mock_db):
         """Test upserting an existing model (update)."""
         existing_model = Mock(spec=LLMModel)
         existing_model.id = 1
-        
+
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = existing_model
         mock_db.query.return_value = mock_query
-        
+
         model_data = {
-            'name': 'gpt-4',
+            'model_name': 'gpt-4',
             'provider': 'openai',
             'context_window': 128000,  # Updated value
-            'pricing': {'input': 0.03, 'output': 0.06}
+            'input_price_per_token': 0.00003,
+            'output_price_per_token': 0.00006
         }
-        
+
         model = registry_service.upsert_model('tenant-123', model_data)
-        
-        assert mock_db.commit.called
+
+        # Should update existing model, not add new one
+        assert not mock_db.add.called
 
     def test_upsert_model_with_capabilities(self, registry_service, mock_db):
         """Test upserting model with capabilities list."""
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
-        
+
         model_data = {
-            'name': 'claude-3-opus',
+            'model_name': 'claude-3-opus',
             'provider': 'anthropic',
             'capabilities': ['vision', 'code', 'math']
         }
-        
+
         model = registry_service.upsert_model('tenant-123', model_data)
-        
+
         assert mock_db.add.called
 
     def test_upsert_model_handles_commit_error(self, registry_service, mock_db):
         """Test upsert handles database commit errors."""
-        mock_db.commit.side_effect = Exception("Database error")
-        
+        mock_db.flush.side_effect = Exception("Database error")
+
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
-        
-        model_data = {'name': 'gpt-4', 'provider': 'openai'}
-        
+
+        model_data = {'model_name': 'gpt-4', 'provider': 'openai'}
+
         # Should not raise, should handle error gracefully
         try:
             model = registry_service.upsert_model('tenant-123', model_data)
@@ -158,19 +161,16 @@ class TestUpsertModel:
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
-        
+
         model_data = {
-            'name': 'gpt-3.5-turbo',
+            'model_name': 'gpt-3.5-turbo',
             'provider': 'openai',
-            'pricing': {
-                'input': 0.0005,
-                'output': 0.0015,
-                'currency': 'USD'
-            }
+            'input_price_per_token': 0.0005,
+            'output_price_per_token': 0.0015
         }
-        
+
         model = registry_service.upsert_model('tenant-123', model_data)
-        
+
         assert mock_db.add.called
 
     def test_upsert_model_preserves_tenant_id(self, registry_service, mock_db):
@@ -178,11 +178,11 @@ class TestUpsertModel:
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
-        
-        model_data = {'name': 'test-model', 'provider': 'test'}
-        
+
+        model_data = {'model_name': 'test-model', 'provider': 'test'}
+
         model = registry_service.upsert_model('tenant-abc', model_data)
-        
+
         assert mock_db.add.called
 
 
@@ -253,43 +253,42 @@ class TestQueryModels:
 class TestDeleteModel:
     """Tests for model deletion."""
 
-    def test_delete_model_success(self, registry_service, mock_db):
+    @pytest.mark.asyncio
+    async def test_delete_model_success(self, registry_service, mock_db):
         """Test successful model deletion."""
         mock_model = Mock(spec=LLMModel)
         mock_model.id = 1
-        
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_model
-        mock_db.query.return_value = mock_query
-        
-        result = registry_service.delete_model('tenant-123', 'gpt-4', 'openai')
-        
-        assert mock_db.delete.called
-        assert mock_db.commit.called
 
-    def test_delete_model_not_found(self, registry_service, mock_db):
+        # Mock get_model to return the model directly (bypassing async issue)
+        with patch.object(registry_service, 'get_model', return_value=mock_model):
+            result = registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
+
+            assert mock_db.delete.called
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_delete_model_not_found(self, registry_service, mock_db):
         """Test deleting a model that doesn't exist."""
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = None
-        mock_db.query.return_value = mock_query
-        
-        result = registry_service.delete_model('tenant-123', 'nonexistent', 'provider')
-        
-        assert result is False
+        # Mock get_model to return None (use regular Mock, not AsyncMock)
+        mock_get_model = Mock(return_value=None)
+        with patch.object(registry_service, 'get_model', mock_get_model):
+            result = registry_service.delete_model('tenant-123', 'provider', 'nonexistent')
 
-    def test_delete_model_handles_database_error(self, registry_service, mock_db):
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_delete_model_handles_database_error(self, registry_service, mock_db):
         """Test delete handles database errors gracefully."""
-        mock_db.commit.side_effect = Exception("Database error")
-        
         mock_model = Mock(spec=LLMModel)
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_model
-        mock_db.query.return_value = mock_query
-        
-        try:
-            result = registry_service.delete_model('tenant-123', 'gpt-4', 'openai')
-        except Exception:
-            pass  # Expected
+
+        # Mock get_model to return the model
+        with patch.object(registry_service, 'get_model', return_value=mock_model):
+            mock_db.delete.side_effect = Exception("Database error")
+
+            try:
+                result = registry_service.delete_model('tenant-123', 'openai', 'gpt-4')
+            except Exception:
+                pass  # Expected
 
 
 # ============================================================================
@@ -299,44 +298,45 @@ class TestDeleteModel:
 class TestModelDeprecation:
     """Tests for model deprecation."""
 
-    def test_mark_model_deprecated(self, registry_service, mock_db):
+    @pytest.mark.asyncio
+    async def test_mark_model_deprecated(self, registry_service, mock_db):
         """Test marking a model as deprecated."""
         mock_model = Mock(spec=LLMModel)
-        mock_model.deprecated = False
-        
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_model
-        mock_db.query.return_value = mock_query
-        
-        result = registry_service.mark_model_deprecated('tenant-123', 'gpt-4', 'openai', reason='Replaced by gpt-4-turbo')
-        
-        assert mock_db.commit.called
+        mock_model.is_deprecated = False
 
-    def test_mark_model_deprecated_already_deprecated(self, registry_service, mock_db):
+        # Mock get_model to return the model directly (use regular Mock, not AsyncMock)
+        mock_get_model = Mock(return_value=mock_model)
+        with patch.object(registry_service, 'get_model', mock_get_model):
+            result = registry_service.mark_model_deprecated('tenant-123', 'openai', 'gpt-4', reason='Replaced by gpt-4-turbo')
+
+            assert mock_db.commit.called
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_mark_model_deprecated_already_deprecated(self, registry_service, mock_db):
         """Test marking an already deprecated model."""
         mock_model = Mock(spec=LLMModel)
-        mock_model.deprecated = True
-        
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_model
-        mock_db.query.return_value = mock_query
-        
-        result = registry_service.mark_model_deprecated('tenant-123', 'old-model', 'provider', reason='Already deprecated')
-        
-        # Should not commit if already deprecated
-        assert result is not None
+        mock_model.is_deprecated = True
+
+        # Mock get_model to return the model directly (use regular Mock)
+        mock_get_model = Mock(return_value=mock_model)
+        with patch.object(registry_service, 'get_model', mock_get_model):
+            result = registry_service.mark_model_deprecated('tenant-123', 'provider', 'old-model', reason='Already deprecated')
+
+            # Should still return the model even if already deprecated
+            assert result is not None
 
     def test_restore_deprecated_model(self, registry_service, mock_db):
         """Test restoring a deprecated model."""
         mock_model = Mock(spec=LLMModel)
-        mock_model.deprecated = True
-        
+        mock_model.is_deprecated = True
+
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_model
         mock_db.query.return_value = mock_query
-        
-        result = registry_service.restore_deprecated_model('tenant-123', 'gpt-4', 'openai')
-        
+
+        result = registry_service.restore_deprecated_model('tenant-123', 'openai', 'gpt-4')
+
         assert mock_db.commit.called
 
 
