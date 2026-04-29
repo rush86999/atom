@@ -8,26 +8,31 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
-import { server } from '../../../tests/mocks/server';
+import { server } from '@/tests/mocks/server';
 import MondayIntegration from '../MondayIntegration';
 
 describe('MondayIntegration Component', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
   });
 
   it('renders Monday integration component', () => {
-    render(<MondayIntegration />);
+    render(<MondayIntegration {...defaultProps} />);
     expect(screen.getByText(/monday/i)).toBeInTheDocument();
   });
 
   it('renders Monday.com integration card', () => {
-    render(<MondayIntegration />);
+    render(<MondayIntegration {...defaultProps} />);
     expect(screen.getByText(/connect monday/i)).toBeInTheDocument();
   });
 
   it('shows connect/disconnect states', async () => {
-    render(<MondayIntegration />);
+    render(<MondayIntegration {...defaultProps} />);
 
     // Initially shows connect state
     expect(screen.getByText('Connect Monday.com')).toBeInTheDocument();
@@ -69,7 +74,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration />);
+    render(<MondayIntegration {...defaultProps} />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -113,7 +118,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration connected={true} />);
+    render(<MondayIntegration {...defaultProps} accessToken="test-token" />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Board')).toBeInTheDocument();
@@ -135,7 +140,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration connected={true} />);
+    render(<MondayIntegration {...defaultProps} accessToken="test-token" />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Item')).toBeInTheDocument();

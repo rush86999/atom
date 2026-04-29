@@ -8,7 +8,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
-import { server } from '../../../tests/mocks/server';
+import { server } from '@/tests/mocks/server';
 import HubSpotIntegration from '../hubspot/HubSpotIntegration';
 
 // Mock hubspotApi
