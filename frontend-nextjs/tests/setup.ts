@@ -21,6 +21,7 @@ Object.defineProperties(globalThis, {
 });
 
 import "@testing-library/jest-dom";
+import React from 'react';
 
 // Mock fetch API - MUST be done before any test imports
 // This ensures all code sees the mocked fetch, not the original
@@ -344,9 +345,9 @@ jest.mock('@tanstack/react-query', () => ({
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    div: ({ children, ...props }: any) => React.createElement('div', props, children),
+    span: ({ children, ...props }: any) => React.createElement('span', props, children),
+    button: ({ children, ...props }: any) => React.createElement('button', props, children),
   },
   AnimatePresence: ({ children }: { children: any }) => children,
 }));
