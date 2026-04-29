@@ -4,8 +4,8 @@
  * Tests entity type definition parsing, validation, and import functionality.
  */
 
-import { parseEntityTypeDefinition, importEntityTypes, ImportError } from '@lib/importers/entityTypeImporter';
-import { validateSchema } from '@lib/validators/jsonSchema';
+import { parseEntityTypeDefinition, importEntityTypes, ImportError } from '@lib/src/importers/entityTypeImporter';
+import { validateSchema } from '@lib/src/validators/jsonSchema';
 
 // Mock axios
 jest.mock('axios');

@@ -4,7 +4,7 @@
  * Tests AES-256-GCM encryption/decryption functionality for OAuth tokens.
  */
 
-import { TokenEncryptionService, getEncryptionService, encryptToken, decryptToken } from '@lib/tokenEncryption';
+import { TokenEncryptionService, getEncryptionService, encryptToken, decryptToken } from '@lib/src/tokenEncryption';
 
 describe('TokenEncryptionService', () => {
   let validKey: string;

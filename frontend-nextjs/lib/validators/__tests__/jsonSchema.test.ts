@@ -4,7 +4,7 @@
  * Tests JSON Schema validation using AJV with custom constraints.
  */
 
-import { validateSchema, SchemaValidationResult } from '@lib/validators/jsonSchema';
+import { validateSchema, SchemaValidationResult } from '@lib/src/validators/jsonSchema';
 
 describe('validateSchema', () => {
   describe('basic validation', () => {

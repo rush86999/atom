@@ -4,7 +4,7 @@
  * Tests S3 client initialization, presigned URL generation, and configuration.
  */
 
-import { StorageService } from '@lib/storage/s3-storage';
+import { StorageService } from '@lib/src/storage/s3-storage';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 

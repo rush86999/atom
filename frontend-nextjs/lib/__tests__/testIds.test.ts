@@ -14,7 +14,7 @@ import {
   TEST_IDS,
   getCanvasTypeTestId,
   getFormFieldTestId
-} from '@lib/testIds';
+} from '@lib/src/testIds';
 
 describe('testIds', () => {
   describe('AGENT_CHAT', () => {

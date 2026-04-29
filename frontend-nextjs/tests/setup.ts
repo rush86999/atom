@@ -84,6 +84,10 @@ Element.prototype.scrollIntoView = jest.fn();
 // Mock window.scrollTo
 global.scrollTo = jest.fn();
 
+// Fix JSDOM forbidden headers issue (Phase 299-02)
+delete (window as any).location;
+(window as any).location = new URL('http://localhost:3000');
+
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,

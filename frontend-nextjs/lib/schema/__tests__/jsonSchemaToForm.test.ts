@@ -4,7 +4,7 @@
  * Tests conversion between JSON Schema and field configurations.
  */
 
-import { schemaToFields, fieldsToSchema, FieldConfig } from '@lib/schema/jsonSchemaToForm';
+import { schemaToFields, fieldsToSchema, FieldConfig } from '@lib/src/schema/jsonSchemaToForm';
 import { JSONSchema7 } from 'json-schema';
 
 describe('jsonSchemaToForm', () => {
