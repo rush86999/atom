@@ -363,3 +363,32 @@ jest.mock('lucide-react', () => ({
   // Add more as needed based on failing tests
 }));
 
+// Mock ThemeProvider context
+jest.mock('next-themes', () => ({
+  useTheme: () => ({ theme: 'light', setTheme: jest.fn() }),
+  ThemeProvider: ({ children }: { children: any }) => children,
+}));
+
+// Mock Zustand stores (common pattern in this codebase)
+jest.mock('@/stores/useAgentStore', () => ({
+  useAgentStore: () => ({
+    agents: [],
+    selectedAgent: null,
+    setAgents: jest.fn(),
+    setSelectedAgent: jest.fn(),
+  }),
+}));
+
+// Mock react-hook-form (very common in forms)
+jest.mock('react-hook-form', () => ({
+  useForm: () => ({
+    register: jest.fn(),
+    handleSubmit: (fn: any) => fn,
+    formState: { errors: {} },
+    reset: jest.fn(),
+    setValue: jest.fn(),
+    getValues: jest.fn(() => ({})),
+  }),
+  Controller: ({ render }: any) => render({ field: {} }),
+}));
+
