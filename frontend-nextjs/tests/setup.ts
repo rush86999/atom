@@ -78,6 +78,33 @@ try {
   if (server) {
     // MSW is available, don't mock fetch
     console.log('MSW server detected - fetch will be intercepted by MSW');
+
+    // Fix for Phase 299-08: Handle relative URLs in fetch()
+    // Node.js native fetch doesn't support relative URLs, so we need to
+    // wrap fetch to convert relative URLs to absolute URLs
+    const originalFetch = global.fetch;
+    const BASE_URL = 'http://localhost:8000';
+
+    global.fetch = jest.fn((url: RequestInfo | URL, options?: RequestInit) => {
+      // Convert relative URLs to absolute URLs
+      let absoluteUrl: string;
+      if (typeof url === 'string') {
+        absoluteUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`;
+      } else if (url instanceof URL) {
+        absoluteUrl = url.href;
+      } else if (url instanceof Request) {
+        absoluteUrl = url.url.startsWith('http') ? url.url : `${BASE_URL}${url.url}`;
+      } else {
+        absoluteUrl = String(url);
+      }
+
+      // Call original fetch with absolute URL
+      return originalFetch(absoluteUrl, options);
+    }) as any;
+
+    // Preserve fetch properties
+    Object.defineProperty(global.fetch, 'name', { value: 'fetch' });
+    Object.setPrototypeOf(global.fetch, originalFetch);
   } else {
     throw new Error('MSW server not available');
   }
