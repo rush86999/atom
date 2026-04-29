@@ -328,3 +328,38 @@ jest.mock('next/router', () => ({
   },
 }));
 
+// Mock QueryClient (react-query)
+jest.mock('@tanstack/react-query', () => ({
+  useQuery: jest.fn(() => ({ data: {}, isLoading: false, error: null })),
+  useMutation: jest.fn(() => ({ mutate: jest.fn(), isLoading: false, error: null })),
+  useQueryClient: jest.fn(() => ({
+    invalidateQueries: jest.fn(),
+    refetchQueries: jest.fn(),
+    setQueryData: jest.fn(),
+  })),
+  QueryClient: jest.fn(),
+  QueryClientProvider: ({ children }: { children: any }) => children,
+}));
+
+// Mock framer-motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  },
+  AnimatePresence: ({ children }: { children: any }) => children,
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Search: () => null,
+  Plus: () => null,
+  Settings: () => null,
+  ChevronDown: () => null,
+  ChevronUp: () => null,
+  X: () => null,
+  Check: () => null,
+  // Add more as needed based on failing tests
+}));
+
