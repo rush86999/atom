@@ -1,0 +1,401 @@
+// Jest setup for Phase 293
+// Increase default timeout for async operations (fetch mocks, waitFor)
+jest.setTimeout(30000); // 30 seconds (Phase 299-03)
+
+// Polyfill for MSW 2.x - must come before any other imports
+import * as WebStreamsPolyfill from 'web-streams-polyfill';
+import { TextEncoder, TextDecoder } from 'util';
+import { Blob, File } from 'buffer';
+import { Request, Response, Headers } from 'node-fetch';
+
+Object.defineProperties(globalThis, {
+  ReadableStream: { value: WebStreamsPolyfill.ReadableStream },
+  TransformStream: { value: WebStreamsPolyfill.TransformStream },
+  TextEncoder: { value: TextEncoder },
+  TextDecoder: { value: TextDecoder },
+  Blob: { value: Blob },
+  File: { value: File },
+  Request: { value: Request },
+  Response: { value: Response },
+  Headers: { value: Headers },
+});
+
+import "@testing-library/jest-dom";
+import React from 'react';
+
+// Mock fetch API - MUST be done before any test imports
+// This ensures all code sees the mocked fetch, not the original
+//
+// Helper function to create mock response objects with all required methods
+// Use this in tests when you need to create custom mock responses:
+//   mockFetch.mockResolvedValueOnce(createMockResponse({ ok: false, status: 404 }))
+global.createMockResponse = (overrides: any = {}) => ({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  json: async () => ({}),
+  text: async () => '',
+  blob: async () => new Blob(),
+  arrayBuffer: async () => new ArrayBuffer(0),
+  headers: {},
+  clone: function() { return { ...this, json: this.json, text: this.text, blob: this.blob, arrayBuffer: this.arrayBuffer }; },
+  ...overrides,
+});
+
+const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
+
+// Assign to both global.fetch and globalThis.fetch to ensure all references work
+// Use Object.defineProperty to ensure it's writable
+Object.defineProperty(global, 'fetch', {
+  value: mockFetch,
+  writable: true,
+  configurable: true,
+});
+(globalThis as any).fetch = mockFetch;
+
+// Export mockFetch for tests that need to access it directly
+// Tests can import it with: import { mockFetch } from '@/tests/setup'
+(global as any).mockFetch = mockFetch;
+
+// Configure jest-axe for accessibility testing
+import { toHaveNoViolations } from 'jest-axe';
+expect.extend(toHaveNoViolations);
+
+// Optional MSW server - only if no import errors
+let server: any;
+try {
+  server = require('./mocks/server').server;
+} catch (e) {
+  console.warn('MSW server not available:', (e as Error).message);
+}
+
+// Establish API mocking before all tests (only if server loaded)
+if (server) {
+  beforeAll(async () => {
+    await server?.listen({ onUnhandledRequest: 'bypass' }); // Changed to 'bypass' for less noise
+  });
+  // Reset any request handlers that we may add during the tests,
+  // so they don't affect other tests
+  afterEach(() => server?.resetHandlers());
+  // Clean up after the tests are finished
+  afterAll(async () => {
+    await server?.close();
+  });
+}
+
+// Mock scrollIntoView
+Element.prototype.scrollIntoView = jest.fn();
+
+// Mock window.scrollTo
+global.scrollTo = jest.fn();
+
+// Fix JSDOM forbidden headers issue (Phase 299-02)
+delete (window as any).location;
+(window as any).location = new URL('http://localhost:3000');
+
+// Mock window.matchMedia
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
+
+// Mock ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
+// Mock IntersectionObserver
+global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
+// Mock IntersectionObserverEntry
+global.IntersectionObserverEntry = jest.fn().mockImplementation((entry) => ({
+  ...entry,
+  isIntersecting: false,
+  intersectionRatio: 0,
+  boundingClientRect: {},
+  intersectionRect: {},
+  rootBounds: {},
+  time: 0,
+}));
+
+// Mock URL.createObjectURL and URL.revokeObjectURL
+global.URL.createObjectURL = jest.fn();
+global.URL.revokeObjectURL = jest.fn();
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+global.localStorage = localStorageMock as any;
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+global.sessionStorage = sessionStorageMock as any;
+
+// Mock clipboard API
+Object.assign(navigator, {
+  clipboard: {
+    writeText: jest.fn(),
+    readText: jest.fn(),
+  },
+});
+
+// Mock got module to handle ESM imports
+jest.mock('got', () => ({
+  __esModule: true,
+  default: jest.fn(() => Promise.resolve({ body: '{}' })),
+  post: jest.fn(() => Promise.resolve({ body: '{}' })),
+  get: jest.fn(() => Promise.resolve({ body: '{}' })),
+  extend: jest.fn(() => jest.fn(() => Promise.resolve({ body: '{}' }))),
+}));
+
+// Mock WebSocket - define constants first
+const WEBSOCKET_CONNECTING = 0;
+const WEBSOCKET_OPEN = 1;
+const WEBSOCKET_CLOSING = 2;
+const WEBSOCKET_CLOSED = 3;
+
+class MockWebSocket {
+  static CONNECTING = WEBSOCKET_CONNECTING;
+  static OPEN = WEBSOCKET_OPEN;
+  static CLOSING = WEBSOCKET_CLOSING;
+  static CLOSED = WEBSOCKET_CLOSED;
+
+  readyState: number;
+  send: jest.Mock;
+  close: jest.Mock;
+  _onopen: ((event: Event) => void) | null = null;
+  _onmessage: ((event: MessageEvent) => void) | null = null;
+  _onclose: ((event: CloseEvent) => void) | null = null;
+  _onerror: ((event: Event) => void) | null = null;
+  _url: string;
+
+  constructor(url: string) {
+    this._url = url;
+    this.readyState = WEBSOCKET_CONNECTING;
+    this.send = jest.fn();
+    this.close = jest.fn();
+
+    // Track constructor calls for testing
+    (MockWebSocket as any).mock.calls?.push([url]);
+    (MockWebSocket as any).mock.instances?.push(this);
+  }
+
+  set onopen(value: ((event: Event) => void) | null) {
+    this._onopen = value;
+  }
+  get onopen() {
+    return this._onopen;
+  }
+
+  set onmessage(value: ((event: MessageEvent) => void) | null) {
+    this._onmessage = value;
+  }
+  get onmessage() {
+    return this._onmessage;
+  }
+
+  set onclose(value: ((event: CloseEvent) => void) | null) {
+    this._onclose = value;
+  }
+  get onclose() {
+    return this._onclose;
+  }
+
+  set onerror(value: ((event: Event) => void) | null) {
+    this._onerror = value;
+  }
+  get onerror() {
+    return this._onerror;
+  }
+}
+
+// Add mock tracking properties
+(MockWebSocket as any).mock = {
+  calls: [],
+  instances: [],
+};
+
+(MockWebSocket as any).getMockCalls = () => (MockWebSocket as any).mock.calls;
+(MockWebSocket as any).getMockInstances = () => (MockWebSocket as any).mock.instances;
+
+(global as any).WebSocket = MockWebSocket as any;
+
+// Mock console methods to reduce noise in tests
+global.console = {
+  ...console,
+  // Uncomment to ignore specific console methods during tests
+  // log: jest.fn(),
+  // debug: jest.fn(),
+  // info: jest.fn(),
+  // warn: jest.fn(),
+  // error: jest.fn(),
+};
+
+// Mock custom useToast hook
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+    dismiss: jest.fn(),
+    toasts: [],
+  }),
+  ToastProvider: ({ children }: { children: any }) => children,
+}));
+
+// Mock AgentAudioControlContext
+jest.mock('@/contexts/AgentAudioControlContext', () => ({
+  AgentAudioControlProvider: ({ children }: { children: any }) => children,
+  useAgentAudioControl: () => ({
+    isRecording: false,
+    startRecording: jest.fn(),
+    stopRecording: jest.fn(),
+    isProcessing: false,
+  }),
+}));
+
+// Mock WakeWordContext
+jest.mock('@/contexts/WakeWordContext', () => ({
+  WakeWordProvider: ({ children }: { children: any }) => children,
+  useWakeWord: () => ({
+    isListening: false,
+    startListening: jest.fn(),
+    stopListening: jest.fn(),
+    wakeWord: 'hey atom',
+  }),
+}));
+
+// Mock Next.js router
+jest.mock('next/router', () => ({
+  useRouter: () => ({
+    route: '/',
+    pathname: '/',
+    query: {},
+    asPath: '/',
+    push: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    replace: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    reload: jest.fn(),
+    back: jest.fn(),
+    prefetch: jest.fn().mockResolvedValue(undefined),
+    beforePopState: jest.fn(),
+    events: {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    },
+  }),
+  default: {
+    route: '/',
+    pathname: '/',
+    query: {},
+    asPath: '/',
+    push: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    replace: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    reload: jest.fn(),
+    back: jest.fn(),
+    prefetch: jest.fn().mockResolvedValue(undefined),
+    beforePopState: jest.fn(),
+    events: {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    },
+  },
+}));
+
+// Mock QueryClient (react-query) - using jest.unmock to allow actual module to load
+// We'll mock specific functions in tests if needed
+// jest.mock('@tanstack/react-query', () => ({
+//   useQuery: jest.fn(() => ({ data: {}, isLoading: false, error: null })),
+//   useMutation: jest.fn(() => ({ mutate: jest.fn(), isLoading: false, error: null })),
+//   useQueryClient: jest.fn(() => ({
+//     invalidateQueries: jest.fn(),
+//     refetchQueries: jest.fn(),
+//     setQueryData: jest.fn(),
+//   })),
+//   QueryClient: jest.fn(),
+//   QueryClientProvider: ({ children }: { children: any }) => children,
+// }));
+
+// Mock framer-motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => React.createElement('div', props, children),
+    span: ({ children, ...props }: any) => React.createElement('span', props, children),
+    button: ({ children, ...props }: any) => React.createElement('button', props, children),
+  },
+  AnimatePresence: ({ children }: { children: any }) => children,
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Search: () => null,
+  Plus: () => null,
+  Settings: () => null,
+  ChevronDown: () => null,
+  ChevronUp: () => null,
+  X: () => null,
+  Check: () => null,
+  // Add more as needed based on failing tests
+}));
+
+// Mock ThemeProvider context
+jest.mock('next-themes', () => ({
+  useTheme: () => ({ theme: 'light', setTheme: jest.fn() }),
+  ThemeProvider: ({ children }: { children: any }) => children,
+}));
+
+// Mock Zustand stores (common pattern in this codebase)
+// Only mock if the store exists
+try {
+  jest.mock('@/stores/useAgentStore', () => ({
+    useAgentStore: () => ({
+      agents: [],
+      selectedAgent: null,
+      setAgents: jest.fn(),
+      setSelectedAgent: jest.fn(),
+    }),
+  }));
+} catch (e) {
+  // Store doesn't exist, skip mock
+}
+
+// Mock react-hook-form (very common in forms)
+jest.mock('react-hook-form', () => ({
+  useForm: () => ({
+    register: jest.fn(),
+    handleSubmit: (fn: any) => fn,
+    formState: { errors: {} },
+    reset: jest.fn(),
+    setValue: jest.fn(),
+    getValues: jest.fn(() => ({})),
+  }),
+  Controller: ({ render }: any) => render({ field: {} }),
+}));
+
