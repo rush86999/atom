@@ -9,7 +9,8 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TaskManagement, Task, Project } from '../TaskManagement';
+import TaskManagement from '../TaskManagement';
+import { Task, Project } from '../TaskManagement';
 
 const mockTask: Task = {
   id: '1',
