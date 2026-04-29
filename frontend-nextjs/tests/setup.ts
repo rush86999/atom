@@ -293,8 +293,8 @@ jest.mock('next/router', () => ({
     pathname: '/',
     query: {},
     asPath: '/',
-    push: jest.fn(),
-    replace: jest.fn(),
+    push: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    replace: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
     reload: jest.fn(),
     back: jest.fn(),
     prefetch: jest.fn().mockResolvedValue(undefined),
@@ -310,8 +310,8 @@ jest.mock('next/router', () => ({
     pathname: '/',
     query: {},
     asPath: '/',
-    push: jest.fn(),
-    replace: jest.fn(),
+    push: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
+    replace: jest.fn(() => Promise.resolve(true)),  // Returns Promise for navigation (Phase 299-03)
     reload: jest.fn(),
     back: jest.fn(),
     prefetch: jest.fn().mockResolvedValue(undefined),
