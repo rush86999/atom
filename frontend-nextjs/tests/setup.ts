@@ -97,8 +97,17 @@ Element.prototype.scrollIntoView = jest.fn();
 global.scrollTo = jest.fn();
 
 // Fix JSDOM forbidden headers issue (Phase 299-02)
-delete (window as any).location;
-(window as any).location = new URL('http://localhost:3000');
+// Mock window.location methods that are not implemented in JSDOM
+// Note: We can't replace location entirely, so we mock specific methods
+if (!window.location.assign) {
+  (window.location as any).assign = jest.fn();
+}
+if (!window.location.reload) {
+  (window.location as any).reload = jest.fn();
+}
+if (!window.location.replace) {
+  (window.location as any).replace = jest.fn();
+}
 
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {
