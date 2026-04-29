@@ -21,7 +21,6 @@ Object.defineProperties(globalThis, {
 });
 
 import "@testing-library/jest-dom";
-import React from 'react';
 
 // Mock fetch API - MUST be done before any test imports
 // This ensures all code sees the mocked fetch, not the original
@@ -71,16 +70,12 @@ try {
 
 // Establish API mocking before all tests (only if server loaded)
 if (server) {
-  beforeAll(async () => {
-    await server?.listen({ onUnhandledRequest: 'bypass' }); // Changed to 'bypass' for less noise
-  });
+  beforeAll(() => server?.listen({ onUnhandledRequest: 'warn' }));
   // Reset any request handlers that we may add during the tests,
   // so they don't affect other tests
   afterEach(() => server?.resetHandlers());
   // Clean up after the tests are finished
-  afterAll(async () => {
-    await server?.close();
-  });
+  afterAll(() => server?.close());
 }
 
 // Mock scrollIntoView
@@ -327,69 +322,5 @@ jest.mock('next/router', () => ({
       emit: jest.fn(),
     },
   },
-}));
-
-// Mock QueryClient (react-query)
-jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(() => ({ data: {}, isLoading: false, error: null })),
-  useMutation: jest.fn(() => ({ mutate: jest.fn(), isLoading: false, error: null })),
-  useQueryClient: jest.fn(() => ({
-    invalidateQueries: jest.fn(),
-    refetchQueries: jest.fn(),
-    setQueryData: jest.fn(),
-  })),
-  QueryClient: jest.fn(),
-  QueryClientProvider: ({ children }: { children: any }) => children,
-}));
-
-// Mock framer-motion
-jest.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => React.createElement('div', props, children),
-    span: ({ children, ...props }: any) => React.createElement('span', props, children),
-    button: ({ children, ...props }: any) => React.createElement('button', props, children),
-  },
-  AnimatePresence: ({ children }: { children: any }) => children,
-}));
-
-// Mock lucide-react icons
-jest.mock('lucide-react', () => ({
-  Search: () => null,
-  Plus: () => null,
-  Settings: () => null,
-  ChevronDown: () => null,
-  ChevronUp: () => null,
-  X: () => null,
-  Check: () => null,
-  // Add more as needed based on failing tests
-}));
-
-// Mock ThemeProvider context
-jest.mock('next-themes', () => ({
-  useTheme: () => ({ theme: 'light', setTheme: jest.fn() }),
-  ThemeProvider: ({ children }: { children: any }) => children,
-}));
-
-// Mock Zustand stores (common pattern in this codebase)
-jest.mock('@/stores/useAgentStore', () => ({
-  useAgentStore: () => ({
-    agents: [],
-    selectedAgent: null,
-    setAgents: jest.fn(),
-    setSelectedAgent: jest.fn(),
-  }),
-}));
-
-// Mock react-hook-form (very common in forms)
-jest.mock('react-hook-form', () => ({
-  useForm: () => ({
-    register: jest.fn(),
-    handleSubmit: (fn: any) => fn,
-    formState: { errors: {} },
-    reset: jest.fn(),
-    setValue: jest.fn(),
-    getValues: jest.fn(() => ({})),
-  }),
-  Controller: ({ render }: any) => render({ field: {} }),
 }));
 
