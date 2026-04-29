@@ -82,10 +82,14 @@ try {
     // Fix for Phase 299-08: Handle relative URLs in fetch()
     // Node.js native fetch doesn't support relative URLs, so we need to
     // wrap fetch to convert relative URLs to absolute URLs
+    //
+    // CRITICAL for Phase 299-10: Do NOT use jest.fn() for this wrapper!
+    // MSW needs to intercept the real fetch, not a jest mock.
+    // Using jest.fn() breaks MSW interception and causes 1,492 test failures.
     const originalFetch = global.fetch;
     const BASE_URL = 'http://localhost:8000';
 
-    global.fetch = jest.fn((url: RequestInfo | URL, options?: RequestInit) => {
+    (global.fetch as any) = function(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
       // Convert relative URLs to absolute URLs
       let absoluteUrl: string;
       if (typeof url === 'string') {
@@ -100,7 +104,7 @@ try {
 
       // Call original fetch with absolute URL
       return originalFetch(absoluteUrl, options);
-    }) as any;
+    };
 
     // Preserve fetch properties
     Object.defineProperty(global.fetch, 'name', { value: 'fetch' });
