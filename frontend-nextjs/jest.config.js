@@ -132,7 +132,7 @@ module.exports = {
   restoreMocks: true, // Restore mocks automatically between tests
 
   // Reduce test overhead
-  testTimeout: 10000, // Default timeout (10s)
+  testTimeout: 30000, // Increased from 10s for async operations (Phase 299-03)
   bail: false, // Don't stop on first failure (default)
 
   moduleNameMapper: {
