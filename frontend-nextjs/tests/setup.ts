@@ -22,12 +22,28 @@ Object.defineProperties(globalThis, {
 
 import "@testing-library/jest-dom";
 
-// Mock fetch API - MUST be done before any test imports
-// This ensures all code sees the mocked fetch, not the original
+// MSW (Mock Service Worker) Integration Fix for Phase 299-07
+// ========================================================
 //
-// Helper function to create mock response objects with all required methods
-// Use this in tests when you need to create custom mock responses:
-//   mockFetch.mockResolvedValueOnce(createMockResponse({ ok: false, status: 404 }))
+// PROBLEM: MSW 1.x needs to intercept the REAL fetch implementation,
+// but we were replacing it with a Jest mock first. This caused:
+// "Cannot read properties of undefined (reading 'then')" errors
+// in MSW's FetchInterceptor at @mswjs/interceptors/src/interceptors/fetch/index.ts:131
+//
+// SOLUTION: DO NOT mock fetch globally. Let MSW handle fetch interception.
+// MSW will automatically mock all unhandled requests with default responses.
+//
+// For tests that need custom fetch behavior, use MSW handlers:
+//   import { overrideHandler, rest } from '@/tests/mocks/server';
+//   overrideHandler(
+//     rest.get('/api/endpoint', (req, res, ctx) => {
+//       return res(ctx.status(404), ctx.json({ error: 'Not found' }));
+//     })
+//   );
+//
+// Helper function to create mock response objects (for direct usage in tests)
+// Use this in tests when you need to create custom mock responses WITHOUT MSW:
+//   createMockResponse({ ok: false, status: 404 })
 global.createMockResponse = (overrides: any = {}) => {
   const mockResponse = {
     ok: true,
@@ -53,41 +69,44 @@ global.createMockResponse = (overrides: any = {}) => {
   return mockResponse;
 };
 
-const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
-
-// Assign to both global.fetch and globalThis.fetch to ensure all references work
-// Use Object.defineProperty to ensure it's writable
-Object.defineProperty(global, 'fetch', {
-  value: mockFetch,
-  writable: true,
-  configurable: true,
-});
-(globalThis as any).fetch = mockFetch;
-
-// Export mockFetch for tests that need to access it directly
-// Tests can import it with: import { mockFetch } from '@/tests/setup'
-(global as any).mockFetch = mockFetch;
+// NOTE: We NO LONGER mock fetch globally - MSW handles this
+// If MSW is not available, we'll mock fetch as a fallback
+let mockFetch: any;
+try {
+  // Try to load MSW server
+  const { server } = require('./mocks/server');
+  if (server) {
+    // MSW is available, don't mock fetch
+    console.log('MSW server detected - fetch will be intercepted by MSW');
+  } else {
+    throw new Error('MSW server not available');
+  }
+} catch (e) {
+  console.warn('MSW not available, using fallback fetch mock:', (e as Error).message);
+  // Fallback: Mock fetch if MSW is not available
+  mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
+  Object.defineProperty(global, 'fetch', {
+    value: mockFetch,
+    writable: true,
+    configurable: true,
+  });
+  (globalThis as any).fetch = mockFetch;
+  (global as any).mockFetch = mockFetch;
+}
 
 // Configure jest-axe for accessibility testing
 import { toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
 
-// Optional MSW server - only if no import errors
-let server: any;
-try {
-  server = require('./mocks/server').server;
-} catch (e) {
-  console.warn('MSW server not available:', (e as Error).message);
-}
-
-// Establish API mocking before all tests (only if server loaded)
-if (server) {
-  beforeAll(() => server?.listen({ onUnhandledRequest: 'warn' }));
+// Establish MSW API mocking before all tests (server already loaded above)
+// MSW server is loaded in the try/catch block above (lines 74-95)
+if (typeof server !== 'undefined' && server) {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
   // Reset any request handlers that we may add during the tests,
   // so they don't affect other tests
-  afterEach(() => server?.resetHandlers());
+  afterEach(() => server.resetHandlers());
   // Clean up after the tests are finished
-  afterAll(() => server?.close());
+  afterAll(() => server.close());
 }
 
 // Mock scrollIntoView

@@ -1656,6 +1656,17 @@ export const slackHandlers = [
   rest.post('/api/integrations/slack/disconnect', (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ success: true }));
   }),
+
+  // Health check
+  rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 ];
 
 // Microsoft 365 Integration Handlers
@@ -1758,6 +1769,17 @@ export const microsoft365Handlers = [
   rest.post('/api/integrations/microsoft365/disconnect', (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ success: true }));
   }),
+
+  // Health check
+  rest.get('/api/integrations/microsoft365/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 ];
 
 // Generic integration handlers for remaining services
@@ -1778,6 +1800,15 @@ export const genericIntegrationHandlers = [
       })
     );
   }),
+  rest.get('/api/integrations/github/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Asana
   rest.post('/api/integrations/asana/connect', (req, res, ctx) => {
@@ -1792,6 +1823,15 @@ export const genericIntegrationHandlers = [
       ctx.json({ success: true, tasks: [{ id: '1', name: 'Test task' }] })
     );
   }),
+  rest.get('/api/integrations/asana/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Notion
   rest.post('/api/integrations/notion/connect', (req, res, ctx) => {
@@ -1804,6 +1844,15 @@ export const genericIntegrationHandlers = [
     return res(
       ctx.status(200),
       ctx.json({ success: true, pages: [{ id: '1', title: 'Test page' }] })
+    );
+  }),
+  rest.get('/api/integrations/notion/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
     );
   }),
 
@@ -1822,6 +1871,15 @@ export const genericIntegrationHandlers = [
       ctx.json({ success: true, emails: [{ id: '1', subject: 'Test email' }] })
     );
   }),
+  rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Zoom
   rest.post('/api/integrations/zoom/connect', (req, res, ctx) => {
@@ -1836,6 +1894,15 @@ export const genericIntegrationHandlers = [
       ctx.json({ success: true, meetings: [{ id: '1', topic: 'Test meeting' }] })
     );
   }),
+  rest.get('/api/integrations/zoom/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Google Workspace
   rest.post('/api/integrations/google/connect', (req, res, ctx) => {
@@ -1848,6 +1915,15 @@ export const genericIntegrationHandlers = [
     return res(
       ctx.status(200),
       ctx.json({ success: true, files: [{ id: '1', name: 'test-file.pdf' }] })
+    );
+  }),
+  rest.get('/api/integrations/google-workspace/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
     );
   }),
 
@@ -1867,6 +1943,15 @@ export const genericIntegrationHandlers = [
       })
     );
   }),
+  rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Box
   rest.post('/api/integrations/box/connect', (req, res, ctx) => {
@@ -1879,6 +1964,15 @@ export const genericIntegrationHandlers = [
     return res(
       ctx.status(200),
       ctx.json({ success: true, files: [{ id: '1', name: 'test-file.pdf' }] })
+    );
+  }),
+  rest.get('/api/integrations/box/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
     );
   }),
 
@@ -1895,6 +1989,15 @@ export const genericIntegrationHandlers = [
       ctx.json({ success: true, boards: [{ id: '1', name: 'Test Board' }] })
     );
   }),
+  rest.get('/api/integrations/trello/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
 
   // Zendesk
   rest.post('/api/integrations/zendesk/connect', (req, res, ctx) => {
@@ -1907,6 +2010,15 @@ export const genericIntegrationHandlers = [
     return res(
       ctx.status(200),
       ctx.json({ success: true, tickets: [{ id: '1', subject: 'Test ticket', status: 'open' }] })
+    );
+  }),
+  rest.get('/api/integrations/zendesk/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
     );
   }),
 ];
