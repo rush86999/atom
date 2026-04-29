@@ -28,18 +28,30 @@ import "@testing-library/jest-dom";
 // Helper function to create mock response objects with all required methods
 // Use this in tests when you need to create custom mock responses:
 //   mockFetch.mockResolvedValueOnce(createMockResponse({ ok: false, status: 404 }))
-global.createMockResponse = (overrides: any = {}) => ({
-  ok: true,
-  status: 200,
-  statusText: 'OK',
-  json: async () => ({}),
-  text: async () => '',
-  blob: async () => new Blob(),
-  arrayBuffer: async () => new ArrayBuffer(0),
-  headers: {},
-  clone: function() { return { ...this, json: this.json, text: this.text, blob: this.blob, arrayBuffer: this.arrayBuffer }; },
-  ...overrides,
-});
+global.createMockResponse = (overrides: any = {}) => {
+  const mockResponse = {
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ({}),
+    text: async () => '',
+    blob: async () => new Blob(),
+    arrayBuffer: async () => new ArrayBuffer(0),
+    headers: {},
+    clone: function() {
+      // Return a proper clone with bound methods
+      return {
+        ...mockResponse,
+        json: this.json.bind(mockResponse),
+        text: this.text.bind(mockResponse),
+        blob: this.blob.bind(mockResponse),
+        arrayBuffer: this.arrayBuffer.bind(mockResponse)
+      };
+    },
+    ...overrides,
+  };
+  return mockResponse;
+};
 
 const mockFetch = jest.fn(() => Promise.resolve((global as any).createMockResponse()));
 
@@ -103,19 +115,21 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// Mock ResizeObserver
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
+// Mock ResizeObserver with proper function binding
+class MockResizeObserver {
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+}
+global.ResizeObserver = MockResizeObserver as any;
 
-// Mock IntersectionObserver
-global.IntersectionObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
+// Mock IntersectionObserver with proper function binding
+class MockIntersectionObserver {
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+}
+global.IntersectionObserver = MockIntersectionObserver as any;
 
 // Mock IntersectionObserverEntry
 global.IntersectionObserverEntry = jest.fn().mockImplementation((entry) => ({
