@@ -27,6 +27,11 @@ jest.mock('../../../lib/hubspotApi', () => ({
 }));
 
 describe('HubSpotIntegration', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
     jest.clearAllMocks();
@@ -36,7 +41,7 @@ describe('HubSpotIntegration', () => {
     const { hubspotApi } = require('../../../lib/hubspotApi');
     hubspotApi.getAuthStatus.mockResolvedValue({ connected: false });
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('HubSpot Not Connected')).toBeInTheDocument();
@@ -47,7 +52,7 @@ describe('HubSpotIntegration', () => {
     const { hubspotApi } = require('../../../lib/hubspotApi');
     hubspotApi.getAuthStatus.mockResolvedValue({ connected: false });
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connect HubSpot Account')).toBeInTheDocument();
@@ -65,7 +70,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('HubSpot CRM')).toBeInTheDocument();
@@ -83,7 +88,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Export Data')).toBeInTheDocument();
@@ -104,7 +109,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('HubSpot CRM')).toBeInTheDocument();
@@ -134,7 +139,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Contacts')).toBeInTheDocument();
@@ -155,7 +160,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Overview')).toBeInTheDocument();
@@ -180,7 +185,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('HubSpot Search')).toBeInTheDocument();
@@ -191,7 +196,7 @@ describe('HubSpotIntegration', () => {
     const { hubspotApi } = require('../../../lib/hubspotApi');
     hubspotApi.getAuthStatus.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     expect(screen.getByText(/loading hubspot integration/i)).toBeInTheDocument();
   });
@@ -212,7 +217,7 @@ describe('HubSpotIntegration', () => {
     hubspotApi.getAnalytics.mockResolvedValue({});
     hubspotApi.getAIPredictions.mockResolvedValue(null);
 
-    render(<HubSpotIntegration />);
+    render(<HubSpotIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('2')).toBeInTheDocument(); // Contact count badge

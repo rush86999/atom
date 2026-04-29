@@ -12,6 +12,11 @@ import { server } from '@/tests/mocks/server';
 import GoogleDriveIntegration from '../GoogleDriveIntegration';
 
 describe('GoogleDriveIntegration', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
     jest.clearAllMocks();
@@ -29,7 +34,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Google Drive Integration')).toBeInTheDocument();
@@ -49,7 +54,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Not Connected')).toBeInTheDocument();
@@ -69,7 +74,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       const connectButton = screen.getByText('Connect Google Drive');
@@ -112,7 +117,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -148,7 +153,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Files & Folders')).toBeInTheDocument();
@@ -167,7 +172,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/error|authentication failed/i)).toBeInTheDocument();
@@ -205,7 +210,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -267,7 +272,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Folder')).toBeInTheDocument();
@@ -305,7 +310,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('My Drive')).toBeInTheDocument();
@@ -345,7 +350,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.pdf')).toBeInTheDocument();
@@ -402,7 +407,7 @@ describe('GoogleDriveIntegration', () => {
       })
     );
 
-    render(<GoogleDriveIntegration />);
+    render(<GoogleDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.pdf')).toBeInTheDocument();

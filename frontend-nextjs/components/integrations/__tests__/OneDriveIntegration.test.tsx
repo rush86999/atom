@@ -12,6 +12,11 @@ import { server } from '@/tests/mocks/server';
 import OneDriveIntegration from '../OneDriveIntegration';
 
 describe('OneDriveIntegration', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
     jest.clearAllMocks();
@@ -29,7 +34,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('OneDrive Integration')).toBeInTheDocument();
@@ -49,7 +54,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Not Connected')).toBeInTheDocument();
@@ -92,7 +97,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -115,7 +120,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Not Connected')).toBeInTheDocument();
@@ -172,7 +177,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Folder')).toBeInTheDocument();
@@ -220,7 +225,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -267,7 +272,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.pdf')).toBeInTheDocument();
@@ -324,7 +329,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.pdf')).toBeInTheDocument();
@@ -362,7 +367,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('OneDrive')).toBeInTheDocument();
@@ -391,7 +396,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/drive type: business/i)).toBeInTheDocument();
@@ -419,7 +424,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/no files found in this folder/i)).toBeInTheDocument();
@@ -458,7 +463,7 @@ describe('OneDriveIntegration', () => {
       })
     );
 
-    render(<OneDriveIntegration />);
+    render(<OneDriveIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('file1.pdf')).toBeInTheDocument();

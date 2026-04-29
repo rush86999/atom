@@ -12,6 +12,11 @@ import { server } from '@/tests/mocks/server';
 import IntegrationHealthDashboard from '../IntegrationHealthDashboard';
 
 describe('IntegrationHealthDashboard', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
     jest.useFakeTimers();
@@ -35,7 +40,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Status')).toBeInTheDocument();
@@ -56,7 +61,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('GitHub')).toBeInTheDocument();
@@ -87,7 +92,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('HEALTHY')).toBeInTheDocument();
@@ -99,7 +104,7 @@ describe('IntegrationHealthDashboard', () => {
   it('handles empty integrations array', async () => {
     // This would require mocking the integrationList, which is internal
     // For now, we test that it renders without crashing
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Integrations')).toBeInTheDocument();
@@ -108,7 +113,7 @@ describe('IntegrationHealthDashboard', () => {
 
   it('shows loading state with skeleton/spinner', () => {
     // Component shows loading initially
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     expect(screen.getByText(/loading integration health/i)).toBeInTheDocument();
   });
@@ -126,7 +131,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Healthy')).toBeInTheDocument();
@@ -146,7 +151,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Integrations')).toBeInTheDocument();
@@ -171,7 +176,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Refresh')).toBeInTheDocument();
@@ -197,7 +202,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Overall Health')).toBeInTheDocument();
@@ -217,7 +222,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/last updated/i)).toBeInTheDocument();
@@ -237,7 +242,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard />);
+    render(<IntegrationHealthDashboard {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Status Legend')).toBeInTheDocument();
@@ -260,7 +265,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard autoRefresh={true} refreshInterval={10000} />);
+    render(<IntegrationHealthDashboard {...defaultProps} autoRefresh={true} refreshInterval={10000} />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Status')).toBeInTheDocument();
@@ -287,7 +292,7 @@ describe('IntegrationHealthDashboard', () => {
       })
     );
 
-    render(<IntegrationHealthDashboard showDetails={false} />);
+    render(<IntegrationHealthDashboard {...defaultProps} showDetails={false} />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Status')).toBeInTheDocument();

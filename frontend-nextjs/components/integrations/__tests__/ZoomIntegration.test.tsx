@@ -12,6 +12,11 @@ import { server } from '@/tests/mocks/server';
 import ZoomIntegration from '../ZoomIntegration';
 
 describe('ZoomIntegration', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
   beforeEach(() => {
     server.resetHandlers();
     jest.clearAllMocks();
@@ -29,7 +34,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     expect(screen.getByText('Zoom Integration')).toBeInTheDocument();
   });
@@ -47,7 +52,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connect Zoom Account')).toBeInTheDocument();
@@ -72,7 +77,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -92,7 +97,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       const connectButton = screen.getByText('Connect Zoom Account');
@@ -112,7 +117,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText(/connection failed|error/i)).toBeInTheDocument();
@@ -155,7 +160,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Meetings')).toBeInTheDocument();
@@ -180,7 +185,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Create Meeting')).toBeInTheDocument();
@@ -222,7 +227,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Users')).toBeInTheDocument();
@@ -265,7 +270,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Recordings')).toBeInTheDocument();
@@ -300,7 +305,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -345,7 +350,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       const createButton = screen.getByText('Create Meeting');
@@ -373,7 +378,7 @@ describe('ZoomIntegration', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    render(<ZoomIntegration {...defaultProps} />);
 
     await waitFor(() => {
       const refreshButton = screen.getByText('Refresh');

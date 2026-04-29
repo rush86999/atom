@@ -46,6 +46,10 @@ afterEach(() => {
 // ============================================================================
 
 describe('InteractiveForm - Error Recovery', () => {
+  const defaultProps = {
+    onSubmit: jest.fn(),
+  };
+
 
   test('should handle form submission failure (503) with retry', async () => {
     const user = userEvent.setup();
@@ -67,7 +71,7 @@ describe('InteractiveForm - Error Recovery', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true },
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    render(<InteractiveForm {...defaultProps} fields={fields} onSubmit={mockSubmit} />);
 
     // Fill form
     await user.type(screen.getByLabelText(/name/i), 'Test User');
@@ -111,7 +115,7 @@ describe('InteractiveForm - Error Recovery', () => {
       { name: 'action', label: 'Action', type: 'text' as const, required: true },
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    render(<InteractiveForm {...defaultProps} fields={fields} onSubmit={mockSubmit} />);
 
     // Fill and submit form
     await user.type(screen.getByLabelText(/action/i), 'Delete all data');
@@ -142,7 +146,7 @@ describe('InteractiveForm - Error Recovery', () => {
       { name: 'data', label: 'Data', type: 'text' as const, required: true },
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    render(<InteractiveForm {...defaultProps} fields={fields} onSubmit={mockSubmit} />);
 
     // Fill and submit form
     await user.type(screen.getByLabelText(/data/i), 'test data');
@@ -172,6 +176,10 @@ describe('InteractiveForm - Error Recovery', () => {
 // ============================================================================
 
 describe('InteractiveForm - Loading States During Error Recovery', () => {
+  const defaultProps = {
+    onSubmit: jest.fn(),
+  };
+
 
   test('should show loading state during form submission', async () => {
     const user = userEvent.setup();
@@ -186,7 +194,7 @@ describe('InteractiveForm - Loading States During Error Recovery', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true },
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    render(<InteractiveForm {...defaultProps} fields={fields} onSubmit={mockSubmit} />);
 
     // Fill form
     await user.type(screen.getByLabelText(/field/i), 'test value');
@@ -229,7 +237,7 @@ describe('InteractiveForm - Loading States During Error Recovery', () => {
       { name: 'value', label: 'Value', type: 'text' as const, required: true },
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    render(<InteractiveForm {...defaultProps} fields={fields} onSubmit={mockSubmit} />);
 
     // Fill and submit form
     await user.type(screen.getByLabelText(/value/i), 'test');

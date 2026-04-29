@@ -118,18 +118,23 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Component Rendering', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('renders Jira integration component', () => {
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
       expect(screen.getByText(/jira/i)).toBeInTheDocument();
     });
 
     it('shows connection form when not authenticated', () => {
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
       expect(screen.getByText(/connect to jira/i)).toBeInTheDocument();
     });
 
     it('displays loading state initially', () => {
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
       // Check for any loading indicators or skeleton screens
       const loadingElement = screen.queryByTestId(/loading|spinner/i);
       // Note: Component might not show loading initially, so we don't assert
@@ -138,8 +143,13 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Connection Flow', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('renders connection form fields', () => {
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       // Look for common connection form elements
       const urlInput = screen.queryByLabelText(/instance url|site url/i);
@@ -165,7 +175,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       // Simulate connection initiation
       // Note: Actual implementation depends on component structure
@@ -185,7 +195,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       // Simulate OAuth callback event
       window.dispatchEvent(
@@ -201,6 +211,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Project Management', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('fetches and displays projects after connection', async () => {
       // MSW mock for projects endpoint
       server.use(
@@ -215,7 +230,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument();
@@ -237,7 +252,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const searchInput = screen.getByPlaceholderText(/search|filter/i);
       await user.type(searchInput, 'TEST');
@@ -250,7 +265,7 @@ describe('JiraIntegration Component', () => {
     it('opens project creation modal', async () => {
       const user = userEvent.setup();
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const createButton = screen.getByRole('button', { name: /new project|create project/i });
       await user.click(createButton);
@@ -261,6 +276,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Issue Management', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('fetches and displays issues for selected project', async () => {
       server.use(
         rest.get('/api/integrations/jira/issues', (req, res, ctx) => {
@@ -274,7 +294,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('Test issue summary')).toBeInTheDocument();
@@ -297,7 +317,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const statusFilter = screen.getByRole('combobox', { name: /status/i });
       await user.click(statusFilter);
@@ -314,7 +334,7 @@ describe('JiraIntegration Component', () => {
     it('opens issue creation modal', async () => {
       const user = userEvent.setup();
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const createButton = screen.getByRole('button', { name: /create issue|new issue/i });
       await user.click(createButton);
@@ -344,7 +364,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       // Open create modal
       const createButton = screen.getByRole('button', { name: /create issue/i });
@@ -364,6 +384,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('User Management', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('fetches and displays users', async () => {
       server.use(
         rest.get('/api/integrations/jira/users', (req, res, ctx) => {
@@ -377,7 +402,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('John Doe')).toBeInTheDocument();
@@ -398,7 +423,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       // Select an issue
       const issue = screen.getByText('TEST-1');
@@ -419,6 +444,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Sprint Management', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('fetches and displays sprints', async () => {
       const mockSprints = [
         {
@@ -444,7 +474,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('Sprint 1')).toBeInTheDocument();
@@ -483,7 +513,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/sprint 1/i)).toBeInTheDocument();
@@ -495,6 +525,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Error Handling', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('displays error message on connection failure', async () => {
       const user = userEvent.setup();
 
@@ -509,7 +544,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       const connectButton = screen.queryByRole('button', { name: /connect/i });
       if (connectButton) {
@@ -533,7 +568,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       const connectButton = screen.queryByRole('button', { name: /connect/i });
       if (connectButton) {
@@ -556,7 +591,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration />);
+      render(<JiraIntegration {...defaultProps} />);
 
       const connectButton = screen.queryByRole('button', { name: /connect/i });
       if (connectButton) {
@@ -583,7 +618,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/rate limit|too many requests/i)).toBeInTheDocument();
@@ -592,6 +627,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Loading States', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('shows loading indicator during project fetch', async () => {
       server.use(
         rest.get('/api/integrations/jira/projects', async (req, res, ctx) => {
@@ -607,7 +647,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       // Check for loading state
       const loadingElement = screen.queryByTestId(/loading|spinner/i);
@@ -628,7 +668,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       // Check for loading state
       const loadingElement = screen.queryByTestId(/loading|spinner/i);
@@ -637,6 +677,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Data Sync', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('refreshes data on manual refresh', async () => {
       const user = userEvent.setup();
 
@@ -652,7 +697,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const refreshButton = screen.getByRole('button', { name: /refresh/i });
       await user.click(refreshButton);
@@ -663,7 +708,7 @@ describe('JiraIntegration Component', () => {
     });
 
     it('displays last sync timestamp', () => {
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       // Check for last updated/sync timestamp display
       const timestampElement = screen.queryByTestId(/last-sync|last-updated/i);
@@ -672,6 +717,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Health Status', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('displays health check status', async () => {
       server.use(
         rest.get('/api/integrations/jira/health', (req, res, ctx) => {
@@ -685,7 +735,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         const healthIndicator = screen.queryByTestId(/health-status|connection-status/i);
@@ -705,7 +755,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/unhealthy|connection lost/i)).toBeInTheDocument();
@@ -714,6 +764,11 @@ describe('JiraIntegration Component', () => {
   });
 
   describe('Disconnection', () => {
+  const defaultProps = {
+    onConnect: jest.fn(),
+    onDisconnect: jest.fn(),
+  };
+
     it('disconnects from Jira successfully', async () => {
       const user = userEvent.setup();
 
@@ -728,7 +783,7 @@ describe('JiraIntegration Component', () => {
         })
       );
 
-      render(<JiraIntegration connected={true} />);
+      render(<JiraIntegration {...defaultProps} connected={true} />);
 
       const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
       await user.click(disconnectButton);
