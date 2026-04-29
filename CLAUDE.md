@@ -444,6 +444,76 @@ except Exception as e:
 - Always clean up test data in `finally` blocks
 - Use mocks for external services (AsyncMock, MagicMock)
 
+### TDD Patterns for Bug Fixes ✨
+**Follow Test-Driven Development for ALL bug fixes** - See `docs/testing/BUG_FIX_PROCESS.md`
+
+**Red-Green-Refactor Cycle:**
+1. **Red:** Write failing test that reproduces the bug
+2. **Green:** Write minimal fix to make test pass
+3. **Refactor:** Improve code while tests pass
+
+**Why TDD for Bug Fixes?**
+- Prevents regression (tests ensure bugs don't reoccur)
+- Documents intent (tests explain what code should do)
+- Enables refactoring (safe improvements with test safety net)
+- Catches root causes (tests reveal deeper issues)
+
+**Example Bug Fix:**
+```python
+# RED: Write failing test
+def test_agent_maturity_blocks_demotion():
+    agent = AgentRegistry(id="test", maturity=AgentMaturity.AUTONOMOUS)
+    service = AgentGovernanceService(db)
+    with pytest.raises(ValueError):
+        service.update_maturity("test", AgentMaturity.STUDENT)
+
+# GREEN: Minimal fix
+def update_maturity(self, agent_id: str, new_maturity: AgentMaturity):
+    if self._is_demotion(agent.maturity, new_maturity):
+        raise ValueError(f"Invalid maturity transition")
+    agent.maturity = new_maturity
+
+# REFACTOR: Improve code
+def _is_demotion(self, current: AgentMaturity, new: AgentMaturity) -> bool:
+    levels = {STUDENT: 1, INTERN: 2, SUPERVISED: 3, AUTONOMOUS: 4}
+    return levels[new] < levels[current]
+```
+
+**Key Principles:**
+- Never fix bug without failing test first
+- Commit test before fix
+- Keep fixes minimal and focused
+- Run full test suite after each fix
+- Document root cause and lessons learned
+
+**Frontend Test Fixes (Jest/React Testing Library):**
+```typescript
+// RED: Failing test for missing element
+test('render user avatar', () => {
+  render(<UserProfile userId="123" />);
+  expect(screen.getByRole('img', { name: /avatar/i })).toBeInTheDocument();
+  // FAILS: "Unable to find an img with accessible name: /avatar/i"
+});
+
+// GREEN: Add missing prop or mock
+test('render user avatar', () => {
+  render(<UserProfile userId="123" showAvatar={true} />);
+  expect(screen.getByRole('img', { name: /avatar/i })).toBeInTheDocument();
+});
+
+// REFACTOR: Extract reusable render helper
+function renderUserProfile(props = {}) {
+  return render(<UserProfile userId="123" {...props} />);
+}
+```
+
+**Common Bug Fix Patterns:**
+- **Input validation:** Add null/undefined checks
+- **Edge cases:** Handle empty/zero/negative values
+- **State mutation:** Copy objects before modifying
+- **Integration issues:** Fix component communication
+- **Timeout errors:** Add waitFor, increase timeouts, fake timers
+
 ### Import Order
 ```python
 # 1. Standard library
