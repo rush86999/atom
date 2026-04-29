@@ -306,12 +306,12 @@ describe('testIds', () => {
 
   describe('exports', () => {
     it('should export default as TEST_IDS', () => {
-      const testIds = require('../testIds');
+      const testIds = require('../../src/lib/testIds');
       expect(testIds.default).toBe(TEST_IDS);
     });
 
     it('should export individual constants', () => {
-      const testIds = require('../testIds');
+      const testIds = require('../../src/lib/testIds');
       expect(testIds.AGENT_CHAT).toBe(AGENT_CHAT);
       expect(testIds.CANVAS).toBe(CANVAS);
       expect(testIds.AUTH).toBe(AUTH);
