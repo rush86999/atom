@@ -36,8 +36,11 @@ jest.mock('@/hooks/useFileUpload', () => ({
 }));
 
 // Setup MSW server
+// Note: MSW handlers match both relative and absolute URLs automatically
+// The fetch wrapper in setup.ts converts relative URLs to absolute (localhost:8000)
+// We need to handle multiple URL patterns due to fetch inconsistencies
 const server = setupServer(
-  rest.post('/api/chat/message', (req, res, ctx) => {
+  rest.post('*/api/chat/message', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -48,7 +51,7 @@ const server = setupServer(
     );
   }),
 
-  rest.get('/api/chat/history/:sessionId', (req, res, ctx) => {
+  rest.get('*/api/chat/history/:sessionId', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -63,21 +66,21 @@ const server = setupServer(
     );
   }),
 
-  rest.get('/api/chat/sessions/:sessionId', (req, res, ctx) => {
+  rest.get('*/api/chat/sessions/:sessionId', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ title: 'Test Session' })
     );
   }),
 
-  rest.patch('/api/chat/sessions/:sessionId', (req, res, ctx) => {
+  rest.patch('*/api/chat/sessions/:sessionId', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ success: true })
     );
   }),
 
-  rest.post('/api/atom-agent/feedback', (req, res, ctx) => {
+  rest.post('*/api/atom-agent/feedback', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ success: true })

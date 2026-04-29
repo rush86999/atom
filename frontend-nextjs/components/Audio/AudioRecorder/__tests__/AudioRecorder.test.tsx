@@ -9,7 +9,8 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AudioRecorder } from '../AudioRecorder';
+import AudioRecorder from '../../AudioRecorder';
+import { AgentAudioControlProvider } from '@/contexts/AgentAudioControlContext';
 
 // Mock MediaRecorder API
 const mockMediaRecorder = {
@@ -31,6 +32,21 @@ navigator.mediaDevices = {
   }),
 } as any;
 
+// Helper function to render with context and default props
+const renderWithProviders = (component: React.ReactNode) => {
+  const defaultProps = {
+    userId: 'test-user',
+    onRecordingComplete: jest.fn(),
+    onRecordingError: jest.fn(),
+  };
+
+  return render(
+    <AgentAudioControlProvider>
+      <AudioRecorder {...defaultProps} {...(component as any).props} />
+    </AgentAudioControlProvider>
+  );
+};
+
 describe('AudioRecorder', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,14 +54,14 @@ describe('AudioRecorder', () => {
 
   // Test 1: renders component
   test('renders component', () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     expect(screen.getByText(/record/i)).toBeInTheDocument();
   });
 
   // Test 2: requests microphone permission on mount
   test('requests microphone permission on mount', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
@@ -54,7 +70,7 @@ describe('AudioRecorder', () => {
 
   // Test 3: starts recording when record button clicked
   test('starts recording when record button clicked', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -66,7 +82,7 @@ describe('AudioRecorder', () => {
 
   // Test 4: stops recording when stop button clicked
   test('stops recording when stop button clicked', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -83,7 +99,7 @@ describe('AudioRecorder', () => {
 
   // Test 5: displays recording time
   test('displays recording time', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -101,7 +117,7 @@ describe('AudioRecorder', () => {
       new Error('Permission denied')
     );
 
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
@@ -110,7 +126,7 @@ describe('AudioRecorder', () => {
 
   // Test 7: plays recorded audio
   test('plays recorded audio', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     // Record audio
     await waitFor(() => {
@@ -135,7 +151,7 @@ describe('AudioRecorder', () => {
 
   // Test 8: downloads recorded audio
   test('downloads recorded audio', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     // Record audio
     await waitFor(() => {
@@ -158,7 +174,7 @@ describe('AudioRecorder', () => {
 
   // Test 9: pauses recording
   test('pauses recording', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -175,7 +191,7 @@ describe('AudioRecorder', () => {
 
   // Test 10: resumes recording
   test('resumes recording', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -197,7 +213,7 @@ describe('AudioRecorder', () => {
 
   // Test 11: deletes recording
   test('deletes recording', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     // Record audio
     await waitFor(() => {
@@ -224,7 +240,7 @@ describe('AudioRecorder', () => {
 
   // Test 12: displays audio waveform
   test('displays audio waveform', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -239,7 +255,7 @@ describe('AudioRecorder', () => {
 
   // Test 13: adjusts recording quality
   test('adjusts recording quality', () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     const qualitySelect = screen.getByRole('combobox', { name: /quality/i });
     fireEvent.change(qualitySelect, { target: { value: 'high' } });
@@ -249,7 +265,7 @@ describe('AudioRecorder', () => {
 
   // Test 14: shows recording indicator
   test('shows recording indicator', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
@@ -265,7 +281,7 @@ describe('AudioRecorder', () => {
 
   // Test 15: handles maximum recording duration
   test('handles maximum recording duration', async () => {
-    render(<AudioRecorder />);
+    renderWithProviders(<AudioRecorder />);
 
     await waitFor(() => {
       const recordButton = screen.getByRole('button', { name: /record/i });
