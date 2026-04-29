@@ -70,12 +70,16 @@ try {
 
 // Establish API mocking before all tests (only if server loaded)
 if (server) {
-  beforeAll(() => server?.listen({ onUnhandledRequest: 'warn' }));
+  beforeAll(async () => {
+    await server?.listen({ onUnhandledRequest: 'bypass' }); // Changed to 'bypass' for less noise
+  });
   // Reset any request handlers that we may add during the tests,
   // so they don't affect other tests
   afterEach(() => server?.resetHandlers());
   // Clean up after the tests are finished
-  afterAll(() => server?.close());
+  afterAll(async () => {
+    await server?.close();
+  });
 }
 
 // Mock scrollIntoView
