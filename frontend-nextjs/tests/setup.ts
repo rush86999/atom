@@ -201,6 +201,81 @@ global.IntersectionObserverEntry = jest.fn().mockImplementation((entry) => ({
   time: 0,
 }));
 
+// Fix for Phase 299-11: Mock XMLHttpRequest to avoid CORS errors in JSDOM
+// JSDOM blocks certain headers like X-Request-ID in CORS preflight
+// We mock XHR to bypass these restrictions in test environment
+const originalXMLHttpRequest = global.XMLHttpRequest;
+global.XMLHttpRequest = class MockXMLHttpRequest extends EventTarget {
+  readyState = 0;
+  status = 200;
+  statusText = 'OK';
+  response: any;
+  responseText = '';
+  responseURL = '';
+  responseType = '';
+  responseXML: any = null;
+  timeout = 0;
+  upload = new EventTarget();
+  withCredentials = false;
+  _requestHeaders: Record<string, string> = {};
+  _responseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  open(method: string, url: string) {
+    this.readyState = 1;
+    this.dispatchEvent(new Event('readystatechange'));
+  }
+
+  setRequestHeader(name: string, value: string) {
+    this._requestHeaders[name] = value;
+  }
+
+  getResponseHeader(name: string): string | null {
+    return this._responseHeaders[name] || null;
+  }
+
+  getAllResponseHeaders(): string {
+    return Object.entries(this._responseHeaders)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\r\n');
+  }
+
+  send(data?: any) {
+    this.readyState = 2;
+    this.dispatchEvent(new Event('readystatechange'));
+
+    // Simulate async response
+    setTimeout(() => {
+      this.readyState = 3;
+      this.dispatchEvent(new Event('readystatechange'));
+
+      setTimeout(() => {
+        this.readyState = 4;
+        this.status = 200;
+        this.statusText = 'OK';
+        this.response = JSON.stringify({ success: true });
+        this.responseText = JSON.stringify({ success: true });
+        this.dispatchEvent(new Event('readystatechange'));
+        this.dispatchEvent(new Event('load'));
+      }, 0);
+    }, 0);
+  }
+
+  abort() {
+    this.readyState = 0;
+  }
+
+  overrideMimeType(mime: string) {}
+  addEventListener<K extends keyof XMLHttpRequestEventTargetEventMap>(
+    type: K,
+    listener: (this: XMLHttpRequest, ev: XMLHttpRequestEventTargetEventMap[K]) => any,
+    options?: boolean | AddEventListenerOptions
+  ) {
+    super.addEventListener(type as string, listener as EventListener, options);
+  }
+} as any;
+
 // Mock URL.createObjectURL and URL.revokeObjectURL
 global.URL.createObjectURL = jest.fn();
 global.URL.revokeObjectURL = jest.fn();

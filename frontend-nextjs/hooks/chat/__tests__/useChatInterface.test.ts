@@ -85,6 +85,47 @@ const server = setupServer(
       ctx.status(200),
       ctx.json({ success: true })
     );
+  }),
+
+  // Additional handlers for URL variations (localhost without port, 127.0.0.1, etc.)
+  rest.post('http://localhost/api/chat/message', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        message: 'Test response',
+        session_id: 'test-session-123',
+      })
+    );
+  }),
+
+  rest.get('http://localhost/api/chat/history/:sessionId', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        messages: [
+          {
+            message: 'Hello',
+            response: { message: 'Hi there!', suggested_actions: [] },
+            timestamp: '2024-01-01T00:00:00Z',
+          },
+        ],
+      })
+    );
+  }),
+
+  rest.get('http://localhost/api/chat/sessions/:sessionId', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ title: 'Test Session' })
+    );
+  }),
+
+  rest.patch('http://localhost/api/chat/sessions/:sessionId', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true })
+    );
   })
 );
 
