@@ -386,16 +386,20 @@ try {
   // Store doesn't exist, skip mock
 }
 
-// Mock react-hook-form (very common in forms)
-jest.mock('react-hook-form', () => ({
-  useForm: () => ({
-    register: jest.fn(),
-    handleSubmit: (fn: any) => fn,
-    formState: { errors: {} },
-    reset: jest.fn(),
-    setValue: jest.fn(),
-    getValues: jest.fn(() => ({})),
-  }),
-  Controller: ({ render }: any) => render({ field: {} }),
-}));
+// Mock react-hook-form (very common in forms) - only if installed
+// try {
+//   jest.mock('react-hook-form', () => ({
+//     useForm: () => ({
+//       register: jest.fn(),
+//       handleSubmit: (fn: any) => fn,
+//       formState: { errors: {} },
+//       reset: jest.fn(),
+//       setValue: jest.fn(),
+//       getValues: jest.fn(() => ({})),
+//     }),
+//     Controller: ({ render }: any) => render({ field: {} }),
+//   }));
+// } catch (e) {
+//   // react-hook-form not installed, skip mock
+// }
 
