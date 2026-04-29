@@ -5,6 +5,8 @@
  * Tests: aria-live regions, progress bar accessibility, operation announcements, step labels
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { AgentOperationTracker, AgentOperationData } from '@/components/canvas/AgentOperationTracker';

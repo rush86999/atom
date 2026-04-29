@@ -5,6 +5,8 @@
  * Tests: form labels, error states, aria-invalid, aria-describedby, keyboard navigation
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../../tests/accessibility-config';

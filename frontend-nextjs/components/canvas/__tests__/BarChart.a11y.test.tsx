@@ -5,6 +5,8 @@
  * Tests: visible labels, chart structure, data accessibility through canvas API
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { BarChartCanvas } from '@/components/canvas/BarChart';

@@ -5,6 +5,8 @@
  * Tests: visible labels, segment accessibility, legend, data accessibility
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { PieChartCanvas } from '@/components/canvas/PieChart';

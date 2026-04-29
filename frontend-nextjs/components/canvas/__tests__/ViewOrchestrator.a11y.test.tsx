@@ -5,6 +5,8 @@
  * Tests: aria-live regions for view changes, landmark regions, focus management, view controls
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { ViewOrchestrator } from '@/components/canvas/ViewOrchestrator';

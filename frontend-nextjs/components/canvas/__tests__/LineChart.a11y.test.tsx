@@ -5,6 +5,8 @@
  * Tests: visible labels, chart structure, trend accessibility, data accessibility
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { LineChartCanvas } from '@/components/canvas/LineChart';

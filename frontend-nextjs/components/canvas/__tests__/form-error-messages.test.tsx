@@ -1,3 +1,5 @@
+import React from 'react';
+
 import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';

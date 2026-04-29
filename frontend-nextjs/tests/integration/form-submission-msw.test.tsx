@@ -14,6 +14,8 @@
  * Phase 109-05: MSW Backend Integration Tests
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen, waitFor } from '../test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';

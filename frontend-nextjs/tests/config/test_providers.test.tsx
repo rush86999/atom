@@ -5,6 +5,8 @@
  * They test the "wiring" of the frontend application without testing business logic.
  */
 
+import React from 'react';
+
 import { renderWithProviders, screen } from '../test-utils';
 import { AppProps } from 'next/app';
 
