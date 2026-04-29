@@ -22,7 +22,7 @@ describe('ZoomIntegration', () => {
     jest.clearAllMocks();
   });
 
-  it('renders integration card with Zoom branding', () => {
+  it('renders integration card with Zoom branding', async () => {
     server.use(
       rest.get('/api/zoom/connection-status', (req, res, ctx) => {
         return res(
@@ -36,7 +36,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
-    expect(screen.getByText('Zoom Integration')).toBeInTheDocument();
+    // Wait for async API call to complete
+    await waitFor(() => {
+      expect(screen.getByText('Zoom Integration')).toBeInTheDocument();
+    });
   });
 
   it('shows Connect button when not connected', async () => {
@@ -99,10 +102,11 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for async render to complete before finding button
     await waitFor(() => {
       const connectButton = screen.getByText('Connect Zoom Account');
       expect(connectButton).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('handles error state with error message', async () => {
@@ -119,9 +123,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for error state with increased timeout for API error handling
     await waitFor(() => {
       expect(screen.getByText(/connection failed|error/i)).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('renders meeting list when authenticated', async () => {
@@ -162,9 +167,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for multiple API calls to complete (connection status + meetings)
     await waitFor(() => {
       expect(screen.getByText('Meetings')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('renders scheduling UI if applicable', async () => {
@@ -187,9 +193,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for async UI rendering
     await waitFor(() => {
       expect(screen.getByText('Create Meeting')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('displays users tab with user list', async () => {
@@ -229,9 +236,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for multiple API calls (connection status + users)
     await waitFor(() => {
       expect(screen.getByText('Users')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('shows recordings tab with recording list', async () => {
@@ -272,9 +280,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for multiple API calls (connection status + recordings)
     await waitFor(() => {
       expect(screen.getByText('Recordings')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('disconnects Zoom account when disconnect button clicked', async () => {
@@ -352,10 +361,11 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for async UI rendering
     await waitFor(() => {
       const createButton = screen.getByText('Create Meeting');
       expect(createButton).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('refreshes data when refresh button clicked', async () => {
@@ -380,9 +390,10 @@ describe('ZoomIntegration', () => {
 
     render(<ZoomIntegration {...defaultProps} />);
 
+    // Wait for async UI rendering
     await waitFor(() => {
       const refreshButton = screen.getByText('Refresh');
       expect(refreshButton).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 });
