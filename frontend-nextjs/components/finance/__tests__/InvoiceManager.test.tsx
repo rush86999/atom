@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { InvoiceManager } from '../InvoiceManager';
+import InvoiceManager from '../InvoiceManager';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 

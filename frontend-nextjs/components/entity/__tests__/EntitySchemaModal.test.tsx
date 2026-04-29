@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { EntitySchemaModal } from '../EntitySchemaModal';
+import EntitySchemaModal from '../EntitySchemaModal';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 
