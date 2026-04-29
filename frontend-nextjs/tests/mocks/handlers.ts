@@ -2046,6 +2046,8 @@ export const allHandlers = [
   ...deviceHandlers,
   ...formSubmissionHandlers,  // Phase 109
   ...integrationHandlers,     // Phase 130
+  ...communicationHandlers,   // Phase 299-11
+  ...taskHandlers,            // Phase 299-11
 ];
 
 /**
@@ -2065,3 +2067,140 @@ export const allErrorHandlers = {
   device: deviceErrorHandlers,
   integration: integrationErrorHandlers,
 };
+
+// ============================================================================
+// Communication & Task Handlers (Phase 299-11)
+// ============================================================================
+
+export const communicationHandlers = [
+  // Get messages
+  rest.get('/api/communications/messages', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        messages: [
+          {
+            id: '1',
+            platform: 'email',
+            from: 'team@company.com',
+            to: 'user@example.com',
+            subject: 'Weekly Team Update',
+            preview: 'Here are the updates...',
+            content: 'Dear Team, here are the updates.',
+            timestamp: new Date('2025-10-20T14:30:00'),
+            unread: true,
+            priority: 'normal',
+            status: 'received',
+          },
+        ],
+      })
+    );
+  }),
+
+  // Get conversations
+  rest.get('/api/communications/conversations', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        conversations: [
+          {
+            id: 'conv-1',
+            title: 'Weekly Team Updates',
+            participants: ['team@company.com', 'user@example.com'],
+            messages: [],
+            unreadCount: 1,
+            lastMessage: new Date('2025-10-20T14:30:00'),
+            platform: 'email',
+            priority: 'normal',
+          },
+        ],
+      })
+    );
+  }),
+];
+
+export const taskHandlers = [
+  // Get tasks
+  rest.get('/api/tasks', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        tasks: [
+          {
+            id: '1',
+            title: 'Complete project proposal',
+            description: 'Write and submit the Q2 project proposal',
+            dueDate: new Date('2025-10-25'),
+            priority: 'high',
+            status: 'in-progress',
+            project: 'Project Alpha',
+            tags: ['urgent', 'planning'],
+            assignee: 'John Doe',
+            estimatedHours: 8,
+            actualHours: 4,
+            platform: 'local',
+            color: '#3182CE',
+            createdAt: new Date('2025-10-20'),
+            updatedAt: new Date('2025-10-20'),
+          },
+        ],
+      })
+    );
+  }),
+
+  // Get projects
+  rest.get('/api/projects', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        projects: [
+          {
+            id: 'proj-1',
+            name: 'Project Alpha',
+            description: 'Q2 strategic initiative',
+            color: '#3182CE',
+            tasks: [],
+            progress: 50,
+          },
+        ],
+      })
+    );
+  }),
+
+  // Create task
+  rest.post('/api/tasks', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: 'new-1',
+        success: true,
+      })
+    );
+  }),
+
+  // Update task
+  rest.put('/api/tasks/:id', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+      })
+    );
+  }),
+
+  // Delete task
+  rest.delete('/api/tasks/:id', (req, res, ctx) => {
+    return res(ctx.status(200));
+  }),
+
+  // Create project
+  rest.post('/api/projects', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: 'proj-new',
+        success: true,
+      })
+    );
+  }),
+];
