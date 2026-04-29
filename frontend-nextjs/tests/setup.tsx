@@ -343,12 +343,12 @@ jest.mock('next/router', () => ({
 //   QueryClientProvider: ({ children }: { children: any }) => children,
 // }));
 
-// Mock framer-motion
+// Mock framer-motion - simpler pass-through
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => React.createElement('div', props, children),
-    span: ({ children, ...props }: any) => React.createElement('span', props, children),
-    button: ({ children, ...props }: any) => React.createElement('button', props, children),
+    div: ({ children }: { children: any }) => children,
+    span: ({ children }: { children: any }) => children,
+    button: ({ children }: { children: any }) => children,
   },
   AnimatePresence: ({ children }: { children: any }) => children,
 }));
