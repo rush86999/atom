@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -17,12 +17,12 @@ describe('HubSpotPredictiveAnalytics Component', () => {
   });
 
   it('renders HubSpot predictive analytics component', () => {
-    render(<HubSpotPredictiveAnalytics />);
+    renderWithProviders(<HubSpotPredictiveAnalytics />);
     expect(screen.getByText(/hubspot|predictive|analytics/i)).toBeInTheDocument();
   });
 
   it('renders predictive analytics dashboard', () => {
-    render(<HubSpotPredictiveAnalytics />);
+    renderWithProviders(<HubSpotPredictiveAnalytics />);
     expect(screen.getByText('Predictive Analytics')).toBeInTheDocument();
   });
 
@@ -40,20 +40,20 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       }
     ];
 
-    render(<HubSpotPredictiveAnalytics models={mockModels} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
 
     expect(screen.getByText('Active Models')).toBeInTheDocument();
     expect(screen.getByText('Forecast Performance')).toBeInTheDocument();
   });
 
   it('handles loading state', () => {
-    render(<HubSpotPredictiveAnalytics />);
+    renderWithProviders(<HubSpotPredictiveAnalytics />);
     // Component should render without crashing even with empty props
     expect(screen.getByText('Predictive Analytics')).toBeInTheDocument();
   });
 
   it('handles empty data state', () => {
-    render(<HubSpotPredictiveAnalytics models={[]} predictions={[]} forecast={[]} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics models={[]} predictions={[]} forecast={[]} />);
 
     expect(screen.getByText('No Models Available')).toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       }
     ];
 
-    render(<HubSpotPredictiveAnalytics models={mockModels} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
 
     expect(screen.getByText('85.5%')).toBeInTheDocument();
     expect(screen.getByText('85.0%')).toBeInTheDocument(); // precision
@@ -92,7 +92,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       }
     ];
 
-    render(<HubSpotPredictiveAnalytics models={mockModels} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
 
     expect(screen.getByText('Prediction Model')).toBeInTheDocument();
     expect(screen.getByText('Timeframe')).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       }
     ];
 
-    render(<HubSpotPredictiveAnalytics predictions={mockPredictions} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics predictions={mockPredictions} />);
 
     expect(screen.getByText('Recent Predictions')).toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       })
     );
 
-    render(<HubSpotPredictiveAnalytics connected={true} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText(/lead score|predictive score/i)).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       })
     );
 
-    render(<HubSpotPredictiveAnalytics connected={true} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText(/synced|last sync/i)).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('HubSpotPredictiveAnalytics Component', () => {
       }
     ];
 
-    render(<HubSpotPredictiveAnalytics forecast={mockForecast} />);
+    renderWithProviders(<HubSpotPredictiveAnalytics forecast={mockForecast} />);
 
     expect(screen.getByText('Revenue Forecast')).toBeInTheDocument();
     expect(screen.getByText('$50,000')).toBeInTheDocument();

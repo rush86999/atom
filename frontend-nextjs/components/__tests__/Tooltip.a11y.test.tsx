@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import {
@@ -24,7 +24,7 @@ import {
 
 describe('Tooltip Accessibility', () => {
   const renderTooltip = () => {
-    return render(
+    return renderWithProviders(
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger>

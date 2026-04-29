@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
@@ -29,7 +29,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit
@@ -43,7 +43,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit,
@@ -60,7 +60,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: [],
                     onSubmit: mockOnSubmit
@@ -82,7 +82,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: allFieldTypes,
                     onSubmit: mockOnSubmit
@@ -98,7 +98,7 @@ describe('InteractiveForm Component', () => {
         const handleSubmit = jest.fn().mockResolvedValue(undefined);
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: handleSubmit
@@ -114,7 +114,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit,
@@ -129,7 +129,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit,
@@ -144,7 +144,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit,
@@ -164,7 +164,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: requiredFields,
                     onSubmit: mockOnSubmit
@@ -183,7 +183,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: optionalFields,
                     onSubmit: mockOnSubmit
@@ -217,7 +217,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: validatedFields,
                     onSubmit: mockOnSubmit
@@ -236,7 +236,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: fieldsWithDefaults,
                     onSubmit: mockOnSubmit
@@ -263,7 +263,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: selectFields,
                     onSubmit: mockOnSubmit
@@ -282,7 +282,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: fieldsWithPlaceholders,
                     onSubmit: mockOnSubmit
@@ -354,7 +354,7 @@ describe('InteractiveForm Component', () => {
         ];
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: complexFields,
                     onSubmit: mockOnSubmit
@@ -368,7 +368,7 @@ describe('InteractiveForm Component', () => {
         const { InteractiveForm } = await import('@/components/canvas/InteractiveForm');
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: mockOnSubmit,
@@ -389,7 +389,7 @@ describe('InteractiveForm Component', () => {
         );
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: mockFields,
                     onSubmit: asyncSubmit
@@ -412,7 +412,7 @@ describe('InteractiveForm Component', () => {
         }));
 
         expect(() => {
-            render(
+            renderWithProviders(
                 React.createElement(InteractiveForm, {
                     fields: manyFields,
                     onSubmit: mockOnSubmit

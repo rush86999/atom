@@ -7,7 +7,7 @@
  * IMPORTANT: Uses baseElement for React Portal testing (Radix UI renders to document.body)
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../tests/accessibility-config';
 import {
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 
 describe('Dialog Accessibility', () => {
   it('should have no accessibility violations when open', async () => {
-    const { container, baseElement } = render(
+    const { container, baseElement } = renderWithProviders(
       <Dialog open={true} onOpenChange={() => {}}>
         <DialogContent>
           <DialogHeader>
@@ -44,7 +44,7 @@ describe('Dialog Accessibility', () => {
   it('should have focusable elements within dialog', async () => {
     const handleClose = jest.fn();
 
-    render(
+    renderWithProviders(
       <Dialog open={true} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
@@ -77,7 +77,7 @@ describe('Dialog Accessibility', () => {
   it('should close on Escape key', async () => {
     const handleClose = jest.fn();
 
-    render(
+    renderWithProviders(
       <Dialog open={true} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
@@ -98,7 +98,7 @@ describe('Dialog Accessibility', () => {
   it('should have aria-hidden when closed', () => {
     const handleClose = jest.fn();
 
-    render(
+    renderWithProviders(
       <Dialog open={false} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
@@ -114,7 +114,7 @@ describe('Dialog Accessibility', () => {
   });
 
   it('should have proper ARIA attributes', async () => {
-    const { baseElement } = render(
+    const { baseElement } = renderWithProviders(
       <Dialog open={true} onOpenChange={() => {}}>
         <DialogContent>
           <DialogHeader>
@@ -142,7 +142,7 @@ describe('Dialog Accessibility', () => {
   });
 
   it('should have accessible title', async () => {
-    const { baseElement } = render(
+    const { baseElement } = renderWithProviders(
       <Dialog open={true} onOpenChange={() => {}}>
         <DialogContent>
           <DialogHeader>

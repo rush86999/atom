@@ -5,7 +5,7 @@
  * Tests: form labels, error states, aria-invalid, aria-describedby, keyboard navigation
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../../tests/accessibility-config';
 import { InteractiveForm } from '@/components/canvas/InteractiveForm';
@@ -67,7 +67,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -80,7 +80,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have labels for all inputs', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -105,7 +105,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should show errors with aria-invalid', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -127,7 +127,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have aria-describedby for error messages', async () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -145,7 +145,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have accessible submit button', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -159,7 +159,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should be keyboard navigable', async () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -181,7 +181,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have required field indicators', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -194,7 +194,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have accessible select options', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -209,7 +209,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have accessible checkbox', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -222,7 +222,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should show validation errors for pattern mismatch', async () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -242,7 +242,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should show validation errors for number range', async () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -263,7 +263,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have accessible form title', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -279,7 +279,7 @@ describe('InteractiveForm Accessibility', () => {
   it('should show success message after submission', async () => {
     mockOnSubmit.mockResolvedValueOnce(undefined);
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}
@@ -303,7 +303,7 @@ describe('InteractiveForm Accessibility', () => {
   });
 
   it('should have accessible error icons', async () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={mockFields}
         onSubmit={mockOnSubmit}

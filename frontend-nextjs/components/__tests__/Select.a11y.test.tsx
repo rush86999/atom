@@ -5,7 +5,7 @@
  * Tests: axe violations, aria-expanded, keyboard navigation support
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import axe from '../../tests/accessibility-config';
 import {
   Select,
@@ -17,7 +17,7 @@ import {
 
 describe('Select Accessibility', () => {
   it('should have no accessibility violations when closed', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Select an option">
           <SelectValue placeholder="Select an option" />
@@ -35,7 +35,7 @@ describe('Select Accessibility', () => {
   });
 
   it('should have aria-expanded when closed', async () => {
-    render(
+    renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Select an option">
           <SelectValue placeholder="Select an option" />
@@ -51,7 +51,7 @@ describe('Select Accessibility', () => {
   });
 
   it('should have proper role and attributes', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Select an option">
           <SelectValue placeholder="Select an option" />
@@ -73,7 +73,7 @@ describe('Select Accessibility', () => {
   });
 
   it('should have accessible name via aria-label', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Choose your preference">
           <SelectValue placeholder="Select an option" />
@@ -92,7 +92,7 @@ describe('Select Accessibility', () => {
   });
 
   it('should have visible focus indicator', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Select an option">
           <SelectValue placeholder="Select an option" />
@@ -110,7 +110,7 @@ describe('Select Accessibility', () => {
   });
 
   it('should support keyboard interaction structure', () => {
-    render(
+    renderWithProviders(
       <Select>
         <SelectTrigger aria-label="Select an option">
           <SelectValue placeholder="Select an option" />

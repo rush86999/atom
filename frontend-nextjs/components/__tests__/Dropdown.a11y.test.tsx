@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '@/tests/accessibility-config';
 import {
@@ -26,7 +26,7 @@ import {
 
 describe('Dropdown Accessibility', () => {
   const renderDropdown = () => {
-    return render(
+    return renderWithProviders(
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button>Open menu</button>

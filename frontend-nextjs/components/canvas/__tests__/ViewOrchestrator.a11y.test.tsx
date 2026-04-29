@@ -5,7 +5,7 @@
  * Tests: aria-live regions for view changes, landmark regions, focus management, view controls
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { ViewOrchestrator } from '@/components/canvas/ViewOrchestrator';
 
@@ -21,7 +21,7 @@ jest.mock('@/hooks/useWebSocket', () => ({
 
 describe('ViewOrchestrator Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -30,7 +30,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have aria-live for view changes', () => {
-    render(
+    renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -42,7 +42,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have landmark regions for view areas', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -52,7 +52,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have accessible empty state', () => {
-    render(
+    renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -65,7 +65,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have accessibility tree in empty state', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -81,7 +81,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should provide proper ARIA attributes for accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -93,7 +93,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have hidden accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -103,7 +103,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should expose view orchestration data attributes', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -114,7 +114,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have JSON state in accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -132,7 +132,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should handle layout variations gracefully', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -144,7 +144,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should have accessible empty state messaging', () => {
-    render(
+    renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -157,7 +157,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should provide context about view orchestration', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 
@@ -170,7 +170,7 @@ describe('ViewOrchestrator Accessibility', () => {
   });
 
   it('should maintain accessibility during state changes', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ViewOrchestrator userId="user-123" sessionId="session-456" />
     );
 

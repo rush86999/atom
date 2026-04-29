@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import ChatHistorySidebar from '../ChatHistorySidebar';
 
 // Mock fetch
@@ -29,7 +29,7 @@ describe('ChatHistorySidebar', () => {
       json: async () => ({ sessions: [] }),
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
     );
 
@@ -43,7 +43,7 @@ describe('ChatHistorySidebar', () => {
       json: async () => ({ sessions: [] }),
     });
 
-    render(
+    renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
     );
 
@@ -57,7 +57,7 @@ describe('ChatHistorySidebar', () => {
       json: async () => ({ sessions: [] }),
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
     );
 
@@ -70,7 +70,7 @@ describe('ChatHistorySidebar', () => {
   test('loading state shows loading indicator', () => {
     mockFetch.mockImplementation(() => new Promise(() => {}));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
     );
 
@@ -85,7 +85,7 @@ describe('ChatHistorySidebar', () => {
     });
 
     expect(() =>
-      render(
+      renderWithProviders(
         <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
       )
     ).not.toThrow();

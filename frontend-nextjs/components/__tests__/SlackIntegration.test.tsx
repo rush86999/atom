@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -112,12 +112,12 @@ describe('SlackIntegration Component', () => {
 
   describe('Component Rendering', () => {
     it('renders Slack integration component', () => {
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
       expect(screen.getByText(/slack/i)).toBeInTheDocument();
     });
 
     it('shows connection form when not authenticated', () => {
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
       expect(screen.getByText(/connect to slack|add to slack/i)).toBeInTheDocument();
     });
   });
@@ -138,7 +138,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
 
       const connectButton = screen.getByRole('button', { name: /connect|add to slack/i });
       await user.click(connectButton);
@@ -166,7 +166,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
 
       // Simulate OAuth callback event
       window.dispatchEvent(
@@ -193,7 +193,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
 
       window.dispatchEvent(
         new CustomEvent('oauth-callback', {
@@ -221,7 +221,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('general')).toBeInTheDocument();
@@ -244,7 +244,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const searchInput = screen.getByPlaceholderText(/search|filter/i);
       await user.type(searchInput, 'engineering');
@@ -268,7 +268,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/150/i)).toBeInTheDocument(); // General channel members
@@ -290,7 +290,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/test message/i)).toBeInTheDocument();
@@ -316,7 +316,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const messageInput = screen.getByPlaceholderText(/type a message/i);
       await user.type(messageInput, 'New test message');
@@ -343,7 +343,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const messageInput = screen.getByPlaceholderText(/type a message/i);
       await user.type(messageInput, 'Test message');
@@ -371,7 +371,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('John Doe')).toBeInTheDocument();
@@ -391,7 +391,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/working on atom/i)).toBeInTheDocument();
@@ -402,7 +402,7 @@ describe('SlackIntegration Component', () => {
 
   describe('Webhook Handling', () => {
     it('displays webhook configuration', () => {
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const webhookSection = screen.queryByTestId(/webhook/i);
       // Note: Actual implementation may vary
@@ -427,7 +427,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const createButton = screen.queryByRole('button', { name: /create webhook/i });
       if (createButton) {
@@ -453,7 +453,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
 
       const connectButton = screen.queryByRole('button', { name: /connect|add to slack/i });
       if (connectButton) {
@@ -477,7 +477,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration />);
+      renderWithProviders(<SlackIntegration />);
 
       await waitFor(() => {
         expect(screen.getByText(/invalid credentials|authentication failed/i)).toBeInTheDocument();
@@ -497,7 +497,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText(/rate limit|retry after/i)).toBeInTheDocument();
@@ -520,7 +520,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const loadingElement = screen.queryByTestId(/loading|spinner/i);
       // Note: Actual implementation may vary
@@ -542,7 +542,7 @@ describe('SlackIntegration Component', () => {
         })
       );
 
-      render(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration connected={true} />);
 
       const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
       await user.click(disconnectButton);

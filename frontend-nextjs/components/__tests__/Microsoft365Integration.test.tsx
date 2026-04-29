@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -56,12 +56,12 @@ describe('Microsoft365Integration Component', () => {
 
   describe('Component Rendering', () => {
     it('renders Microsoft 365 integration component', () => {
-      render(<Microsoft365Integration />);
+      renderWithProviders(<Microsoft365Integration />);
       expect(screen.getByText(/microsoft 365|office 365/i)).toBeInTheDocument();
     });
 
     it('shows connection form when not authenticated', () => {
-      render(<Microsoft365Integration />);
+      renderWithProviders(<Microsoft365Integration />);
       expect(screen.getByText(/connect to microsoft|sign in/i)).toBeInTheDocument();
     });
   });
@@ -82,7 +82,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration />);
+      renderWithProviders(<Microsoft365Integration />);
 
       const connectButton = screen.getByRole('button', { name: /connect|sign in/i });
       await user.click(connectButton);
@@ -108,7 +108,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration />);
+      renderWithProviders(<Microsoft365Integration />);
 
       window.dispatchEvent(
         new CustomEvent('oauth-callback', {
@@ -136,7 +136,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration connected={true} />);
+      renderWithProviders(<Microsoft365Integration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('Document.docx')).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration connected={true} />);
+      renderWithProviders(<Microsoft365Integration connected={true} />);
 
       const uploadButton = screen.queryByRole('button', { name: /upload/i });
       if (uploadButton) {
@@ -188,7 +188,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration connected={true} />);
+      renderWithProviders(<Microsoft365Integration connected={true} />);
 
       await waitFor(() => {
         expect(screen.getByText('Test Email')).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration connected={true} />);
+      renderWithProviders(<Microsoft365Integration connected={true} />);
 
       const composeButton = screen.queryByRole('button', { name: /compose|new email/i });
       if (composeButton) {
@@ -241,7 +241,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration />);
+      renderWithProviders(<Microsoft365Integration />);
 
       const connectButton = screen.getByRole('button', { name: /connect|sign in/i });
       await user.click(connectButton);
@@ -262,7 +262,7 @@ describe('Microsoft365Integration Component', () => {
         })
       );
 
-      render(<Microsoft365Integration connected={true} />);
+      renderWithProviders(<Microsoft365Integration connected={true} />);
 
       const disconnectButton = screen.getByRole('button', { name: /disconnect|sign out/i });
       await user.click(disconnectButton);

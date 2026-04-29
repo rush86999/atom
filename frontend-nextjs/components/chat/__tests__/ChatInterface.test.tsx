@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react';
+import { renderWithProviders } from '../../../tests/test-utils';
 import ChatInterface from '../ChatInterface';
 
 // Mock hooks
@@ -67,33 +67,33 @@ jest.mock('@/components/Voice/VoiceModeOverlay', () => ({
 describe('ChatInterface', () => {
   // Test 1: renders the main chat container/layout
   test('renders the main chat container/layout', () => {
-    const { container } = render(<ChatInterface sessionId={null} />);
+    const { container } = renderWithProviders(<ChatInterface sessionId={null} />);
 
     expect(container.querySelector('.flex.flex-col.h-full')).toBeInTheDocument();
   });
 
   // Test 2: renders with empty messages initially
   test('renders with empty messages initially', () => {
-    const { container } = render(<ChatInterface sessionId={null} />);
+    const { container } = renderWithProviders(<ChatInterface sessionId={null} />);
 
     expect(container).toBeInTheDocument();
   });
 
   // Test 3: renders with sessionId prop
   test('renders with sessionId prop', () => {
-    const { container } = render(<ChatInterface sessionId="session-123" />);
+    const { container } = renderWithProviders(<ChatInterface sessionId="session-123" />);
 
     expect(container).toBeInTheDocument();
   });
 
   // Test 4: renders without errors
   test('renders without errors', () => {
-    expect(() => render(<ChatInterface sessionId={null} />)).not.toThrow();
+    expect(() => renderWithProviders(<ChatInterface sessionId={null} />)).not.toThrow();
   });
 
   // Test 5: has proper flex layout
   test('has proper flex layout', () => {
-    const { container } = render(<ChatInterface sessionId={null} />);
+    const { container } = renderWithProviders(<ChatInterface sessionId={null} />);
 
     const mainContainer = container.querySelector('.flex.flex-col.h-full');
     expect(mainContainer).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('ChatInterface', () => {
 
   // Test 6: renders child components
   test('renders child components', () => {
-    const { container } = render(<ChatInterface sessionId={null} />);
+    const { container } = renderWithProviders(<ChatInterface sessionId={null} />);
 
     expect(container.querySelector('[data-testid="chat-header"]')).toBeInTheDocument();
     expect(container.querySelector('[data-testid="message-list"]')).toBeInTheDocument();

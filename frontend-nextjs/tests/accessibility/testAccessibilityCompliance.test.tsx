@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../test-utils';
 import React from 'react';
 import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
@@ -33,21 +33,21 @@ import {
 describe('WCAG 2.1 AA Compliance Tests', () => {
   describe('Login Page Accessibility', () => {
     it('should have no WCAG violations on login page', async () => {
-      const { container } = render(<LoginPage />);
+      const { container } = renderWithProviders(<LoginPage />);
 
       // Check for accessibility violations
       await axeCheckViolations(container, 'Login Page', defaultAxeOptions);
     });
 
     it('should have no critical or serious violations on login page', async () => {
-      const { container } = render(<LoginPage />);
+      const { container } = renderWithProviders(<LoginPage />);
 
       // Allow minor violations during development
       await axeCheckCritical(container, 'Login Page');
     });
 
     it('should have properly labeled form inputs on login page', async () => {
-      render(<LoginPage />);
+      renderWithProviders(<LoginPage />);
 
       // Check for email input with label
       const emailInput = screen.getByLabelText(/email/i) ||
@@ -63,7 +63,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have accessible submit button on login page', async () => {
-      render(<LoginPage />);
+      renderWithProviders(<LoginPage />);
 
       // Submit button should be accessible by role and text
       const submitButton = screen.getByRole('button', { name: /sign in|login|log in/i }) ||
@@ -125,7 +125,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     // Note: This test will be updated when agents page is imported
     it('should have no WCAG violations on agents page', async () => {
       // Placeholder test - update when agents page component is available
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="main">
           <h1>Agents</h1>
           <nav aria-label="Agent actions">
@@ -149,7 +149,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
     it('should have accessible agent list with proper ARIA labels', async () => {
       // Test agent list accessibility
-      render(
+      renderWithProviders(
         <div role="main" aria-label="Agent list">
           <ul role="list">
             <li>
@@ -176,7 +176,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
   describe('Canvas Page Accessibility', () => {
     it('should have no WCAG violations on canvas page', async () => {
       // Canvas presentation with charts and visual content
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="application" aria-label="Canvas presentation">
           <canvas aria-label="Chart showing data visualization" />
           <div role="region" aria-live="polite" aria-label="Canvas status">
@@ -189,7 +189,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have accessible canvas with ARIA labels', async () => {
-      render(
+      renderWithProviders(
         <div role="application" aria-label="Canvas presentation">
           <canvas aria-label="Sales chart showing monthly revenue" />
           <div role="region" aria-live="polite">
@@ -209,7 +209,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
   describe('Workflows Page Accessibility', () => {
     it('should have no WCAG violations on workflows page', async () => {
       // Workflow builder with drag-drop interface
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="main" aria-label="Workflow builder">
           <h1>Workflows</h1>
           <nav aria-label="Workflow actions">
@@ -233,7 +233,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have keyboard-accessible workflow builder', async () => {
-      render(
+      renderWithProviders(
         <div role="application" aria-label="Workflow builder">
           <div role="toolbar" aria-label="Workflow actions">
             <button aria-label="Add step">Add Step</button>
@@ -255,7 +255,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
   describe('Forms Accessibility', () => {
     it('should have accessible form inputs with proper labels', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <form aria-label="Create agent form">
           <label htmlFor="agent-name">
             Agent Name
@@ -292,7 +292,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have accessible error messages', async () => {
-      render(
+      renderWithProviders(
         <form aria-label="Login form">
           <label htmlFor="email">
             Email
@@ -337,7 +337,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have accessible form instructions', async () => {
-      render(
+      renderWithProviders(
         <form aria-label="Registration form" aria-describedby="form-instructions">
           <p id="form-instructions">
             All fields marked with * are required. Your password must be at
@@ -371,7 +371,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
   describe('Modal and Dialog Accessibility', () => {
     it('should have accessible modal with focus trap', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <h2 id="modal-title">Confirm Action</h2>
           <p>Are you sure you want to delete this agent?</p>
@@ -400,7 +400,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
   describe('Navigation and Landmarks', () => {
     it('should have proper landmark structure', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <header>
             <nav aria-label="Main navigation">

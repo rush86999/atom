@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import '@testing-library/jest-dom';
 import { VoiceVisualizer } from '../VoiceVisualizer';
 
@@ -34,14 +34,14 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Rendering', () => {
     it('renders without crashing', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img');
       expect(canvas).toBeInTheDocument();
     });
 
     it('renders canvas with correct dimensions', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img') as HTMLCanvasElement;
       expect(canvas.width).toBe(400);
@@ -49,7 +49,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('has correct CSS classes', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img');
       expect(canvas).toHaveClass('w-full', 'h-24', 'pointer-events-none');
@@ -58,25 +58,25 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Animation States', () => {
     it('renders idle state with slate color', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       expect(screen.getByRole('img')).toBeInTheDocument();
     });
 
     it('renders listening state with emerald color', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       expect(screen.getByRole('img')).toBeInTheDocument();
     });
 
     it('renders processing state with orange color', () => {
-      render(<VoiceVisualizer mode="processing" />);
+      renderWithProviders(<VoiceVisualizer mode="processing" />);
 
       expect(screen.getByRole('img')).toBeInTheDocument();
     });
 
     it('renders speaking state with blue color', () => {
-      render(<VoiceVisualizer mode="speaking" />);
+      renderWithProviders(<VoiceVisualizer mode="speaking" />);
 
       expect(screen.getByRole('img')).toBeInTheDocument();
     });
@@ -84,7 +84,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Canvas Context', () => {
     it('gets 2D context from canvas', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img') as HTMLCanvasElement;
       expect(canvas.getContext).toHaveBeenCalledWith('2d');
@@ -93,19 +93,19 @@ describe('VoiceVisualizer Component', () => {
     it('handles null context gracefully', () => {
       HTMLCanvasElement.prototype.getContext = jest.fn(() => null);
 
-      expect(() => render(<VoiceVisualizer mode="idle" />)).not.toThrow();
+      expect(() => renderWithProviders(<VoiceVisualizer mode="idle" />)).not.toThrow();
     });
   });
 
   describe('Animation Lifecycle', () => {
     it('starts animation on mount', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       expect(global.requestAnimationFrame).toHaveBeenCalled();
     });
 
     it('cleans up animation on unmount', () => {
-      const { unmount } = render(<VoiceVisualizer mode="idle" />);
+      const { unmount } = renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       unmount();
 
@@ -113,7 +113,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('restarts animation when mode changes', () => {
-      const { rerender } = render(<VoiceVisualizer mode="idle" />);
+      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const callsBefore = (global.requestAnimationFrame as jest.Mock).mock.calls.length;
 
@@ -128,7 +128,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Animation Behavior', () => {
     it('clears canvas each frame', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       // Trigger animation frames
       jest.advanceTimersByTime(100);
@@ -137,7 +137,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('draws bars for idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -147,7 +147,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('uses shadow for active modes', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(100);
 
@@ -155,7 +155,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('disables shadow for idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -163,7 +163,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('draws correct number of bars', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(100);
 
@@ -174,7 +174,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Visual Effects', () => {
     it('applies glow effect in listening mode', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(100);
 
@@ -183,7 +183,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('applies glow effect in speaking mode', () => {
-      render(<VoiceVisualizer mode="speaking" />);
+      renderWithProviders(<VoiceVisualizer mode="speaking" />);
 
       jest.advanceTimersByTime(100);
 
@@ -192,7 +192,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('applies glow effect in processing mode', () => {
-      render(<VoiceVisualizer mode="processing" />);
+      renderWithProviders(<VoiceVisualizer mode="processing" />);
 
       jest.advanceTimersByTime(100);
 
@@ -201,7 +201,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('has no glow in idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -211,7 +211,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Color Scheme', () => {
     it('uses slate-500 for idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -219,7 +219,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('uses emerald-500 for listening mode', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(100);
 
@@ -227,7 +227,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('uses orange-500 for processing mode', () => {
-      render(<VoiceVisualizer mode="processing" />);
+      renderWithProviders(<VoiceVisualizer mode="processing" />);
 
       jest.advanceTimersByTime(100);
 
@@ -235,7 +235,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('uses blue-500 for speaking mode', () => {
-      render(<VoiceVisualizer mode="speaking" />);
+      renderWithProviders(<VoiceVisualizer mode="speaking" />);
 
       jest.advanceTimersByTime(100);
 
@@ -245,7 +245,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Animation Speed', () => {
     it('uses slower animation for idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -254,7 +254,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('uses faster animation for listening mode', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(100);
 
@@ -265,7 +265,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Amplitude', () => {
     it('has lower amplitude in idle mode', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       jest.advanceTimersByTime(100);
 
@@ -274,7 +274,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('has higher amplitude in speaking mode', () => {
-      render(<VoiceVisualizer mode="speaking" />);
+      renderWithProviders(<VoiceVisualizer mode="speaking" />);
 
       jest.advanceTimersByTime(100);
 
@@ -285,7 +285,7 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Edge Cases', () => {
     it('handles rapid mode changes', () => {
-      const { rerender } = render(<VoiceVisualizer mode="idle" />);
+      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       rerender(<VoiceVisualizer mode="listening" />);
       rerender(<VoiceVisualizer mode="processing" />);
@@ -296,7 +296,7 @@ describe('VoiceVisualizer Component', () => {
     });
 
     it('handles unmount during active animation', () => {
-      const { unmount } = render(<VoiceVisualizer mode="listening" />);
+      const { unmount } = renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       jest.advanceTimersByTime(50);
       unmount();
@@ -307,13 +307,13 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Performance', () => {
     it('uses requestAnimationFrame for smooth animation', () => {
-      render(<VoiceVisualizer mode="listening" />);
+      renderWithProviders(<VoiceVisualizer mode="listening" />);
 
       expect(global.requestAnimationFrame).toHaveBeenCalled();
     });
 
     it('cancels previous animation frame before starting new one', () => {
-      const { rerender } = render(<VoiceVisualizer mode="idle" />);
+      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       rerender(<VoiceVisualizer mode="listening" />);
 
@@ -324,14 +324,14 @@ describe('VoiceVisualizer Component', () => {
 
   describe('Accessibility', () => {
     it('has presentation role for canvas', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img');
       expect(canvas).toBeInTheDocument();
     });
 
     it('has pointer-events-none class', () => {
-      render(<VoiceVisualizer mode="idle" />);
+      renderWithProviders(<VoiceVisualizer mode="idle" />);
 
       const canvas = screen.getByRole('img');
       expect(canvas).toHaveClass('pointer-events-none');

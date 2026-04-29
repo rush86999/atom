@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('BoxIntegration Component', () => {
   });
 
   it('renders Box integration component', () => {
-    render(<BoxIntegration />);
+    renderWithProviders(<BoxIntegration />);
     expect(screen.getByText(/box/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('BoxIntegration Component', () => {
       })
     );
 
-    render(<BoxIntegration />);
+    renderWithProviders(<BoxIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('BoxIntegration Component', () => {
       })
     );
 
-    render(<BoxIntegration connected={true} />);
+    renderWithProviders(<BoxIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('test-file.pdf')).toBeInTheDocument();

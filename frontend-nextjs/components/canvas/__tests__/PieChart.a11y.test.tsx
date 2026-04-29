@@ -5,7 +5,7 @@
  * Tests: visible labels, segment accessibility, legend, data accessibility
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { PieChartCanvas } from '@/components/canvas/PieChart';
 
@@ -18,7 +18,7 @@ const mockData = [
 
 describe('PieChart Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -27,7 +27,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should have visible title describing distribution', () => {
-    render(
+    renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -38,7 +38,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should have chart structure', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -48,7 +48,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should render responsive container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -58,7 +58,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should handle charts without title', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} />
     );
 
@@ -67,7 +67,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should have accessible chart container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -81,7 +81,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Segment A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={smallData} title="Simple Distribution" />
     );
 
@@ -90,7 +90,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should handle empty data gracefully', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={[]} title="Empty Distribution" />
     );
 
@@ -99,7 +99,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should have accessible chart structure for distributions', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -118,7 +118,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Q6', value: 150 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={multiSegmentData} title="Multi-Quarter Distribution" />
     );
 
@@ -127,7 +127,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should display segments with labels', () => {
-    render(
+    renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -138,7 +138,7 @@ describe('PieChart Accessibility', () => {
   });
 
   it('should maintain color contrast accessibility', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={mockData} title="Sales Distribution" />
     );
 
@@ -155,7 +155,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Minor 3', value: 20 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={dominantData} title="Dominant Segment" />
     );
 
@@ -171,7 +171,7 @@ describe('PieChart Accessibility', () => {
       { name: 'D', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={equalData} title="Equal Distribution" />
     );
 

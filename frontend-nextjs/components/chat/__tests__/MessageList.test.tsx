@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import { MessageList } from '../MessageList';
 
 describe('MessageList', () => {
@@ -27,7 +27,7 @@ describe('MessageList', () => {
       { id: '2', role: 'assistant', content: 'Hi there!', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -46,7 +46,7 @@ describe('MessageList', () => {
 
   // Test 2: empty messages array renders placeholder
   test('empty messages array renders without error', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={[]}
         currentStreamId={null}
@@ -66,7 +66,7 @@ describe('MessageList', () => {
   test('shows streaming content when active', () => {
     const streamingMap = new Map([['stream-1', 'Streaming...']]);
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={[]}
         currentStreamId="stream-1"
@@ -84,7 +84,7 @@ describe('MessageList', () => {
 
   // Test 4: shows status message when processing
   test('shows status message when processing', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={[]}
         currentStreamId={null}
@@ -106,7 +106,7 @@ describe('MessageList', () => {
       { id: '1', role: 'user', content: 'User message', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -128,7 +128,7 @@ describe('MessageList', () => {
       { id: '1', role: 'assistant', content: 'Assistant response', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -152,7 +152,7 @@ describe('MessageList', () => {
       { id: '3', role: 'user', content: 'Third', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -178,7 +178,7 @@ describe('MessageList', () => {
     ];
 
     expect(() => {
-      render(
+      renderWithProviders(
         <MessageList
           messages={messages}
           currentStreamId={null}
@@ -199,7 +199,7 @@ describe('MessageList', () => {
       { id: '1', role: 'user', content: 'Hello', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId="stream-1"
@@ -222,7 +222,7 @@ describe('MessageList', () => {
       ['stream-2', 'Streaming part 2'],
     ]);
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={[]}
         currentStreamId="stream-1"
@@ -244,7 +244,7 @@ describe('MessageList', () => {
       { id: '1', role: 'system', content: 'System notification', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -267,7 +267,7 @@ describe('MessageList', () => {
       { id: '1', role: 'user', content: longMessage, type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -290,7 +290,7 @@ describe('MessageList', () => {
       { id: '1', role: 'user', content: specialMessage, type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}
@@ -308,7 +308,7 @@ describe('MessageList', () => {
 
   // Test 14: shows empty status message
   test('shows empty status message when not processing', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={[]}
         currentStreamId={null}
@@ -330,7 +330,7 @@ describe('MessageList', () => {
       { id: '1', role: 'user', content: 'Test', type: 'text' },
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MessageList
         messages={messages}
         currentStreamId={null}

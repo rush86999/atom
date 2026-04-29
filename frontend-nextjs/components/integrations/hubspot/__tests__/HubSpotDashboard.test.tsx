@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../../tests/test-utils';
 import HubSpotDashboard from '../HubSpotDashboard';
 
 // Mock UI components
@@ -72,7 +72,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 1: renders dashboard header
   test('renders dashboard header with title and description', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('HubSpot Analytics Dashboard')).toBeInTheDocument();
     expect(
@@ -82,14 +82,14 @@ describe('HubSpotDashboard', () => {
 
   // Test 2: renders loading state
   test('renders loading state when loading prop is true', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} loading={true} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} loading={true} />);
 
     expect(screen.getByText('Loading dashboard data...')).toBeInTheDocument();
   });
 
   // Test 3: displays total contacts metric
   test('displays total contacts metric with growth indicator', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Total Contacts')).toBeInTheDocument();
     expect(screen.getByText('1,500')).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 4: displays total companies metric
   test('displays total companies metric with negative growth', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Total Companies')).toBeInTheDocument();
     expect(screen.getByText('250')).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 5: displays active deals metric
   test('displays active deals metric', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Active Deals')).toBeInTheDocument();
     expect(screen.getByText('75')).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 6: displays monthly revenue with currency formatting
   test('displays monthly revenue with proper currency formatting', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Monthly Revenue')).toBeInTheDocument();
     expect(screen.getByText('$45,000')).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 7: displays win rate with progress bar
   test('displays win rate with progress bar', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Win Rate')).toBeInTheDocument();
     expect(screen.getByText('68.5%')).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 8: displays lead conversion rate
   test('displays lead conversion rate', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Lead Conversion')).toBeInTheDocument();
     expect(screen.getByText('24.8%')).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 9: displays email performance metrics
   test('displays email open rate and click rate', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Email Performance')).toBeInTheDocument();
     expect(screen.getByText('Open Rate')).toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 10: displays pipeline stages
   test('displays pipeline stages with probabilities', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Pipeline Stages')).toBeInTheDocument();
     expect(screen.getByText('Qualification')).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 11: displays top performing campaigns
   test('displays top performing campaigns with performance badges', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Top Performing Campaigns')).toBeInTheDocument();
     expect(screen.getByText('Spring Campaign')).toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 12: displays recent activities
   test('displays recent activities with timestamps', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Recent Activities')).toBeInTheDocument();
     expect(screen.getByText('Email Opened')).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 13: displays summary stats
   test('displays summary statistics at bottom', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Total Deal Value')).toBeInTheDocument();
     expect(screen.getByText('$1,250,000')).toBeInTheDocument();
@@ -194,7 +194,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 14: formats currency correctly
   test('formats currency values correctly using USD locale', () => {
-    const { container } = render(<HubSpotDashboard analytics={mockAnalytics} />);
+    const { container } = renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     // Check that large numbers are formatted with commas
     expect(screen.getByText('$1,250,000')).toBeInTheDocument();
@@ -204,7 +204,7 @@ describe('HubSpotDashboard', () => {
 
   // Test 15: displays total records count
   test('displays total records combining contacts and companies', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Total Records')).toBeInTheDocument();
     // 1500 contacts + 250 companies = 1750 total
@@ -230,12 +230,12 @@ describe('HubSpotDashboard', () => {
       quarterlyGrowth: 10,
     };
 
-    expect(() => render(<HubSpotDashboard analytics={minimalAnalytics} />)).not.toThrow();
+    expect(() => renderWithProviders(<HubSpotDashboard analytics={minimalAnalytics} />)).not.toThrow();
   });
 
   // Test 17: displays performance trend indicator
   test('displays performance trend indicator based on win rate', () => {
-    render(<HubSpotDashboard analytics={mockAnalytics} />);
+    renderWithProviders(<HubSpotDashboard analytics={mockAnalytics} />);
 
     expect(screen.getByText('Performance Trend')).toBeInTheDocument();
     expect(screen.getByText('↑')).toBeInTheDocument();
@@ -253,7 +253,7 @@ describe('HubSpotDashboard', () => {
       })),
     };
 
-    const { container } = render(<HubSpotDashboard analytics={manyActivities} />);
+    const { container } = renderWithProviders(<HubSpotDashboard analytics={manyActivities} />);
 
     // Should only display first 5 activities
     expect(screen.getByText('Activity 0')).toBeInTheDocument();

@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import { SearchResults, UnifiedEntity } from '../SearchResults';
 
 describe('SearchResults', () => {
@@ -43,7 +43,7 @@ describe('SearchResults', () => {
 
   // Test 1: renders search results list
   test('renders search results list', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={mockResults} query="test" onResultClick={mockOnResultClick} />
     );
 
@@ -53,7 +53,7 @@ describe('SearchResults', () => {
 
   // Test 2: empty results shows null
   test('empty results shows null', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={[]} query="test" onResultClick={mockOnResultClick} />
     );
 
@@ -62,7 +62,7 @@ describe('SearchResults', () => {
 
   // Test 3: shows search query in header
   test('shows search query in header', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={mockResults} query="john" onResultClick={mockOnResultClick} />
     );
 
@@ -71,7 +71,7 @@ describe('SearchResults', () => {
 
   // Test 4: shows result count badge
   test('shows result count badge', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={mockResults} query="test" onResultClick={mockOnResultClick} />
     );
 
@@ -80,7 +80,7 @@ describe('SearchResults', () => {
 
   // Test 5: clicking result triggers callback
   test('clicking result triggers callback', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={mockResults} query="test" onResultClick={mockOnResultClick} />
     );
 
@@ -94,7 +94,7 @@ describe('SearchResults', () => {
 
   // Test 6: displays entity type correctly
   test('displays entity type correctly', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <SearchResults results={mockResults} query="test" onResultClick={mockOnResultClick} />
     );
 

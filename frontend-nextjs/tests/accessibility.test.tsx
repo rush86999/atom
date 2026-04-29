@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { renderWithProviders } from 'test-utils';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ describe('jest-axe configuration', () => {
 
   it('should configure axe with WCAG 2.1 AA rules', async () => {
     // Render a simple accessible Button component
-    const { container } = render(<Button>Click me</Button>);
+    const { container } = renderWithProviders(<Button>Click me</Button>);
 
     // Run accessibility checks
     const results = await axe(container);
@@ -35,7 +35,7 @@ describe('jest-axe configuration', () => {
 
   it('should detect accessibility violations', async () => {
     // Render a button with no accessible name (violates WCAG)
-    const { container } = render(
+    const { container } = renderWithProviders(
       <button aria-label=""></button>
     );
 

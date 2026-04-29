@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import {
   Table,
@@ -15,7 +15,7 @@ import {
 describe('Table Components', () => {
   describe('Table', () => {
     it('renders table element', () => {
-      render(
+      renderWithProviders(
         <Table>
           <tbody>
             <tr>
@@ -28,7 +28,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <Table className="custom-table">
           <tbody>
             <tr>
@@ -42,7 +42,7 @@ describe('Table Components', () => {
     });
 
     it('wraps table in responsive container', () => {
-      render(
+      renderWithProviders(
         <Table>
           <tbody>
             <tr>
@@ -59,7 +59,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableElement>();
-      render(
+      renderWithProviders(
         <Table ref={ref}>
           <tbody>
             <tr>
@@ -72,7 +72,7 @@ describe('Table Components', () => {
     });
 
     it('has default text-sm class', () => {
-      render(
+      renderWithProviders(
         <Table>
           <tbody>
             <tr>
@@ -86,7 +86,7 @@ describe('Table Components', () => {
     });
 
     it('merges custom className with default classes', () => {
-      render(
+      renderWithProviders(
         <Table className="border">
           <tbody>
             <tr>
@@ -103,7 +103,7 @@ describe('Table Components', () => {
 
   describe('TableHeader', () => {
     it('renders thead element', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableHeader>
             <tr>
@@ -116,7 +116,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableHeader className="custom-header">
             <tr>
@@ -130,7 +130,7 @@ describe('Table Components', () => {
     });
 
     it('applies border style to rows', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -145,7 +145,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableSectionElement>();
-      render(
+      renderWithProviders(
         <table>
           <TableHeader ref={ref}>
             <tr>
@@ -160,7 +160,7 @@ describe('Table Components', () => {
 
   describe('TableBody', () => {
     it('renders tbody element', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableBody>
             <tr>
@@ -173,7 +173,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableBody className="custom-body">
             <tr>
@@ -187,7 +187,7 @@ describe('Table Components', () => {
     });
 
     it('removes border from last row', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -205,7 +205,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableSectionElement>();
-      render(
+      renderWithProviders(
         <table>
           <TableBody ref={ref}>
             <tr>
@@ -220,7 +220,7 @@ describe('Table Components', () => {
 
   describe('TableFooter', () => {
     it('renders tfoot element', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableFooter>
             <tr>
@@ -233,7 +233,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <table>
           <TableFooter className="custom-footer">
             <tr>
@@ -247,7 +247,7 @@ describe('Table Components', () => {
     });
 
     it('has border-top style', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableFooter>
             <TableRow>
@@ -261,7 +261,7 @@ describe('Table Components', () => {
     });
 
     it('has muted background style', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableFooter>
             <TableRow>
@@ -276,7 +276,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableSectionElement>();
-      render(
+      renderWithProviders(
         <table>
           <TableFooter ref={ref}>
             <tr>
@@ -291,7 +291,7 @@ describe('Table Components', () => {
 
   describe('TableRow', () => {
     it('renders tr element', () => {
-      render(
+      renderWithProviders(
         <table>
           <tbody>
             <TableRow>
@@ -304,7 +304,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow className="custom-row">
@@ -318,7 +318,7 @@ describe('Table Components', () => {
     });
 
     it('has border-bottom style', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -332,7 +332,7 @@ describe('Table Components', () => {
     });
 
     it('has hover effect', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -346,7 +346,7 @@ describe('Table Components', () => {
     });
 
     it('supports selected state styling', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow data-state="selected">
@@ -361,7 +361,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableRowElement>();
-      render(
+      renderWithProviders(
         <table>
           <tbody>
             <TableRow ref={ref}>
@@ -376,7 +376,7 @@ describe('Table Components', () => {
 
   describe('TableHead', () => {
     it('renders th element', () => {
-      render(
+      renderWithProviders(
         <table>
           <thead>
             <tr>
@@ -389,7 +389,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -403,7 +403,7 @@ describe('Table Components', () => {
     });
 
     it('has correct height and padding', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -418,7 +418,7 @@ describe('Table Components', () => {
     });
 
     it('has text alignment styles', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -433,7 +433,7 @@ describe('Table Components', () => {
     });
 
     it('has muted text color', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -447,7 +447,7 @@ describe('Table Components', () => {
     });
 
     it('has special handling for checkbox columns', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -464,7 +464,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableCellElement>();
-      render(
+      renderWithProviders(
         <table>
           <thead>
             <tr>
@@ -479,7 +479,7 @@ describe('Table Components', () => {
 
   describe('TableCell', () => {
     it('renders td element', () => {
-      render(
+      renderWithProviders(
         <table>
           <tbody>
             <tr>
@@ -492,7 +492,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -506,7 +506,7 @@ describe('Table Components', () => {
     });
 
     it('has correct padding', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -520,7 +520,7 @@ describe('Table Components', () => {
     });
 
     it('has vertical alignment', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -534,7 +534,7 @@ describe('Table Components', () => {
     });
 
     it('has special handling for checkbox columns', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -551,7 +551,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableCellElement>();
-      render(
+      renderWithProviders(
         <table>
           <tbody>
             <tr>
@@ -566,7 +566,7 @@ describe('Table Components', () => {
 
   describe('TableCaption', () => {
     it('renders caption element', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>Caption text</TableCaption>
           <TableBody>
@@ -580,7 +580,7 @@ describe('Table Components', () => {
     });
 
     it('renders with custom className', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption className="custom-caption">Caption</TableCaption>
           <TableBody>
@@ -595,7 +595,7 @@ describe('Table Components', () => {
     });
 
     it('has muted text color', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>Caption</TableCaption>
           <TableBody>
@@ -610,7 +610,7 @@ describe('Table Components', () => {
     });
 
     it('has small text size', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>Caption</TableCaption>
           <TableBody>
@@ -625,7 +625,7 @@ describe('Table Components', () => {
     });
 
     it('has top margin', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>Caption</TableCaption>
           <TableBody>
@@ -641,7 +641,7 @@ describe('Table Components', () => {
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLTableCaptionElement>();
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption ref={ref}>Caption</TableCaption>
           <TableBody>
@@ -663,7 +663,7 @@ describe('Table Components', () => {
         { id: 3, name: 'Bob Johnson', email: 'bob@example.com' },
       ];
 
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>User List</TableCaption>
           <TableHeader>
@@ -701,7 +701,7 @@ describe('Table Components', () => {
     });
 
     it('renders empty table body', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -723,7 +723,7 @@ describe('Table Components', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow onClick={handleClick}>
@@ -743,7 +743,7 @@ describe('Table Components', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -762,7 +762,7 @@ describe('Table Components', () => {
 
   describe('Accessibility', () => {
     it('has proper table semantics', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableCaption>Sales Data</TableCaption>
           <TableHeader>
@@ -786,7 +786,7 @@ describe('Table Components', () => {
     });
 
     it('supports ARIA attributes', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow aria-selected="true">
@@ -801,7 +801,7 @@ describe('Table Components', () => {
     });
 
     it('supports scope attribute on headers', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableHeader>
             <TableRow>
@@ -820,7 +820,7 @@ describe('Table Components', () => {
     it('handles very long content in cells', () => {
       const longText = 'A'.repeat(1000);
 
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -834,7 +834,7 @@ describe('Table Components', () => {
     });
 
     it('handles special characters in content', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -848,7 +848,7 @@ describe('Table Components', () => {
     });
 
     it('handles nested HTML in cells', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -865,7 +865,7 @@ describe('Table Components', () => {
     });
 
     it('handles colspan and rowspan', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>
@@ -883,7 +883,7 @@ describe('Table Components', () => {
     });
 
     it('handles missing optional components', () => {
-      render(
+      renderWithProviders(
         <Table>
           <TableBody>
             <TableRow>

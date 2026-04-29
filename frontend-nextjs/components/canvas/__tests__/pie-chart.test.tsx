@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import '@testing-library/jest-dom';
 import { PieChartCanvas } from '../PieChart';
 
@@ -23,7 +23,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -37,7 +37,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <PieChartCanvas data={data} title="Distribution by Category" />
     );
 
@@ -50,7 +50,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -64,7 +64,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -79,7 +79,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -93,7 +93,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -107,7 +107,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -123,7 +123,7 @@ describe('PieChart Rendering', () => {
       { name: 'Category C', value: 150 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -145,7 +145,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category C', value: 150 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -156,7 +156,7 @@ describe('PieChart Data Rendering', () => {
   test('should handle empty data array', () => {
     const data: any[] = [];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -170,7 +170,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -184,7 +184,7 @@ describe('PieChart Data Rendering', () => {
       value: Math.floor(Math.random() * 1000)
     }));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -200,7 +200,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category D', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -216,7 +216,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category C', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -236,7 +236,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category H', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -250,7 +250,7 @@ describe('PieChart Data Rendering', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -284,7 +284,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -299,7 +299,7 @@ describe('PieChart Canvas State API', () => {
     ];
 
     const beforeTime = Date.now();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
     const afterTime = Date.now();
@@ -314,7 +314,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -328,7 +328,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -342,7 +342,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -356,7 +356,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -371,7 +371,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -385,7 +385,7 @@ describe('PieChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container, unmount } = render(
+    const { container, unmount } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -408,7 +408,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -421,7 +421,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -434,7 +434,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <PieChartCanvas data={data} title="Pie Chart Test" />
     );
 
@@ -448,7 +448,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -462,7 +462,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 
@@ -477,7 +477,7 @@ describe('PieChart Accessibility', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <PieChartCanvas data={data} />
     );
 

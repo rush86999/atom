@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -51,7 +51,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -81,7 +81,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -110,7 +110,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -139,7 +139,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -168,7 +168,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -197,7 +197,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -226,7 +226,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -255,7 +255,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -284,7 +284,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -313,7 +313,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -342,7 +342,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -371,7 +371,7 @@ describe('InteractiveForm - Email Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -407,7 +407,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -436,7 +436,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -465,7 +465,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -494,7 +494,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -523,7 +523,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -552,7 +552,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -581,7 +581,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -609,7 +609,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -637,7 +637,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -665,7 +665,7 @@ describe('InteractiveForm - Phone Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -694,7 +694,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -723,7 +723,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -752,7 +752,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -781,7 +781,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -810,7 +810,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -839,7 +839,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -868,7 +868,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -896,7 +896,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -924,7 +924,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -952,7 +952,7 @@ describe('InteractiveForm - URL Format Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -983,7 +983,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1012,7 +1012,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1041,7 +1041,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1069,7 +1069,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1098,7 +1098,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1127,7 +1127,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1156,7 +1156,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 
@@ -1186,7 +1186,7 @@ describe('InteractiveForm - Custom Pattern Validation', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm fields={fields} onSubmit={jest.fn()} />
     );
 

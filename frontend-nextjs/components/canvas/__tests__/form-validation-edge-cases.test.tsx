@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -44,7 +44,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
     const submitButton = screen.getByRole('button', { name: /submit/i });
@@ -64,7 +64,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
     const submitButton = screen.getByRole('button', { name: /submit/i });
@@ -84,7 +84,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'age', label: 'Age', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -102,7 +102,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -119,7 +119,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'count', label: 'Count', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/count/i);
 
@@ -140,7 +140,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'agree', label: 'I agree', type: 'checkbox' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const checkbox = screen.getByRole('checkbox');
 
@@ -160,7 +160,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
 
@@ -177,7 +177,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
 
@@ -195,7 +195,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
 
@@ -213,7 +213,7 @@ describe('InteractiveForm - Required Field Edge Cases', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/name/i);
 
@@ -239,7 +239,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -261,7 +261,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -285,7 +285,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -309,7 +309,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -333,7 +333,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -357,7 +357,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -379,7 +379,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/count/i);
 
@@ -401,7 +401,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/price/i);
 
@@ -421,7 +421,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       { name: 'big', label: 'Big Number', type: 'number' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/big number/i);
 
@@ -440,7 +440,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       { name: 'tiny', label: 'Tiny', type: 'number' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/tiny/i);
 
@@ -459,7 +459,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       { name: 'value', label: 'Value', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -481,7 +481,7 @@ describe('InteractiveForm - Boundary Value Tests for Numbers', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/value/i);
 
@@ -507,7 +507,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -530,7 +530,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/code/i);
 
@@ -554,7 +554,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/code/i);
 
@@ -576,7 +576,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/code/i);
 
@@ -600,7 +600,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/code/i);
 
@@ -622,7 +622,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/emoji/i);
 
@@ -642,7 +642,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       { name: 'text', label: 'Text', type: 'text' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/text/i);
 
@@ -662,7 +662,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       { name: 'long', label: 'Long', type: 'text' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/long/i);
 
@@ -682,7 +682,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       { name: 'text', label: 'Text', type: 'text' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/text/i);
 
@@ -702,7 +702,7 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
       { name: 'text', label: 'Text', type: 'text' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/text/i);
 
@@ -730,7 +730,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/email/i);
 
@@ -755,7 +755,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/email/i);
 
@@ -777,7 +777,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/email/i);
 
@@ -802,7 +802,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/website/i);
 
@@ -824,7 +824,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/website/i);
 
@@ -848,7 +848,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/phone/i);
 
@@ -873,7 +873,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/code/i);
 
@@ -897,7 +897,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/input/i);
 
@@ -918,7 +918,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       { name: 'age', label: 'Age', type: 'number' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const input = screen.getByLabelText(/age/i);
 
@@ -939,7 +939,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       { name: 'age', label: 'Age', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -955,7 +955,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       { name: 'agree', label: 'Agree', type: 'checkbox' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const checkbox = screen.getByRole('checkbox');
 
@@ -975,7 +975,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       { name: 'agree', label: 'Agree', type: 'checkbox' as const }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     // Leave unchecked
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -1001,7 +1001,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     // Leave at default "Select..." (empty string)
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -1026,7 +1026,7 @@ describe('InteractiveForm - Type Coercion Edge Cases', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const select = screen.getByRole('combobox');
 

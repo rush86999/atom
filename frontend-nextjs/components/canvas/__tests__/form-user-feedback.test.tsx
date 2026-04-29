@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -31,7 +31,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     }));
 
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -49,7 +49,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     }));
 
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -65,7 +65,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup({ delay: null });
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -85,7 +85,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -103,7 +103,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -123,7 +123,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     }));
 
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
 
@@ -151,7 +151,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -165,7 +165,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -180,7 +180,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -194,7 +194,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -210,7 +210,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -226,7 +226,7 @@ describe('InteractiveForm - Success State Feedback', () => {
     jest.useFakeTimers();
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -257,7 +257,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -273,7 +273,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -291,7 +291,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Any error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -307,7 +307,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -333,7 +333,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     });
 
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -359,7 +359,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Trigger field error first
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -385,7 +385,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
 
@@ -407,7 +407,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('NetworkError: Failed to fetch - 500 Internal Server Error'));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -431,7 +431,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
 
   test('error message is visible in DOM', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -442,7 +442,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
 
   test('error icon has aria-hidden attribute', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -457,7 +457,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
     const mockSubmit = jest.fn(() => new Promise<void>(() => {}));
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -473,7 +473,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
   });
 
   test('required fields have asterisk indicator', async () => {
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const nameLabel = screen.getByText(/name/i);
     const asterisk = nameLabel.nextElementSibling;
@@ -484,7 +484,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
 
   test('form fields are keyboard navigable', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     // Tab to first field
     await user.tab();
@@ -503,7 +503,7 @@ describe('InteractiveForm - Accessibility Feedback', () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
@@ -535,7 +535,7 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
     });
 
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Submit with missing email
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
@@ -567,7 +567,7 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
 
   test('multiple validation errors clear individually', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     // Submit empty form
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -592,7 +592,7 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
     jest.useFakeTimers();
     const user = userEvent.setup();
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // First submission
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
@@ -626,7 +626,7 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
 
   test('empty form submission shows all required errors', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /submit/i }));
 

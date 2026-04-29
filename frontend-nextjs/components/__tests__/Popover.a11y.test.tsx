@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import {
@@ -23,7 +23,7 @@ import {
 
 describe('Popover Accessibility', () => {
   const renderPopover = () => {
-    return render(
+    return renderWithProviders(
       <Popover>
         <PopoverTrigger asChild>
           <button>Open popover</button>
@@ -37,7 +37,7 @@ describe('Popover Accessibility', () => {
   };
 
   it('should have no accessibility violations when open', async () => {
-    const { baseElement, rerender } = render(
+    const { baseElement, rerender } = renderWithProviders(
       <Popover>
         <PopoverTrigger asChild>
           <button>Open popover</button>

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('OutlookIntegration Component', () => {
   });
 
   it('renders Outlook integration component', () => {
-    render(<OutlookIntegration />);
+    renderWithProviders(<OutlookIntegration />);
     expect(screen.getByText(/outlook/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('OutlookIntegration Component', () => {
       })
     );
 
-    render(<OutlookIntegration />);
+    renderWithProviders(<OutlookIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('OutlookIntegration Component', () => {
       })
     );
 
-    render(<OutlookIntegration connected={true} />);
+    renderWithProviders(<OutlookIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test email')).toBeInTheDocument();

@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import '@testing-library/jest-dom';
 import { BarChartCanvas } from '../BarChart';
 
@@ -23,7 +23,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -37,7 +37,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <BarChartCanvas data={data} title="Sales by Category" />
     );
 
@@ -50,7 +50,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -64,7 +64,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -79,7 +79,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -94,7 +94,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -108,7 +108,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -122,7 +122,7 @@ describe('BarChart Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -144,7 +144,7 @@ describe('BarChart Data Rendering', () => {
       { name: 'Category C', value: 150 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -155,7 +155,7 @@ describe('BarChart Data Rendering', () => {
   test('should handle empty data array', () => {
     const data: any[] = [];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -169,7 +169,7 @@ describe('BarChart Data Rendering', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -183,7 +183,7 @@ describe('BarChart Data Rendering', () => {
       value: Math.floor(Math.random() * 1000)
     }));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -199,7 +199,7 @@ describe('BarChart Data Rendering', () => {
       { name: 'Category D', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -215,7 +215,7 @@ describe('BarChart Data Rendering', () => {
       { name: 'Category C', value: -200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -230,7 +230,7 @@ describe('BarChart Data Rendering', () => {
       { name: 'Category C', value: 0 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -244,7 +244,7 @@ describe('BarChart Data Rendering', () => {
     ];
 
     const customColor = '#00C49F';
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} color={customColor} />
     );
 
@@ -278,7 +278,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -293,7 +293,7 @@ describe('BarChart Canvas State API', () => {
     ];
 
     const beforeTime = Date.now();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
     const afterTime = Date.now();
@@ -308,7 +308,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -322,7 +322,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -336,7 +336,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -350,7 +350,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -365,7 +365,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -379,7 +379,7 @@ describe('BarChart Canvas State API', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container, unmount } = render(
+    const { container, unmount } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -402,7 +402,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -415,7 +415,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -428,7 +428,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <BarChartCanvas data={data} title="Bar Chart Test" />
     );
 
@@ -442,7 +442,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -456,7 +456,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category A', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 
@@ -471,7 +471,7 @@ describe('BarChart Accessibility', () => {
       { name: 'Category B', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={data} />
     );
 

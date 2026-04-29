@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('GoogleWorkspaceIntegration Component', () => {
   });
 
   it('renders Google Workspace integration component', () => {
-    render(<GoogleWorkspaceIntegration />);
+    renderWithProviders(<GoogleWorkspaceIntegration />);
     expect(screen.getByText(/google workspace|g suite/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('GoogleWorkspaceIntegration Component', () => {
       })
     );
 
-    render(<GoogleWorkspaceIntegration />);
+    renderWithProviders(<GoogleWorkspaceIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('GoogleWorkspaceIntegration Component', () => {
       })
     );
 
-    render(<GoogleWorkspaceIntegration connected={true} />);
+    renderWithProviders(<GoogleWorkspaceIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('test-file.pdf')).toBeInTheDocument();

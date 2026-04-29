@@ -5,7 +5,7 @@
  * Tests: visible labels, chart structure, data accessibility through canvas API
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { BarChartCanvas } from '@/components/canvas/BarChart';
 
@@ -19,7 +19,7 @@ const mockData = [
 
 describe('BarChart Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -28,7 +28,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should have visible title describing chart', () => {
-    render(
+    renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -39,7 +39,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should have chart structure', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -49,7 +49,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should render responsive container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -59,7 +59,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should handle charts without title', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} />
     );
 
@@ -68,7 +68,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should have accessible chart container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -80,7 +80,7 @@ describe('BarChart Accessibility', () => {
   it('should support different data sets', async () => {
     const smallData = [{ name: 'A', value: 100 }];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={smallData} title="Simple Chart" />
     );
 
@@ -89,7 +89,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should handle empty data gracefully', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={[]} title="Empty Chart" />
     );
 
@@ -98,7 +98,7 @@ describe('BarChart Accessibility', () => {
   });
 
   it('should have accessible chart structure', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={mockData} title="Monthly Sales" />
     );
 
@@ -113,7 +113,7 @@ describe('BarChart Accessibility', () => {
       value: Math.random() * 1000
     }));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <BarChartCanvas data={largeData} title="Large Dataset" />
     );
 

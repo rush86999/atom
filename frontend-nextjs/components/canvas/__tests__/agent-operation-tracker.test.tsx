@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import '@testing-library/jest-dom';
 import AgentOperationTracker, { AgentOperationData } from '../AgentOperationTracker';
 import {
@@ -48,7 +48,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should render hidden accessibility div with role="log"', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -63,7 +63,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should render accessibility tree with correct aria-live attribute', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -76,7 +76,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should render accessibility tree with correct aria-label', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -89,7 +89,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should render accessibility tree with display:none', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -106,7 +106,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should include data-canvas-state attribute', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -119,7 +119,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should include data-operation-id attribute', () => {
     const mockData = createMockOperationData({ operation_id: 'op-12345' });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId="op-12345"
         userId="test-user"
@@ -134,7 +134,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should include data-status attribute', () => {
     const mockData = createMockOperationData({ status: 'running' });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -147,7 +147,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should include data-progress attribute', () => {
     const mockData = createMockOperationData({ progress: 75 });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -166,7 +166,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
         next: 'Send email'
       }
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -186,7 +186,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
       operation_id: 'op-123',
       status: 'running'
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId="op-123"
         userId="test-user"
@@ -203,7 +203,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should include operation_id in JSON state', () => {
     const mockData = createMockOperationData({ operation_id: 'test-op-999' });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -225,7 +225,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
         next: 'Test next'
       }
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -244,7 +244,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
         { timestamp: '2024-01-01T00:00:00Z', level: 'info', message: 'Test log' }
       ]
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -262,7 +262,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
   // ============================================================================
 
   test('should render loading state accessibility tree when no operation', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         userId="test-user"
         className=""
@@ -283,7 +283,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
       total_steps: undefined,
       completed_at: undefined
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -299,7 +299,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
     const mockData = createMockOperationData({
       context: { what: '', why: '', next: '' }
     });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -312,7 +312,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should handle empty logs array', () => {
     const mockData = createMockOperationData({ logs: [] });
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -333,7 +333,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
     statuses.forEach(status => {
       const mockData = createMockOperationData({ status });
-      const { container } = render(
+      const { container } = renderWithProviders(
         <AgentOperationTracker
           operationId={mockData.operation_id}
           userId="test-user"
@@ -350,7 +350,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
     progressValues.forEach(progress => {
       const mockData = createMockOperationData({ progress });
-      const { container } = render(
+      const { container } = renderWithProviders(
         <AgentOperationTracker
           operationId={mockData.operation_id}
           userId="test-user"
@@ -368,7 +368,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
 
   test('should meet ARIA standards for accessibility tree', () => {
     const mockData = createMockOperationData();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         operationId={mockData.operation_id}
         userId="test-user"
@@ -380,7 +380,7 @@ describe('AgentOperationTracker Accessibility Tree', () => {
   });
 
   test('should have all required accessibility fields in JSON', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker
         userId="test-user"
         className=""

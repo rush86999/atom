@@ -5,14 +5,14 @@
  * Tests: axe violations, accessible labels, keyboard (Space), aria-checked
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../tests/accessibility-config';
 import { Switch } from '@/components/ui/switch';
 
 describe('Switch Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label>
         <Switch id="test-switch" />
         <span>Enable notifications</span>
@@ -24,7 +24,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have accessible label', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Switch id="label-switch" />
         <span>Enable dark mode</span>
@@ -43,7 +43,7 @@ describe('Switch Accessibility', () => {
     const handleChange = jest.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <label>
         <Switch id="toggle-switch" onCheckedChange={handleChange} />
         <span>Toggle switch</span>
@@ -65,7 +65,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have aria-checked attribute when checked', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Switch id="checked-switch" defaultChecked={true} />
         <span>Checked switch</span>
@@ -80,7 +80,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have aria-checked false when unchecked', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Switch id="unchecked-switch" />
         <span>Unchecked switch</span>
@@ -94,7 +94,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should not be keyboard accessible when disabled', () => {
-    render(
+    renderWithProviders(
       <label>
         <Switch disabled />
         <span>Disabled switch</span>
@@ -106,7 +106,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have visible focus indicator', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label>
         <Switch />
         <span>Focus test</span>
@@ -120,7 +120,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have proper role', () => {
-    render(
+    renderWithProviders(
       <label>
         <Switch />
         <span>Role test</span>
@@ -132,7 +132,7 @@ describe('Switch Accessibility', () => {
   });
 
   it('should have proper ARIA structure', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label>
         <Switch id="aria-switch" />
         <span>ARIA structure test</span>

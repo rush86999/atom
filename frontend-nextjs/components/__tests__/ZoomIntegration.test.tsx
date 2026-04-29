@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('ZoomIntegration Component', () => {
   });
 
   it('renders Zoom integration component', () => {
-    render(<ZoomIntegration />);
+    renderWithProviders(<ZoomIntegration />);
     expect(screen.getByText(/zoom/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('ZoomIntegration Component', () => {
       })
     );
 
-    render(<ZoomIntegration />);
+    renderWithProviders(<ZoomIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('ZoomIntegration Component', () => {
       })
     );
 
-    render(<ZoomIntegration connected={true} />);
+    renderWithProviders(<ZoomIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test meeting')).toBeInTheDocument();

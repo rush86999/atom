@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -17,7 +17,7 @@ describe('EnhancedWhatsAppBusinessIntegration Component', () => {
   });
 
   it('renders enhanced WhatsApp integration component', () => {
-    render(<EnhancedWhatsAppBusinessIntegration />);
+    renderWithProviders(<EnhancedWhatsAppBusinessIntegration />);
     expect(screen.getByText(/whatsapp|enhanced/i)).toBeInTheDocument();
   });
 
@@ -41,7 +41,7 @@ describe('EnhancedWhatsAppBusinessIntegration Component', () => {
       })
     );
 
-    render(<EnhancedWhatsAppBusinessIntegration connected={true} />);
+    renderWithProviders(<EnhancedWhatsAppBusinessIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText(/\+1234567890|conversations/i)).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('EnhancedWhatsAppBusinessIntegration Component', () => {
       })
     );
 
-    render(<EnhancedWhatsAppBusinessIntegration connected={true} />);
+    renderWithProviders(<EnhancedWhatsAppBusinessIntegration connected={true} />);
 
     await waitFor(() => {
       const statusElement = screen.queryByTestId(/message-status|delivery-status/i);
@@ -83,7 +83,7 @@ describe('EnhancedWhatsAppBusinessIntegration Component', () => {
       })
     );
 
-    render(<EnhancedWhatsAppBusinessIntegration connected={true} />);
+    renderWithProviders(<EnhancedWhatsAppBusinessIntegration connected={true} />);
 
     // Simulate webhook event
     window.dispatchEvent(

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import {
@@ -23,7 +23,7 @@ import {
 
 describe('Accordion Accessibility', () => {
   const renderAccordion = () => {
-    return render(
+    return renderWithProviders(
       <Accordion type="single" collapsible>
         <AccordionItem value="item-1">
           <AccordionTrigger>Section 1</AccordionTrigger>

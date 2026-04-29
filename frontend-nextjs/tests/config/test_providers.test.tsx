@@ -5,7 +5,7 @@
  * They test the "wiring" of the frontend application without testing business logic.
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../test-utils';
 import { AppProps } from 'next/app';
 
 // Mock the Layout component to avoid deep recursion
@@ -48,7 +48,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    render(<MyApp {...mockPageProps} />);
+    renderWithProviders(<MyApp {...mockPageProps} />);
 
     // SessionProvider should be present
     const sessionProvider = screen.queryByTestId('session-provider');
@@ -61,7 +61,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('Layout is rendered for non-auth pages', () => {
@@ -94,7 +94,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    render(<MyApp {...mockAppProps} />);
+    renderWithProviders(<MyApp {...mockAppProps} />);
 
     // GlobalChatWidget should be present (mounted state triggers this)
     const chatWidget = screen.queryByTestId('global-chat-widget');
@@ -107,7 +107,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    const { container } = render(<MyApp {...mockAppProps} />);
+    const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
     // ChakraProvider should be present
     // We can't directly test ChakraProvider, but we can verify app renders
@@ -122,7 +122,7 @@ describe('Provider Setup', () => {
 
     // ToastProvider is part of the provider stack
     // We verify it by ensuring the app renders without errors
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('app structure includes WakeWordProvider', () => {
@@ -132,7 +132,7 @@ describe('Provider Setup', () => {
     } as AppProps;
 
     // WakeWordProvider is mocked, so we just verify app renders
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('providers are nested in correct order', () => {
@@ -141,7 +141,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    const { container } = render(<MyApp {...mockAppProps} />);
+    const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
     // The provider nesting order is:
     // SessionProvider -> TauriHooks -> ChakraProvider -> ToastProvider -> WakeWordProvider
@@ -156,7 +156,7 @@ describe('Provider Setup', () => {
     } as AppProps;
 
     // SessionProvider should handle missing session gracefully
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('app renders with router mounted state', () => {
@@ -187,7 +187,7 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    const { container } = render(<MyApp {...mockAppProps} />);
+    const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
     // If providers are working, children should render
     expect(container.firstChild).toBeTruthy();
@@ -200,7 +200,7 @@ describe('Provider Setup', () => {
     } as AppProps;
 
     // Multiple providers should work simultaneously
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('ToastProvider wraps WakeWordProvider', () => {
@@ -210,7 +210,7 @@ describe('Provider Setup', () => {
     } as AppProps;
 
     // ToastProvider should be present (tested via app rendering)
-    const { container } = render(<MyApp {...mockAppProps} />);
+    const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
     expect(container.firstChild).toBeTruthy();
   });
 
@@ -221,7 +221,7 @@ describe('Provider Setup', () => {
     } as AppProps;
 
     // ChakraProvider should be present
-    const { container } = render(<MyApp {...mockAppProps} />);
+    const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
     expect(container.firstChild).toBeTruthy();
   });
 
@@ -245,7 +245,7 @@ describe('Provider Error Handling', () => {
     } as AppProps;
 
     // Even if a provider has issues, app should still render
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 
   it('app renders without theme (default theme used)', () => {
@@ -255,6 +255,6 @@ describe('Provider Error Handling', () => {
     } as AppProps;
 
     // ChakraProvider should use default theme
-    expect(() => render(<MyApp {...mockAppProps} />)).not.toThrow();
+    expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
 });

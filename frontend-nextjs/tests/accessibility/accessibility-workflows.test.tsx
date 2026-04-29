@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import React from 'react';
 import userEvent from '@testing-library/user-event';
@@ -27,7 +27,7 @@ describe('Workflow accessibility', () => {
   describe('Keyboard navigation', () => {
     it('should navigate canvas workflow with keyboard', async () => {
       // Test keyboard navigation flows logically through canvas
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="application" aria-label="Canvas workflow">
           <button data-testid="step1">Step 1</button>
           <button data-testid="step2">Step 2</button>
@@ -56,7 +56,7 @@ describe('Workflow accessibility', () => {
 
     it('should have visible focus indicators on all interactive elements', () => {
       // Test that all interactive elements show focus state
-      render(
+      renderWithProviders(
         <div>
           <button>Submit</button>
           <a href="/">Link</a>
@@ -81,7 +81,7 @@ describe('Workflow accessibility', () => {
 
     it('should maintain logical tab order in complex workflows', async () => {
       // Test tab order follows visual flow
-      const { container } = render(
+      const { container } = renderWithProviders(
         <form aria-label="Test form">
           <label htmlFor="input1">Input 1</label>
           <input id="input1" type="text" />
@@ -115,7 +115,7 @@ describe('Workflow accessibility', () => {
   describe('Screen reader announcements', () => {
     it('should announce form errors via ARIA live regions', async () => {
       // Test that ARIA live regions announce validation errors
-      render(
+      renderWithProviders(
         <form aria-label="Test form">
           <label htmlFor="email">Email</label>
           <input
@@ -143,7 +143,7 @@ describe('Workflow accessibility', () => {
 
     it('should announce dynamic content updates', async () => {
       // Test async updates announced to screen readers
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <div aria-live="polite" aria-atomic="true" data-testid="status">
             Loading...
@@ -157,7 +157,7 @@ describe('Workflow accessibility', () => {
       expect(status).toHaveTextContent('Loading...');
 
       // Simulate dynamic update
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <div>
           <div aria-live="polite" aria-atomic="true" data-testid="status">
             Content loaded successfully
@@ -173,7 +173,7 @@ describe('Workflow accessibility', () => {
 
     it('should announce modal open/close', async () => {
       // Test modals are announced when opened
-      render(
+      renderWithProviders(
         <div>
           <button aria-haspopup="dialog">Open Modal</button>
         </div>
@@ -187,7 +187,7 @@ describe('Workflow accessibility', () => {
   describe('Modal focus management', () => {
     it('should trap focus in modal when open', async () => {
       // Test focus trapped in modal
-      render(
+      renderWithProviders(
         <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <h2 id="modal-title">Modal Title</h2>
           <button data-testid="modal-button1">Button 1</button>
@@ -207,7 +207,7 @@ describe('Workflow accessibility', () => {
 
     it('should restore focus to trigger after modal closes', async () => {
       // Test focus returns to trigger after modal closes
-      render(
+      renderWithProviders(
         <div>
           <button data-testid="trigger">Open Modal</button>
         </div>
@@ -224,7 +224,7 @@ describe('Workflow accessibility', () => {
 
     it('should have accessible modal announcements', async () => {
       // Test modals have proper ARIA attributes
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div
           role="dialog"
           aria-modal="true"
@@ -249,7 +249,7 @@ describe('Workflow accessibility', () => {
   describe('Custom interactive elements', () => {
     it('should have proper ARIA roles on custom buttons', async () => {
       // Test custom buttons have button role
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="button" tabIndex={0} aria-label="Custom button">
           Custom Button
         </div>
@@ -265,7 +265,7 @@ describe('Workflow accessibility', () => {
 
     it('should have proper ARIA roles on custom links', async () => {
       // Test custom links have link role
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div role="link" tabIndex={0} aria-label="Custom link">
           Custom Link
         </div>
@@ -282,7 +282,7 @@ describe('Workflow accessibility', () => {
   describe('Image accessibility', () => {
     it('should have alt text on all images', async () => {
       // Test images have alt text or presentation role
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <img src="/test.jpg" alt="Test image" />
           <img src="/decorative.jpg" alt="" role="presentation" />
@@ -308,7 +308,7 @@ describe('Workflow accessibility', () => {
 
     it('should have accessible names for informative images', async () => {
       // Test informative images have non-empty alt text
-      render(
+      renderWithProviders(
         <div>
           <img src="/chart.png" alt="Sales chart showing 20% increase" />
         </div>
@@ -322,7 +322,7 @@ describe('Workflow accessibility', () => {
   describe('Color contrast', () => {
     it('should meet WCAG AA contrast requirements', async () => {
       // Test text contrast >= 4.5:1
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ color: '#000000', backgroundColor: '#FFFFFF' }}>
           High contrast text
         </div>
@@ -334,7 +334,7 @@ describe('Workflow accessibility', () => {
 
     it('should have sufficient contrast on interactive elements', async () => {
       // Test buttons have sufficient contrast
-      const { container } = render(
+      const { container } = renderWithProviders(
         <button
           style={{
             color: '#FFFFFF',
@@ -354,7 +354,7 @@ describe('Workflow accessibility', () => {
   describe('Form accessibility', () => {
     it('should have labels on all form inputs', async () => {
       // Test all form inputs have associated labels
-      const { container } = render(
+      const { container } = renderWithProviders(
         <form>
           <label htmlFor="name">Name</label>
           <input id="name" type="text" />
@@ -382,7 +382,7 @@ describe('Workflow accessibility', () => {
 
     it('should have required indicators on required fields', async () => {
       // Test required fields are marked
-      render(
+      renderWithProviders(
         <form>
           <label htmlFor="required-field">
             Required Field <span aria-hidden="true">*</span>
@@ -398,7 +398,7 @@ describe('Workflow accessibility', () => {
 
     it('should have error messages associated with invalid fields', async () => {
       // Test error messages are linked to inputs
-      render(
+      renderWithProviders(
         <form>
           <label htmlFor="password">Password</label>
           <input
@@ -425,7 +425,7 @@ describe('Workflow accessibility', () => {
   describe('Semantic HTML', () => {
     it('should use proper heading hierarchy', async () => {
       // Test headings follow logical order
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <h1>Main Title</h1>
           <h2>Section Title</h2>
@@ -443,7 +443,7 @@ describe('Workflow accessibility', () => {
 
     it('should have proper landmark regions', async () => {
       // Test page has landmarks for navigation
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <nav aria-label="Main navigation">
             <a href="/">Home</a>
@@ -470,7 +470,7 @@ describe('Workflow accessibility', () => {
   describe('List accessibility', () => {
     it('should have proper list semantics', async () => {
       // Test lists use proper markup
-      const { container } = render(
+      const { container } = renderWithProviders(
         <ul>
           <li>Item 1</li>
           <li>Item 2</li>
@@ -492,7 +492,7 @@ describe('Workflow accessibility', () => {
   describe('Table accessibility', () => {
     it('should have proper table headers', async () => {
       // Test tables have headers
-      const { container } = render(
+      const { container } = renderWithProviders(
         <table>
           <thead>
             <tr>
@@ -523,7 +523,7 @@ describe('Workflow accessibility', () => {
   describe('Skip links', () => {
     it('should have skip link for keyboard navigation', () => {
       // Test skip link allows bypassing navigation
-      render(
+      renderWithProviders(
         <div>
           <a href="#main-content" className="skip-link">
             Skip to main content
@@ -548,7 +548,7 @@ describe('Workflow accessibility', () => {
   describe('Focus management in dynamic workflows', () => {
     it('should manage focus when content appears', async () => {
       // Test focus moves to new content
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div>
           <button aria-expanded="false" aria-controls="panel">
             Toggle Panel
@@ -563,7 +563,7 @@ describe('Workflow accessibility', () => {
       expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
       // Simulate panel opening
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <div>
           <button aria-expanded="true" aria-controls="panel">
             Toggle Panel

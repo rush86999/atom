@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import '@testing-library/jest-dom';
 import { LineChartCanvas } from '../LineChart';
 
@@ -23,7 +23,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -37,7 +37,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <LineChartCanvas data={data} title="Sales Data" />
     );
 
@@ -50,7 +50,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -64,7 +64,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -79,7 +79,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-02', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -94,7 +94,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-02', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -108,7 +108,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -122,7 +122,7 @@ describe('LineChart Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -144,7 +144,7 @@ describe('LineChart Data Rendering', () => {
       { timestamp: '2024-01-03', value: 150 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -155,7 +155,7 @@ describe('LineChart Data Rendering', () => {
   test('should handle empty data array', () => {
     const data: any[] = [];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -169,7 +169,7 @@ describe('LineChart Data Rendering', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -183,7 +183,7 @@ describe('LineChart Data Rendering', () => {
       value: Math.floor(Math.random() * 1000)
     }));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -199,7 +199,7 @@ describe('LineChart Data Rendering', () => {
       { timestamp: '2024-01-04', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -215,7 +215,7 @@ describe('LineChart Data Rendering', () => {
       { timestamp: '2024-01-03', value: -200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -230,7 +230,7 @@ describe('LineChart Data Rendering', () => {
       { timestamp: '2024-01-03', value: 0 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -244,7 +244,7 @@ describe('LineChart Data Rendering', () => {
     ];
 
     const customColor = '#FF0000';
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} color={customColor} />
     );
 
@@ -278,7 +278,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -293,7 +293,7 @@ describe('LineChart Canvas State API', () => {
     ];
 
     const beforeTime = Date.now();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
     const afterTime = Date.now();
@@ -308,7 +308,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -322,7 +322,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -336,7 +336,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -350,7 +350,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -365,7 +365,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-02', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -379,7 +379,7 @@ describe('LineChart Canvas State API', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container, unmount } = render(
+    const { container, unmount } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -402,7 +402,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -415,7 +415,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -428,7 +428,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    render(
+    renderWithProviders(
       <LineChartCanvas data={data} title="Test Chart" />
     );
 
@@ -442,7 +442,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -456,7 +456,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 
@@ -471,7 +471,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-02', value: 200 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={data} />
     );
 

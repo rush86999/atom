@@ -4,7 +4,7 @@
  * Tests for the loading state test helper functions to ensure they work correctly.
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../test-utils';
 import { setupServer } from 'msw/node';
 import { rest } from 'msw';
 import React from 'react';
@@ -49,13 +49,13 @@ const TestComponent = ({ loading }: { loading: boolean }) => {
 
 describe('assertLoadingState', () => {
   it('should detect loading spinner', () => {
-    const { container } = render(<TestComponent loading={true} />);
+    const { container } = renderWithProviders(<TestComponent loading={true} />);
     const isLoading = assertLoadingState({ container });
     expect(isLoading).toBe(true);
   });
 
   it('should return false when no loading state', () => {
-    const { container } = render(<TestComponent loading={false} />);
+    const { container } = renderWithProviders(<TestComponent loading={false} />);
     const isLoading = assertLoadingState({ container });
     expect(isLoading).toBe(false);
   });
@@ -71,19 +71,19 @@ describe('assertLoadingState', () => {
 
 describe('assertSpecificLoadingStates', () => {
   it('should detect spinner indicator', () => {
-    const { container } = render(<TestComponent loading={true} />);
+    const { container } = renderWithProviders(<TestComponent loading={true} />);
     const indicators = assertSpecificLoadingStates({ container }, { spinner: true });
     expect(indicators.spinner).toBe(true);
   });
 
   it('should detect skeleton indicator', () => {
-    const { container } = render(<TestComponent loading={true} />);
+    const { container } = renderWithProviders(<TestComponent loading={true} />);
     const indicators = assertSpecificLoadingStates({ container }, { skeleton: true });
     expect(indicators.skeleton).toBe(true);
   });
 
   it('should return object with all indicator states', () => {
-    const { container } = render(<TestComponent loading={true} />);
+    const { container } = renderWithProviders(<TestComponent loading={true} />);
     const indicators = assertSpecificLoadingStates(
       { container },
       { spinner: true, skeleton: true, progressBar: true, loadingText: true }
@@ -101,7 +101,7 @@ describe('assertSpecificLoadingStates', () => {
 
 describe('waitForLoadingComplete', () => {
   it('should wait for loading to clear', async () => {
-    const { container, rerender } = render(<TestComponent loading={true} />);
+    const { container, rerender } = renderWithProviders(<TestComponent loading={true} />);
 
     // Initially loading
     expect(assertLoadingState({ container })).toBe(true);
@@ -121,7 +121,7 @@ describe('waitForLoadingComplete', () => {
   }, 5000);
 
   it('should throw error if timeout exceeded', async () => {
-    const { container } = render(<TestComponent loading={true} />);
+    const { container } = renderWithProviders(<TestComponent loading={true} />);
 
     await expect(
       waitForLoadingComplete({ container }, 500)
@@ -214,7 +214,7 @@ describe('createLoadingStateTest', () => {
     );
 
     const { waitForLoading, waitForData } = await createLoadingStateTest(
-      () => render(<TestComponent loading={true} />),
+      () => renderWithProviders(<TestComponent loading={true} />),
       { endpoint: '/api/test-data', delay: 1000 }
     );
 

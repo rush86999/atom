@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -9,7 +9,7 @@ describe('Navigation Components', () => {
   describe('Tabs Component', () => {
     describe('Rendering', () => {
       it('renders tabs with list and content', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -26,7 +26,7 @@ describe('Navigation Components', () => {
       });
 
       it('shows default tab content on mount', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -43,7 +43,7 @@ describe('Navigation Components', () => {
 
       it('switches tabs when clicked', async () => {
         const user = userEvent.setup();
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -60,7 +60,7 @@ describe('Navigation Components', () => {
       });
 
       it('renders with custom className', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1" className="custom-tabs">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -75,7 +75,7 @@ describe('Navigation Components', () => {
 
     describe('Accessibility', () => {
       it('has proper tab roles', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -89,7 +89,7 @@ describe('Navigation Components', () => {
       });
 
       it('has selected state on active tab', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -108,7 +108,7 @@ describe('Navigation Components', () => {
 
       it('supports keyboard navigation with arrow keys', async () => {
         const user = userEvent.setup();
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -129,7 +129,7 @@ describe('Navigation Components', () => {
 
     describe('Edge Cases', () => {
       it('handles empty tabs list', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList />
             <TabsContent value="tab1">Content 1</TabsContent>
@@ -140,7 +140,7 @@ describe('Navigation Components', () => {
       });
 
       it('handles tabs without content', () => {
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -153,7 +153,7 @@ describe('Navigation Components', () => {
 
       it('handles rapid tab switching', async () => {
         const user = userEvent.setup();
-        render(
+        renderWithProviders(
           <Tabs defaultValue="tab1">
             <TabsList>
               <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -178,7 +178,7 @@ describe('Navigation Components', () => {
   describe('Sheet Component (Slide-over Panel)', () => {
     describe('Rendering', () => {
       it('renders when open is true', () => {
-        render(
+        renderWithProviders(
           <Sheet open={true} onOpenChange={jest.fn()}>
             <SheetContent>Sheet content</SheetContent>
           </Sheet>
@@ -188,7 +188,7 @@ describe('Navigation Components', () => {
       });
 
       it('does not render when open is false', () => {
-        render(
+        renderWithProviders(
           <Sheet open={false} onOpenChange={jest.fn()}>
             <SheetContent>Sheet content</SheetContent>
           </Sheet>
@@ -198,7 +198,7 @@ describe('Navigation Components', () => {
       });
 
       it('renders with title and description', () => {
-        render(
+        renderWithProviders(
           <Sheet open={true} onOpenChange={jest.fn()}>
             <SheetContent>
               <SheetHeader>
@@ -217,7 +217,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        render(
+        renderWithProviders(
           <Sheet open={true} onOpenChange={handleClose}>
             <SheetContent>Content</SheetContent>
           </Sheet>
@@ -233,7 +233,7 @@ describe('Navigation Components', () => {
 
     describe('Accessibility', () => {
       it('has proper dialog role', () => {
-        render(
+        renderWithProviders(
           <Sheet open={true} onOpenChange={jest.fn()}>
             <SheetContent>
               <SheetHeader>
@@ -247,7 +247,7 @@ describe('Navigation Components', () => {
       });
 
       it('has aria-labelledby pointing to title', () => {
-        render(
+        renderWithProviders(
           <Sheet open={true} onOpenChange={jest.fn()}>
             <SheetContent>
               <SheetHeader>
@@ -267,7 +267,7 @@ describe('Navigation Components', () => {
   describe('Dialog Component (Modal Dialog)', () => {
     describe('Rendering', () => {
       it('renders when open is true', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent>Dialog content</DialogContent>
           </Dialog>
@@ -277,7 +277,7 @@ describe('Navigation Components', () => {
       });
 
       it('does not render when open is false', () => {
-        render(
+        renderWithProviders(
           <Dialog open={false} onOpenChange={jest.fn()}>
             <DialogContent>Dialog content</DialogContent>
           </Dialog>
@@ -287,7 +287,7 @@ describe('Navigation Components', () => {
       });
 
       it('renders with title and description', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent>
               <DialogHeader>
@@ -306,7 +306,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={handleClose}>
             <DialogContent>Content</DialogContent>
           </Dialog>
@@ -322,7 +322,7 @@ describe('Navigation Components', () => {
 
     describe('Accessibility', () => {
       it('has proper dialog role', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent>
               <DialogHeader>
@@ -336,7 +336,7 @@ describe('Navigation Components', () => {
       });
 
       it('has aria-labelledby pointing to title', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent>
               <DialogHeader>
@@ -352,7 +352,7 @@ describe('Navigation Components', () => {
       });
 
       it('has aria-describedby pointing to description', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent>
               <DialogHeader>
@@ -374,7 +374,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={handleClose}>
             <DialogContent>Content</DialogContent>
           </Dialog>
@@ -389,7 +389,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={handleClose}>
             <DialogContent>Content</DialogContent>
           </Dialog>
@@ -405,7 +405,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={handleClose}>
             <DialogContent>
               <p>Dialog content</p>
@@ -425,7 +425,7 @@ describe('Navigation Components', () => {
         const user = userEvent.setup();
         const handleClose = jest.fn();
 
-        const { rerender } = render(
+        const { rerender } = renderWithProviders(
           <Dialog open={true} onOpenChange={handleClose}>
             <DialogContent>Content</DialogContent>
           </Dialog>
@@ -441,7 +441,7 @@ describe('Navigation Components', () => {
       });
 
       it('handles empty children', () => {
-        render(
+        renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent />
           </Dialog>
@@ -454,7 +454,7 @@ describe('Navigation Components', () => {
 
   describe('Component Comparison', () => {
     it('distinguishes between Sheet and Dialog behavior', () => {
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <Dialog open={true} onOpenChange={jest.fn()}>
           <DialogContent>Dialog</DialogContent>
         </Dialog>
@@ -472,7 +472,7 @@ describe('Navigation Components', () => {
     });
 
     it('both components support similar props', () => {
-      render(
+      renderWithProviders(
         <>
           <Dialog open={true} onOpenChange={jest.fn()}>
             <DialogContent className="custom-class">

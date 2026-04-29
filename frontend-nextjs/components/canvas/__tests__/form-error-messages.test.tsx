@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -27,7 +27,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('error appears below the field with text-red-500 class', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -41,7 +41,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('error includes AlertCircle icon', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -56,7 +56,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('multiple errors show for multiple fields', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -70,7 +70,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
   test('form-level error shows for submission failures', async () => {
     const mockSubmit = jest.fn().mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Fill form with valid data to trigger submission error
     const nameInput = screen.getByLabelText(/name/i);
@@ -90,7 +90,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('error is visible immediately after submit', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -103,7 +103,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('error persists when user starts typing', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -123,7 +123,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('error disappears on next submit after correction', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -148,7 +148,7 @@ describe('InteractiveForm - Error Message Location and Visibility', () => {
 
   test('no duplicate error messages', async () => {
     const user = userEvent.setup();
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 
@@ -170,7 +170,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       { name: 'fullName', label: 'Full Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -186,7 +186,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       { name: 'emailAddress', label: 'Email Address', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -203,7 +203,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       { name: 'phone', label: 'Phone', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const phoneInput = screen.getByLabelText(/phone/i);
@@ -222,7 +222,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -255,7 +255,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const passwordInput = screen.getByLabelText(/password/i);
@@ -275,7 +275,7 @@ describe('InteractiveForm - Required Field Error Messages', () => {
       { name: 'comments', label: 'Comments', type: 'text' as const, required: false }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     await user.click(submitButton);
@@ -302,7 +302,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const emailInput = screen.getByLabelText(/email/i);
@@ -330,7 +330,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/postal code/i);
@@ -355,7 +355,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/phone/i);
@@ -383,7 +383,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/phone number/i);
@@ -411,7 +411,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/website/i);
@@ -439,7 +439,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/hex color/i);
@@ -467,7 +467,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/username/i);
@@ -492,7 +492,7 @@ describe('InteractiveForm - Format Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/notes/i);
@@ -519,7 +519,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/age/i);
@@ -544,7 +544,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/quantity/i);
@@ -570,7 +570,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/rating/i) as HTMLInputElement;
@@ -602,7 +602,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/rating/i);
@@ -628,7 +628,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/price/i) as HTMLInputElement;
@@ -660,7 +660,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/age/i);
@@ -687,7 +687,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/quantity/i);
@@ -713,7 +713,7 @@ describe('InteractiveForm - Range Validation Error Messages', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const input = screen.getByLabelText(/temperature/i);
@@ -734,7 +734,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -760,7 +760,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -793,7 +793,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -839,7 +839,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const ageInput = screen.getByLabelText(/age/i);
@@ -880,7 +880,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -911,7 +911,7 @@ describe('InteractiveForm - Error Clearing Behavior', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: false }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
 

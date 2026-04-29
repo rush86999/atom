@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -44,7 +44,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       { name: 'age', label: 'Age', type: 'number' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -60,7 +60,7 @@ describe('InteractiveForm - Rendering Tests', () => {
   test('should render title if provided', () => {
     const fields = [{ name: 'name', label: 'Name', type: 'text' as const }];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -74,7 +74,7 @@ describe('InteractiveForm - Rendering Tests', () => {
   test('should render custom submit label', () => {
     const fields = [{ name: 'name', label: 'Name', type: 'text' as const }];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -88,7 +88,7 @@ describe('InteractiveForm - Rendering Tests', () => {
   test('should render default submit label when not provided', () => {
     const fields = [{ name: 'name', label: 'Name', type: 'text' as const }];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -104,7 +104,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -123,7 +123,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       { name: 'lastName', label: 'Last Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -144,7 +144,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -169,7 +169,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -190,7 +190,7 @@ describe('InteractiveForm - Rendering Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -211,7 +211,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -230,7 +230,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -249,7 +249,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       { name: 'age', label: 'Age', type: 'number' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -276,7 +276,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -300,7 +300,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -331,7 +331,7 @@ describe('InteractiveForm - Field Type Tests', () => {
       { name: 'agree', label: 'Agree', type: 'checkbox' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -354,7 +354,7 @@ describe('InteractiveForm - Validation Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -382,7 +382,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -413,7 +413,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -440,7 +440,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -471,7 +471,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -500,7 +500,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -520,7 +520,7 @@ describe('InteractiveForm - Validation Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -549,7 +549,7 @@ describe('InteractiveForm - Validation Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -571,7 +571,7 @@ describe('InteractiveForm - Validation Tests', () => {
       { name: 'email', label: 'Email Address', type: 'email' as const, required: true }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -595,7 +595,7 @@ describe('InteractiveForm - Validation Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -624,7 +624,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -650,7 +650,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -673,7 +673,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -695,7 +695,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -719,7 +719,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -748,7 +748,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -773,7 +773,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -814,7 +814,7 @@ describe('InteractiveForm - Submission Tests', () => {
       { name: 'agree', label: 'Agree', type: 'checkbox' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -847,7 +847,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
   test('should register with window.atom.canvas on mount', () => {
     const fields = [{ name: 'name', label: 'Name', type: 'text' as const }];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -866,7 +866,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -893,7 +893,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const, defaultValue: 'John' }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -914,7 +914,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -943,7 +943,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -968,7 +968,7 @@ describe('InteractiveForm - Canvas State API Tests', () => {
 describe('InteractiveForm - Edge Cases Tests', () => {
 
   test('should handle empty fields array', () => {
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={[]}
         onSubmit={jest.fn()}
@@ -988,7 +988,7 @@ describe('InteractiveForm - Edge Cases Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -1012,7 +1012,7 @@ describe('InteractiveForm - Edge Cases Tests', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: false }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}
@@ -1034,7 +1034,7 @@ describe('InteractiveForm - Edge Cases Tests', () => {
       { name: 'field', label: longLabel, type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -1058,7 +1058,7 @@ describe('InteractiveForm - Edge Cases Tests', () => {
       }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={jest.fn()}
@@ -1083,7 +1083,7 @@ describe('InteractiveForm - Edge Cases Tests', () => {
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
 
-    render(
+    renderWithProviders(
       <InteractiveForm
         fields={fields}
         onSubmit={onSubmit}

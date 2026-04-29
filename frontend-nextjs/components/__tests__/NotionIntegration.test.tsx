@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('NotionIntegration Component', () => {
   });
 
   it('renders Notion integration component', () => {
-    render(<NotionIntegration />);
+    renderWithProviders(<NotionIntegration />);
     expect(screen.getByText(/notion/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('NotionIntegration Component', () => {
       })
     );
 
-    render(<NotionIntegration />);
+    renderWithProviders(<NotionIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('NotionIntegration Component', () => {
       })
     );
 
-    render(<NotionIntegration connected={true} />);
+    renderWithProviders(<NotionIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test page')).toBeInTheDocument();

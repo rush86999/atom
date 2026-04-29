@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 import WhatsAppRealtimeStatus from '../WhatsAppRealtimeStatus';
@@ -16,7 +16,7 @@ describe('WhatsAppRealtimeStatus Component', () => {
   });
 
   it('renders WhatsApp realtime status component', () => {
-    render(<WhatsAppRealtimeStatus />);
+    renderWithProviders(<WhatsAppRealtimeStatus />);
     expect(screen.getByText(/whatsapp|status|health/i)).toBeInTheDocument();
   });
 
@@ -34,7 +34,7 @@ describe('WhatsAppRealtimeStatus Component', () => {
       })
     );
 
-    render(<WhatsAppRealtimeStatus />);
+    renderWithProviders(<WhatsAppRealtimeStatus />);
 
     await waitFor(() => {
       expect(screen.getByText(/healthy|connected/i)).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('WhatsAppRealtimeStatus Component', () => {
       })
     );
 
-    render(<WhatsAppRealtimeStatus />);
+    renderWithProviders(<WhatsAppRealtimeStatus />);
 
     await waitFor(() => {
       expect(screen.getByText(/webhook|configured/i)).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe('WhatsAppRealtimeStatus Component', () => {
       })
     );
 
-    render(<WhatsAppRealtimeStatus />);
+    renderWithProviders(<WhatsAppRealtimeStatus />);
 
     await waitFor(() => {
       expect(screen.getByText(/unhealthy|error|disconnected/i)).toBeInTheDocument();

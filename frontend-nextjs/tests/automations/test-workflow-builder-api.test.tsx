@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import '@testing-library/jest-dom';
 
 describe('WorkflowBuilder - API Call Testing', () => {

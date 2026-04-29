@@ -1,26 +1,26 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { Button } from '@/components/ui/button';
 
 describe('Button Component', () => {
   describe('Rendering', () => {
     it('renders default button', () => {
-      render(<Button>Click me</Button>);
+      renderWithProviders(<Button>Click me</Button>);
       const button = screen.getByRole('button', { name: 'Click me' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('bg-primary-600');
     });
 
     it('renders destructive variant', () => {
-      render(<Button variant="destructive">Delete</Button>);
+      renderWithProviders(<Button variant="destructive">Delete</Button>);
       const button = screen.getByRole('button', { name: 'Delete' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('bg-red-500');
     });
 
     it('renders outline variant', () => {
-      render(<Button variant="outline">Cancel</Button>);
+      renderWithProviders(<Button variant="outline">Cancel</Button>);
       const button = screen.getByRole('button', { name: 'Cancel' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('border');
@@ -28,21 +28,21 @@ describe('Button Component', () => {
     });
 
     it('renders secondary variant', () => {
-      render(<Button variant="secondary">Secondary</Button>);
+      renderWithProviders(<Button variant="secondary">Secondary</Button>);
       const button = screen.getByRole('button', { name: 'Secondary' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('bg-secondary-100');
     });
 
     it('renders ghost variant', () => {
-      render(<Button variant="ghost">Ghost</Button>);
+      renderWithProviders(<Button variant="ghost">Ghost</Button>);
       const button = screen.getByRole('button', { name: 'Ghost' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('hover:bg-accent');
     });
 
     it('renders link variant', () => {
-      render(<Button variant="link">Learn more</Button>);
+      renderWithProviders(<Button variant="link">Learn more</Button>);
       const button = screen.getByRole('button', { name: 'Learn more' });
       expect(button).toBeInTheDocument();
       expect(button).toHaveClass('underline-offset-4');
@@ -57,7 +57,7 @@ describe('Button Component', () => {
       ['lg', 'h-11'],
       ['icon', 'h-10 w-10'],
     ])('renders %s size with correct classes', (size, expectedClass) => {
-      render(<Button size={size as any}>Button</Button>);
+      renderWithProviders(<Button size={size as any}>Button</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveClass(expectedClass);
     });
@@ -68,7 +68,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(<Button onClick={handleClick}>Click me</Button>);
+      renderWithProviders(<Button onClick={handleClick}>Click me</Button>);
 
       const button = screen.getByRole('button');
       await user.click(button);
@@ -80,7 +80,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(<Button onClick={handleClick} disabled>Click me</Button>);
+      renderWithProviders(<Button onClick={handleClick} disabled>Click me</Button>);
 
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
@@ -94,7 +94,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleSubmit = jest.fn((e: React.FormEvent) => e.preventDefault());
 
-      render(<Button onClick={handleSubmit}>Submit</Button>);
+      renderWithProviders(<Button onClick={handleSubmit}>Submit</Button>);
 
       const button = screen.getByRole('button');
       await user.click(button);
@@ -105,19 +105,19 @@ describe('Button Component', () => {
 
   describe('Accessibility', () => {
     it('has accessible name', () => {
-      render(<Button>Submit</Button>);
+      renderWithProviders(<Button>Submit</Button>);
       const button = screen.getByRole('button', { name: 'Submit' });
       expect(button).toBeInTheDocument();
     });
 
     it('forwards aria-label', () => {
-      render(<Button aria-label="Close dialog">&times;</Button>);
+      renderWithProviders(<Button aria-label="Close dialog">&times;</Button>);
       const button = screen.getByRole('button', { name: /close dialog/i });
       expect(button).toBeInTheDocument();
     });
 
     it('forwards aria-describedby', () => {
-      render(
+      renderWithProviders(
         <>
           <Button aria-describedby="description">Submit</Button>
           <span id="description">Form submission</span>
@@ -128,7 +128,7 @@ describe('Button Component', () => {
     });
 
     it('has correct button role', () => {
-      render(<Button>Click me</Button>);
+      renderWithProviders(<Button>Click me</Button>);
       const button = screen.getByRole('button');
       expect(button).toBeInTheDocument();
     });
@@ -137,7 +137,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(<Button onClick={handleClick}>Submit</Button>);
+      renderWithProviders(<Button onClick={handleClick}>Submit</Button>);
 
       const button = screen.getByRole('button');
       button.focus();
@@ -150,7 +150,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(<Button onClick={handleClick}>Submit</Button>);
+      renderWithProviders(<Button onClick={handleClick}>Submit</Button>);
 
       const button = screen.getByRole('button');
       button.focus();
@@ -160,13 +160,13 @@ describe('Button Component', () => {
     });
 
     it('disabled attribute communicated to screen readers', () => {
-      render(<Button disabled>Disabled</Button>);
+      renderWithProviders(<Button disabled>Disabled</Button>);
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
     });
 
     it('has visible focus indicator for keyboard users', () => {
-      render(<Button>Focus test</Button>);
+      renderWithProviders(<Button>Focus test</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveClass('focus-visible:outline-none');
       expect(button).toHaveClass('focus-visible:ring-2');
@@ -175,13 +175,13 @@ describe('Button Component', () => {
 
   describe('Edge Cases', () => {
     it('renders with text children', () => {
-      render(<Button>Text content</Button>);
+      renderWithProviders(<Button>Text content</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveTextContent('Text content');
     });
 
     it('renders with icon children', () => {
-      render(
+      renderWithProviders(
         <Button>
           <span data-testid="icon">🔥</span>
           Icon
@@ -194,14 +194,14 @@ describe('Button Component', () => {
     });
 
     it('renders with custom className', () => {
-      render(<Button className="custom-class">Custom</Button>);
+      renderWithProviders(<Button className="custom-class">Custom</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveClass('custom-class');
     });
 
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLButtonElement>();
-      render(<Button ref={ref}>Ref test</Button>);
+      renderWithProviders(<Button ref={ref}>Ref test</Button>);
       expect(ref.current).toBeInstanceOf(HTMLButtonElement);
       expect(ref.current?.tagName).toBe('BUTTON');
     });
@@ -210,7 +210,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
       const handleClick = jest.fn();
 
-      render(<Button onClick={handleClick}>Click me</Button>);
+      renderWithProviders(<Button onClick={handleClick}>Click me</Button>);
 
       const button = screen.getByRole('button');
       await user.dblClick(button);
@@ -219,32 +219,32 @@ describe('Button Component', () => {
     });
 
     it('renders with data-* attributes', () => {
-      render(<Button data-testid="custom-button">Test</Button>);
+      renderWithProviders(<Button data-testid="custom-button">Test</Button>);
       const button = screen.getByTestId('custom-button');
       expect(button).toBeInTheDocument();
     });
 
     it('handles form attribute', () => {
-      render(<Button form="my-form">Submit</Button>);
+      renderWithProviders(<Button form="my-form">Submit</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('form', 'my-form');
     });
 
     it('handles type attribute', () => {
-      render(<Button type="submit">Submit</Button>);
+      renderWithProviders(<Button type="submit">Submit</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('type', 'submit');
     });
 
     it('renders with long text content', () => {
       const longText = 'This is a very long button text that might wrap or truncate';
-      render(<Button>{longText}</Button>);
+      renderWithProviders(<Button>{longText}</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveTextContent(longText);
     });
 
     it('handles special characters in text', () => {
-      render(<Button>Button with &lt;special&gt; &amp; &quot;characters&quot;</Button>);
+      renderWithProviders(<Button>Button with &lt;special&gt; &amp; &quot;characters&quot;</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveTextContent('Button with <special> & "characters"');
     });
@@ -252,14 +252,14 @@ describe('Button Component', () => {
 
   describe('Combined Props', () => {
     it('renders with variant and size', () => {
-      render(<Button variant="destructive" size="lg">Delete All</Button>);
+      renderWithProviders(<Button variant="destructive" size="lg">Delete All</Button>);
       const button = screen.getByRole('button', { name: 'Delete All' });
       expect(button).toHaveClass('bg-red-500');
       expect(button).toHaveClass('h-11');
     });
 
     it('renders with all props combined', () => {
-      render(
+      renderWithProviders(
         <Button
           variant="outline"
           size="sm"
@@ -278,7 +278,7 @@ describe('Button Component', () => {
     });
 
     it('respects className merging with cva classes', () => {
-      render(<Button className="bg-red-600">Custom Style</Button>);
+      renderWithProviders(<Button className="bg-red-600">Custom Style</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveClass('bg-red-600');
     });

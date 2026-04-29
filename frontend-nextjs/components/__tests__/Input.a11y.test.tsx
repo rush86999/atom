@@ -5,20 +5,20 @@
  * Tests: axe violations, labels, ARIA attributes, keyboard accessibility
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../tests/accessibility-config';
 import { Input } from '@/components/ui/input';
 
 describe('Input Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(<Input placeholder="Enter text" />);
+    const { container } = renderWithProviders(<Input placeholder="Enter text" />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it('should have accessible label', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label htmlFor="test-input">
         Username
         <Input id="test-input" placeholder="Enter username" />
@@ -32,7 +32,7 @@ describe('Input Accessibility', () => {
   });
 
   it('should have aria-label when visible label is absent', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Input
         aria-label="Search query"
         placeholder="Search..."
@@ -46,7 +46,7 @@ describe('Input Accessibility', () => {
   });
 
   it('should show error state with aria-invalid', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label htmlFor="email-input">
         Email
         <Input
@@ -69,7 +69,7 @@ describe('Input Accessibility', () => {
   });
 
   it('should be keyboard accessible', async () => {
-    render(<Input placeholder="Type here" />);
+    renderWithProviders(<Input placeholder="Type here" />);
 
     const input = screen.getByPlaceholderText('Type here');
 
@@ -83,14 +83,14 @@ describe('Input Accessibility', () => {
   });
 
   it('should not be accessible when disabled', () => {
-    render(<Input disabled placeholder="Disabled" />);
+    renderWithProviders(<Input disabled placeholder="Disabled" />);
 
     const input = screen.getByPlaceholderText('Disabled');
     expect(input).toBeDisabled();
   });
 
   it('should have visible focus indicator', () => {
-    const { container } = render(<Input placeholder="Focus test" />);
+    const { container } = renderWithProviders(<Input placeholder="Focus test" />);
 
     const input = container.querySelector('input');
     expect(input).toHaveClass('focus-visible:ring-2');

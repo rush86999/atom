@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('ZendeskIntegration Component', () => {
   });
 
   it('renders Zendesk integration component', () => {
-    render(<ZendeskIntegration />);
+    renderWithProviders(<ZendeskIntegration />);
     expect(screen.getByText(/zendesk/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('ZendeskIntegration Component', () => {
       })
     );
 
-    render(<ZendeskIntegration />);
+    renderWithProviders(<ZendeskIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('ZendeskIntegration Component', () => {
       })
     );
 
-    render(<ZendeskIntegration connected={true} />);
+    renderWithProviders(<ZendeskIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test ticket')).toBeInTheDocument();

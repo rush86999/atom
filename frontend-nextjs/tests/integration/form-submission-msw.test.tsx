@@ -14,7 +14,7 @@
  * Phase 109-05: MSW Backend Integration Tests
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { server, rest } from '@/tests/mocks/server';
@@ -141,7 +141,7 @@ describe('Form Submission - Success Scenarios', () => {
         placeholder: 'Enter age'
       }
     ];
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Fill all required fields
     await user.type(screen.getByLabelText(/full name/i), 'John Doe');
@@ -186,7 +186,7 @@ describe('Form Submission - Success Scenarios', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Fill only required field
     await user.type(screen.getByLabelText(/required field/i), 'Required value');
@@ -221,7 +221,7 @@ describe('Form Submission - Success Scenarios', () => {
       { name: 'checkbox_field', label: 'Checkbox', type: 'checkbox' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Fill all field types
     await user.type(screen.getByLabelText(/text/i), 'text value');
@@ -265,7 +265,7 @@ describe('Form Submission - Success Scenarios', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Submit without changing defaults
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -296,7 +296,7 @@ describe('Form Submission - Success Scenarios', () => {
       { name: 'field_10', label: 'Field Ten', type: 'text' as const, required: false }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Fill required fields
     await user.type(screen.getByLabelText(/field one/i), 'value_1');
@@ -325,7 +325,7 @@ describe('Form Submission - Success Scenarios', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // First submission
     await user.type(screen.getByLabelText(/name/i), 'Submission 1');
@@ -371,7 +371,7 @@ describe('Form Submission - Server Validation Errors', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/email/i), 'taken@example.com');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -400,7 +400,7 @@ describe('Form Submission - Server Validation Errors', () => {
       { name: 'age', label: 'Age', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'Test');
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
@@ -427,7 +427,7 @@ describe('Form Submission - Server Validation Errors', () => {
       { name: 'username', label: 'Username', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // Submit valid data from client perspective
     await user.type(screen.getByLabelText(/username/i), 'taken_user');
@@ -456,7 +456,7 @@ describe('Form Submission - Server Validation Errors', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // First submission (fails)
     await user.type(screen.getByLabelText(/email/i), 'invalid@example.com');
@@ -492,7 +492,7 @@ describe('Form Submission - Server Validation Errors', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     // First submission (fails)
     await user.type(screen.getByLabelText(/name/i), 'Test');
@@ -531,7 +531,7 @@ describe('Form Submission - Server Errors', () => {
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'Test');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -553,7 +553,7 @@ describe('Form Submission - Server Errors', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -575,7 +575,7 @@ describe('Form Submission - Server Errors', () => {
       { name: 'data', label: 'Data', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/data/i), 'sensitive');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -597,7 +597,7 @@ describe('Form Submission - Server Errors', () => {
       { name: 'test', label: 'Test', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/test/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -615,7 +615,7 @@ describe('Form Submission - Server Errors', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -645,7 +645,7 @@ describe('Form Submission - Network Scenarios', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
 
@@ -677,7 +677,7 @@ describe('Form Submission - Network Scenarios', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -695,7 +695,7 @@ describe('Form Submission - Network Scenarios', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -721,7 +721,7 @@ describe('Form Submission - Network Scenarios', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
 
@@ -749,7 +749,7 @@ describe('Form Submission - Network Scenarios', () => {
       { name: 'field', label: 'Field', type: 'text' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/field/i), 'value');
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -775,7 +775,7 @@ describe('Form Submission - Data Transmission', () => {
       { name: 'email', label: 'Email', type: 'email' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/text/i), 'text value');
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
@@ -799,7 +799,7 @@ describe('Form Submission - Data Transmission', () => {
       { name: 'price', label: 'Price', type: 'number' as const, required: true }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/age/i), '25');
     await user.type(screen.getByLabelText(/price/i), '99.99');
@@ -823,7 +823,7 @@ describe('Form Submission - Data Transmission', () => {
       { name: 'opt_in', label: 'Opt In', type: 'checkbox' as const, required: false }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.click(screen.getByLabelText(/agree/i));
     await user.click(screen.getByRole('button', { name: /submit/i }));
@@ -857,7 +857,7 @@ describe('Form Submission - Data Transmission', () => {
       }
     ];
 
-    render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.selectOptions(screen.getByLabelText(/country/i), 'uk');
     await user.click(screen.getByRole('button', { name: /submit/i }));

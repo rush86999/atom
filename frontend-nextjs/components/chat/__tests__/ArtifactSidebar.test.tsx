@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import { ArtifactSidebar } from '../ArtifactSidebar';
 
 // Mock fetch
@@ -34,7 +34,7 @@ describe('ArtifactSidebar', () => {
       json: async () => mockArtifacts,
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
     );
 
@@ -51,7 +51,7 @@ describe('ArtifactSidebar', () => {
       json: async () => [],
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
     );
 
@@ -71,7 +71,7 @@ describe('ArtifactSidebar', () => {
       json: async () => mockArtifacts,
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
     );
 
@@ -87,7 +87,7 @@ describe('ArtifactSidebar', () => {
       json: async () => [],
     });
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
     );
 
@@ -96,7 +96,7 @@ describe('ArtifactSidebar', () => {
 
   // Test 5: returns null when no sessionId
   test('returns null when no sessionId', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ArtifactSidebar sessionId={null} onSelectArtifact={mockOnSelectArtifact} />
     );
 
@@ -111,7 +111,7 @@ describe('ArtifactSidebar', () => {
     });
 
     expect(() =>
-      render(
+      renderWithProviders(
         <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
       )
     ).not.toThrow();

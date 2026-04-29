@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -15,7 +15,7 @@ describe('QuickBooksIntegration Component', () => {
   });
 
   it('renders QuickBooks integration component', () => {
-    render(<QuickBooksIntegration />);
+    renderWithProviders(<QuickBooksIntegration />);
     expect(screen.getByText(/quickbooks/i)).toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('QuickBooksIntegration Component', () => {
       })
     );
 
-    render(<QuickBooksIntegration />);
+    renderWithProviders(<QuickBooksIntegration />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -58,7 +58,7 @@ describe('QuickBooksIntegration Component', () => {
       })
     );
 
-    render(<QuickBooksIntegration connected={true} />);
+    renderWithProviders(<QuickBooksIntegration connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText(/test customer/i)).toBeInTheDocument();

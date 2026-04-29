@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import '@testing-library/jest-dom';
 import ErrorBoundary from '@/components/error-boundary';
 
@@ -45,7 +45,7 @@ describe('ErrorBoundary', () => {
 
   describe('Error catching', () => {
     it('should catch errors in child components and display fallback UI', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -56,7 +56,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should catch and handle string errors', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowStringError />
         </ErrorBoundary>
@@ -66,7 +66,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should catch and handle null errors', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowNullError />
         </ErrorBoundary>
@@ -76,7 +76,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should catch and handle undefined errors', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowUndefinedError />
         </ErrorBoundary>
@@ -88,7 +88,7 @@ describe('ErrorBoundary', () => {
 
   describe('Error recovery', () => {
     it('should recover from errors after retry button is clicked', async () => {
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <ErrorBoundary>
           <ThrowError shouldThrow={true} />
         </ErrorBoundary>
@@ -115,7 +115,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should reset error state when retry button is clicked', async () => {
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -141,7 +141,7 @@ describe('ErrorBoundary', () => {
 
   describe('Error information display', () => {
     it('should display error details when available', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -155,7 +155,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should include error stack trace in details', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -171,7 +171,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should show user-friendly message without technical details by default', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -187,7 +187,7 @@ describe('ErrorBoundary', () => {
     it('should log error information to console', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -207,7 +207,7 @@ describe('ErrorBoundary', () => {
     it('should call custom error handler if provided', () => {
       const onError = jest.fn();
 
-      render(
+      renderWithProviders(
         <ErrorBoundary onError={onError}>
           <ThrowError />
         </ErrorBoundary>
@@ -226,7 +226,7 @@ describe('ErrorBoundary', () => {
     it('should render custom fallback UI when provided', () => {
       const customFallback = <div>Custom error message</div>;
 
-      render(
+      renderWithProviders(
         <ErrorBoundary fallback={customFallback}>
           <ThrowError />
         </ErrorBoundary>
@@ -237,7 +237,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should use default fallback when no custom fallback provided', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -249,7 +249,7 @@ describe('ErrorBoundary', () => {
 
   describe('Normal operation', () => {
     it('should render children normally when no error occurs', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <div>Normal content</div>
         </ErrorBoundary>
@@ -260,7 +260,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should render multiple children without errors', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <div>First child</div>
           <div>Second child</div>
@@ -274,7 +274,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should not interfere with component updates', () => {
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <ErrorBoundary>
           <div>Initial content</div>
         </ErrorBoundary>
@@ -294,7 +294,7 @@ describe('ErrorBoundary', () => {
 
   describe('Accessibility', () => {
     it('should have role="alert" for screen readers', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -305,7 +305,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should have retry button accessible to keyboard users', () => {
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowError />
         </ErrorBoundary>
@@ -327,7 +327,7 @@ describe('ErrorBoundary', () => {
         return <div>Never rendered</div>;
       };
 
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <ThrowingComponent />
         </ErrorBoundary>
@@ -346,7 +346,7 @@ describe('ErrorBoundary', () => {
       };
 
       // Note: In React 18+, errors in useEffect ARE caught by ErrorBoundary
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <EffectErrorComponent />
         </ErrorBoundary>
@@ -367,7 +367,7 @@ describe('ErrorBoundary', () => {
         );
       };
 
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <AsyncErrorComponent />
         </ErrorBoundary>
@@ -386,7 +386,7 @@ describe('ErrorBoundary', () => {
         throw new Error('Inner error');
       };
 
-      render(
+      renderWithProviders(
         <ErrorBoundary>
           <div>Outer content</div>
           <ErrorBoundary fallback={<div>Inner boundary caught error</div>}>
@@ -405,7 +405,7 @@ describe('ErrorBoundary', () => {
         throw new Error('Uncaught error');
       };
 
-      render(
+      renderWithProviders(
         <ErrorBoundary fallback={<div>Outer boundary</div>}>
           <div>
             <InnerError />

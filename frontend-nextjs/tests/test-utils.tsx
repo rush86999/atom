@@ -8,7 +8,15 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+
+// Lazy load BrowserRouter to avoid module not found errors in tests that don't need routing
+let BrowserRouter: any = null;
+try {
+  const routerModule = require('react-router-dom');
+  BrowserRouter = routerModule.BrowserRouter;
+} catch (e) {
+  // react-router-dom not installed, router functionality will be disabled
+}
 
 // Create a test-specific QueryClient
 const createTestQueryClient = () => new QueryClient({
@@ -44,7 +52,7 @@ export function renderWithProviders(
   ui: ReactElement,
   {
     queryClient = createTestQueryClient(),
-    router = true,
+    router = false,
     ...renderOptions
   }: RenderWithProvidersOptions = {}
 ) {
@@ -54,8 +62,8 @@ export function renderWithProviders(
     // Wrap with QueryClientProvider
     wrapped = <QueryClientProvider client={queryClient}>{wrapped}</QueryClientProvider>;
 
-    // Wrap with BrowserRouter if router is enabled
-    if (router) {
+    // Wrap with BrowserRouter if router is enabled and available
+    if (router && BrowserRouter) {
       wrapped = <BrowserRouter>{wrapped}</BrowserRouter>;
     }
 

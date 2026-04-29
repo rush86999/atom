@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -17,7 +17,7 @@ describe('HubSpotWorkflowAutomation Component', () => {
   });
 
   it('renders HubSpot workflow automation component', () => {
-    render(<HubSpotWorkflowAutomation />);
+    renderWithProviders(<HubSpotWorkflowAutomation />);
     expect(screen.getByText(/hubspot|workflow|automation/i)).toBeInTheDocument();
   });
 
@@ -36,7 +36,7 @@ describe('HubSpotWorkflowAutomation Component', () => {
       })
     );
 
-    render(<HubSpotWorkflowAutomation connected={true} />);
+    renderWithProviders(<HubSpotWorkflowAutomation connected={true} />);
 
     await waitFor(() => {
       expect(screen.getByText('Lead Nurturing')).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('HubSpotWorkflowAutomation Component', () => {
       })
     );
 
-    render(<HubSpotWorkflowAutomation connected={true} />);
+    renderWithProviders(<HubSpotWorkflowAutomation connected={true} />);
 
     const createButton = screen.queryByRole('button', { name: /create|new workflow/i });
     if (createButton) {

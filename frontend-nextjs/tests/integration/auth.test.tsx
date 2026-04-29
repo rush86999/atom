@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import userEvent from '@testing-library/user-event';
 import { signIn, signOut, getSession, useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';

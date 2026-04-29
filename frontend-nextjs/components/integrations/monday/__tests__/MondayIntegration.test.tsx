@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -22,17 +22,17 @@ describe('MondayIntegration Component', () => {
   });
 
   it('renders Monday integration component', () => {
-    render(<MondayIntegration {...defaultProps} />);
+    renderWithProviders(<MondayIntegration {...defaultProps} />);
     expect(screen.getByText(/monday/i)).toBeInTheDocument();
   });
 
   it('renders Monday.com integration card', () => {
-    render(<MondayIntegration {...defaultProps} />);
+    renderWithProviders(<MondayIntegration {...defaultProps} />);
     expect(screen.getByText(/connect monday/i)).toBeInTheDocument();
   });
 
   it('shows connect/disconnect states', async () => {
-    render(<MondayIntegration {...defaultProps} />);
+    renderWithProviders(<MondayIntegration {...defaultProps} />);
 
     // Initially shows connect state
     expect(screen.getByText('Connect Monday.com')).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
+    renderWithProviders(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Board')).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration {...defaultProps} />);
+    renderWithProviders(<MondayIntegration {...defaultProps} />);
 
     const connectButton = screen.getByRole('button', { name: /connect/i });
     await user.click(connectButton);
@@ -97,7 +97,7 @@ describe('MondayIntegration Component', () => {
     );
 
     const mockOnConnect = jest.fn();
-    render(<MondayIntegration onConnect={mockOnConnect} onDisconnect={jest.fn()} />);
+    renderWithProviders(<MondayIntegration onConnect={mockOnConnect} onDisconnect={jest.fn()} />);
 
     const connectButton = screen.getByText('Connect Monday.com');
     expect(connectButton).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration {...defaultProps} accessToken="test-token" />);
+    renderWithProviders(<MondayIntegration {...defaultProps} accessToken="test-token" />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Board')).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration {...defaultProps} accessToken="test-token" />);
+    renderWithProviders(<MondayIntegration {...defaultProps} accessToken="test-token" />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Item')).toBeInTheDocument();
@@ -168,7 +168,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
+    renderWithProviders(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Boards')).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe('MondayIntegration Component', () => {
   });
 
   it('shows loading state', () => {
-    const { rerender } = render(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
+    const { rerender } = renderWithProviders(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
     // Component shows loading during data fetch
   });
 
@@ -192,7 +192,7 @@ describe('MondayIntegration Component', () => {
       })
     );
 
-    render(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
+    renderWithProviders(<MondayIntegration accessToken="test-token" onConnect={jest.fn()} onDisconnect={jest.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('healthy')).toBeInTheDocument();

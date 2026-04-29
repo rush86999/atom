@@ -5,7 +5,7 @@
  * Tests: aria-live regions, progress bar accessibility, operation announcements, step labels
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { AgentOperationTracker, AgentOperationData } from '@/components/canvas/AgentOperationTracker';
 
@@ -51,7 +51,7 @@ const mockOperationData: AgentOperationData = {
 
 describe('AgentOperationTracker Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -61,7 +61,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should have aria-live for progress updates', () => {
-    render(
+    renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -73,7 +73,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should announce operation completion via accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -86,7 +86,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should have accessible loading state', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -96,7 +96,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should have accessibility tree in loading state', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -112,7 +112,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should provide proper ARIA attributes for accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -124,7 +124,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should have hidden accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -134,7 +134,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should expose operation data attributes in accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 
@@ -145,7 +145,7 @@ describe('AgentOperationTracker Accessibility', () => {
   });
 
   it('should have JSON state in accessibility tree', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentOperationTracker userId="user-123" operationId="op-123" />
     );
 

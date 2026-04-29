@@ -5,7 +5,7 @@
  * Tests: visible labels, chart structure, trend accessibility, data accessibility
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../../tests/test-utils';
 import axe from '../../../tests/accessibility-config';
 import { LineChartCanvas } from '@/components/canvas/LineChart';
 
@@ -19,7 +19,7 @@ const mockData = [
 
 describe('LineChart Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -28,7 +28,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should have visible title describing trend', () => {
-    render(
+    renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -39,7 +39,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should have chart structure', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -49,7 +49,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should render responsive container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -59,7 +59,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should handle charts without title', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} />
     );
 
@@ -68,7 +68,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should have accessible chart container', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -82,7 +82,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '2024-01-01', value: 100, label: 'Jan' }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={smallData} title="Simple Trend" />
     );
 
@@ -91,7 +91,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should handle empty data gracefully', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={[]} title="Empty Trend" />
     );
 
@@ -107,7 +107,7 @@ describe('LineChart Accessibility', () => {
       { timestamp: '12:00', value: 175 }
     ];
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={timeSeriesData} title="Hourly Data" />
     );
 
@@ -116,7 +116,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should have accessible chart structure for trends', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Revenue Trend" />
     );
 
@@ -132,7 +132,7 @@ describe('LineChart Accessibility', () => {
       label: `Day ${i + 1}`
     }));
 
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={largeData} title="Long-term Trend" />
     );
 
@@ -141,7 +141,7 @@ describe('LineChart Accessibility', () => {
   });
 
   it('should support custom colors accessibly', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <LineChartCanvas data={mockData} title="Custom Color" color="#FF5733" />
     );
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../test-utils';
 import '@testing-library/jest-dom';
 
 describe('WorkflowBuilder Component', () => {

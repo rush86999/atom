@@ -5,14 +5,14 @@
  * Tests: axe violations, accessible labels, keyboard (Space), aria-checked
  */
 
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '../../tests/accessibility-config';
 import { Checkbox } from '@/components/ui/checkbox';
 
 describe('Checkbox Accessibility', () => {
   it('should have no accessibility violations', async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label>
         <Checkbox />
         <span>Accept terms and conditions</span>
@@ -24,7 +24,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should have accessible label', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Checkbox id="terms-checkbox" />
         <span>Accept terms and conditions</span>
@@ -43,7 +43,7 @@ describe('Checkbox Accessibility', () => {
     const handleChange = jest.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <label>
         <Checkbox id="test-checkbox" onCheckedChange={handleChange} />
         <span>Test checkbox</span>
@@ -65,7 +65,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should have aria-checked attribute', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Checkbox id="aria-checkbox" defaultChecked={true} />
         <span>Checked checkbox</span>
@@ -80,7 +80,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should have aria-checked false when unchecked', async () => {
-    render(
+    renderWithProviders(
       <label>
         <Checkbox id="unchecked-checkbox" />
         <span>Unchecked checkbox</span>
@@ -94,7 +94,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should not be keyboard accessible when disabled', () => {
-    render(
+    renderWithProviders(
       <label>
         <Checkbox disabled />
         <span>Disabled checkbox</span>
@@ -106,7 +106,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should have visible focus indicator', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <label>
         <Checkbox />
         <span>Focus test</span>
@@ -120,7 +120,7 @@ describe('Checkbox Accessibility', () => {
   });
 
   it('should have proper role', () => {
-    render(
+    renderWithProviders(
       <label>
         <Checkbox />
         <span>Role test</span>

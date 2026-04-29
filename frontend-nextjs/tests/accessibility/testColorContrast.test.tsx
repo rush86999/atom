@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders, screen } from '../test-utils';
 import React from 'react';
 import {
   axeCheckViolations,
@@ -74,7 +74,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Login Page Color Contrast', () => {
     it('should have sufficient contrast for normal text (4.5:1)', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <p style={{ color: '#333333', fontSize: '16px' }}>
             This is normal text that must have 4.5:1 contrast ratio
@@ -94,7 +94,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for form labels', async () => {
-      render(
+      renderWithProviders(
         <form style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <label htmlFor="email" style={{ color: '#374151', fontSize: '14px' }}>
             Email Address
@@ -138,7 +138,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for buttons', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <button
             style={{
@@ -173,7 +173,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for error messages', async () => {
-      render(
+      renderWithProviders(
         <form style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <label htmlFor="email">Email</label>
           <input
@@ -200,7 +200,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Dashboard Page Color Contrast', () => {
     it('should have sufficient contrast for dashboard text', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#f9fafb', padding: '20px' }}>
           <h1 style={{ color: '#111827', fontSize: '32px' }}>Dashboard</h1>
           <p style={{ color: '#6b7280', fontSize: '16px' }}>
@@ -231,7 +231,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for icons', async () => {
-      render(
+      renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <button aria-label="Settings">
             <svg
@@ -264,7 +264,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for links', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <p>
             <a
@@ -296,7 +296,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Text Variants Contrast', () => {
     it('should test all common text colors against white background', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           {/* Tailwind gray colors */}
           <p style={{ color: '#111827', fontSize: '16px' }}>gray-900</p>
@@ -361,7 +361,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Interactive Elements Contrast', () => {
     it('should have sufficient contrast for button states', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <button
             style={{
@@ -402,7 +402,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for hover/focus states', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <button
             style={{
@@ -427,7 +427,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for disabled buttons', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <button
             disabled
@@ -455,7 +455,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Dark Mode Contrast', () => {
     it('should have sufficient contrast in dark mode', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#111827', padding: '20px' }}>
           <h1 style={{ color: '#f9fafb', fontSize: '32px' }}>Dashboard</h1>
           <p style={{ color: '#d1d5db', fontSize: '16px' }}>
@@ -481,7 +481,7 @@ describe('Color Contrast Tests', () => {
     });
 
     it('should have sufficient contrast for dark mode components', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#1f2937', padding: '20px' }}>
           <div
             style={{
@@ -519,7 +519,7 @@ describe('Color Contrast Tests', () => {
 
   describe('Large Text Contrast', () => {
     it('should allow 3:1 ratio for large text', async () => {
-      const { container } = render(
+      const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <h1 style={{ color: '#6b7280', fontSize: '24px' }}>
             Large Heading (24px) - 3:1 OK

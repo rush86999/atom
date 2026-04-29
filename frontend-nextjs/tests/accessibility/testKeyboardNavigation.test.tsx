@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../test-utils';
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -30,7 +30,7 @@ import {
 describe('Keyboard Navigation Tests', () => {
   describe('Tab Order on Login Page', () => {
     it('should navigate login form in logical tab order', async () => {
-      render(
+      renderWithProviders(
         <form aria-label="Login form">
           <label htmlFor="email">
             Email
@@ -72,7 +72,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should have visible focus indicators on all interactive elements', async () => {
-      render(
+      renderWithProviders(
         <form>
           <label htmlFor="email">
             Email
@@ -109,7 +109,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should skip hidden elements in tab order', async () => {
-      render(
+      renderWithProviders(
         <form>
           <label htmlFor="visible1">
             Field 1
@@ -144,7 +144,7 @@ describe('Keyboard Navigation Tests', () => {
 
   describe('Tab Order on Dashboard Page', () => {
     it('should navigate dashboard in logical visual order', async () => {
-      render(
+      renderWithProviders(
         <div>
           <nav aria-label="Main navigation">
             <a href="/dashboard">Dashboard</a>
@@ -205,7 +205,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should maintain tab order in grid layout', async () => {
-      render(
+      renderWithProviders(
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
           <button data-testid="top-left">Top Left</button>
           <button data-testid="top-right">Top Right</button>
@@ -231,7 +231,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should not skip elements in tab order', async () => {
-      render(
+      renderWithProviders(
         <div>
           <button id="button1">Button 1</button>
           <button id="button2">Button 2</button>
@@ -263,7 +263,7 @@ describe('Keyboard Navigation Tests', () => {
   describe('Enter Key for Form Submission', () => {
     it('should submit login form when Enter is pressed on password field', async () => {
       const handleSubmit = jest.fn();
-      render(
+      renderWithProviders(
         <form aria-label="Login form" onSubmit={handleSubmit}>
           <label htmlFor="email">
             Email
@@ -294,7 +294,7 @@ describe('Keyboard Navigation Tests', () => {
 
     it('should not submit form when Enter is pressed on text field', async () => {
       const handleSubmit = jest.fn((e) => e.preventDefault());
-      render(
+      renderWithProviders(
         <form aria-label="Search form" onSubmit={handleSubmit}>
           <label htmlFor="search">
             Search
@@ -317,7 +317,7 @@ describe('Keyboard Navigation Tests', () => {
 
     it('should activate button when Enter is pressed', async () => {
       const handleClick = jest.fn();
-      render(
+      renderWithProviders(
         <div>
           <input type="text" placeholder="Focus me first" />
           <button onClick={handleClick}>Action Button</button>
@@ -337,7 +337,7 @@ describe('Keyboard Navigation Tests', () => {
 
     it('should execute agent when Enter is pressed on agent item', async () => {
       const handleExecute = jest.fn();
-      render(
+      renderWithProviders(
         <div role="list" aria-label="Agents">
           <div role="listitem">
             <h3>Test Agent</h3>
@@ -361,7 +361,7 @@ describe('Keyboard Navigation Tests', () => {
   describe('Escape Key for Closing Elements', () => {
     it('should close modal when Escape is pressed', async () => {
       const handleClose = jest.fn();
-      render(
+      renderWithProviders(
         <div role="dialog" aria-modal="true">
           <h2>Confirm Action</h2>
           <p>Are you sure?</p>
@@ -381,7 +381,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should close dropdown when Escape is pressed', async () => {
-      render(
+      renderWithProviders(
         <div>
           <button aria-expanded="true" aria-haspopup="true">
             Menu
@@ -411,7 +411,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should exit fullscreen mode when Escape is pressed', async () => {
-      render(
+      renderWithProviders(
         <div>
           <button aria-label="Exit fullscreen (Esc)">Exit</button>
         </div>
@@ -429,7 +429,7 @@ describe('Keyboard Navigation Tests', () => {
 
   describe('Arrow Key Navigation', () => {
     it('should navigate list with arrow keys', async () => {
-      render(
+      renderWithProviders(
         <ul role="listbox" aria-label="Agents">
           <li role="option" tabIndex={0}>
             Agent 1
@@ -461,7 +461,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should navigate tabs with arrow keys', async () => {
-      render(
+      renderWithProviders(
         <div role="tablist">
           <button role="tab" aria-selected="true" tabIndex={0}>
             Tab 1
@@ -493,7 +493,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should navigate grid with arrow keys', async () => {
-      render(
+      renderWithProviders(
         <div role="grid" aria-label="Agent grid">
           <div role="row">
             <div role="gridcell" tabIndex={0}>
@@ -532,7 +532,7 @@ describe('Keyboard Navigation Tests', () => {
   describe('Keyboard Shortcuts', () => {
     it('should open command palette with Cmd+K', async () => {
       const handleOpenPalette = jest.fn();
-      render(
+      renderWithProviders(
         <div>
           <button
             onClick={handleOpenPalette}
@@ -554,7 +554,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should focus search with / key', async () => {
-      render(
+      renderWithProviders(
         <div>
           <input type="search" placeholder="Search..." />
           <button>Action</button>
@@ -574,7 +574,7 @@ describe('Keyboard Navigation Tests', () => {
 
     it('should show keyboard shortcuts help with ?', async () => {
       const handleShowHelp = jest.fn();
-      render(
+      renderWithProviders(
         <div>
           <button
             onClick={handleShowHelp}
@@ -598,7 +598,7 @@ describe('Keyboard Navigation Tests', () => {
 
   describe('Focus Management', () => {
     it('should trap focus in modal', async () => {
-      render(
+      renderWithProviders(
         <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <h2 id="modal-title">Modal Title</h2>
           <button>Cancel</button>
@@ -635,7 +635,7 @@ describe('Keyboard Navigation Tests', () => {
         );
       };
 
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <div>
           <button id="trigger">Open Modal</button>
           <ModalComponent isOpen={true} />
@@ -664,7 +664,7 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should move focus to first error when form has errors', async () => {
-      render(
+      renderWithProviders(
         <form aria-label="Registration form">
           <label htmlFor="name">
             Name

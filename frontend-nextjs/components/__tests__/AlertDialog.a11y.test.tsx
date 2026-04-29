@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders, screen, waitFor } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import axe from '@/tests/accessibility-config';
 import {
@@ -27,7 +27,7 @@ describe('AlertDialog Accessibility', () => {
   const renderAlertDialog = (open = true) => {
     const handleClose = jest.fn();
 
-    return render(
+    return renderWithProviders(
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent aria-label="Confirm action">
           <DialogHeader>
@@ -102,7 +102,7 @@ describe('AlertDialog Accessibility', () => {
 
   it('should close on Escape key', async () => {
     const handleClose = jest.fn();
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Dialog open={true} onOpenChange={handleClose}>
         <DialogContent aria-label="Confirm action">
           <DialogHeader>
