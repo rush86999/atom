@@ -9,7 +9,8 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CommunicationHub, Message, Conversation } from '../CommunicationHub';
+import CommunicationHub from '../CommunicationHub';
+import { Message, Conversation } from '../CommunicationHub';
 
 const mockMessage: Message = {
   id: '1',
