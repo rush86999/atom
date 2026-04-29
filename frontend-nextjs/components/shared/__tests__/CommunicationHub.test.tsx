@@ -38,23 +38,31 @@ const mockConversation: Conversation = {
 };
 
 describe('CommunicationHub', () => {
+  const defaultProps = {
+    onMessageSend: jest.fn(),
+    onMessageUpdate: jest.fn(),
+    onMessageDelete: jest.fn(),
+    onConversationCreate: jest.fn(),
+    currentUser: 'test@example.com',
+  };
+
   // Test 1: renders with initial state
   test('renders with initial state', () => {
-    render(<CommunicationHub />);
+    render(<CommunicationHub {...defaultProps} />);
 
     expect(screen.getByText('Inbox')).toBeInTheDocument();
   });
 
   // Test 2: displays initial messages
   test('displays initial messages', () => {
-    render(<CommunicationHub initialMessages={[mockMessage]} />);
+    render(<CommunicationHub {...defaultProps} initialMessages={[mockMessage]} />);
 
     expect(screen.getByText('Weekly Team Update')).toBeInTheDocument();
   });
 
   // Test 3: displays conversations
   test('displays conversations', () => {
-    render(<CommunicationHub initialConversations={[mockConversation]} />);
+    render(<CommunicationHub {...defaultProps} initialConversations={[mockConversation]} />);
 
     expect(screen.getByText('Weekly Team Updates')).toBeInTheDocument();
   });
@@ -63,7 +71,7 @@ describe('CommunicationHub', () => {
   test('handles message send callback', async () => {
     const handleMessageSend = jest.fn();
 
-    render(<CommunicationHub onMessageSend={handleMessageSend} />);
+    render(<CommunicationHub {...defaultProps} onMessageSend={handleMessageSend} />);
 
     // Open compose
     const composeButton = screen.getByText('Compose');
@@ -120,7 +128,7 @@ describe('CommunicationHub', () => {
 
   // Test 8: opens message details
   test('opens message details', async () => {
-    render(<CommunicationHub initialMessages={[mockMessage]} />);
+    render(<CommunicationHub {...defaultProps} initialMessages={[mockMessage]} />);
 
     const message = screen.getByText('Weekly Team Update');
     fireEvent.click(message);
@@ -181,7 +189,7 @@ describe('CommunicationHub', () => {
   test('handles compose open state', () => {
     const onComposeChange = jest.fn();
 
-    render(<CommunicationHub isComposeOpen={true} onComposeChange={onComposeChange} />);
+    render(<CommunicationHub {...defaultProps} isComposeOpen={true} onComposeChange={onComposeChange} />);
 
     const closeButton = screen.getByRole('button', { name: /close/i });
     fireEvent.click(closeButton);
@@ -217,7 +225,7 @@ describe('CommunicationHub', () => {
 
   // Test 14: toggles between inbox and thread view
   test('toggles between inbox and thread view', async () => {
-    render(<CommunicationHub initialConversations={[mockConversation]} />);
+    render(<CommunicationHub {...defaultProps} initialConversations={[mockConversation]} />);
 
     const conversation = screen.getByText('Weekly Team Updates');
     fireEvent.click(conversation);
@@ -246,7 +254,7 @@ describe('CommunicationHub', () => {
       platform: ['email'],
     };
 
-    render(<CommunicationHub initialTemplates={[template]} />);
+    render(<CommunicationHub {...defaultProps} initialTemplates={[template]} />);
 
     const composeButton = screen.getByText('Compose');
     fireEvent.click(composeButton);
@@ -298,7 +306,7 @@ describe('CommunicationHub', () => {
       attachments: ['document.pdf'],
     };
 
-    render(<CommunicationHub initialMessages={[messageWithAttachment]} />);
+    render(<CommunicationHub {...defaultProps} initialMessages={[messageWithAttachment]} />);
 
     const message = screen.getByText('Weekly Team Update');
     fireEvent.click(message);

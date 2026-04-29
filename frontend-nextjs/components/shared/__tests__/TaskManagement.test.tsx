@@ -40,23 +40,30 @@ const mockProject: Project = {
 };
 
 describe('TaskManagement', () => {
+  const defaultProps = {
+    onTaskCreate: jest.fn(),
+    onTaskUpdate: jest.fn(),
+    onTaskDelete: jest.fn(),
+    onProjectCreate: jest.fn(),
+    onProjectUpdate: jest.fn(),
+  };
   // Test 1: renders with initial state
   test('renders with initial state', () => {
-    render(<TaskManagement />);
+    render(<TaskManagement {...defaultProps} />);
 
     expect(screen.getByText('Tasks')).toBeInTheDocument();
   });
 
   // Test 2: displays initial tasks
   test('displays initial tasks', () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     expect(screen.getByText('Complete project proposal')).toBeInTheDocument();
   });
 
   // Test 3: displays projects
   test('displays projects', () => {
-    render(<TaskManagement initialProjects={[mockProject]} />);
+    render(<TaskManagement {...defaultProps} initialProjects={[mockProject]} />);
 
     expect(screen.getByText('Project Alpha')).toBeInTheDocument();
   });
@@ -65,7 +72,7 @@ describe('TaskManagement', () => {
   test('creates new task', async () => {
     const handleTaskCreate = jest.fn();
 
-    render(<TaskManagement onTaskCreate={handleTaskCreate} />);
+    render(<TaskManagement {...defaultProps} onTaskCreate={handleTaskCreate} />);
 
     const addButton = screen.getByText(/add task/i);
     fireEvent.click(addButton);
@@ -117,7 +124,7 @@ describe('TaskManagement', () => {
 
   // Test 7: switches between view types
   test('switches between view types', () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     const listViewButton = screen.getByRole('button', { name: /list/i });
     const boardViewButton = screen.getByRole('button', { name: /board/i });
@@ -179,7 +186,7 @@ describe('TaskManagement', () => {
   test('creates new project', () => {
     const handleProjectCreate = jest.fn();
 
-    render(<TaskManagement onProjectCreate={handleProjectCreate} />);
+    render(<TaskManagement {...defaultProps} onProjectCreate={handleProjectCreate} />);
 
     const addProjectButton = screen.getByText(/add project/i);
     fireEvent.click(addProjectButton);
@@ -201,7 +208,7 @@ describe('TaskManagement', () => {
 
   // Test 13: shows task details in dialog
   test('shows task details in dialog', async () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     const task = screen.getByText('Complete project proposal');
     fireEvent.click(task);
@@ -213,14 +220,14 @@ describe('TaskManagement', () => {
 
   // Test 14: handles task assignment
   test('handles task assignment', () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     expect(screen.getByText(/john doe/i)).toBeInTheDocument();
   });
 
   // Test 15: displays task tags
   test('displays task tags', () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     expect(screen.getByText('urgent')).toBeInTheDocument();
     expect(screen.getByText('planning')).toBeInTheDocument();
@@ -255,7 +262,7 @@ describe('TaskManagement', () => {
       actualHours: 5,
     };
 
-    render(<TaskManagement initialTasks={[taskWithHours]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[taskWithHours]} />);
 
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
@@ -263,7 +270,7 @@ describe('TaskManagement', () => {
 
   // Test 19: handles calendar view
   test('handles calendar view', () => {
-    render(<TaskManagement initialTasks={[mockTask]} />);
+    render(<TaskManagement {...defaultProps} initialTasks={[mockTask]} />);
 
     const calendarButton = screen.getByRole('button', { name: /calendar/i });
     fireEvent.click(calendarButton);
