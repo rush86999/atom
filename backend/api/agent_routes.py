@@ -91,7 +91,7 @@ async def list_agents(
     ]
 
     return router.success_response(
-        data={"agents": agents_list},
+        data=agents_list,
         message=f"Retrieved {len(agents_list)} agents"
     )
 
@@ -694,13 +694,16 @@ class AgentUpdateRequest(BaseModel):
             return v.strip()
         return v
 
-@router.post("/custom")
+@router.post("/custom", status_code=201)
 async def create_custom_agent(
     req: CustomAgentRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """Create a fully custom agent with configuration and schedule"""
+    """Create a fully custom agent with configuration and schedule.
+
+    Returns 201 Created on success (HTTP standard for resource creation).
+    """
     # 1. Create Agent
     registry_entry = AgentRegistry(
         name=req.name,

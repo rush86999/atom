@@ -1,8 +1,8 @@
 """
-Pytest configuration and fixtures for property tests.
+Pytest configuration and fixtures for regression tests.
 
 This module provides test database setup with automatic table creation
-for property-based testing.
+for regression testing.
 """
 
 import pytest
@@ -92,3 +92,63 @@ def client(db):
 
     # Clean up override
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def auth_headers(client):
+    """
+    Create authentication headers for test requests.
+
+    This fixture creates a test user and returns auth headers.
+    """
+    # Create test user
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "test@example.com",
+            "password": "testpass123",
+            "first_name": "Test",
+            "last_name": "User"
+        }
+    )
+
+    # Login to get token
+    login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "test@example.com",
+            "password": "testpass123"
+        }
+    )
+
+    token = login_response.json().get("data", {}).get("token", "")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="function")
+def test_agent(client, auth_headers):
+    """
+    Create a test agent for testing.
+
+    This fixture creates a test agent and returns its ID.
+    """
+    response = client.post(
+        "/api/agents/custom",
+        json={
+            "name": "Test Agent",
+            "description": "A test agent",
+            "category": "testing",
+            "configuration": {"test": True}
+        },
+        headers=auth_headers
+    )
+
+    agent_data = response.json().get("data", {})
+    agent_id = agent_data.get("id", "")
+
+    # Return an object with id attribute
+    class TestAgent:
+        def __init__(self, id):
+            self.id = id
+
+    return TestAgent(agent_id)
