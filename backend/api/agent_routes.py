@@ -694,6 +694,39 @@ class AgentUpdateRequest(BaseModel):
             return v.strip()
         return v
 
+
+class AgentReplaceRequest(BaseModel):
+    """Request model for PUT /api/agents/{id} - full agent replacement.
+
+    Per RFC 9110 Section 4.3.4 (PUT), this endpoint validates all required fields
+    and performs a full replacement of the agent resource. For partial updates,
+    use PATCH /api/agents/{id} instead.
+
+    Required fields:
+        name: Agent name (1-100 characters, not whitespace-only)
+        category: Agent category (1-50 characters, not whitespace-only)
+
+    Optional fields:
+        description: Agent description
+        configuration: Agent configuration dictionary
+        schedule_config: Agent schedule configuration dictionary
+
+    See: docs/testing/PUT_SEMANTICS_DECISION.md
+    """
+    name: str = Field(min_length=1, max_length=100, description="Agent name (required)")
+    description: Optional[str] = None
+    category: str = Field(min_length=1, max_length=50, description="Agent category (required)")
+    configuration: Optional[Dict[str, Any]] = None
+    schedule_config: Optional[Dict[str, Any]] = None
+
+    @field_validator('name', 'category')
+    @classmethod
+    def validate_not_whitespace(cls, v: str) -> str:
+        """Validate that name and category are not empty or whitespace-only."""
+        if not v or not v.strip():
+            raise ValueError('cannot be empty or whitespace-only')
+        return v.strip()
+
 @router.post("/custom", status_code=201)
 async def create_custom_agent(
     req: CustomAgentRequest,
@@ -731,24 +764,29 @@ async def create_custom_agent(
     )
 
 @router.put("/{agent_id}")
-async def update_agent(
+async def replace_agent(
     agent_id: str,
-    req: AgentUpdateRequest,
+    req: AgentReplaceRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """Update an agent's config or schedule with partial update support (Bug #4 fix)."""
+    """Replace an entire agent resource (RESTful PUT semantics per RFC 9110).
+
+    This endpoint performs a full replacement of the agent resource. All required
+    fields (name, category) must be provided. For partial updates, use PATCH instead.
+
+    Returns 422 if required fields are missing.
+
+    See: docs/testing/PUT_SEMANTICS_DECISION.md
+    """
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
-    # Partial update: only update fields that are explicitly provided
-    if req.name is not None:
-        agent.name = req.name
-    if req.description is not None:
-        agent.description = req.description
-    if req.category is not None:
-        agent.category = req.category
+    # Full replacement: update all fields
+    agent.name = req.name
+    agent.description = req.description
+    agent.category = req.category
     if req.configuration is not None:
         agent.configuration = req.configuration
     if req.schedule_config is not None:
@@ -764,7 +802,7 @@ async def update_agent(
 
     return router.success_response(
         data={"agent_id": agent.id},
-        message=f"Agent {agent.name} updated successfully"
+        message=f"Agent {agent.name} replaced successfully"
     )
 
 @router.post("/{agent_id}/stop")
