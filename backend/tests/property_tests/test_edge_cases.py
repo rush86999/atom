@@ -42,20 +42,20 @@ def test_agent_name_rejects_empty_string(empty_name):
     Test that agent name validation rejects empty strings.
 
     Edge case: Empty string should fail validation.
-    BUG DISCOVERED: AgentRegistry accepts empty name (no validation).
+    VALIDATION WORKING: Model correctly rejects empty names with ValueError.
     """
     with SessionLocal() as db:
-        # Bug: Empty name is accepted (should raise ValueError)
-        agent = AgentRegistry(
-            id=str(uuid.uuid4()),
-            name=empty_name,  # Empty string accepted
-            category="test",
-            module_path="test.module",
-            class_name="TestClass"
-        )
-        db.add(agent)
-        # Bug: No validation error raised
-        db.commit()
+        # Validation is working: Empty name should raise ValueError
+        with pytest.raises(ValueError, match="Agent name cannot be empty"):
+            agent = AgentRegistry(
+                id=str(uuid.uuid4()),
+                name=empty_name,  # Empty string rejected
+                category="test",
+                module_path="test.module",
+                class_name="TestClass"
+            )
+            db.add(agent)
+            db.commit()
 
 
 @given(st.just([]))
