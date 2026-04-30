@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -661,11 +661,19 @@ async def trigger_atom_with_data(
     )
 
 class CustomAgentRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=100, description="Agent name (1-100 characters)")
     description: Optional[str] = "Custom Agent"
-    category: str = "custom"
+    category: str = Field(min_length=1, max_length=50, description="Agent category (1-50 characters)")
     configuration: Dict[str, Any]
     schedule_config: Optional[Dict[str, Any]] = None
+
+    @field_validator('name', 'category')
+    @classmethod
+    def validate_not_whitespace(cls, v: str) -> str:
+        """Validate that name and category are not empty or whitespace-only."""
+        if not v or not v.strip():
+            raise ValueError('cannot be empty or whitespace-only')
+        return v.strip()
 
 @router.post("/custom")
 async def create_custom_agent(
