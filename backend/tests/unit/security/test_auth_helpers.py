@@ -28,7 +28,7 @@ from core.auth_helpers import (
     cleanup_expired_revoked_tokens,
     cleanup_expired_active_tokens,
 )
-from core.auth import get_password_hash, verify_password, SECRET_KEY, create_access_token
+from core.auth import get_password_hash, verify_password, SECRET_KEY, create_access_token, ALGORITHM
 from core.models import User, ActiveToken, RevokedToken
 from tests.factories.user_factory import UserFactory
 from jose import jwt
@@ -531,3 +531,166 @@ class TestTimingAttackResistance:
         # In production, bcrypt's constant-time comparison prevents timing attacks
         ratio = max(correct_time, wrong_time) / min(correct_time, wrong_time)
         assert ratio < 10, f"Timing difference too large: {ratio}"
+
+
+class TestAccessTokenCreation:
+    """Test JWT access token creation."""
+
+    def test_create_access_token_with_default_expiry(self):
+        """Test token creation uses 15-minute default expiry."""
+        import time
+        before_time = time.time()
+
+        data = {"sub": "user_123", "email": "test@example.com"}
+        token = create_access_token(data)
+
+        after_time = time.time()
+
+        # Decode and verify
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        assert payload["sub"] == "user_123"
+        assert payload["email"] == "test@example.com"
+        assert "exp" in payload
+
+        # Check expiry is approximately 15 minutes from creation time
+        exp_timestamp = payload["exp"]
+        # The exp should be between (before + 870s) and (after + 930s) to account for test execution time
+        assert exp_timestamp >= before_time + 870, f"exp too early: {exp_timestamp} vs {before_time + 870}"
+        assert exp_timestamp <= after_time + 930, f"exp too late: {exp_timestamp} vs {after_time + 930}"
+
+    def test_create_access_token_with_custom_expiry(self):
+        """Test token creation with custom expiry delta."""
+        import time
+
+        before_time = time.time()
+        data = {"sub": "user_456"}
+        custom_expiry = timedelta(hours=2)
+        token = create_access_token(data, expires_delta=custom_expiry)
+
+        after_time = time.time()
+
+        # Decode and verify
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        assert payload["sub"] == "user_456"
+
+        # Check expiry is approximately 2 hours from creation time
+        exp_timestamp = payload["exp"]
+        # The exp should be between (before + 7170s) and (after + 7230s)
+        assert exp_timestamp >= before_time + 7170, f"exp too early: {exp_timestamp} vs {before_time + 7170}"
+        assert exp_timestamp <= after_time + 7230, f"exp too late: {exp_timestamp} vs {after_time + 7230}"
+
+    def test_create_access_token_preserves_claims(self):
+        """Test token creation preserves all user claims."""
+        data = {
+            "sub": "user_789",
+            "email": "user@example.com",
+            "role": "admin",
+            "permissions": ["read", "write"]
+        }
+        token = create_access_token(data)
+
+        # Decode and verify all claims preserved
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        assert payload["sub"] == "user_789"
+        assert payload["email"] == "user@example.com"
+        assert payload["role"] == "admin"
+        assert payload["permissions"] == ["read", "write"]
+
+    def test_create_access_token_includes_exp_claim(self):
+        """Test token creation always includes exp claim."""
+        data = {"sub": "user_abc"}
+        token = create_access_token(data)
+
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        assert "exp" in payload
+        assert isinstance(payload["exp"], (int, float))
+
+
+class TestTokenDecoding:
+    """Test token decoding function."""
+
+    def test_decode_valid_token(self):
+        """Test decoding valid JWT token."""
+        data = {"sub": "user_123", "email": "test@example.com"}
+        token = create_access_token(data)
+
+        from core.auth import decode_token
+        payload = decode_token(token)
+
+        assert payload is not None
+        assert payload["sub"] == "user_123"
+        assert payload["email"] == "test@example.com"
+
+    def test_decode_expired_token(self):
+        """Test decoding expired token returns None."""
+        from core.auth import decode_token
+
+        # Create expired token
+        data = {"sub": "user_456"}
+        expired_token = jwt.encode(
+            {**data, "exp": datetime.utcnow() - timedelta(hours=1)},
+            SECRET_KEY,
+            algorithm=ALGORITHM
+        )
+
+        payload = decode_token(expired_token)
+        # Should return None for expired token
+        assert payload is None
+
+    def test_decode_invalid_token(self):
+        """Test decoding invalid token returns None."""
+        from core.auth import decode_token
+
+        invalid_tokens = [
+            "not.a.valid.token",
+            "invalid",
+            "",
+            "Bearer token",
+        ]
+
+        for invalid_token in invalid_tokens:
+            payload = decode_token(invalid_token)
+            assert payload is None
+
+    def test_decode_token_with_wrong_signature(self):
+        """Test decoding token with wrong signature returns None."""
+        from core.auth import decode_token
+
+        data = {"sub": "user_789"}
+        token = jwt.encode(data, "wrong_secret", algorithm=ALGORITHM)
+
+        payload = decode_token(token)
+        assert payload is None
+
+
+class TestSatelliteKeyGeneration:
+    """Test satellite API key generation."""
+
+    def test_generate_satellite_key_format(self):
+        """Test generated key has correct format."""
+        from core.auth import generate_satellite_key
+
+        key = generate_satellite_key()
+
+        # Should start with "sk-"
+        assert key.startswith("sk-")
+
+        # Should be 48 hex characters (24 bytes * 2) + "sk-" prefix = 51 chars
+        assert len(key) == 51
+
+        # Should be different each time
+        key2 = generate_satellite_key()
+        assert key != key2
+
+    def test_generate_satellite_key_is_hex(self):
+        """Test generated key uses hexadecimal characters."""
+        from core.auth import generate_satellite_key
+
+        key = generate_satellite_key()
+        hex_part = key[3:]  # Remove "sk-" prefix
+
+        # Should be valid hexadecimal
+        try:
+            int(hex_part, 16)
+        except ValueError:
+            pytest.fail("Generated key is not valid hexadecimal")
