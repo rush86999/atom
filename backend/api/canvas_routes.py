@@ -34,7 +34,8 @@ class CreateContextRequest(BaseModel):
 
 
 class UpdateStateRequest(BaseModel):
-    state_update: dict = Field(..., description="Key-value pairs to update in current state")
+    state_update: Dict[str, Any] = Field(..., description="Key-value pairs to update in current state")
+    canvas_type: Optional[str] = Field(None, description="Canvas type for schema validation")
 
 
 class RecordCorrectionRequest(BaseModel):
@@ -72,8 +73,14 @@ async def list_canvas_types(
     agent_id: str,
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
-    """List all available canvas types and their state schemas."""
-    # Governance check
+    """List all available canvas types and their state schemas.
+
+    Note: Canvas types are metadata descriptors and are universally accessible.
+    Governance is checked to ensure the agent has basic read permissions, but
+    canvas types are not filtered by maturity - all agents can see what types exist.
+    Actual canvas creation and interaction are governed separately.
+    """
+    # Governance check - ensures agent has basic read_canvas permission
     governance = AgentGovernanceService(db)
     check = governance.can_perform_action(
         agent_id=agent_id,
@@ -88,6 +95,7 @@ async def list_canvas_types(
         )
 
     # Simplified representation of canvas types for the API
+    # These are metadata descriptors, not filtered by agent maturity
     canvas_types = {
         "generic": {"description": "Generic UI components"},
         "docs": {"description": "Markdown documentation"},
@@ -164,16 +172,24 @@ async def update_context_state(
 ):
     """Update persistsed canvas state."""
     service = ServiceFactory.get_canvas_context_service(db, tenant_id=current_user.tenant_id)
-    
+
+    # Basic validation: ensure state_update is not empty
+    if not request.state_update:
+        raise HTTPException(status_code=400, detail="State update cannot be empty")
+
+    # TODO: Add canvas-specific schema validation if canvas_type is provided
+    # This would involve calling get_canvas_schema(request.canvas_type) and
+    # validating the state_update against that schema
+
     success = service.update_state(
         canvas_id=canvas_id,
         user_id=current_user.id,
         state_update=request.state_update
     )
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Canvas context not found")
-    
+
     return router.success_response(message="State updated")
 
 
@@ -320,16 +336,22 @@ async def get_canvas_summary(
 ):
     """Generate LLM-powered summary of canvas state."""
     service = ServiceFactory.get_canvas_summary_service(db, tenant_id=current_user.tenant_id)
-    
-    summary = await service.generate_summary(
-        canvas_id=canvas_id,
-        user_id=current_user.id,
-        force_refresh=force_refresh
-    )
-    
+
+    try:
+        summary = await service.generate_summary(
+            canvas_id=canvas_id,
+            user_id=current_user.id,
+            force_refresh=force_refresh
+        )
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="Summary generation timed out")
+    except Exception as e:
+        logger.error(f"Failed to generate summary for canvas {canvas_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate summary")
+
     if not summary:
         raise HTTPException(status_code=500, detail="Failed to generate summary")
-        
+
     return router.success_response(data={"summary": summary})
 
 
@@ -355,10 +377,17 @@ class CanvasStateConnectionManager:
 
     async def broadcast_state(self, canvas_id: str, state: Dict[str, Any]):
         if canvas_id in self.active_connections:
+            failed_connections = []
             for connection in self.active_connections[canvas_id]:
                 try:
                     await connection.send_json({"type": "canvas:state_change", "state": state})
-                except Exception: pass
+                except Exception as e:
+                    logger.warning(f"Failed to send to WebSocket connection: {e}")
+                    failed_connections.append(connection)
+
+            # Clean up dead connections
+            for conn in failed_connections:
+                self.disconnect(canvas_id, conn)
 
 manager = CanvasStateConnectionManager()
 
