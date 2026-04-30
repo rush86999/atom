@@ -45,10 +45,10 @@ class AgentUpdateRequest(BaseModel):
 class AgentInfo(BaseModel):
     id: str
     name: str
-    description: str
+    description: Optional[str] = None
     status: str # idle, running, failed, success
     last_run: Optional[str] = None
-    category: str
+    category: Optional[str] = None
 
 # --- Registry (Mock for MVP, real app would scan or register classes) ---
 class AgentFeedbackRequest(BaseModel):
@@ -62,7 +62,7 @@ class HITLApprovalRequest(BaseModel):
 
 # --- Endpoints ---
 
-@router.get("/", response_model=List[AgentInfo])
+@router.get("/")
 async def list_agents(
     category: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
@@ -71,7 +71,7 @@ async def list_agents(
     """List all available Computer Use Agents from Registry"""
     governance_service = AgentGovernanceService(db)
     agents_db = governance_service.list_agents(category)
-    
+
     # Get last run times
     from sqlalchemy import func
     latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
@@ -79,7 +79,7 @@ async def list_agents(
         .all()
     last_run_map = {job.agent_id: job.last_run.isoformat() for job in latest_jobs if job.last_run}
 
-    return [
+    agents_list = [
         AgentInfo(
             id=a.id,
             name=a.name,
@@ -89,6 +89,11 @@ async def list_agents(
             category=a.category
         ) for a in agents_db
     ]
+
+    return router.success_response(
+        data={"agents": agents_list},
+        message=f"Retrieved {len(agents_list)} agents"
+    )
 
 # --- Endpoints ---
 

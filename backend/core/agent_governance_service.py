@@ -150,9 +150,20 @@ class AgentGovernanceService:
         self.activity_publisher = activity_publisher
         self.continuous_learning = ContinuousLearningService(db)
 
+    def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
+        """List all agents in the registry, optionally filtered by category"""
+        query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == self.workspace_id
+        )
+
+        if category:
+            query = query.filter(AgentRegistry.category == category)
+
+        return query.all()
+
     def register_or_update_agent(
-        self, 
-        name: str, 
+        self,
+        name: str,
         category: str,
         module_path: str,
         class_name: str,
@@ -166,7 +177,7 @@ class AgentGovernanceService:
             AgentRegistry.module_path == module_path,
             AgentRegistry.class_name == class_name
         ).first()
-        
+
         if not agent:
             # Create new
             agent = AgentRegistry(
@@ -190,7 +201,7 @@ class AgentGovernanceService:
             agent.description = description
             if handle: agent.handle = handle
             if display_name: agent.display_name = display_name
-            
+
         self.db.commit()
         self.db.refresh(agent)
         return agent

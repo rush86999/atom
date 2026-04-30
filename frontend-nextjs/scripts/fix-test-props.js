@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
-/**
- * Fix Test Props Script - Phase 299-07
- *
- * Automatically adds missing required props to test files by:
- * 1. Identifying components rendered without required props
- * 2. Creating defaultProps objects
- * 3. Updating render() calls to spread defaultProps
- *
- * Usage:
- *   node scripts/fix-test-props.js [test-file-pattern]
- *
- * Example:
- *   node scripts/fix-test-props.js components/integrations/**/*.test.tsx
- */
+// Fix Test Props Script - Phase 299-07
+//
+// Automatically adds missing required props to test files by:
+// 1. Identifying components rendered without required props
+// 2. Creating defaultProps objects
+// 3. Updating render() calls to spread defaultProps
+//
+// Usage:
+//   node scripts/fix-test-props.js [test-file-pattern]
+//
+// Example:
+//   node scripts/fix-test-props.js components/integrations/
+
 
 const fs = require('fs');
 const path = require('path');
