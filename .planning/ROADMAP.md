@@ -500,7 +500,7 @@
 | 304. Quality Infrastructure | 0/5 | Not Started | - |
 | 305. TDD Culture Adoption | 0/6 | Not Started | - |
 | 306. TDD Bug Discovery & Coverage Completion | 2/2 | Complete   | 2026-04-30 |
-| 307. Backend Coverage - Critical Paths | 1/6 | In Progress|  |
+| 307. Backend Coverage - Critical Paths | 5/6 | In Progress|  |
 | 308. Backend Coverage - API & Services | 0/TBD | 🆕 RECOMMENDED | - |
 | 309. Backend Coverage - Final Push | 0/TBD | 🆕 RECOMMENDED | - |
 | 310. Frontend Coverage - Critical | 0/TBD | 🆕 RECOMMENDED | - |
