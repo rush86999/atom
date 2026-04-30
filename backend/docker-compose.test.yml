@@ -15,7 +15,7 @@ version: '3.8'
 
 services:
   postgresql_test:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: atom_postgresql_test
     restart: "no"  # Don't restart tests automatically
     environment:

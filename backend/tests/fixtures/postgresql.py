@@ -170,15 +170,40 @@ def postgresql_engine(postgresql_container) -> Generator[Optional[Engine], None,
     )
 
     # Create all tables (or run Alembic migrations)
+    # Note: pgvector-dependent tables will be skipped if pgvector is not available
     try:
         print("Creating database schema...")
         Base.metadata.create_all(engine)
         print("Database schema created successfully")
     except Exception as e:
-        print(f"Warning: Failed to create schema: {e}")
-        engine.dispose()
-        yield None
-        return
+        error_str = str(e).lower()
+        # Check if this is a pgvector-related error
+        if "type \"vector\" does not exist" in error_str or "vector" in error_str:
+            print(f"Warning: pgvector extension not available. Skipping vector-dependent tables.")
+            print(f"Error details: {e}")
+            # Try creating tables one by one, skipping those that require pgvector
+            tables_created = 0
+            for table in Base.metadata.sorted_tables:
+                try:
+                    table.create(engine, checkfirst=True)
+                    tables_created += 1
+                except Exception as table_error:
+                    # Skip tables requiring pgvector
+                    if "vector" in str(table_error).lower():
+                        print(f"  Skipping {table.name} (requires pgvector)")
+                    else:
+                        print(f"  Warning: Failed to create {table.name}: {table_error}")
+            print(f"Created {tables_created}/{len(Base.metadata.tables)} tables")
+            if tables_created == 0:
+                engine.dispose()
+                yield None
+                return
+        else:
+            # For other errors, fail gracefully
+            print(f"Warning: Failed to create schema: {e}")
+            engine.dispose()
+            yield None
+            return
 
     yield engine
 
