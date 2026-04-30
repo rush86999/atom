@@ -30,36 +30,23 @@ from core.auth import create_access_token
 # ============================================================================
 # Test Fixtures
 # ============================================================================
-
-@pytest.fixture
-def client():
-    """FastAPI TestClient for making HTTP requests."""
-    return TestClient(app)
-
-
-@pytest.fixture
-def db():
-    """Database session for test data setup."""
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+# Note: client and db fixtures are provided by conftest.py
 
 
 @pytest.fixture
 def test_user(db):
-    """Create a test user with valid authentication credentials."""
+    """Create a test user with WORKSPACE_ADMIN role for API permissions."""
     from datetime import datetime
     import random
     user = User(
         id=str(uuid.uuid4()),
         email=f"test-{random.randint(1000, 9999)}@example.com",  # Unique email
         first_name="Test",
-        last_name="User",
-        role=UserRole.MEMBER.value,
+        last_name="Admin",
+        role=UserRole.WORKSPACE_ADMIN.value,  # Admin role for all permissions
         status=UserStatus.ACTIVE.value,
         tenant_id="default",
+        workspace_id="default",  # Required for RBAC checks
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
