@@ -3,7 +3,7 @@ from sqlalchemy import (
     Table, JSON, MetaData, select, update, delete, func, and_, or_, not_,
     UniqueConstraint, Enum as SQLEnum, BigInteger, TypeDecorator, Numeric, Date
 )
-from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase
+from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase, validates
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 import uuid
 from decimal import Decimal
@@ -1381,6 +1381,26 @@ class AgentRegistry(Base):
     # Abuse Protection & Rate Limiting
     daily_requests_count = Column(Integer, default=0)
     last_request_date = Column(DateTime(timezone=True), nullable=True)
+
+    # Validation
+    @validates('name')
+    def validate_name(self, key, name):
+        """Validate that agent name is non-empty after stripping whitespace."""
+        if not name or not name.strip():
+            raise ValueError("Agent name cannot be empty or whitespace")
+        return name.strip()
+
+    @validates('id')
+    def validate_id(self, key, agent_id):
+        """Validate that agent ID doesn't contain whitespace and matches valid format."""
+        if agent_id:
+            # Check for whitespace characters
+            if any(c.isspace() for c in agent_id):
+                raise ValueError("Agent ID cannot contain whitespace")
+            # Check length constraint
+            if len(agent_id) > 255:
+                raise ValueError("Agent ID cannot exceed 255 characters")
+        return agent_id
 
     # Relationships
     tenant = relationship("Tenant")
