@@ -113,8 +113,7 @@ async def create_context(
     current_user: User = Depends(get_current_user)
 ):
     """Create or get canvas context for agent memory."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_context_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_context_service(db, tenant_id=current_user.tenant_id)
     
     context = service.get_or_create_context(
         canvas_id=canvas_id,
@@ -143,8 +142,7 @@ async def get_context(
     current_user: User = Depends(get_current_user)
 ):
     """Get canvas context snapshot for agent memory."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_context_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_context_service(db, tenant_id=current_user.tenant_id)
     
     snapshot = service.get_context_snapshot(
         canvas_id=canvas_id,
@@ -165,8 +163,7 @@ async def update_context_state(
     current_user: User = Depends(get_current_user)
 ):
     """Update persistsed canvas state."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_context_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_context_service(db, tenant_id=current_user.tenant_id)
     
     success = service.update_state(
         canvas_id=canvas_id,
@@ -188,8 +185,7 @@ async def record_correction(
     current_user: User = Depends(get_current_user)
 ):
     """Record user correction for agent learning."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_context_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_context_service(db, tenant_id=current_user.tenant_id)
     
     success = service.record_user_correction(
         canvas_id=canvas_id,
@@ -257,8 +253,7 @@ async def start_recording(
     current_user: User = Depends(get_current_user)
 ):
     """Start recording a canvas session."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_recording_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
     
     recording = service.start_recording(
         canvas_id=request.canvas_id,
@@ -284,8 +279,7 @@ async def list_recordings(
     current_user: User = Depends(get_current_user)
 ):
     """List canvas recordings."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_recording_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
     
     recordings = service.list_recordings(
         user_id=current_user.id,
@@ -304,8 +298,7 @@ async def get_recording(
     current_user: User = Depends(get_current_user)
 ):
     """Get recording details and timeline."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_recording_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
     
     playback = service.get_playback_data(recording_id)
     if not playback:
@@ -326,8 +319,7 @@ async def get_canvas_summary(
     current_user: User = Depends(get_current_user)
 ):
     """Generate LLM-powered summary of canvas state."""
-    service_factory = ServiceFactory(db)
-    service = service_factory.get_canvas_summary_service(tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_summary_service(db, tenant_id=current_user.tenant_id)
     
     summary = await service.generate_summary(
         canvas_id=canvas_id,

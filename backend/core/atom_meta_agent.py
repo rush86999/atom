@@ -214,7 +214,7 @@ class AtomMetaAgent:
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id or "default"
         self.user = user
-        self.world_model = WorldModelService(workspace_id=workspace_id, tenant_id=self.tenant_id)
+        self.world_model = WorldModelService(workspace_id=workspace_id)
         self.orchestrator = AdvancedWorkflowOrchestrator()
         
         # Capability Graduation Integration
