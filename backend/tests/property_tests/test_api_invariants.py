@@ -244,7 +244,9 @@ class TestHTTPMethodContracts:
             id=str(uuid.uuid4()),
             name="Agent to Delete",
             status=AgentStatus.STUDENT.value,
-            category="testing"
+            category="testing",
+            class_name="GenericAgent",
+            module_path="core.generic_agent"
         )
         db.add(agent)
         db.commit()
@@ -755,7 +757,9 @@ class TestAuthenticationAuthorization:
             id=str(uuid.uuid4()),
             name="Other Agent",
             status=AgentStatus.STUDENT.value,
-            category="testing"
+            category="testing",
+            class_name="GenericAgent",
+            module_path="core.generic_agent"
         )
         db.add(agent)
         db.commit()
