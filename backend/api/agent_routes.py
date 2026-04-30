@@ -675,6 +675,25 @@ class CustomAgentRequest(BaseModel):
             raise ValueError('cannot be empty or whitespace-only')
         return v.strip()
 
+
+class AgentUpdateRequest(BaseModel):
+    """Request model for partial agent updates (Bug #4 fix)."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Agent name")
+    description: Optional[str] = None
+    category: Optional[str] = Field(None, min_length=1, max_length=50, description="Agent category")
+    configuration: Optional[Dict[str, Any]] = None
+    schedule_config: Optional[Dict[str, Any]] = None
+
+    @field_validator('name', 'category')
+    @classmethod
+    def validate_not_whitespace(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that name and category are not empty or whitespace-only."""
+        if v is not None:
+            if not v or not v.strip():
+                raise ValueError('cannot be empty or whitespace-only')
+            return v.strip()
+        return v
+
 @router.post("/custom")
 async def create_custom_agent(
     req: CustomAgentRequest,
@@ -711,32 +730,35 @@ async def create_custom_agent(
 @router.put("/{agent_id}")
 async def update_agent(
     agent_id: str,
-    req: CustomAgentRequest,
+    req: AgentUpdateRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """Update an agent's config or schedule"""
+    """Update an agent's config or schedule with partial update support (Bug #4 fix)."""
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
         raise router.not_found_error("Agent", agent_id)
-        
-    # Update fields
-    agent.name = req.name
-    agent.description = req.description
-    agent.category = req.category
-    agent.configuration = req.configuration
-    agent.schedule_config = req.schedule_config
-    
+
+    # Partial update: only update fields that are explicitly provided
+    if req.name is not None:
+        agent.name = req.name
+    if req.description is not None:
+        agent.description = req.description
+    if req.category is not None:
+        agent.category = req.category
+    if req.configuration is not None:
+        agent.configuration = req.configuration
+    if req.schedule_config is not None:
+        agent.schedule_config = req.schedule_config
+
     db.commit()
-    
-    # Update Scheduler
-    from core.scheduler import AgentScheduler
-    scheduler = AgentScheduler.get_instance()
-    # Ideally remove old job but for MVP we overwrite with new ID or let scheduler handle
-    # A robust implementation would cancel the old job_id if we stored it
+
+    # Update Scheduler if schedule_config changed
     if req.schedule_config and req.schedule_config.get("active"):
+        from core.scheduler import AgentScheduler
+        scheduler = AgentScheduler.get_instance()
         scheduler.schedule_agent(agent.id, req.schedule_config)
-    
+
     return router.success_response(
         data={"agent_id": agent.id},
         message=f"Agent {agent.name} updated successfully"
