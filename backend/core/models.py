@@ -291,7 +291,7 @@ class Tenant(Base):
     last_desktop_sync = Column(DateTime(timezone=True), nullable=True)
     api_key = Column(String, unique=True, nullable=True)
     status = Column(String, default="active")
-    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id", use_alter=True), nullable=True)
     api_calls_count = Column(Integer, default=0)
     ai_mode = Column(String, default="byok")  # byok, managed, hybrid
 
@@ -1367,7 +1367,7 @@ class AgentRegistry(Base):
     # Graduation & Promotion Tracking (Phase: Episodic Memory & Graduation)
     last_promotion_at = Column(DateTime(timezone=True), nullable=True)  # Last promotion date
     promotion_count = Column(Integer, default=0)  # Number of promotions received
-    last_exam_id = Column(String(255), ForeignKey("graduation_exams.id", ondelete="SET NULL"), nullable=True)  # Most recent exam
+    last_exam_id = Column(String(255), ForeignKey("graduation_exams.id", ondelete="SET NULL", use_alter=True), nullable=True)  # Most recent exam
     exam_eligible_at = Column(DateTime(timezone=True), nullable=True)  # When agent can take next exam
     
     # Abuse Protection & Rate Limiting
