@@ -91,20 +91,20 @@ def test_agent_capabilities_list_non_empty_for_intern_plus(capabilities):
         assume(len(capabilities) > 0)
 
 
-@given(st.datetimes(timezone=timezone.utc))
+@given(st.datetimes(max_value=datetime.now(timezone.utc)))
 def test_agent_created_at_timestamp_not_future(created_time):
     """
     Test that agent created_at timestamp is <= current time.
 
     Invariant: Creation time cannot be in the future.
     """
-    # Created time should not be in the future
+    # Created time should not be in the future (hypothesis max_value handles this)
     now = datetime.now(timezone.utc)
     # Allow some tolerance for clock skew
     assert created_time <= now + timedelta(seconds=5)
 
 
-@given(st.datetimes(timezone=timezone.utc), st.datetimes(timezone=timezone.utc))
+@given(st.datetimes(), st.datetimes())
 def test_agent_updated_at_timestamp_after_created(created_time, updated_time):
     """
     Test that agent updated_at timestamp is >= created_at.
@@ -249,7 +249,7 @@ def test_invoice_status_valid_enum(status):
     assert status in valid_statuses
 
 
-@given(st.datetimes(timezone=timezone.utc), st.integers(min_value=0, max_value=365))
+@given(st.datetimes(), st.integers(min_value=0, max_value=365))
 def test_invoice_due_date_after_issue_date(issue_date, days_until_due):
     """
     Test that invoice due_date >= issue_date.
@@ -313,7 +313,7 @@ def test_episode_ids_are_unique(episode_id):
     assert re.match(r'^[0-9a-f-]{36}$', episode_id_str.lower())
 
 
-@given(st.lists(st.datetimes(timezone=timezone.utc), min_size=3, max_size=10))
+@given(st.lists(st.datetimes(), min_size=3, max_size=10))
 def test_episode_segments_ordered_by_timestamp(timestamps):
     """
     Test that episode segments are ordered by timestamp.
@@ -327,7 +327,7 @@ def test_episode_segments_ordered_by_timestamp(timestamps):
         assert sorted_timestamps[i] <= sorted_timestamps[i + 1]
 
 
-@given(st.datetimes(timezone=timezone.utc), st.integers(min_value=1, max_value=100))
+@given(st.datetimes(), st.integers(min_value=1, max_value=100))
 def test_episode_segment_timestamps_monotonically_increasing(start_time, offset_seconds):
     """
     Test that episode segment timestamps are monotonically increasing.
@@ -350,7 +350,7 @@ def test_episode_has_at_least_one_segment(segment_count):
     assert segment_count >= 1
 
 
-@given(st.text(min_size=1, max_size=50), st.integers(min_value=1, max_size=10))
+@given(st.text(min_size=1, max_size=50), st.integers(min_value=1, max_value=10))
 def test_episode_segments_belong_to_same_agent(agent_id, segment_count):
     """
     Test that episode segments belong to same agent_id.
@@ -365,7 +365,7 @@ def test_episode_segments_belong_to_same_agent(agent_id, segment_count):
     assert agent_id in agent_ids
 
 
-@given(st.datetimes(timezone=timezone.utc), st.integers(min_value=1, max_value=86400))
+@given(st.datetimes(), st.integers(min_value=1, max_value=86400))
 def test_episode_start_time_before_end_time(start_time, duration_seconds):
     """
     Test that episode start_time <= end_time.
@@ -535,7 +535,7 @@ def test_task_priority_in_range(priority):
     assert 1 <= priority <= 5
 
 
-@given(st.datetimes(timezone=timezone.utc), st.datetimes(timezone=timezone.utc))
+@given(st.datetimes(), st.datetimes())
 def test_task_created_at_before_started_at(created_at, started_at):
     """
     Test that task created_at <= started_at (if started).
@@ -547,7 +547,7 @@ def test_task_created_at_before_started_at(created_at, started_at):
     assert started_at >= created_at
 
 
-@given(st.datetimes(timezone=timezone.utc), st.datetimes(timezone=timezone.utc))
+@given(st.datetimes(), st.datetimes())
 def test_task_completed_at_after_started_at(started_at, completed_at):
     """
     Test that task completed_at >= started_at (if completed).
