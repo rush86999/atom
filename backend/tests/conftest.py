@@ -51,6 +51,16 @@ from tests.fixtures.mock_services import (
     MockCacheService, MockWebSocket
 )
 
+# Import PostgreSQL fixtures (if available)
+try:
+    from tests.fixtures.postgresql import (
+        postgresql_container, postgresql_engine, postgresql_db,
+        postgresql_clean_db, postgresql_url
+    )
+    POSTGRESQL_FIXTURES_AVAILABLE = True
+except ImportError:
+    POSTGRESQL_FIXTURES_AVAILABLE = False
+
 
 # Critical environment variables to isolate between tests
 _CRITICAL_ENV_VARS = [

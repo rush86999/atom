@@ -1,0 +1,49 @@
+version: '3.8'
+
+# Docker Compose configuration for PostgreSQL test database
+# This configuration provides a separate PostgreSQL instance for testing
+# to avoid polluting development/production databases.
+#
+# Usage:
+#   docker-compose -f docker-compose.test.yml up -d
+#   docker-compose -f docker-compose.test.yml down
+#
+# Environment variables:
+#   TEST_POSTGRES_USER: Test database user (default: atom_test)
+#   TEST_POSTGRES_PASSWORD: Test database password (default: atom_test_password)
+#   TEST_POSTGRES_DB: Test database name (default: atom_test_db)
+
+services:
+  postgresql_test:
+    image: postgres:15-alpine
+    container_name: atom_postgresql_test
+    restart: "no"  # Don't restart tests automatically
+    environment:
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-atom_test}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-atom_test_password}
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-atom_test_db}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    ports:
+      - "5434:5432"  # Different port from production (5433)
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      # Initialization script for test database
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U atom_test" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - test_network
+
+volumes:
+  postgres_test_data:
+    driver: local
+    # Test data is persisted between test runs for performance
+    # but can be discarded with: docker volume rm atom_postgres_test_data
+
+networks:
+  test_network:
+    driver: bridge
