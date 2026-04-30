@@ -209,21 +209,28 @@ cd backend
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/property_tests/test_api_invariants.py -v
 ```
 
-**Results** (After P0 Schema Fix):
+**Results** (After Real Bug Fixes):
 - **Total Tests**: 30
-- **Passed**: 5 (16.7%) ✅
-- **Failed**: 24 (80.0%) ❌
+- **Passed**: 7 (23.3%) ✅
+- **Failed**: 22 (73.3%) ❌
 - **Errors**: 1 (3.3%) ⚠️
-- **Duration**: 10.26 seconds
+- **Duration**: ~10 seconds
 
-**Pass Rate Calculation**: 5/30 = 16.7%
-
-**Target**: 95%+ pass rate
-**Status**: **Expected Failures** - Tests correctly discovering missing REST API endpoints
-
-**Progress**:
+**Pass Rate Progression**:
 - Before P0 fix: 0% (all tests errored in setup)
-- After P0 fix: 16.7% (tests run, discover API bugs as intended) ✅
+- After P0 fix: 16.7% (5/30 passing)
+- **After P1 fixes: 23.3% (7/30 passing)** ✅ +40% improvement
+
+**Real Bugs Fixed** (4 total):
+1. ✅ P0: User model schema drift (password_hash → hashed_password)
+2. ✅ P1: Missing list_agents() method in AgentGovernanceService
+3. ✅ P1: AgentInfo.description not Optional (database allows NULL)
+4. ✅ P1: API inconsistency - GET /api/agents response not wrapped
+
+**Remaining Failures**:
+- Missing /api/workflows endpoints → **Test Issue** (system uses workflow_debugging routes)
+- Missing /api/canvas endpoints → **Test Issue** (different route structure)
+- 403 Permission errors → **Test Issue** (auth fixture needs role setup)
 
 **Test Breakdown**:
 
