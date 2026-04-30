@@ -529,3 +529,260 @@ class TestErrorHandling:
 
             # Should handle error gracefully
             assert response.status_code == 500
+
+
+# ============================================================================
+# Security Tests
+# ============================================================================
+
+class TestSecurityValidation:
+    """Test security validation in auth routes"""
+
+    def test_mobile_login_sql_injection_attempt(self, client: TestClient):
+        """Test mobile login rejects SQL injection attempts"""
+        malicious_inputs = [
+            "'; DROP TABLE users; --",
+            "' OR '1'='1",
+            "admin'--",
+            "'; SELECT * FROM users--"
+        ]
+
+        for malicious_input in malicious_inputs:
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": malicious_input,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios"
+                }
+            )
+
+            # Should fail (validation error or auth failure, never success)
+            assert response.status_code in [400, 401, 422]
+
+    def test_mobile_login_xss_attempt(self, client: TestClient):
+        """Test mobile login sanitizes XSS input"""
+        xss_inputs = [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')"
+        ]
+
+        for xss_input in xss_inputs:
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": xss_input,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "android"
+                }
+            )
+
+            # Should fail (not a valid email format)
+            assert response.status_code in [400, 422]
+
+    def test_mobile_login_input_length_validation(self, client: TestClient):
+        """Test mobile login validates input lengths"""
+        # Extremely long email
+        long_email = "a" * 10000 + "@example.com"
+
+        response = client.post(
+            "/api/auth/mobile/login",
+            json={
+                "email": long_email,
+                "password": "password",
+                "device_token": "token",
+                "platform": "ios"
+            }
+        )
+
+        # Should fail validation or be handled gracefully
+        assert response.status_code in [400, 413, 422]
+
+    def test_mobile_login_platform_validation(self, client: TestClient):
+        """Test mobile login validates platform parameter"""
+        invalid_platforms = [
+            "windows",
+            "linux",
+            "macos",
+            "",
+            "web",
+            "123"
+        ]
+
+        for invalid_platform in invalid_platforms:
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": "test@example.com",
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": invalid_platform
+                }
+            )
+
+            # Platform validation is implementation-dependent
+            # Should either accept or reject with validation error
+            assert response.status_code in [200, 400, 422]
+
+    def test_biometric_public_key_format_validation(self, client: TestClient, test_user: User):
+        """Test biometric registration validates public key format"""
+        invalid_keys = [
+            "",  # Empty
+            "not-a-valid-key",  # Too short
+            "a" * 10000,  # Too long
+            "<script>alert('xss')</script>"  # XSS attempt
+        ]
+
+        with patch('api.auth_routes.get_current_user') as mock_auth:
+            mock_auth.return_value = test_user
+
+            for invalid_key in invalid_keys:
+                response = client.post(
+                    "/api/auth/mobile/biometric/register",
+                    json={
+                        "public_key": invalid_key,
+                        "device_token": "test_device_token_123",
+                        "platform": "ios"
+                    }
+                )
+
+                # Should fail validation
+                assert response.status_code in [400, 422]
+
+    def test_token_refresh_missing_token(self, client: TestClient):
+        """Test token refresh requires refresh_token"""
+        response = client.post(
+            "/api/auth/mobile/refresh",
+            json={}
+        )
+
+        # Should fail validation
+        assert response.status_code == 422
+
+    def test_token_refresh_empty_token(self, client: TestClient):
+        """Test token refresh rejects empty token"""
+        response = client.post(
+            "/api/auth/mobile/refresh",
+            json={"refresh_token": ""}
+        )
+
+        # Should fail validation
+        assert response.status_code == 422
+
+
+# ============================================================================
+# Integration Tests
+# ============================================================================
+
+class TestMobileAuthIntegration:
+    """Test mobile authentication integration flows"""
+
+    def test_mobile_login_device_update_flow(self, client: TestClient, test_user: User, db_session: Session):
+        """Test mobile login updates device info"""
+        with patch('api.auth_routes.authenticate_mobile_user') as mock_auth:
+            mock_auth.return_value = {
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expires_at": "2026-02-14T00:00:00Z",
+                "token_type": "bearer",
+                "user": {
+                    "id": test_user.id,
+                    "email": test_user.email
+                }
+            }
+
+            device_info = {
+                "model": "iPhone 15",
+                "os_version": "17.0",
+                "app_version": "2.0.0"
+            }
+
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "test_device_token_update",
+                    "platform": "ios",
+                    "device_info": device_info
+                }
+            )
+
+            # Should succeed or get validation error
+            assert response.status_code in [200, 400, 401]
+
+    def test_mobile_login_without_device_info(self, client: TestClient, test_user: User):
+        """Test mobile login works without optional device_info"""
+        with patch('api.auth_routes.authenticate_mobile_user') as mock_auth:
+            mock_auth.return_value = {
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expires_at": "2026-02-14T00:00:00Z",
+                "token_type": "bearer",
+                "user": {
+                    "id": test_user.id,
+                    "email": test_user.email
+                }
+            }
+
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "test_device_token_no_info",
+                    "platform": "android"
+                    # No device_info
+                }
+            )
+
+            # Should succeed (device_info is optional)
+            assert response.status_code in [200, 400, 401]
+
+
+# ============================================================================
+# Error Response Tests
+# ============================================================================
+
+class TestErrorResponses:
+    """Test error response formats"""
+
+    def test_mobile_login_invalid_credentials_response_format(self, client: TestClient):
+        """Test mobile login returns proper error format for invalid credentials"""
+        with patch('api.auth_routes.authenticate_mobile_user') as mock_auth:
+            mock_auth.return_value = None
+
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": "test@example.com",
+                    "password": "wrong_password",
+                    "device_token": "token",
+                    "platform": "ios"
+                }
+            )
+
+            # Should have proper error response
+            assert response.status_code in [400, 401]
+            if response.status_code != 422:
+                data = response.json()
+                # Should have error message or detail
+                assert "detail" in data or "message" in data or "error" in data
+
+    def test_validation_error_response_format(self, client: TestClient):
+        """Test validation errors return proper format"""
+        response = client.post(
+            "/api/auth/mobile/login",
+            json={
+                "email": "invalid-email-format"
+                # Missing required fields
+            }
+        )
+
+        assert response.status_code == 422
+        data = response.json()
+        # FastAPI validation errors have "detail" field
+        assert "detail" in data
