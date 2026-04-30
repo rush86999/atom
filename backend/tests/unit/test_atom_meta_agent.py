@@ -547,3 +547,412 @@ class TestAgentTriggerMode:
     def test_trigger_mode_workflow(self):
         """Test WORKFLOW trigger mode"""
         assert AgentTriggerMode.WORKFLOW.value == "workflow"
+
+
+# =============================================================================
+# TEST CLASS: TestPostgreSQLIntegration
+# PostgreSQL-specific integration tests
+# =============================================================================
+
+@pytest.mark.postgresql
+class TestPostgreSQLIntegration:
+    """Tests for PostgreSQL database integration with AtomMetaAgent"""
+
+    def test_agent_persistence_in_postgresql(self, postgresql_db):
+        """Test that agents are persisted in PostgreSQL database"""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
+
+        from core.atom_meta_agent import AtomMetaAgent
+        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+
+        # Create agent via spawn
+        agent_id = agent.spawn_agent(
+            name="PostgreSQL Test Agent",
+            description="Testing PostgreSQL persistence",
+            capabilities=["test_capability"]
+        )
+
+        # Verify agent exists in database
+        from core.models import AgentRegistry
+        saved_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        assert saved_agent is not None
+        assert saved_agent.name == "PostgreSQL Test Agent"
+        assert saved_agent.status == AgentStatus.IDLE
+
+    def test_agent_execution_recorded_in_postgresql(self, postgresql_db):
+        """Test that agent executions are recorded in PostgreSQL"""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
+
+        from core.atom_meta_agent import AtomMetaAgent
+        from core.models import AgentExecution, ExecutionStatus
+        from datetime import datetime, timezone
+
+        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+
+        # Create agent
+        agent_id = agent.spawn_agent(
+            name="Execution Test Agent",
+            description="Testing execution recording",
+            capabilities=["test"]
+        )
+
+        # Record execution
+        execution_id = str(uuid.uuid4())
+        execution = AgentExecution(
+            id=execution_id,
+            agent_id=agent_id,
+            status=ExecutionStatus.COMPLETED,
+            input_data={"task": "test_task"},
+            output_data={"result": "success"},
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc)
+        )
+        postgresql_db.add(execution)
+        postgresql_db.commit()
+
+        # Verify execution recorded
+        retrieved = postgresql_db.query(AgentExecution).filter(
+            AgentExecution.id == execution_id
+        ).first()
+
+        assert retrieved is not None
+        assert retrieved.status == ExecutionStatus.COMPLETED
+        assert retrieved.agent_id == agent_id
+
+    def test_reasoning_steps_persisted_in_postgresql(self, postgresql_db):
+        """Test that reasoning steps are persisted in PostgreSQL"""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
+
+        from core.atom_meta_agent import AtomMetaAgent
+        from core.models import AgentReasoningStep
+
+        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+
+        # Create agent
+        agent_id = agent.spawn_agent(
+            name="Reasoning Test Agent",
+            description="Testing reasoning step persistence",
+            capabilities=["test"]
+        )
+
+        # Record reasoning steps
+        step = AgentReasoningStep(
+            agent_id=agent_id,
+            step_number=1,
+            thought="Testing reasoning persistence",
+            action="test_action",
+            observation="test_observation"
+        )
+        postgresql_db.add(step)
+        postgresql_db.commit()
+
+        # Verify step recorded
+        retrieved = postgresql_db.query(AgentReasoningStep).filter(
+            AgentReasoningStep.agent_id == agent_id
+        ).first()
+
+        assert retrieved is not None
+        assert retrieved.step_number == 1
+        assert retrieved.thought == "Testing reasoning persistence"
+
+    def test_workspace_isolation_in_postgresql(self, postgresql_db):
+        """Test that workspace isolation works in PostgreSQL"""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
+
+        from core.atom_meta_agent import AtomMetaAgent
+        from core.models import AgentRegistry
+
+        # Create agents in different workspaces
+        agent_ws1 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_1")
+        agent_ws2 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_2")
+
+        agent_id_1 = agent_ws1.spawn_agent(
+            name="Workspace 1 Agent",
+            description="Agent in workspace 1",
+            capabilities=["test"]
+        )
+
+        agent_id_2 = agent_ws2.spawn_agent(
+            name="Workspace 2 Agent",
+            description="Agent in workspace 2",
+            capabilities=["test"]
+        )
+
+        # Verify both agents exist
+        agents_ws1 = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == "workspace_1"
+        ).all()
+
+        agents_ws2 = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == "workspace_2"
+        ).all()
+
+        assert len(agents_ws1) == 1
+        assert len(agents_ws2) == 1
+        assert agents_ws1[0].id != agents_ws2[0].id
+
+    def test_agent_maturity_transitions_in_postgresql(self, postgresql_db):
+        """Test agent maturity level transitions in PostgreSQL"""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
+
+        from core.atom_meta_agent import AtomMetaAgent
+        from core.models import AgentMaturity
+
+        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+
+        # Create agent with STUDENT maturity
+        agent_id = agent.spawn_agent(
+            name="Maturity Test Agent",
+            description="Testing maturity transitions",
+            capabilities=["test"],
+            maturity=AgentMaturity.STUDENT
+        )
+
+        # Verify initial maturity
+        saved_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        assert saved_agent.maturity == AgentMaturity.STUDENT
+
+        # Update maturity to INTERN
+        saved_agent.maturity = AgentMaturity.INTERN
+        postgresql_db.commit()
+
+        # Verify update
+        updated_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        assert updated_agent.maturity == AgentMaturity.INTERN
+
+
+# =============================================================================
+# TEST CLASS: TestSpecialtyAgentTemplates
+# Tests for specialty agent template system
+# =============================================================================
+
+class TestSpecialtyAgentTemplatesEnhanced:
+    """Enhanced tests for specialty agent templates"""
+
+    def test_template_finance_analyst_structure(self):
+        """Test finance_analyst template has correct structure"""
+        from core.atom_meta_agent import SpecialtyAgentTemplate
+
+        template = SpecialtyAgentTemplate.TEMPLATES.get("finance_analyst")
+
+        assert template is not None
+        assert "name" in template
+        assert "category" in template
+        assert "description" in template
+        assert "capabilities" in template
+        assert "default_params" in template
+
+        assert template["name"] == "Finance Analyst"
+        assert "finance" in template["category"].lower()
+        assert isinstance(template["capabilities"], list)
+        assert len(template["capabilities"]) > 0
+
+    def test_template_sales_assistant_structure(self):
+        """Test sales_assistant template has correct structure"""
+        from core.atom_meta_agent import SpecialtyAgentTemplate
+
+        template = SpecialtyAgentTemplate.TEMPLATES.get("sales_assistant")
+
+        assert template is not None
+        assert template["name"] == "Sales Assistant"
+        assert "sales" in template["category"].lower()
+        assert isinstance(template["capabilities"], list)
+
+    def test_all_templates_have_required_fields(self):
+        """Test that all templates have required fields"""
+        from core.atom_meta_agent import SpecialtyAgentTemplate
+
+        required_fields = ["name", "category", "description", "capabilities"]
+
+        for template_key, template in SpecialtyAgentTemplate.TEMPLATES.items():
+            for field in required_fields:
+                assert field in template, f"Template {template_key} missing field {field}"
+
+    def test_template_capabilities_are_unique(self):
+        """Test that template capabilities don't have duplicates"""
+        from core.atom_meta_agent import SpecialtyAgentTemplate
+
+        for template_key, template in SpecialtyAgentTemplate.TEMPLATES.items():
+            capabilities = template.get("capabilities", [])
+            assert len(capabilities) == len(set(capabilities)), \
+                f"Template {template_key} has duplicate capabilities"
+
+    def test_get_nonexistent_template_returns_none(self):
+        """Test requesting non-existent template returns None"""
+        from core.atom_meta_agent import SpecialtyAgentTemplate
+
+        template = SpecialtyAgentTemplate.TEMPLATES.get("nonexistent_template")
+
+        assert template is None
+
+
+# =============================================================================
+# TEST CLASS: TestIntentRoutingEnhanced
+# Enhanced tests for intent routing
+# =============================================================================
+
+class TestIntentRoutingEnhanced:
+    """Enhanced tests for intent classification and routing"""
+
+    @patch('core.atom_meta_agent.IntentClassifier')
+    def test_route_chat_request(self, mock_classifier, atom_agent):
+        """Test routing CHAT category requests"""
+        from core.atom_meta_agent import IntentCategory, IntentClassification
+
+        mock_classifier_instance = MagicMock()
+        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+            category=IntentCategory.CHAT,
+            confidence=0.95,
+            reasoning="Simple query",
+            requires_execution=False,
+            suggested_handler="llm_service"
+        )
+        mock_classifier.return_value = mock_classifier_instance
+
+        result = atom_agent._classify_and_route("Explain how agents work")
+
+        assert result["category"] == "chat"
+        assert result["handler"] == "llm_service"
+
+    @patch('core.atom_meta_agent.IntentClassifier')
+    def test_route_workflow_request(self, mock_classifier, atom_agent):
+        """Test routing WORKFLOW category requests"""
+        from core.atom_meta_agent import IntentCategory, IntentClassification
+
+        mock_classifier_instance = MagicMock()
+        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+            category=IntentCategory.WORKFLOW,
+            confidence=0.85,
+            reasoning="Structured task",
+            requires_execution=True,
+            suggested_handler="queen_agent"
+        )
+        mock_classifier.return_value = mock_classifier_instance
+
+        result = atom_agent._classify_and_route("Execute sales blueprint")
+
+        assert result["category"] == "workflow"
+        assert result["handler"] == "queen_agent"
+
+    @patch('core.atom_meta_agent.IntentClassifier')
+    def test_route_task_request(self, mock_classifier, atom_agent):
+        """Test routing TASK category requests"""
+        from core.atom_meta_agent import IntentCategory, IntentClassification
+
+        mock_classifier_instance = MagicMock()
+        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+            category=IntentCategory.TASK,
+            confidence=0.80,
+            reasoning="Complex unstructured task",
+            requires_execution=True,
+            suggested_handler="fleet_admiral"
+        )
+        mock_classifier.return_value = mock_classifier_instance
+
+        result = atom_agent._classify_and_route("Research competitors and build integration")
+
+        assert result["category"] == "task"
+        assert result["handler"] == "fleet_admiral"
+
+
+# =============================================================================
+# TEST CLASS: TestErrorHandlingEnhanced
+# Enhanced error handling tests
+# =============================================================================
+
+class TestErrorHandlingEnhanced:
+    """Enhanced tests for error handling"""
+
+    def test_handle_invalid_agent_id(self, atom_agent):
+        """Test handling of invalid agent ID"""
+        result = atom_agent.get_agent_status("invalid_agent_id")
+
+        # Should handle gracefully
+        assert result is None or "error" in result
+
+    def test_handle_empty_user_request(self, atom_agent):
+        """Test handling of empty user request"""
+        result = atom_agent._classify_and_route("")
+
+        # Should handle gracefully
+        assert result is not None
+
+    def test_handle_llm_failure_gracefully(self, atom_agent):
+        """Test graceful handling of LLM failure"""
+        atom_agent.llm.generate_response = AsyncMock(side_effect=Exception("LLM failed"))
+
+        # Should not crash
+        result = asyncio.run(atom_agent._generate_next_step(
+            thought="Test thought",
+            tool_calls=[],
+            final_answer=None
+        ))
+
+        assert result is not None
+
+
+# =============================================================================
+# TEST CLASS: TestPerformanceBenchmarks
+# Performance benchmark tests
+# =============================================================================
+
+class TestPerformanceBenchmarks:
+    """Performance benchmark tests for AtomMetaAgent"""
+
+    def test_agent_initialization_performance(self):
+        """Test agent initialization meets performance target"""
+        import time
+
+        start_time = time.time()
+
+        with patch('core.atom_meta_agent.WorldModelService'), \
+             patch('core.atom_meta_agent.mcp_service'), \
+             patch('core.atom_meta_agent.get_llm_service'), \
+             patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
+
+            agent = AtomMetaAgent(workspace_id="test_workspace")
+
+        elapsed = time.time() - start_time
+
+        # Target: <100ms for initialization
+        assert elapsed < 0.1, f"Initialization took {elapsed:.3f}s, target <0.1s"
+
+    def test_step_generation_performance(self, atom_agent):
+        """Test step generation meets performance target"""
+        import time
+
+        atom_agent.llm.generate_structured_response = AsyncMock(
+            return_value={
+                "thought": "Test thought",
+                "action": None,
+                "final_answer": "Test answer",
+                "confidence": 0.9
+            }
+        )
+
+        start_time = time.time()
+        result = asyncio.run(atom_agent._generate_next_step(
+            thought="Previous thought",
+            tool_calls=[],
+            final_answer=None
+        ))
+        elapsed = time.time() - start_time
+
+        assert result is not None
+        # Target: <2s for step generation (includes mock LLM call)
+        assert elapsed < 2.0, f"Step generation took {elapsed:.3f}s, target <2.0s"
+
