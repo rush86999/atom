@@ -26,6 +26,7 @@ from core.models import (
     AgentExecution,
     AgentEpisode,  # Correct model name
     EpisodeSegment,
+    EpisodeOutcome,  # For required outcome field
 )
 from core.database import SessionLocal
 
@@ -34,6 +35,7 @@ from core.database import SessionLocal
 # Empty/Null Values (5 tests)
 # =============================================================================
 
+@settings(deadline=None)  # Disable deadline for database test
 @given(st.text(min_size=0, max_size=0))
 def test_agent_name_rejects_empty_string(empty_name):
     """
@@ -104,6 +106,7 @@ def test_agent_id_rejects_none(none_value):
         db.commit()
 
 
+@settings(deadline=None)  # Disable deadline for database test
 @given(st.just([]))
 def test_episode_segments_rejects_empty_list(segments):
     """
@@ -113,13 +116,14 @@ def test_episode_segments_rejects_empty_list(segments):
     BUG DISCOVERED: AgentEpisode model has different attributes.
     """
     with SessionLocal() as db:
-        # Fixed: Use AgentEpisode with correct attributes
+        # Fixed: Use AgentEpisode with correct attributes including required 'outcome'
         episode = AgentEpisode(
             id=str(uuid.uuid4()),
             agent_id=str(uuid.uuid4()),
             tenant_id=str(uuid.uuid4()),
             maturity_at_time=AgentStatus.INTERN.value,
-            task_description="Test task"
+            task_description="Test task",
+            outcome=EpisodeOutcome.SUCCESS.value  # Required field
         )
         db.add(episode)
         db.commit()
@@ -294,14 +298,14 @@ def test_agent_name_handles_unicode_characters(unicode_name):
 # Race Conditions (3 tests)
 # =============================================================================
 
-@settings(max_examples=10)
+@settings(max_examples=10, deadline=None)  # Disable deadline for database test
 @given(st.integers(min_value=1, max_value=5))
 def test_concurrent_agent_execution_doesnt_corrupt_state(thread_count):
     """
     Test that concurrent agent execution doesn't corrupt state.
 
     Edge case: Multiple threads updating agent state concurrently.
-    FIXED: Use proper enum values for status.
+    FIXED: Use proper enum values for status (PAUSED/STUDENT instead of RUNNING/IDLE).
     """
     agent_id = str(uuid.uuid4())
     errors = []
@@ -312,8 +316,8 @@ def test_concurrent_agent_execution_doesnt_corrupt_state(thread_count):
             with SessionLocal() as db:
                 agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                 if agent:
-                    # Fixed: Use .value for enum
-                    new_status = AgentStatus.RUNNING.value if thread_id % 2 == 0 else AgentStatus.IDLE.value
+                    # Fixed: Use PAUSED/STUDENT (RUNNING/IDLE don't exist in AgentStatus enum)
+                    new_status = AgentStatus.PAUSED.value if thread_id % 2 == 0 else AgentStatus.STUDENT.value
                     agent.status = new_status
                     db.commit()
                     results.append(thread_id)
@@ -328,7 +332,7 @@ def test_concurrent_agent_execution_doesnt_corrupt_state(thread_count):
             category="test",
             module_path="test.module",
             class_name="TestClass",
-            status=AgentStatus.IDLE.value
+            status=AgentStatus.STUDENT.value  # Fixed: Use STUDENT instead of IDLE
         )
         db.add(agent)
         db.commit()
@@ -404,14 +408,14 @@ def test_concurrent_status_updates_serialize_correctly(thread_count):
             assert 0.0 <= agent.confidence_score <= 1.0
 
 
-@settings(max_examples=5)
+@settings(max_examples=5, deadline=None)  # Disable deadline for database test
 @given(st.integers(min_value=2, max_value=5))
 def test_concurrent_episode_segmentation_doesnt_duplicate(thread_count):
     """
     Test that concurrent episode segmentation doesn't duplicate segments.
 
     Edge case: Multiple threads creating segments concurrently.
-    FIXED: Use AgentEpisode model with correct attributes.
+    FIXED: Use AgentEpisode model with correct attributes including required 'outcome'.
     """
     episode_id = str(uuid.uuid4())
     segment_ids = []
@@ -442,7 +446,8 @@ def test_concurrent_episode_segmentation_doesnt_duplicate(thread_count):
             agent_id=str(uuid.uuid4()),
             tenant_id=str(uuid.uuid4()),
             maturity_at_time=AgentStatus.INTERN.value,
-            task_description="Test task"
+            task_description="Test task",
+            outcome=EpisodeOutcome.SUCCESS.value  # Fixed: Add required outcome field
         )
         db.add(episode)
         db.commit()
