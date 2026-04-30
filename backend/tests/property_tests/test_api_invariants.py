@@ -20,11 +20,19 @@ from typing import Dict, Any
 import json
 from unittest.mock import Mock, patch, MagicMock
 import uuid
+import re
 
 from main import app
 from core.database import SessionLocal
 from core.models import AgentRegistry, AgentStatus, User, UserRole, UserStatus
 from core.auth import create_access_token
+
+
+def sanitize_identifier(value: str, max_length: int = 255) -> str:
+    """Sanitize user input for safe use in identifiers."""
+    # Remove control characters, limit length
+    sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', value)[:max_length]
+    return sanitized.strip()
 
 
 # ============================================================================
@@ -40,9 +48,9 @@ def test_user(db):
     import random
     user = User(
         id=str(uuid.uuid4()),
-        email=f"test-{random.randint(1000, 9999)}@example.com",  # Unique email
-        first_name="Test",
-        last_name="Admin",
+        email=sanitize_identifier(f"test-{random.randint(1000, 9999)}@example.com"),
+        first_name=sanitize_identifier("Test"),
+        last_name=sanitize_identifier("Admin"),
         role=UserRole.WORKSPACE_ADMIN.value,  # Admin role for all permissions
         status=UserStatus.ACTIVE.value,
         tenant_id="default",
@@ -239,25 +247,33 @@ class TestHTTPMethodContracts:
         Endpoint: DELETE /api/agents/{agent_id}
         Expected: HTTP 204 with empty response body
         """
-        # Create agent to delete
-        agent = AgentRegistry(
-            id=str(uuid.uuid4()),
-            name="Agent to Delete",
-            status=AgentStatus.STUDENT.value,
-            category="testing",
-            class_name="GenericAgent",
-            module_path="core.generic_agent"
-        )
-        db.add(agent)
-        db.commit()
+        agent = None
+        try:
+            # Create agent to delete
+            agent = AgentRegistry(
+                id=str(uuid.uuid4()),
+                name="Agent to Delete",
+                status=AgentStatus.STUDENT.value,
+                category="testing",
+                class_name="GenericAgent",
+                module_path="core.generic_agent"
+            )
+            db.add(agent)
+            db.commit()
+            agent_id = agent.id
 
-        response = client.delete(
-            f"/api/agents/{agent.id}",
-            headers=auth_headers
-        )
+            response = client.delete(
+                f"/api/agents/{agent_id}",
+                headers=auth_headers
+            )
 
-        # Should return 200 (success response) or 204 (no content)
-        assert response.status_code in [200, 204], f"Expected 200 or 204, got {response.status_code}"
+            # Should return 200 (success response) or 204 (no content)
+            assert response.status_code in [200, 204], f"Expected 200 or 204, got {response.status_code}"
+        finally:
+            # Ensure cleanup even if test fails
+            if agent and agent.id:
+                db.query(AgentRegistry).filter(AgentRegistry.id == agent.id).delete()
+                db.commit()
 
     def test_delete_agents_id_returns_404_when_not_found(self, client, auth_headers):
         """
@@ -405,9 +421,12 @@ class TestRequestValidation:
             headers=auth_headers
         )
 
-        # PUT should validate required fields
-        # Note: Actual implementation might allow partial updates (PATCH semantics)
-        assert response.status_code in [200, 400, 422]
+        # PUT should validate required fields - if name is missing, should reject
+        assert response.status_code in [400, 422], \
+            f"PUT without required 'name' field should be rejected, got {response.status_code}"
+
+        # If the endpoint supports PATCH semantics, add a separate test:
+        # def test_patch_agents_id_allows_partial_updates(...):
 
     def test_post_workflows_requires_name_field(self, client, auth_headers):
         """
