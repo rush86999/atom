@@ -23,8 +23,8 @@ import uuid
 
 from main import app
 from core.database import SessionLocal
-from core.models import AgentRegistry, AgentStatus, User
-from core.security import create_access_token
+from core.models import AgentRegistry, AgentStatus, User, UserRole, UserStatus
+from core.auth import create_access_token
 
 
 # ============================================================================
@@ -50,15 +50,30 @@ def db():
 @pytest.fixture
 def test_user(db):
     """Create a test user with valid authentication credentials."""
+    from datetime import datetime
+    import random
     user = User(
         id=str(uuid.uuid4()),
-        email="test@example.com",
-        username="testuser",
-        tenant_id="default"
+        email=f"test-{random.randint(1000, 9999)}@example.com",  # Unique email
+        first_name="Test",
+        last_name="User",
+        role=UserRole.MEMBER.value,
+        status=UserStatus.ACTIVE.value,
+        tenant_id="default",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
     db.add(user)
     db.commit()
-    return user
+
+    yield user  # Provide user to tests
+
+    # Cleanup: Delete test user after test
+    try:
+        db.delete(user)
+        db.commit()
+    except:
+        pass  # Ignore cleanup errors
 
 
 @pytest.fixture

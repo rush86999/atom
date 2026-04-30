@@ -427,51 +427,43 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=True) # Nullable for SSO users
-    first_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
-    role = Column(String, default=UserRole.MEMBER.value)
-    custom_role_id = Column(String, ForeignKey("custom_roles.id"), nullable=True)
-    
-    # Domain Specialty (e.g. "Accountant", "Marketer", "Sales")
-    specialty = Column(String, nullable=True) 
-    
-    status = Column(String, default=UserStatus.ACTIVE.value)
-    
-    # Resource Management
-    skills = Column(Text, nullable=True) # JSON string of skills
-    
-    # Onboarding
-    onboarding_completed = Column(Boolean, default=False)
-    onboarding_step = Column(String, default="welcome")
-    metadata_json = Column(JSONColumn, nullable=True)
-    preferences = Column(JSONColumn, default={}) # User Preferences (Phase 45)
-    
-    # Resource Management (SaaS Parity)
-    capacity_hours = Column(Float, default=40.0) # Weekly capacity
-    hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
-    notification_preferences = Column(JSONBColumn, nullable=True) # Notification preferences (Phase 214)
-    
-    # Verification (Restored)
-    verification_token = Column(String, nullable=True)
-    email_verified = Column(Boolean, default=False)
-    
+    hashed_password = Column(String, nullable=True)  # Fixed: was password_hash, database has hashed_password
+    first_name = Column(String, nullable=False)  # Fixed: database requires NOT NULL
+    last_name = Column(String, nullable=False)  # Fixed: database requires NOT NULL
+    role = Column(String, nullable=False)  # Fixed: database requires NOT NULL
+    status = Column(String, nullable=False)  # Fixed: database requires NOT NULL
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)  # From database schema
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
-
-    # 2FA Fields
-    two_factor_enabled = Column(Boolean, default=False)
-    two_factor_secret = Column(String, nullable=True) # Should be encrypted in a real production app
-    two_factor_backup_codes = Column(JSONColumn, nullable=True)
+    notification_preferences = Column(JSON, nullable=True)  # From database schema
 
     # Relationships
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
     push_tokens = relationship("PushToken", back_populates="user", cascade="all, delete-orphan")
-    custom_role = relationship("CustomRole")
     im_accounts = relationship("UserAccount", back_populates="user", cascade="all, delete-orphan")
+
+    # NOTE: The following columns are in the model but not in the current database schema.
+    # They are commented out to prevent OperationalError until migrations are run.
+    # Uncomment these after running database migrations to add the missing columns.
+
+    # custom_role_id = Column(String, ForeignKey("custom_roles.id"), nullable=True)
+    # specialty = Column(String, nullable=True)  # Domain Specialty
+    # skills = Column(Text, nullable=True)  # JSON string of skills
+    # onboarding_completed = Column(Boolean, default=False)
+    # onboarding_step = Column(String, default="welcome")
+    # metadata_json = Column(JSONColumn, nullable=True)
+    # preferences = Column(JSONColumn, default={})
+    # capacity_hours = Column(Float, default=40.0)  # Weekly capacity
+    # hourly_cost_rate = Column(Float, default=0.0)  # Internal labor cost
+    # verification_token = Column(String, nullable=True)
+    # email_verified = Column(Boolean, default=False)
+    # two_factor_enabled = Column(Boolean, default=False)
+    # two_factor_secret = Column(String, nullable=True)
+    # two_factor_backup_codes = Column(JSONColumn, nullable=True)
 
     @property
     def name(self) -> str:
