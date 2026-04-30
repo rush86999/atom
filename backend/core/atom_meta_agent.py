@@ -304,6 +304,7 @@ class AtomMetaAgent:
                     logger.info(f"Canvas context loaded: {canvas_state.artifact_count} artifacts, {len(canvas_state.comments)} comments")
             except Exception as e:
                 logger.warning(f"Failed to fetch canvas context: {e}")
+                raise  # Re-raise to prevent silent failures
             finally:
                 db.close()
         
@@ -364,14 +365,25 @@ class AtomMetaAgent:
                 seen_tools.add(t["name"])
 
         # Inject special "mcp_tool_search" if not present (although it should be in core)
-        if "mcp_tool_search" not in [t["name"] for t in unique_active_tools]:
+        TOOL_SEARCH_ALIASES = ["mcp_tool_search", "tool_search", "search_tools"]
+        has_tool_search = any(t["name"] in TOOL_SEARCH_ALIASES for t in unique_active_tools)
+
+        if not has_tool_search:
              unique_active_tools.append({
                  "name": "mcp_tool_search",
                  "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
                  "parameters": {"query": "string"}
              })
 
-        tool_descriptions = json.dumps([{"name": t["name"], "description": t["description"]} for t in unique_active_tools], indent=2)
+        try:
+            tool_descriptions = json.dumps(
+                [{"name": t["name"], "description": t["description"]} for t in unique_active_tools],
+                indent=2,
+                default=str  # Fallback for non-serializable objects
+            )
+        except (TypeError, ValueError) as e:
+            logger.error(f"Failed to serialize tool descriptions: {e}")
+            tool_descriptions = json.dumps([])  # Fallback to empty list
 
 
         # Initialize execution history before planning phase
@@ -510,8 +522,13 @@ class AtomMetaAgent:
                 
                 if tool_name == "mcp_tool_search":
                     found_tools = await self.mcp.search_tools(tool_args.get("query", ""), limit=5)
-                    self.session_tools.extend(found_tools)
-                    observation = f"Found {len(found_tools)} tools. They have been added to your toolkit for the next step: {[t['name'] for t in found_tools]}"
+
+                    # Deduplicate by tool name before adding
+                    existing_names = {t["name"] for t in self.session_tools}
+                    new_tools = [t for t in found_tools if t["name"] not in existing_names]
+
+                    self.session_tools.extend(new_tools)
+                    observation = f"Found {len(new_tools)} new tools (total: {len(self.session_tools)}). They have been added to your toolkit for the next step: {[t['name'] for t in new_tools]}"
                     
                     step_record["output"] = str(observation)
                     execution_history += f"Observation: {observation}\n"
@@ -585,10 +602,14 @@ class AtomMetaAgent:
         # Update Execution Record with duration
         end_time = datetime.now(timezone.utc)
         duration = (end_time - start_time).total_seconds()
-        
+
         db = SessionLocal()
         try:
-            execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+            # Use WITH FOR UPDATE to lock the row and prevent race conditions
+            execution = db.query(AgentExecution).filter(
+                AgentExecution.id == execution_id
+            ).with_for_update().first()
+
             if execution:
                 execution.status = "completed" if status == "success" else status
                 execution.result_summary = str(final_answer)[:500]
