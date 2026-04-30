@@ -42,6 +42,7 @@
 - [ ] **Phase 305: TDD Culture Adoption** - Establish TDD as standard practice through training and leadership (TDD-07)
 - [x] **Phase 306: TDD Bug Discovery & Coverage Completion** - Fix test failures and improve coverage (TDD-08) 🔄 **GAP CLOSURE** (2026-04-30) (completed 2026-04-30)
 - [x] **Phase 307: Backend Coverage - Critical Paths** - Cover 20 highest-impact files to 80% (TDD-08) ✅ **SUBSTANTIALLY COMPLETE** (2026-04-30)
+  - [ ] 307-07: Complete remaining 5 files with PostgreSQL infrastructure (20-30 hours) 🆕 **OPTION A**
 - [ ] **Phase 308: Backend Coverage - API & Services** - Cover remaining API routes and services (TDD-08) 🆕 **RECOMMENDED**
 - [ ] **Phase 309: Backend Coverage - Final Push** - Reach 80% backend coverage target (TDD-08) 🆕 **RECOMMENDED**
 - [ ] **Phase 310: Frontend Coverage - Critical Components** - Cover 20 high-impact components (TDD-08) 🆕 **RECOMMENDED**
