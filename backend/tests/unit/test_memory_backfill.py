@@ -14,7 +14,7 @@ Coverage: MemoryBackfillService, TemporaryEntityStorage, BackfillJobQueue
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 import asyncio
 import json
@@ -272,7 +272,9 @@ class TestEntityTypeBackfillPipeline:
         # Verify marked for deletion
         backfill_service.db.refresh(temp_type)
         assert temp_type.status == "rejected"
-        assert temp_type.expires_at <= datetime.now() + timedelta(hours=1), "Should expire soon"
+        # Convert expires_at to UTC for comparison
+        expires_at_utc = temp_type.expires_at.replace(tzinfo=timezone.utc) if temp_type.expires_at.tzinfo is None else temp_type.expires_at
+        assert expires_at_utc <= datetime.now(timezone.utc) + timedelta(hours=1), "Should expire soon"
 
     def test_batch_store_entity_types(self, backfill_service, sample_tenant):
         """
@@ -893,7 +895,9 @@ class TestMemoryBackfillIntegration:
         # Verify cleanup scheduled
         backfill_service.db.refresh(temp_type)
         assert temp_type.status == "rejected"
-        assert temp_type.expires_at <= datetime.now() + timedelta(hours=1)
+        # Convert expires_at to UTC for comparison
+        expires_at_utc = temp_type.expires_at.replace(tzinfo=timezone.utc) if temp_type.expires_at.tzinfo is None else temp_type.expires_at
+        assert expires_at_utc <= datetime.now(timezone.utc) + timedelta(hours=1)
 
 
 # ============================================================================

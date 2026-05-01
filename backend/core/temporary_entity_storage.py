@@ -6,7 +6,7 @@ Auto-expires after TTL (Time To Live) if not promoted.
 Enables non-blocking, memory-efficient backfill operations.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import Column, String, DateTime, Boolean, Integer, Text, Index, ForeignKey
 from sqlalchemy.orm import relationship
@@ -58,7 +58,7 @@ class TemporaryEntityType(Base):
     sample_count = Column(Integer, default=0)  # Number of sample entities discovered
     rejection_reason = Column(Text, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_temp_entity_types_tenant_slug", "tenant_id", "slug"),
@@ -72,23 +72,23 @@ class TemporaryEntityType(Base):
 
     def set_expiration(self, ttl_hours: int = 48):
         """Set expiration time based on TTL."""
-        self.expires_at = datetime.utcnow() + timedelta(hours=ttl_hours)
+        self.expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
 
     def is_expired(self) -> bool:
         """Check if temporary entity type has expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     def promote(self, promoted_entity_id: str):
         """Mark entity type as promoted."""
         self.status = "promoted"
         self.promoted_to_id = promoted_entity_id
-        self.promoted_at = datetime.utcnow()
+        self.promoted_at = datetime.now(timezone.utc)
 
     def reject(self, reason: str, ttl_hours: int = 1):
         """Mark entity type as rejected with short TTL."""
         self.status = "rejected"
         self.rejection_reason = reason
-        self.expires_at = datetime.utcnow() + timedelta(hours=ttl_hours)
+        self.expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
 
 
 class TemporaryEntityNode(Base):
@@ -126,11 +126,11 @@ class TemporaryEntityNode(Base):
     migrated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Metadata
-    ingestion_timestamp = Column(DateTime(timezone=True), default=datetime.utcnow)
+    ingestion_timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     ingestion_source = Column(String(100), nullable=True)  # e.g., "document_parsing", "llm_extraction"
     confidence_score = Column(Integer, nullable=True)  # 0-100 extraction confidence
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_temp_entity_nodes_tenant_workspace", "tenant_id", "workspace_id"),
@@ -147,7 +147,7 @@ class TemporaryEntityNode(Base):
         """Mark node as migrated to graph."""
         self.status = "migrated"
         self.migrated_to_id = graph_node_id
-        self.migrated_at = datetime.utcnow()
+        self.migrated_at = datetime.now(timezone.utc)
 
     def mark_expired(self):
         """Mark node as expired."""

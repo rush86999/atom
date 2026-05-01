@@ -187,7 +187,34 @@ class MemoryBackfillService:
 
         # Trigger node migration if requested
         if migrate_nodes:
-            self._schedule_node_migration(tenant_id, temp_type.slug)
+            # Migrate all pending nodes for this entity type
+            temp_nodes = self.db.query(TemporaryEntityNode).filter(
+                TemporaryEntityNode.temporary_type_id == temp_type.id,
+                TemporaryEntityNode.status == "pending"
+            ).all()
+
+            logger.info(f"Migrating {len(temp_nodes)} nodes for entity type {temp_type.slug}")
+
+            for temp_node in temp_nodes:
+                # Create GraphNode
+                graph_node = GraphNode(
+                    id=str(uuid.uuid4()),
+                    tenant_id=temp_node.tenant_id,
+                    workspace_id=temp_node.workspace_id,
+                    name=temp_node.name,
+                    type=temp_node.type,
+                    description=temp_node.description,
+                    properties=temp_node.properties
+                )
+
+                self.db.add(graph_node)
+                self.db.flush()  # Get ID without committing
+
+                # Mark temporary node as migrated
+                temp_node.mark_migrated(graph_node.id)
+
+            self.db.commit()
+            logger.info(f"Successfully migrated {len(temp_nodes)} nodes to graph")
 
         return active_type
 
