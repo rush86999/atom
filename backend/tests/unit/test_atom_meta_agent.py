@@ -563,24 +563,29 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id="test_workspace")
 
-        # Create agent via spawn
-        agent_id = asyncio.run(agent.spawn_agent(
-            name="PostgreSQL Test Agent",
-            description="Testing PostgreSQL persistence",
-            capabilities=["test_capability"]
+        # Create agent via spawn with persist=True
+        agent_registry = asyncio.run(agent.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "PostgreSQL Test Agent",
+                "description": "Testing PostgreSQL persistence",
+                "category": "Testing",
+                "capabilities": ["test_capability"]
+            },
+            persist=True
         ))
 
         # Verify agent exists in database
         from core.models import AgentRegistry
         saved_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
+            AgentRegistry.id == agent_registry.id
         ).first()
 
         assert saved_agent is not None
         assert saved_agent.name == "PostgreSQL Test Agent"
-        assert saved_agent.status == AgentStatus.IDLE
+        assert saved_agent.status == "student"  # New agents start as STUDENT
 
     def test_agent_execution_recorded_in_postgresql(self, postgresql_db):
         """Test that agent executions are recorded in PostgreSQL"""
@@ -591,20 +596,25 @@ class TestPostgreSQLIntegration:
         from core.models import AgentExecution, ExecutionStatus
         from datetime import datetime, timezone
 
-        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id="test_workspace")
 
         # Create agent
-        agent_id = asyncio.run(agent.spawn_agent(
-            name="Execution Test Agent",
-            description="Testing execution recording",
-            capabilities=["test"]
+        agent_registry = asyncio.run(agent.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "Execution Test Agent",
+                "description": "Testing execution recording",
+                "category": "Testing",
+                "capabilities": ["test"]
+            },
+            persist=True
         ))
 
         # Record execution
         execution_id = str(uuid.uuid4())
         execution = AgentExecution(
             id=execution_id,
-            agent_id=agent_id,
+            agent_id=agent_registry.id,
             status=ExecutionStatus.COMPLETED,
             input_data={"task": "test_task"},
             output_data={"result": "success"},
@@ -621,7 +631,7 @@ class TestPostgreSQLIntegration:
 
         assert retrieved is not None
         assert retrieved.status == ExecutionStatus.COMPLETED
-        assert retrieved.agent_id == agent_id
+        assert retrieved.agent_id == agent_registry.id
 
     def test_reasoning_steps_persisted_in_postgresql(self, postgresql_db):
         """Test that reasoning steps are persisted in PostgreSQL"""
@@ -631,18 +641,23 @@ class TestPostgreSQLIntegration:
         from core.atom_meta_agent import AtomMetaAgent
         from core.models import AgentReasoningStep
 
-        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id="test_workspace")
 
         # Create agent
-        agent_id = asyncio.run(agent.spawn_agent(
-            name="Reasoning Test Agent",
-            description="Testing reasoning step persistence",
-            capabilities=["test"]
+        agent_registry = asyncio.run(agent.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "Reasoning Test Agent",
+                "description": "Testing reasoning step persistence",
+                "category": "Testing",
+                "capabilities": ["test"]
+            },
+            persist=True
         ))
 
         # Record reasoning steps
         step = AgentReasoningStep(
-            agent_id=agent_id,
+            agent_id=agent_registry.id,
             step_number=1,
             thought="Testing reasoning persistence",
             action="test_action",
@@ -653,7 +668,7 @@ class TestPostgreSQLIntegration:
 
         # Verify step recorded
         retrieved = postgresql_db.query(AgentReasoningStep).filter(
-            AgentReasoningStep.agent_id == agent_id
+            AgentReasoningStep.agent_id == agent_registry.id
         ).first()
 
         assert retrieved is not None
@@ -669,19 +684,29 @@ class TestPostgreSQLIntegration:
         from core.models import AgentRegistry
 
         # Create agents in different workspaces
-        agent_ws1 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_1")
-        agent_ws2 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_2")
+        agent_ws1 = AtomMetaAgent(workspace_id="workspace_1")
+        agent_ws2 = AtomMetaAgent(workspace_id="workspace_2")
 
-        agent_id_1 = asyncio.run(agent_ws1.spawn_agent(
-            name="Workspace 1 Agent",
-            description="Agent in workspace 1",
-            capabilities=["test"]
+        agent_registry_1 = asyncio.run(agent_ws1.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "Workspace 1 Agent",
+                "description": "Agent in workspace 1",
+                "category": "Testing",
+                "capabilities": ["test"]
+            },
+            persist=True
         ))
 
-        agent_id_2 = asyncio.run(agent_ws2.spawn_agent(
-            name="Workspace 2 Agent",
-            description="Agent in workspace 2",
-            capabilities=["test"]
+        agent_registry_2 = asyncio.run(agent_ws2.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "Workspace 2 Agent",
+                "description": "Agent in workspace 2",
+                "category": "Testing",
+                "capabilities": ["test"]
+            },
+            persist=True
         ))
 
         # Verify both agents exist
@@ -703,35 +728,42 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentMaturity
+        from core.models import AgentRegistry
 
-        agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id="test_workspace")
 
-        # Create agent with STUDENT maturity
-        agent_id = asyncio.run(agent.spawn_agent(
-            name="Maturity Test Agent",
-            description="Testing maturity transitions",
-            capabilities=["test"],
-            maturity=AgentMaturity.STUDENT
+        # Create agent - all new agents start at STUDENT status
+        agent_registry = asyncio.run(agent.spawn_agent(
+            template_name="custom",
+            custom_params={
+                "name": "Maturity Test Agent",
+                "description": "Testing maturity transitions",
+                "category": "Testing",
+                "capabilities": ["test"]
+            },
+            persist=True
         ))
 
-        # Verify initial maturity
+        # Verify initial maturity (status = student, confidence_score = 0.5)
         saved_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
+            AgentRegistry.id == agent_registry.id
         ).first()
 
-        assert saved_agent.maturity == AgentMaturity.STUDENT
+        assert saved_agent.status == "student"
+        assert saved_agent.confidence_score == 0.5
 
         # Update maturity to INTERN
-        saved_agent.maturity = AgentMaturity.INTERN
+        saved_agent.status = "intern"
+        saved_agent.confidence_score = 0.6
         postgresql_db.commit()
 
         # Verify update
         updated_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
+            AgentRegistry.id == agent_registry.id
         ).first()
 
-        assert updated_agent.maturity == AgentMaturity.INTERN
+        assert updated_agent.status == "intern"
+        assert updated_agent.confidence_score == 0.6
 
 
 # =============================================================================
