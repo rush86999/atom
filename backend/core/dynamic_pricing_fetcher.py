@@ -504,6 +504,7 @@ class DynamicPricingFetcher:
 
 # Singleton instance
 _pricing_fetcher: Optional[DynamicPricingFetcher] = None
+_pricing_initialized = False
 
 
 def get_pricing_fetcher() -> DynamicPricingFetcher:
@@ -512,6 +513,47 @@ def get_pricing_fetcher() -> DynamicPricingFetcher:
     if _pricing_fetcher is None:
         _pricing_fetcher = DynamicPricingFetcher()
     return _pricing_fetcher
+
+
+async def get_pricing_fetcher_initialized(
+    auto_refresh: bool = True,
+    force_refresh: bool = False
+) -> DynamicPricingFetcher:
+    """
+    Get pricing fetcher with lazy async initialization.
+
+    Ensures pricing cache is populated on first use by fetching from
+    LiteLLM and OpenRouter APIs. Subsequent calls use cached data.
+
+    Args:
+        auto_refresh: If True, automatically refresh cache if empty
+        force_refresh: If True, force refresh even if cache exists
+
+    Returns:
+        Initialized DynamicPricingFetcher instance
+
+    Example:
+        >>> fetcher = await get_pricing_fetcher_initialized()
+        >>> # Cache is now populated with latest pricing and capabilities
+    """
+    global _pricing_fetcher, _pricing_initialized
+
+    fetcher = get_pricing_fetcher()
+
+    # Check if we need to initialize
+    needs_init = (
+        not _pricing_initialized or
+        force_refresh or
+        (auto_refresh and not fetcher.pricing_cache)
+    )
+
+    if needs_init:
+        logger.info("Auto-populating pricing cache from LiteLLM and OpenRouter...")
+        await fetcher.refresh_pricing(force=force_refresh)
+        _pricing_initialized = True
+        logger.info(f"Pricing cache populated with {len(fetcher.pricing_cache)} models")
+
+    return fetcher
 
 
 async def refresh_pricing_cache(force: bool = False) -> Dict[str, Any]:

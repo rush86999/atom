@@ -33,6 +33,7 @@ from core.cost_config import (
 from core.database import get_db_session
 from core.dynamic_pricing_fetcher import (
     get_pricing_fetcher,
+    get_pricing_fetcher_initialized,
     refresh_pricing_cache,
     DynamicPricingFetcher)
 from core.llm.cache_aware_router import CacheAwareRouter
@@ -641,7 +642,8 @@ class BYOKHandler:
         
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
-            fetcher = get_pricing_fetcher()
+            # Lazy async initialization: auto-populate pricing cache on first use
+            fetcher = await get_pricing_fetcher_initialized(auto_refresh=True)
             
             # Context window requirements
             MIN_CONTEXT_BY_COMPLEXITY = {
