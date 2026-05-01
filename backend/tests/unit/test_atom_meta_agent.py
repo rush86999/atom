@@ -559,39 +559,36 @@ class TestPostgreSQLIntegration:
 
     def test_agent_persistence_in_postgresql(self, postgresql_db):
         """Test that agents are persisted in PostgreSQL database"""
+        import uuid
+        # Generate unique IDs for this test run
+        test_tenant_id = str(uuid.uuid4())
+        test_workspace_id = str(uuid.uuid4())
+
         if postgresql_db is None:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
         from core.models import Workspace, Tenant
-        from sqlalchemy import text
-
-        # Clean up existing test data
-        postgresql_db.execute(text("DELETE FROM agent_registry WHERE workspace_id IN ('test_workspace', 'workspace_1', 'workspace_2')"))
-        postgresql_db.execute(text("DELETE FROM workspaces WHERE id IN ('test_workspace', 'workspace_1', 'workspace_2')"))
-        postgresql_db.execute(text("DELETE FROM tenants WHERE id = 'test_tenant'"))
-        postgresql_db.commit()
-
         # Create tenant first (required for workspace foreign key)
         tenant = Tenant(
-            id="test_tenant",
+            id=test_tenant_id,
             name="Test Tenant",
-            subdomain="test"
+            subdomain=f"test-{test_tenant_id[:8]}"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
 
         # Create workspace (requires tenant)
         workspace = Workspace(
-            id="test_workspace",
+            id=test_workspace_id,
             name="Test Workspace",
             description="Workspace for testing",
-            tenant_id="test_tenant"
+            tenant_id=test_tenant_id
         )
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id=test_workspace_id)
 
         # Create agent via spawn with persist=True
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -606,10 +603,16 @@ class TestPostgreSQLIntegration:
         ))
 
         # Verify agent exists in database
+        # Need fresh session to see committed data from spawn_agent's SessionLocal()
         from core.models import AgentRegistry
-        saved_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_registry.id
-        ).first()
+        from core.database import SessionLocal
+        fresh_db = SessionLocal()
+        try:
+            saved_agent = fresh_db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_registry.id
+            ).first()
+        finally:
+            fresh_db.close()
 
         assert saved_agent is not None
         assert saved_agent.name == "PostgreSQL Test Agent"
@@ -617,6 +620,11 @@ class TestPostgreSQLIntegration:
 
     def test_agent_execution_recorded_in_postgresql(self, postgresql_db):
         """Test that agent executions are recorded in PostgreSQL"""
+        import uuid
+        # Generate unique IDs for this test run
+        test_tenant_id = str(uuid.uuid4())
+        test_workspace_id = str(uuid.uuid4())
+
         if postgresql_db is None:
             pytest.skip("PostgreSQL unavailable")
 
@@ -626,24 +634,24 @@ class TestPostgreSQLIntegration:
 
         # Create tenant first (required for workspace foreign key)
         tenant = Tenant(
-            id="test_tenant",
+            id=test_tenant_id,
             name="Test Tenant",
-            subdomain="test"
+            subdomain=f"test-{test_tenant_id[:8]}"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
 
         # Create workspace
         workspace = Workspace(
-            id="test_workspace",
+            id=test_workspace_id,
             name="Test Workspace",
             description="Workspace for testing",
-            tenant_id="test_tenant"
+            tenant_id=test_tenant_id
         )
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id=test_workspace_id)
 
         # Create agent
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -657,31 +665,43 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-        # Record execution
+# Need fresh session to see committed data from spawn_agent's SessionLocal()
+
+        # Record execution (use fresh session for foreign key visibility)
+        from core.database import SessionLocal
+        fresh_db = SessionLocal()
         execution_id = str(uuid.uuid4())
-        execution = AgentExecution(
-            id=execution_id,
-            agent_id=agent_registry.id,
-            status=ExecutionStatus.COMPLETED,
-            input_data={"task": "test_task"},
-            output_data={"result": "success"},
-            started_at=datetime.now(timezone.utc),
-            completed_at=datetime.now(timezone.utc)
-        )
-        postgresql_db.add(execution)
-        postgresql_db.commit()
+        try:
+            execution = AgentExecution(
+                id=execution_id,
+                agent_id=agent_registry.id,
+                status="completed",
+                input_summary="test_task",
+                result_summary="success",
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc)
+            )
+            fresh_db.add(execution)
+            fresh_db.commit()
 
-        # Verify execution recorded
-        retrieved = postgresql_db.query(AgentExecution).filter(
-            AgentExecution.id == execution_id
-        ).first()
+            # Verify execution recorded
+            retrieved = fresh_db.query(AgentExecution).filter(
+                AgentExecution.id == execution_id
+            ).first()
 
-        assert retrieved is not None
-        assert retrieved.status == ExecutionStatus.COMPLETED
-        assert retrieved.agent_id == agent_registry.id
+            assert retrieved is not None
+            assert retrieved.status == "completed"
+            assert retrieved.agent_id == agent_registry.id
+        finally:
+            fresh_db.close()
 
     def test_reasoning_steps_persisted_in_postgresql(self, postgresql_db):
         """Test that reasoning steps are persisted in PostgreSQL"""
+        import uuid
+        # Generate unique IDs for this test run
+        test_tenant_id = str(uuid.uuid4())
+        test_workspace_id = str(uuid.uuid4())
+
         if postgresql_db is None:
             pytest.skip("PostgreSQL unavailable")
 
@@ -690,24 +710,24 @@ class TestPostgreSQLIntegration:
 
         # Create tenant first
         tenant = Tenant(
-            id="test_tenant",
+            id=test_tenant_id,
             name="Test Tenant",
-            subdomain="test"
+            subdomain=f"test-{test_tenant_id[:8]}"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
 
         # Create workspace
         workspace = Workspace(
-            id="test_workspace",
+            id=test_workspace_id,
             name="Test Workspace",
             description="Workspace for testing",
-            tenant_id="test_tenant"
+            tenant_id=test_tenant_id
         )
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id=test_workspace_id)
 
         # Create agent
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -721,20 +741,54 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-        # Record reasoning steps
-        step = AgentReasoningStep(
-            agent_id=agent_registry.id,
-            step_number=1,
-            thought="Testing reasoning persistence",
-            action="test_action",
-            observation="test_observation"
-        )
-        postgresql_db.add(step)
+        # Need to create an execution first (AgentReasoningStep requires execution_id)
+        from core.models import AgentExecution
+        from datetime import datetime, timezone
+        from core.database import SessionLocal
+
+        fresh_db = SessionLocal()
+        execution_id = str(uuid.uuid4())
+        try:
+            execution = AgentExecution(
+                id=execution_id,
+                agent_id=agent_registry.id,
+                status="completed",
+                input_summary="test",
+                result_summary="success",
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc)
+            )
+            fresh_db.add(execution)
+            fresh_db.commit()
+
+            # Record reasoning step (linked to execution, not agent)
+            step = AgentReasoningStep(
+                execution_id=execution_id,
+                step_number=1,
+                step_type="thought",
+                thought="Testing reasoning persistence",
+                action={"type": "test_action", "params": {}},
+                observation="test_observation"
+            )
+            fresh_db.add(step)
+            fresh_db.commit()
+
+            # Verify step recorded
+            retrieved = fresh_db.query(AgentReasoningStep).filter(
+                AgentReasoningStep.execution_id == execution_id
+            ).first()
+
+            assert retrieved is not None
+            assert retrieved.step_number == 1
+            assert retrieved.thought == "Testing reasoning persistence"
+        finally:
+            fresh_db.close()
+
         postgresql_db.commit()
 
         # Verify step recorded
         retrieved = postgresql_db.query(AgentReasoningStep).filter(
-            AgentReasoningStep.agent_id == agent_registry.id
+            AgentReasoningStep.execution_id == execution_id
         ).first()
 
         assert retrieved is not None
@@ -743,6 +797,12 @@ class TestPostgreSQLIntegration:
 
     def test_workspace_isolation_in_postgresql(self, postgresql_db):
         """Test that workspace isolation works in PostgreSQL"""
+        import uuid
+        # Generate unique IDs for this test run
+        test_tenant_id = str(uuid.uuid4())
+        workspace_1_id = str(uuid.uuid4())
+        workspace_2_id = str(uuid.uuid4())
+
         if postgresql_db is None:
             pytest.skip("PostgreSQL unavailable")
 
@@ -751,27 +811,27 @@ class TestPostgreSQLIntegration:
 
         # Create tenant first
         tenant = Tenant(
-            id="test_tenant",
+            id=test_tenant_id,
             name="Test Tenant",
-            subdomain="test"
+            subdomain=f"test-{test_tenant_id[:8]}"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
 
         # Create workspaces with tenant
-        for ws_id in ["workspace_1", "workspace_2"]:
+        for ws_id, ws_name in [(workspace_1_id, "workspace_1"), (workspace_2_id, "workspace_2")]:
             workspace = Workspace(
                 id=ws_id,
-                name=f"Test Workspace {ws_id}",
+                name=f"Test Workspace {ws_name}",
                 description="Workspace for testing isolation",
-                tenant_id="test_tenant"
+                tenant_id=test_tenant_id
             )
             postgresql_db.add(workspace)
         postgresql_db.commit()
 
         # Create agents in different workspaces
-        agent_ws1 = AtomMetaAgent(workspace_id="workspace_1")
-        agent_ws2 = AtomMetaAgent(workspace_id="workspace_2")
+        agent_ws1 = AtomMetaAgent(workspace_id=workspace_1_id)
+        agent_ws2 = AtomMetaAgent(workspace_id=workspace_2_id)
 
         agent_registry_1 = asyncio.run(agent_ws1.spawn_agent(
             template_name="custom",
@@ -795,14 +855,19 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-        # Verify both agents exist
-        agents_ws1 = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.workspace_id == "workspace_1"
-        ).all()
+# Need fresh session to see committed data from spawn_agent's SessionLocal()
+        from core.database import SessionLocal
+        fresh_db = SessionLocal()
+        try:
+            agents_ws1 = fresh_db.query(AgentRegistry).filter(
+                AgentRegistry.workspace_id == workspace_1_id
+            ).all()
 
-        agents_ws2 = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.workspace_id == "workspace_2"
-        ).all()
+            agents_ws2 = fresh_db.query(AgentRegistry).filter(
+                AgentRegistry.workspace_id == workspace_2_id
+            ).all()
+        finally:
+            fresh_db.close()
 
         assert len(agents_ws1) == 1
         assert len(agents_ws2) == 1
@@ -810,6 +875,11 @@ class TestPostgreSQLIntegration:
 
     def test_agent_maturity_transitions_in_postgresql(self, postgresql_db):
         """Test agent maturity level transitions in PostgreSQL"""
+        import uuid
+        # Generate unique IDs for this test run
+        test_tenant_id = str(uuid.uuid4())
+        test_workspace_id = str(uuid.uuid4())
+
         if postgresql_db is None:
             pytest.skip("PostgreSQL unavailable")
 
@@ -818,24 +888,24 @@ class TestPostgreSQLIntegration:
 
         # Create tenant first
         tenant = Tenant(
-            id="test_tenant",
+            id=test_tenant_id,
             name="Test Tenant",
-            subdomain="test"
+            subdomain=f"test-{test_tenant_id[:8]}"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
 
         # Create workspace
         workspace = Workspace(
-            id="test_workspace",
+            id=test_workspace_id,
             name="Test Workspace",
             description="Workspace for testing",
-            tenant_id="test_tenant"
+            tenant_id=test_tenant_id
         )
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id="test_workspace")
+        agent = AtomMetaAgent(workspace_id=test_workspace_id)
 
         # Create agent - all new agents start at STUDENT status
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -849,26 +919,31 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-        # Verify initial maturity (status = student, confidence_score = 0.5)
-        saved_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_registry.id
-        ).first()
+        # Need fresh session to see committed data from spawn_agent's SessionLocal()
+        from core.database import SessionLocal
+        fresh_db = SessionLocal()
+        try:
+            saved_agent = fresh_db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_registry.id
+            ).first()
 
-        assert saved_agent.status == "student"
-        assert saved_agent.confidence_score == 0.5
+            assert saved_agent.status == "student"
+            assert saved_agent.confidence_score == 0.5
 
-        # Update maturity to INTERN
-        saved_agent.status = "intern"
-        saved_agent.confidence_score = 0.6
-        postgresql_db.commit()
+            # Update maturity to INTERN
+            saved_agent.status = "intern"
+            saved_agent.confidence_score = 0.6
+            fresh_db.commit()
 
-        # Verify update
-        updated_agent = postgresql_db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_registry.id
-        ).first()
+            # Verify update
+            updated_agent = fresh_db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_registry.id
+            ).first()
 
-        assert updated_agent.status == "intern"
-        assert updated_agent.confidence_score == 0.6
+            assert updated_agent.status == "intern"
+            assert updated_agent.confidence_score == 0.6
+        finally:
+            fresh_db.close()
 
 
 # =============================================================================
@@ -1060,7 +1135,7 @@ class TestPerformanceBenchmarks:
              patch('core.atom_meta_agent.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
-            agent = AtomMetaAgent(workspace_id="test_workspace")
+            agent = AtomMetaAgent(workspace_id=test_workspace_id)
 
         elapsed = time.time() - start_time
 

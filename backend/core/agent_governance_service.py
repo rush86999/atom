@@ -143,10 +143,12 @@ class AgentGovernanceService:
         self,
         db: Session,
         workspace_id: str = "default",
+        tenant_id: Optional[str] = None,
         activity_publisher: Optional[ActivityPublisher] = None
     ):
         self.db = db
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self.activity_publisher = activity_publisher
         self.continuous_learning = ContinuousLearningService(db)
 
@@ -189,6 +191,7 @@ class AgentGovernanceService:
                 handle=handle,
                 display_name=display_name,
                 workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
                 status=AgentStatus.STUDENT.value,
                 confidence_score=0.5
             )

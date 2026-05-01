@@ -994,13 +994,19 @@ What is your next step?"""
             confidence_score=0.5,  # Default starting confidence
             module_path="core.generic_agent",
             class_name="GenericAgent",
-            configuration=custom_params or template.get("default_params", {})
+            configuration=custom_params or template.get("default_params", {}),
+            workspace_id=self.workspace_id,  # Set workspace from AtomMetaAgent
+            tenant_id=self.tenant_id       # Set tenant from AtomMetaAgent
         )
         
         if persist:
             # Register in database
             with SessionLocal() as db:
-                governance = AgentGovernanceService(db)
+                governance = AgentGovernanceService(
+                    db,
+                    workspace_id=self.workspace_id,
+                    tenant_id=self.tenant_id
+                )
                 agent = governance.register_or_update_agent(
                     name=agent.name,
                     category=agent.category,
