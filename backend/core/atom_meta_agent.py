@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from enum import Enum
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from core.models import (
     AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
@@ -951,14 +952,15 @@ What is your next step?"""
 
     
     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
-                         persist: bool = False) -> AgentRegistry:
+                         persist: bool = False, db: Optional[Session] = None) -> AgentRegistry:
         """
         Spawn a specialty agent from template or custom definition.
-        
+
         Args:
             template_name: Name of predefined template OR "custom"
             custom_params: Custom agent configuration
             persist: If True, register in database; else ephemeral
+            db: Optional database session to use for persistence (useful for tests)
         """
         if template_name in SpecialtyAgentTemplate.TEMPLATES:
             template = SpecialtyAgentTemplate.TEMPLATES[template_name]
@@ -998,10 +1000,27 @@ What is your next step?"""
             workspace_id=self.workspace_id,  # Set workspace from AtomMetaAgent
             tenant_id=self.tenant_id       # Set tenant from AtomMetaAgent
         )
-        
+
         if persist:
             # Register in database
-            with SessionLocal() as db:
+            if db is None:
+                # Create new session if none provided
+                with SessionLocal() as session:
+                    governance = AgentGovernanceService(
+                        session,
+                        workspace_id=self.workspace_id,
+                        tenant_id=self.tenant_id
+                    )
+                    agent = governance.register_or_update_agent(
+                        name=agent.name,
+                        category=agent.category,
+                        module_path=agent.module_path,
+                        class_name=agent.class_name,
+                        description=agent.description
+                    )
+                    logger.info(f"Persisted spawned agent: {agent.id}")
+            else:
+                # Use provided session (useful for tests)
                 governance = AgentGovernanceService(
                     db,
                     workspace_id=self.workspace_id,

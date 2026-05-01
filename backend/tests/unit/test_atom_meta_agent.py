@@ -15,8 +15,9 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock, patch, call
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import uuid
+from sqlalchemy.orm import Session
 
 from core.atom_meta_agent import (
     AtomMetaAgent,
@@ -588,7 +589,7 @@ class TestPostgreSQLIntegration:
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id=test_workspace_id)
+        agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
         # Create agent via spawn with persist=True
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -599,26 +600,19 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test_capability"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
-        # Verify agent exists in database
-        # postgresql_db is in a nested transaction, so we need to use its engine directly
+        # Verify agent exists in database (now in same session!)
         from core.models import AgentRegistry
-        from sqlalchemy.orm import sessionmaker
+        saved_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_registry.id
+        ).first()
 
-        # Create a fresh session from the PostgreSQL engine (not in a nested transaction)
-        fresh_session = sessionmaker(bind=postgresql_db.bind, autocommit=False, autoflush=False)()
-        try:
-            saved_agent = fresh_session.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_registry.id
-            ).first()
-
-            assert saved_agent is not None
-            assert saved_agent.name == "PostgreSQL Test Agent"
-            assert saved_agent.status == "student"  # New agents start as STUDENT
-        finally:
-            fresh_session.close()
+        assert saved_agent is not None
+        assert saved_agent.name == "PostgreSQL Test Agent"
+        assert saved_agent.status == "student"  # New agents start as STUDENT
 
     def test_agent_execution_recorded_in_postgresql(self, postgresql_db):
         """Test that agent executions are recorded in PostgreSQL"""
@@ -653,7 +647,7 @@ class TestPostgreSQLIntegration:
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id=test_workspace_id)
+        agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
         # Create agent
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -664,38 +658,33 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
-# Need fresh session to see committed data from spawn_agent's SessionLocal()
-
-        # Record execution (use fresh session for foreign key visibility)
-        from core.database import SessionLocal
-        fresh_db = SessionLocal()
+        # Record execution (now in same session, no fresh session needed)
+        from core.models import AgentExecution
         execution_id = str(uuid.uuid4())
-        try:
-            execution = AgentExecution(
-                id=execution_id,
-                agent_id=agent_registry.id,
-                status="completed",
-                input_summary="test_task",
-                result_summary="success",
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc)
-            )
-            fresh_db.add(execution)
-            fresh_db.commit()
+        execution = AgentExecution(
+            id=execution_id,
+            agent_id=agent_registry.id,
+            status="completed",
+            input_summary="test_task",
+            result_summary="success",
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc)
+        )
+        postgresql_db.add(execution)
+        postgresql_db.commit()
 
-            # Verify execution recorded
-            retrieved = fresh_db.query(AgentExecution).filter(
-                AgentExecution.id == execution_id
-            ).first()
+        # Verify execution recorded
+        retrieved = postgresql_db.query(AgentExecution).filter(
+            AgentExecution.id == execution_id
+        ).first()
 
-            assert retrieved is not None
-            assert retrieved.status == "completed"
-            assert retrieved.agent_id == agent_registry.id
-        finally:
-            fresh_session.close()
+        assert retrieved is not None
+        assert retrieved.status == "completed"
+        assert retrieved.agent_id == agent_registry.id
 
     def test_reasoning_steps_persisted_in_postgresql(self, postgresql_db):
         """Test that reasoning steps are persisted in PostgreSQL"""
@@ -729,7 +718,7 @@ class TestPostgreSQLIntegration:
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id=test_workspace_id)
+        agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
         # Create agent
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -740,52 +729,47 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
-# Need to create an execution first (AgentReasoningStep requires execution_id)
+        # Need to create an execution first (AgentReasoningStep requires execution_id)
         from core.models import AgentExecution
         from datetime import datetime, timezone
-        from sqlalchemy.orm import sessionmaker
 
-        fresh_db_maker = sessionmaker(bind=postgresql_db.connection().engine, autocommit=False, autoflush=False)
-        fresh_db = fresh_db_maker()
         execution_id = str(uuid.uuid4())
-        try:
-            execution = AgentExecution(
-                id=execution_id,
-                agent_id=agent_registry.id,
-                status="completed",
-                input_summary="test",
-                result_summary="success",
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc)
-            )
-            fresh_db.add(execution)
-            fresh_db.commit()
+        execution = AgentExecution(
+            id=execution_id,
+            agent_id=agent_registry.id,
+            status="completed",
+            input_summary="test",
+            result_summary="success",
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc)
+        )
+        postgresql_db.add(execution)
+        postgresql_db.commit()
 
-            # Record reasoning step (linked to execution, not agent)
-            step = AgentReasoningStep(
-                execution_id=execution_id,
-                step_number=1,
-                step_type="thought",
-                thought="Testing reasoning persistence",
-                action={"type": "test_action", "params": {}},
-                observation="test_observation"
-            )
-            fresh_db.add(step)
-            fresh_db.commit()
+        # Record reasoning step (linked to execution, not agent)
+        step = AgentReasoningStep(
+            execution_id=execution_id,
+            step_number=1,
+            step_type="thought",
+            thought="Testing reasoning persistence",
+            action={"type": "test_action", "params": {}},
+            observation="test_observation"
+        )
+        postgresql_db.add(step)
+        postgresql_db.commit()
 
-            # Verify step recorded
-            retrieved = fresh_db.query(AgentReasoningStep).filter(
-                AgentReasoningStep.execution_id == execution_id
-            ).first()
+        # Verify step recorded
+        retrieved = postgresql_db.query(AgentReasoningStep).filter(
+            AgentReasoningStep.execution_id == execution_id
+        ).first()
 
-            assert retrieved is not None
-            assert retrieved.step_number == 1
-            assert retrieved.thought == "Testing reasoning persistence"
-        finally:
-            fresh_session.close()
+        assert retrieved is not None
+        assert retrieved.step_number == 1
+        assert retrieved.thought == "Testing reasoning persistence"
 
         postgresql_db.commit()
 
@@ -833,8 +817,8 @@ class TestPostgreSQLIntegration:
         postgresql_db.commit()
 
         # Create agents in different workspaces
-        agent_ws1 = AtomMetaAgent(workspace_id=workspace_1_id)
-        agent_ws2 = AtomMetaAgent(workspace_id=workspace_2_id)
+        agent_ws1 = AtomMetaAgent(workspace_id=workspace_1_id, tenant_id=test_tenant_id)
+        agent_ws2 = AtomMetaAgent(workspace_id=workspace_2_id, tenant_id=test_tenant_id)
 
         agent_registry_1 = asyncio.run(agent_ws1.spawn_agent(
             template_name="custom",
@@ -844,7 +828,8 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
         agent_registry_2 = asyncio.run(agent_ws2.spawn_agent(
@@ -855,22 +840,18 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
-        # Need fresh session to see committed data from spawn_agent's SessionLocal()
-        from sqlalchemy.orm import sessionmaker
-        fresh_session = sessionmaker(bind=postgresql_db.bind, autocommit=False, autoflush=False)()
-        try:
-            agents_ws1 = fresh_session.query(AgentRegistry).filter(
-                AgentRegistry.workspace_id == workspace_1_id
-            ).all()
+        # Verify both agents exist (now in same session!)
+        agents_ws1 = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == workspace_1_id
+        ).all()
 
-            agents_ws2 = fresh_session.query(AgentRegistry).filter(
-                AgentRegistry.workspace_id == workspace_2_id
-            ).all()
-        finally:
-            fresh_session.close()
+        agents_ws2 = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == workspace_2_id
+        ).all()
 
         assert len(agents_ws1) == 1
         assert len(agents_ws2) == 1
@@ -908,7 +889,7 @@ class TestPostgreSQLIntegration:
         postgresql_db.add(workspace)
         postgresql_db.commit()
 
-        agent = AtomMetaAgent(workspace_id=test_workspace_id)
+        agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
         # Create agent - all new agents start at STUDENT status
         agent_registry = asyncio.run(agent.spawn_agent(
@@ -919,34 +900,30 @@ class TestPostgreSQLIntegration:
                 "category": "Testing",
                 "capabilities": ["test"]
             },
-            persist=True
+            persist=True,
+            db=postgresql_db
         ))
 
-        # Need fresh session to see committed data from spawn_agent's SessionLocal()
-        from core.database import SessionLocal
-        fresh_db = SessionLocal()
-        try:
-            saved_agent = fresh_db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_registry.id
-            ).first()
+        # Verify initial maturity (status = student, confidence_score = 0.5)
+        saved_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_registry.id
+        ).first()
 
-            assert saved_agent.status == "student"
-            assert saved_agent.confidence_score == 0.5
+        assert saved_agent.status == "student"
+        assert saved_agent.confidence_score == 0.5
 
-            # Update maturity to INTERN
-            saved_agent.status = "intern"
-            saved_agent.confidence_score = 0.6
-            fresh_db.commit()
+        # Update maturity to INTERN
+        saved_agent.status = "intern"
+        saved_agent.confidence_score = 0.6
+        postgresql_db.commit()
 
-            # Verify update
-            updated_agent = fresh_db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_registry.id
-            ).first()
+        # Verify update
+        updated_agent = postgresql_db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_registry.id
+        ).first()
 
-            assert updated_agent.status == "intern"
-            assert updated_agent.confidence_score == 0.6
-        finally:
-            fresh_db.close()
+        assert updated_agent.status == "intern"
+        assert updated_agent.confidence_score == 0.6
 
 
 # =============================================================================
@@ -1138,7 +1115,7 @@ class TestPerformanceBenchmarks:
              patch('core.atom_meta_agent.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
-            agent = AtomMetaAgent(workspace_id=test_workspace_id)
+            agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
         elapsed = time.time() - start_time
 
