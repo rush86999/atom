@@ -554,7 +554,6 @@ class TestAgentTriggerMode:
 # PostgreSQL-specific integration tests
 # =============================================================================
 
-@pytest.mark.postgresql
 class TestPostgreSQLIntegration:
     """Tests for PostgreSQL database integration with AtomMetaAgent"""
 
