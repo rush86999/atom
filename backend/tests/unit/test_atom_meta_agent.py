@@ -603,20 +603,22 @@ class TestPostgreSQLIntegration:
         ))
 
         # Verify agent exists in database
-        # Need fresh session to see committed data from spawn_agent's SessionLocal()
+        # postgresql_db is in a nested transaction, so we need to use its engine directly
         from core.models import AgentRegistry
-        from core.database import SessionLocal
-        fresh_db = SessionLocal()
+        from sqlalchemy.orm import sessionmaker
+
+        # Create a fresh session from the PostgreSQL engine (not in a nested transaction)
+        fresh_session = sessionmaker(bind=postgresql_db.bind, autocommit=False, autoflush=False)()
         try:
-            saved_agent = fresh_db.query(AgentRegistry).filter(
+            saved_agent = fresh_session.query(AgentRegistry).filter(
                 AgentRegistry.id == agent_registry.id
             ).first()
-        finally:
-            fresh_db.close()
 
-        assert saved_agent is not None
-        assert saved_agent.name == "PostgreSQL Test Agent"
-        assert saved_agent.status == "student"  # New agents start as STUDENT
+            assert saved_agent is not None
+            assert saved_agent.name == "PostgreSQL Test Agent"
+            assert saved_agent.status == "student"  # New agents start as STUDENT
+        finally:
+            fresh_session.close()
 
     def test_agent_execution_recorded_in_postgresql(self, postgresql_db):
         """Test that agent executions are recorded in PostgreSQL"""
@@ -693,7 +695,7 @@ class TestPostgreSQLIntegration:
             assert retrieved.status == "completed"
             assert retrieved.agent_id == agent_registry.id
         finally:
-            fresh_db.close()
+            fresh_session.close()
 
     def test_reasoning_steps_persisted_in_postgresql(self, postgresql_db):
         """Test that reasoning steps are persisted in PostgreSQL"""
@@ -741,12 +743,13 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-        # Need to create an execution first (AgentReasoningStep requires execution_id)
+# Need to create an execution first (AgentReasoningStep requires execution_id)
         from core.models import AgentExecution
         from datetime import datetime, timezone
-        from core.database import SessionLocal
+        from sqlalchemy.orm import sessionmaker
 
-        fresh_db = SessionLocal()
+        fresh_db_maker = sessionmaker(bind=postgresql_db.connection().engine, autocommit=False, autoflush=False)
+        fresh_db = fresh_db_maker()
         execution_id = str(uuid.uuid4())
         try:
             execution = AgentExecution(
@@ -782,7 +785,7 @@ class TestPostgreSQLIntegration:
             assert retrieved.step_number == 1
             assert retrieved.thought == "Testing reasoning persistence"
         finally:
-            fresh_db.close()
+            fresh_session.close()
 
         postgresql_db.commit()
 
@@ -855,19 +858,19 @@ class TestPostgreSQLIntegration:
             persist=True
         ))
 
-# Need fresh session to see committed data from spawn_agent's SessionLocal()
-        from core.database import SessionLocal
-        fresh_db = SessionLocal()
+        # Need fresh session to see committed data from spawn_agent's SessionLocal()
+        from sqlalchemy.orm import sessionmaker
+        fresh_session = sessionmaker(bind=postgresql_db.bind, autocommit=False, autoflush=False)()
         try:
-            agents_ws1 = fresh_db.query(AgentRegistry).filter(
+            agents_ws1 = fresh_session.query(AgentRegistry).filter(
                 AgentRegistry.workspace_id == workspace_1_id
             ).all()
 
-            agents_ws2 = fresh_db.query(AgentRegistry).filter(
+            agents_ws2 = fresh_session.query(AgentRegistry).filter(
                 AgentRegistry.workspace_id == workspace_2_id
             ).all()
         finally:
-            fresh_db.close()
+            fresh_session.close()
 
         assert len(agents_ws1) == 1
         assert len(agents_ws2) == 1
