@@ -563,6 +563,34 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
+        from core.models import Workspace, Tenant
+        from sqlalchemy import text
+
+        # Clean up existing test data
+        postgresql_db.execute(text("DELETE FROM agent_registry WHERE workspace_id IN ('test_workspace', 'workspace_1', 'workspace_2')"))
+        postgresql_db.execute(text("DELETE FROM workspaces WHERE id IN ('test_workspace', 'workspace_1', 'workspace_2')"))
+        postgresql_db.execute(text("DELETE FROM tenants WHERE id = 'test_tenant'"))
+        postgresql_db.commit()
+
+        # Create tenant first (required for workspace foreign key)
+        tenant = Tenant(
+            id="test_tenant",
+            name="Test Tenant",
+            subdomain="test"
+        )
+        postgresql_db.add(tenant)
+        postgresql_db.commit()
+
+        # Create workspace (requires tenant)
+        workspace = Workspace(
+            id="test_workspace",
+            name="Test Workspace",
+            description="Workspace for testing",
+            tenant_id="test_tenant"
+        )
+        postgresql_db.add(workspace)
+        postgresql_db.commit()
+
         agent = AtomMetaAgent(workspace_id="test_workspace")
 
         # Create agent via spawn with persist=True
@@ -593,8 +621,27 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentExecution, ExecutionStatus
+        from core.models import AgentExecution, ExecutionStatus, Workspace, Tenant
         from datetime import datetime, timezone
+
+        # Create tenant first (required for workspace foreign key)
+        tenant = Tenant(
+            id="test_tenant",
+            name="Test Tenant",
+            subdomain="test"
+        )
+        postgresql_db.add(tenant)
+        postgresql_db.commit()
+
+        # Create workspace
+        workspace = Workspace(
+            id="test_workspace",
+            name="Test Workspace",
+            description="Workspace for testing",
+            tenant_id="test_tenant"
+        )
+        postgresql_db.add(workspace)
+        postgresql_db.commit()
 
         agent = AtomMetaAgent(workspace_id="test_workspace")
 
@@ -639,7 +686,26 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentReasoningStep
+        from core.models import AgentReasoningStep, Workspace, Tenant
+
+        # Create tenant first
+        tenant = Tenant(
+            id="test_tenant",
+            name="Test Tenant",
+            subdomain="test"
+        )
+        postgresql_db.add(tenant)
+        postgresql_db.commit()
+
+        # Create workspace
+        workspace = Workspace(
+            id="test_workspace",
+            name="Test Workspace",
+            description="Workspace for testing",
+            tenant_id="test_tenant"
+        )
+        postgresql_db.add(workspace)
+        postgresql_db.commit()
 
         agent = AtomMetaAgent(workspace_id="test_workspace")
 
@@ -681,7 +747,27 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentRegistry
+        from core.models import AgentRegistry, Workspace, Tenant
+
+        # Create tenant first
+        tenant = Tenant(
+            id="test_tenant",
+            name="Test Tenant",
+            subdomain="test"
+        )
+        postgresql_db.add(tenant)
+        postgresql_db.commit()
+
+        # Create workspaces with tenant
+        for ws_id in ["workspace_1", "workspace_2"]:
+            workspace = Workspace(
+                id=ws_id,
+                name=f"Test Workspace {ws_id}",
+                description="Workspace for testing isolation",
+                tenant_id="test_tenant"
+            )
+            postgresql_db.add(workspace)
+        postgresql_db.commit()
 
         # Create agents in different workspaces
         agent_ws1 = AtomMetaAgent(workspace_id="workspace_1")
@@ -728,7 +814,26 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentRegistry
+        from core.models import AgentRegistry, Workspace, Tenant
+
+        # Create tenant first
+        tenant = Tenant(
+            id="test_tenant",
+            name="Test Tenant",
+            subdomain="test"
+        )
+        postgresql_db.add(tenant)
+        postgresql_db.commit()
+
+        # Create workspace
+        workspace = Workspace(
+            id="test_workspace",
+            name="Test Workspace",
+            description="Workspace for testing",
+            tenant_id="test_tenant"
+        )
+        postgresql_db.add(workspace)
+        postgresql_db.commit()
 
         agent = AtomMetaAgent(workspace_id="test_workspace")
 
