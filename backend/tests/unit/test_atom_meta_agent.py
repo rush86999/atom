@@ -567,11 +567,11 @@ class TestPostgreSQLIntegration:
         agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
 
         # Create agent via spawn
-        agent_id = agent.spawn_agent(
+        agent_id = asyncio.run(agent.spawn_agent(
             name="PostgreSQL Test Agent",
             description="Testing PostgreSQL persistence",
             capabilities=["test_capability"]
-        )
+        ))
 
         # Verify agent exists in database
         from core.models import AgentRegistry
@@ -595,11 +595,11 @@ class TestPostgreSQLIntegration:
         agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
 
         # Create agent
-        agent_id = agent.spawn_agent(
+        agent_id = asyncio.run(agent.spawn_agent(
             name="Execution Test Agent",
             description="Testing execution recording",
             capabilities=["test"]
-        )
+        ))
 
         # Record execution
         execution_id = str(uuid.uuid4())
@@ -635,11 +635,11 @@ class TestPostgreSQLIntegration:
         agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
 
         # Create agent
-        agent_id = agent.spawn_agent(
+        agent_id = asyncio.run(agent.spawn_agent(
             name="Reasoning Test Agent",
             description="Testing reasoning step persistence",
             capabilities=["test"]
-        )
+        ))
 
         # Record reasoning steps
         step = AgentReasoningStep(
@@ -673,17 +673,17 @@ class TestPostgreSQLIntegration:
         agent_ws1 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_1")
         agent_ws2 = AtomMetaAgent(db=postgresql_db, workspace_id="workspace_2")
 
-        agent_id_1 = agent_ws1.spawn_agent(
+        agent_id_1 = asyncio.run(agent_ws1.spawn_agent(
             name="Workspace 1 Agent",
             description="Agent in workspace 1",
             capabilities=["test"]
-        )
+        ))
 
-        agent_id_2 = agent_ws2.spawn_agent(
+        agent_id_2 = asyncio.run(agent_ws2.spawn_agent(
             name="Workspace 2 Agent",
             description="Agent in workspace 2",
             capabilities=["test"]
-        )
+        ))
 
         # Verify both agents exist
         agents_ws1 = postgresql_db.query(AgentRegistry).filter(
@@ -709,12 +709,12 @@ class TestPostgreSQLIntegration:
         agent = AtomMetaAgent(db=postgresql_db, workspace_id="test_workspace")
 
         # Create agent with STUDENT maturity
-        agent_id = agent.spawn_agent(
+        agent_id = asyncio.run(agent.spawn_agent(
             name="Maturity Test Agent",
             description="Testing maturity transitions",
             capabilities=["test"],
             maturity=AgentMaturity.STUDENT
-        )
+        ))
 
         # Verify initial maturity
         saved_agent = postgresql_db.query(AgentRegistry).filter(
