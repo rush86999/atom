@@ -9,6 +9,7 @@ Lines: 250+, Tests: 15-20
 """
 
 import pytest
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.orm import Session
 
@@ -63,7 +64,7 @@ class TestIntentClassification:
         mock_llm.generate_structured_response.return_value = mock_llm_response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("Explain how agent maturity works")
+        result = asyncio.run(intent_classifier.classify_intent("Explain how agent maturity works"))
 
         assert result.category == IntentCategory.CHAT
         assert result.confidence == 0.95
@@ -77,7 +78,7 @@ class TestIntentClassification:
         mock_llm.generate_structured_response.return_value = mock_llm_response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("Execute the sales outreach blueprint")
+        result = asyncio.run(intent_classifier.classify_intent("Execute the sales outreach blueprint"))
 
         assert result.category == IntentCategory.WORKFLOW
         assert result.confidence == 0.85
@@ -102,9 +103,9 @@ class TestIntentClassification:
         mock_llm.generate_structured_response.return_value = response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent(
+        result = asyncio.run(intent_classifier.classify_intent(
             "Research competitors and build a Slack integration"
-        )
+        ))
 
         assert result.category == IntentCategory.TASK
         assert result.suggested_handler == "fleet_admiral"
@@ -128,7 +129,7 @@ class TestIntentClassification:
         mock_llm.generate_structured_response.return_value = response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("Do something with automation")
+        result = asyncio.run(intent_classifier.classify_intent("Do something with automation"))
 
         assert result.confidence == 0.45
         # Should still categorize despite low confidence
@@ -148,7 +149,7 @@ class TestIntentClassification:
         }
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("")
+        result = asyncio.run(intent_classifier.classify_intent(""))
 
         assert result.category == IntentCategory.CHAT  # Default fallback
 
@@ -169,9 +170,9 @@ class TestIntentClassification:
         mock_llm.generate_structured_response.return_value = response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent(
+        result = asyncio.run(intent_classifier.classify_intent(
             "Analyze our sales data, create a marketing strategy, and build a dashboard"
-        )
+        ))
 
         assert result.category == IntentCategory.TASK
         assert result.is_long_horizon is True
@@ -260,7 +261,7 @@ class TestRoutingDecisions:
         mock_llm.generate_structured_response.return_value = response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("What is agent maturity?")
+        result = asyncio.run(intent_classifier.classify_intent("What is agent maturity?"))
 
         assert result.suggested_handler == "llm_service"
         assert result.requires_execution is False
@@ -272,7 +273,7 @@ class TestRoutingDecisions:
         mock_llm.generate_structured_response.return_value = mock_llm_response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("Execute the sales outreach blueprint")
+        result = asyncio.run(intent_classifier.classify_intent("Execute the sales outreach blueprint"))
 
         assert result.suggested_handler == "queen_agent"
         assert result.is_structured is True
@@ -295,9 +296,9 @@ class TestRoutingDecisions:
         mock_llm.generate_structured_response.return_value = response
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent(
+        result = asyncio.run(intent_classifier.classify_intent(
             "Research competitors and build Slack integration"
-        )
+        ))
 
         assert result.suggested_handler == "fleet_admiral"
         assert result.requires_agent_recruitment is True
@@ -373,7 +374,7 @@ class TestEdgeCases:
         mock_llm.generate_structured_response.side_effect = Exception("LLM error")
         mock_get_llm.return_value = mock_llm
 
-        result = intent_classifier.classify_intent("execute sales blueprint")
+        result = asyncio.run(intent_classifier.classify_intent("execute sales blueprint"))
 
         # Should fallback to heuristic classification
         assert result is not None
@@ -390,7 +391,7 @@ class TestEdgeCases:
         mock_get_llm.return_value = mock_llm
 
         # Should handle gracefully
-        result = intent_classifier.classify_intent("test request")
+        result = asyncio.run(intent_classifier.classify_intent("test request"))
         assert result is not None
 
     def test_very_long_request(self, intent_classifier: IntentClassifier):
@@ -458,7 +459,7 @@ class TestPerformance:
 
         start_time = time.time()
         for request in requests:
-            intent_classifier.classify_intent(request)
+            asyncio.run(intent_classifier.classify_intent(request))
         elapsed = time.time() - start_time
 
         # Should handle 3 classifications quickly (heuristic only)
@@ -499,7 +500,7 @@ class TestRealWorldExamples:
             mock_llm.generate_structured_response.return_value = response
             mock_get_llm.return_value = mock_llm
 
-            result = intent_classifier.classify_intent(example)
+            result = asyncio.run(intent_classifier.classify_intent(example))
             assert result.category == IntentCategory.CHAT
 
     @patch('core.intent_classifier.get_llm_service')
@@ -517,7 +518,7 @@ class TestRealWorldExamples:
             mock_llm.generate_structured_response.return_value = mock_llm_response
             mock_get_llm.return_value = mock_llm
 
-            result = intent_classifier.classify_intent(example)
+            result = asyncio.run(intent_classifier.classify_intent(example))
             assert result.category == IntentCategory.WORKFLOW
             assert result.is_structured is True
 
@@ -545,6 +546,6 @@ class TestRealWorldExamples:
             mock_llm.generate_structured_response.return_value = task_response
             mock_get_llm.return_value = mock_llm
 
-            result = intent_classifier.classify_intent(example)
+            result = asyncio.run(intent_classifier.classify_intent(example))
             assert result.category == IntentCategory.TASK
             assert result.is_long_horizon is True
