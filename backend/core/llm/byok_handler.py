@@ -33,7 +33,8 @@ from core.cost_config import (
 from core.database import get_db_session
 from core.dynamic_pricing_fetcher import (
     get_pricing_fetcher,
-    refresh_pricing_cache)
+    refresh_pricing_cache,
+    DynamicPricingFetcher)
 from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_service import CognitiveTierService
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
@@ -121,6 +122,9 @@ COST_EFFICIENT_MODELS = {
 
 
 # Models that do not support tool calling or agentic runtimes (Phase 6.6)
+# DEPRECATED: Use pricing_fetcher._model_supports_tools() instead
+# This list is kept for reference/backwards compatibility only
+# The pricing cache dynamically infers tool support from model metadata
 MODELS_WITHOUT_TOOLS = {
     "deepseek-v3.2-speciale",
 }
@@ -135,6 +139,9 @@ MIN_QUALITY_BY_TIER = {
 }
 
 # Phase 14.5: Coordinated Multimodal Reasoning
+# DEPRECATED: Use pricing_fetcher._model_supports_vision() instead
+# This list is kept for reference/backwards compatibility only
+# The pricing cache dynamically infers vision support from model metadata
 REASONING_MODELS_WITHOUT_VISION = {
     "deepseek-v3.2",
     "deepseek-v3.2-speciale",
@@ -193,6 +200,9 @@ class BYOKHandler:
 
         # Initialize cache-aware router for cost optimization
         self.cache_router = cache_router or CacheAwareRouter(get_pricing_fetcher())
+
+        # Initialize pricing fetcher for capability lookups (Phase 307-08)
+        self.pricing_fetcher: DynamicPricingFetcher = get_pricing_fetcher()
 
         # Phase 68-06: Initialize Cognitive Tier Service for orchestration
         if db_session is not None:
@@ -310,6 +320,49 @@ class BYOKHandler:
         if provider_id not in self.health_monitor.health_scores:
             return True  # Unknown providers pass through
         return self.health_monitor.get_health_score(provider_id) >= 0.5
+
+    def _model_supports_tools(self, model_id: str) -> bool:
+        """
+        Check if model supports tool calling using pricing cache (not hardcoded lists).
+
+        Replaces MODELS_WITHOUT_TOOLS pattern matching.
+
+        Args:
+            model_id: Model identifier
+
+        Returns:
+            True if model supports tools, False otherwise
+        """
+        capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
+        return capabilities.get("supports_tools", True)  # Default to True for unknown models
+
+    def _model_supports_vision(self, model_id: str) -> bool:
+        """
+        Check if model supports vision using pricing cache (not hardcoded lists).
+
+        Replaces hardcoded VISION_MODELS lists.
+
+        Args:
+            model_id: Model identifier
+
+        Returns:
+            True if model supports vision, False otherwise
+        """
+        capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
+        return capabilities.get("supports_vision", False)
+
+    def _model_supports_reasoning(self, model_id: str) -> bool:
+        """
+        Check if model is a reasoning model using pricing cache (not hardcoded lists).
+
+        Args:
+            model_id: Model identifier
+
+        Returns:
+            True if model is a reasoning model, False otherwise
+        """
+        capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
+        return capabilities.get("supports_reasoning", False)
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
@@ -687,8 +740,8 @@ class BYOKHandler:
                 # Flexible matching: check if any allowed model name is part of the actual model_id
                 model_id_lower = model_id.lower()
                 
-                # Check Tool/Structured constraints (Phase 6.6)
-                if (requires_tools or requires_structured) and any(m in model_id_lower for m in MODELS_WITHOUT_TOOLS):
+                # Check Tool/Structured constraints (Phase 6.6) - Use pricing cache lookup
+                if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
                     return False
 
                 return any(m.lower() in model_id_lower for m in allowed_list)
@@ -720,8 +773,8 @@ class BYOKHandler:
                 model = models.get(complexity, "gpt-4o-mini")
                 
                 if not is_managed_service:
-                    # Filter for tool support even in BYOK (Phase 6.6)
-                    if (requires_tools or requires_structured) and model in MODELS_WITHOUT_TOOLS:
+                    # Filter for tool support even in BYOK (Phase 6.6) - Use pricing cache lookup
+                    if (requires_tools or requires_structured) and not self._model_supports_tools(model):
                         # Fallback to r2 if speciale is disallowed
                         if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
                             model = "deepseek-r2"
@@ -870,9 +923,9 @@ class BYOKHandler:
             if requires_vision:
                 # Check if the primary ranked model supports vision natively
                 primary_provider, primary_model = options[0] if options else (None, None)
-                
-                if primary_model and any(m in primary_model.lower() for m in REASONING_MODELS_WITHOUT_VISION):
-                    logger.info(f"Coordinating vision for non-vision reasoning model: {primary_model}")
+
+                if primary_model and not self._model_supports_vision(primary_model):
+                    logger.info(f"Coordinating vision for non-vision model: {primary_model}")
                     vision_desc = await self._get_coordinated_vision_description(
                         image_payload=image_payload,
                         tenant_plan=tenant_plan,
@@ -900,12 +953,10 @@ class BYOKHandler:
                         options = preferred_ocr
                         logger.info(f"Prioritizing {preferred_ocr[0][0]} for PDF OCR task")
 
-                # 2. Naive filter: Only keep known vision models if not already specialized
-                # Phase 226.2-01: Added "lux" for computer use tasks
-                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo", "deepseek", "deepinfra", "lux"]
+                # 2. Cache-based filter: Only keep models that support vision
                 vision_options = []
                 for prov, mod in options:
-                    if any(v in mod.lower() for v in vision_models):
+                    if self._model_supports_vision(mod):
                         vision_options.append((prov, mod))
                 
                 if vision_options:
@@ -1313,8 +1364,8 @@ class BYOKHandler:
             # --- Phase 14.5: Coordinated Vision Logic ---
             if image_payload:
                 primary_provider, primary_model = options[0] if options else (None, None)
-                if primary_model and any(m in primary_model.lower() for m in REASONING_MODELS_WITHOUT_VISION):
-                    logger.info(f"Coordinating vision (structured) for non-vision reasoning model: {primary_model}")
+                if primary_model and not self._model_supports_vision(primary_model):
+                    logger.info(f"Coordinating vision (structured) for non-vision model: {primary_model}")
                     vision_desc = await self._get_coordinated_vision_description(
                         image_payload=image_payload,
                         tenant_plan=tenant_plan,
@@ -1330,12 +1381,11 @@ class BYOKHandler:
                         prompt = f"[VISUAL CONTEXT ANALYSIS]:\n{vision_desc}\n{mapping_instr}\n\n[USER REQUEST]:\n{prompt}"
                         image_payload = None 
             
-            # Filter for Vision logic if needed
+            # Filter for Vision logic if needed - Use pricing cache lookup
             if requires_vision:
-                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo"]
                 vision_options = []
                 for prov, mod in options:
-                    if any(v in mod.lower() for v in vision_models):
+                    if self._model_supports_vision(mod):
                         vision_options.append((prov, mod))
                 
                 if vision_options:

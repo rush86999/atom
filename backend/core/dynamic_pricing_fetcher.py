@@ -165,18 +165,28 @@ class DynamicPricingFetcher:
         if not force and self._is_cache_valid():
             logger.info("Using cached pricing data")
             return self.pricing_cache
-        
+
         # Fetch from both sources
         litellm_pricing = await self.fetch_litellm_pricing()
         openrouter_pricing = await self.fetch_openrouter_pricing()
-        
+
         # Merge pricing (LiteLLM takes precedence)
         self.pricing_cache = {**openrouter_pricing, **litellm_pricing}
+
+        # Infer capabilities for all models (run once at fetch time)
+        logger.info("Inferring capabilities for all models...")
+        capabilities = self._infer_capabilities(self.pricing_cache)
+
+        # Merge capabilities into pricing cache
+        for model_name, caps in capabilities.items():
+            if model_name in self.pricing_cache:
+                self.pricing_cache[model_name].update(caps)
+
         self.last_fetch = datetime.now()
-        
+
         # Save to cache
         self._save_cache()
-        
+
         return self.pricing_cache
     
     def get_model_price(self, model_name: str) -> Optional[Dict[str, Any]]:
@@ -332,6 +342,105 @@ class DynamicPricingFetcher:
             return "minimax"
         else:
             return "unknown"
+
+    def _infer_capabilities(self, model_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, bool]]:
+        """
+        Infer model capabilities from model metadata.
+
+        Infers three capabilities:
+        - supports_tools: Can the model use function calling/tools?
+        - supports_vision: Can the model process images?
+        - supports_reasoning: Is this a reasoning model (o3, R1, etc.)?
+
+        Inference is based on:
+        1. Model mode field (if available)
+        2. Model name patterns (provider-specific keywords)
+        3. Provider behavior
+
+        Args:
+            model_data: Dict mapping model names to their metadata
+
+        Returns:
+            Dict mapping model names to their inferred capabilities
+        """
+        capabilities = {}
+
+        for model_name, metadata in model_data.items():
+            model_lower = model_name.lower()
+
+            # Get mode from metadata, default to "chat"
+            mode = metadata.get("mode", "chat").lower()
+
+            # Infer supports_tools
+            # Reasoning models and small models don't support tools
+            if mode == "reasoning":
+                supports_tools = False
+            elif any(keyword in model_lower for keyword in ["haiku", "mini", "tiny"]):
+                supports_tools = False
+            elif "speciale" in model_lower:
+                supports_tools = False
+            else:
+                supports_tools = True  # Most models support tools
+
+            # Infer supports_vision
+            # Vision mode, or specific model capabilities
+            if mode == "vision":
+                supports_vision = True
+            elif any(keyword in model_lower for keyword in ["vision", "vl", "multimodal"]):
+                supports_vision = True
+            elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
+                supports_vision = True
+            elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus"]):
+                supports_vision = True
+            else:
+                supports_vision = False
+
+            # Infer supports_reasoning
+            # Specific model families indicate reasoning capability
+            if mode == "reasoning":
+                supports_reasoning = True
+            elif any(keyword in model_lower for keyword in ["o3", "o1", "-reasoner", "-thinking", "r1"]):
+                supports_reasoning = True
+            elif "speciale" in model_lower:
+                supports_reasoning = True
+            else:
+                supports_reasoning = False
+
+            capabilities[model_name] = {
+                "supports_tools": supports_tools,
+                "supports_vision": supports_vision,
+                "supports_reasoning": supports_reasoning,
+            }
+
+        return capabilities
+
+    def get_model_capabilities(self, model_name: str) -> Dict[str, bool]:
+        """
+        Get model capabilities from pricing cache.
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            Dict with supports_tools, supports_vision, supports_reasoning
+            Returns default (False for all) if model not in cache
+        """
+        model_data = self.pricing_cache.get(model_name, {})
+
+        # If model has capabilities in cache, return them
+        if "supports_tools" in model_data:
+            return {
+                "supports_tools": model_data.get("supports_tools", True),
+                "supports_vision": model_data.get("supports_vision", False),
+                "supports_reasoning": model_data.get("supports_reasoning", False),
+            }
+
+        # Default capabilities for unknown models (conservative)
+        return {
+            "supports_tools": False,  # Unknown models don't support tools
+            "supports_vision": False,
+            "supports_reasoning": False,
+        }
 
     def get_cache_min_tokens(self, model_name: str) -> int:
         """
