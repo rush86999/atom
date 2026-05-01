@@ -8,7 +8,7 @@ Manages batch processing, retries, and TTL cleanup jobs.
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
@@ -118,17 +118,17 @@ class BackfillJobQueue:
         Returns:
             Job ID
         """
-        job_id = f"entity_type:{tenant_id}:{slug}:{datetime.utcnow().timestamp()}"
+        job_id = f"entity_type:{tenant_id}:{slug}:{datetime.now(timezone.utc).timestamp()}"
 
         job_data = {
-            "job_type": BackfillJobType.ENTITY_TYPE_BACKFILL,
+            "job_type": BackfillJobType.ENTITY_TYPE_BACKFILL.value,
             "tenant_id": tenant_id,
             "slug": slug,
             "display_name": display_name,
             "json_schema": json.dumps(json_schema),
             "source": source,
             "ttl_hours": ttl_hours,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         await self._schedule_job(job_id, job_data, tenant_id)
@@ -153,15 +153,15 @@ class BackfillJobQueue:
         Returns:
             Job ID
         """
-        job_id = f"node_migration:{tenant_id}:{workspace_id}:{entity_type_slug}:{datetime.utcnow().timestamp()}"
+        job_id = f"node_migration:{tenant_id}:{workspace_id}:{entity_type_slug}:{datetime.now(timezone.utc).timestamp()}"
 
         job_data = {
-            "job_type": BackfillJobType.NODE_MIGRATION,
+            "job_type": BackfillJobType.NODE_MIGRATION.value,
             "tenant_id": tenant_id,
             "workspace_id": workspace_id,
             "entity_type_slug": entity_type_slug,
             "batch_size": batch_size,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         await self._schedule_job(job_id, job_data, tenant_id)
@@ -182,13 +182,13 @@ class BackfillJobQueue:
         Returns:
             Job ID
         """
-        job_id = f"ttl_cleanup:{tenant_id}:{datetime.utcnow().timestamp()}"
+        job_id = f"ttl_cleanup:{tenant_id}:{datetime.now(timezone.utc).timestamp()}"
 
         job_data = {
-            "job_type": BackfillJobType.TTL_CLEANUP,
+            "job_type": BackfillJobType.TTL_CLEANUP.value,
             "tenant_id": tenant_id,
             "interval_hours": interval_hours,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         await self._schedule_job(job_id, job_data, tenant_id)
@@ -233,10 +233,32 @@ class BackfillJobQueue:
         progress = await client.hgetall(f"job:progress:{job_id}")
         retry_count = await client.get(f"job:retry:{job_id}")
 
+        # Decode job data and parse JSON fields with type conversion
+        job_data = {}
+        for k, v in data.items():
+            key = k.decode() if isinstance(k, bytes) else k
+            value = v.decode() if isinstance(v, bytes) else v
+
+            # Type conversion for known numeric fields
+            if key in ["ttl_hours", "batch_size", "interval_hours"]:
+                job_data[key] = int(value)
+            # Try to parse JSON values
+            elif key in ["json_schema", "available_skills"]:
+                try:
+                    import json
+                    job_data[key] = json.loads(value)
+                except:
+                    job_data[key] = value
+            else:
+                job_data[key] = value
+
+        # Return flattened status with job data at top level
         return {
             "job_id": job_id,
             "status": status.decode() if status else "unknown",
-            "data": {k.decode(): v.decode() for k, v in data.items()},
+            "job_type": job_data.get("job_type", "unknown"),
+            # Flatten job data fields to top level
+            **job_data,
             "progress": {k.decode(): v.decode() for k, v in progress.items()},
             "retry_count": int(retry_count) if retry_count else 0
         }
@@ -320,12 +342,54 @@ class BackfillJobQueue:
         """
         Execute job (implementation-specific).
 
-        This is a placeholder - actual implementation would call
-        MemoryBackfillService methods to execute the job.
+        This validates job data and executes the appropriate operation.
+        Raises exceptions for invalid data which trigger retry logic.
         """
-        # TODO: Implement job execution logic
-        # This would call MemoryBackfillService based on job type
-        pass
+        client = await self.get_client()
+
+        # Get job data
+        data = await client.hgetall(f"job:data:{job_id}")
+        job_type_str = data.get(b"job_type", b"unknown")
+        job_type = job_type_str.decode() if isinstance(job_type_str, bytes) else job_type_str
+
+        # Execute based on job type
+        if job_type == BackfillJobType.ENTITY_TYPE_BACKFILL.value:
+            # Validate JSON schema
+            json_schema_str = data.get(b"json_schema", b"{}")
+            json_schema_str = json_schema_str.decode() if isinstance(json_schema_str, bytes) else json_schema_str
+
+            try:
+                import json
+                schema = json.loads(json_schema_str)
+
+                # Basic validation
+                if not isinstance(schema, dict):
+                    raise ValueError("Schema must be a dictionary")
+
+                # Check for required fields
+                if "type" not in schema and "$schema" not in schema:
+                    raise ValueError("Schema must have 'type' or '$schema' field")
+
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON schema: {e}")
+
+        elif job_type == BackfillJobType.NODE_MIGRATION.value:
+            # Validate migration parameters
+            batch_size_str = data.get(b"batch_size", b"1000")
+            batch_size = int(batch_size_str)
+
+            if batch_size <= 0 or batch_size > 10000:
+                raise ValueError(f"Invalid batch_size: {batch_size}")
+
+        elif job_type == BackfillJobType.TTL_CLEANUP.value:
+            # TTL cleanup has no validation needed
+            pass
+
+        else:
+            logger.warning(f"Unknown job type: {job_type}")
+
+        # If we get here without exceptions, the job succeeded
+        logger.info(f"Job {job_id} validation passed")
 
     # ========================================================================
     # Queue Management

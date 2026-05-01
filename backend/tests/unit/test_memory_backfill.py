@@ -743,6 +743,15 @@ class TestBatchProcessing:
         - Memory usage constant regardless of dataset size
         - Progress callbacks for monitoring
         """
+        # First create temporary entity type
+        backfill_service.store_temporary_entity_type(
+            tenant_id=sample_tenant.id,
+            slug="test_entity",
+            display_name="Test Entity",
+            json_schema={"type": "object"},
+            source="test"
+        )
+
         # Create large dataset
         large_dataset = [
             {
