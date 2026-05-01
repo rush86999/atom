@@ -354,7 +354,6 @@ class TestErrorHandling:
 # Test PostgreSQL Integration
 # ============================================================================
 
-@pytest.mark.postgresql
 class TestPostgreSQLIntegration:
     """Tests for PostgreSQL database integration."""
 

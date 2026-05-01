@@ -354,20 +354,17 @@ docker-compose -f docker-compose.test.yml down
 ### Blockers/Concerns
 
 - **Test API mismatches** ✅ **RESOLVED** - GraphRAG tests rewritten to match actual API
-- **Test execution verified** ✅ **COMPLETE** - 17/21 tests passing (77% pass rate)
-- **Remaining work** - 3 other test files (intent, meta-agent, fleet) need verification and potential API fixes
-  - `test_graphrag_engine.py`: 35 tests, needs rewrite for actual GraphRAGEngine API
-  - `test_intent_classifier.py`: 25 tests, needs verification
-  - `test_atom_meta_agent.py`: 45 tests, needs verification
-  - `test_fleet_admiral.py`: 19 tests, needs verification
-  - Tests call non-existent methods: `get_node_neighbors()`, `traverse()`, etc.
-  - Actual API: `local_search(query, depth)`, `global_search(query)`, etc.
+- **Test execution verified** ✅ **COMPLETE** - 31/46 tests passing (67% pass rate)
+- **Remaining work** - 2 test files have API mismatches requiring rewrites
+  - `test_atom_meta_agent.py`: 45 tests, constructor API mismatch (`db` parameter doesn't exist, `AgentMaturity` enum doesn't exist)
+  - `test_fleet_admiral.py`: 19 tests, missing module dependency (`core.specialist_matcher`)
+  - These tests were generated with incorrect APIs and need complete rewrites
 
-- **Coverage verification pending** - Cannot measure until tests are fixed and executable
+- **Coverage verification pending** - Cannot measure until all tests are fixed and executable
 
 - **Recommended path forward**:
-  1. Fix test API mismatches by rewriting test methods to use actual GraphRAGEngine API
-  2. Verify other test files (intent, meta-agent, fleet) for similar issues
+  1. Rewrite test_atom_meta_agent.py to use actual AtomMetaAgent API (no `db` parameter, use `status`/`confidence_score` not `AgentMaturity`)
+  2. Fix or create specialist_matcher module for fleet_admiral tests
   3. Run tests with PostgreSQL to measure actual coverage
   4. If coverage ≥50%, mark Phase 307 complete
   5. If coverage <50%, create additional test files or enhance existing ones
@@ -377,12 +374,13 @@ docker-compose -f docker-compose.test.yml down
 | Commit | Description | Type |
 |--------|-------------|------|
 | `bc7d1365e` | docs(307-07): complete Phase 307 with PostgreSQL infrastructure | docs |
-| `278c7a3f0` | test(307-07): create GraphRAG engine test suite with PostgreSQL recursive CTEs | test |
-| `f5c9ee3c4` | test(307-07): create intent classifier test suite with LLM integration | test |
-| `6bf5cc253` | test(307-07): enhance Atom Meta Agent test suite with PostgreSQL integration | test |
-| `3ff9819e2` | test(307-07): create Fleet Admiral test suite with multi-agent coordination | test |
+| `e42925d64` | fix(307-07): use pgvector-enabled PostgreSQL image | fix |
+| `baea17cd8` | test(307-07): rewrite GraphRAG tests to match actual API | test |
+| `1c7aa01cb` | test(307-07): fix async method calls in intent classifier tests | test |
+| `c73dfbae2` | test(307-07): fix async spawn_agent calls in meta agent tests | test |
+| `a2848225f` | test(307-07): remove pytest.mark.postgresql decorator | test |
 
-**Total:** 5 commits (4 test files + 1 infrastructure)
+**Total:** 6 commits (infrastructure + fixes)
 
 ---
 
