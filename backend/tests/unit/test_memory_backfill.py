@@ -13,6 +13,7 @@ Coverage: MemoryBackfillService, TemporaryEntityStorage, BackfillJobQueue
 """
 
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
@@ -77,10 +78,55 @@ def backfill_service(db):
     return MemoryBackfillService(db=db)
 
 
-@pytest.fixture
-def job_queue():
-    """Create backfill job queue for testing."""
-    return get_backfill_job_queue()
+@pytest.fixture(scope="function")
+def job_queue(event_loop):
+    """
+    Create backfill job queue for testing.
+
+    Cleans up Redis state after each test to prevent test isolation issues.
+    """
+    queue = get_backfill_job_queue()
+
+    yield queue
+
+    # Cleanup: Clear all test data from Redis
+    async def cleanup_redis():
+        try:
+            # Get client and clear all test-related keys
+            client = await queue.get_client()
+
+            # Clear all keys matching test patterns
+            # Use scan to find all matching keys efficiently
+            async for key in client.scan_iter(match="job:queue:test-tenant-*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:data:entity_type:*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:data:node_migration:*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:data:ttl_cleanup:*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:status:*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:progress:*"):
+                await client.delete(key)
+
+            async for key in client.scan_iter(match="job:retry:*"):
+                await client.delete(key)
+
+            # Close connection
+            await queue.close()
+
+        except Exception as e:
+            # Log but don't fail test if cleanup fails
+            print(f"Warning: Redis cleanup failed: {e}")
+
+    # Run async cleanup
+    event_loop.run_until_complete(cleanup_redis())
 
 
 @pytest.fixture
