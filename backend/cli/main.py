@@ -305,34 +305,88 @@ def config(show_daemon: bool):
 
 
 @main_cli.command()
-def config():
-    """Show configuration details and environment variables."""
-    click.echo(click.style("Atom OS Configuration", bold=True))
-    click.echo("=" * 40)
-    click.echo("")
-    click.echo("Environment Variables:")
-    click.echo("")
-    click.echo("Server:")
-    click.echo("  PORT              - Server port (default: 8000)")
-    click.echo("  HOST             - Server host (default: 0.0.0.0)")
-    click.echo("  WORKERS          - Worker processes (default: 1)")
-    click.echo("")
-    click.echo("Host Mount (SECURITY WARNING):")
-    click.echo("  ATOM_HOST_MOUNT_ENABLED  - Enable host filesystem mount")
-    click.echo("  ATOM_HOST_MOUNT_DIRS     - Allowed directories (colon-separated)")
-    click.echo("")
-    click.echo("Database:")
-    click.echo("  DATABASE_URL      - Database connection string")
-    click.echo("")
-    click.echo("LLM Providers:")
-    click.echo("  OPENAI_API_KEY    - OpenAI API key")
-    click.echo("  ANTHROPIC_API_KEY - Anthropic API key")
-    click.echo("  DEEPSEEK_API_KEY  - DeepSeek API key")
-    click.echo("")
-    click.echo("Local Agent:")
-    click.echo("  ATOM_BACKEND_URL  - Backend API URL (default: http://localhost:8000)")
-    click.echo("")
-    click.echo("See .env file for full configuration.")
+@click.option('--all', 'preseed_all', is_flag=True, help='Pre-seed all caches')
+@click.option('--pricing', is_flag=True, help='Pre-seed pricing cache only')
+@click.option('--models', is_flag=True, help='Pre-seed cognitive tier models only')
+@click.option('--governance', is_flag=True, help='Pre-seed governance cache only')
+@click.option('--workspace', default='default', help='Workspace ID for context')
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+def preseed_cache(preseed_all: bool, pricing: bool, models: bool, governance: bool, workspace: str, verbose: bool):
+    """Pre-seed BYOK caches for deployment or on-demand warming.
+
+    Pre-warms caches to eliminate cold start latency:
+    - Pricing cache (LiteLLM + OpenRouter API data)
+    - Cognitive tier models (availability validation)
+    - Governance cache (common agent permissions)
+    - Cache-aware router (baseline probabilities)
+
+    **Examples:**
+        atom-os preseed-cache --all           # Pre-seed all caches
+        atom-os preseed-cache --pricing       # Pricing cache only
+        atom-os preseed-cache --models        # Cognitive models only
+        atom-os preseed-cache --governance    # Governance cache only
+        atom-os preseed-cache --all -v        # Verbose output
+
+    **Environment Variables:**
+        PRESEED_CACHE_ON_STARTUP  - Auto-preseed on server start (true/false)
+    """
+    import asyncio
+    from core.byok_cache_preseeding import (
+        preseed_all_caches,
+        preseed_pricing_cache,
+        preseed_cognitive_models,
+        preseed_governance_cache,
+        print_preseed_results,
+    )
+
+    async def run_preseed():
+        # If no specific option selected, default to --all
+        if not any([preseed_all, pricing, models, governance]):
+            preseed_all = True
+
+        click.echo(click.style("🔄 BYOK Cache Pre-seeding", fg="blue", bold=True))
+        click.echo("")
+
+        try:
+            if preseed_all:
+                results = await preseed_all_caches(
+                    workspace_id=workspace,
+                    verbose=verbose
+                )
+            else:
+                # Pre-seed specific caches
+                results = {
+                    "started_at": datetime.now().isoformat(),
+                    "workspace_id": workspace,
+                }
+
+                if pricing:
+                    results["pricing"] = await preseed_pricing_cache(verbose=verbose)
+
+                if models:
+                    results["cognitive"] = await preseed_cognitive_models(verbose=verbose)
+
+                if governance:
+                    results["governance"] = await preseed_governance_cache(
+                        workspace_id=workspace,
+                        verbose=verbose
+                    )
+
+                results["completed_at"] = datetime.now().isoformat()
+
+            # Print results
+            print_preseed_results(results)
+
+            # Exit with error code if any step failed
+            if "error" in results:
+                raise SystemExit(1)
+
+        except Exception as e:
+            click.echo(click.style(f"✗ Pre-seeding failed: {e}", fg="red"), err=True)
+            raise SystemExit(1)
+
+    # Run async function
+    asyncio.run(run_preseed())
 
 
 # Import local-agent command group

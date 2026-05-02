@@ -155,7 +155,29 @@ async def lifespan(app: FastAPI):
 
     # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
     enable_scheduler = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
-    
+
+    # 4. Pre-seed BYOK Caches (Optional, via environment variable)
+    try:
+        from core.byok_cache_preseeding import maybe_preseed_on_startup
+
+        logger.info("Checking if BYOK cache pre-seeding is enabled...")
+        preseed_results = await maybe_preseed_on_startup()
+
+        if preseed_results:
+            # Pre-seeding was executed
+            if preseed_results.get("success"):
+                logger.info("✓ BYOK cache pre-seeding completed successfully")
+                if "duration_seconds" in preseed_results:
+                    logger.info(f"  Duration: {preseed_results['duration_seconds']:.2f}s")
+            else:
+                logger.warning(f"⚠ BYOK cache pre-seeding failed: {preseed_results.get('error', 'Unknown error')}")
+        else:
+            # Pre-seeding was skipped (not enabled)
+            logger.info("  Cache pre-seeding skipped (PRESEED_CACHE_ON_STARTUP=false)")
+
+    except Exception as e:
+        logger.warning(f"BYOK cache pre-seeding error: {e} (continuing startup)")
+
     if enable_scheduler:
         # 2. Start Workflow Scheduler (Run in main event loop)
         try:
@@ -475,6 +497,14 @@ try:
         logger.info("✓ JIT Verification Routes Loaded")
     except ImportError as e:
         logger.warning(f"JIT Verification routes not found: {e}")
+
+    # 1.8 Cache Management Routes (Safe Import)
+    try:
+        from api.admin.cache_routes import router as cache_router
+        app.include_router(cache_router, prefix="") # Already has valid prefix
+        logger.info("✓ Cache Management Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Cache Management routes not found: {e}")
 
     # 1.8 LLM OAuth Routes (Safe Import)
     try:
