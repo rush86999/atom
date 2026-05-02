@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
-from core.auth_routes import get_current_user
+from api.auth_routes import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User, AgentRegistry, Canvas
