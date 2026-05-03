@@ -29,7 +29,7 @@ def app():
     from fastapi import FastAPI
 
     # Mock the problematic imports
-    with patch('core.auth_routes'):
+    with patch('api.auth_routes'):
         with patch('core.rbac_service'):
             with patch('core.security_dependencies'):
                 # Import router after mocking dependencies
