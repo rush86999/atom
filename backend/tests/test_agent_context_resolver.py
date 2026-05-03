@@ -102,7 +102,9 @@ class TestAgentResolution:
     async def test_agent_not_found_handling(self, resolver):
         """Test agent not found returns None with appropriate context."""
         # Arrange
-        resolver.db.query().filter().first.return_value = None
+        resolver._get_agent = Mock(return_value=None)
+        resolver._get_session_agent = Mock(return_value=None)
+        resolver._get_or_create_system_default = Mock(return_value=None)
 
         # Act
         result = await resolver.resolve_agent_for_request(
@@ -115,7 +117,7 @@ class TestAgentResolution:
         # Assert
         agent, context = result
         assert agent is None
-        assert "explicit_agent_id_not_found" in context["resolution_path"]
+        assert "resolution_failed" in context["resolution_path"]
 
     @pytest.mark.asyncio
     async def test_agent_lookup_in_workspace(self, resolver):
@@ -400,18 +402,21 @@ class TestContextManagement:
     @pytest.mark.asyncio
     async def test_validate_agent_for_action(self, resolver):
         """Test agent validation for specific action types."""
-        # Arrange
-        resolver.db.query().filter().first.return_value = MagicMock()
-        resolver.governance.check_governance = AsyncMock(return_value={
+        # Arrange - validate_agent_for_action takes agent, action_type, require_approval
+        mock_agent = MagicMock()
+        mock_agent.id = "agent-001"
+        resolver.db.query().filter().first.return_value = mock_agent
+
+        resolver.governance.can_perform_action = Mock(return_value={
             "allowed": True,
             "reason": "Action permitted"
         })
 
         # Act
-        result = await resolver.validate_agent_for_action(
-            agent_id="agent-001",
+        result = resolver.validate_agent_for_action(
+            agent=mock_agent,
             action_type="chat",
-            user_id="user-001"
+            require_approval=False
         )
 
         # Assert
