@@ -352,11 +352,12 @@ class TestExecuteGraduationExam:
                 "violations": []
             }
 
-            # Mock skill performance check
+            # Mock skill performance check (high score to pass exam)
             mock_skills.return_value = {
-                "total_skills": 5,
-                "proficient_skills": 5,
-                "performance_score": 0.90
+                "total_skills": 10,
+                "proficient_skills": 10,
+                "performance_score": 0.95,
+                "mastery_threshold_met": True
             }
 
             service = GraduationExamService(mock_db)
@@ -399,11 +400,12 @@ class TestExecuteGraduationExam:
                 "violations": []
             }
 
-            # Mock skill performance check
+            # Mock skill performance check (high score to pass exam)
             mock_skills.return_value = {
-                "total_skills": 5,
-                "proficient_skills": 5,
-                "performance_score": 0.90
+                "total_skills": 10,
+                "proficient_skills": 10,
+                "performance_score": 0.95,
+                "mastery_threshold_met": True
             }
 
             service = GraduationExamService(mock_db)
