@@ -12,8 +12,56 @@ Tests alert threshold evaluation service including:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch, MagicMock as MockMagic
 from datetime import datetime, timedelta
+
+# Mock the missing modules and models BEFORE importing alert_service
+import sys
+
+# Mock core.models with AlertConfiguration
+mock_models = MockMagic()
+mock_alert_config = MockMagic()
+mock_alert_config.tenant_id = "tenant-001"
+mock_alert_config.connector_id = "slack"
+mock_alert_config.window_seconds = 300
+mock_alert_config.error_rate_threshold = 10.0
+mock_alert_config.latency_threshold_ms = 500
+mock_alert_config.notification_channels = []
+mock_alert_config.slack_channel_id = None
+mock_alert_config.email_recipients = None
+mock_alert_config.is_active = True
+mock_models.AlertConfiguration = MockMagic(return_value=mock_alert_config)
+mock_models.query = MockMagic()
+sys.modules['core.models'] = mock_models
+
+# Mock core.integration_metrics with get_integration_metrics
+mock_integration_metrics = MockMagic()
+mock_metrics_instance = MockMagic()
+mock_metrics_instance.success_counts = {}
+mock_metrics_instance.failure_counts = {}
+mock_metrics_instance.get_duration_percentiles = MockMagic(return_value={"p95": 400.0})
+mock_metrics_instance._make_key = MockMagic(return_value="slack:tenant-001:agent")
+mock_integration_metrics.get_integration_metrics = MockMagic(return_value=mock_metrics_instance)
+sys.modules['core.integration_metrics'] = mock_integration_metrics
+
+# Mock integrations.slack_enhanced_service
+mock_slack_service = MockMagic()
+mock_slack_instance = MockMagic()
+mock_slack_instance.send_message = AsyncMock(return_value=True)
+mock_slack_service.SlackEnhancedService = MockMagic(return_value=mock_slack_instance)
+sys.modules['integrations.slack_enhanced_service'] = mock_slack_service
+
+# Mock core.token_storage
+mock_token_storage = MockMagic()
+mock_token_storage.get_token = MockMagic(return_value={"access_token": "xoxb-test-token"})
+sys.modules['core.token_storage'] = mock_token_storage
+
+# Mock core.email_service
+mock_email_service = MockMagic()
+mock_email_instance = MockMagic()
+mock_email_instance.send_email = AsyncMock(return_value=True)
+mock_email_service.EmailService = MockMagic(return_value=mock_email_instance)
+sys.modules['core.email_service'] = mock_email_service
 
 from core.alert_service import (
     AlertSeverity,
@@ -184,14 +232,15 @@ class TestErrorRateEvaluation:
         """Create alert service instance."""
         return AlertThresholdService(mock_db, redis_client=None)
 
-    def test_error_rate_threshold_violation(self, service, mock_config):
+    def test_error_rate_threshold_violation(self, service, mock_db, mock_config):
         """Error rate violation detected when threshold exceeded."""
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {"slack:tenant-001:agent": 85}
             metrics_instance.failure_counts = {"slack:tenant-001:agent": 15}
+            metrics_instance._make_key = Mock(return_value="slack:tenant-001:agent")
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="ok"):
@@ -207,14 +256,15 @@ class TestErrorRateEvaluation:
                     assert violation.actual_value == 15.0  # 15 failures out of 100 total
                     assert violation.threshold == 10.0
 
-    def test_error_rate_within_threshold(self, service, mock_config):
+    def test_error_rate_within_threshold(self, service, mock_db, mock_config):
         """No violation when error rate within threshold."""
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {"slack:tenant-001:agent": 95}
             metrics_instance.failure_counts = {"slack:tenant-001:agent": 5}
+            metrics_instance._make_key = Mock(return_value="slack:tenant-001:agent")
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="ok"):
@@ -226,14 +276,15 @@ class TestErrorRateEvaluation:
 
                 assert violation is None
 
-    def test_error_rate_hysteresis(self, service, mock_config):
+    def test_error_rate_hysteresis(self, service, mock_db, mock_config):
         """Alert clears only when below clear threshold (hysteresis)."""
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {"slack:tenant-001:agent": 90}
             metrics_instance.failure_counts = {"slack:tenant-001:agent": 10}
+            metrics_instance._make_key = Mock(return_value="slack:tenant-001:agent")
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="violated"):
@@ -274,11 +325,11 @@ class TestLatencyEvaluation:
         """Create alert service instance."""
         return AlertThresholdService(mock_db, redis_client=None)
 
-    def test_latency_threshold_violation(self, service, mock_config):
+    def test_latency_threshold_violation(self, service, mock_db, mock_config):
         """Latency violation detected when p95 exceeds threshold."""
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.get_duration_percentiles.return_value = {
                 "p50": 200.0,
@@ -299,11 +350,11 @@ class TestLatencyEvaluation:
             assert violation.threshold == 500.0
             assert violation.severity == AlertSeverity.WARNING
 
-    def test_latency_within_threshold(self, service, mock_config):
+    def test_latency_within_threshold(self, service, mock_db, mock_config):
         """No violation when p95 latency within threshold."""
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.get_duration_percentiles.return_value = {
                 "p50": 150.0,
@@ -320,7 +371,7 @@ class TestLatencyEvaluation:
 
             assert violation is None
 
-    def test_latency_threshold_not_configured(self, service, mock_config):
+    def test_latency_threshold_not_configured(self, service, mock_db, mock_config):
         """No violation when latency threshold not configured."""
         mock_config.latency_threshold_ms = None
         mock_db.query.return_value.filter.return_value.first.return_value = mock_config
@@ -374,9 +425,17 @@ class TestEvaluateAllThresholds:
 
     def test_evaluate_all_thresholds_success(self, service, mock_db, mock_configs):
         """All thresholds evaluated successfully."""
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_configs
+        # Setup mock query chain to return our configs
+        # The code calls: query().filter().filter().all()
+        mock_query = Mock()
+        mock_filtered_query = Mock()
+        mock_filtered_query.all.return_value = mock_configs
+        mock_query.filter.return_value = mock_filtered_query
+        # Second filter() call should return the same mock with .all()
+        mock_filtered_query.filter.return_value = mock_filtered_query
+        mock_db.query.return_value = mock_query
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {
                 "slack:tenant-001:agent": 90,
@@ -387,6 +446,7 @@ class TestEvaluateAllThresholds:
                 "jira:tenant-001:agent": 5
             }
             metrics_instance.get_duration_percentiles.return_value = {"p95": 400.0}
+            metrics_instance._make_key = Mock(side_effect=lambda c, t, a: f"{c}:{t}:{a}")
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="ok"):
@@ -397,13 +457,22 @@ class TestEvaluateAllThresholds:
 
     def test_evaluate_all_returns_violations(self, service, mock_db, mock_configs):
         """evaluate_all_thresholds returns violations when thresholds exceeded."""
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_configs
+        # Setup mock query chain to return our configs
+        # The code calls: query().filter().filter().all()
+        mock_query = Mock()
+        mock_filtered_query = Mock()
+        mock_filtered_query.all.return_value = mock_configs
+        mock_query.filter.return_value = mock_filtered_query
+        # Second filter() call should return the same mock with .all()
+        mock_filtered_query.filter.return_value = mock_filtered_query
+        mock_db.query.return_value = mock_query
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {"slack:tenant-001:agent": 85}
             metrics_instance.failure_counts = {"slack:tenant-001:agent": 15}
             metrics_instance.get_duration_percentiles.return_value = {"p95": 400.0}
+            metrics_instance._make_key = Mock(side_effect=lambda c, t, a: f"{c}:{t}:{a}")
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="ok"):
@@ -485,11 +554,11 @@ class TestNotificationDispatch:
     @pytest.mark.asyncio
     async def test_send_slack_notification_success(self, service, mock_violation, mock_config):
         """Slack notification sent successfully."""
-        with patch('core.alert_service.SlackEnhancedService') as mock_slack_class:
+        with patch('integrations.slack_enhanced_service.SlackEnhancedService') as mock_slack_class:
             mock_slack_instance = Mock()
             mock_slack_class.return_value = mock_slack_instance
 
-            with patch('core.alert_service.token_storage') as mock_token_storage:
+            with patch('core.token_storage.token_storage') as mock_token_storage:
                 mock_token_data = {"access_token": "xoxb-test-token"}
                 mock_token_storage.get_token.return_value = mock_token_data
 
@@ -500,7 +569,7 @@ class TestNotificationDispatch:
     @pytest.mark.asyncio
     async def test_send_slack_notification_no_token(self, service, mock_violation, mock_config):
         """Slack notification fails when token not found."""
-        with patch('core.alert_service.token_storage') as mock_token_storage:
+        with patch('core.token_storage.token_storage') as mock_token_storage:
             mock_token_storage.get_token.return_value = None
 
             result = await service.send_slack_notification(mock_violation, mock_config)
@@ -509,7 +578,7 @@ class TestNotificationDispatch:
     @pytest.mark.asyncio
     async def test_send_email_notification_success(self, service, mock_violation, mock_config):
         """Email notification sent successfully."""
-        with patch('core.alert_service.EmailService') as mock_email_class:
+        with patch('core.email_service.EmailService') as mock_email_class:
             mock_email_instance = Mock()
             mock_email_class.return_value = mock_email_instance
 
@@ -553,11 +622,11 @@ class TestAlertClearedNotification:
     @pytest.mark.asyncio
     async def test_send_alert_cleared_notification_slack(self, service, mock_config):
         """Alert cleared notification sent via Slack."""
-        with patch('core.alert_service.SlackEnhancedService') as mock_slack_class:
+        with patch('integrations.slack_enhanced_service.SlackEnhancedService') as mock_slack_class:
             mock_slack_instance = Mock()
             mock_slack_class.return_value = mock_slack_instance
 
-            with patch('core.alert_service.token_storage') as mock_token_storage:
+            with patch('core.token_storage.token_storage') as mock_token_storage:
                 mock_token_data = {"access_token": "xoxb-test-token"}
                 mock_token_storage.get_token.return_value = mock_token_data
 
@@ -576,7 +645,7 @@ class TestAlertClearedNotification:
         mock_config.notification_channels = ["email"]
         mock_config.slack_channel_id = None
 
-        with patch('core.alert_service.EmailService') as mock_email_class:
+        with patch('core.email_service.EmailService') as mock_email_class:
             mock_email_instance = Mock()
             mock_email_class.return_value = mock_email_instance
 
@@ -605,7 +674,7 @@ class TestGetViolationsForTenant:
         """Create alert service instance."""
         return AlertThresholdService(mock_db, redis_client=None)
 
-    def test_get_violations_for_tenant(self, service):
+    def test_get_violations_for_tenant(self, service, mock_db):
         """Violations retrieved for tenant."""
         mock_config = Mock()
         mock_config.tenant_id = "tenant-001"
@@ -617,12 +686,22 @@ class TestGetViolationsForTenant:
         mock_config.slack_channel_id = None
         mock_config.email_recipients = None
 
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_config
+        # Setup mock query chain to return our config
+        # The code calls: query().filter().filter().all()
+        mock_query = Mock()
+        mock_filtered_query = Mock()
+        mock_filtered_query.all.return_value = [mock_config]
+        mock_query.filter.return_value = mock_filtered_query
+        # Second filter() call should return the same mock with .all()
+        mock_filtered_query.filter.return_value = mock_filtered_query
+        mock_db.query.return_value = mock_query
 
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance.success_counts = {"slack:tenant-001:agent": 85}
             metrics_instance.failure_counts = {"slack:tenant-001:agent": 15}
+            metrics_instance._make_key = Mock(return_value="slack:tenant-001:agent")
+            metrics_instance.get_duration_percentiles.return_value = {"p95": 400.0}
             mock_metrics.return_value = metrics_instance
 
             with patch.object(service, '_get_alert_state', return_value="ok"):
@@ -648,7 +727,7 @@ class TestHelperMethods:
 
     def test_calculate_error_rate_in_window(self, service):
         """Error rate calculated correctly within window."""
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance._make_key.return_value = "slack:tenant-001:agent"
             metrics_instance.success_counts = {"slack:tenant-001:agent": 90}
@@ -666,7 +745,7 @@ class TestHelperMethods:
 
     def test_calculate_error_rate_zero_total(self, service):
         """Error rate returns 0 when no requests."""
-        with patch('core.alert_service.get_integration_metrics') as mock_metrics:
+        with patch('core.integration_metrics.get_integration_metrics') as mock_metrics:
             metrics_instance = Mock()
             metrics_instance._make_key.return_value = "slack:tenant-001:agent"
             metrics_instance.success_counts = {}
