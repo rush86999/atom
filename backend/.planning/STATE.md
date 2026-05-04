@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v11.0
 milestone_name: Coverage Completion ✅ ARCHIVED
 status: planning
-last_updated: "2026-05-04T17:37:10.335Z"
+last_updated: "2026-05-04T20:47:47.454Z"
 progress:
   total_phases: 14
   completed_phases: 11
@@ -421,3 +421,95 @@ progress:
 *Milestone: v11.0 (Coverage Completion)*
 *Phase 313 Plan 02: Complete (3/3 tests fixed, 100% pass rate)*
 *Next action: Execute Plan 313-03 to fix remaining 2 failing tests*
+
+---
+
+**Current Session:** 2026-05-04T16:36:00.000Z
+
+**Previous Session:** 2026-05-04T13:40:00.000Z
+
+**Milestone Progress:** v11.0 → Phase 314 Coverage Wave 7
+
+**What Was Accomplished This Session (Phase 314 Plan 02):**
+
+**Phase 314 Plan 02: Fix Auto Document Ingestion Tests**
+
+- Duration: 30 minutes (May 4, 2026)
+- Result: COMPLETE - 14 failing tests fixed
+- Achievement: 100% PASS RATE FOR test_auto_document_ingestion.py
+
+**Tests Fixed (15 total):**
+
+1. **test_parse_pdf_with_pypdf2_mock**: Fixed PDF mocking approach
+   - Issue: PyPDF2 imported locally in _parse_pdf() method
+   - Fix: Mock at import level using builtins.__import__
+   - Result: Test now properly mocks PyPDF2
+
+2. **test_service_initialization**: Fixed mock path
+   - Issue: Mocked core.auto_document_ingestion.get_lancedb_handler
+   - Root cause: Function imported as core.lancedb_handler.get_lancedb_handler in __init__
+   - Fix: Changed mock path to match actual import location
+   - Result: Service initializes correctly
+
+3-13. **11 service tests**: Fixed all mock paths
+
+   - test_get_settings_creates_new
+   - test_get_settings_returns_existing
+   - test_update_settings_enabled
+   - test_update_settings_file_types
+   - test_update_settings_max_file_size
+   - test_sync_integration_disabled
+   - test_get_ingested_documents_empty
+   - test_get_ingested_documents_by_integration
+   - test_get_all_settings
+   - test_get_document_ingestion_service_singleton
+   - test_full_ingestion_workflow_with_mocks
+   - Fix: Changed mock path from core.auto_document_ingestion.get_lancedb_handler to core.lancedb_handler.get_lancedb_handler
+
+14. **test_remove_integration_documents**: Fixed async method call
+   - Issue: Method called without await (async def)
+   - Fix: Made test async and added await
+   - Result: Test now properly awaits the async method
+
+15. **All tests**: Added singleton reset fixture
+   - Issue: Global singleton persisted between tests
+   - Fix: Added autouse fixture to reset _doc_ingestion_service before each test
+   - Result: Proper test isolation achieved
+
+**Test Results:**
+
+- Before: 16/31 passing (51.6%)
+- After: 31/31 passing (100%)
+- Duration: 15.14 seconds for full test suite
+- All 31 tests in test_auto_document_ingestion.py now pass
+
+**Commits (1 total):**
+
+- 602829737: fix(314-02): fix all failing auto document ingestion tests
+
+**Key Learnings:**
+
+1. Mock paths must match actual import locations in production code
+2. Functions imported inside __init__ need to be mocked at their source module
+3. Singleton instances must be reset between tests for proper isolation
+4. Async methods must be awaited in tests (use @pytest.mark.asyncio)
+5. Locally imported modules (inside functions) require special mocking techniques
+
+**Phase 314 Status:**
+
+- ✅ Plan 314-01: Initial verification (complete)
+- ✅ Plan 314-02: Fix Auto Document Ingestion Tests (complete)
+- ⏳ Plan 314-03: Fix Notion Service Tests (pending)
+- ⏳ Plan 314-04: Fix Group Reflection Service Tests (pending)
+
+**Overall Impact:**
+
+- test_auto_document_ingestion.py: 51.6% → 100% (+48.4pp)
+- Phase 314 progress: 2/4 plans complete (50%)
+- Phase 314 pass rate: 72.3% → 76.9% (94/130 → 108/140)
+- Remaining: 22 failing tests (4 in notion_service, 18 in group_reflection_service)
+
+*State updated: 2026-05-04*
+*Milestone: v11.0 (Coverage Completion)*
+*Phase 314 Plan 02: Complete (14/14 tests fixed, 100% pass rate)*
+*Next action: Execute Plan 314-03 to fix Notion service tests*
