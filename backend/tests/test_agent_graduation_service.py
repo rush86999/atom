@@ -12,6 +12,12 @@ Tests the agent graduation framework and maturity transition validation:
 Target Module: core.agent_graduation_service.py (828 lines)
 Test Count: 28 tests
 Quality Standards: 303-QUALITY-STANDARDS.md (no stub tests, imports from target module)
+
+Mock Pattern (Phase 297-298 Standard):
+- Mock: Use for synchronous methods (e.g., get_graduation_readiness, db operations)
+- AsyncMock: Use only for async methods (e.g., execute_in_sandbox, execute_exam)
+- Rule: Always match mock type to the actual implementation signature
+- Reference: docs/testing/ASYNC_MOCK_PATTERNS.md
 """
 
 import pytest
@@ -113,6 +119,10 @@ class TestGraduationEligibility:
         )
 
         # Create episode service mock with proper method
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods, AsyncMock for async methods
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
@@ -160,6 +170,10 @@ class TestGraduationEligibility:
         )
 
         # Create episode service mock with proper method
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods, AsyncMock for async methods
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
@@ -206,6 +220,10 @@ class TestGraduationEligibility:
         )
 
         # Create episode service mock with proper method
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods, AsyncMock for async methods
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
@@ -291,6 +309,8 @@ class TestGraduationExams:
         mock_sandbox_result.safety_violations = []
         mock_sandbox_result.replayed_actions = []
 
+        # Note: execute_in_sandbox is async (use AsyncMock, not Mock)
+        # Phase 297-298 pattern: AsyncMock for async methods
         exam_executor = MagicMock()
         exam_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
 
@@ -325,6 +345,8 @@ class TestGraduationExams:
         mock_sandbox_result.safety_violations = []
         mock_sandbox_result.replayed_actions = []
 
+        # Note: execute_in_sandbox is async (use AsyncMock, not Mock)
+        # Phase 297-298 pattern: AsyncMock for async methods
         exam_executor = MagicMock()
         exam_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
 
@@ -343,6 +365,8 @@ class TestGraduationExams:
     async def test_exam_evaluation_and_scoring(self, graduation_service):
         """Test exam evaluation and scoring logic."""
         # Arrange - execute_graduation_exam takes agent_id, workspace_id, target_maturity
+        # Note: execute_exam is async (use AsyncMock, not Mock)
+        # Phase 297-298 pattern: AsyncMock for async methods
         exam_executor = AsyncMock()
         exam_executor.execute_exam = AsyncMock(return_value={
             "success": True,
@@ -368,6 +392,7 @@ class TestGraduationExams:
     async def test_exam_pass_fail_determination(self, graduation_service):
         """Test exam pass/fail threshold determination."""
         # Arrange
+        # Note: execute_exam is async (use AsyncMock, not Mock)
         exam_executor = AsyncMock()
 
         # Test Case 1: Score above passing threshold
@@ -406,6 +431,7 @@ class TestGraduationExams:
     async def test_exam_result_recording(self, graduation_service):
         """Test exam results are recorded in database."""
         # Arrange
+        # Note: execute_exam is async (use AsyncMock, not Mock)
         exam_executor = AsyncMock()
         exam_executor.execute_exam = AsyncMock(return_value={
             "success": True,
@@ -433,6 +459,7 @@ class TestGraduationExams:
     async def test_exam_retry_logic(self, graduation_service):
         """Test exam retry logic for failed attempts."""
         # Arrange
+        # Note: execute_exam is async (use AsyncMock, not Mock)
         exam_executor = AsyncMock()
 
         # First attempt fails
@@ -693,6 +720,8 @@ class TestSupervisionMetrics:
             breakdown={}
         )
 
+        # Note: get_graduation_readiness is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
