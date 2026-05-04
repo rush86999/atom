@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v11.0
 milestone_name: Coverage Completion ✅ ARCHIVED
-status: completed
-last_updated: "2026-05-04T01:31:33.963Z"
+status: planning
+last_updated: "2026-05-04T01:59:49.405Z"
 progress:
   total_phases: 14
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 41
-  completed_plans: 41
+  completed_plans: 42
   percent: 100
 ---
 
@@ -16,7 +16,7 @@ progress:
 
 **Milestone:** v11.0 Coverage Completion ✅ ARCHIVED
 **Last Updated:** 2026-05-04
-**Status:** Phase 309 Plan 23 Complete
+**Status:** Ready to plan
 
 ---
 
@@ -54,7 +54,8 @@ progress:
 
 **Completed Phases:**
 
-- ✅ **Phase 300**: TDD Methodology Establishment (2026-04-29)
+NaN
+
 - ✅ **Phase 301**: Property Testing Expansion (2026-04-30)
 - ✅ **Phase 306**: TDD Bug Discovery & Coverage Completion (2026-04-30)
 - ✅ **Phase 307**: Backend Coverage - Critical Paths (2026-04-30) SUBSTANTIAL
@@ -263,59 +264,82 @@ progress:
 
 **Milestone Progress:** v11.0 → Phase 309 Wave 2
 
-**What Was Accomplished This Session (Phase 309 Plan 23):**
+**What Was Accomplished This Session (Phase 309 Plan 24):**
 
-**Phase 309 Plan 23: Coverage Metrics Clarification**
+**Phase 309 Plan 24: AsyncMock Pattern Standardization**
 
-- Duration: 6 minutes (May 4, 2026)
-- Result: COMPLETE - Gap 2 from VERIFICATION.md closed
-- Achievement: COVERAGE METRICS CLARIFIED
+- Duration: 9 minutes (May 4, 2026)
+- Result: COMPLETE - Gap 4 from VERIFICATION.md closed
+- Achievement: ASYNC_MOCK PATTERNS DOCUMENTED
 
 **Gap Closed:**
 
-- Issue: "Coverage increases by 0.8pp (from 25.9% to 26.7%)" - ambiguous metric
-- Root cause: Plan language unclear - 4-file average vs overall backend
-- Resolution: Clarified 0.8pp was per-file average, not overall backend
+- Issue: "Tests use AsyncMock patterns from Phase 297-298" - inconsistent documentation
+- Root cause: Tests followed correct patterns but lacked documentation explaining choices
+- Resolution: Added module-level docstrings + comprehensive ASYNC_MOCK_PATTERNS.md guide
 
 **Key Accomplishments:**
 
-1. Established coverage_baseline.json with pre-309 baseline (25.9% overall)
-2. Measured current coverage: 25.9% overall (no change - test fixes only)
-3. Created phase_309_final_report.json with comprehensive metric breakdown
-4. Updated 309-01-SUMMARY.md with clarification section
-5. Identified VERIFICATION.md discrepancy: claimed 36.7% but actual is 25.9%
+1. Audited mock pattern usage across 4 test files (108 tests)
+2. Added module-level documentation to all 4 test files explaining Phase 297-298 standards
+3. Documented Mock vs AsyncMock choices with inline comments
+4. Created comprehensive ASYNC_MOCK_PATTERNS.md guide (170 lines)
+5. Verified all 108 tests still pass after documentation changes
 
-**Coverage Metrics Clarified:**
+**Documentation Created:**
 
-- Overall backend: 25.9% → 25.9% (0.0pp change - test fixes, not new tests)
-- Target files average: 23.75% → 53.75% (+30.0pp, 37.5x over 0.8pp target)
-- Individual files: +27pp, +37pp, +14pp, +42pp (all exceeded 0.8pp target)
-- Test pass rate: 100% (108/108 tests after Plan 309-22 fixes)
+- tests/test_agent_graduation_service.py: Module docstring + 9 inline comments
+- tests/test_agent_context_resolver.py: Module docstring + 2 inline comments
+- tests/test_agent_integration_gateway.py: Module docstring (no mocks used)
+- tests/test_ai_accounting_engine.py: Module docstring (no mocks used)
+- docs/testing/ASYNC_MOCK_PATTERNS.md: 170-line comprehensive guide with examples and troubleshooting
 
-**Commits (3 total):**
+**Test Results:**
 
-- 8159aec9d: feat(309-23): establish coverage baseline for Phase 309
-- c38d8f9d9: feat(309-23): create comprehensive final coverage report
-- d7fcc3dbf: docs(309-23): add coverage metrics clarification to 309-01-SUMMARY
+- All 108 tests passing (28 + 22 + 22 + 36)
+- Mock patterns consistent across all files
+- No AsyncMock-related errors
+- 100% pattern compliance with Phase 297-298 standards
+
+**Commits (5 total):**
+
+- b644cf657: refactor(309-24): add AsyncMock pattern documentation to graduation service tests
+- d7fb6c4a1: refactor(309-24): add AsyncMock pattern documentation to context resolver tests
+- 16da9bc90: refactor(309-24): add AsyncMock pattern documentation to remaining test files
+- 5291f5633: docs(309-24): create AsyncMock pattern standards documentation
+- Verification: All 108 tests pass (no commit needed)
 
 **Key Learnings:**
 
-1. Always distinguish overall vs per-file coverage metrics in documentation
-2. Verify coverage claims with actual measurements before documenting
-3. Document measurement methodology in baseline files
-4. Test fixes don't significantly impact overall coverage (already counted)
+1. Tests were already using correct patterns - gap was documentation, not code
+2. Module-level docstrings help explain mock pattern choices to future developers
+3. Comprehensive guides with examples prevent pattern confusion
+4. Troubleshooting section helps fix common mock errors
+5. All 4 test files now consistently document their mock usage
 
-**Next Steps:**
+**Phase 309 Complete:**
 
-1. ✅ Plan 309-23 complete - coverage metrics clarified
-2. Continue to Phase 309 Plan 24 (final wave 2 plan)
-3. Apply metric clarity lessons to future coverage plans
+- ✅ All 22 plans executed (309-01 through 309-22, plus 309-23, 309-24)
+- ✅ Gap 4 closed: AsyncMock patterns documented
+- ✅ 100% test pass rate achieved (108/108 tests)
+- ✅ Comprehensive documentation created
+- ✅ Phase 309 Wave 2 COMPLETE
 
-**Previous Session (Plan 309-22):**
+---
 
-- Fixed all 7 failing tests (100% pass rate achieved)
-- Mock patterns corrected (patch locations, structure)
-- Production bugs fixed (parameter mismatches, error handling)
+**Previous Session (Plan 309-23):**
+
+- Clarified coverage metrics (0.8pp per-file vs overall)
+- Created coverage baseline and final report
+- Gap 2 from VERIFICATION.md closed
+
+---
+
+*State updated: 2026-05-04*
+*Milestone: v11.0 (Coverage Completion)*
+*Phase 309: COMPLETE - All 24 plans executed*
+*Phase 309-24: AsyncMock patterns documented (Gap 4 closed)*
+*Next action: Continue to Phase 310 or next milestone*
 
 ---
 

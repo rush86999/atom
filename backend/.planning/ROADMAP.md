@@ -524,7 +524,7 @@
 **Gap Closure Plans**:
 - [x] 309-22-PLAN.md -- Fix 7 failing tests (mock setup complexity) 🆕 **GAP CLOSURE**
 - [x] 309-23-PLAN.md -- Clarify coverage metrics (overall vs per-file) 🆕 **GAP CLOSURE**
-- [ ] 309-24-PLAN.md -- Standardize AsyncMock patterns 🆕 **GAP CLOSURE**
+- [x] 309-24-PLAN.md -- Standardize AsyncMock patterns 🆕 **GAP CLOSURE**
 
 **Duration**: 2-4 hours (estimated)
 
@@ -544,30 +544,47 @@
 
 ---
 
-### Phase 310: Frontend Coverage - Critical Components 🆕 RECOMMENDED
+### Phase 310: Coverage Wave 3 - Episodic Memory & Marketplace 🔄 GAP CLOSURE
 
-**Goal**: Cover 20 highest-impact components to 25-30% coverage
+**Goal**: Fix 28 failing tests and improve coverage across 4 episodic and marketplace files
 
-**Depends on**: Phase 306-07 (property tests 100% passing)
+**Status**: 🔄 **GAP CLOSURE IN PROGRESS** (2026-05-04)
 
-**Requirements**: TDD-08 (Comprehensive Bug Discovery & Fixing) - **PARTIAL** (frontend critical)
+**Depends on**: Phase 309 (Services Coverage Wave 2 complete)
 
-**Success Criteria** (what must be TRUE):
-1. Frontend coverage ≥ 25% (from 15.87%, +9.13pp)
-2. Critical user flows 100% covered
-3. 20 high-impact components tested
-4. All new tests passing
+**Requirements**: TDD-08 (Comprehensive Bug Discovery & Fixing) - **PARTIAL** (episodic/marketplace tests)
 
-**Estimated Effort**: 20-30 hours
+**Verification Results** (2026-05-04):
+- ⚠️ Test pass rate: 73.8% (79/107 tests), below 95% target
+- ⚠️ Coverage increase: +0.41pp (51% of 0.8pp target)
+- ✅ 107 tests created (exceeds 80-100 target)
+- ⚠️ 28 tests failing due to patch paths, API mismatches, missing modules
 
-**Target Components** (to be confirmed by coverage report):
-- Dashboard components
-- Integration components (Box, Discord, GitHub)
-- Form components
-- Canvas components
+**Gap Closure Plans**:
+- [ ] 310-02-PLAN.md -- Fix 18 patch paths in test_episode_service.py 🆕 **GAP CLOSURE**
+- [ ] 310-03-PLAN.md -- Fix 10 API mismatches in test_graduation_exam.py 🆕 **GAP CLOSURE**
+- [ ] 310-04-PLAN.md -- Fix 3 issues in test_episode_retrieval_service.py 🆕 **GAP CLOSURE**
 
-**Status**: 🆕 **RECOMMENDED** - See PHASE_SPLIT_RECOMMENDATION.md for details
+**Duration**: 2-3 hours (estimated)
 
+**Gaps Identified**:
+1. **Gap 1**: 18 failing tests due to incorrect patch paths (patch at module definition, not import location)
+2. **Gap 2**: 10 failing tests due to API mismatches (promote_agent method name, demote_agent parameter, missing edge_case_simulator)
+3. **Gap 3**: 3 failing tests due to API parameter (task_context vs current_task) and mock configuration
+4. **Gap 4**: Coverage target 51% achieved (0.41pp vs 0.8pp target) - will improve when tests pass
+
+**Plans Completed** (1/4):
+- [x] 310-01-PLAN.md -- Create 107 tests across 4 files ✅ COMPLETE (with issues)
+
+**Next Steps**:
+1. Execute 310-02: Fix 18 patch paths in test_episode_service.py
+2. Execute 310-03: Fix 10 API mismatches in test_graduation_exam.py
+3. Execute 310-04: Fix 3 issues in test_episode_retrieval_service.py
+4. Verify 95%+ pass rate and improved coverage
+
+---
+
+### Phase 311: Frontend Coverage - Critical Components 🆕 RECOMMENDED
 ---
 
 ### Phase 311: Frontend Coverage - Completion 🆕 RECOMMENDED
@@ -602,7 +619,7 @@
 | 306. TDD Bug Discovery & Coverage Completion | 2/2 | ✅ COMPLETE | 2026-04-30 |
 | 307. Backend Coverage - Critical Paths | 6/6 | ✅ SUBSTANTIAL | 2026-04-30 |
 | 308. Backend Coverage - API & Services | 0/TBD | 🆕 RECOMMENDED | - |
-| 309. Services Coverage Wave 2 | 21/22 | In Progress|  |
+| 309. Services Coverage Wave 2 | 22/22 | Complete    | 2026-05-04 |
 | 310. Frontend Coverage - Critical | 0/TBD | 🆕 RECOMMENDED | - |
 | 311. Frontend Coverage - Completion | 0/TBD | 🆕 RECOMMENDED | - |
 
