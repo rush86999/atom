@@ -320,7 +320,8 @@ class TestExecuteGraduationExam:
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
+             patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases:
             # Mock readiness calculation
             mock_readiness = Mock()
             mock_readiness.to_dict.return_value = {
@@ -334,6 +335,14 @@ class TestExecuteGraduationExam:
             mock_service_instance = Mock()
             mock_service_instance.get_graduation_readiness.return_value = mock_readiness
             mock_episode_service.return_value = mock_service_instance
+
+            # Mock edge case simulation (module not yet implemented)
+            mock_edge_cases.return_value = {
+                "total": 2,
+                "passed": 2,
+                "all_passed": True,
+                "results": []
+            }
 
             service = GraduationExamService(mock_db)
 
@@ -358,7 +367,16 @@ class TestExecuteGraduationExam:
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        with patch('core.graduation_exam.EpisodeService'):
+        with patch('core.graduation_exam.EpisodeService'), \
+             patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases:
+            # Mock edge case simulation (module not yet implemented)
+            mock_edge_cases.return_value = {
+                "total": 0,
+                "passed": 0,
+                "all_passed": True,
+                "results": []
+            }
+
             service = GraduationExamService(mock_db)
 
             result = service.execute_graduation_exam(
