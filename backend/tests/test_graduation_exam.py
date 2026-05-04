@@ -475,12 +475,12 @@ class TestManualPromotion:
 
         service = GraduationExamService(mock_db)
 
-        result = service.promote_agent(
+        result = service.promote_agent_manually(
             agent_id="agent-001",
             tenant_id="tenant-001",
-            to_level=AgentStatus.SUPERVISED.value,
-            promotion_type=PromotionType.MANUAL.value,
-            promoted_by="admin-user"
+            new_level=AgentStatus.SUPERVISED.value,
+            promoted_by="admin-user",
+            justification="Testing manual promotion"
         )
 
         assert result.agent_id == "agent-001"
@@ -501,12 +501,12 @@ class TestManualPromotion:
 
         service = GraduationExamService(mock_db)
 
-        result = service.promote_agent(
+        result = service.promote_agent_manually(
             agent_id="agent-002",
             tenant_id="tenant-001",
-            to_level=AgentStatus.AUTONOMOUS.value,
-            promotion_type=PromotionType.MANUAL.value,
-            promoted_by="admin-user"
+            new_level=AgentStatus.AUTONOMOUS.value,
+            promoted_by="admin-user",
+            justification="Testing manual promotion with history"
         )
 
         # Should create PromotionHistory record
