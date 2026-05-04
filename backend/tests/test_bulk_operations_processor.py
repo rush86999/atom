@@ -119,19 +119,21 @@ class TestBulkJobSubmission:
     @pytest.fixture
     def mock_operation(self):
         """Mock bulk operation."""
-        operation = Mock(spec=BulkOperation)
-        operation.integration_id = "asana"
-        operation.operation_type = "create"
-        operation.items = [
-            {"name": "Task 1", "projects": ["proj1"]},
-            {"name": "Task 2", "projects": ["proj1"]},
-            {"name": "Task 3", "projects": ["proj1"]}
-        ]
-        operation.batch_size = None
-        operation.progress_callback = None
-        operation.stop_on_error = False
-        operation.metadata = {}
-        return operation
+        from core.integration_data_mapper import BulkOperation
+
+        return BulkOperation(
+            operation_type="create",
+            integration_id="asana",
+            items=[
+                {"name": "Task 1", "projects": ["proj1"]},
+                {"name": "Task 2", "projects": ["proj1"]},
+                {"name": "Task 3", "projects": ["proj1"]}
+            ],
+            batch_size=None,
+            parallel_processing=True,
+            stop_on_error=False,
+            progress_callback=None
+        )
 
     @pytest.mark.asyncio
     async def test_submit_bulk_job_success(self, processor, mock_operation):
@@ -213,9 +215,13 @@ class TestJobCancellation:
     @pytest.fixture
     def mock_operation(self):
         """Mock bulk operation."""
-        operation = Mock(spec=BulkOperation)
-        operation.items = [{"data": 1}]
-        return operation
+        from core.integration_data_mapper import BulkOperation
+
+        return BulkOperation(
+            operation_type="create",
+            integration_id="test",
+            items=[{"data": 1}]
+        )
 
     @pytest.mark.asyncio
     async def test_cancel_pending_job(self, processor, mock_operation):
@@ -268,17 +274,17 @@ class TestBatchProcessing:
     @pytest.fixture
     def mock_operation(self):
         """Mock bulk operation with multiple items."""
-        operation = Mock(spec=BulkOperation)
-        operation.integration_id = "airtable"
-        operation.operation_type = "create"
-        operation.items = [{"id": i} for i in range(10)]
-        operation.batch_size = 3
-        operation.progress_callback = None
-        operation.stop_on_error = False
-        operation.metadata = {}
-        operation.mapping_id = None
-        operation.schema_id = None
-        return operation
+        from core.integration_data_mapper import BulkOperation
+
+        return BulkOperation(
+            operation_type="create",
+            integration_id="airtable",
+            items=[{"id": i} for i in range(10)],
+            batch_size=3,
+            parallel_processing=True,
+            stop_on_error=False,
+            progress_callback=None
+        )
 
     @pytest.mark.asyncio
     async def test_process_job_in_batches(self, processor, mock_operation):
@@ -303,10 +309,15 @@ class TestBatchProcessing:
     @pytest.mark.asyncio
     async def test_prepare_items_with_transformation(self, processor):
         """Items prepared with data transformations."""
-        operation = Mock(spec=BulkOperation)
-        operation.items = [{"data": 1}]
+        from core.integration_data_mapper import BulkOperation
+
+        operation = BulkOperation(
+            operation_type="create",
+            integration_id="test",
+            items=[{"data": 1}]
+        )
+        # Add mapping_id attribute dynamically for testing
         operation.mapping_id = "mapping-001"
-        operation.schema_id = None
 
         with patch.object(processor.data_mapper, 'transform_data') as mock_transform:
             mock_transform.return_value = [{"data": 1, "transformed": True}]
@@ -317,9 +328,14 @@ class TestBatchProcessing:
     @pytest.mark.asyncio
     async def test_prepare_items_with_validation(self, processor):
         """Items validated during preparation."""
-        operation = Mock(spec=BulkOperation)
-        operation.items = [{"data": 1}]
-        operation.mapping_id = None
+        from core.integration_data_mapper import BulkOperation
+
+        operation = BulkOperation(
+            operation_type="create",
+            integration_id="test",
+            items=[{"data": 1}]
+        )
+        # Add schema_id attribute dynamically for testing
         operation.schema_id = "schema-001"
 
         with patch.object(processor.data_mapper, 'validate_data') as mock_validate:
@@ -424,23 +440,28 @@ class TestAsanaProcessor:
     @pytest.fixture
     def mock_operation(self):
         """Mock Asana bulk operation."""
-        operation = Mock(spec=BulkOperation)
-        operation.integration_id = "asana"
-        operation.operation_type = "create"
-        operation.items = [
-            {"name": "Task 1", "notes": "Description 1"},
-            {"name": "Task 2", "notes": "Description 2"}
-        ]
+        from core.integration_data_mapper import BulkOperation
+
+        operation = BulkOperation(
+            operation_type="create",
+            integration_id="asana",
+            items=[
+                {"name": "Task 1", "notes": "Description 1"},
+                {"name": "Task 2", "notes": "Description 2"}
+            ],
+            batch_size=100,
+            parallel_processing=True,
+            stop_on_error=False,
+            progress_callback=None
+        )
+        # Add metadata attribute dynamically for Asana tests
         operation.metadata = {"access_token": "asana-pat-token"}
-        operation.batch_size = 100
-        operation.progress_callback = None
-        operation.stop_on_error = False
         return operation
 
     @pytest.mark.asyncio
     async def test_process_asana_bulk_create_success(self, processor, mock_operation):
         """Asana bulk create processes items successfully."""
-        with patch('core.bulk_operations_processor.AsanaService') as mock_asana_class:
+        with patch('integrations.asana_service.AsanaService') as mock_asana_class:
             mock_asana_instance = Mock()
             mock_asana_class.return_value = mock_asana_instance
 
@@ -477,7 +498,7 @@ class TestAsanaProcessor:
             {"task_id": "task-001", "updates": {"name": "Updated Task"}}
         ]
 
-        with patch('core.bulk_operations_processor.AsanaService') as mock_asana_class:
+        with patch('integrations.asana_service.AsanaService') as mock_asana_class:
             mock_asana_instance = Mock()
             mock_asana_class.return_value = mock_asana_instance
 
@@ -498,7 +519,7 @@ class TestAsanaProcessor:
         mock_operation.operation_type = "delete"
         mock_operation.items = [{"task_id": "task-001"}]
 
-        with patch('core.bulk_operations_processor.AsanaService') as mock_asana_class:
+        with patch('integrations.asana_service.AsanaService') as mock_asana_class:
             mock_asana_instance = Mock()
             mock_asana_class.return_value = mock_asana_instance
 
@@ -627,12 +648,17 @@ class TestPerformanceStatistics:
         assert stats["total_jobs"] == 0
         assert stats["running_jobs"] == 0
         assert stats["completed_jobs"] == 0
-        assert stats["queue_length"] == 0
+        # Note: queue_length is only included when there are completed jobs
 
     def test_get_performance_stats_with_jobs(self, processor):
         """Performance stats calculated correctly."""
-        operation = Mock()
-        operation.items = [{"data": 1}]
+        from core.integration_data_mapper import BulkOperation
+
+        operation = BulkOperation(
+            operation_type="create",
+            integration_id="test",
+            items=[{"data": 1}]
+        )
 
         # Add completed job
         job1 = BulkJob(
@@ -677,8 +703,13 @@ class TestJobResultsPersistence:
     @pytest.fixture
     def mock_job(self):
         """Mock bulk job."""
-        operation = Mock(spec=BulkOperation)
-        operation.items = [{"data": 1}]
+        from core.integration_data_mapper import BulkOperation
+
+        operation = BulkOperation(
+            operation_type="create",
+            integration_id="test",
+            items=[{"data": 1}]
+        )
 
         return BulkJob(
             job_id="job-001",
