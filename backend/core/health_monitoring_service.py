@@ -247,10 +247,10 @@ class HealthMonitoringService:
             # Get integration health
             # Define healthy: active status with successful connection within last 5 minutes
             recent_success_threshold = datetime.now() - timedelta(minutes=5)
-            total_integrations = self.db.query(IntegrationCatalog).count()
-            healthy_integrations = self.db.query(IntegrationCatalog).filter(
-                IntegrationCatalog.last_successful_connection >= recent_success_threshold,
-                IntegrationCatalog.status == "active"
+            total_integrations = self.db.query(UserConnection).count()
+            healthy_integrations = self.db.query(UserConnection).filter(
+                UserConnection.last_used >= recent_success_threshold,
+                UserConnection.status == "active"
             ).count()
 
             # Get alert counts

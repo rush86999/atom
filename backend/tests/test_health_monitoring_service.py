@@ -158,21 +158,24 @@ class TestMetricsCollection:
     @pytest.mark.asyncio
     async def test_get_system_metrics_includes_psutil_data(self):
         """HealthMonitoringService includes psutil system metrics when available."""
+        try:
+            import psutil
+        except ImportError:
+            pytest.skip("psutil not installed")
+
         db = Mock(spec=Session)
 
         # Mock all queries
         db.query.return_value.filter.return_value.count.return_value = 0
 
-        with patch('core.health_monitoring_service.psutil') as mock_psutil:
-            # Mock psutil returns
-            mock_psutil.cpu_percent.return_value = 45.5
-            mock_memory = Mock()
-            mock_memory.percent = 62.3
-            mock_psutil.virtual_memory.return_value = mock_memory
-            mock_disk = Mock()
-            mock_disk.percent = 55.0
-            mock_psutil.disk_usage.return_value = mock_disk
-            mock_psutil.pids.return_value = [1, 2, 3]
+        # Patch psutil functions directly
+        with patch('psutil.cpu_percent', return_value=45.5), \
+             patch('psutil.virtual_memory') as mock_memory, \
+             patch('psutil.disk_usage') as mock_disk, \
+             patch('psutil.pids', return_value=[1, 2, 3]):
+
+            mock_memory.return_value.percent = 62.3
+            mock_disk.return_value.percent = 55.0
 
             service = HealthMonitoringService(db)
             metrics = await service.get_system_metrics()
