@@ -143,10 +143,12 @@ class TestTrainingProposalCreation:
         trigger = BlockedTriggerContext(
             id="trigger-001",
             agent_id="agent-001",
+            agent_name="Test Agent",
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
             trigger_type="workflow_trigger",
             trigger_context={"category": "Finance"},
-            source=TriggerSource.MANUAL.value,
-            resolved=False
+            trigger_source="MANUAL"
         )
         return trigger
 
@@ -182,7 +184,7 @@ class TestTrainingProposalCreation:
                     assert proposal.proposal_type == ProposalType.TRAINING.value
                     assert proposal.status == ProposalStatus.PROPOSED.value
                     assert "Training Proposal:" in proposal.title
-                    assert len(proposal.capability_gaps) == 2
+                    assert len(proposal.proposal_data.get("capability_gaps", [])) == 2
                     mock_db.add.assert_called()
                     mock_db.commit.assert_called()
 
@@ -209,19 +211,26 @@ class TestTrainingSessionLifecycle:
     @pytest.fixture
     def mock_proposal(self):
         """Mock training proposal."""
-        proposal = AgentProposal(
-            id="proposal-001",
-            agent_id="agent-001",
-            agent_name="Test Agent",
-            proposal_type=ProposalType.TRAINING.value,
-            title="Training Proposal",
-            description="Test training",
-            estimated_duration_hours=40.0,
-            duration_estimation_confidence=0.8,
-            status=ProposalStatus.PROPOSED.value,
-            learning_objectives=["Learn task execution"],
-            capability_gaps=["task_execution"]
-        )
+        proposal = Mock(spec=AgentProposal)
+        proposal.id = "proposal-001"
+        proposal.agent_id = "agent-001"
+        proposal.agent_name = "Test Agent"
+        proposal.proposal_type = "analysis"
+        proposal.title = "Training Proposal"
+        proposal.proposal_data = {
+            "learning_objectives": ["Learn task execution"],
+            "capability_gaps": ["task_execution"],
+            "estimated_duration_hours": 40.0,
+            "duration_estimation_confidence": 0.8
+        }
+        proposal.status = "proposed"  # Service expects this from ProposalStatus enum
+        proposal.user_id = "user-001"
+        proposal.tenant_id = "tenant-001"
+        proposal.approved_by = None
+        proposal.approver_id = None
+        # Allow dynamic attribute assignment for modifications
+        proposal.user_override_duration_hours = None
+        proposal.hours_per_day_limit = None
         return proposal
 
     @pytest.mark.asyncio
@@ -268,8 +277,8 @@ class TestTrainingSessionLifecycle:
             modifications=modifications
         )
 
-        assert mock_proposal.user_override_duration_hours == 50.0
-        assert mock_proposal.hours_per_day_limit == 4.0
+        assert mock_proposal.proposal_data["user_override_duration_hours"] == 50.0
+        assert mock_proposal.proposal_data["hours_per_day_limit"] == 4.0
 
     @pytest.mark.asyncio
     async def test_approve_training_proposal_not_found(self, mock_db):
@@ -435,11 +444,8 @@ class TestTrainingDurationEstimation:
     @pytest.mark.asyncio
     async def test_estimate_training_duration_success(self, mock_db, mock_agent):
         """Training duration estimated successfully based on multiple factors."""
-        mock_db.query.return_value.filter.return_value.first.side_effect = [mock_agent, []]
-        mock_db.query.return_value.filter.side_effect = [
-            Mock(filter=Mock(return_value=Mock(all=Mock(return_value=[])))),
-            Mock(filter=Mock(return_value=Mock(all=Mock(return_value=[]))))
-        ]
+        # Mock agent query for estimate_training_duration
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
         service = StudentTrainingService(mock_db)
 
@@ -509,7 +515,7 @@ class TestTrainingHistory:
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_session]
         mock_db.query.return_value.filter.return_value.first.return_value = Mock(
             title="Training Proposal",
-            capability_gaps=["task_execution"]
+            proposal_data={"capability_gaps": ["task_execution"]}
         )
 
         service = StudentTrainingService(mock_db)

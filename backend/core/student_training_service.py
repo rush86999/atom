@@ -137,14 +137,18 @@ To proceed, this training will help the agent develop the necessary capabilities
 
 After completing this training, the agent will be able to handle similar tasks autonomously.
             """.strip(),
-            learning_objectives=learning_objectives,
-            capability_gaps=capability_gaps,
-            training_scenario_template=scenario_template,
-            estimated_duration_hours=duration_estimate.estimated_hours,
-            duration_estimation_confidence=duration_estimate.confidence,
-            duration_estimation_reasoning=duration_estimate.reasoning,
+            proposal_data={
+                "learning_objectives": learning_objectives,
+                "capability_gaps": capability_gaps,
+                "training_scenario_template": scenario_template,
+                "estimated_duration_hours": duration_estimate.estimated_hours,
+                "duration_estimation_confidence": duration_estimate.confidence,
+                "duration_estimation_reasoning": duration_estimate.reasoning,
+                "scenario_template": scenario_template
+            },
             status=ProposalStatus.PROPOSED.value,
-            proposed_by="atom_meta_agent"
+            user_id=agent.id,  # Using agent_id as user_id for training proposals
+            tenant_id="default"  # Default tenant for training proposals
         )
 
         self.db.add(proposal)
@@ -195,26 +199,28 @@ After completing this training, the agent will be able to handle similar tasks a
         # Apply modifications if provided
         if modifications:
             if "duration_override_hours" in modifications:
-                proposal.user_override_duration_hours = modifications[
+                proposal.proposal_data["user_override_duration_hours"] = modifications[
                     "duration_override_hours"
                 ]
             if "hours_per_day_limit" in modifications:
-                proposal.hours_per_day_limit = modifications["hours_per_day_limit"]
+                proposal.proposal_data["hours_per_day_limit"] = modifications["hours_per_day_limit"]
 
         # Calculate training schedule
         duration_hours = (
-            proposal.user_override_duration_hours or proposal.estimated_duration_hours
+            proposal.proposal_data.get("user_override_duration_hours") or
+            proposal.proposal_data.get("estimated_duration_hours", 40.0)
         )
-        if proposal.hours_per_day_limit:
-            days_needed = duration_hours / proposal.hours_per_day_limit
+        hours_per_day = proposal.proposal_data.get("hours_per_day_limit")
+        if hours_per_day:
+            days_needed = duration_hours / hours_per_day
         else:
             days_needed = duration_hours / 8  # Assume 8 hours/day
 
         start_date = datetime.now()
         end_date = start_date + timedelta(days=days_needed)
 
-        proposal.training_start_date = start_date
-        proposal.training_end_date = end_date
+        proposal.proposal_data["training_start_date"] = start_date.isoformat()
+        proposal.proposal_data["training_end_date"] = end_date.isoformat()
         proposal.status = ProposalStatus.APPROVED.value
         proposal.approved_by = user_id
         proposal.approved_at = datetime.now()
@@ -226,7 +232,7 @@ After completing this training, the agent will be able to handle similar tasks a
             agent_name=proposal.agent_name,
             status="scheduled",
             supervisor_id=user_id,
-            total_tasks=len(proposal.learning_objectives or [])
+            total_tasks=len(proposal.proposal_data.get("learning_objectives", []))
         )
 
         self.db.add(session)
@@ -389,7 +395,7 @@ After completing this training, the agent will be able to handle similar tasks a
                 "promoted_to_intern": session.promoted_to_intern,
                 "training_duration_hours": session.duration_seconds / 3600 if session.duration_seconds else None,
                 "proposal_title": proposal.title if proposal else None,
-                "capability_gaps": proposal.capability_gaps if proposal else []
+                "capability_gaps": proposal.proposal_data.get("capability_gaps", []) if proposal else []
             })
 
         return history
