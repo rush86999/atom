@@ -13,6 +13,13 @@ Tests the AI accounting engine with confidence-based categorization:
 Target Module: core.ai_accounting_engine.py (544 lines)
 Test Count: 20-25 tests
 Quality Standards: 303-QUALITY-STANDARDS.md (no stub tests, imports from target module)
+
+Mock Pattern (Phase 297-298 Standard):
+- Mock: Use for synchronous methods (not currently used in this file)
+- AsyncMock: Use only for async methods (not currently used in this file)
+- Rule: Always match mock type to the actual implementation signature
+- Note: This file uses real engine instances and data objects, not mocks
+- Reference: docs/testing/ASYNC_MOCK_PATTERNS.md
 """
 
 import pytest
