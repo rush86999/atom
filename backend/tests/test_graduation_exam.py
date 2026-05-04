@@ -322,7 +322,7 @@ class TestExecuteGraduationExam:
 
         with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
-             patch.object(GraduationExamService, '_check_constitutional_compliance') as mock_constitutional:
+             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
             # Mock readiness calculation
             mock_readiness = Mock()
             mock_readiness.to_dict.return_value = {
@@ -376,7 +376,7 @@ class TestExecuteGraduationExam:
 
         with patch('core.graduation_exam.EpisodeService'), \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
-             patch.object(GraduationExamService, '_check_constitutional_compliance') as mock_constitutional:
+             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
             # Mock edge case simulation (module not yet implemented)
             mock_edge_cases.return_value = {
                 "total": 0,
