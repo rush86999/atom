@@ -58,6 +58,7 @@ progress:
 - ✅ **Phase 301**: Property Testing Expansion (2026-04-30)
 - ✅ **Phase 306**: TDD Bug Discovery & Coverage Completion (2026-04-30)
 - ✅ **Phase 307**: Backend Coverage - Critical Paths (2026-04-30) SUBSTANTIAL
+- ✅ **Phase 313**: Budget Enforcement Test Fixes (2026-05-04)
 
 **Phase 301 Summary:**
 
@@ -86,6 +87,14 @@ progress:
 - PostgreSQL infrastructure complete (Plan 307-07)
 - 170 test functions exist across 5 PostgreSQL-dependent files
 - Duration: 1 day (2026-04-30)
+
+**Phase 313 Summary:**
+
+- Fixed 2 failing tests in test_budget_enforcement_service.py
+- Root cause: Mock objects returning Mock instead of primitive types (int, list)
+- Fixed mock configuration: scalar() returns int, all() returns list
+- Test results: 31/31 passing (100% pass rate)
+- Duration: 15 minutes (2026-05-04)
 
 **Goals:**
 
