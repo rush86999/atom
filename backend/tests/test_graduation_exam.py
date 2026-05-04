@@ -322,7 +322,8 @@ class TestExecuteGraduationExam:
 
         with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
-             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
+             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional, \
+             patch.object(GraduationExamService, '_skill_performance_check') as mock_skills:
             # Mock readiness calculation
             mock_readiness = Mock()
             mock_readiness.to_dict.return_value = {
@@ -349,6 +350,13 @@ class TestExecuteGraduationExam:
             mock_constitutional.return_value = {
                 "passed": True,
                 "violations": []
+            }
+
+            # Mock skill performance check
+            mock_skills.return_value = {
+                "total_skills": 5,
+                "proficient_skills": 5,
+                "performance_score": 0.90
             }
 
             service = GraduationExamService(mock_db)
@@ -389,6 +397,13 @@ class TestExecuteGraduationExam:
             mock_constitutional.return_value = {
                 "passed": True,
                 "violations": []
+            }
+
+            # Mock skill performance check
+            mock_skills.return_value = {
+                "total_skills": 5,
+                "proficient_skills": 5,
+                "performance_score": 0.90
             }
 
             service = GraduationExamService(mock_db)
