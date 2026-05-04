@@ -313,7 +313,9 @@ class TestExecuteGraduationExam:
         mock_agent = Mock(
             id="agent-002",
             status=AgentStatus.STUDENT.value,
-            tenant_id="tenant-001"
+            tenant_id="tenant-001",
+            promotion_count=0,  # Mock integer value
+            last_promotion_at=None
         )
 
         mock_query = Mock()
@@ -378,7 +380,9 @@ class TestExecuteGraduationExam:
         mock_agent = Mock(
             id="agent-003",
             status=AgentStatus.INTERN.value,
-            tenant_id="tenant-001"
+            tenant_id="tenant-001",
+            promotion_count=1,  # Mock integer value
+            last_promotion_at=None
         )
 
         mock_query = Mock()
