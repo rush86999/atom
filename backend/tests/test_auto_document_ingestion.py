@@ -139,6 +139,16 @@ class TestIngestedDocument:
         assert doc.external_modified_at is None
 
 
+@pytest.fixture(autouse=True)
+def reset_document_ingestion_singleton():
+    """Reset the global document ingestion service singleton before each test."""
+    from core import auto_document_ingestion as adi_module
+    original_instance = adi_module._doc_ingestion_service
+    adi_module._doc_ingestion_service = None
+    yield
+    adi_module._doc_ingestion_service = original_instance
+
+
 class TestDocumentParser:
     """Test DocumentParser class."""
 
@@ -181,15 +191,11 @@ class TestDocumentParser:
 
     @pytest.mark.asyncio
     async def test_parse_pdf_with_pypdf2_mock(self):
-        """DocumentParser can parse PDF using PyPDF2."""
+        """DocumentParser can parse PDF using PyPDF2 (imported locally in _parse_pdf)."""
         content = b"Mock PDF content"
-        with patch('core.auto_document_ingestion.PyPDF2.PdfReader') as mock_reader:
-            mock_page = MagicMock()
-            mock_page.extract_text.return_value = "PDF text content"
-            mock_pdf = MagicMock()
-            mock_pdf.pages = [mock_page]
-            mock_reader.return_value = mock_pdf
-
+        # Mock PyPDF2 module at the point where it's imported (inside _parse_pdf method)
+        # Since it's imported as 'import PyPDF2', we mock the module name directly
+        with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: MagicMock() if name == 'PyPDF2' else __import__(name, *args, **kwargs)):
             text = await DocumentParser.parse_document(content, "pdf", "test.pdf")
             # Should return content (either from docling or fallback)
             assert isinstance(text, str)
@@ -200,7 +206,8 @@ class TestAutoDocumentIngestionService:
 
     def test_service_initialization(self):
         """AutoDocumentIngestionService initializes correctly."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        # Mock get_lancedb_handler where it's imported (inside __init__)
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             assert service.workspace_id == "default"
             assert isinstance(service.settings, dict)
@@ -208,7 +215,7 @@ class TestAutoDocumentIngestionService:
 
     def test_get_settings_creates_new(self):
         """get_settings creates new settings if not exists."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             settings = service.get_settings("new_integration")
             assert settings.integration_id == "new_integration"
@@ -216,7 +223,7 @@ class TestAutoDocumentIngestionService:
 
     def test_get_settings_returns_existing(self):
         """get_settings returns existing settings."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             settings1 = service.get_settings("existing")
             settings2 = service.get_settings("existing")
@@ -224,14 +231,14 @@ class TestAutoDocumentIngestionService:
 
     def test_update_settings_enabled(self):
         """update_settings can enable integration."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             settings = service.update_settings("test_integration", enabled=True)
             assert settings.enabled is True
 
     def test_update_settings_file_types(self):
         """update_settings can update file types."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             settings = service.update_settings(
                 "test_integration",
@@ -241,7 +248,7 @@ class TestAutoDocumentIngestionService:
 
     def test_update_settings_max_file_size(self):
         """update_settings can update max file size."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             settings = service.update_settings(
                 "test_integration",
@@ -252,7 +259,7 @@ class TestAutoDocumentIngestionService:
     @pytest.mark.asyncio
     async def test_sync_integration_disabled(self):
         """sync_integration skips disabled integrations."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             result = await service.sync_integration("disabled_integration")
             assert result.get("skipped") is True
@@ -260,14 +267,14 @@ class TestAutoDocumentIngestionService:
 
     def test_get_ingested_documents_empty(self):
         """get_ingested_documents returns empty list initially."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             docs = service.get_ingested_documents()
             assert docs == []
 
     def test_get_ingested_documents_by_integration(self):
         """get_ingested_documents can filter by integration."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             # Add a mock document
             doc = IngestedDocument(
@@ -290,7 +297,7 @@ class TestAutoDocumentIngestionService:
 
     def test_get_all_settings(self):
         """get_all_settings returns all integration settings."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
             service.get_settings("integration_1")
             service.get_settings("integration_2")
@@ -298,9 +305,10 @@ class TestAutoDocumentIngestionService:
             all_settings = service.get_all_settings()
             assert len(all_settings) == 2
 
-    def test_remove_integration_documents(self):
+    @pytest.mark.asyncio
+    async def test_remove_integration_documents(self):
         """remove_integration_documents removes all docs for integration."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service = AutoDocumentIngestionService()
 
             # Add mock documents
@@ -331,7 +339,7 @@ class TestAutoDocumentIngestionService:
             service.ingested_docs["ext-001"] = doc1
             service.ingested_docs["ext-002"] = doc2
 
-            result = service.remove_integration_documents("google_drive")
+            result = await service.remove_integration_documents("google_drive")
             assert result["success"] is True
             assert result["documents_removed"] == 2
             assert len(service.ingested_docs) == 0
@@ -342,7 +350,8 @@ class TestGlobalServiceInstance:
 
     def test_get_document_ingestion_service_singleton(self):
         """get_document_ingestion_service returns singleton instance."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler'):
+        # Mock get_lancedb_handler where it's imported (inside __init__)
+        with patch('core.lancedb_handler.get_lancedb_handler'):
             service1 = get_document_ingestion_service()
             service2 = get_document_ingestion_service()
             assert service1 is service2
@@ -358,8 +367,9 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_full_ingestion_workflow_with_mocks(self):
         """Test complete ingestion workflow with mocked dependencies."""
-        with patch('core.auto_document_ingestion.get_lancedb_handler') as mock_lancedb, \
-             patch('core.auto_document_ingestion.get_secrets_redactor') as mock_redactor:
+        # Mock dependencies where they're imported (inside __init__)
+        with patch('core.lancedb_handler.get_lancedb_handler') as mock_lancedb, \
+             patch('core.secrets_redactor.get_secrets_redactor') as mock_redactor:
 
             # Setup mocks
             mock_memory = AsyncMock()
