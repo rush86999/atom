@@ -529,9 +529,9 @@ class TestManualPromotion:
         result = service.demote_agent(
             agent_id="agent-003",
             tenant_id="tenant-001",
-            to_level=AgentStatus.SUPERVISED.value,
-            demoted_by="admin-user",
-            reason="Performance degradation detected"
+            new_level=AgentStatus.SUPERVISED.value,
+            promoted_by="admin-user",
+            justification="Performance degradation detected"
         )
 
         assert result.from_level == AgentStatus.AUTONOMOUS.value
