@@ -523,7 +523,7 @@
 
 **Gap Closure Plans**:
 - [x] 309-22-PLAN.md -- Fix 7 failing tests (mock setup complexity) 🆕 **GAP CLOSURE**
-- [ ] 309-23-PLAN.md -- Clarify coverage metrics (overall vs per-file) 🆕 **GAP CLOSURE**
+- [x] 309-23-PLAN.md -- Clarify coverage metrics (overall vs per-file) 🆕 **GAP CLOSURE**
 - [ ] 309-24-PLAN.md -- Standardize AsyncMock patterns 🆕 **GAP CLOSURE**
 
 **Duration**: 2-4 hours (estimated)
@@ -602,7 +602,7 @@
 | 306. TDD Bug Discovery & Coverage Completion | 2/2 | ✅ COMPLETE | 2026-04-30 |
 | 307. Backend Coverage - Critical Paths | 6/6 | ✅ SUBSTANTIAL | 2026-04-30 |
 | 308. Backend Coverage - API & Services | 0/TBD | 🆕 RECOMMENDED | - |
-| 309. Services Coverage Wave 2 | 20/22 | In Progress|  |
+| 309. Services Coverage Wave 2 | 21/22 | In Progress|  |
 | 310. Frontend Coverage - Critical | 0/TBD | 🆕 RECOMMENDED | - |
 | 311. Frontend Coverage - Completion | 0/TBD | 🆕 RECOMMENDED | - |
 
