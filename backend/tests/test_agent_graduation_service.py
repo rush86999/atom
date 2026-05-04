@@ -90,17 +90,33 @@ class TestGraduationEligibility:
         """Test INTERN eligibility calculation."""
         # Arrange
         mock_agent.status = "STUDENT"
+        mock_agent.confidence_score = 0.80
 
-        mock_readiness = MagicMock()
-        mock_readiness.to_dict = Mock(return_value={
-            "ready": True,
-            "score": 85.0,
-            "threshold_met": True
-        })
+        # Mock the agent query - need to chain filter() calls properly
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_agent
+        graduation_service.db.query.return_value = mock_query
 
+        # Create a proper ReadinessResponse mock
+        from core.episode_service import ReadinessResponse
+        mock_readiness = ReadinessResponse(
+            agent_id="agent-001",
+            current_level="student",
+            readiness_score=85.0,
+            threshold_met=True,
+            zero_intervention_ratio=0.6,
+            avg_constitutional_score=0.75,
+            avg_confidence_score=0.80,
+            success_rate=0.85,
+            episodes_analyzed=12,
+            breakdown={}
+        )
+
+        # Create episode service mock with proper method
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
+        # Patch at the import location in agent_graduation_service
         with patch('core.agent_graduation_service.get_episode_service', return_value=episode_service):
             # Act
             result = await graduation_service.calculate_readiness_score(
@@ -109,28 +125,45 @@ class TestGraduationEligibility:
             )
 
         # Assert - should call episode service
-        episode_service.get_graduation_readiness.assert_called_once_with(
-            agent_id="agent-001",
-            user_id="user-001",
-            target_level="intern"
-        )
+        # Note: Production code passes user_id as tenant_id (agent.user_id maps to tenant_id)
+        episode_service.get_graduation_readiness.assert_called_once()
+        call_args = episode_service.get_graduation_readiness.call_args
+        assert call_args[1]['agent_id'] == "agent-001"
+        assert call_args[1]['tenant_id'] == "user-001"  # agent.user_id becomes tenant_id
+        assert call_args[1]['target_level'] == "intern"
 
     @pytest.mark.asyncio
     async def test_supervised_eligibility_calculation(self, graduation_service, mock_agent):
         """Test SUPERVISED eligibility calculation."""
         # Arrange
         mock_agent.status = "INTERN"
+        mock_agent.confidence_score = 0.85
 
-        mock_readiness = MagicMock()
-        mock_readiness.to_dict = Mock(return_value={
-            "ready": True,
-            "score": 90.0,
-            "threshold_met": True
-        })
+        # Mock the agent query
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_agent
+        graduation_service.db.query.return_value = mock_query
 
+        # Create a proper ReadinessResponse mock
+        from core.episode_service import ReadinessResponse
+        mock_readiness = ReadinessResponse(
+            agent_id="agent-001",
+            current_level="intern",
+            readiness_score=90.0,
+            threshold_met=True,
+            zero_intervention_ratio=0.75,
+            avg_constitutional_score=0.87,
+            avg_confidence_score=0.85,
+            success_rate=0.90,
+            episodes_analyzed=28,
+            breakdown={}
+        )
+
+        # Create episode service mock with proper method
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
+        # Patch at the import location in agent_graduation_service
         with patch('core.agent_graduation_service.get_episode_service', return_value=episode_service):
             # Act
             result = await graduation_service.calculate_readiness_score(
@@ -139,28 +172,44 @@ class TestGraduationEligibility:
             )
 
         # Assert - should use SUPERVISED criteria (25 episodes, 20% intervention)
-        episode_service.get_graduation_readiness.assert_called_once_with(
-            agent_id="agent-001",
-            user_id="user-001",
-            target_level="supervised"
-        )
+        episode_service.get_graduation_readiness.assert_called_once()
+        call_args = episode_service.get_graduation_readiness.call_args
+        assert call_args[1]['agent_id'] == "agent-001"
+        assert call_args[1]['tenant_id'] == "user-001"
+        assert call_args[1]['target_level'] == "supervised"
 
     @pytest.mark.asyncio
     async def test_autonomous_eligibility_calculation(self, graduation_service, mock_agent):
         """Test AUTONOMOUS eligibility calculation."""
         # Arrange
         mock_agent.status = "SUPERVISED"
+        mock_agent.confidence_score = 0.88
 
-        mock_readiness = MagicMock()
-        mock_readiness.to_dict = Mock(return_value={
-            "ready": False,
-            "score": 88.0,
-            "threshold_met": False
-        })
+        # Mock the agent query
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_agent
+        graduation_service.db.query.return_value = mock_query
 
+        # Create a proper ReadinessResponse mock
+        from core.episode_service import ReadinessResponse
+        mock_readiness = ReadinessResponse(
+            agent_id="agent-001",
+            current_level="supervised",
+            readiness_score=88.0,
+            threshold_met=False,
+            zero_intervention_ratio=0.80,
+            avg_constitutional_score=0.92,
+            avg_confidence_score=0.88,
+            success_rate=0.88,
+            episodes_analyzed=45,
+            breakdown={}
+        )
+
+        # Create episode service mock with proper method
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
 
+        # Patch at the import location in agent_graduation_service
         with patch('core.agent_graduation_service.get_episode_service', return_value=episode_service):
             # Act
             result = await graduation_service.calculate_readiness_score(
@@ -169,11 +218,11 @@ class TestGraduationEligibility:
             )
 
         # Assert - should use AUTONOMOUS criteria (50 episodes, 0% intervention)
-        episode_service.get_graduation_readiness.assert_called_once_with(
-            agent_id="agent-001",
-            user_id="user-001",
-            target_level="autonomous"
-        )
+        episode_service.get_graduation_readiness.assert_called_once()
+        call_args = episode_service.get_graduation_readiness.call_args
+        assert call_args[1]['agent_id'] == "agent-001"
+        assert call_args[1]['tenant_id'] == "user-001"
+        assert call_args[1]['target_level'] == "autonomous"
 
     @pytest.mark.asyncio
     async def test_eligibility_agent_not_found(self, graduation_service):
