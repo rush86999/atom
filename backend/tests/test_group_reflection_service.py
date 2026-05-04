@@ -128,7 +128,7 @@ class TestGroupReflectionService:
         """GroupReflectionService initializes with database session."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
             assert service.db is mock_db
 
@@ -136,7 +136,7 @@ class TestGroupReflectionService:
         """GroupReflectionService lists all supported domains."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
             domains = service.list_supported_domains()
             assert isinstance(domains, list)
@@ -146,7 +146,7 @@ class TestGroupReflectionService:
         """GroupReflectionService can register new domain at runtime."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             # Create custom profile
             custom_profile = DomainProfile(
                 name="Legal",
@@ -171,7 +171,7 @@ class TestGatherGroupExperiencePool:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             pool = service.gather_group_experience_pool(["agent-001", "agent-002"])
@@ -197,7 +197,7 @@ class TestGatherGroupExperiencePool:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_trace]
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             pool = service.gather_group_experience_pool(["agent-001"])
@@ -216,7 +216,7 @@ class TestGatherGroupExperiencePool:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_trace_low]
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             pool = service.gather_group_experience_pool(["agent-001"])
@@ -251,7 +251,7 @@ class TestGatherGroupExperiencePool:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_trace1, mock_trace2]
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             pool = service.gather_group_experience_pool(["agent-001"])
@@ -268,7 +268,7 @@ class TestReflectAndGenerateDirectives:
         """GroupReflectionService handles empty pool gracefully."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service') as mock_llm:
+        with patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm:
             mock_llm_service = AsyncMock()
             mock_llm.return_value = mock_llm_service
             service = GroupReflectionService(mock_db)
@@ -296,7 +296,7 @@ class TestReflectAndGenerateDirectives:
         """GroupReflectionService generates evolution directives."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service') as mock_llm:
+        with patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm:
             mock_llm_service = AsyncMock()
             mock_llm_service.generate_response.return_value = "1. Add error handling\n2. Improve caching\n3. Fix race condition"
             mock_llm.return_value = mock_llm_service
@@ -329,7 +329,7 @@ class TestReflectAndGenerateDirectives:
         """GroupReflectionService handles LLM call failure gracefully."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service') as mock_llm:
+        with patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm:
             mock_llm_service = AsyncMock()
             mock_llm_service.generate_response.side_effect = Exception("LLM error")
             mock_llm.return_value = mock_llm_service
@@ -366,7 +366,7 @@ class TestHelperMethods:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             category = service._detect_category(["agent-001"])
@@ -377,7 +377,7 @@ class TestHelperMethods:
         """GroupReflectionService handles empty agent list."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             category = service._detect_category([])
@@ -388,7 +388,7 @@ class TestHelperMethods:
         """GroupReflectionService passes high-quality traces."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             mock_trace = MagicMock()
@@ -403,7 +403,7 @@ class TestHelperMethods:
         """GroupReflectionService fails low-quality traces."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             mock_trace = MagicMock()
@@ -418,7 +418,7 @@ class TestHelperMethods:
         """GroupReflectionService summarizes tool usage patterns."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             profile = DomainProfileRegistry.resolve("engineering")
@@ -440,7 +440,7 @@ class TestHelperMethods:
         """GroupReflectionService parses directives from LLM response."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             response = """1. Add error handling to API calls
@@ -457,7 +457,7 @@ class TestHelperMethods:
         """GroupReflectionService parses bullet point directives."""
         mock_db = MagicMock()
 
-        with patch('core.group_reflection_service.ServiceFactory.get_llm_service'):
+        with patch('core.service_factory.ServiceFactory.get_llm_service'):
             service = GroupReflectionService(mock_db)
 
             response = """- Improve error handling
@@ -540,11 +540,13 @@ class TestSignalExtractionHelpers:
         """extract_error_lines returns tail of log if keyword not found."""
         from core.group_reflection_service import _extract_error_lines
 
-        log = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+        # Log longer than 80 chars to trigger tail return
+        log = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n" * 5  # ~175 chars
         result = _extract_error_lines(log, "error")
 
-        # Should return last characters
+        # Should return last characters since keyword not found and log > 80 chars
         assert result is not None
+        assert len(result) > 0
 
     def test_extract_traceback_finds_traceback(self):
         """extract_traceback finds Python traceback."""
