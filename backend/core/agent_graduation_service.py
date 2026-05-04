@@ -277,9 +277,13 @@ class AgentGraduationService:
         Returns:
             True if successful
         """
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
+        try:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+        except Exception as e:
+            logger.error(f"Database error querying agent {agent_id}: {e}")
+            return False
 
         if not agent:
             logger.error(f"Agent {agent_id} not found for promotion")
@@ -303,10 +307,14 @@ class AgentGraduationService:
         # Flag configuration as modified for SQLAlchemy JSON tracking
         flag_modified(agent, "configuration")
 
-        self.db.commit()
-        logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
-
-        return True
+        try:
+            self.db.commit()
+            logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
+            return True
+        except Exception as e:
+            logger.error(f"Database error during promotion of agent {agent_id}: {e}")
+            self.db.rollback()
+            return False
 
     async def get_graduation_audit_trail(
         self,
