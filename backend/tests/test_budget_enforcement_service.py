@@ -541,7 +541,9 @@ class TestActiveEpisodeManagement:
         """Detect active episodes for agent."""
         # Arrange
         from sqlalchemy import func
-        service.db.query.return_value.filter.return_value.filter.return_value.filter.return_value.scalar.return_value = 5
+        mock_filter = Mock()
+        mock_filter.scalar.return_value = 5  # Return int, not Mock
+        service.db.query.return_value.filter.return_value = mock_filter
 
         # Act
         has_active = service._has_active_episodes("tenant-001", "agent-001")
@@ -553,7 +555,9 @@ class TestActiveEpisodeManagement:
         """No active episodes for agent."""
         # Arrange
         from sqlalchemy import func
-        service.db.query.return_value.filter.return_value.filter.return_value.filter.return_value.scalar.return_value = 0
+        mock_filter = Mock()
+        mock_filter.scalar.return_value = 0  # Return int, not Mock
+        service.db.query.return_value.filter.return_value = mock_filter
 
         # Act
         has_active = service._has_active_episodes("tenant-001", "agent-001")
@@ -569,9 +573,10 @@ class TestActiveEpisodeManagement:
         mock_episode1.status = "running"
         mock_episode2 = Mock(spec=AgentExecution)
         mock_episode2.status = "running"
-        service.db.query.return_value.filter.return_value.filter.return_value.all.return_value = [
-            mock_episode1, mock_episode2
-        ]
+
+        mock_filter = Mock()
+        mock_filter.all.return_value = [mock_episode1, mock_episode2]  # Return list, not Mock
+        service.db.query.return_value.filter.return_value = mock_filter
 
         # Act
         cancelled_count = service._cancel_active_episodes("tenant-001")
