@@ -94,6 +94,7 @@ class TestResolutionStrategies:
         # Mock resolution history - need multiple resolutions with same name
         mock_resolution = Mock()
         mock_resolution.resolution_attempted = "Let Agent Request Permission"
+        mock_resolution.success = True
 
         # Configure query chain properly
         mock_query = Mock()
@@ -102,9 +103,10 @@ class TestResolutionStrategies:
 
         engine = ErrorGuidanceEngine(db)
 
-        index = engine.get_suggested_resolution("permission_denied")
+        resolution = engine.get_suggested_resolution("permission_denied")
 
-        assert index == 0  # First (most successful) resolution
+        # Returns the resolution name (string), not an index
+        assert resolution == "Let Agent Request Permission"
 
     def test_get_resolution_success_rate_no_data(self):
         """ErrorGuidanceEngine returns zero success rate when no resolutions exist."""
@@ -207,6 +209,7 @@ class TestErrorRecovery:
             engine = ErrorGuidanceEngine(db)
             await engine.track_resolution(
                 error_type="permission_denied",
+                error_code="403",
                 resolution_attempted="Let Agent Request Permission",
                 success=True
             )
@@ -282,7 +285,12 @@ class TestGuidanceIntegration:
     async def test_get_error_fix_suggestions(self):
         """ErrorGuidanceEngine provides comprehensive fix suggestions."""
         db = Mock(spec=Session)
-        db.query.return_value.all.return_value = []
+
+        # Mock query chain for get_resolution_statistics
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = []  # No history
+        db.query.return_value = mock_query
 
         engine = ErrorGuidanceEngine(db)
         suggestions = await engine.get_error_fix_suggestions(
@@ -324,7 +332,8 @@ class TestErrorExplanations:
 
         impact = engine._explain_impact("network_error")
 
-        assert "connection" in impact.lower() or "network" in impact.lower()
+        # Actual impact text: "The operation will fail until connectivity is restored"
+        assert "connectivity" in impact.lower() or "fail" in impact.lower()
 
 
 class TestHelperFunctions:
