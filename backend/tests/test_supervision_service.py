@@ -85,8 +85,34 @@ class TestSupervisionSessions:
         mock_agent.confidence_score = 0.75
         mock_agent.status = "supervised"
 
-        db.query.return_value.filter.return_value.first.return_value = mock_session
-        db.query.return_value.filter.return_value.first.return_value = mock_agent
+        # Mock execution query (returns None to skip episode creation)
+        mock_execution = None
+
+        # Track which model is being queried
+        query_targets = []
+
+        def mock_query_side_effect(model):
+            """Track which model is being queried."""
+            query_targets.append(model)
+            mock_query = Mock()
+
+            def mock_filter_side_effect(*args, **kwargs):
+                mock_filter = Mock()
+                # Return appropriate mock based on model being queried
+                if model.__name__ == "SupervisionSession":
+                    mock_filter.first.return_value = mock_session
+                elif model.__name__ == "AgentRegistry":
+                    mock_filter.first.return_value = mock_agent
+                elif model.__name__ == "AgentExecution":
+                    mock_filter.order_by.return_value.first.return_value = mock_execution
+                else:
+                    mock_filter.first.return_value = None
+                return mock_filter
+
+            mock_query.filter.side_effect = mock_filter_side_effect
+            return mock_query
+
+        db.query.side_effect = mock_query_side_effect
 
         service = SupervisionService(db)
         outcome = await service.complete_supervision(
@@ -113,13 +139,38 @@ class TestSupervisionSessions:
         mock_session.intervention_count = 0
         mock_session.interventions = []
 
-        # Mock agent with high confidence
+        # Mock agent with high confidence (will cross 0.9 threshold)
         mock_agent = Mock()
         mock_agent.confidence_score = 0.89
         mock_agent.status = "supervised"
+        from core.models import AgentStatus
+        mock_agent.AgentStatus = AgentStatus
 
-        db.query.return_value.filter.return_value.first.return_value = mock_session
-        db.query.return_value.filter.return_value.first.return_value = mock_agent
+        # Mock execution query (returns None to skip episode creation)
+        mock_execution = None
+
+        # Track which model is being queried
+        def mock_query_side_effect(model):
+            """Track which model is being queried."""
+            mock_query = Mock()
+
+            def mock_filter_side_effect(*args, **kwargs):
+                mock_filter = Mock()
+                # Return appropriate mock based on model being queried
+                if model.__name__ == "SupervisionSession":
+                    mock_filter.first.return_value = mock_session
+                elif model.__name__ == "AgentRegistry":
+                    mock_filter.first.return_value = mock_agent
+                elif model.__name__ == "AgentExecution":
+                    mock_filter.order_by.return_value.first.return_value = mock_execution
+                else:
+                    mock_filter.first.return_value = None
+                return mock_filter
+
+            mock_query.filter.side_effect = mock_filter_side_effect
+            return mock_query
+
+        db.query.side_effect = mock_query_side_effect
 
         service = SupervisionService(db)
         await service.complete_supervision(
@@ -273,10 +324,12 @@ class TestInterventionManagement:
         """SupervisionService raises error for invalid intervention type."""
         db = Mock(spec=Session)
 
-        # Mock session
+        # Mock session with integer intervention_count
         mock_session = Mock()
         mock_session.id = "session-001"
         mock_session.status = SupervisionStatus.RUNNING.value
+        mock_session.interventions = []
+        mock_session.intervention_count = 0  # Must be integer, not Mock
 
         db.query.return_value.filter.return_value.first.return_value = mock_session
 
@@ -380,9 +433,13 @@ class TestSupervisionHistory:
         mock_session.id = "session-001"
         mock_session.started_at = datetime.now() - timedelta(minutes=5)
 
-        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
-            mock_session
-        ]
+        # Configure mock query chain to return list
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [mock_session]
+        db.query.return_value = mock_query
 
         service = SupervisionService(db)
         sessions = await service.get_active_sessions(workspace_id="default", limit=50)
