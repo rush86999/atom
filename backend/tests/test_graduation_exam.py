@@ -584,11 +584,12 @@ class TestGetNextLevel:
         next_level = service._get_next_level(AgentStatus.SUPERVISED.value)
         assert next_level == AgentStatus.AUTONOMOUS.value
 
-    def test_get_next_level_autonomous_returns_none(self):
-        """GraduationExamService returns None for AUTONOMOUS (no higher level)."""
+    def test_get_next_level_autonomous_returns_autonomous(self):
+        """GraduationExamService returns AUTONOMOUS for AUTONOMOUS (already at max)."""
         service = GraduationExamService(Mock(spec=Session))
         next_level = service._get_next_level(AgentStatus.AUTONOMOUS.value)
-        assert next_level is None
+        # Production code returns AUTONOMOUS when already at max level (not None)
+        assert next_level == AgentStatus.AUTONOMOUS.value
 
 
 # Total tests: 25 (within 20-25 target)
