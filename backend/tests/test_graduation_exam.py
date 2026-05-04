@@ -322,8 +322,7 @@ class TestExecuteGraduationExam:
 
         with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
-             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional, \
-             patch.object(GraduationExamService, '_skill_performance_check') as mock_skills:
+             patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
             # Mock readiness calculation
             mock_readiness = Mock()
             mock_readiness.to_dict.return_value = {
@@ -336,6 +335,17 @@ class TestExecuteGraduationExam:
 
             mock_service_instance = Mock()
             mock_service_instance.get_graduation_readiness.return_value = mock_readiness
+
+            # Mock skill mastery assessment (for _skill_performance_check)
+            mock_mastery = Mock()
+            mock_mastery.mastery_score = 0.85
+            mock_mastery.skill_diversity = 0.90
+            mock_mastery.skills_used = {'skill1', 'skill2', 'skill3'}
+            mock_mastery.skill_execution_count = 50
+            mock_mastery.required_skills_for_level = 3
+            mock_mastery.skill_success_rate = 0.85
+            mock_service_instance.assess_skill_mastery.return_value = mock_mastery
+
             mock_episode_service.return_value = mock_service_instance
 
             # Mock edge case simulation (module not yet implemented)
@@ -350,14 +360,6 @@ class TestExecuteGraduationExam:
             mock_constitutional.return_value = {
                 "passed": True,
                 "violations": []
-            }
-
-            # Mock skill performance check (high score to pass exam)
-            mock_skills.return_value = {
-                "total_skills": 10,
-                "proficient_skills": 10,
-                "performance_score": 0.95,
-                "mastery_threshold_met": True
             }
 
             service = GraduationExamService(mock_db)
@@ -383,9 +385,22 @@ class TestExecuteGraduationExam:
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        with patch('core.graduation_exam.EpisodeService'), \
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
              patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
+            # Mock skill mastery assessment (for _skill_performance_check)
+            mock_mastery = Mock()
+            mock_mastery.mastery_score = 0.80
+            mock_mastery.skill_diversity = 0.85
+            mock_mastery.skills_used = {'skill1', 'skill2', 'skill3', 'skill4'}
+            mock_mastery.skill_execution_count = 40
+            mock_mastery.required_skills_for_level = 4
+            mock_mastery.skill_success_rate = 0.80
+
+            mock_service_instance = Mock()
+            mock_service_instance.assess_skill_mastery.return_value = mock_mastery
+            mock_episode_service.return_value = mock_service_instance
+
             # Mock edge case simulation (module not yet implemented)
             mock_edge_cases.return_value = {
                 "total": 0,
@@ -398,14 +413,6 @@ class TestExecuteGraduationExam:
             mock_constitutional.return_value = {
                 "passed": True,
                 "violations": []
-            }
-
-            # Mock skill performance check (high score to pass exam)
-            mock_skills.return_value = {
-                "total_skills": 10,
-                "proficient_skills": 10,
-                "performance_score": 0.95,
-                "mastery_threshold_met": True
             }
 
             service = GraduationExamService(mock_db)
