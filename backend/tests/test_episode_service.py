@@ -186,22 +186,22 @@ class TestEpisodeServiceInit:
 
     def test_episode_service_init_with_db(self, mock_db):
         """EpisodeService initializes with database session."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
                 assert service.db is mock_db
 
     def test_episode_service_init_creates_lancedb_handler(self, mock_db):
         """EpisodeService initializes LanceDB handler on creation."""
-        with patch('core.episode_service.get_lancedb_handler') as mock_lancedb:
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler') as mock_lancedb:
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
                 assert service.lancedb is not None
 
     def test_episode_service_init_creates_embedding_service(self, mock_db):
         """EpisodeService initializes embedding service on creation."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service') as mock_embedding:
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService') as mock_embedding:
                 service = EpisodeService(mock_db)
                 assert service.embedding_service is not None
 
@@ -220,8 +220,8 @@ class TestEpisodeServiceCreation:
 
     def test_create_episode_from_execution(self, mock_db):
         """EpisodeService can create episode from agent execution."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 # Mock agent execution
@@ -248,8 +248,8 @@ class TestEpisodeServiceCreation:
 
     def test_create_episode_with_metadata(self, mock_db):
         """EpisodeService creates episode with custom metadata."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 metadata = {
@@ -270,8 +270,8 @@ class TestEpisodeServiceCreation:
 
     def test_create_episode_validates_required_fields(self, mock_db):
         """EpisodeService validates required fields for episode creation."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 # Missing agent_id should raise error
@@ -304,8 +304,8 @@ class TestEpisodeServiceRetrieval:
         mock_query.filter.return_value.first.return_value = mock_episode
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episode = service.get_episode_by_id("ep-001")
@@ -322,8 +322,8 @@ class TestEpisodeServiceRetrieval:
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = mock_episodes
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episodes = service.get_episodes_by_agent("agent-001", limit=10)
@@ -335,8 +335,8 @@ class TestEpisodeServiceRetrieval:
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episode = service.get_episode_by_id("nonexistent")
@@ -369,8 +369,8 @@ class TestEpisodeServiceGraduationReadiness:
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = mock_episodes
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 readiness = service.get_graduation_readiness(
@@ -401,8 +401,8 @@ class TestEpisodeServiceGraduationReadiness:
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = mock_episodes
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 readiness = service.get_graduation_readiness(
@@ -420,8 +420,8 @@ class TestEpisodeServiceGraduationReadiness:
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
         mock_db.query.return_value = mock_query
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 readiness = service.get_graduation_readiness(
@@ -463,8 +463,8 @@ class TestEpisodeServiceProgressiveRetrieval:
         # Mock execute for raw SQL
         mock_db.execute.return_value.fetchall.return_value = mock_episodes
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episodes = service.get_progressive_episodes(
@@ -479,8 +479,8 @@ class TestEpisodeServiceProgressiveRetrieval:
         """EpisodeService retrieves episodes at STANDARD detail level."""
         mock_db.execute.return_value.fetchall.return_value = []
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episodes = service.get_progressive_episodes(
@@ -496,8 +496,8 @@ class TestEpisodeServiceProgressiveRetrieval:
         """EpisodeService retrieves episodes at FULL detail level."""
         mock_db.execute.return_value.fetchall.return_value = []
 
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 episodes = service.get_progressive_episodes(
@@ -532,8 +532,8 @@ class TestEpisodeServiceArchival:
         mock_lancedb = Mock()
         mock_lancedb.upsert.return_value = True
 
-        with patch('core.episode_service.get_lancedb_handler', return_value=mock_lancedb):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler', return_value=mock_lancedb):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(mock_db)
 
                 result = service.archive_episode(mock_episode)
@@ -555,8 +555,8 @@ class TestEpisodeServiceArchival:
         mock_embedding_service = Mock()
         mock_embedding_service.generate_embedding.return_value = [0.1, 0.2, 0.3]
 
-        with patch('core.episode_service.get_lancedb_handler', return_value=mock_lancedb):
-            with patch('core.episode_service.get_embedding_service', return_value=mock_embedding_service):
+        with patch('core.lancedb_service.get_lancedb_handler', return_value=mock_lancedb):
+            with patch('core.embedding_service.EmbeddingService', return_value=mock_embedding_service):
                 service = EpisodeService(mock_db)
 
                 result = service.archive_episode(mock_episode)
@@ -577,8 +577,8 @@ class TestEpisodeServiceConstitutionalScoring:
 
     def test_calculate_constitutional_score_no_violations(self):
         """EpisodeService calculates 100% score with no violations."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(Mock(spec=Session))
 
                 violations = []
@@ -588,8 +588,8 @@ class TestEpisodeServiceConstitutionalScoring:
 
     def test_calculate_constitutional_score_with_violations(self):
         """EpisodeService calculates reduced score with violations."""
-        with patch('core.episode_service.get_lancedb_handler'):
-            with patch('core.episode_service.get_embedding_service'):
+        with patch('core.lancedb_service.get_lancedb_handler'):
+            with patch('core.embedding_service.EmbeddingService'):
                 service = EpisodeService(Mock(spec=Session))
 
                 violations = [
