@@ -276,7 +276,15 @@ class TestGraduationExams:
         """Test run_graduation_exam creates graduation exam."""
         # Arrange - run_graduation_exam takes edge_case_episodes parameter
         mock_episode = MagicMock()
+        mock_episode.id = "episode-001"
         mock_episode.task_description = "Test episode"
+
+        # Mock the episode query
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_episode
+        graduation_service.db.query.return_value = mock_query
+
+        # Mock sandbox result
         mock_sandbox_result = MagicMock()
         mock_sandbox_result.passed = True
         mock_sandbox_result.interventions = 0
@@ -302,10 +310,20 @@ class TestGraduationExams:
         """Test exam submission and answer storage."""
         # Arrange
         mock_episode = MagicMock()
+        mock_episode.id = "episode-001"
         mock_episode.task_description = "Test episode"
+
+        # Mock the episode query
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_episode
+        graduation_service.db.query.return_value = mock_query
+
+        # Mock sandbox result
         mock_sandbox_result = MagicMock()
         mock_sandbox_result.passed = True
         mock_sandbox_result.interventions = 0
+        mock_sandbox_result.safety_violations = []
+        mock_sandbox_result.replayed_actions = []
 
         exam_executor = MagicMock()
         exam_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
