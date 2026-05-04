@@ -670,15 +670,28 @@ class TestSupervisionMetrics:
         mock_agent.id = "agent-001"
         mock_agent.user_id = "user-001"
         mock_agent.status = "INTERN"
-        graduation_service.db.query().filter().first.return_value = mock_agent
+        mock_agent.confidence_score = 0.85
 
-        mock_readiness = MagicMock()
-        mock_readiness.to_dict = Mock(return_value={
-            "ready": True,
-            "score": 85.0,
-            "threshold_met": True,
-            "gaps": []
-        })
+        # Mock the agent query - need to set up chain properly
+        mock_query = MagicMock()
+        mock_query.filter().first.return_value = mock_agent
+        mock_query.filter().all.return_value = []  # Empty supervision sessions
+        graduation_service.db.query.return_value = mock_query
+
+        # Create a proper ReadinessResponse mock
+        from core.episode_service import ReadinessResponse
+        mock_readiness = ReadinessResponse(
+            agent_id="agent-001",
+            current_level="intern",
+            readiness_score=85.0,
+            threshold_met=True,
+            zero_intervention_ratio=0.75,
+            avg_constitutional_score=0.87,
+            avg_confidence_score=0.85,
+            success_rate=0.90,
+            episodes_analyzed=28,
+            breakdown={}
+        )
 
         episode_service = MagicMock()
         episode_service.get_graduation_readiness = Mock(return_value=mock_readiness)
