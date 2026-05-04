@@ -268,6 +268,11 @@ class TestExecuteGraduationExam:
         db.add = Mock()
         db.commit = Mock()
         db.flush = Mock()
+        # Mock refresh to set id on objects
+        def mock_refresh(obj):
+            if hasattr(obj, 'id') and obj.id is None:
+                obj.id = "exam-001"
+        db.refresh = mock_refresh
         return db
 
     def test_execute_graduation_exam_agent_not_found(self, mock_db):
@@ -519,6 +524,11 @@ class TestManualPromotion:
         db.add = Mock()
         db.commit = Mock()
         db.flush = Mock()
+        # Mock refresh to set id on objects
+        def mock_refresh(obj):
+            if hasattr(obj, 'id') and obj.id is None:
+                obj.id = "exam-001"
+        db.refresh = mock_refresh
         return db
 
     def test_manual_promotion_success(self, mock_db):
