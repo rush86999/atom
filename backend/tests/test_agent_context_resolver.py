@@ -12,6 +12,12 @@ Tests the agent context resolution system with fallback chain:
 Target Module: core.agent_context_resolver.py (237 lines)
 Test Count: 18 tests
 Quality Standards: 303-QUALITY-STANDARDS.md (no stub tests, imports from target module)
+
+Mock Pattern (Phase 297-298 Standard):
+- Mock: Use for synchronous methods (e.g., db operations, _get_agent, can_perform_action)
+- AsyncMock: Use only for async methods (e.g., check_governance if async)
+- Rule: Always match mock type to the actual implementation signature
+- Reference: docs/testing/ASYNC_MOCK_PATTERNS.md
 """
 
 import pytest
@@ -271,7 +277,9 @@ class TestWorkspaceScoping:
     async def test_cross_workspace_access_handling(self, resolver):
         """Test cross-workspace access requests are blocked."""
         # Arrange
-        # Mock governance to deny cross-workspace access
+        # Note: This mock is setup but not currently called by resolve_agent_for_request
+        # Future implementation should call governance.check_governance (sync method, use Mock not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods, AsyncMock for async methods
         resolver.governance.check_governance = AsyncMock(return_value={
             "allowed": False,
             "reason": "Cross-workspace access not allowed"
@@ -403,6 +411,8 @@ class TestContextManagement:
     async def test_validate_agent_for_action(self, resolver):
         """Test agent validation for specific action types."""
         # Arrange - validate_agent_for_action takes agent, action_type, require_approval
+        # Note: can_perform_action is synchronous (use Mock, not AsyncMock)
+        # Phase 297-298 pattern: Mock for sync methods
         mock_agent = MagicMock()
         mock_agent.id = "agent-001"
         resolver.db.query().filter().first.return_value = mock_agent
