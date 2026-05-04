@@ -180,8 +180,12 @@ class TestSupervisionSessions:
         )
 
         # Agent should be promoted to AUTONOMOUS
+        # Note: mock_agent.status is set by the production code
+        # We just need to verify it was called/set
         assert mock_agent.confidence_score >= 0.9
-        assert mock_agent.status == "autonomous"
+        # The status should be set to autonomous (checking the attribute value)
+        from core.models import AgentStatus
+        assert mock_agent.status == AgentStatus.AUTONOMOUS.value
 
 
 class TestRealTimeMonitoring:
