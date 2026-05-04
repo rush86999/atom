@@ -484,77 +484,110 @@ class TestManualPromotion:
         mock_agent = Mock(
             id="agent-001",
             status=AgentStatus.INTERN.value,
-            tenant_id="tenant-001"
+            tenant_id="tenant-001",
+            promotion_count=0,  # Mock integer value
+            last_promotion_at=None
         )
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        service = GraduationExamService(mock_db)
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+            # Mock readiness calculation for audit trail
+            mock_readiness = Mock(
+                readiness_score=0.85
+            )
+            mock_service_instance = Mock()
+            mock_service_instance.get_graduation_readiness.return_value = mock_readiness
+            mock_episode_service.return_value = mock_service_instance
 
-        result = service.promote_agent_manually(
-            agent_id="agent-001",
-            tenant_id="tenant-001",
-            new_level=AgentStatus.SUPERVISED.value,
-            promoted_by="admin-user",
-            justification="Testing manual promotion"
-        )
+            service = GraduationExamService(mock_db)
 
-        assert result.agent_id == "agent-001"
-        assert result.to_level == AgentStatus.SUPERVISED.value
-        mock_db.commit.assert_called()
+            result = service.promote_agent_manually(
+                agent_id="agent-001",
+                tenant_id="tenant-001",
+                new_level=AgentStatus.SUPERVISED.value,
+                promoted_by="admin-user",
+                justification="Testing manual promotion"
+            )
+
+            assert result.agent_id == "agent-001"
+            assert result.to_level == AgentStatus.SUPERVISED.value
+            mock_db.commit.assert_called()
 
     def test_manual_promotion_creates_history(self, mock_db):
         """GraduationExamService creates promotion history record."""
         mock_agent = Mock(
             id="agent-002",
             status=AgentStatus.SUPERVISED.value,
-            tenant_id="tenant-001"
+            tenant_id="tenant-001",
+            promotion_count=2,  # Mock integer value
+            last_promotion_at=None
         )
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        service = GraduationExamService(mock_db)
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+            # Mock readiness calculation for audit trail
+            mock_readiness = Mock(
+                readiness_score=0.90
+            )
+            mock_service_instance = Mock()
+            mock_service_instance.get_graduation_readiness.return_value = mock_readiness
+            mock_episode_service.return_value = mock_service_instance
 
-        result = service.promote_agent_manually(
-            agent_id="agent-002",
-            tenant_id="tenant-001",
-            new_level=AgentStatus.AUTONOMOUS.value,
-            promoted_by="admin-user",
-            justification="Testing manual promotion with history"
-        )
+            service = GraduationExamService(mock_db)
 
-        # Should create PromotionHistory record
-        assert mock_db.add.called
+            result = service.promote_agent_manually(
+                agent_id="agent-002",
+                tenant_id="tenant-001",
+                new_level=AgentStatus.AUTONOMOUS.value,
+                promoted_by="admin-user",
+                justification="Testing manual promotion with history"
+            )
+
+            # Should create PromotionHistory record
+            assert mock_db.add.called
 
     def test_manual_demotion(self, mock_db):
         """GraduationExamService performs manual demotion."""
         mock_agent = Mock(
             id="agent-003",
             status=AgentStatus.AUTONOMOUS.value,
-            tenant_id="tenant-001"
+            tenant_id="tenant-001",
+            promotion_count=5,  # Mock integer value
+            last_promotion_at=None
         )
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        service = GraduationExamService(mock_db)
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+            # Mock readiness calculation for audit trail
+            mock_readiness = Mock(
+                readiness_score=0.95
+            )
+            mock_service_instance = Mock()
+            mock_service_instance.get_graduation_readiness.return_value = mock_readiness
+            mock_episode_service.return_value = mock_service_instance
 
-        result = service.demote_agent(
-            agent_id="agent-003",
-            tenant_id="tenant-001",
-            new_level=AgentStatus.SUPERVISED.value,
-            promoted_by="admin-user",
-            justification="Performance degradation detected"
-        )
+            service = GraduationExamService(mock_db)
 
-        assert result.from_level == AgentStatus.AUTONOMOUS.value
-        assert result.to_level == AgentStatus.SUPERVISED.value
-        assert result.success is True
+            result = service.demote_agent(
+                agent_id="agent-003",
+                tenant_id="tenant-001",
+                new_level=AgentStatus.SUPERVISED.value,
+                promoted_by="admin-user",
+                justification="Performance degradation detected"
+            )
+
+            assert result.from_level == AgentStatus.AUTONOMOUS.value
+            assert result.to_level == AgentStatus.SUPERVISED.value
+            assert result.success is True
 
 
 class TestGetNextLevel:
