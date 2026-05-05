@@ -225,7 +225,7 @@ class EntityTypeService:
 
         # Create entity type definition
         entity_type = EntityTypeDefinition(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             tenant_id=tenant_id,
             slug=slug,
             display_name=display_name,
@@ -358,7 +358,7 @@ class EntityTypeService:
         schema_hash = hashlib.sha256(schema_json.encode()).hexdigest()
 
         snapshot = EntityTypeVersionHistory(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             tenant_id=entity_type.tenant_id,
             entity_type_id=entity_type.id,
             version=entity_type.version,

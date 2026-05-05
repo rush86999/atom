@@ -2,6 +2,17 @@
 
 AI-powered business automation platform with multi-agent governance.
 
+## 🏗️ Tenancy Model
+
+**Atom Upstream is a SINGLE-TENANT platform.**
+
+Unlike the SaaS version, the Upstream repository is designed for private, self-hosted deployments where:
+- All data belongs to a single "Default Tenant".
+- Multi-tenancy isolation logic (subdomains, tenant partitioning) is disabled by default.
+- APIs do not require `tenant_id` in requests unless explicitly specified for cross-tenant management tools.
+
+If you are porting changes from the SaaS codebase, ensure you remove multi-tenant boilerplate and `tenant_id` requirements from service initializations.
+
 ## ⚠️ Security Notice
 
 **NEVER commit sensitive files to version control:**

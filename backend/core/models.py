@@ -1,7 +1,8 @@
 from sqlalchemy import (
     Column, Integer, String, DateTime, ForeignKey, Boolean, Float, Text, Index,
     Table, JSON, MetaData, select, update, delete, func, and_, or_, not_,
-    UniqueConstraint, Enum as SQLEnum, BigInteger, TypeDecorator, Numeric, Date
+    UniqueConstraint, Enum as SQLEnum, BigInteger, TypeDecorator, Numeric, Date,
+    CheckConstraint
 )
 from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase, validates
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
@@ -9655,3 +9656,141 @@ class DiscoveredEntity(Base):
 
     def __repr__(self):
         return f"<DiscoveredEntity(id={self.id}, _discovered_type={self._discovered_type}, status={self.status})>"
+
+
+class DocumentIngestion(Base):
+    """Track ingested documents to prevent duplicate processing (idempotency)"""
+
+    __tablename__ = "document_ingestions"
+
+    id = Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+    doc_id = Column(String, nullable=False, index=True)
+    content_hash = Column(String, nullable=False)
+    source = Column(String, nullable=True)
+    ingested_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_doc_ingest_ws_doc", "workspace_id", "doc_id", unique=True),
+    )
+
+
+class IngestionJob(Base):
+    """Track ingestion pipeline jobs for progress and monitoring"""
+
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Job configuration
+    integration_id = Column(String, nullable=False, index=True)
+    trigger_type = Column(String, nullable=False)  # "scheduled", "manual", "webhook"
+    source_connection_id = Column(UUID, ForeignKey("user_connections.id", ondelete="CASCADE"), nullable=True)
+
+    # Job status
+    status = Column(String, default="pending")  # pending, running, completed, failed, cancelled
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Job metrics
+    records_fetched = Column(Integer, default=0)
+    records_processed = Column(Integer, default=0)
+    entities_extracted = Column(Integer, default=0)
+    relationships_extracted = Column(Integer, default=0)
+
+    # Error tracking
+    error_message = Column(Text, nullable=True)
+    error_details = Column(JSONBColumn, nullable=True)
+
+    # Progress tracking for historical sync
+    total_records = Column(Integer, nullable=True)
+    progress_percentage = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="ingestion_jobs")
+    source_connection = relationship("UserConnection", backref="ingestion_jobs")
+
+    # Composite indexes for performance
+    __table_args__ = (
+        Index("ix_ingestion_jobs_tenant_integration", "tenant_id", "integration_id"),
+        Index("ix_ingestion_jobs_tenant_status", "tenant_id", "status"),
+        Index("ix_ingestion_jobs_created_at", "created_at"),
+        Index("ix_ingestion_jobs_trigger_type", "trigger_type"),
+    )
+
+
+class HistoricalSyncJob(Base):
+    """Track historical data sync jobs for 3+ month backfill with progress tracking"""
+
+    __tablename__ = "historical_sync_jobs"
+
+    id = Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=False, index=True)
+
+    # Job configuration
+    integration_id = Column(String, nullable=False, index=True)
+    source_connection_id = Column(String, nullable=False)
+
+    # Date range for historical sync
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=False)
+
+    # Job status
+    status = Column(
+        String, default="pending"
+    )  # pending, running, paused, completed, failed, cancelled
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Progress tracking (chunk-based)
+    total_chunks = Column(Integer, default=0)
+    completed_chunks = Column(Integer, default=0)
+    current_chunk_offset = Column(Integer, default=0)
+    chunk_size = Column(Integer, default=1000)
+
+    # Records processed
+    total_records_estimate = Column(Integer, nullable=True)
+    records_processed = Column(Integer, default=0)
+    entities_extracted = Column(Integer, default=0)
+    relationships_extracted = Column(Integer, default=0)
+
+    # Progress percentage (calculated)
+    progress_percentage = Column(Integer, default=0)
+
+    # Error tracking
+    last_error = Column(Text, nullable=True)
+    error_count = Column(Integer, default=0)
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    scope = Column(String, default="personal")  # personal, org
+
+    # Resumability state
+    last_checkpoint_at = Column(DateTime(timezone=True), nullable=True)
+    checkpoint_data = Column(JSONBColumn, nullable=True)  # Store state for resume
+
+    # Worker coordination (Redis)
+    worker_lock_token = Column(String, nullable=True)  # Redis lock token for worker coordination
+    last_heartbeat = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship(
+        "Workspace",
+        backref="historical_sync_jobs",
+        primaryjoin="cast(HistoricalSyncJob.tenant_id, String) == cast(Workspace.id, String)",
+        foreign_keys=[tenant_id],
+    )
+    source_connection = relationship(
+        "UserConnection",
+        backref="historical_sync_jobs",
+        primaryjoin="cast(HistoricalSyncJob.source_connection_id, String) == cast(UserConnection.id, String)",
+        foreign_keys=[source_connection_id],
+    )
