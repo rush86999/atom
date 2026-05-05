@@ -27,8 +27,9 @@ from core.docling_processor import get_docling_processor
 from core.graphrag_engine import GraphRAGEngine
 from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS, HybridDataIngestionService
 from core.lancedb_handler import LanceDBHandler
-from core.models import DocumentIngestion, Tenant, UserConnection, IngestionJob
-from core.openie_schema_discovery import CORE_ENTITY_SCHEMAS, OpenIESchemaDiscovery
+from core.models import DocumentIngestion, Tenant, UserConnection, IngestionJob, DiscoveredEntity
+from core.multi_entity_llm_extractor import MultiEntityLLMExtractor
+from core.schema_discovery_service import SchemaDiscoveryService
 from core.usage_tracking_service import UsageTrackingService
 
 logger = logging.getLogger(__name__)
@@ -54,10 +55,11 @@ class IngestionPipelineService(HybridDataIngestionService):
         # Initialize GraphRAG engine
         self.graphrag = GraphRAGEngine(workspace_id=workspace_id, tenant_id=tenant_id)
 
-        # Initialize OpenIE discovery
-        self.openie_discovery = OpenIESchemaDiscovery(
-            tenant_id=self.tenant_id, workspace_id=self.workspace_id
-        )
+        # Phase 323: High-performance Multi-Entity Extraction
+        self.multi_entity_extractor = MultiEntityLLMExtractor()
+
+        # Phase 323: Schema Discovery (Replaces OpenIE)
+        self.schema_discovery = SchemaDiscoveryService(db=self.db)
 
         # Initialize usage tracking service (Shimmed in Upstream)
         self.usage_tracker = UsageTrackingService(tenant_id=self.tenant_id, db=self.db)
@@ -150,7 +152,11 @@ class IngestionPipelineService(HybridDataIngestionService):
 
                     results["records_processed"] += 1
 
-                    # Extract structured data
+                    # Phase 323: Multi-Entity Extraction for Unstructured Data
+                    if integration_id in ["outlook", "gmail", "slack", "discord", "whatsapp"]:
+                        await self._process_record_with_multi_entity_extraction(record, integration_id, job_id)
+
+                    # Extract structured data (Standard pipeline)
                     entity, rel = self._extract_structured_entities(record, integration_id, text)
                     if entity:
                         entities.append(entity)
@@ -173,8 +179,10 @@ class IngestionPipelineService(HybridDataIngestionService):
                 for rid, rtext in ingested_record_ids:
                     self._record_doc_ingestion(self.workspace_id, rid, rtext, integration_id)
 
-            # Step 4: Schema Discovery via OpenIE
-            await self._run_schema_discovery(entities, integration_id)
+            # Step 4: Schema Discovery via SchemaDiscoveryService (Phase 323)
+            await self.schema_discovery.discover_schemas_from_entities(
+                tenant_id=self.tenant_id, workspace_id=self.workspace_id
+            )
 
             # Step 5: Update job status
             completed_at = datetime.now(timezone.utc)
@@ -199,35 +207,34 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         return results
 
-    async def _run_schema_discovery(self, entities: list[dict], integration_id: str):
-        """Run OpenIE schema discovery on extracted entities."""
-        entity_types = set(e.get("type", "unknown") for e in entities)
-        for entity_type in entity_types:
-            if self._is_core_entity_type(entity_type):
-                continue
+    async def _process_record_with_multi_entity_extraction(
+        self, record: dict[str, Any], integration_id: str, job_id: str
+    ) -> list[DiscoveredEntity]:
+        """Process record using high-performance Multi-Entity LLM Extraction."""
+        # Convert record to extraction format
+        email_data = {
+            "id": record.get("id", "unknown"),
+            "subject": record.get("subject", record.get("title", "")),
+            "from": record.get("from", record.get("sender", "")),
+            "to": record.get("to", record.get("recipients", [])),
+            "body": record.get("body", record.get("text", "")),
+        }
 
-            # Check if type already exists
-            from core.entity_type_service import EntityTypeService
-            et_service = EntityTypeService(db=self.openie_discovery.db)
-            existing = et_service.get_entity_type(
-                tenant_id=self.tenant_id,
-                slug=entity_type.lower().replace(" ", "_"),
-                include_inactive=False
-            )
-            if existing:
-                continue
+        # Call extractor
+        discovered_entities = await self.multi_entity_extractor.extract_from_email(
+            email_data=email_data,
+            tenant_id=self.tenant_id,
+            workspace_id=self.workspace_id,
+            batch_id=job_id
+        )
 
-            # Create draft type
-            sample_entities = [e for e in entities if e.get("type") == entity_type]
-            if sample_entities:
-                sample_props = sample_entities[0].get("properties", {})
-                self.openie_discovery.create_draft_entity_type(
-                    slug=self.openie_discovery._normalize_slug(entity_type),
-                    display_name=entity_type.title(),
-                    properties=sample_props,
-                    discovery_reasoning=f"Auto-discovered from {integration_id} sync.",
-                    confidence=0.7
-                )
+        if discovered_entities:
+            # Persist to discovered_entities table
+            for entity in discovered_entities:
+                self.db.add(entity)
+            self.db.commit()
+
+        return discovered_entities
 
     def _extract_structured_entities(
         self, record: dict[str, Any], integration_id: str, text: str

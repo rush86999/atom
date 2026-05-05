@@ -31,8 +31,8 @@ def sample_purchase_order_entities():
     return [
         DiscoveredEntity(
             id="entity-001",
-            tenant_id="tenant-001",
-            workspace_id="workspace-001",
+                tenant_id="tenant-po",
+                workspace_id="workspace-001",
             _discovered_type="PurchaseOrder",
             properties={
                 "po_number": "PO-12345",
@@ -43,11 +43,12 @@ def sample_purchase_order_entities():
             },
             confidence_score=0.95,
             source_record_id="email-001",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         ),
         DiscoveredEntity(
             id="entity-002",
-            tenant_id="tenant-001",
+            tenant_id="tenant-po",
             workspace_id="workspace-001",
             _discovered_type="PurchaseOrder",
             properties={
@@ -59,11 +60,12 @@ def sample_purchase_order_entities():
             },
             confidence_score=0.88,
             source_record_id="email-002",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         ),
         DiscoveredEntity(
             id="entity-003",
-            tenant_id="tenant-001",
+            tenant_id="tenant-po",
             workspace_id="workspace-001",
             _discovered_type="PurchaseOrder",
             properties={
@@ -75,11 +77,12 @@ def sample_purchase_order_entities():
             },
             confidence_score=0.92,
             source_record_id="email-003",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         ),
         DiscoveredEntity(
             id="entity-004",
-            tenant_id="tenant-001",
+            tenant_id="tenant-po",
             workspace_id="workspace-001",
             _discovered_type="PurchaseOrder",
             properties={
@@ -90,11 +93,12 @@ def sample_purchase_order_entities():
             },
             confidence_score=0.85,
             source_record_id="email-004",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         ),
         DiscoveredEntity(
             id="entity-005",
-            tenant_id="tenant-001",
+            tenant_id="tenant-po",
             workspace_id="workspace-001",
             _discovered_type="PurchaseOrder",
             properties={
@@ -105,7 +109,8 @@ def sample_purchase_order_entities():
             },
             confidence_score=0.90,
             source_record_id="email-005",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
     ]
 
@@ -116,7 +121,7 @@ def sample_security_event_entities():
     return [
         DiscoveredEntity(
             id="entity-101",
-            tenant_id="tenant-001",
+            tenant_id="tenant-se",
             workspace_id="workspace-001",
             _discovered_type="SecurityEvent",
             properties={
@@ -128,11 +133,12 @@ def sample_security_event_entities():
             },
             confidence_score=0.92,
             source_record_id="email-101",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         ),
         DiscoveredEntity(
             id="entity-102",
-            tenant_id="tenant-001",
+            tenant_id="tenant-se",
             workspace_id="workspace-001",
             _discovered_type="SecurityEvent",
             properties={
@@ -144,7 +150,8 @@ def sample_security_event_entities():
             },
             confidence_score=0.88,
             source_record_id="email-102",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
     ]
 
@@ -162,11 +169,11 @@ class TestSchemaDiscovery:
         # Arrange
         for entity in sample_purchase_order_entities:
             discovery_service.db.add(entity)
-        discovery_service.db.commit()
+        discovery_service.db.flush()
 
         # Act
         entity_types = await discovery_service.discover_schemas_from_entities(
-            "tenant-001",
+            "tenant-po",
             "workspace-001",
             min_sample_count=5
         )
@@ -191,11 +198,11 @@ class TestSchemaDiscovery:
         # Arrange
         for entity in sample_security_event_entities:
             discovery_service.db.add(entity)
-        discovery_service.db.commit()
+        discovery_service.db.flush()
 
         # Act
         entity_types = await discovery_service.discover_schemas_from_entities(
-            "tenant-001",
+            "tenant-se",
             "workspace-001",
             min_sample_count=2  # Lower threshold for test
         )
@@ -213,20 +220,21 @@ class TestSchemaDiscovery:
         # Arrange
         entity = DiscoveredEntity(
             id="entity-201",
-            tenant_id="tenant-001",
+            tenant_id="tenant-skip",
             workspace_id="workspace-001",
             _discovered_type="Invoice",
             properties={"invoice_number": "INV-001"},
             confidence_score=0.8,
             source_record_id="email-201",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
         discovery_service.db.add(entity)
-        discovery_service.db.commit()
+        discovery_service.db.flush()
 
         # Act
         entity_types = await discovery_service.discover_schemas_from_entities(
-            "tenant-001",
+            "tenant-skip",
             "workspace-001",
             min_sample_count=5
         )
@@ -235,17 +243,18 @@ class TestSchemaDiscovery:
         assert len(entity_types) == 0  # Invoice skipped (only 1 sample)
 
     @pytest.mark.asyncio
-    async def test_discover_multiple_types_simultaneously(self, discovery_service):
+    async def test_discover_multiple_types_simultaneously(self, discovery_service, sample_purchase_order_entities, sample_security_event_entities):
         """Test discovering schemas for multiple entity types at once."""
         # Arrange
         entities = sample_purchase_order_entities[:3] + sample_security_event_entities[:2]
         for entity in entities:
+            entity.tenant_id = "tenant-multi"
             discovery_service.db.add(entity)
-        discovery_service.db.commit()
+        discovery_service.db.flush()
 
         # Act
         entity_types = await discovery_service.discover_schemas_from_entities(
-            "tenant-001",
+            "tenant-multi",
             "workspace-001",
             min_sample_count=2
         )
@@ -279,7 +288,8 @@ class TestSchemaInference:
             },
             confidence_score=0.8,
             source_record_id="email-301",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act
@@ -303,7 +313,8 @@ class TestSchemaInference:
                 properties={"amount": 100.0 + i * 50},
                 confidence_score=0.8,
                 source_record_id=f"email-{i}",
-                source_record_type="email"
+                source_record_type="email",
+                status="pending"
             )
             for i in range(3)
         ]
@@ -332,7 +343,8 @@ class TestSchemaInference:
             },
             confidence_score=0.8,
             source_record_id="email-302",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act
@@ -356,7 +368,8 @@ class TestSchemaInference:
             },
             confidence_score=0.8,
             source_record_id="email-303",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act
@@ -452,7 +465,8 @@ class TestSchemaQuality:
                 },
                 confidence_score=0.8,
                 source_record_id=f"email-{i}",
-                source_record_type="email"
+                source_record_type="email",
+                status="pending"
             )
             for i in range(10)
         ]
@@ -468,13 +482,14 @@ class TestSchemaQuality:
         """Test that created schemas include metadata."""
         # Arrange
         for entity in sample_purchase_order_entities:
+            entity.tenant_id = "tenant-metadata"
             discovery_service.db.add(entity)
-        discovery_service.db.commit()
+        discovery_service.db.flush()
 
         # Act
         import asyncio
         entity_types = asyncio.run(discovery_service.discover_schemas_from_entities(
-            "tenant-001",
+            "tenant-metadata",
             "workspace-001",
             min_sample_count=5
         ))
@@ -482,7 +497,7 @@ class TestSchemaQuality:
         # Assert
         assert len(entity_types) == 1
         entity_type = entity_types[0]
-        assert "metadata_json" in entity_type.__table_args__
-        assert "discovered_type" in entity_type.metadata_json
+        assert entity_type.metadata_json is not None
+        assert entity_type.metadata_json["discovered_type"] == "PurchaseOrder"
         assert entity_type.metadata_json["sample_count"] == 5
         assert entity_type.metadata_json["auto_created"] is True

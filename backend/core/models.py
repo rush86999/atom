@@ -8808,6 +8808,7 @@ class EntityTypeDefinition(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_system = Column(Boolean, default=False)  # True for 20 canonical entities
     version = Column(Integer, default=1, nullable=False)
+    metadata_json = Column(JSONBColumn, default={})
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -9589,6 +9590,7 @@ class DiscoveredEntity(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     workspace_id = Column(String, nullable=False, index=True)
+    entity_type_id = Column(String, ForeignKey("entity_type_definitions.id"), nullable=True, index=True)
 
     # ✅ KEY INNOVATION: LLM-discovered entity type (PascalCase)
     _discovered_type = Column(String(100), nullable=False, index=True)
@@ -9632,6 +9634,8 @@ class DiscoveredEntity(Base):
     def mark_rejected(self, reason: str):
         """Mark entity as rejected."""
         self.status = "rejected"
+        if self.extraction_metadata is None:
+            self.extraction_metadata = {}
         self.extraction_metadata["rejection_reason"] = reason
         self.processed_at = datetime.now(timezone.utc)
 
@@ -9650,8 +9654,7 @@ class DiscoveredEntity(Base):
             type=entity_type_slug,  # Properly typed!
             properties=self.properties,
             tenant_id=self.tenant_id,
-            workspace_id=self.workspace_id,
-            source_entity_id=self.id
+            workspace_id=self.workspace_id
         )
 
     def __repr__(self):

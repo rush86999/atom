@@ -534,7 +534,7 @@ class BYOKHandler:
             "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
             "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
             "code": (r"\b(code|coding|function|class|method|script|scripting|debug|debugging|optimize|optimization|refactor|refactoring|snippet|implementation|interface|api|endpoint|webhook|database|sql|postgresql|mongodb|redis|schema|migration|json|xml|yaml|config|docker|kubernetes|aws|lambda|gcp|azure|def|var|let|const|import|return|print|async|await|try|except|catch|throw|public|private|static|final|struct|typedef|typedefs)\b", 3),
-            "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale)\b", 5)
+            "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|\bpo\b)\b", 5)
         }
 
         # Check for code blocks (significant weight)
@@ -668,6 +668,10 @@ class BYOKHandler:
                 }
                 min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
             
+            # Extraction tasks: cap max quality at 90 (Phase 323)
+            # High-tier models (94+) are overkill for extraction; 90+ is near-perfect
+            max_quality = max(min_quality, 90) if task_type == "extraction" else 100
+            
             available_providers = list(self.clients.keys())
             candidates = []
             
@@ -703,7 +707,7 @@ class BYOKHandler:
                 else:
                     quality_score = get_quality_score(model_id)
 
-                if quality_score < min_quality:
+                if quality_score < min_quality or quality_score > max_quality:
                     continue
 
                 # Calculate BPC Value Score with Cache-Aware Cost

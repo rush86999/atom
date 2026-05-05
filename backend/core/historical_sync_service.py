@@ -195,6 +195,17 @@ class HistoricalSyncService:
                 if not page_token:
                     break
 
+            # Step 5: Final Schema Discovery pass for the tenant/workspace (Phase 323)
+            try:
+                from core.schema_discovery_service import SchemaDiscoveryService
+                discovery = SchemaDiscoveryService(db=session)
+                await discovery.discover_schemas_from_entities(
+                    tenant_id=self.tenant_id,
+                    workspace_id=self.workspace_id
+                )
+            except Exception as e:
+                logger.warning(f"Final schema discovery pass failed for job {job_id}: {e}")
+
             job.status = "completed"
             job.completed_at = datetime.now(timezone.utc)
             session.commit()

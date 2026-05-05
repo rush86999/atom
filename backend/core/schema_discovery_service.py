@@ -59,7 +59,7 @@ class SchemaDiscoveryService:
     async def discover_schemas_from_entities(
         self,
         tenant_id: str,
-        workspace_id: str,
+        workspace_id: Optional[str] = None,
         min_sample_count: int = 5
     ) -> List[EntityTypeDefinition]:
         """
@@ -67,18 +67,22 @@ class SchemaDiscoveryService:
 
         Args:
             tenant_id: Tenant UUID
-            workspace_id: Workspace UUID
+            workspace_id: Optional Workspace UUID (if provided, limits discovery to this workspace)
             min_sample_count: Minimum entities of a type before creating schema (default: 5)
 
         Returns:
             List of created EntityTypeDefinition instances
         """
         # Fetch all pending discovered entities
-        discovered_entities = self.db.query(DiscoveredEntity).filter(
+        query = self.db.query(DiscoveredEntity).filter(
             DiscoveredEntity.tenant_id == tenant_id,
-            DiscoveredEntity.workspace_id == workspace_id,
             DiscoveredEntity.status == "pending"
-        ).all()
+        )
+        
+        if workspace_id:
+            query = query.filter(DiscoveredEntity.workspace_id == workspace_id)
+            
+        discovered_entities = query.all()
 
         if not discovered_entities:
             logger.info(f"No pending discovered entities for tenant {tenant_id}")
@@ -117,7 +121,7 @@ class SchemaDiscoveryService:
         discovered_type: str,
         entities: List[DiscoveredEntity],
         tenant_id: str,
-        workspace_id: str
+        workspace_id: Optional[str] = None
     ) -> Optional[EntityTypeDefinition]:
         """
         Infer JSON Schema for a specific discovered type.
@@ -126,11 +130,22 @@ class SchemaDiscoveryService:
             discovered_type: PascalCase entity type name (e.g., "PurchaseOrder")
             entities: List of DiscoveredEntity instances with this type
             tenant_id: Tenant UUID
-            workspace_id: Workspace UUID
+            workspace_id: Optional Workspace UUID
 
         Returns:
             EntityTypeDefinition instance or None if inference fails
         """
+        # Check if type already exists to avoid duplicates (tenant level)
+        slug = self._pascal_to_slug(discovered_type)
+        existing = self.db.query(EntityTypeDefinition).filter(
+            EntityTypeDefinition.tenant_id == tenant_id,
+            EntityTypeDefinition.slug == slug
+        ).first()
+        
+        if existing:
+            logger.info(f"Entity type {slug} already exists for tenant {tenant_id}")
+            return existing
+
         # Infer JSON Schema from entity properties
         json_schema = self._infer_json_schema(entities)
 
@@ -149,14 +164,11 @@ class SchemaDiscoveryService:
         avg_confidence = sum(e.confidence_score for e in entities) / len(entities)
 
         # Create EntityTypeDefinition
-        slug = self._pascal_to_slug(discovered_type)
-
         entity_type = EntityTypeDefinition(
             tenant_id=tenant_id,
             slug=slug,
             display_name=discovered_type,
             json_schema=json_schema,
-            source="llm_discovery",
             description=f"Auto-discovered from {len(entities)} {discovered_type} entities via LLM extraction",
             is_active=True,
             metadata_json={
@@ -171,7 +183,13 @@ class SchemaDiscoveryService:
         self.db.add(entity_type)
         self.db.flush()  # Get entity_type.id
 
-        logger.info(f"Created EntityTypeDefinition: {slug} from {discovered_type}")
+        # Update entities to linked status
+        for entity in entities:
+            entity.entity_type_id = entity_type.id
+            entity.status = "linked"
+            entity.processed_at = datetime.now(timezone.utc)
+
+        logger.info(f"Created EntityTypeDefinition: {slug} from {discovered_type} and linked {len(entities)} samples")
         return entity_type
 
     def _infer_json_schema(
@@ -363,18 +381,18 @@ class SchemaDiscoveryService:
                 if abs(value - round(value, 2)) < 0.001:
                     decimal_count += 1
 
+        res = {}
         if decimal_count / len(examples) >= 0.8:
-            return {"format": "currency", "multipleOf": 0.01}
+            res = {"format": "currency", "multipleOf": 0.01}
 
         # Check for minimum/maximum
         numeric_values = [v for v in examples if isinstance(v, (int, float))]
         if numeric_values:
-            return {
+            res.update({
                 "minimum": min(numeric_values),
                 "maximum": max(numeric_values)
-            }
-
-        return {}
+            })
+        return res
 
     def _pascal_to_slug(self, pascal_string: str) -> str:
         """

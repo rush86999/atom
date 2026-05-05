@@ -46,6 +46,19 @@ class TestLLMExtraction:
     @pytest.mark.asyncio
     async def test_extract_entities_from_email(self, extractor, sample_email):
         """Test extracting entities from email."""
+        # Arrange
+        extractor._call_llm = AsyncMock(return_value='''
+        {
+            "entities": [
+                {
+                    "type": "PurchaseOrder",
+                    "properties": {"po_number": "PO-12345", "amount": 5000.0},
+                    "confidence": 0.95
+                }
+            ]
+        }
+        ''')
+
         # Act
         entities = await extractor.extract_from_email(
             sample_email,
@@ -72,6 +85,23 @@ class TestLLMExtraction:
             "body": "Unusual login detected for john@example.com. Also approve PO-999 for $2,000."
         }
 
+        extractor._call_llm = AsyncMock(return_value='''
+        {
+            "entities": [
+                {
+                    "type": "SecurityEvent",
+                    "properties": {"event": "login", "user": "john@example.com"},
+                    "confidence": 0.9
+                },
+                {
+                    "type": "PurchaseOrder",
+                    "properties": {"po_number": "PO-999", "amount": 2000.0},
+                    "confidence": 0.85
+                }
+            ]
+        }
+        ''')
+
         # Act
         entities = await extractor.extract_from_email(
             email,
@@ -87,6 +117,9 @@ class TestLLMExtraction:
     @pytest.mark.asyncio
     async def test_extract_with_batch_id(self, extractor, sample_email):
         """Test extraction with batch ID tracking."""
+        # Arrange
+        extractor._call_llm = AsyncMock(return_value='{"entities": [{"type": "PurchaseOrder", "properties": {"po_number": "PO-12345"}, "confidence": 0.9}]}')
+
         # Act
         entities = await extractor.extract_from_email(
             sample_email,
@@ -296,6 +329,8 @@ class TestBatchProcessing:
             for i in range(5)
         ]
 
+        extractor._call_llm = AsyncMock(return_value='{"entities": [{"type": "Entity", "properties": {}, "confidence": 0.9}]}')
+
         # Act
         entities = await extractor.extract_batch(
             emails,
@@ -320,6 +355,8 @@ class TestBatchProcessing:
                 "body": "Content"
             }
         ]
+
+        extractor._call_llm = AsyncMock(return_value='{"entities": [{"type": "Entity", "properties": {}, "confidence": 0.9}]}')
 
         # Act
         entities = await extractor.extract_batch(
@@ -352,7 +389,8 @@ class TestDiscoveredEntityModel:
             properties={"po_number": "PO-123", "amount": 5000.0},
             confidence_score=0.95,
             source_record_id="email-001",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Assert
@@ -370,7 +408,8 @@ class TestDiscoveredEntityModel:
             _discovered_type="SecurityEvent",
             properties={"severity": "high"},
             source_record_id="email-002",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act
@@ -391,7 +430,8 @@ class TestDiscoveredEntityModel:
             _discovered_type="Invoice",
             properties={},
             source_record_id="email-003",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act
@@ -411,7 +451,8 @@ class TestDiscoveredEntityModel:
             _discovered_type="PurchaseOrder",
             properties={"po_number": "PO-456", "name": "Office Supplies"},
             source_record_id="email-004",
-            source_record_type="email"
+            source_record_type="email",
+            status="pending"
         )
 
         # Act

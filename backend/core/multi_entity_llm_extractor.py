@@ -221,24 +221,29 @@ Return ONLY valid JSON. No markdown, no code blocks.
         # Use specified model or default
         llm_model = model or self.model
 
-        # TODO: Implement actual LLM call
-        # For now, return mock response
-        return f'''
-{{
-    "entities": [
-        {{
-            "type": "PurchaseOrder",
-            "properties": {{
-                "po_number": "PO-12345",
-                "vendor": "Acme Corp",
-                "amount": 5000.0,
-                "currency": "USD"
-            }},
-            "confidence": 0.95
-        }}
-    ]
-}}
-'''
+    async def _call_llm(self, prompt: str, model: Optional[str] = None) -> str:
+        """
+        Call LLM service with extraction prompt.
+
+        Args:
+            prompt: Extraction prompt
+            model: LLM model to use (defaults to instance model)
+
+        Returns:
+            LLM response text
+        """
+        # Use specified model or default
+        llm_model = model or self.model
+
+        # Call unified LLMService with task_type="extraction"
+        # This triggers the 90-quality cap in BYOKHandler
+        return await self.llm.generate(
+            prompt=prompt,
+            system_instruction="You are a precise data extraction agent. Return ONLY valid JSON.",
+            model=llm_model,
+            task_type="extraction",
+            temperature=0.1  # Low temperature for extraction accuracy
+        )
 
     def _parse_llm_response(
         self,
@@ -292,6 +297,7 @@ Return ONLY valid JSON. No markdown, no code blocks.
                     confidence_score=entity_data.get("confidence", 0.7),
                     source_record_id=source_record_id,
                     source_record_type="email",
+                    status="pending",
                     extraction_metadata={
                         "llm_model": self.model,
                         "batch_id": batch_id,
