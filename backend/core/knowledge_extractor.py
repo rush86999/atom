@@ -39,7 +39,7 @@ class KnowledgeExtractor:
         with get_db_session() as session:
             try:
                 custom_types = session.query(EntityTypeDefinition).filter(
-                    EntityTypeDefinition.workspace_id == wid,
+                    EntityTypeDefinition.tenant_id == self.tenant_id,
                     EntityTypeDefinition.is_active == True,
                     EntityTypeDefinition.is_system == False
                 ).all()
