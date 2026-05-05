@@ -13,6 +13,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 import os
+import httpx
 
 
 # Import target module
@@ -586,7 +587,7 @@ class TestHealthCheck:
     async def test_health_check_failure(self):
         """Health check returns False on connection failure."""
         mock_client = AsyncMock()
-        mock_client.get.side_effect = Exception("Connection failed")
+        mock_client.get.side_effect = httpx.HTTPError("Connection failed")
 
         with patch('core.atom_saas_client.httpx.AsyncClient', return_value=mock_client):
             client = AtomAgentOSMarketplaceClient()
@@ -660,7 +661,7 @@ class TestErrorHandling:
     async def test_fetch_skills_http_error(self):
         """Client handles HTTP errors gracefully."""
         mock_client = AsyncMock()
-        mock_client.get.side_effect = Exception("Network error")
+        mock_client.get.side_effect = httpx.HTTPError("Network error")
 
         with patch('core.atom_saas_client.httpx.AsyncClient', return_value=mock_client):
             client = AtomAgentOSMarketplaceClient()
@@ -676,7 +677,7 @@ class TestErrorHandling:
     async def test_get_skill_by_id_not_found(self):
         """Client returns None when skill not found."""
         mock_client = AsyncMock()
-        mock_client.get.side_effect = Exception("Not found")
+        mock_client.get.side_effect = httpx.HTTPError("Not found")
 
         with patch('core.atom_saas_client.httpx.AsyncClient', return_value=mock_client):
             client = AtomAgentOSMarketplaceClient()
@@ -690,7 +691,7 @@ class TestErrorHandling:
     async def test_install_skill_error(self):
         """Client handles installation errors gracefully."""
         mock_client = AsyncMock()
-        mock_client.post.side_effect = Exception("Installation failed")
+        mock_client.post.side_effect = httpx.HTTPError("Installation failed")
 
         with patch('core.atom_saas_client.httpx.AsyncClient', return_value=mock_client):
             client = AtomAgentOSMarketplaceClient()

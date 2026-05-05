@@ -70,9 +70,16 @@ class TestRLHFRecording:
     def test_record_feedback_success(self):
         """Service records user feedback successfully."""
         mock_db = Mock(spec=Session)
-        mock_db.add = MagicMock()
+
+        # Mock the database operations
+        def mock_add(obj):
+            # Simulate database assigning an ID
+            obj.id = "feedback-123"
+        mock_db.add = MagicMock(side_effect=mock_add)
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
+        # Mock query to return None (no existing learning record)
+        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with patch('core.enhanced_learning_service.LLMService'), \
              patch('core.enhanced_learning_service.EmbeddingService'):
@@ -88,15 +95,23 @@ class TestRLHFRecording:
             )
 
             assert feedback_id is not None
-            mock_db.add.assert_called_once()
-            mock_db.commit.assert_called_once()
+            assert feedback_id == "feedback-123"
+            # add is called twice: once for AgentFeedback, once for AgentLearning
+            assert mock_db.add.call_count == 2
+            assert mock_db.commit.call_count >= 1
 
     def test_record_feedback_negative(self):
         """Service records negative feedback."""
         mock_db = Mock(spec=Session)
-        mock_db.add = MagicMock()
+
+        # Mock the database operations
+        def mock_add(obj):
+            obj.id = "feedback-456"
+        mock_db.add = MagicMock(side_effect=mock_add)
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
+        # Mock query to return None (no existing learning record)
+        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with patch('core.enhanced_learning_service.LLMService'), \
              patch('core.enhanced_learning_service.EmbeddingService'):
@@ -112,13 +127,20 @@ class TestRLHFRecording:
             )
 
             assert feedback_id is not None
+            assert feedback_id == "feedback-456"
 
     def test_record_feedback_with_correction(self):
         """Service records feedback with user correction."""
         mock_db = Mock(spec=Session)
-        mock_db.add = MagicMock()
+
+        # Mock the database operations
+        def mock_add(obj):
+            obj.id = "feedback-789"
+        mock_db.add = MagicMock(side_effect=mock_add)
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
+        # Mock query to return None (no existing learning record)
+        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with patch('core.enhanced_learning_service.LLMService'), \
              patch('core.enhanced_learning_service.EmbeddingService'):
@@ -133,6 +155,7 @@ class TestRLHFRecording:
             )
 
             assert feedback_id is not None
+            assert feedback_id == "feedback-789"
 
     def test_record_feedback_error_handling(self):
         """Service handles feedback recording errors gracefully."""
@@ -478,18 +501,19 @@ class TestLearningAnalytics:
         """Service generates learning analytics."""
         mock_db = Mock(spec=Session)
 
-        # Mock database queries
+        # Mock database queries - use side_effect from the start
         mock_experiences = [
-            Mock(experience_type='task', effectiveness_score=0.8, created_at=datetime.now(timezone.utc)),
-            Mock(experience_type='task', effectiveness_score=0.9, created_at=datetime.now(timezone.utc))
+            Mock(experience_type='task', effectiveness_score=0.8, created_at=datetime.now(timezone.utc), agent_id='agent-1'),
+            Mock(experience_type='task', effectiveness_score=0.9, created_at=datetime.now(timezone.utc), agent_id='agent-1')
         ]
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_experiences
+        mock_feedback = [Mock(feedback_type='positive', rating=5)]
+        mock_agents = [Mock(id='agent-1', name='Agent 1')]
 
-        # Mock feedback query
+        # Set up side_effect to handle multiple query calls
         mock_db.query.return_value.filter.return_value.all.side_effect = [
-            [],  # Experiences
-            [Mock(feedback_type='positive', rating=5)],  # Feedback
-            [Mock(id='agent-1', name='Agent 1')]  # Agents
+            mock_experiences,  # Experiences
+            mock_feedback,     # Feedback
+            mock_agents         # Agents
         ]
 
         with patch('core.enhanced_learning_service.LLMService'), \
@@ -580,7 +604,8 @@ class TestSimilarityCalculation:
             embedding = [0.5, 0.5, 0.5]
             similarity = service._calculate_similarity(embedding, embedding)
 
-            assert similarity == 1.0
+            # Use approximate comparison for floating point precision
+            assert abs(similarity - 1.0) < 1e-10
 
     def test_calculate_similarity_different(self):
         """Different embeddings have similarity < 1.0."""

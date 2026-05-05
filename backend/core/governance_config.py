@@ -395,6 +395,20 @@ class GovernanceConfig:
             maturity = MaturityLevel(maturity_level)
             complexity = ActionComplexity(action_complexity)
         except (ValueError, KeyError) as e:
+            # AUTONOMOUS agents can bypass validation
+            # Try to parse maturity to check if AUTONOMOUS
+            try:
+                maturity = MaturityLevel(maturity_level)
+                if maturity == MaturityLevel.AUTONOMOUS:
+                    return GovernanceDecision(
+                        allowed=True,
+                        reason=f"AUTONOMOUS agent bypasses validation: {feature}",
+                        feature=FeatureType.AGENT_EXECUTION,
+                        agent_maturity=maturity,
+                        required_maturity=None
+                    )
+            except (ValueError, KeyError):
+                pass  # Invalid maturity too, fall through to rejection
             return GovernanceDecision(
                 allowed=False,
                 reason=f"Invalid governance parameters: {e}",

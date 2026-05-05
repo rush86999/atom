@@ -157,31 +157,33 @@ class EnhancedLearningService:
                 )
                 self.db.add(learning)
                 self.db.flush()
-            else:
-                learning.total_feedback += 1
+                return  # New record created, nothing more to update
 
-                if feedback.feedback_type in ["positive", "approval"]:
-                    learning.positive_feedback += 1
-                elif feedback.feedback_type in ["negative", "rejection", "correction"]:
-                    learning.negative_feedback += 1
+            # Update existing learning record
+            learning.total_feedback += 1
 
-                    if feedback.rating:
-                        if learning.avg_rating:
-                            n = learning.total_feedback
-                            learning.avg_rating = (
-                            (learning.avg_rating * (n - 1) + feedback.rating) / n
-                            )
-                        else:
-                            learning.avg_rating = float(feedback.rating)
+            if feedback.feedback_type in ["positive", "approval"]:
+                learning.positive_feedback += 1
+            elif feedback.feedback_type in ["negative", "rejection", "correction"]:
+                learning.negative_feedback += 1
 
-                            if learning.total_feedback > 0:
-                                learning.success_rate = (learning.total_feedback - learning.negative_feedback) / learning.total_feedback
+            if feedback.rating:
+                if learning.avg_rating:
+                    n = learning.total_feedback
+                    learning.avg_rating = (
+                    (learning.avg_rating * (n - 1) + feedback.rating) / n
+                    )
+                else:
+                    learning.avg_rating = float(feedback.rating)
 
-                                learning.parameters_json = self._adjust_parameters(learning, feedback)
-                                learning.last_updated_at = datetime.now(timezone.utc)
+            if learning.total_feedback > 0:
+                learning.success_rate = (learning.total_feedback - learning.negative_feedback) / learning.total_feedback
 
-                                self.db.commit()
-                                logger.info(f"Updated learning parameters for agent {feedback.agent_id}")
+            learning.parameters_json = self._adjust_parameters(learning, feedback)
+            learning.last_updated_at = datetime.now(timezone.utc)
+
+            self.db.commit()
+            logger.info(f"Updated learning parameters for agent {feedback.agent_id}")
 
         except Exception as e:
             logger.error(f"Failed to update from feedback: {e}")
@@ -196,22 +198,22 @@ class EnhancedLearningService:
             current_temp = params.get("temperature", 0.7)
             params["temperature"] = max(0.3, current_temp - 0.05)
 
-            # If positive feedback, can increase creativity slightly
+        # If positive feedback, can increase creativity slightly
         elif feedback.feedback_type in ["positive", "approval"]:
             current_temp = params.get("temperature", 0.7)
             params["temperature"] = min(0.9, current_temp + 0.02)
 
-            # Adjust top_p based on rating
-            if feedback.rating and feedback.rating >= 4:
-                params["top_p"] = min(0.95, params.get("top_p", 0.9) + 0.01)
-            elif feedback.rating and feedback.rating <= 2:
-                params["top_p"] = max(0.8, params.get("top_p", 0.9) - 0.02)
+        # Adjust top_p based on rating
+        if feedback.rating and feedback.rating >= 4:
+            params["top_p"] = min(0.95, params.get("top_p", 0.9) + 0.01)
+        elif feedback.rating and feedback.rating <= 2:
+            params["top_p"] = max(0.8, params.get("top_p", 0.9) - 0.02)
 
-                return params
+        return params
 
-                # ============================================================================
-                # Experience Recording - From LearningService
-                # ============================================================================
+        # ============================================================================
+        # Experience Recording - From LearningService
+        # ============================================================================
 
     async def record_experience(
     self,
@@ -305,7 +307,7 @@ class EnhancedLearningService:
 
             # Perform clustering if not done recently
             if not kg['clusters'] or len(kg['nodes']) > 0:
-                await self._perform_clustering("default")
+                await self._perform_clustering()
 
                 return kg
 
@@ -371,18 +373,18 @@ class EnhancedLearningService:
         if not kg['clusters']:
             return 0.0
 
-            total_nodes = kg['metrics']['total_nodes']
-            if total_nodes == 0:
-                return 0.0
+        total_nodes = kg['metrics']['total_nodes']
+        if total_nodes == 0:
+            return 0.0
 
-                # Modularity based on cluster size distribution
-                cluster_sizes = [c['size'] for c in kg['clusters'].values()]
-                avg_size = np.mean(cluster_sizes)
-                std_size = np.std(cluster_sizes)
+        # Modularity based on cluster size distribution
+        cluster_sizes = [c['size'] for c in kg['clusters'].values()]
+        avg_size = np.mean(cluster_sizes)
+        std_size = np.std(cluster_sizes)
 
-                # Higher modularity = more balanced clusters
-                modularity = 1.0 / (1.0 + std_size / max(avg_size, 1))
-                return min(1.0, max(0.0, modularity))
+        # Higher modularity = more balanced clusters
+        modularity = 1.0 / (1.0 + std_size / max(avg_size, 1))
+        return min(1.0, max(0.0, modularity))
 
                 # ============================================================================
                 # Learning Analytics - NEW
@@ -390,7 +392,7 @@ class EnhancedLearningService:
 
     async def get_learning_analytics(
     self,
-    
+
     days: int = 30
     ) -> LearningAnalytics:
         """Get comprehensive learning analytics dashboard."""
@@ -411,80 +413,80 @@ class EnhancedLearningService:
             if exp.effectiveness_score:
                 outcome_scores.append(exp.effectiveness_score)
 
-                avg_outcome = np.mean(outcome_scores) if outcome_scores else 0.5
+        avg_outcome = np.mean(outcome_scores) if outcome_scores else 0.5
 
-                # Calculate trend (week over week)
-                last_week_start = end_date - timedelta(days=7)
-                last_week_experiences = [e for e in experiences if e.created_at >= last_week_start]
-                prev_week_experiences = [e for e in experiences if e.created_at < last_week_start and e.created_at >= start_date - timedelta(days=7)]
+        # Calculate trend (week over week)
+        last_week_start = end_date - timedelta(days=7)
+        last_week_experiences = [e for e in experiences if e.created_at >= last_week_start]
+        prev_week_experiences = [e for e in experiences if e.created_at < last_week_start and e.created_at >= start_date - timedelta(days=7)]
 
-                outcome_trend = 0.0
-                if prev_week_experiences:
-                    last_week_avg = np.mean([e.effectiveness_score or 0.5 for e in last_week_experiences])
-                    prev_week_avg = np.mean([e.effectiveness_score or 0.5 for e in prev_week_experiences])
-                    outcome_trend = last_week_avg - prev_week_avg
+        outcome_trend = 0.0
+        if prev_week_experiences:
+            last_week_avg = np.mean([e.effectiveness_score or 0.5 for e in last_week_experiences])
+            prev_week_avg = np.mean([e.effectiveness_score or 0.5 for e in prev_week_experiences])
+            outcome_trend = last_week_avg - prev_week_avg
 
-                    # Feedback metrics
-                    feedback_records = self.db.query(AgentFeedback).filter(
-                    AgentFeedback.created_at >= start_date
-                    ).all()
+        # Feedback metrics
+        feedback_records = self.db.query(AgentFeedback).filter(
+        AgentFeedback.created_at >= start_date
+        ).all()
 
-                    positive_feedback = sum(1 for f in feedback_records if f.feedback_type in ['positive', 'approval'])
-                    total_feedback = len(feedback_records)
-                    positive_ratio = positive_feedback / max(total_feedback, 1)
+        positive_feedback = sum(1 for f in feedback_records if f.feedback_type in ['positive', 'approval'])
+        total_feedback = len(feedback_records)
+        positive_ratio = positive_feedback / max(total_feedback, 1)
 
-                    ratings = [f.rating for f in feedback_records if f.rating]
-                    avg_rating = np.mean(ratings) if ratings else 0.0
+        ratings = [f.rating for f in feedback_records if f.rating]
+        avg_rating = np.mean(ratings) if ratings else 0.0
 
-                    # Agent performance
-                    agents = self.db.query(AgentRegistry).filter(
-                    AgentRegistry
-                    ).all()
+        # Agent performance
+        agents = self.db.query(AgentRegistry).filter(
+        AgentRegistry
+        ).all()
 
-                    agent_stats = []
-                    for agent in agents:
-                        agent_exps = [e for e in experiences if e.agent_id == agent.id]
-                        if agent_exps:
-                            success_rate = np.mean([e.effectiveness_score or 0.5 for e in agent_exps])
-                            agent_stats.append({
-                            'agent_id': agent.id,
-                            'agent_name': agent.name,
-                            'success_rate': success_rate,
-                            'experience_count': len(agent_exps)
-                            })
+        agent_stats = []
+        for agent in agents:
+            agent_exps = [e for e in experiences if e.agent_id == agent.id]
+            if agent_exps:
+                success_rate = np.mean([e.effectiveness_score or 0.5 for e in agent_exps])
+                agent_stats.append({
+                'agent_id': agent.id,
+                'agent_name': agent.name,
+                'success_rate': success_rate,
+                'experience_count': len(agent_exps)
+                })
 
-                            # Sort by performance
-                            agent_stats.sort(key=lambda x: x['success_rate'], reverse=True)
-                            top_performers = agent_stats[:5]
-                            struggling = [a for a in agent_stats if a['success_rate'] < 0.5][:5]
+        # Sort by performance
+        agent_stats.sort(key=lambda x: x['success_rate'], reverse=True)
+        top_performers = agent_stats[:5]
+        struggling = [a for a in agent_stats if a['success_rate'] < 0.5][:5]
 
-                            # Learning velocity (rate of improvement)
-                            learning_velocity = outcome_trend * 10 # Scale to 0-10
+        # Learning velocity (rate of improvement)
+        learning_velocity = outcome_trend * 10 # Scale to 0-10
 
-                            # Adaptation rate
-                            adaptation_rate = len(self.strategies_cache) / max(len(experiences), 1)
+        # Adaptation rate
+        adaptation_rate = len(self.strategies_cache) / max(len(experiences), 1)
 
-                            # Knowledge growth
-                            kg = await self.get_knowledge_graph("default")
-                            knowledge_growth = kg['metrics']['total_nodes'] / max(days, 1)
+        # Knowledge growth
+        kg = await self.get_knowledge_graph()
+        knowledge_growth = kg['metrics']['total_nodes'] / max(days, 1)
 
-                            return LearningAnalytics(period_start=start_date,
-                            period_end=end_date,
-                            total_experiences=len(experiences),
-                            experiences_by_type=experiences_by_type,
-                            avg_outcome_score=round(avg_outcome, 3),
-                            outcome_trend=round(outcome_trend, 3),
-                            learning_velocity=round(learning_velocity, 3),
-                            adaptation_rate=round(adaptation_rate, 3),
-                            knowledge_growth=round(knowledge_growth, 2),
-                            model_count=len(self.models_cache),
-                            avg_model_accuracy=0.85, # Would calculate from actual models
-                            training_sessions=0, # Would track separately
-                            total_feedback=total_feedback,
-                            positive_feedback_ratio=round(positive_ratio, 3),
-                            avg_rating=round(avg_rating, 2),
-                            agent_count=len(agents),
-                            avg_agent_success_rate=round(np.mean([a['success_rate'] for a in agent_stats]) if agent_stats else 0.5, 3),
+        return LearningAnalytics(period_start=start_date,
+        period_end=end_date,
+        total_experiences=len(experiences),
+        experiences_by_type=experiences_by_type,
+        avg_outcome_score=round(avg_outcome, 3),
+        outcome_trend=round(outcome_trend, 3),
+        learning_velocity=round(learning_velocity, 3),
+        adaptation_rate=round(adaptation_rate, 3),
+        knowledge_growth=round(knowledge_growth, 2),
+        model_count=len(self.models_cache),
+        avg_model_accuracy=0.85, # Would calculate from actual models
+        training_sessions=0, # Would track separately
+        total_feedback=total_feedback,
+        positive_feedback_ratio=round(positive_ratio, 3),
+        avg_rating=round(avg_rating, 2),
+        agent_count=len(agents),
+        avg_agent_success_rate=round(np.mean([a['success_rate'] for a in agent_stats]) if agent_stats else 0.5, 3),
                             top_performing_agents=top_performers,
                             struggling_agents=struggling
                             )
@@ -550,7 +552,7 @@ class EnhancedLearningService:
             'novelty': 0.5
             })
 
-            return patterns
+        return patterns
 
     async def _generate_reflections(self, experience: Dict) -> List[Dict]:
         """Generate reflections from experience."""
@@ -568,7 +570,7 @@ class EnhancedLearningService:
 
     async def _update_knowledge_graph(self, experience: Dict):
         """Update knowledge graph with experience."""
-        kg = await self.get_knowledge_graph("default")
+        kg = await self.get_knowledge_graph()
 
         # Add node for task type
         node_id = f"task_{experience['type']}_{uuid.uuid4().hex[:8]}"
@@ -611,7 +613,7 @@ class EnhancedLearningService:
             if norm1 == 0 or norm2 == 0:
                 return 0.0
 
-                return float(dot_product / (norm1 * norm2))
+            return float(dot_product / (norm1 * norm2))
         except Exception as e:
             logger.error(f"Failed to calculate similarity: {e}")
             return 0.0

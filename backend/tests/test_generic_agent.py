@@ -180,19 +180,30 @@ class TestAgentExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="I will help",
-            action=None,
-            final_answer="Hello! How can I help you?"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        # generate_structured is async, so we need an async function
+        async def mock_generate(*args, **kwargs):
+            return MagicMock(
+                thought="I will help",
+                action=None,
+                final_answer="Hello! How can I help you?"
+            )
+        mock_llm.generate_structured = mock_generate
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -200,7 +211,7 @@ class TestAgentExecution:
             agent = GenericAgent(agent_model)
             result = await agent.execute("Say hello")
             assert result["status"] == "success"
-            assert "final_answer" in result
+            assert "output" in result
 
     @pytest.mark.asyncio
     async def test_execute_with_timeout(self):
@@ -215,6 +226,11 @@ class TestAgentExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
         # Simulate slow LLM that times out
         import asyncio
@@ -223,13 +239,16 @@ class TestAgentExecution:
             return MagicMock(final_answer="Too late")
 
         mock_llm.generate_structured = slow_generate
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -251,21 +270,33 @@ class TestAgentExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
         # Return actions without final answer to trigger max steps
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Thinking",
-            action=MagicMock(tool="test_tool", params={}),
-            final_answer=None
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="moderate")
+        async def mock_generate_with_action(*args, **kwargs):
+            mock_action = MagicMock()
+            mock_action.model_dump.return_value = {"tool": "test_tool", "params": {}}
+            return MagicMock(
+                thought="Thinking",
+                action=mock_action,
+                final_answer=None
+            )
+        mock_llm.generate_structured = mock_generate_with_action
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="moderate")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
         mock_mcp.call_tool.return_value = "Tool executed"
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -287,13 +318,23 @@ class TestAgentExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="I will help",
-            action=None,
-            final_answer="Done"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_done(*args, **kwargs):
+            return MagicMock(
+                thought="I will help",
+                action=None,
+                final_answer="Done"
+            )
+        mock_llm.generate_structured = mock_generate_done
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
@@ -304,7 +345,7 @@ class TestAgentExecution:
             callback_called.append(step_data)
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -331,13 +372,31 @@ class TestToolExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="I need to navigate",
-            action=MagicMock(tool="browser_navigate", params={"url": "https://example.com"}),
-            final_answer=None
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        # First call returns action to navigate, second call returns final answer
+        mock_action1 = MagicMock()
+        mock_action1.model_dump.return_value = {"tool": "browser_navigate", "params": {"url": "https://example.com"}}
+        response1 = MagicMock(thought="I need to navigate", action=mock_action1, final_answer=None)
+
+        response2 = MagicMock(thought="Navigated successfully", final_answer="Navigation complete")
+
+        call_count = [0]
+        async def mock_generate_multi(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return response1
+            else:
+                return response2
+        mock_llm.generate_structured = mock_generate_multi
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
@@ -347,7 +406,7 @@ class TestToolExecution:
         mock_gov.can_perform_action.return_value = {"allowed": True}
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -370,19 +429,31 @@ class TestToolExecution:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="I need to screenshot",
-            action=MagicMock(tool="browser_screenshot", params={}),
-            final_answer=None
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_screenshot(*args, **kwargs):
+            mock_action = MagicMock()
+            mock_action.model_dump.return_value = {"tool": "browser_screenshot", "params": {}}
+            return MagicMock(
+                thought="I need to screenshot",
+                action=mock_action,
+                final_answer=None
+            )
+        mock_llm.generate_structured = mock_generate_screenshot
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -412,18 +483,28 @@ class TestMemoryIntegration:
             ]
         }
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Using past experience",
-            final_answer="Done"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_exp(*args, **kwargs):
+            return MagicMock(
+                thought="Using past experience",
+                final_answer="Done"
+            )
+        mock_llm.generate_structured = mock_generate_exp
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -446,18 +527,28 @@ class TestMemoryIntegration:
         mock_world_model.recall_experiences.return_value = {}
         mock_world_model.record_experience = AsyncMock()
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Done",
-            final_answer="Complete"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_complete(*args, **kwargs):
+            return MagicMock(
+                thought="Done",
+                final_answer="Complete"
+            )
+        mock_llm.generate_structured = mock_generate_complete
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -484,12 +575,19 @@ class TestVisionCapabilities:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
         # First call returns action to take screenshot
+        mock_action = MagicMock()
+        mock_action.model_dump.return_value = {"tool": "browser_screenshot", "params": {}}
         mock_llm.generate_structured.side_effect = [
             MagicMock(
                 thought="I need to see the page",
-                action=MagicMock(tool="browser_screenshot", params={}),
+                action=mock_action,
                 final_answer=None
             ),
             MagicMock(
@@ -497,7 +595,10 @@ class TestVisionCapabilities:
                 final_answer="Page loaded successfully"
             )
         ]
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
@@ -509,7 +610,7 @@ class TestVisionCapabilities:
             mock_mcp.call_tool.return_value = "Screenshot saved to /tmp/screenshot_test.png"
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -535,9 +636,17 @@ class TestReflectionAndCritique:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
         mock_llm.generate_structured.side_effect = Exception("LLM failed")
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_reflection = AsyncMock()
         mock_reflection.generate_critique = AsyncMock()
@@ -576,12 +685,22 @@ class TestGraduationAndSkillPromotion:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Done",
-            final_answer="Complete"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_complete(*args, **kwargs):
+            return MagicMock(
+                thought="Done",
+                final_answer="Complete"
+            )
+        mock_llm.generate_structured = mock_generate_complete
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_graduation = AsyncMock()
         mock_graduation.check_skill_promotion.return_value = {"promoted": True}
@@ -620,21 +739,28 @@ class TestTRACEFrameworkMetrics:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Done",
-            final_answer="Complete"
-        )
+        async def mock_generate_complete(*args, **kwargs):
+            return MagicMock(
+                thought="Done",
+                final_answer="Complete"
+            )
+        mock_llm.generate_structured = mock_generate_complete
         # Mock complexity analysis
         mock_handler = MagicMock()
         mock_handler.analyze_query_complexity.return_value = MagicMock(value="moderate")
-        mock_llm._get_handler.return_value = mock_handler
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -657,18 +783,28 @@ class TestTRACEFrameworkMetrics:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="Done",
-            final_answer="Complete"
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_complete(*args, **kwargs):
+            return MagicMock(
+                thought="Done",
+                final_answer="Complete"
+            )
+        mock_llm.generate_structured = mock_generate_complete
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -695,15 +831,28 @@ class TestErrorHandling:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = None
-        mock_llm.generate.return_value = None
+        async def mock_generate_none(*args, **kwargs):
+            return None
+        mock_llm.generate_structured = mock_generate_none
+        async def mock_gen_none(*args, **kwargs):
+            return None
+        mock_llm.generate = mock_gen_none
+        # _get_handler is NOT async in production, so return handler directly
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
 
         with patch('core.generic_agent.WorldModelService', return_value=mock_world_model), \
-             patch('core.generic_agent.ReflectionService'), \
+             patch('core.generic_agent.ReflectionService', return_value=mock_reflection), \
              patch('core.generic_agent.CanvasSummaryService'), \
              patch('core.generic_agent.mcp_service', mock_mcp), \
              patch('core.generic_agent.LLMService', return_value=mock_llm), \
@@ -726,13 +875,25 @@ class TestErrorHandling:
         mock_world_model = AsyncMock()
         mock_world_model.recall_experiences.return_value = {}
 
+        mock_reflection = AsyncMock()
+        async def mock_generate_critique(*args, **kwargs):
+            return None
+        mock_reflection.generate_critique = mock_generate_critique
+
         mock_llm = AsyncMock()
-        mock_llm.generate_structured.return_value = MagicMock(
-            thought="I will execute tool",
-            action=MagicMock(tool="broken_tool", params={}),
-            final_answer=None
-        )
-        mock_llm._get_handler.return_value.analyze_query_complexity.return_value = MagicMock(value="simple")
+        async def mock_generate_broken(*args, **kwargs):
+            mock_action = MagicMock()
+            mock_action.model_dump.return_value = {"tool": "broken_tool", "params": {}}
+            return MagicMock(
+                thought="I will execute tool",
+                action=mock_action,
+                final_answer=None
+            )
+        mock_llm.generate_structured = mock_generate_broken
+        # _get_handler is NOT async, so we need to use a regular MagicMock
+        mock_handler = MagicMock()
+        mock_handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+        mock_llm._get_handler = MagicMock(return_value=mock_handler)
 
         mock_mcp = AsyncMock()
         mock_mcp.get_all_tools.return_value = []
