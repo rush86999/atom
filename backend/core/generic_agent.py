@@ -48,12 +48,6 @@ class GenericAgent:
         self.workspace_id = workspace_id
         self.vision_enabled = getattr(agent_model, "vision_enabled", False)
         self.last_screenshot: Optional[str] = None # Base64 data
-        
-        # Initialize Services
-        self.world_model = WorldModelService(workspace_id)
-        self.reflection_service = ReflectionService(workspace_id)
-        self.canvas_summary_service = CanvasSummaryService(self.llm)
-        self.mcp = mcp_service
 
         # LLM Integration Note:
         # Agent classes now use LLMService as the single source of truth for all LLM interactions.
@@ -69,6 +63,12 @@ class GenericAgent:
         # - Layer 3 (Top): LLMService (single source of truth for all code)
         # - All code: Uses Layer 3 (LLMService) for unified observability and management
         self.llm = LLMService(tenant_id=workspace_id)
+
+        # Initialize Services (must come after self.llm is created)
+        self.world_model = WorldModelService(workspace_id)
+        self.reflection_service = ReflectionService(workspace_id)
+        self.canvas_summary_service = CanvasSummaryService(self.llm)
+        self.mcp = mcp_service
         self.session_tools: List[Dict[str, Any]] = [] # Lazy-loaded tools
 
         

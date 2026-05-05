@@ -47,6 +47,7 @@
 - [x] **Phase 309: Services Coverage Wave 2** - Fix 4 service test files to 95%+ pass rate (TDD-08) 🔄 **GAP CLOSURE** (completed 2026-05-03)
 - [ ] **Phase 310: Frontend Coverage - Critical Components** - Cover 20 high-impact components (TDD-08) 🆕 **RECOMMENDED**
 - [ ] **Phase 311: Frontend Coverage - Completion** - Reach 30% frontend coverage target (TDD-08) 🆕 **RECOMMENDED**
+- [ ] **Phase 320: Backend Coverage - Additional Critical Files** - Continue coverage improvements beyond 35% milestone, target +5pp (40% overall) 🆕 **NEW**
 
 ---
 
