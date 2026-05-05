@@ -9,8 +9,11 @@ Phase 323: Multi-Entity Extraction Enhancement
 
 import logging
 import json
-from typing import List, Dict, Any, Optional
+import asyncio
+import hashlib
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
+from collections import defaultdict
 
 from core.llm_service import LLMService
 from core.models import DiscoveredEntity
@@ -37,7 +40,9 @@ class MultiEntityLLMExtractor:
     def __init__(
         self,
         llm_service: Optional[LLMService] = None,
-        model: str = "gpt-4o"  # Cost-effective, fast
+        model: str = "gpt-4o",  # Cost-effective, fast
+        enable_prompt_caching: bool = True,
+        enable_model_selection: bool = True
     ):
         """
         Initialize Multi-Entity LLM Extractor.
@@ -45,9 +50,30 @@ class MultiEntityLLMExtractor:
         Args:
             llm_service: LLM service instance (uses default if not provided)
             model: LLM model to use (gpt-4o, gpt-4o-mini, etc.)
+            enable_prompt_caching: Enable prompt caching for similar emails
+            enable_model_selection: Enable intelligent model selection
         """
         self.llm = llm_service or LLMService()
         self.model = model
+        self.enable_prompt_caching = enable_prompt_caching
+        self.enable_model_selection = enable_model_selection
+
+        # Prompt cache: category -> prompt template
+        self.prompt_cache: Dict[str, str] = {}
+
+        # Cache statistics
+        self.cache_stats = {
+            "hits": 0,
+            "misses": 0,
+            "total": 0
+        }
+
+        # Model selection statistics
+        self.model_stats = {
+            "gpt-4o": 0,
+            "gpt-4o-mini": 0,
+            "total": 0
+        }
 
     async def extract_from_email(
         self,
@@ -76,12 +102,15 @@ class MultiEntityLLMExtractor:
         Returns:
             List of DiscoveredEntity instances (2-3 per email)
         """
+        # Select model based on complexity
+        selected_model = self._select_model(email_data)
+
         # Build extraction prompt
         prompt = self._build_extraction_prompt(email_data)
 
         try:
-            # Call LLM
-            llm_response = await self._call_llm(prompt)
+            # Call LLM with selected model
+            llm_response = await self._call_llm(prompt, model=selected_model)
 
             # Parse response
             extracted_entities = self._parse_llm_response(
@@ -92,7 +121,7 @@ class MultiEntityLLMExtractor:
                 batch_id=batch_id
             )
 
-            logger.info(f"Extracted {len(extracted_entities)} entities from {email_data.get('id')}")
+            logger.info(f"Extracted {len(extracted_entities)} entities from {email_data.get('id')} using {selected_model}")
             return extracted_entities
 
         except Exception as e:
@@ -101,7 +130,7 @@ class MultiEntityLLMExtractor:
 
     def _build_extraction_prompt(self, email_data: Dict[str, Any]) -> str:
         """
-        Build LLM prompt for entity extraction.
+        Build LLM prompt for entity extraction with caching support.
 
         Args:
             email_data: Normalized email data
@@ -109,6 +138,19 @@ class MultiEntityLLMExtractor:
         Returns:
             Extraction prompt with few-shot examples
         """
+        # Check cache first
+        if self.enable_prompt_caching:
+            cached_prompt = self._get_cached_prompt(email_data)
+            if cached_prompt:
+                self.cache_stats["hits"] += 1
+                self.cache_stats["total"] += 1
+                logger.debug(f"Prompt cache hit (hit rate: {self._get_cache_hit_rate():.1%})")
+                return cached_prompt
+
+        # Cache miss - build prompt
+        self.cache_stats["misses"] += 1
+        self.cache_stats["total"] += 1
+
         # Truncate body to stay within token limits
         body = email_data.get('body', '')[:3000]
 
@@ -158,35 +200,44 @@ Rules:
 
 Return ONLY valid JSON. No markdown, no code blocks.
 """
+
+        # Cache the prompt
+        if self.enable_prompt_caching:
+            self._cache_prompt(email_data, prompt)
+
         return prompt
 
-    async def _call_llm(self, prompt: str) -> str:
+    async def _call_llm(self, prompt: str, model: Optional[str] = None) -> str:
         """
         Call LLM service with extraction prompt.
 
         Args:
             prompt: Extraction prompt
+            model: LLM model to use (defaults to instance model)
 
         Returns:
             LLM response text
         """
+        # Use specified model or default
+        llm_model = model or self.model
+
         # TODO: Implement actual LLM call
         # For now, return mock response
-        return '''
-{
+        return f'''
+{{
     "entities": [
-        {
+        {{
             "type": "PurchaseOrder",
-            "properties": {
+            "properties": {{
                 "po_number": "PO-12345",
                 "vendor": "Acme Corp",
                 "amount": 5000.0,
                 "currency": "USD"
-            },
+            }},
             "confidence": 0.95
-        }
+        }}
     ]
-}
+}}
 '''
 
     def _parse_llm_response(
@@ -264,7 +315,11 @@ Return ONLY valid JSON. No markdown, no code blocks.
         batch_id: Optional[str] = None
     ) -> List[DiscoveredEntity]:
         """
-        Extract entities from a batch of emails.
+        Extract entities from a batch of emails using parallel processing.
+
+        Performance Targets:
+        - 50 emails in <2 minutes (2.4s per email)
+        - 30% cost reduction via batch processing
 
         Args:
             emails: List of normalized email dicts
@@ -274,20 +329,251 @@ Return ONLY valid JSON. No markdown, no code blocks.
 
         Returns:
             List of all extracted entities from all emails
-
-        Note: TODO: Implement true batch processing in Plan 323-03
-        Current implementation processes sequentially
         """
+        if not emails:
+            return []
+
+        # Split into batches of 10 for parallel processing
+        batch_size = 10
         all_entities = []
 
-        for email in emails:
-            entities = await self.extract_from_email(
-                email,
-                tenant_id,
-                workspace_id,
-                batch_id=batch_id
-            )
-            all_entities.extend(entities)
+        logger.info(f"Starting batch extraction: {len(emails)} emails in batches of {batch_size}")
+
+        for i in range(0, len(emails), batch_size):
+            batch = emails[i:i + batch_size]
+
+            # Process batch in parallel
+            tasks = [
+                self.extract_from_email(
+                    email,
+                    tenant_id,
+                    workspace_id,
+                    batch_id=batch_id or f"batch-{i // batch_size}"
+                )
+                for email in batch
+            ]
+
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Aggregate results
+            for result in batch_results:
+                if isinstance(result, Exception):
+                    logger.error(f"Batch extraction error: {result}")
+                elif isinstance(result, list):
+                    all_entities.extend(result)
+
+            logger.info(f"Batch {i // batch_size + 1} complete: {len(all_entities)} entities so far")
 
         logger.info(f"Batch extraction complete: {len(all_entities)} entities from {len(emails)} emails")
         return all_entities
+
+    def _get_cached_prompt(self, email_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Get cached prompt for similar email.
+
+        Args:
+            email_data: Email data
+
+        Returns:
+            Cached prompt or None
+        """
+        # Generate cache key from email category
+        category = self._classify_email_category(email_data)
+        return self.prompt_cache.get(category)
+
+    def _cache_prompt(self, email_data: Dict[str, Any], prompt: str) -> None:
+        """
+        Cache prompt for future use.
+
+        Args:
+            email_data: Email data
+            prompt: Generated prompt
+        """
+        # Generate cache key from email category
+        category = self._classify_email_category(email_data)
+        self.prompt_cache[category] = prompt
+        logger.debug(f"Cached prompt for category: {category} (cache size: {len(self.prompt_cache)})")
+
+    def _classify_email_category(self, email_data: Dict[str, Any]) -> str:
+        """
+        Classify email into category for caching.
+
+        Categories: purchase_order, security_event, invoice, ticket, lead, general
+
+        Args:
+            email_data: Email data
+
+        Returns:
+            Category string
+        """
+        subject = email_data.get('subject', '').lower()
+        body = email_data.get('body', '')[:500].lower()
+
+        # Check for purchase orders
+        if any(keyword in subject or keyword in body for keyword in ['po', 'purchase order', 'purchase order #']):
+            return 'purchase_order'
+
+        # Check for security events
+        if any(keyword in subject or keyword in body for keyword in ['security', 'alert', 'unusual login', 'malware', 'phishing']):
+            return 'security_event'
+
+        # Check for invoices
+        if any(keyword in subject or keyword in body for keyword in ['invoice', 'payment', 'bill', 'receipt']):
+            return 'invoice'
+
+        # Check for tickets
+        if any(keyword in subject or keyword in body for keyword in ['ticket', 'issue', 'support', 'help']):
+            return 'ticket'
+
+        # Check for leads
+        if any(keyword in subject or keyword in body for keyword in ['lead', 'prospect', 'inquiry', 'demo']):
+            return 'lead'
+
+        # Default category
+        return 'general'
+
+    def _get_cache_hit_rate(self) -> float:
+        """
+        Calculate cache hit rate.
+
+        Returns:
+            Hit rate (0.0 to 1.0)
+        """
+        if self.cache_stats["total"] == 0:
+            return 0.0
+        return self.cache_stats["hits"] / self.cache_stats["total"]
+
+    def _analyze_email_complexity(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze email complexity for model selection.
+
+        Factors:
+        - Word count (simple: <100, complex: >500)
+        - Structure (attachments, multiple recipients)
+        - Special keywords (legal, technical, financial)
+
+        Args:
+            email_data: Email data
+
+        Returns:
+            Complexity analysis dict
+        """
+        body = email_data.get('body', '')
+        subject = email_data.get('subject', '')
+        to_recipients = email_data.get('to', [])
+        cc_recipients = email_data.get('cc', [])
+        has_attachments = email_data.get('attachments', [])
+
+        # Word count
+        word_count = len(body.split())
+
+        # Recipient count
+        recipient_count = len(to_recipients) + len(cc_recipients)
+
+        # Check for complex keywords
+        complex_keywords = [
+            'legal', 'contract', 'agreement', 'liability',
+            'technical', 'specification', 'architecture', 'integration',
+            'financial', 'forecast', 'budget', 'revenue'
+        ]
+        has_complex_keywords = any(keyword in body.lower() for keyword in complex_keywords)
+
+        # Calculate complexity score (0-100)
+        complexity_score = 0
+        complexity_score += min(word_count / 10, 50)  # Up to 50 points for length
+        complexity_score += min(recipient_count * 2, 20)  # Up to 20 points for recipients
+        complexity_score += len(has_attachments) * 5  # 5 points per attachment
+        if has_complex_keywords:
+            complexity_score += 20  # 20 points for complex keywords
+
+        return {
+            "word_count": word_count,
+            "recipient_count": recipient_count,
+            "attachment_count": len(has_attachments),
+            "has_complex_keywords": has_complex_keywords,
+            "complexity_score": min(complexity_score, 100)
+        }
+
+    def _select_model(self, email_data: Dict[str, Any]) -> str:
+        """
+        Select optimal LLM model based on email complexity.
+
+        Model Selection Strategy:
+        - GPT-4o-mini: Simple emails (<200 words, no complex keywords)
+        - GPT-4o: Complex emails (>200 words, complex keywords, attachments)
+
+        Cost Difference:
+        - GPT-4o-mini: $0.15/1M input tokens
+        - GPT-4o: $2.50/1M input tokens (16.7x more expensive)
+
+        Args:
+            email_data: Email data
+
+        Returns:
+            Model name (gpt-4o or gpt-4o-mini)
+        """
+        if not self.enable_model_selection:
+            return self.model
+
+        # Analyze complexity
+        complexity = self._analyze_email_complexity(email_data)
+
+        # Select model based on complexity
+        if complexity["complexity_score"] < 40:
+            # Simple email - use mini model
+            selected_model = "gpt-4o-mini"
+        else:
+            # Complex email - use full model
+            selected_model = "gpt-4o"
+
+        # Track statistics
+        self.model_stats[selected_model] += 1
+        self.model_stats["total"] += 1
+
+        logger.debug(
+            f"Model selection: {selected_model} "
+            f"(complexity: {complexity['complexity_score']:.0f}/100, "
+            f"mini rate: {self._get_mini_model_rate():.1%})"
+        )
+
+        return selected_model
+
+    def _get_mini_model_rate(self) -> float:
+        """
+        Calculate rate of GPT-4o-mini usage.
+
+        Returns:
+            Mini model usage rate (0.0 to 1.0)
+        """
+        if self.model_stats["total"] == 0:
+            return 0.0
+        return self.model_stats["gpt-4o-mini"] / self.model_stats["total"]
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """
+        Get performance optimization statistics.
+
+        Returns:
+            Statistics dict with cache and model metrics
+        """
+        return {
+            "prompt_cache": {
+                "hit_rate": self._get_cache_hit_rate(),
+                "hits": self.cache_stats["hits"],
+                "misses": self.cache_stats["misses"],
+                "total": self.cache_stats["total"],
+                "cache_size": len(self.prompt_cache)
+            },
+            "model_selection": {
+                "mini_rate": self._get_mini_model_rate(),
+                "gpt_4o_mini_count": self.model_stats["gpt-4o-mini"],
+                "gpt_4o_count": self.model_stats["gpt-4o"],
+                "total": self.model_stats["total"]
+            }
+        }
+
+    def reset_stats(self) -> None:
+        """Reset performance statistics."""
+        self.cache_stats = {"hits": 0, "misses": 0, "total": 0}
+        self.model_stats = {"gpt-4o": 0, "gpt-4o-mini": 0, "total": 0}
+        logger.info("Performance statistics reset")
