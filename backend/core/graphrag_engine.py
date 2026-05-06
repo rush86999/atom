@@ -293,6 +293,118 @@ class GraphRAGEngine:
                     ))
                     entity_names.add(url)
 
+            # 3. Phone numbers (US format)
+            phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+            for match in re.finditer(phone_pattern, text):
+                phone = match.group()
+                if phone not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=phone,
+                        entity_type="phone",
+                        description="Phone number found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(phone)
+
+            # 4. Dates (ISO format: YYYY-MM-DD)
+            iso_date_pattern = r'\b\d{4}-\d{2}-\d{2}\b'
+            for match in re.finditer(iso_date_pattern, text):
+                date = match.group()
+                if date not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=date,
+                        entity_type="date",
+                        description="ISO date found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(date)
+
+            # 5. Dates (US format: MM/DD/YYYY)
+            us_date_pattern = r'\b\d{2}/\d{2}/\d{4}\b'
+            for match in re.finditer(us_date_pattern, text):
+                date = match.group()
+                if date not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=date,
+                        entity_type="date",
+                        description="US format date found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(date)
+
+            # 6. Dates (Textual: Jan 15, 2024)
+            textual_date_pattern = r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b'
+            for match in re.finditer(textual_date_pattern, text):
+                date = match.group()
+                if date not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=date,
+                        entity_type="date",
+                        description="Textual date found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(date)
+
+            # 7. Currency amounts ($99.99)
+            currency_pattern = r'\$\d+(?:\.\d{2})?'
+            for match in re.finditer(currency_pattern, text):
+                currency = match.group()
+                if currency not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=currency,
+                        entity_type="currency",
+                        description="Currency amount found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(currency)
+
+            # 8. File paths (/path/to/file.txt)
+            file_path_pattern = r'[/\\][\w\-./]+(?:\.\w+)'
+            for match in re.finditer(file_path_pattern, text):
+                path = match.group()
+                if path not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=path,
+                        entity_type="file_path",
+                        description="File path found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(path)
+
+            # 9. IP addresses (192.168.1.1)
+            ip_pattern = r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+            for match in re.finditer(ip_pattern, text):
+                ip = match.group()
+                if ip not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=ip,
+                        entity_type="ip_address",
+                        description="IP address found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(ip)
+
+            # 10. UUIDs (550e8400-e29b-41d4-a716-446655440000)
+            uuid_pattern = r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'
+            for match in re.finditer(uuid_pattern, text):
+                uuid_val = match.group()
+                if uuid_val not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=uuid_val,
+                        entity_type="uuid",
+                        description="UUID found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(uuid_val)
+
             logger.info(f"Pattern extraction found {len(entities)} entities")
 
         except Exception as e:

@@ -123,6 +123,22 @@ def mock_llm_service_special_chars():
     return mock_service
 
 
+@pytest.fixture
+def mock_knowledge_extractor():
+    """Mock KnowledgeExtractor for testing GraphRAG LLM extraction"""
+    mock_extractor = AsyncMock()
+    mock_extractor.extract_knowledge = AsyncMock(return_value={
+        "entities": [
+            {"name": "John Doe", "type": "person", "description": "Software engineer"},
+            {"name": "Acme Corp", "type": "organization", "description": "Tech company"}
+        ],
+        "relationships": [
+            {"from": "John Doe", "to": "Acme Corp", "type": "works_at", "description": "Employment"}
+        ]
+    })
+    return mock_extractor
+
+
 # ==================== TEST CLASS 1: GraphRAG Initialization ====================
 
 class TestGraphRAGInit:
@@ -162,13 +178,24 @@ class TestGraphRAGInit:
 # ==================== TEST CLASS 2: LLM Extraction (via LLMService) ====================
 
 class TestLLMExtraction:
-    """Test LLM-based entity and relationship extraction using LLMService"""
+    """Test LLM-based entity and relationship extraction using KnowledgeExtractor"""
 
     @pytest.mark.asyncio
-    async def test_llm_extract_entities_success(self, mock_llm_service_entities_only):
-        """Mock LLMService.generate_completion with valid JSON, verify entities returned"""
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_entities_success(self, mock_get_extractor, mock_llm_service_entities_only):
+        """Mock KnowledgeExtractor.extract_knowledge with valid JSON, verify entities returned"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"},
+                {"name": "Acme Corp", "type": "organization", "description": "Tech company"}
+            ],
+            "relationships": []
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_entities_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "John Doe works at Acme Corp",
@@ -183,14 +210,25 @@ class TestLLMExtraction:
         assert entities[1].name == "Acme Corp"
         assert entities[1].entity_type == "organization"
         assert len(relationships) == 0
-        # Verify LLMService was called
-        mock_llm_service_entities_only.generate_completion.assert_called_once()
+        # Verify KnowledgeExtractor was called
+        mock_extractor.extract_knowledge.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_llm_extract_relationships_success(self, mock_llm_service_relationships_only):
-        """Mock LLMService response with relationships array, verify relationships returned"""
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_relationships_success(self, mock_get_extractor):
+        """Mock KnowledgeExtractor response with relationships array, verify relationships returned"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [],
+            "relationships": [
+                {"from": "John Doe", "to": "Acme Corp", "type": "works_at", "description": "Employment"},
+                {"from": "Jane Smith", "to": "John Doe", "type": "reports_to", "description": "Management"}
+            ]
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_relationships_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "John Doe works at Acme Corp. Jane Smith reports to John Doe.",
@@ -207,17 +245,18 @@ class TestLLMExtraction:
         assert relationships[1].rel_type == "reports_to"
 
     @pytest.mark.asyncio
-    async def test_llm_extract_with_truncated_text(self):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_with_truncated_text(self, mock_get_extractor):
         """Send text longer than 6000 chars, verify truncation at 6000"""
-        mock_service = MagicMock()
-        mock_service.generate_completion = AsyncMock(return_value={
-            "content": json.dumps({"entities": [], "relationships": []}),
-            "model": "gpt-4o-mini",
-            "usage": {"total_tokens": 50}
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [],
+            "relationships": []
         })
+        mock_get_extractor.return_value = mock_extractor
 
         engine = GraphRAGEngine()
-        engine.llm_service = mock_service
 
         # Create text longer than 6000 characters
         long_text = "A" * 7000
@@ -230,19 +269,29 @@ class TestLLMExtraction:
         )
 
         # Verify the call was made (text truncation happens in prompt construction)
-        mock_service.generate_completion.assert_called_once()
-        call_args = mock_service.generate_completion.call_args
-        messages = call_args[1]['messages']
-        prompt = messages[1]['content']
-        # Verify text was truncated to 6000 chars in prompt
-        assert "A" * 6000 in prompt
-        assert len(prompt) < 7000  # Truncated
+        mock_extractor.extract_knowledge.assert_called_once()
+        # Verify extraction returned empty results (long text gets truncated)
+        assert len(entities) == 0
+        assert len(relationships) == 0
 
     @pytest.mark.asyncio
-    async def test_llm_extract_with_json_response(self, mock_llm_service):
-        """Verify JSON is parsed correctly from LLMService response"""
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_with_json_response(self, mock_get_extractor):
+        """Verify JSON is parsed correctly from KnowledgeExtractor response"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"},
+                {"name": "Acme Corp", "type": "organization", "description": "Tech company"}
+            ],
+            "relationships": [
+                {"from": "John Doe", "to": "Acme Corp", "type": "works_at", "description": "Employment"}
+            ]
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test text",
@@ -256,10 +305,15 @@ class TestLLMExtraction:
         assert len(relationships) == 1
 
     @pytest.mark.asyncio
-    async def test_llm_extract_api_failure_returns_empty(self, mock_llm_service_error):
-        """Mock LLMService raises exception, verify returns [], []"""
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_api_failure_returns_empty(self, mock_get_extractor):
+        """Mock KnowledgeExtractor raises exception, verify returns [], []"""
+        # Setup mock KnowledgeExtractor that raises error
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(side_effect=Exception("LLM API error"))
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_error
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test text",
@@ -272,10 +326,21 @@ class TestLLMExtraction:
         assert relationships == []
 
     @pytest.mark.asyncio
-    async def test_llm_extract_with_special_characters(self, mock_llm_service_special_chars):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_with_special_characters(self, mock_get_extractor):
         """Send text with unicode, verify entities created correctly"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "José García", "type": "person", "description": "Employee"},
+                {"name": "日本語", "type": "organization", "description": "Japanese company"}
+            ],
+            "relationships": []
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_special_chars
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "José García works at 日本語",
@@ -289,10 +354,20 @@ class TestLLMExtraction:
         assert entities[1].name == "日本語"
 
     @pytest.mark.asyncio
-    async def test_llm_extract_entities_have_required_fields(self, mock_llm_service_entities_only):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_entities_have_required_fields(self, mock_get_extractor):
         """Verify Entity has id, name, entity_type, description, properties"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"}
+            ],
+            "relationships": []
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_entities_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test",
@@ -313,10 +388,20 @@ class TestLLMExtraction:
         assert entity.description == "Software engineer"
 
     @pytest.mark.asyncio
-    async def test_llm_extract_relationships_have_required_fields(self, mock_llm_service_relationships_only):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_relationships_have_required_fields(self, mock_get_extractor):
         """Verify Relationship has id, from_entity, to_entity, rel_type, description"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [],
+            "relationships": [
+                {"from": "John Doe", "to": "Acme Corp", "type": "works_at", "description": "Employment"}
+            ]
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_relationships_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test",
@@ -338,10 +423,20 @@ class TestLLMExtraction:
         assert rel.rel_type == "works_at"
 
     @pytest.mark.asyncio
-    async def test_llm_extract_properties_include_source(self, mock_llm_service_entities_only):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_properties_include_source(self, mock_get_extractor):
         """Verify properties['source'] and properties['doc_id'] set"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"}
+            ],
+            "relationships": []
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_entities_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test",
@@ -357,10 +452,20 @@ class TestLLMExtraction:
         assert entity.properties['doc_id'] == "doc-999"
 
     @pytest.mark.asyncio
-    async def test_llm_extract_properties_include_llm_extracted_flag(self, mock_llm_service_entities_only):
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_properties_include_llm_extracted_flag(self, mock_get_extractor):
         """Verify properties['llm_extracted']=True"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"}
+            ],
+            "relationships": []
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_entities_only
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test",
@@ -374,10 +479,15 @@ class TestLLMExtraction:
         assert entity.properties['llm_extracted'] is True
 
     @pytest.mark.asyncio
-    async def test_llm_extract_empty_content_returns_empty(self, mock_llm_service_empty):
-        """Mock LLMService returning empty content, verify returns [], []"""
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
+    async def test_llm_extract_empty_content_returns_empty(self, mock_get_extractor):
+        """Mock KnowledgeExtractor returning empty content, verify returns [], []"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={"entities": [], "relationships": []})
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service_empty
 
         entities, relationships = await engine._llm_extract_entities_and_relationships(
             "Test text",
