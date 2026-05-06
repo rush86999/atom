@@ -204,53 +204,57 @@ class GraphRAGEngine:
         """
         Extract entities and relationships using centralized KnowledgeExtractor.
         """
-        from core.service_factory import ServiceFactory
-        extractor = ServiceFactory.get_knowledge_extractor(
-            workspace_id=workspace_id,
-            tenant_id=self.tenant_id
-        )
-        extracted_data = await extractor.extract_knowledge(
-            text,
-            workspace_id=workspace_id,
-            tenant_id=self.tenant_id,
-            source=source
-        )
-        
-        entities = []
-        for e in extracted_data.get("entities", []):
-            # Map raw extracted properties to Entity dataclass
-            # Handle potential nested 'properties' or flattened structure
-            props = e.get("properties", {})
-            name = e.get("name") or props.get("name", "Unknown")
-            e_type = e.get("type") or props.get("type", "unknown")
-            desc = e.get("description") or props.get("description", "")
-            
-            # Enrich with source info if not already there
-            if "source" not in props: props["source"] = source
-            if "doc_id" not in props: props["doc_id"] = doc_id
-            props["llm_extracted"] = True
-            
-            entities.append(Entity(
-                id=str(uuid.uuid4()),
-                name=name,
-                entity_type=e_type,
-                description=desc,
-                properties=props
-            ))
+        try:
+            from core.service_factory import ServiceFactory
+            extractor = ServiceFactory.get_knowledge_extractor(
+                workspace_id=workspace_id,
+                tenant_id=self.tenant_id
+            )
+            extracted_data = await extractor.extract_knowledge(
+                text,
+                workspace_id=workspace_id,
+                tenant_id=self.tenant_id,
+                source=source
+            )
 
-        relationships = []
-        for r in extracted_data.get("relationships", []):
-            relationships.append(Relationship(
-                id=str(uuid.uuid4()),
-                from_entity=r.get("from"),
-                to_entity=r.get("to"),
-                rel_type=r.get("type", "related_to"),
-                description=r.get("description", ""),
-                properties=r.get("properties", {"llm_extracted": True})
-            ))
+            entities = []
+            for e in extracted_data.get("entities", []):
+                # Map raw extracted properties to Entity dataclass
+                # Handle potential nested 'properties' or flattened structure
+                props = e.get("properties", {})
+                name = e.get("name") or props.get("name", "Unknown")
+                e_type = e.get("type") or props.get("type", "unknown")
+                desc = e.get("description") or props.get("description", "")
 
-        logger.info(f"Unified extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
-        return entities, relationships
+                # Enrich with source info if not already there
+                if "source" not in props: props["source"] = source
+                if "doc_id" not in props: props["doc_id"] = doc_id
+                props["llm_extracted"] = True
+
+                entities.append(Entity(
+                    id=str(uuid.uuid4()),
+                    name=name,
+                    entity_type=e_type,
+                    description=desc,
+                    properties=props
+                ))
+
+            relationships = []
+            for r in extracted_data.get("relationships", []):
+                relationships.append(Relationship(
+                    id=str(uuid.uuid4()),
+                    from_entity=r.get("from"),
+                    to_entity=r.get("to"),
+                    rel_type=r.get("type", "related_to"),
+                    description=r.get("description", ""),
+                    properties=r.get("properties", {"llm_extracted": True})
+                ))
+
+            logger.info(f"Unified extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
+            return entities, relationships
+        except Exception as e:
+            logger.error(f"LLM extraction failed: {e}")
+            return [], []
 
     # ==================== PATTERN-BASED EXTRACTION FALLBACK ====================
 
@@ -719,26 +723,44 @@ class GraphRAGEngine:
 
     # ==================== READ OPERATIONS (SQL) ====================
 
-    def local_search(self, workspace_id: Optional[str] = None, 
+    def local_search(self, workspace_id: Optional[str] = None,
                      tenant_id: Optional[str] = None,
                      query: str = "", depth: int = 2) -> Dict[str, Any]:
         """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal."""
+        from sqlalchemy import or_
+
         ws_id = workspace_id or self.workspace_id
-        
+
         with get_db_session() as session:
             try:
-                # 1. Find Start Nodes
-                start_nodes_sql = text("""
-                    SELECT id, name, type, description 
-                    FROM graph_nodes 
-                    WHERE workspace_id = :ws_id 
-                    AND name ILIKE :query 
-                    LIMIT 5
-                """)
+                # Check database dialect
+                from sqlalchemy import inspect
+                dialect = session.bind.dialect.name
+                is_postgres = dialect == 'postgresql'
+
+                # 1. Find Start Nodes (database-agnostic case-insensitive search)
+                if is_postgres:
+                    start_nodes_sql = text("""
+                        SELECT id, name, type, description
+                        FROM graph_nodes
+                        WHERE workspace_id = :ws_id
+                        AND name ILIKE :query
+                        LIMIT 5
+                    """)
+                else:
+                    # SQLite: Use LOWER() for case-insensitive search
+                    start_nodes_sql = text("""
+                        SELECT id, name, type, description
+                        FROM graph_nodes
+                        WHERE workspace_id = :ws_id
+                        AND LOWER(name) LIKE LOWER(:query)
+                        LIMIT 5
+                    """)
+
                 start_nodes = session.execute(start_nodes_sql, {"ws_id": workspace_id, "query": f"%{query}%"}).fetchall()
                 
                 if not start_nodes:
-                    return {"mode": "local", "entities": [], "relationships": [], "context": "No matching entities found."}
+                    return {"mode": "local", "entities": [], "relationships": [], "count": 0}
 
                 start_ids = [n.id for n in start_nodes]
                 

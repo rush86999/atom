@@ -668,16 +668,30 @@ class TestDocumentIngestion:
     """Test document ingestion orchestration"""
 
     @pytest.mark.asyncio
+    @patch('core.service_factory.ServiceFactory.get_knowledge_extractor')
     @patch('core.graphrag_engine.GRAPHRAG_LLM_ENABLED', True)
-    async def test_ingest_document_with_llm(self, mock_llm_service):
+    async def test_ingest_document_with_llm(self, mock_get_extractor, mock_llm_service):
         """Test ingest_document uses LLM extraction when available"""
+        # Setup mock KnowledgeExtractor
+        mock_extractor = AsyncMock()
+        mock_extractor.extract_knowledge = AsyncMock(return_value={
+            "entities": [
+                {"name": "John Doe", "type": "person", "description": "Software engineer"},
+                {"name": "Acme Corp", "type": "organization", "description": "Tech company"}
+            ],
+            "relationships": [
+                {"from": "John Doe", "to": "Acme Corp", "type": "works_at", "description": "Employment"}
+            ]
+        })
+        mock_get_extractor.return_value = mock_extractor
+
         engine = GraphRAGEngine()
-        engine.llm_service = mock_llm_service
 
         # Mock ingest_structured_data to avoid DB calls
         with patch.object(engine, 'ingest_structured_data') as mock_ingest:
             await engine.ingest_document(
                 "workspace-456",
+                None,
                 "doc-123",
                 "John Doe works at Acme Corp",
                 "test-source"
@@ -686,33 +700,34 @@ class TestDocumentIngestion:
             # Verify ingest_structured_data was called
             mock_ingest.assert_called_once()
             call_args = mock_ingest.call_args[0]
-            entities_dict = call_args[1]
-            relationships_dict = call_args[2]
+            entities_dict = call_args[2]
+            relationships_dict = call_args[3]
 
             # Verify entities were passed
             assert len(entities_dict) == 2
             assert entities_dict[0]['name'] == "John Doe"
             assert len(relationships_dict) == 1
 
+    @pytest.mark.asyncio
     @patch('core.graphrag_engine.GRAPHRAG_LLM_ENABLED', False)
-    def test_ingest_document_with_pattern_fallback(self):
+    async def test_ingest_document_with_pattern_fallback(self):
         """Test ingest_document uses pattern extraction when LLM unavailable"""
         engine = GraphRAGEngine()
 
         # Mock ingest_structured_data to avoid DB calls
         with patch.object(engine, 'ingest_structured_data') as mock_ingest:
-            # Use asyncio.run to call async method
-            asyncio.run(engine.ingest_document(
+            await engine.ingest_document(
                 "workspace-456",
+                None,
                 "doc-123",
                 "Contact test@example.com",
                 "test-source"
-            ))
+            )
 
             # Verify ingest_structured_data was called
             mock_ingest.assert_called_once()
             call_args = mock_ingest.call_args[0]
-            entities_dict = call_args[1]
+            entities_dict = call_args[2]
 
             # Verify email entity was extracted via patterns
             email_entities = [e for e in entities_dict if e['type'] == "email"]
@@ -764,10 +779,11 @@ class TestLocalSearch:
 class TestGlobalSearch:
     """Test global search with community summarization"""
 
-    def test_global_search_returns_summaries(self):
+    @pytest.mark.asyncio
+    async def test_global_search_returns_summaries(self):
         """Test global_search returns community summaries"""
         engine = GraphRAGEngine()
-        result = engine.global_search("workspace-456", "test")
+        result = await engine.global_search("workspace-456", "test")
 
         assert "mode" in result
         assert result["mode"] == "global"
@@ -777,31 +793,35 @@ class TestGlobalSearch:
 class TestQueryRouting:
     """Test query routing between local and global search"""
 
-    def test_query_auto_mode_holistic(self):
+    @pytest.mark.asyncio
+    async def test_query_auto_mode_holistic(self):
         """Test query with holistic keyword routes to global search"""
         engine = GraphRAGEngine()
-        result = engine.query("workspace-456", "Give me an overview", mode="auto")
+        result = await engine.query("workspace-456", None, "Give me an overview", mode="auto")
 
         assert result["mode"] == "global"
 
-    def test_query_auto_mode_specific(self):
+    @pytest.mark.asyncio
+    async def test_query_auto_mode_specific(self):
         """Test query with specific term routes to local search"""
         engine = GraphRAGEngine()
-        result = engine.query("workspace-456", "Find John Doe", mode="auto")
+        result = await engine.query("workspace-456", None, "Find John Doe", mode="auto")
 
         assert result["mode"] == "local"
 
-    def test_query_explicit_local_mode(self):
+    @pytest.mark.asyncio
+    async def test_query_explicit_local_mode(self):
         """Test query with explicit local mode"""
         engine = GraphRAGEngine()
-        result = engine.query("workspace-456", "test", mode="local")
+        result = await engine.query("workspace-456", None, "test", mode="local")
 
         assert result["mode"] == "local"
 
-    def test_query_explicit_global_mode(self):
+    @pytest.mark.asyncio
+    async def test_query_explicit_global_mode(self):
         """Test query with explicit global mode"""
         engine = GraphRAGEngine()
-        result = engine.query("workspace-456", "test", mode="global")
+        result = await engine.query("workspace-456", None, "test", mode="global")
 
         assert result["mode"] == "global"
 
@@ -809,18 +829,20 @@ class TestQueryRouting:
 class TestContextFormatting:
     """Test context formatting for AI prompts"""
 
-    def test_get_context_for_ai_local_mode(self):
+    @pytest.mark.asyncio
+    async def test_get_context_for_ai_local_mode(self):
         """Test get_context_for_ai formats local search results"""
         engine = GraphRAGEngine()
-        context = engine.get_context_for_ai("workspace-456", "John Doe")
+        context = await engine.get_context_for_ai("workspace-456", None, "John Doe")
 
         assert isinstance(context, str)
         assert len(context) > 0
 
-    def test_get_context_for_ai_global_mode(self):
+    @pytest.mark.asyncio
+    async def test_get_context_for_ai_global_mode(self):
         """Test get_context_for_ai formats global search results"""
         engine = GraphRAGEngine()
-        context = engine.get_context_for_ai("workspace-456", "overview of everything")
+        context = await engine.get_context_for_ai("workspace-456", None, "overview of everything")
 
         assert isinstance(context, str)
         assert "Global Context" in context
