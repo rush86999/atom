@@ -18,6 +18,7 @@ Reference: Phase 60 Plan 01 - Local Marketplace with Atom Agent OS Integration
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
