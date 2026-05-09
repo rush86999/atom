@@ -150,6 +150,50 @@ class LLMService:
         else:
             return LLMProvider.OPENAI  # Default
 
+    def _resolve_governance_model(self, tenant_id: str, model: str, **kwargs) -> str:
+        """
+        Interrogates tenant governance state to determine if model de-escalation is required.
+        Implements 'Frugal Mode' for budget preservation.
+        """
+        # 1. Check for bypass flags (Security/System Critical)
+        if kwargs.get("is_critical_security") or kwargs.get("is_system_repair"):
+            return model
+
+        # 2. Check tenant status
+        if not self._db:
+            return model
+
+        from core.models import Workspace
+
+        workspace = self._db.query(Workspace).filter(Workspace.id == tenant_id).first()
+        if not workspace:
+            return model
+
+        # 3. Check for Frugal Mode in metadata
+        meta = workspace.metadata_json or {}
+        if not meta.get("frugal_mode"):
+            return model
+
+        # 4. Perform mapping
+        mapping = {
+            "gpt-4o": "gpt-4o-mini",
+            "gpt-4": "gpt-4o-mini",
+            "gpt-4-turbo": "gpt-4o-mini",
+            "claude-3-5-sonnet": "claude-3-haiku-20240307",
+            "claude-3-opus-20240229": "claude-3-haiku-20240307",
+            "claude-3-sonnet-20240229": "claude-3-haiku-20240307",
+            "gemini-1.5-pro": "gemini-1.5-flash",
+            "deepseek-reasoner": "deepseek-chat",
+        }
+
+        resolved = mapping.get(model, model)
+        if resolved != model:
+            logger.info(
+                f"❄️ FRUGAL MODE ACTIVE: De-escalating {model} -> {resolved} for workspace {tenant_id}"
+            )
+
+        return resolved
+
     async def generate(
         self,
         prompt: str,
@@ -167,6 +211,9 @@ class LLMService:
         user_id = kwargs.get("user_id")
         target_ws = workspace_id or tenant_id or self._workspace_id
         
+        # Apply Governance De-escalation
+        model = self._resolve_governance_model(target_ws, model, **kwargs)
+
         handler = self._get_handler(workspace_id=target_ws)
         
         if agent_id and self.continuous_learning:
@@ -201,7 +248,12 @@ class LLMService:
         Generate completion with OpenAI-style messages.
         Maps messages to prompt/system for BYOKHandler.
         """
-        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        target_ws = workspace_id or tenant_id or self._workspace_id
+        
+        # Apply Governance De-escalation
+        model = self._resolve_governance_model(target_ws, model, **kwargs)
+
+        handler = self._get_handler(workspace_id=target_ws)
         
         # Extract prompt and system from messages
         prompt = ""

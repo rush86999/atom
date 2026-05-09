@@ -56,7 +56,7 @@ class RegistryCacheService:
         self.cache = UniversalCacheService()
         logger.debug("RegistryCacheService initialized")
 
-    def _model_key(self, provider: str, model_name: str) -> str:
+    def _model_key(self, tenant_id: str, provider: str, model_name: str) -> str:
         """
         Build tenant-scoped cache key for individual model.
 
@@ -73,7 +73,7 @@ class RegistryCacheService:
         """
         return f"{MODEL_KEY_PREFIX}:{provider}:{model_name}"
 
-    def _list_key(self, provider: Optional[str] = None) -> str:
+    def _list_key(self, tenant_id: str, provider: Optional[str] = None) -> str:
         """
         Build tenant-scoped cache key for model list.
 
@@ -90,6 +90,7 @@ class RegistryCacheService:
 
     async def get_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str
     ) -> Optional[Dict[str, Any]]:
@@ -123,6 +124,7 @@ class RegistryCacheService:
 
     async def set_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str,
         model_data: Dict[str, Any]
@@ -158,6 +160,7 @@ class RegistryCacheService:
 
     async def get_models_list(
         self,
+        tenant_id: str,
         provider: Optional[str] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
@@ -191,6 +194,7 @@ class RegistryCacheService:
 
     async def set_models_list(
         self,
+        tenant_id: str,
         models: List[Dict[str, Any]],
         provider: Optional[str] = None
     ) -> bool:
@@ -216,6 +220,7 @@ class RegistryCacheService:
 
     async def atomic_swap_registry(
         self,
+        tenant_id: str,
         models: List[Dict[str, Any]]
     ) -> bool:
         """
@@ -249,7 +254,7 @@ class RegistryCacheService:
             >>> # Atomically swap cache
             >>> await cache.atomic_swap_registry('tenant-123', models)
         """
-        lock_key = SWAP_LOCK_KEY
+        lock_key = f"{tenant_id}:{SWAP_LOCK_KEY}"
 
         # Try to acquire lock
         try:
@@ -314,7 +319,7 @@ class RegistryCacheService:
             except Exception as e:
                 logger.error(f"Error releasing swap lock for tenant {tenant_id}: {e}")
 
-    async def invalidate_tenant(self) -> int:
+    async def invalidate_tenant(self, tenant_id: str) -> int:
         """
         Clear all cached data for a tenant.
 
@@ -343,6 +348,7 @@ class RegistryCacheService:
 
     async def warm_cache(
         self,
+        tenant_id: str,
         models: List[Dict[str, Any]]
     ) -> None:
         """
@@ -386,6 +392,7 @@ class RegistryCacheService:
 
     async def delete_model(
         self,
+        tenant_id: str,
         provider: str,
         model_name: str
     ) -> bool:

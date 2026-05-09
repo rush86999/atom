@@ -174,6 +174,7 @@ class SchemaDiscoveryService:
             metadata_json={
                 "discovered_type": discovered_type,
                 "sample_count": len(entities),
+                "sample_entity_ids": [str(e.id) for e in entities[:5]],
                 "confidence_score": round(avg_confidence, 3),
                 "discovered_at": datetime.now(timezone.utc).isoformat(),
                 "auto_created": True

@@ -30,6 +30,7 @@ from core.lancedb_handler import LanceDBHandler
 from core.models import DocumentIngestion, Tenant, UserConnection, IngestionJob, DiscoveredEntity
 from core.multi_entity_llm_extractor import MultiEntityLLMExtractor
 from core.schema_discovery_service import SchemaDiscoveryService
+from core.entity_linking_service import EntityLinkingService
 from core.usage_tracking_service import UsageTrackingService
 
 logger = logging.getLogger(__name__)
@@ -58,8 +59,11 @@ class IngestionPipelineService(HybridDataIngestionService):
         # Phase 323: High-performance Multi-Entity Extraction
         self.multi_entity_extractor = MultiEntityLLMExtractor()
 
-        # Phase 323: Schema Discovery (Replaces OpenIE)
+        # Phase 323: Schema Discovery & Linking (Replaces OpenIE)
         self.schema_discovery = SchemaDiscoveryService(db=self.db)
+        self.entity_linker = EntityLinkingService(
+            db=self.db, schema_discovery_service=self.schema_discovery
+        )
 
         # Initialize usage tracking service (Shimmed in Upstream)
         self.usage_tracker = UsageTrackingService(tenant_id=self.tenant_id, db=self.db)
@@ -179,10 +183,22 @@ class IngestionPipelineService(HybridDataIngestionService):
                 for rid, rtext in ingested_record_ids:
                     self._record_doc_ingestion(self.workspace_id, rid, rtext, integration_id)
 
-            # Step 4: Schema Discovery via SchemaDiscoveryService (Phase 323)
+            # Step 4: Schema Discovery & Linking (Phase 323)
+            # 1. Discover schemas
             await self.schema_discovery.discover_schemas_from_entities(
                 tenant_id=self.tenant_id, workspace_id=self.workspace_id
             )
+            
+            # 2. Link entities to graph (Auto-promotion)
+            linked_nodes = await self.entity_linker.link_entities_to_graph(
+                tenant_id=self.tenant_id,
+                workspace_id=self.workspace_id,
+                auto_create_types=True,
+                min_confidence=0.8
+            )
+            if linked_nodes:
+                results["entities_extracted"] += len(linked_nodes)
+                logger.info(f"Phase 323 auto-promoted {len(linked_nodes)} entities to Knowledge Graph")
 
             # Step 5: Update job status
             completed_at = datetime.now(timezone.utc)
@@ -229,10 +245,10 @@ class IngestionPipelineService(HybridDataIngestionService):
         )
 
         if discovered_entities:
-            # Persist to discovered_entities table
-            for entity in discovered_entities:
-                self.db.add(entity)
-            self.db.commit()
+            # Persist to discovered_entities table using batch add
+            self.db.add_all(discovered_entities)
+            self.db.flush()
+            logger.info(f"[{job_id}] Phase 323 discovered {len(discovered_entities)} entities")
 
         return discovered_entities
 

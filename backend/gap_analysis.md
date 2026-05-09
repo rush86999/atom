@@ -1,0 +1,726 @@
+# Core Engine & AI Gap Analysis
+
+## CORE
+
+### Missing in Upstream (In SaaS only):
+- __tests__/agent_governance_service.coverage.test.py (10481 bytes)
+- __tests__/communication_intelligence.coverage.test.py (13711 bytes)
+- __tests__/conftest.py (1099 bytes)
+- __tests__/conftest_supervisor.py (1001 bytes)
+- __tests__/edge_cases/conftest.py (6617 bytes)
+- __tests__/edge_cases/test_boundary_unicode.py (25743 bytes)
+- __tests__/edge_cases/test_combinatorial.py (10387 bytes)
+- __tests__/edge_cases/test_concurrent_access.py (25657 bytes)
+- __tests__/edge_cases/test_corrupted_data.py (17978 bytes)
+- __tests__/edge_cases/test_network_failures.py (17723 bytes)
+- __tests__/property/api_properties.py (25284 bytes)
+- __tests__/property/conftest.py (11549 bytes)
+- __tests__/property/test_composite_strategies.py (25754 bytes)
+- __tests__/property/test_confidence_invariants.py (16651 bytes)
+- __tests__/property/test_governance_invariants.py (21027 bytes)
+- __tests__/property/test_learning_stateful.py (16093 bytes)
+- __tests__/property/test_multi_system_invariants.py (10886 bytes)
+- __tests__/property/test_readiness_invariants.py (15765 bytes)
+- __tests__/property/test_temporal_invariants.py (16869 bytes)
+- __tests__/test_agent_governance_service.py (90787 bytes)
+- __tests__/test_agent_governance_service_coverage.py (36234 bytes)
+- __tests__/test_agent_optimistic_locking.py (11413 bytes)
+- __tests__/test_agent_world_model.py (49899 bytes)
+- __tests__/test_billing_reconciliation.py (13752 bytes)
+- __tests__/test_billing_workflows.py (12517 bytes)
+- __tests__/test_delegation_chain_service.py (7015 bytes)
+- __tests__/test_enhanced_learning_service.py (10699 bytes)
+- __tests__/test_entity_skill_executor.py (15601 bytes)
+- __tests__/test_entity_skill_service.py (14110 bytes)
+- __tests__/test_entity_type_service.py (10773 bytes)
+- __tests__/test_episode_service.py (39121 bytes)
+- __tests__/test_governance_integration.py (4579 bytes)
+- __tests__/test_graduation_exam.py (34752 bytes)
+- __tests__/test_graphrag_backward_compat.py (29957 bytes)
+- __tests__/test_graphrag_custom_entities.py (27996 bytes)
+- __tests__/test_integration_reliability.py (2893 bytes)
+- __tests__/test_json_encoders.py (6710 bytes)
+- __tests__/test_learning_service.py (58416 bytes)
+- __tests__/test_model_factory.py (6819 bytes)
+- __tests__/test_multi_tenant_billing_isolation.py (14943 bytes)
+- __tests__/test_proposal_service.py (43897 bytes)
+- __tests__/test_proposal_service_fixed.py (0 bytes)
+- __tests__/test_quota_atomicity.py (13981 bytes)
+- __tests__/test_quota_exhaustion_scenarios.py (11142 bytes)
+- __tests__/test_reasoning_chain.py (38217 bytes)
+- __tests__/test_schema_validator.py (4372 bytes)
+- __tests__/test_skill_composition_service.py (23287 bytes)
+- __tests__/test_skill_suggestion_learning.py (23392 bytes)
+- __tests__/test_skill_suggestion_service.py (16357 bytes)
+- __tests__/test_supervisor_service.py (34083 bytes)
+- __tests__/test_unified_execution.py (6461 bytes)
+- __tests__/test_user_availability_service.py (31980 bytes)
+- __tests__/test_workload_analyzer.py (5669 bytes)
+- abuse_protection_service.py (8286 bytes)
+- action_registry.py (6248 bytes)
+- activity_stream_service.py (11468 bytes)
+- acu_billing_service.py (26944 bytes)
+- agent_auditor.py (3354 bytes)
+- agent_creation_with_specialist_service.py (22165 bytes)
+- agent_event_bus.py (10797 bytes)
+- agent_factory.py (2555 bytes)
+- agent_feed_service.py (9017 bytes)
+- agent_mentorship_service.py (28720 bytes)
+- agent_messaging_service.py (13921 bytes)
+- agent_spawner.py (6010 bytes)
+- agents/coding_agent.py (25118 bytes)
+- agents/deployment_agent.py (25245 bytes)
+- agents/research_agent.py (18136 bytes)
+- agents/review_agent.py (40107 bytes)
+- agents/testing_agent.py (55138 bytes)
+- ai_onboarding_service.py (22059 bytes)
+- alerting_service.py (12222 bytes)
+- alerts.py (5150 bytes)
+- alpha_evolve_advisor.py (4030 bytes)
+- alpha_evolve_orchestrator.py (9538 bytes)
+- analytics_db_service.py (5993 bytes)
+- analytics_sync_service.py (4151 bytes)
+- anomaly_detection_service.py (13361 bytes)
+- api_response.py (2811 bytes)
+- archive/__init__.py (35 bytes)
+- asana_health.py (1790 bytes)
+- auth_nextauth.py (8596 bytes)
+- authz.py (2474 bytes)
+- auto_dev_capability_gate.py (8393 bytes)
+- auto_invoicer.py (6445 bytes)
+- auto_rollback_service.py (4178 bytes)
+- autonomous_healer.py (3752 bytes)
+- availability_background_worker.py (9396 bytes)
+- background_workers/acu_billing_worker.py (19686 bytes)
+- background_workers/auto_promotion_worker.py (6026 bytes)
+- background_workers/base_worker.py (17203 bytes)
+- background_workers/integration_health_worker.py (31574 bytes)
+- background_workers/routing_governance_worker.py (7008 bytes)
+- background_workers/spend_aggregation_worker.py (14845 bytes)
+- background_workers/stuck_agent_detection_worker.py (14012 bytes)
+- batch_quota_manager.py (6189 bytes)
+- bayesian_circuit_breaker.py (6685 bytes)
+- billing.py (8997 bytes)
+- billing_integration_service.py (15673 bytes)
+- billing_orchestrator.py (4561 bytes)
+- browser_profile_service.py (19082 bytes)
+- budget_alert_service.py (15473 bytes)
+- budget_governance_service.py (6053 bytes)
+- budget_service.py (2328 bytes)
+- bug_sla_worker.py (1864 bytes)
+- bug_triage_service.py (12011 bytes)
+- cache_metrics.py (3573 bytes)
+- canary_rollout_service.py (24489 bytes)
+- canvas_agent_suggestion_service.py (16946 bytes)
+- canvas_collaboration_service.py (28142 bytes)
+- canvas_learning_service.py (6975 bytes)
+- canvas_tool.py (7184 bytes)
+- capability_domain_service.py (13251 bytes)
+- capability_inference_service.py (20760 bytes)
+- capability_matrix_dashboard_service.py (20200 bytes)
+- capability_matrix_service.py (14448 bytes)
+- citation_verification.py (22265 bytes)
+- clickup_health.py (1736 bytes)
+- cloud_browser_agent.py (2654 bytes)
+- cloud_browser_service.py (24338 bytes)
+- code_generation_engine.py (32833 bytes)
+- code_indexer.py (39254 bytes)
+- code_patterns.py (37824 bytes)
+- code_validator.py (31996 bytes)
+- coding_agent_service.py (12958 bytes)
+- collaboration_hub_service.py (15884 bytes)
+- collaboration_service.py (25254 bytes)
+- comment_service.py (18878 bytes)
+- computer_use_agent.py (2274 bytes)
+- conflict_service.py (10230 bytes)
+- connection_leak_detector.py (6592 bytes)
+- convergence_detection_service.py (12392 bytes)
+- cost_analytics.py (18535 bytes)
+- coverage_analyzer.py (34670 bytes)
+- crdt_service.py (7245 bytes)
+- creative_assets.py (24111 bytes)
+- credential_lifecycle_worker.py (20784 bytes)
+- credential_notification_service.py (20241 bytes)
+- credential_vault.py (7939 bytes)
+- crm_health.py (8358 bytes)
+- csrf_service.py (3410 bytes)
+- custom_integration_service.py (4858 bytes)
+- data_persistence.py (30557 bytes)
+- debug_analyzers.py (22459 bytes)
+- debug_data_flow_tracker.py (14656 bytes)
+- debug_integration_monitor.py (16420 bytes)
+- debug_llm_tracer.py (16834 bytes)
+- debug_log_aggregator.py (8812 bytes)
+- debug_logger.py (14425 bytes)
+- debug_sentry_integration.py (11031 bytes)
+- delegation_chain_service.py (10942 bytes)
+- deployment_health_monitor.py (17248 bytes)
+- deployment_service.py (24891 bytes)
+- discord_health.py (1839 bytes)
+- distributed_scheduler.py (16623 bytes)
+- docker_executor.py (13088 bytes)
+- doctor_service.py (7049 bytes)
+- document_discovery_service.py (22063 bytes)
+- document_service.py (8954 bytes)
+- document_verification_service.py (8934 bytes)
+- domain_aware_graduation_service.py (18250 bytes)
+- domain_expansion_service.py (9383 bytes)
+- domain_service.py (31838 bytes)
+- economic_efficiency_tracker.py (3888 bytes)
+- edge_case_simulator.py (10341 bytes)
+- edge_orchestrator.py (2726 bytes)
+- edit_lock_service.py (11635 bytes)
+- email_service.py (40299 bytes)
+- enhanced_workflow/__init__.py (940 bytes)
+- enhanced_workflow/intelligence.py (7832 bytes)
+- enhanced_workflow/monitoring.py (6778 bytes)
+- enhanced_workflow/optimization.py (9303 bytes)
+- enhanced_workflow/troubleshooting.py (6706 bytes)
+- entity_governance_ai.py (4436 bytes)
+- entity_ingestion_workflow.py (10871 bytes)
+- entity_skill_executor.py (49704 bytes)
+- error_handler.py (20920 bytes)
+- evolution_automation_service.py (9202 bytes)
+- evolution_billing_integration.py (15356 bytes)
+- failure_detection_service.py (10483 bytes)
+- feature_flag_service.py (7651 bytes)
+- financial_health.py (7864 bytes)
+- fitness_service.py (5726 bytes)
+- fleet/batch_fleet_processor.py (12361 bytes)
+- fly_machines_skill_service.py (18666 bytes)
+- fly_service.py (10663 bytes)
+- governance_document_metadata_extractor.py (6488 bytes)
+- governance_service.py (9467 bytes)
+- governance_verification_worker.py (25772 bytes)
+- graduation_background_worker.py (16804 bytes)
+- graphrag_auto_extractor.py (14126 bytes)
+- hash_quota_manager.py (9454 bytes)
+- headscale_service.py (20728 bytes)
+- health.py (2912 bytes)
+- historical_sync_service_heartbeat_fix.py (1597 bytes)
+- hosting_service.py (37792 bytes)
+- http_status_codes.py (4040 bytes)
+- hub_sync_service.py (4585 bytes)
+- hybrid_quota_manager.py (16244 bytes)
+- industry_workflows/finance_workflows.py (32052 bytes)
+- infra_synthesis_service.py (4008 bytes)
+- ingestion_scheduler.py (12750 bytes)
+- integration_circuit_breaker.py (13629 bytes)
+- integration_credentials.py (10030 bytes)
+- integration_event_service.py (7923 bytes)
+- integration_governance.py (8683 bytes)
+- integration_health_base.py (14557 bytes)
+- integration_health_service.py (17449 bytes)
+- integration_memory_pipeline.py (7380 bytes)
+- integration_memory_query.py (11812 bytes)
+- integration_metrics.py (16613 bytes)
+- integration_rate_limiter.py (10826 bytes)
+- integration_registry_service.py (15801 bytes)
+- integrations/adapters/activepieces_integration_v2.py (13756 bytes)
+- integrations/adapters/ai_enhanced_integration_v2.py (35248 bytes)
+- integrations/adapters/airtable_integration_v2.py (16655 bytes)
+- integrations/adapters/apollo_integration_v2.py (10243 bytes)
+- integrations/adapters/asana_integration_v2.py (14566 bytes)
+- integrations/adapters/aws_ses_integration_v2.py (15360 bytes)
+- integrations/adapters/bitbucket_integration_v2.py (16017 bytes)
+- integrations/adapters/box_integration_v2.py (18676 bytes)
+- integrations/adapters/bytewax_integration_v2.py (19339 bytes)
+- integrations/adapters/calendly_integration_v2.py (14498 bytes)
+- integrations/adapters/clickup_integration_v2.py (13326 bytes)
+- integrations/adapters/confluence_integration_v2.py (16472 bytes)
+- integrations/adapters/deepgram_integration_v2.py (14166 bytes)
+- integrations/adapters/discord_enhanced_integration_v2.py (8633 bytes)
+- integrations/adapters/discord_integration_v2.py (15436 bytes)
+- integrations/adapters/document_logic_integration_v2.py (13262 bytes)
+- integrations/adapters/dropbox_integration_v2.py (13431 bytes)
+- integrations/adapters/ecommerce_unified_integration_v2.py (23766 bytes)
+- integrations/adapters/email_integration_v2.py (20464 bytes)
+- integrations/adapters/figma_integration_v2.py (14897 bytes)
+- integrations/adapters/freshdesk_integration_v2.py (14210 bytes)
+- integrations/adapters/github_integration_v2.py (12127 bytes)
+- integrations/adapters/gitlab_integration_v2.py (16165 bytes)
+- integrations/adapters/gmail_integration_v2.py (17902 bytes)
+- integrations/adapters/google_calendar_integration_v2.py (17527 bytes)
+- integrations/adapters/google_chat_enhanced_integration_v2.py (16928 bytes)
+- integrations/adapters/google_drive_integration_v2.py (16687 bytes)
+- integrations/adapters/gotomeeting_integration_v2.py (11578 bytes)
+- integrations/adapters/hubspot_integration_v2.py (14098 bytes)
+- integrations/adapters/intercom_integration_v2.py (15131 bytes)
+- integrations/adapters/jira_integration_v2.py (15553 bytes)
+- integrations/adapters/line_integration_v2.py (18575 bytes)
+- integrations/adapters/linear_integration_v2.py (16382 bytes)
+- integrations/adapters/linkedin_integration_v2.py (8018 bytes)
+- integrations/adapters/mailchimp_integration_v2.py (12509 bytes)
+- integrations/adapters/marketing_unified_integration_v2.py (15558 bytes)
+- integrations/adapters/matrix_integration_v2.py (13323 bytes)
+- integrations/adapters/mcp_integration_v2.py (16838 bytes)
+- integrations/adapters/messenger_integration_v2.py (16994 bytes)
+- integrations/adapters/meta_business_integration_v2.py (7173 bytes)
+- integrations/adapters/microsoft365_integration_v2.py (13404 bytes)
+- integrations/adapters/monday_integration_v2.py (6775 bytes)
+- integrations/adapters/notion_integration_v2.py (11504 bytes)
+- integrations/adapters/obsidian_integration_v2.py (13534 bytes)
+- integrations/adapters/okta_integration_v2.py (6394 bytes)
+- integrations/adapters/onedrive_integration_v2.py (13992 bytes)
+- integrations/adapters/openai_integration_v2.py (13033 bytes)
+- integrations/adapters/outlook_integration_v2.py (22132 bytes)
+- integrations/adapters/plaid_integration_v2.py (13231 bytes)
+- integrations/adapters/quickbooks_integration_unified.py (18475 bytes)
+- integrations/adapters/reddit_integration_v2.py (16090 bytes)
+- integrations/adapters/salesforce_integration_v2.py (19862 bytes)
+- integrations/adapters/shopify_integration_v2.py (15700 bytes)
+- integrations/adapters/signal_integration_v2.py (12004 bytes)
+- integrations/adapters/slack_integration_v2.py (16413 bytes)
+- integrations/adapters/stripe_integration_v2.py (14063 bytes)
+- integrations/adapters/tableau_integration_v2.py (15684 bytes)
+- integrations/adapters/teams_integration_v2.py (14566 bytes)
+- integrations/adapters/telegram_integration_v2.py (12313 bytes)
+- integrations/adapters/trello_integration_v2.py (11974 bytes)
+- integrations/adapters/twilio_integration_v2.py (12459 bytes)
+- integrations/adapters/universal_integration_v2.py (13148 bytes)
+- integrations/adapters/webex_integration_v2.py (15786 bytes)
+- integrations/adapters/workday_integration_v2.py (15976 bytes)
+- integrations/adapters/workspace_sync_integration_v2.py (22989 bytes)
+- integrations/adapters/xero_integration_v2.py (15508 bytes)
+- integrations/adapters/yodlee_integration_v2.py (17577 bytes)
+- integrations/adapters/zendesk_integration_v2.py (15031 bytes)
+- integrations/adapters/zoho_books_integration_v2.py (25344 bytes)
+- integrations/adapters/zoho_crm_integration_v2.py (29261 bytes)
+- integrations/adapters/zoho_inventory_integration_v2.py (25151 bytes)
+- integrations/adapters/zoho_mail_integration_v2.py (21396 bytes)
+- integrations/adapters/zoho_projects_integration_v2.py (25219 bytes)
+- integrations/adapters/zoho_workdrive_integration_v2.py (28194 bytes)
+- integrations/adapters/zoom_integration_v2.py (13450 bytes)
+- integrations/base_adapter.py (20943 bytes)
+- integrations/enums.py (816 bytes)
+- integrations/integration_factory.py (57179 bytes)
+- intent_parser.py (7275 bytes)
+- invariant_verifier.py (13825 bytes)
+- jira_health.py (1945 bytes)
+- json_encoders.py (4271 bytes)
+- linear_health.py (1869 bytes)
+- live_scripting_service.py (7207 bytes)
+- llm/activity_summarizer.py (17675 bytes)
+- llm/agent_commenter.py (8125 bytes)
+- llm/agent_suggester.py (8663 bytes)
+- llm/benchmark_sync_service.py (19711 bytes)
+- llm/conflict_resolver.py (11149 bytes)
+- llm/context_budget_governor.py (13395 bytes)
+- llm/dynamic_pricing_fetcher.py (20075 bytes)
+- llm/external_health_service.py (11752 bytes)
+- llm/routing_trace_service.py (27074 bytes)
+- llm_router.py (3994 bytes)
+- maturity_calibration_service.py (5222 bytes)
+- maturity_logic.py (1973 bytes)
+- maturity_service.py (2311 bytes)
+- memento_orchestrator.py (10333 bytes)
+- memory_cache.py (7842 bytes)
+- memory_maintenance.py (4915 bytes)
+- message_gateway.py (41144 bytes)
+- meta_agent_capability_flow.py (23782 bytes)
+- meta_agent_orchestrator.py (33738 bytes)
+- meta_rate_limiter.py (12800 bytes)
+- middleware.py (2968 bytes)
+- migration_manifest_service.py (14419 bytes)
+- mime_utils.py (1493 bytes)
+- monday_health.py (1945 bytes)
+- monitoring/quality_metrics.py (14572 bytes)
+- monthly_tasks.py (11197 bytes)
+- nextauth_adapter.py (5531 bytes)
+- notifications.py (10844 bytes)
+- notion_health.py (1843 bytes)
+- npm_package_service.py (21794 bytes)
+- npm_scanner_service.py (15484 bytes)
+- oauth_metrics.py (2310 bytes)
+- oauth_persistence.py (8910 bytes)
+- oauth_service.py (19716 bytes)
+- oauth_utils.py (9392 bytes)
+- oauth_validation.py (5168 bytes)
+- openclaw_governance.py (17874 bytes)
+- openclaw_scanner.py (20076 bytes)
+- openclaw_skill_service.py (15955 bytes)
+- outflow_service.py (11963 bytes)
+- outflow_wrappers/__init__.py (1866 bytes)
+- outflow_wrappers/asana_wrapper.py (2529 bytes)
+- outflow_wrappers/base_wrapper.py (3660 bytes)
+- outflow_wrappers/factory.py (4053 bytes)
+- outflow_wrappers/gmail_wrapper.py (2239 bytes)
+- outflow_wrappers/hubspot_wrapper.py (2619 bytes)
+- outflow_wrappers/notion_wrapper.py (10159 bytes)
+- outflow_wrappers/salesforce_wrapper.py (2642 bytes)
+- outflow_wrappers/slack_wrapper.py (3244 bytes)
+- outflow_wrappers/zoom_wrapper.py (14350 bytes)
+- package_installation_service.py (19110 bytes)
+- package_scanner_service.py (13845 bytes)
+- package_whitelist_service.py (22967 bytes)
+- pattern_detector.py (14607 bytes)
+- paused_task_queue.py (17347 bytes)
+- personal_config_service.py (9066 bytes)
+- policy_search_refresh_worker.py (2183 bytes)
+- pr_analyzer.py (25856 bytes)
+- presence_service.py (16014 bytes)
+- pricing_health_service.py (8765 bytes)
+- priority_queue.py (7315 bytes)
+- private_marketplace_service.py (12767 bytes)
+- proactive_scheduler.py (5988 bytes)
+- property_test_service.py (22480 bytes)
+- proposal_quality_service.py (26860 bytes)
+- public_api_key_service.py (8651 bytes)
+- public_marketplace_service.py (22567 bytes)
+- purity_analyzer.py (5969 bytes)
+- qstash_worker.py (41706 bytes)
+- query_helpers.py (10337 bytes)
+- query_performance.py (4733 bytes)
+- quota_manager.py (23449 bytes)
+- quota_redis.py (7371 bytes)
+- r2_log_shipper.py (9271 bytes)
+- rbac.py (5062 bytes)
+- recommendations_engine.py (16621 bytes)
+- redis_metrics.py (2771 bytes)
+- remote_access_service.py (26787 bytes)
+- research_dashboard.py (14754 bytes)
+- research_monitoring.py (17433 bytes)
+- research_service.py (18368 bytes)
+- research_storage.py (24490 bytes)
+- research_workflows.py (26866 bytes)
+- retention_service.py (4130 bytes)
+- review_engine.py (26319 bytes)
+- risk_based_governance_service.py (12682 bytes)
+- saas_only_registry.py (5546 bytes)
+- safety.py (1049 bytes)
+- sales_agent.py (1826 bytes)
+- sales_skills_service.py (4591 bytes)
+- sandbox_execution_service.py (41576 bytes)
+- schedule_cleanup.py (4233 bytes)
+- scheduled_token_refresh.py (26249 bytes)
+- schema_compare.py (28526 bytes)
+- schema_inference_service.py (22415 bytes)
+- sdlc_agent_service.py (12840 bytes)
+- search_analytics.py (8789 bytes)
+- security.py (1919 bytes)
+- security/enumeration_protection.py (10922 bytes)
+- security/error_sanitizer.py (12223 bytes)
+- security/middleware.py (22013 bytes)
+- security/oauth_golden_path_validator.py (28370 bytes)
+- security_exceptions.py (555 bytes)
+- security_lance_schema.py (1248 bytes)
+- security_validator.py (21222 bytes)
+- semantic_search_service.py (4325 bytes)
+- services/__init__.py (245 bytes)
+- services/agent_service.py (14941 bytes)
+- shadow_test_service.py (18596 bytes)
+- shell_security_service.py (10934 bytes)
+- shopify_health.py (2365 bytes)
+- skill_composition_service.py (43130 bytes)
+- skill_dependency_service.py (2436 bytes)
+- skill_evolution_service.py (35206 bytes)
+- skill_history_service.py (5026 bytes)
+- skill_rollback_service.py (11504 bytes)
+- skill_stability_service.py (4249 bytes)
+- slack_health.py (4096 bytes)
+- source_reputation.py (7168 bytes)
+- sso_service.py (9782 bytes)
+- startup_tasks.py (10196 bytes)
+- storage_health.py (4279 bytes)
+- stuck_agent_detection_service.py (11191 bytes)
+- supervised_agent_queue_service.py (21307 bytes)
+- supervisor_service.py (12932 bytes)
+- support_service.py (5735 bytes)
+- swarm_orchestrator.py (26782 bytes)
+- task_queue_service.py (8826 bytes)
+- teaching_moment_service.py (23984 bytes)
+- telegram_health.py (1836 bytes)
+- tenant_context.py (5362 bytes)
+- tenant_discovery.py (3382 bytes)
+- tenant_evolution_settings.py (12152 bytes)
+- tenant_extractor.py (7340 bytes)
+- tenant_resolution_service.py (2820 bytes)
+- tenant_utils.py (21383 bytes)
+- test_data_prevention_service.py (11764 bytes)
+- test_execution_engine.py (27859 bytes)
+- test_failure_analyzer.py (19473 bytes)
+- test_generation_engine.py (26814 bytes)
+- test_integration_check.py (1969 bytes)
+- test_ses_send.py (1769 bytes)
+- test_smtp_send.py (1477 bytes)
+- time_travel_endpoints.py (5775 bytes)
+- topic_discovery_service.py (3515 bytes)
+- training_alerting_service.py (24126 bytes)
+- training_analytics_service.py (24079 bytes)
+- training_estimator.py (12242 bytes)
+- training_metrics_collector.py (12822 bytes)
+- trello_health.py (1869 bytes)
+- trial_service.py (4028 bytes)
+- undo_redo_service.py (7600 bytes)
+- unified_action_executor.py (42197 bytes)
+- upstash_scheduler.py (17091 bytes)
+- usage_analytics.py (12676 bytes)
+- user_availability_service.py (12911 bytes)
+- utils/deduplication_utils.py (2488 bytes)
+- utils/statistics.py (598 bytes)
+- vault.py (1171 bytes)
+- vector_memory_service.py (18012 bytes)
+- verify_advanced_guardrails.py (6131 bytes)
+- verify_constitutional_compliance.py (5805 bytes)
+- voice_command_processor.py (7339 bytes)
+- webhook_ingestion_triggers.py (15404 bytes)
+- webhook_security.py (6530 bytes)
+- whatsapp_health.py (10846 bytes)
+- whatsapp_security.py (4802 bytes)
+- whatsapp_token_refresh.py (14851 bytes)
+- worker_idempotency.py (5528 bytes)
+- workflow_engine_v2.py (16313 bytes)
+
+### New in Upstream (Not in SaaS):
+- agent_orchestrator.py (6838 bytes)
+- agent_worker_wrapper.py (1514 bytes)
+- agents/autoresearch_agent.py (6269 bytes)
+- audit_logger.py (5497 bytes)
+- auto_dev/__init__.py (1440 bytes)
+- auto_dev/advisor_service.py (6458 bytes)
+- auto_dev/alpha_evolver_engine.py (12789 bytes)
+- auto_dev/base_engine.py (4290 bytes)
+- auto_dev/capability_gate.py (8106 bytes)
+- auto_dev/container_sandbox.py (8553 bytes)
+- auto_dev/event_hooks.py (4141 bytes)
+- auto_dev/evolution_engine.py (6449 bytes)
+- auto_dev/fitness_service.py (5639 bytes)
+- auto_dev/memento_engine.py (14493 bytes)
+- auto_dev/models.py (3954 bytes)
+- auto_dev/reflection_engine.py (6374 bytes)
+- backfill_job_queue.py (14545 bytes)
+- byok_cache_preseeding.py (19689 bytes)
+- canvas_marketplace_service.py (6078 bytes)
+- dynamic_benchmark_fetcher.py (17565 bytes)
+- embedding_service.py (24894 bytes)
+- entity_linking_service.py (10100 bytes)
+- fleet/__init__.py (324 bytes)
+- hitl_service.py (5248 bytes)
+- integration_base.py (1500 bytes)
+- integrations/zoho_oauth_service.py (4605 bytes)
+- llm_credential_service.py (11717 bytes)
+- llm_oauth_config.py (4605 bytes)
+- llm_oauth_handler.py (16457 bytes)
+- marketplace_sync_worker.py (5412 bytes)
+- marketplace_usage_tracker.py (3344 bytes)
+- memory_backfill_service.py (22340 bytes)
+- memory_integration_mixin.py (16630 bytes)
+- multi_entity_extraction_routes.py (11344 bytes)
+- multi_entity_llm_extractor.py (19319 bytes)
+- outflow_processor.py (4794 bytes)
+- personal_budget_manager.py (2141 bytes)
+- personal_budget_service.py (9134 bytes)
+- push_notifications.py (2507 bytes)
+- schema_discovery_service.py (13292 bytes)
+- secret_manager.py (2824 bytes)
+- temporary_entity_storage.py (6355 bytes)
+- token_storage.py (4224 bytes)
+
+### Significant Differences (Size mismatch > 10%):
+- __init__.py: Upstream 88 vs SaaS 276
+- active_intervention_service.py: Upstream 10678 vs SaaS 12918
+- admin_bootstrap.py: Upstream 3045 vs SaaS 5778
+- admin_endpoints.py: Upstream 639 vs SaaS 18810
+- advanced_workflow_endpoints.py: Upstream 19795 vs SaaS 24765
+- advanced_workflow_system.py: Upstream 37435 vs SaaS 26906
+- agent_evolution_loop.py: Upstream 33177 vs SaaS 27384
+- agent_execution_service.py: Upstream 17966 vs SaaS 14819
+- agent_fleet_service.py: Upstream 5652 vs SaaS 14264
+- agent_governance_service.py: Upstream 17952 vs SaaS 103594
+- agent_graduation_service.py: Upstream 29640 vs SaaS 48562
+- agent_graphrag_service.py: Upstream 5110 vs SaaS 10093
+- agent_integration_gateway.py: Upstream 26424 vs SaaS 18513
+- agent_marketplace_service.py: Upstream 8164 vs SaaS 15591
+- agent_social_layer.py: Upstream 57522 vs SaaS 11546
+- agents/__init__.py: Upstream 0 vs SaaS 35
+- ai_accounting_engine.py: Upstream 23140 vs SaaS 16982
+- ai_service.py: Upstream 5521 vs SaaS 6528
+- ai_trigger_coordinator.py: Upstream 18376 vs SaaS 15657
+- ai_workflow_optimization_endpoints.py: Upstream 20725 vs SaaS 18337
+- alert_service.py: Upstream 25086 vs SaaS 29699
+- analytics_endpoints.py: Upstream 16772 vs SaaS 18794
+- analytics_engine.py: Upstream 6982 vs SaaS 2983
+- analytics_service.py: Upstream 7202 vs SaaS 9005
+- apar_engine.py: Upstream 14251 vs SaaS 8586
+- api_routes.py: Upstream 17241 vs SaaS 14457
+- app_secrets.py: Upstream 5610 vs SaaS 9803
+- atom_meta_agent.py: Upstream 80030 vs SaaS 146279
+- atom_saas_client.py: Upstream 23113 vs SaaS 8720
+- audit_service.py: Upstream 16262 vs SaaS 23815
+- auth.py: Upstream 12160 vs SaaS 21555
+- auth_endpoints.py: Upstream 12120 vs SaaS 22703
+- auth_helpers.py: Upstream 17594 vs SaaS 19646
+- auto_document_ingestion.py: Upstream 34021 vs SaaS 45500
+- automation_insight_manager.py: Upstream 5591 vs SaaS 3950
+- automation_settings.py: Upstream 3378 vs SaaS 4357
+- autonomous_supervisor_service.py: Upstream 18513 vs SaaS 24910
+- background_agent_runner.py: Upstream 7758 vs SaaS 8693
+- budget_enforcement_service.py: Upstream 25797 vs SaaS 28989
+- bulk_operations_processor.py: Upstream 26199 vs SaaS 16148
+- business_agents.py: Upstream 25742 vs SaaS 11549
+- byok_endpoints.py: Upstream 49971 vs SaaS 83260
+- cache.py: Upstream 17439 vs SaaS 38823
+- canvas_context_provider.py: Upstream 1861 vs SaaS 10775
+- canvas_skill_integration.py: Upstream 10727 vs SaaS 30419
+- canvas_summary_service.py: Upstream 13140 vs SaaS 15879
+- capability_graduation_service.py: Upstream 3874 vs SaaS 42779
+- capability_schema_service.py: Upstream 3775 vs SaaS 19703
+- communication/__init__.py: Upstream 0 vs SaaS 35
+- communication/adapters/__init__.py: Upstream 0 vs SaaS 35
+- communication/adapters/base.py: Upstream 2943 vs SaaS 3862
+- communication/adapters/signal.py: Upstream 1749 vs SaaS 2029
+- communication/adapters/slack.py: Upstream 6445 vs SaaS 5603
+- communication/adapters/teams.py: Upstream 10765 vs SaaS 14972
+- communication/adapters/telegram.py: Upstream 4193 vs SaaS 6099
+- communication_intelligence.py: Upstream 10522 vs SaaS 12217
+- config.py: Upstream 19875 vs SaaS 16296
+- connection_service.py: Upstream 11651 vs SaaS 31545
+- cost_config.py: Upstream 3308 vs SaaS 6707
+- creative/__init__.py: Upstream 176 vs SaaS 211
+- cron_parser.py: Upstream 11436 vs SaaS 14201
+- cross_system_reasoning.py: Upstream 4976 vs SaaS 7476
+- data_ingestion_service.py: Upstream 3332 vs SaaS 4785
+- database.py: Upstream 15840 vs SaaS 20897
+- database_manager.py: Upstream 17150 vs SaaS 13774
+- domain_marketplace_service.py: Upstream 4407 vs SaaS 16998
+- dynamic_pricing_fetcher.py: Upstream 21463 vs SaaS 34011
+- entity_query_service.py: Upstream 4937 vs SaaS 22396
+- entity_skill_service.py: Upstream 6362 vs SaaS 10860
+- entity_type_service.py: Upstream 38951 vs SaaS 59209
+- error_handler_decorator.py: Upstream 11739 vs SaaS 9013
+- execution_state_manager.py: Upstream 6722 vs SaaS 6013
+- external_integration_service.py: Upstream 2793 vs SaaS 1951
+- feature_flags.py: Upstream 9446 vs SaaS 17128
+- feedback_service.py: Upstream 23345 vs SaaS 6664
+- financial_forensics.py: Upstream 4182 vs SaaS 13409
+- financial_ops_engine.py: Upstream 19960 vs SaaS 9124
+- fleet/self_heal_service.py: Upstream 5100 vs SaaS 11996
+- governance_cache.py: Upstream 21754 vs SaaS 35665
+- graduation_service.py: Upstream 4132 vs SaaS 5997
+- graphrag_engine.py: Upstream 35355 vs SaaS 82839
+- group_reflection_service.py: Upstream 34820 vs SaaS 39289
+- historical_sync_service.py: Upstream 7220 vs SaaS 106044
+- host_shell_service.py: Upstream 18342 vs SaaS 15754
+- hybrid_data_ingestion.py: Upstream 44707 vs SaaS 29690
+- ingestion_pipeline.py: Upstream 13952 vs SaaS 96130
+- integration_adapter.py: Upstream 4438 vs SaaS 3030
+- integration_catalog_service.py: Upstream 8359 vs SaaS 7446
+- integration_dashboard.py: Upstream 24852 vs SaaS 28786
+- integration_entity_extractor.py: Upstream 19690 vs SaaS 13657
+- integration_loader.py: Upstream 6662 vs SaaS 5739
+- integration_registry.py: Upstream 12014 vs SaaS 69401
+- integration_registry_v2.py: Upstream 5572 vs SaaS 6292
+- integration_service.py: Upstream 12114 vs SaaS 16934
+- intervention_service.py: Upstream 5711 vs SaaS 5029
+- knowledge_extractor.py: Upstream 10256 vs SaaS 15326
+- lancedb_config.py: Upstream 2641 vs SaaS 3578
+- lancedb_service.py: Upstream 2593 vs SaaS 15960
+- lazy_integration_registry.py: Upstream 8940 vs SaaS 14661
+- llm/byok_handler.py: Upstream 88787 vs SaaS 158796
+- llm/cache_aware_router.py: Upstream 10351 vs SaaS 14709
+- llm/cognitive_tier_service.py: Upstream 13650 vs SaaS 24447
+- llm/cognitive_tier_system.py: Upstream 8313 vs SaaS 14862
+- llm/context/__init__.py: Upstream 229 vs SaaS 453
+- llm/context/token_counter.py: Upstream 7849 vs SaaS 10640
+- llm/registry/provider_health.py: Upstream 8655 vs SaaS 9687
+- llm_service.py: Upstream 45148 vs SaaS 55918
+- llm_usage_tracker.py: Upstream 5622 vs SaaS 15449
+- logging_config.py: Upstream 14939 vs SaaS 10421
+- logging_context.py: Upstream 4969 vs SaaS 13217
+- marketing_agent.py: Upstream 3254 vs SaaS 4426
+- mcp_service.py: Upstream 15020 vs SaaS 27080
+- messaging_action_dispatcher.py: Upstream 6692 vs SaaS 11939
+- meta_automation.py: Upstream 4835 vs SaaS 7005
+- microsoft365_learner.py: Upstream 5889 vs SaaS 2337
+- missing_endpoints.py: Upstream 7955 vs SaaS 10781
+- mock_mode.py: Upstream 6018 vs SaaS 6711
+- models.py: Upstream 427273 vs SaaS 516718
+- monitoring.py: Upstream 14941 vs SaaS 10141
+- multi_entity_sql_generator.py: Upstream 5891 vs SaaS 13737
+- multi_entity_validator.py: Upstream 3455 vs SaaS 8407
+- notification_manager.py: Upstream 2818 vs SaaS 5146
+- notification_service.py: Upstream 1401 vs SaaS 41732
+- oauth_handler.py: Upstream 10928 vs SaaS 14350
+- periodic_tasks.py: Upstream 2898 vs SaaS 4249
+- privsec/token_encryption.py: Upstream 13612 vs SaaS 17541
+- productivity/__init__.py: Upstream 0 vs SaaS 35
+- proposal_service.py: Upstream 42348 vs SaaS 52559
+- rate_limiter.py: Upstream 7837 vs SaaS 4633
+- rbac_service.py: Upstream 3511 vs SaaS 9055
+- reasoning_chain.py: Upstream 13288 vs SaaS 17809
+- recruitment_analytics_service.py: Upstream 1107 vs SaaS 7741
+- recruitment_intelligence_service.py: Upstream 15252 vs SaaS 13171
+- resource_guards.py: Upstream 9453 vs SaaS 4154
+- risk_prevention.py: Upstream 3727 vs SaaS 31041
+- sandbox_executor.py: Upstream 8896 vs SaaS 15848
+- satellite_service.py: Upstream 4377 vs SaaS 3214
+- scheduler.py: Upstream 11490 vs SaaS 7926
+- schema_aware_sql_generator.py: Upstream 5209 vs SaaS 10437
+- security/__init__.py: Upstream 2492 vs SaaS 2234
+- security/rbac.py: Upstream 1265 vs SaaS 2255
+- security_dependencies.py: Upstream 1561 vs SaaS 960
+- self_evolution_service.py: Upstream 13041 vs SaaS 9216
+- skill_adapter.py: Upstream 26741 vs SaaS 11736
+- skill_executor_service.py: Upstream 2939 vs SaaS 1881
+- skill_marketplace_service.py: Upstream 19227 vs SaaS 26014
+- skill_parser.py: Upstream 15473 vs SaaS 7712
+- skill_registry_service.py: Upstream 43968 vs SaaS 21317
+- skill_sandbox.py: Upstream 12314 vs SaaS 9776
+- skill_suggestion_service.py: Upstream 7163 vs SaaS 8337
+- smarthome/__init__.py: Upstream 0 vs SaaS 35
+- specialist_matcher.py: Upstream 1512 vs SaaS 8044
+- spend_aggregation_service.py: Upstream 5587 vs SaaS 18545
+- sql_validator.py: Upstream 5678 vs SaaS 11336
+- stakeholder_engine.py: Upstream 7692 vs SaaS 8982
+- storage.py: Upstream 2510 vs SaaS 10809
+- structured_logger.py: Upstream 8262 vs SaaS 3181
+- student_training_service.py: Upstream 25595 vs SaaS 14477
+- supervised_queue_service.py: Upstream 14092 vs SaaS 19230
+- supervisor_performance_service.py: Upstream 20016 vs SaaS 14235
+- sync_job_queue.py: Upstream 6800 vs SaaS 27511
+- token_refresher.py: Upstream 9199 vs SaaS 10797
+- trigger_interceptor.py: Upstream 20381 vs SaaS 13197
+- unified_task_endpoints.py: Upstream 16201 vs SaaS 10989
+- universal_communication_bridge.py: Upstream 7050 vs SaaS 20032
+- usage_tracking_service.py: Upstream 1208 vs SaaS 19475
+- user_activity_service.py: Upstream 15821 vs SaaS 17618
+- user_preference_routes.py: Upstream 1664 vs SaaS 2358
+- user_preference_service.py: Upstream 2985 vs SaaS 4905
+- validation_service.py: Upstream 16931 vs SaaS 10241
+- webhook_handlers.py: Upstream 23038 vs SaaS 18685
+- workflow_analytics_endpoints.py: Upstream 33061 vs SaaS 17585
+- workflow_endpoints.py: Upstream 20606 vs SaaS 23569
+- workflow_template_system.py: Upstream 60396 vs SaaS 75201
+- workflow_ui_endpoints.py: Upstream 34270 vs SaaS 26635
+- workload_analyzer.py: Upstream 4987 vs SaaS 7411
+
+---
+
+## AI
+
+### Missing in Upstream (In SaaS only):
+- test_automation_engine.py (710 bytes)
+
+### New in Upstream (Not in SaaS):
+- __init__.py (0 bytes)
+- device_node_service.py (3497 bytes)
+- voice_service.py (5933 bytes)
+
+### Significant Differences (Size mismatch > 10%):
+- automation_engine.py: Upstream 31494 vs SaaS 35563
+- data_intelligence.py: Upstream 44961 vs SaaS 52529
+- workflow_scheduler.py: Upstream 9898 vs SaaS 13955
+
+---
+
+## INTELLIGENCE
+
+### New in Upstream (Not in SaaS):
+- __init__.py (0 bytes)
+- models.py (2682 bytes)
+
+### Significant Differences (Size mismatch > 10%):
+- health_engine.py: Upstream 3276 vs SaaS 4780
+
+---
+

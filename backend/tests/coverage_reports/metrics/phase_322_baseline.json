@@ -1,0 +1,14 @@
+{
+  "phase": "322-coverage-optimization",
+  "timestamp": "2026-05-06T10:03:07.480548",
+  "baseline_coverage": 27.478753541076486,
+  "target_coverage": 40.0,
+  "target_increase": 5.28,
+  "target_files": [
+    "core/agent_utils.py",
+    "core/cron_parser.py",
+    "core/auth_helpers.py",
+    "core/condition_checkers.py",
+    "core/apar_engine.py"
+  ]
+}

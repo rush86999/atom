@@ -668,9 +668,21 @@ class BYOKHandler:
                 }
                 min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
             
-            # Extraction tasks: cap max quality at 90 (Phase 323)
-            # High-tier models (94+) are overkill for extraction; 90+ is near-perfect
-            max_quality = max(min_quality, 90) if task_type == "extraction" else 100
+            # Extraction tasks: cap max quality at 90. Pro/opus/frontier
+            # models (91-100) are overkill for structured entity extraction.
+            # IMPORTANT: For extraction, enforce the cap even if min_quality is higher.
+            # COMPLEX tier (min_quality=94) with extraction cap should use max_quality=90,
+            # and we adjust min down to avoid creating an impossible window.
+            # Also exclude o-series models — they don't reliably return
+            # message.content (reasoning goes to a separate field).
+            if task_type == "extraction":
+                max_quality = 90
+                # Adjust min_quality down if it exceeds the cap
+                min_quality = min(min_quality, 90)
+                _excluded_models = {"o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o4", "o4-mini"}
+            else:
+                max_quality = 100
+                _excluded_models = set()
             
             available_providers = list(self.clients.keys())
             candidates = []
@@ -708,6 +720,12 @@ class BYOKHandler:
                     quality_score = get_quality_score(model_id)
 
                 if quality_score < min_quality or quality_score > max_quality:
+                    continue
+
+                # Exclude o-series from extraction tasks (no reliable content)
+                if task_type == "extraction" and any(
+                    m in model_id.lower() for m in _excluded_models
+                ):
                     continue
 
                 # Calculate BPC Value Score with Cache-Aware Cost

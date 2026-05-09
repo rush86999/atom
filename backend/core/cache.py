@@ -189,11 +189,28 @@ class UniversalCacheService:
             # 1. Try direct Redis (TCP) - HIGHEST PERFORMANCE ("Better")
             if self.redis_url and redis:
                 try:
+                    import urllib.parse as urlparse
+                    import socket
+
+                    parsed = urlparse.urlparse(self.redis_url)
+                    
+                    # Cross-platform socket options
+                    keepalive_options = {
+                        socket.TCP_KEEPINTVL: 10,
+                        socket.TCP_KEEPCNT: 3,
+                    }
+                    if hasattr(socket, "TCP_KEEPIDLE"):
+                        keepalive_options[socket.TCP_KEEPIDLE] = 60
+                    elif hasattr(socket, "TCP_KEEPALIVE"):
+                        keepalive_options[socket.TCP_KEEPALIVE] = 60
+
                     self.client = redis.from_url(
                         self.redis_url,
                         decode_responses=True,
-                        socket_connect_timeout=2,
-                        socket_timeout=2
+                        socket_connect_timeout=5,
+                        socket_timeout=5,
+                        socket_keepalive=True,
+                        socket_keepalive_options=keepalive_options
                     )
                     self.client.ping()
                     logger.info(f"✅ Redis Cache connected (TCP/Better) at {self.redis_url}")
