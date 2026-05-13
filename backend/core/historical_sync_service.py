@@ -8,10 +8,13 @@ Supports progress tracking, resumability, and API pagination abstraction.
 """
 
 import asyncio
+import gc
+import os
 import traceback
 import uuid
+import threading
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union, Optional
+from typing import Any, Union, Optional, Dict, List
 
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
@@ -25,6 +28,9 @@ logger = get_logger(__name__)
 
 # Shared DB engine, 1 conn per chunk. Safe to use concurrent LLM calls.
 _LLM_SEMAPHORE = asyncio.Semaphore(3)
+
+# Keep track of active background tasks to ensure completion
+_background_tasks: List[asyncio.Task] = []
 
 async def _llm_extract_with_handler(
     llm_service,  # Pre-created LLMService instance (shared across chunk)
@@ -185,6 +191,21 @@ def _log_job_event(db, job_id: str, tenant_id: str, event: str) -> None:
         pass
 
 
+def _get_memory_usage() -> int:
+    """Get current process memory usage in MB."""
+    try:
+        import psutil
+        process = psutil.Process(os.getpid())
+        return int(process.memory_info().rss / (1024 * 1024))
+    except (ImportError, Exception):
+        return 0
+
+
+def _get_memory_threshold(total_memory_mb: int = 2048) -> int:
+    """Calculate memory threshold for automatic GC (80% of total)."""
+    return int(total_memory_mb * 0.8)
+
+
 class HistoricalSyncService:
     """
     Historical data sync service for backfilling integration data.
@@ -202,6 +223,7 @@ class HistoricalSyncService:
         self._workspace_id = workspace_id
         self._ingestion_pipeline = None
         self._integration_registry = None
+        self._hb_stop = None
 
     async def _extract_chunk_and_ingest(
         self,
@@ -372,26 +394,62 @@ class HistoricalSyncService:
         return job_id
 
     async def _heartbeat_loop(self, job_id: str):
-        """Background heartbeat task to keep job alive in DB during long operations"""
-        logger.info(f"💓 Starting background heartbeat for job {job_id}")
-        try:
-            while True:
-                try:
-                    # Use a fresh session every time to avoid transaction issues
-                    with SessionLocal() as hb_db:
-                        hb_db.query(HistoricalSyncJob).filter(
-                            HistoricalSyncJob.id == job_id,
-                            HistoricalSyncJob.tenant_id == self.tenant_id,
-                        ).update({"last_heartbeat": datetime.now(timezone.utc)})
-                        hb_db.commit()
-                except Exception as hb_err:
-                    logger.warning(f"Background heartbeat failed for job {job_id}: {hb_err}")
+        """Thread-based heartbeat that survives event loop blocking (e.g. LanceDB embeddings)."""
+        logger.info(f"💓 Starting thread-based heartbeat for job {job_id}")
+        stop = threading.Event()
+        tid = self.tenant_id
 
-                await asyncio.sleep(120)  # 2 minutes
+        def _run():
+            try:
+                while not stop.is_set():
+                    try:
+                        with SessionLocal() as hb_db:
+                            hb_db.query(HistoricalSyncJob).filter(
+                                HistoricalSyncJob.id == job_id,
+                                HistoricalSyncJob.tenant_id == tid,
+                            ).update(
+                                {"last_heartbeat": datetime.now(timezone.utc)},
+                                synchronize_session=False
+                            )
+                            hb_db.commit()
+                    except Exception as hb_err:
+                        logger.warning(f"Thread hb failed for {job_id[:8]}: {hb_err}")
+                    
+                    # Wait for 60s or until stop event is set
+                    stop.wait(timeout=60)
+            except Exception as crash:
+                logger.error(f"Heartbeat thread CRASHED for {job_id[:8]}: {crash}", exc_info=True)
+
+        t = threading.Thread(target=_run, name=f"hb-{job_id[:8]}", daemon=True)
+        t.start()
+        self._hb_stop = stop
+
+        try:
+            # Keep the task alive until cancelled
+            while True:
+                await asyncio.sleep(3600)
         except asyncio.CancelledError:
-            logger.info(f"💓 Heartbeat task for job {job_id} cancelled")
+            stop.set()
+            logger.info(f"💓 Thread heartbeat stopped for {job_id[:8]}")
+
+    async def _check_memory_and_gc(self, job_id: str) -> bool:
+        """Check memory usage and trigger GC if above threshold. Non-fatal."""
+        try:
+            current_mb = _get_memory_usage()
+            threshold_mb = _get_memory_threshold()
+
+            if current_mb > threshold_mb:
+                logger.warning(
+                    f"[SYNC_MEMORY_HIGH] {current_mb}MB exceeds {threshold_mb}MB threshold. Triggering GC.",
+                    job_id=job_id
+                )
+                gc.collect()
+                await asyncio.sleep(2) # Give OS time to reclaim
+                return False # Signaled high memory
+            return True
         except Exception as e:
-            logger.error(f"💓 Heartbeat task for job {job_id} crashed: {e}")
+            logger.debug(f"Memory check failed: {e}")
+            return True
 
     async def _process_sync_job(self, job_id: str):
         """Main processing loop for a sync job with chunked extraction and resumption."""
@@ -408,9 +466,11 @@ class HistoricalSyncService:
                 logger.info(f"Job {job_id} already in terminal state {job.status}")
                 return
 
+            # Mark as running and clear stale errors/heartbeat
             job.status = "running"
             job.started_at = datetime.now(timezone.utc)
             job.last_heartbeat = datetime.now(timezone.utc)
+            job.last_error = None # Clear stale errors to prevent Reaper confusion
             bg_db.commit()
 
             # Start heartbeat
@@ -426,12 +486,17 @@ class HistoricalSyncService:
             _log_job_event(bg_db, job_id, self.tenant_id, f"Resuming sync from chunk {chunk_count}")
 
             while True:
-                # Check for cancellation/pause
+                # 1. Memory Check & GC (SURVIVAL MODE)
+                # LanceDB spikes memory; this prevents OOM before next chunk.
+                await self._check_memory_and_gc(job_id)
+
+                # 2. Check for cancellation/pause
                 bg_db.refresh(job)
                 if job.status in ["paused", "cancelled"]:
                     logger.info(f"Job {job_id} {job.status} by user/system")
                     break
 
+                # 3. Fetch Next Chunk
                 result = await self.integration_registry.fetch_paginated_records(
                     integration_id=job.integration_id,
                     tenant_id=self.tenant_id,
@@ -456,7 +521,7 @@ class HistoricalSyncService:
                     if text and len(text) > 10:
                         llm_task_records.append((str(record.get("id")), text, job.integration_id))
 
-                # Process chunk via two-phase extraction
+                # 4. Process Chunk via Two-Phase Extraction
                 if llm_task_records:
                     ent_count, rel_count = await self._extract_chunk_and_ingest(
                         job_id=job_id,
@@ -468,7 +533,7 @@ class HistoricalSyncService:
                     total_entities += ent_count
                     total_relationships += rel_count
 
-                # Update progress
+                # 5. Atomic Update Progress
                 records_processed += len(records)
                 chunk_count += 1
                 page_token = result.get("next_page_token")
@@ -477,6 +542,9 @@ class HistoricalSyncService:
                 job.completed_chunks = chunk_count
                 job.entities_extracted = total_entities
                 job.relationships_extracted = total_relationships
+                
+                # CRITICAL: Save page_token for NEXT iteration.
+                # If we crash after this commit, we resume from page_token.
                 job.checkpoint_data = {"last_page_token": page_token}
                 bg_db.commit()
 
@@ -494,6 +562,12 @@ class HistoricalSyncService:
             except Exception as e:
                 logger.warning(f"Final schema discovery pass failed for job {job_id}: {e}")
 
+            # Wait for any background tasks (e.g. LanceDB indexing)
+            if _background_tasks:
+                logger.info(f"Waiting for {len(_background_tasks)} background tasks to complete...")
+                await asyncio.gather(*_background_tasks, return_exceptions=True)
+                _background_tasks.clear()
+
             if job.status == "running":
                 job.status = "completed"
                 job.completed_at = datetime.now(timezone.utc)
@@ -501,13 +575,14 @@ class HistoricalSyncService:
                 _log_job_event(bg_db, job_id, self.tenant_id, "Sync completed successfully")
 
         except Exception as e:
-            logger.error(f"Sync job {job_id} failed: {e}")
+            logger.error(f"Sync job {job_id} failed: {e}", exc_info=True)
             try:
                 # Refresh job to ensure we're not using stale data
                 job = bg_db.query(HistoricalSyncJob).filter_by(id=job_id).first()
                 if job:
                     job.status = "failed"
                     job.last_error = str(e)
+                    job.error_count = (job.error_count or 0) + 1
                     bg_db.commit()
                     _log_job_event(bg_db, job_id, self.tenant_id, f"Sync failed: {e}")
             except Exception as commit_err:
@@ -515,6 +590,10 @@ class HistoricalSyncService:
         finally:
             if heartbeat_task:
                 heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
             bg_db.close()
 
     async def get_sync_progress(self, job_id: str) -> dict[str, Any]:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import secrets
 from typing import Any, Dict, Optional, Union
@@ -69,9 +69,9 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -106,6 +106,12 @@ async def get_current_user(
     if token.startswith('"') and token.endswith('"'):
         token = token[1:-1]
         
+    # Early validation: Skip obviously invalid tokens before JWT decode
+    # Valid JWTs must have 2 dots separating 3 segments: header.payload.signature
+    if token.count('.') != 2:
+        logger.warning(f"❌ JWT validation skipped: Invalid token format (Token: {token[:20]}...)")
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
@@ -133,6 +139,10 @@ async def get_current_user(
 
 async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
     """Get user from token for WebSocket connections"""
+    # Early validation: Skip obviously invalid tokens before JWT decode
+    if not token or token.count('.') != 2:
+        return None
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
@@ -149,6 +159,10 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     Returns the token payload if valid, None otherwise.
     This is a synchronous version for use in non-async contexts.
     """
+    # Early validation: Skip obviously invalid tokens before JWT decode
+    if not token or token.count('.') != 2:
+        return None
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
@@ -270,9 +284,9 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
         Dictionary with access_token, refresh_token, expires_at
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode = {
         "sub": str(user.id),
@@ -285,7 +299,7 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
     # Create refresh token (longer-lived)
-    refresh_expire = datetime.utcnow() + timedelta(days=30)
+    refresh_expire = datetime.now(timezone.utc) + timedelta(days=30)
     refresh_to_encode = {
         "sub": str(user.id),
         "type": "refresh",
@@ -365,7 +379,7 @@ async def authenticate_mobile_user(
             device_token=device_token,
             platform=platform,
             status="active",
-            device_info={"registered_at": datetime.utcnow().isoformat()}
+            device_info={"registered_at": datetime.now(timezone.utc).isoformat()}
         )
         db.add(device)
         db.commit()
@@ -374,7 +388,7 @@ async def authenticate_mobile_user(
         # Update existing device
         device.platform = platform
         device.status = "active"
-        device.last_active = datetime.utcnow()
+        device.last_active = datetime.now(timezone.utc)
         db.commit()
 
     # Create tokens

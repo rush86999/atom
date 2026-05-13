@@ -6,7 +6,7 @@ Complete enterprise-grade Outlook integration for the ATOM platform
 import asyncio
 import base64
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import hashlib
 import hmac
@@ -295,10 +295,10 @@ class OutlookEnhancedService:
         """Get access token for user (implementation depends on token storage)"""
         # In production, this would retrieve tokens from secure storage
         # For now, return the stored access token
-        if (
+            if (
             self.access_token
             and self.token_expiry
-            and datetime.now() < self.token_expiry
+            and datetime.now(timezone.utc) < self.token_expiry
         ):
             return self.access_token
 
@@ -330,7 +330,7 @@ class OutlookEnhancedService:
                     self.refresh_token = token_data.get(
                         "refresh_token", self.refresh_token
                     )
-                    self.token_expiry = datetime.now() + timedelta(
+                    self.token_expiry = datetime.now(timezone.utc) + timedelta(
                         seconds=token_data["expires_in"] - 300
                     )
                     logger.info("Access token refreshed successfully")
@@ -507,8 +507,10 @@ class OutlookEnhancedService:
                     ),
                     attachments=email_data.get("attachments", []),
                     metadata={
-                        "accessed_at": datetime.now().isoformat(),
+                        "accessed_at": datetime.now(timezone.utc).isoformat(),
                         "source": "microsoft_graph",
+                        "hasAttachments": email_data.get("hasAttachments", False),
+                        "id": email_data.get("id"),
                     },
                 )
                 emails.append(email)
@@ -652,7 +654,7 @@ class OutlookEnhancedService:
                 categories=result.get("categories", []),
                 extensions=result.get("extensions", []),
                 metadata={
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "source": "microsoft_graph",
                 },
             )
@@ -744,7 +746,7 @@ class OutlookEnhancedService:
                 created_date_time=result.get("createdDateTime", ""),
                 last_modified_date_time=result.get("lastModifiedDateTime", ""),
                 metadata={
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "source": "microsoft_graph",
                 },
             )
@@ -822,7 +824,7 @@ class OutlookEnhancedService:
                 conversation_index=result.get("conversationIndex", ""),
                 flag=result.get("flag", {}),
                 metadata={
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "source": "microsoft_graph",
                 },
             )
@@ -869,8 +871,10 @@ class OutlookEnhancedService:
                     is_hidden=folder_data.get("isHidden", False),
                     well_known_name=folder_data.get("wellKnownName", ""),
                     metadata={
-                        "accessed_at": datetime.now().isoformat(),
+                        "accessed_at": datetime.now(timezone.utc).isoformat(),
                         "source": "microsoft_graph",
+                        "hasAttachments": folder_data.get("hasAttachments", False),
+                        "id": folder_data.get("id"),
                     },
                 )
                 folders.append(folder)
@@ -968,7 +972,7 @@ class OutlookEnhancedService:
                 timezone=result.get("mailboxSettings", {}).get("timeZone", ""),
                 usage_location=result.get("usageLocation", ""),
                 metadata={
-                    "accessed_at": datetime.now().isoformat(),
+                    "accessed_at": datetime.now(timezone.utc).isoformat(),
                     "source": "microsoft_graph",
                 },
             )
@@ -990,7 +994,7 @@ class OutlookEnhancedService:
             if cache_key in self.events_cache:
                 return self.events_cache[cache_key]
 
-            start_date = datetime.now()
+            start_date = datetime.now(timezone.utc)
             end_date = start_date + timedelta(days=days)
 
             endpoint = f"users/{user_id}/calendar/calendarView"
@@ -1035,8 +1039,10 @@ class OutlookEnhancedService:
                     categories=event_data.get("categories", []),
                     extensions=event_data.get("extensions", []),
                     metadata={
-                        "accessed_at": datetime.now().isoformat(),
+                        "accessed_at": datetime.now(timezone.utc).isoformat(),
                         "source": "microsoft_graph",
+                        "hasAttachments": event_data.get("hasAttachments", False),
+                        "id": event_data.get("id"),
                     },
                 )
                 events.append(event)
@@ -1154,5 +1160,5 @@ class OutlookEnhancedService:
                 "/api/integrations/outlook/emails/mark-read",
                 "/api/integrations/outlook/info",
             ],
-            "initialized_at": datetime.now().isoformat(),
+            "initialized_at": datetime.now(timezone.utc).isoformat(),
         }

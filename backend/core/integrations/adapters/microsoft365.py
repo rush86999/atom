@@ -8,7 +8,7 @@ import logging
 import os
 import httpx
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class Microsoft365Adapter:
 
                 # Calculate token expiration
                 if "expires_in" in token_data:
-                    self._token_expires_at = datetime.now() + timedelta(
+                    self._token_expires_at = datetime.now(timezone.utc) + timedelta(
                         seconds=token_data["expires_in"]
                     )
 

@@ -5,7 +5,8 @@ import logging
 import time
 import asyncio
 import httpx
-from datetime import datetime, timedelta
+import socket
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any, Union, Dict
 from enum import Enum
 from collections import OrderedDict
@@ -70,7 +71,7 @@ class RedisCircuitBreaker:
         """Check if enough time has passed to attempt recovery"""
         if self._last_failure_time is None:
             return True
-        elapsed = (datetime.now() - self._last_failure_time).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - self._last_failure_time).total_seconds()
         return elapsed >= self.recovery_timeout
 
     def _on_success(self):
@@ -83,7 +84,7 @@ class RedisCircuitBreaker:
     def _on_failure(self):
         """Handle failed call"""
         self._failure_count += 1
-        self._last_failure_time = datetime.now()
+        self._last_failure_time = datetime.now(timezone.utc)
 
         if self._failure_count >= self.failure_threshold:
             self._state = CircuitState.OPEN
@@ -190,7 +191,6 @@ class UniversalCacheService:
             if self.redis_url and redis:
                 try:
                     import urllib.parse as urlparse
-                    import socket
 
                     parsed = urlparse.urlparse(self.redis_url)
                     

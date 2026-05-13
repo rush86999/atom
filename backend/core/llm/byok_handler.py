@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import uuid
+import threading
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 # Try imports for optional dependencies
@@ -224,6 +225,10 @@ class BYOKHandler:
         from core.provider_health_monitor import get_provider_health_monitor
         self.health_monitor = get_provider_health_monitor()
         self.async_clients = self.async_clients or {} # Ensure it exists if _initialize_clients failed
+
+        # Thread safety for lazy embedding init
+        self._embedding_initialized = False
+        self._embedding_init_lock = threading.Lock()
 
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """

@@ -8,7 +8,7 @@ import logging
 import os
 import httpx
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class AirtableAdapter:
                 self._access_token = token_data.get("access_token")
                 self._refresh_token = token_data.get("refresh_token") # Airtable might issue new refresh token
                 expires_in = token_data.get("expires_in", 3600)
-                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                 
                 # Update DB
                 if self.db:
@@ -111,7 +111,7 @@ class AirtableAdapter:
         if not self._access_token:
             await self._load_token()
             
-        if not self._access_token or (self._token_expires_at and self._token_expires_at < datetime.now()):
+        if not self._access_token or (self._token_expires_at and self._token_expires_at < datetime.now(timezone.utc)):
             if self._refresh_token:
                 await self.refresh_token()
             elif self.personal_access_token:

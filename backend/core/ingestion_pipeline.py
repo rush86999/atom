@@ -244,6 +244,23 @@ class IngestionPipelineService(HybridDataIngestionService):
             batch_id=job_id
         )
 
+        # Add the email message itself as a DiscoveredEntity
+        email_discovered_entity = DiscoveredEntity(
+            tenant_id=self.tenant_id,
+            workspace_id=self.workspace_id,
+            _discovered_type="EmailMessage",
+            properties=email_data,
+            confidence_score=1.0,
+            source_record_id=email_data["id"],
+            source_record_type="email",
+            status="pending",
+            extraction_metadata={
+                "batch_id": job_id,
+                "extracted_at": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        discovered_entities.append(email_discovered_entity)
+
         if discovered_entities:
             # Persist to discovered_entities table using batch add
             self.db.add_all(discovered_entities)
