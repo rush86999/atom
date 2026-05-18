@@ -69,20 +69,23 @@ class GraphRAGEngine:
     PostgreSQL-backed GraphRAG Engine.
     Uses SQL Recursive CTEs for traversal (Stateless).
     """
-    def __init__(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None):
+    def __init__(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None, db: Optional[Session] = None):
         """
         Initialize GraphRAG Engine.
 
         Args:
             workspace_id: Workspace identifier for multi-tenant isolation
             tenant_id: Tenant identifier for SaaS compatibility
+            db: Optional database session
         """
         self.workspace_id = workspace_id or "default"
         self.tenant_id = tenant_id or "default"
+        self.db = db
         # Initialize LLMService for unified LLM interactions
         self.llm_service = LLMService(
             workspace_id=self.workspace_id,
-            tenant_id=self.tenant_id
+            tenant_id=self.tenant_id,
+            db=db
         )
 
     def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:

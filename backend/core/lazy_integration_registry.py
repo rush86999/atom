@@ -168,14 +168,20 @@ ESSENTIAL_INTEGRATIONS = [
     # "unified_search",  # Enabled - LanceDB integration ready
 ]
 
+# Compatibility Aliases for Newer App lifespan Loading Architecture
+API_ROUTER_REGISTRY = INTEGRATION_REGISTRY
+ESSENTIAL_API_ROUTERS = ESSENTIAL_INTEGRATIONS
+ESSENTIAL_BACKGROUND_SERVICES = []
+
 
 @lru_cache(maxsize=50)
-def load_integration(name: str, timeout: int = 5) -> Optional[Any]:
+def load_integration(name: str, registry: str = "api_routers", timeout: int = 5) -> Optional[Any]:
     """
     Dynamically load an integration by name with LRU caching
     
     Args:
         name: Integration name from INTEGRATION_REGISTRY
+        registry: The registry type (default "api_routers")
         timeout: Timeout in seconds (default 5)
         
     Returns:

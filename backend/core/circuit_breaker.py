@@ -10,6 +10,7 @@ When Redis is not available, falls back to in-memory state (single-instance).
 
 Ported from atom-saas with SaaS patterns removed (tenant isolation, tenant-scoped alerting).
 """
+import enum
 from collections import defaultdict
 from dataclasses import dataclass, field
 import logging
@@ -19,6 +20,12 @@ import json
 from typing import Dict, Set, Optional, Any
 
 logger = logging.getLogger(__name__)
+
+
+class CircuitState(str, enum.Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
 
 
 @dataclass
@@ -70,10 +77,18 @@ class CircuitBreaker:
         self._on_open_callbacks.append(callback)
         return callback
 
+    def register_on_open(self, callback):
+        """Alias for on_open"""
+        return self.on_open(callback)
+
     def on_reset(self, callback):
         """Register a callback for when circuit resets/closes"""
         self._on_reset_callbacks.append(callback)
         return callback
+
+    def register_on_reset(self, callback):
+        """Alias for on_reset"""
+        return self.on_reset(callback)
 
     async def _get_stats_from_redis(self, integration: str) -> Optional[IntegrationStats]:
         """Get stats for an integration from Redis (global, not tenant-scoped)"""

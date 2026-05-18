@@ -41,6 +41,7 @@ class CommissionStatus(str, enum.Enum):
 
 class Lead(Base):
     __tablename__ = "sales_leads"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -73,6 +74,7 @@ class NegotiationState(str, enum.Enum):
 
 class Deal(Base):
     __tablename__ = "sales_deals"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -101,6 +103,7 @@ class Deal(Base):
 
 class CommissionEntry(Base):
     __tablename__ = "sales_commissions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -122,6 +125,7 @@ class CommissionEntry(Base):
 
 class CallTranscript(Base):
     __tablename__ = "sales_call_transcripts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -142,6 +146,7 @@ class CallTranscript(Base):
 
 class FollowUpTask(Base):
     __tablename__ = "sales_follow_up_tasks"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)

@@ -2159,9 +2159,13 @@ class IntegrationCatalog(Base):
 class UserConnection(Base):
     """Securely stores OAuth credentials and other auth data for users"""
     __tablename__ = "user_connections"
+    __table_args__ = (
+        {"extend_existing": True},
+    )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id"), nullable=True, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     
     # integration_id matches piece name, e.g., "@activepieces/piece-slack" or native "slack"
@@ -2172,10 +2176,18 @@ class UserConnection(Base):
     credentials = Column(JSONColumn, nullable=False)
     
     status = Column(String, default="active") # active, expired, revoked
+    scope = Column(String, default="personal") # personal, org
     last_used = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Credential health tracking
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    refresh_failure_count = Column(Integer, server_default="0", default=0)
+    last_refresh_at = Column(DateTime(timezone=True), nullable=True)
+    last_refresh_error = Column(Text, nullable=True)
 
     # Relationships
     user = relationship("User", backref="connections")
@@ -9075,8 +9087,172 @@ if hasattr(User, '__mapper__'):
 
 
 # ============================================================================
+# Training Alert Models (for monitoring and health)
+# ============================================================================
+
+class TrainingAlert(Base):
+    """
+    Training alerts for monitoring and notifications.
+
+    Stores alert history and configuration.
+    """
+
+    __tablename__ = "training_alerts"
+    __table_args__ = (
+        {"extend_existing": True},
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    alert_type = Column(String(100), nullable=False, index=True)
+    severity = Column(String(20), nullable=False, index=True)  # 'info', 'warning', 'critical'
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    alert_data = Column(JSONColumn, nullable=True)  # Additional context
+    triggered_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    notification_sent = Column(Boolean, default=False, nullable=False)
+    notification_channels = Column(JSONColumn, nullable=True)  # ['email', 'in_app', 'slack']
+
+    # Relationships
+    tenant = relationship("Tenant")
+
+
+class TrainingAlertConfiguration(Base):
+    """
+    Per-tenant alert configuration.
+
+    Stores custom thresholds and notification preferences.
+    """
+
+    __tablename__ = "training_alert_configurations"
+    __table_args__ = (
+        {"extend_existing": True},
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    alert_type = Column(String(100), nullable=False)
+    thresholds = Column(JSONColumn, nullable=False)  # Custom threshold config
+    enabled = Column(Boolean, default=True, nullable=False)
+    notification_channels = Column(
+        JSONColumn, nullable=False, default=[]
+    )  # ['email', 'in_app', 'slack']
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    tenant = relationship("Tenant")
+
+
+# ============================================================================
 # Integration Models (for integration catalog)
 # ============================================================================
+
+class TenantIntegration(Base):
+    """
+    Tenant Integration - Tenant-specific integration configurations
+
+    Stores integration metadata, credential references, and capability information
+    for the Integration Registry system. All queries MUST filter by tenant_id.
+
+    Security: Credentials are NOT stored directly - only foreign key references
+    to oauth_tokens or api_keys tables. This enables credential resolution
+    without exposing sensitive data.
+    """
+
+    __tablename__ = "tenant_integrations"
+    __table_args__ = (
+        Index("ix_tenant_integrations_tenant_connector", "tenant_id", "connector_id"),
+        Index("ix_tenant_integrations_tenant_active", "tenant_id", "is_active"),
+        {"extend_existing": True},
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Tenant isolation (CRITICAL - ALL queries must filter by tenant_id)
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    # Connector identification
+    connector_id = Column(
+        String(255), nullable=False, index=True
+    )  # e.g., "salesforce", "slack", "github"
+    external_id = Column(
+        String(255), nullable=True, index=True
+    )  # Provider-side ID (e.g. Slack team_id)
+    display_name = Column(String, nullable=True)  # User-friendly name
+    description = Column(Text, nullable=True)
+
+    # Credential references (foreign keys, NOT stored credentials)
+    credential_type = Column(String, nullable=True)  # "oauth", "api_key", "none"
+    oauth_token_id = Column(String, ForeignKey("oauth_tokens.id", ondelete="SET NULL"), nullable=True)
+    api_key_id = Column(String, nullable=True)  # Reference to TenantSetting or api_keys table
+
+    # Service class path for dynamic loading
+    service_class_path = Column(
+        String, nullable=True
+    )  # e.g., "integrations.slack_service:SlackService"
+
+    # Flexible metadata (JSONB for queryability)
+    capabilities = Column(
+        JSONColumn, nullable=True
+    )  # e.g., {"operations": ["read", "write"], "webhooks": true}
+    rate_limits = Column(
+        JSONColumn, nullable=True
+    )  # e.g., {"requests_per_minute": 100, "concurrent": 10}
+    required_params = Column(JSONColumn, nullable=True)  # e.g., ["instance_url", "api_version"]
+    config = Column(JSONColumn, nullable=True)  # Tenant-specific configuration
+
+    # Status fields
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_healthy = Column(Boolean, default=True, nullable=False)
+    last_health_check = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    tenant = relationship("Tenant", backref="tenant_integrations")
+    oauth_token = relationship("OAuthToken", backref="tenant_integrations")
+
+    def to_dict(self):
+        """Serialize model to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "connector_id": self.connector_id,
+            "display_name": self.display_name,
+            "description": self.description,
+            "credential_type": self.credential_type,
+            "oauth_token_id": self.oauth_token_id,
+            "api_key_id": self.api_key_id,
+            "service_class_path": self.service_class_path,
+            "capabilities": self.capabilities,
+            "rate_limits": self.rate_limits,
+            "required_params": self.required_params,
+            "config": self.config,
+            "is_active": self.is_active,
+            "is_healthy": self.is_healthy,
+            "last_health_check": self.last_health_check.isoformat()
+            if self.last_health_check
+            else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def __repr__(self):
+        return f"<TenantIntegration(id={self.id}, tenant_id={self.tenant_id}, connector_id={self.connector_id}, is_active={self.is_active})>"
+
 
 class TenantIntegrationConfig(Base):
     """

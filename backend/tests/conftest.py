@@ -204,8 +204,9 @@ def worker_database():
     # For SQLite: use in-memory (no worker isolation needed)
     if DATABASE_URL.startswith('sqlite'):
         from core.models import Base
-        # Use in-memory database for tests to ensure clean slate
-        engine = create_engine('sqlite:///:memory:', connect_args={"check_same_thread": False})
+        from sqlalchemy.pool import StaticPool
+        # Use in-memory database for tests to ensure clean slate with StaticPool to prevent database deletion on connection close
+        engine = create_engine('sqlite:///:memory:', connect_args={"check_same_thread": False}, poolclass=StaticPool)
         Base.metadata.create_all(engine)
         SessionLocal = sessionmaker(bind=engine)
         yield SessionLocal
@@ -1773,4 +1774,12 @@ def pytest_exception_interact(node, call, report):
                 else:
                     # Local development - skip bug filing
                     print(f"Skipping bug filing for {node.name} (no GITHUB_TOKEN)")
+
+
+@pytest.fixture(scope="session")
+def fastapi_app():
+    """Session-scoped FastAPI application instance."""
+    from main_api_app import app
+    yield app
+
 

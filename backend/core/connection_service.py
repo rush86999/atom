@@ -263,6 +263,83 @@ class ConnectionService:
                 logger.error(f"Error updating connection name: {e}")
                 return False
 
+    def _ensure_aware_datetime(self, dt: Optional[datetime]) -> Optional[datetime]:
+        """
+        Convert naive datetime to timezone-aware (UTC).
+        If already aware, return as-is. Handles None.
+        """
+        if dt is None:
+            return None
+        from datetime import timezone
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    def get_connection_health_status(self, connection_id: str, user_id: str) -> Dict[str, Any]:
+        """
+        Calculate health status for a connection.
+        """
+        with get_db_session() as db:
+            try:
+                conn = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id,
+                    UserConnection.user_id == user_id
+                ).first()
+
+                if not conn:
+                    return {
+                        "health_status": "error",
+                        "last_sync_at": None,
+                        "error_message": "Connection not found",
+                        "expires_at": None,
+                    }
+
+                from datetime import timezone
+                now = datetime.now(timezone.utc)
+                health_status = "healthy"
+                error_message = None
+
+                # Calculate health status based on status and expiry
+                if conn.status == "error":
+                    health_status = "error"
+                    error_message = "Connection is in error state"
+                elif conn.status == "expired":
+                    health_status = "expired"
+                    error_message = "Connection has expired"
+                elif conn.status == "disabled":
+                    health_status = "error"
+                    error_message = "Connection is disabled"
+                elif conn.expires_at:
+                    # Ensure expires_at is timezone-aware for comparison
+                    expires_at = self._ensure_aware_datetime(conn.expires_at)
+                    if now > expires_at:
+                        health_status = "expired"
+                        error_message = "Connection credentials have expired"
+                    elif now + timedelta(hours=24) >= expires_at:
+                        health_status = "expiring_soon"
+                        error_message = None
+                    else:
+                        health_status = "healthy"
+                        error_message = None
+                else:
+                    # No expires_at - assume healthy if status is active
+                    health_status = "healthy" if conn.status == "active" else "error"
+
+                return {
+                    "health_status": health_status,
+                    "last_sync_at": conn.updated_at.isoformat() if conn.updated_at else None,
+                    "error_message": error_message,
+                    "expires_at": conn.expires_at.isoformat() if conn.expires_at else None,
+                }
+            except Exception as e:
+                logger.error(f"Error calculating connection health: {e}")
+                return {
+                    "health_status": "error",
+                    "last_sync_at": None,
+                    "error_message": str(e),
+                    "expires_at": None,
+                }
+
     def delete_connection(self, connection_id: str, user_id: str) -> bool:
         with get_db_session() as db:
             try:

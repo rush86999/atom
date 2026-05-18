@@ -8,7 +8,7 @@ Phase 323-02: Schema Discovery & Entity Linking
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from core.models import DiscoveredEntity, GraphNode, EntityTypeDefinition

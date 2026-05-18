@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Editor, { OnChange } from '@monaco-editor/react';
+import React, { useState, useEffect } from 'react';
 import { validateSchema, SchemaValidationResult } from '@/src/lib/validators/jsonSchema';
 
 interface MonacoSchemaEditorProps {
@@ -32,16 +31,10 @@ const MonacoSchemaEditor: React.FC<MonacoSchemaEditorProps> = ({
     return () => clearTimeout(timer);
   }, [value]);
 
-  const handleEditorChange: OnChange = (val) => {
-    if (val !== undefined) {
-      onChange(val);
-    }
-  };
-
   return (
     <div className="flex flex-col w-full rounded-lg border border-white/10 overflow-hidden bg-zinc-900">
       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">JSON Schema Editor</span>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">JSON Schema Editor (Fallback)</span>
         {!validation.valid && (
           <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
             {validation.errors.length} ERRORS
@@ -49,24 +42,16 @@ const MonacoSchemaEditor: React.FC<MonacoSchemaEditorProps> = ({
         )}
       </div>
       
-      <div style={{ height }}>
-        <Editor
-          height="100%"
-          defaultLanguage="json"
-          theme="vs-dark"
+      <div style={{ height }} className="relative flex w-full">
+        <textarea
           value={value}
-          onChange={handleEditorChange}
-          options={{
-            readOnly,
-            minimap: { enabled: false },
-            scrollBeyondLastLine: false,
-            fontSize: 14,
-            automaticLayout: true,
-            tabSize: 2,
-            formatOnPaste: true,
-            formatOnType: true,
-            fixedOverflowWidgets: true
-          }}
+          onChange={(e) => onChange(e.target.value)}
+          readOnly={readOnly}
+          className="w-full h-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm resize-none focus:outline-none border-none"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
         />
       </div>
 
