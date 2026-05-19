@@ -162,6 +162,7 @@ class ContextValidator:
         "claude-3-haiku": 200000,
         "gemini-1.5-pro": 2800000,
         "gemini-1.5-flash": 2800000,
+        "gemini-3.5-flash": 2800000,
         "command-r": 128000,
         "command-r-plus": 128000,
         "text-embedding-3-large": 8191,

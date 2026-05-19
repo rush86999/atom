@@ -388,7 +388,7 @@ class DynamicPricingFetcher:
                 supports_vision = True
             elif any(keyword in model_lower for keyword in ["vision", "vl", "multimodal"]):
                 supports_vision = True
-            elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
+            elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
                 supports_vision = True
             elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus"]):
                 supports_vision = True

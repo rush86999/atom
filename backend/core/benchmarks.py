@@ -31,6 +31,7 @@ MODEL_QUALITY_SCORES = {
     "o3-mini": 94,
     "gpt-4.5": 95,
     "gemini-3-flash": 93,
+    "gemini-3.5-flash": 93,
     "deepseek-v3": 89, # demoted
     "deepseek-v3.2": 89, # demoted
     "qwen-2.5-72b-instruct": 88, # demoted

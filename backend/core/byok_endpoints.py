@@ -252,6 +252,18 @@ class BYOKManager:
                 supports_structured_output=True
             ),
             AIProviderConfig(
+                id="google_flash_3_5",
+                name="Google Gemini 3.5 Flash",
+                description="Gemini 3.5 Flash - Ultra High Speed",
+                api_key_env_var="GOOGLE_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                supported_tasks=["general", "chat", "summary", "extraction", "vision", "pdf_ocr"],
+                cost_per_token=0.0000003,
+                model="gemini-3.5-flash",
+                reasoning_level=3,
+                supports_structured_output=True
+            ),
+            AIProviderConfig(
                 id="gemini",
                 name="Google Gemini",
                 description="Gemini 1.5 Pro (OpenAI-compatible)",
@@ -273,6 +285,18 @@ class BYOKManager:
                 cost_per_token=0.0000005,
                 model="gemini-1.5-flash",
                 reasoning_level=2,
+                supports_structured_output=True
+            ),
+            AIProviderConfig(
+                id="gemini_flash_3_5",
+                name="Google Gemini 3.5 Flash",
+                description="Gemini 3.5 Flash (OpenAI-compatible)",
+                api_key_env_var="GOOGLE_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                supported_tasks=["general", "chat", "summary", "extraction", "vision", "pdf_ocr"],
+                cost_per_token=0.0000003,
+                model="gemini-3.5-flash",
+                reasoning_level=3,
                 supports_structured_output=True
             ),
             AIProviderConfig(
@@ -756,7 +780,7 @@ async def store_api_key(
         )
 
     # Validate provider_id
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

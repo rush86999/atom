@@ -218,6 +218,17 @@ class BYOKManager:
                 reasoning_level=2
             ),
             AIProviderConfig(
+                id="google_flash_3_5",
+                name="Google Gemini 3.5 Flash",
+                description="Gemini 3.5 Flash - Ultra High Speed",
+                api_key_env_var="GOOGLE_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta",
+                supported_tasks=["general", "chat", "summary", "extraction", "vision", "pdf_ocr"],
+                cost_per_token=0.0000003,
+                model="gemini-3.5-flash",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
                 id="lux",
                 name="Lux Computer Use",
                 description="Lux Model for Computer Use Agents",

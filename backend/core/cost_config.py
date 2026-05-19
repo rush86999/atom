@@ -15,6 +15,7 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "deepseek-chat",
         "gemini-1.5-flash",
         "gemini-2.0-flash",
+        "gemini-3.5-flash",
         "qwen-plus",
     ],
     "pro": [
@@ -27,6 +28,7 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "gemini-1.5-pro",
         "gemini-1.5-flash",
         "gemini-2.0-flash",
+        "gemini-3.5-flash",
         "qwen-plus",
         "qwen-max",
     ],
@@ -56,6 +58,7 @@ MODEL_COSTS: Dict[str, Dict[str, float]] = {
     "gemini-1.5-pro": {"input": 0.000007, "output": 0.000028},
     "gemini-1.5-flash": {"input": 0.0000003, "output": 0.0000015},
     "gemini-2.0-flash": {"input": 0.00000025, "output": 0.000001},
+    "gemini-3.5-flash": {"input": 0.0000003, "output": 0.0000015},
 }
 
 

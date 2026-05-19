@@ -91,9 +91,9 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "deepseek-v3.2-speciale", # User Feedback: Lower cost, frontier reasoning
     },
     "gemini": {
-        QueryComplexity.SIMPLE: "gemini-3-flash",
-        QueryComplexity.MODERATE: "gemini-3-flash",
-        QueryComplexity.COMPLEX: "gemini-3-flash",
+        QueryComplexity.SIMPLE: "gemini-3.5-flash",
+        QueryComplexity.MODERATE: "gemini-3.5-flash",
+        QueryComplexity.COMPLEX: "gemini-3.5-flash",
         QueryComplexity.ADVANCED: "gemini-3-pro",
     },
     "moonshot": {
@@ -436,6 +436,14 @@ class BYOKHandler:
             if not api_key and self.byok_manager.is_configured(self.workspace_id, provider_id):
                 api_key = self.byok_manager.get_api_key(provider_id)
                 credential_source = "byok"
+
+            # Special case: Gemini BYOK fallback to Google / Google Flash / Gemini Flash variants
+            if not api_key and provider_id == "gemini":
+                for alt_provider in ["google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5"]:
+                    if self.byok_manager.is_configured(self.workspace_id, alt_provider):
+                        api_key = self.byok_manager.get_api_key(alt_provider)
+                        credential_source = "byok"
+                        break
 
             # Final fallback to environment variables
             if not api_key:

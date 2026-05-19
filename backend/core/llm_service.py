@@ -58,6 +58,7 @@ class LLMModel(str, Enum):
     # Gemini
     GEMINI_1_5_PRO = "gemini-1.5-pro"
     GEMINI_1_5_FLASH = "gemini-1.5-flash"
+    GEMINI_3_5_FLASH = "gemini-3.5-flash"
 
     # MiniMax
     MINIMAX_2_5 = "minimax-m2.5"
