@@ -26,6 +26,12 @@ from core.models import (
 # Import LLMService for unified LLM interactions
 from core.llm_service import LLMService
 
+# Import BYOKHandler for embedding generation (module-level for testability)
+try:
+    from core.llm.byok_handler import BYOKHandler
+except ImportError:
+    BYOKHandler = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # Automation Integration (Optional check for upstream)
@@ -488,20 +494,27 @@ class GraphRAGEngine:
                     type=entity.entity_type
                 ).first()
                 
+                properties_copy = dict(entity.properties)
+                embedding_val = properties_copy.pop("embedding", None)
+                
                 if existing:
                     existing.description = entity.description
-                    existing.properties = entity.properties
+                    existing.properties = properties_copy
+                    if embedding_val is not None:
+                        existing.embedding = embedding_val
                     entity.id = existing.id
                     is_new = False
                 else:
                     is_new = True
                     node = GraphNode(
                         id=entity.id,
+                        tenant_id=tid,
                         workspace_id=ws_id,
                         name=entity.name,
                         type=entity.entity_type,
                         description=entity.description,
-                        properties=entity.properties
+                        properties=properties_copy,
+                        embedding=embedding_val
                     )
                     session.add(node)
                     
@@ -531,11 +544,13 @@ class GraphRAGEngine:
                          tenant_id: Optional[str] = None) -> str:
         """Insert edge to Postgres"""
         ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id or "default"
         
         with get_db_session() as session:
             try:
                 edge = GraphEdge(
                     id=rel.id,
+                    tenant_id=tid,
                     workspace_id=ws_id,
                     source_node_id=rel.from_entity,
                     target_node_id=rel.to_entity,
@@ -673,7 +688,7 @@ class GraphRAGEngine:
                               entities: List[Dict] = [], relationships: List[Dict] = []):
         """Batch ingestion using session."""
         ws_id = workspace_id or self.workspace_id
-        tid = tenant_id or self.tenant_id
+        tid = tenant_id or self.tenant_id or "default"
         
         with get_db_session() as session:
             try:
@@ -691,12 +706,17 @@ class GraphRAGEngine:
                         if canonical_id:
                             properties["canonical_id"] = canonical_id
 
+                    properties_copy = dict(properties)
+                    embedding_val = properties_copy.pop("embedding", None)
+
                     node = GraphNode(
+                        tenant_id=tid,
                         workspace_id=ws_id,
                         name=name,
                         type=e_data.get("type", "unknown"),
                         description=e_data.get("description", ""),
-                        properties=properties
+                        properties=properties_copy,
+                        embedding=embedding_val
                     )
                     session.add(node)
                     session.flush() 
@@ -708,6 +728,7 @@ class GraphRAGEngine:
                     dst = node_map.get(r_data.get("to"))
                     if src and dst:
                         edge = GraphEdge(
+                            tenant_id=tid,
                             workspace_id=ws_id,
                             source_node_id=src,
                             target_node_id=dst,
@@ -730,93 +751,195 @@ class GraphRAGEngine:
                      tenant_id: Optional[str] = None,
                      query: str = "", depth: int = 2) -> Dict[str, Any]:
         """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal."""
-        from sqlalchemy import or_
-
         ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id or "default"
+
+        def _run_sync(coro):
+            import asyncio
+            import concurrent.futures
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(lambda: asyncio.run(coro))
+                    return future.result()
+            else:
+                return asyncio.run(coro)
 
         with get_db_session() as session:
             try:
-                # Check database dialect
-                from sqlalchemy import inspect
-                dialect = session.bind.dialect.name
-                is_postgres = dialect == 'postgresql'
+                # 1. True Hybrid Start-Node Discovery: run vector AND keyword, union results.
+                #    Vector anchors semantic matches; keyword ensures exact/partial name hits
+                #    (IDs, acronyms, proper nouns) are never dropped.
+                query_embedding = None
+                try:
+                    byok = BYOKHandler(workspace_id=ws_id, tenant_id=tid, db_session=session)
+                    query_embedding = _run_sync(byok.generate_embedding(query))
+                except Exception as emb_err:
+                    logger.debug(f"Could not generate query embedding for local_search: {emb_err}")
 
-                # 1. Find Start Nodes (database-agnostic case-insensitive search)
-                if is_postgres:
-                    start_nodes_sql = text("""
-                        SELECT id, name, type, description
-                        FROM graph_nodes
-                        WHERE workspace_id = :ws_id
-                        AND name ILIKE :query
-                        LIMIT 5
-                    """)
-                else:
-                    # SQLite: Use LOWER() for case-insensitive search
-                    start_nodes_sql = text("""
-                        SELECT id, name, type, description
-                        FROM graph_nodes
-                        WHERE workspace_id = :ws_id
-                        AND LOWER(name) LIKE LOWER(:query)
-                        LIMIT 5
-                    """)
+                is_postgres = (session.bind.dialect.name == "postgresql") if session.bind else True
 
-                start_nodes = session.execute(start_nodes_sql, {"ws_id": workspace_id, "query": f"%{query}%"}).fetchall()
-                
+                # -- Vector leg --
+                vector_nodes = []
+                if query_embedding:
+                    try:
+                        vector_sql = text("""
+                            SELECT id, name, type, description
+                            FROM graph_nodes
+                            WHERE workspace_id = :ws_id
+                            AND embedding IS NOT NULL
+                            ORDER BY embedding <=> :query_embedding
+                            LIMIT 5
+                        """)
+                        vector_nodes = session.execute(
+                            vector_sql, {
+                                "ws_id": ws_id,
+                                "query_embedding": query_embedding
+                            }
+                        ).fetchall()
+                        logger.info(f"Hybrid search: vector leg found {len(vector_nodes)} nodes")
+                    except Exception as pg_err:
+                        logger.debug(f"pgvector query failed (hybrid): {pg_err}")
+
+                # -- Keyword leg (always runs) --
+                like_op = "ILIKE" if is_postgres else "LIKE"
+                keyword_sql = text(f"""
+                    SELECT id, name, type, description
+                    FROM graph_nodes
+                    WHERE workspace_id = :ws_id
+                    AND name {like_op} :query
+                    LIMIT 5
+                """)
+                keyword_nodes = session.execute(
+                    keyword_sql, {"ws_id": ws_id, "query": f"%{query}%"}
+                ).fetchall()
+                logger.info(f"Hybrid search: keyword leg found {len(keyword_nodes)} nodes")
+
+                # -- Union & deduplicate by ID --
+                seen_ids: set = set()
+                start_nodes = []
+                for n in list(vector_nodes) + list(keyword_nodes):
+                    if n.id not in seen_ids:
+                        seen_ids.add(n.id)
+                        start_nodes.append(n)
+
                 if not start_nodes:
-                    return {"mode": "local", "entities": [], "relationships": [], "count": 0}
+                    return {
+                        "mode": "local",
+                        "entities": [],
+                        "relationships": [],
+                        "context": "No matching entities found.",
+                        "count": 0
+                    }
 
                 start_ids = [n.id for n in start_nodes]
-                
-                # 2. Recursive Traversal
-                traversal_sql = text("""
-                    WITH RECURSIVE traversal AS (
-                        SELECT n.id, n.name, n.type, n.description, 0 as depth, ARRAY[n.id] as path
-                        FROM graph_nodes n
-                        WHERE n.id = ANY(:start_ids)
-                        AND n.workspace_id = :ws_id
-                        
-                        UNION
-                        
-                        SELECT 
-                            target.id, target.name, target.type, target.description, 
-                            t.depth + 1,
-                            t.path || target.id
-                        FROM traversal t
-                        JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
-                        JOIN graph_nodes target ON (
-                            CASE 
-                                WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
-                                ELSE e.source_node_id = target.id
-                            END
-                        )
-                        WHERE t.depth < :max_depth
-                        AND e.workspace_id = :ws_id
-                        AND target.workspace_id = :ws_id
-                        AND NOT (target.id = ANY(t.path))
-                    )
-                    SELECT DISTINCT id, name, type, description, depth FROM traversal LIMIT 100;
-                """)
-                
-                edges_sql = text("""
-                    SELECT e.source_node_id, e.target_node_id, e.relationship_type, e.properties
-                    FROM graph_edges e
-                    WHERE (e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids))
-                    AND e.workspace_id = :ws_id
-                    LIMIT 50
-                """)
+                start_ids_str = ", ".join(f"'{str(id_)}'" for id_ in start_ids)
 
-                nodes_result = session.execute(traversal_sql, {
-                    "start_ids": start_ids, 
-                    "max_depth": depth,
-                    "ws_id": workspace_id
-                }).fetchall()
-                
-                found_node_ids = [n.id for n in nodes_result]
-                edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": workspace_id}).fetchall()
-                
+
+                if is_postgres:
+                    # Recursive Traversal (Bidirectional with Cycle Detection for Postgres)
+                    traversal_sql = text(f"""
+                        WITH RECURSIVE traversal AS (
+                            SELECT n.id, n.name, n.type, n.description, 0 as depth, ARRAY[n.id] as path
+                            FROM graph_nodes n
+                            WHERE n.id IN ({start_ids_str})
+                            AND n.workspace_id = :ws_id
+                            
+                            UNION
+                            
+                            SELECT 
+                                target.id, target.name, target.type, target.description, 
+                                t.depth + 1,
+                                t.path || target.id
+                            FROM traversal t
+                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_nodes target ON (
+                                CASE 
+                                    WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
+                                    ELSE e.source_node_id = target.id
+                                END
+                            )
+                            WHERE t.depth < :max_depth
+                            AND e.workspace_id = :ws_id
+                            AND target.workspace_id = :ws_id
+                            AND NOT (target.id = ANY(t.path))
+                        )
+                        SELECT DISTINCT id, name, type, description, depth FROM traversal LIMIT 100;
+                    """)
+
+                    edges_sql = text("""
+                        SELECT e.source_node_id, e.target_node_id, e.relationship_type, e.properties
+                        FROM graph_edges e
+                        WHERE (e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids))
+                        AND e.workspace_id = :ws_id
+                        LIMIT 50
+                    """)
+
+                    nodes_result = session.execute(traversal_sql, {
+                        "max_depth": depth,
+                        "ws_id": ws_id
+                    }).fetchall()
+
+                    found_node_ids = [n.id for n in nodes_result]
+                    edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": ws_id}).fetchall()
+                else:
+                    # SQLite / Fallback CTE with string path cycle detection
+                    traversal_sql = text(f"""
+                        WITH RECURSIVE traversal AS (
+                            SELECT n.id, n.name, n.type, n.description, 0 as depth, ',' || n.id || ',' as path
+                            FROM graph_nodes n
+                            WHERE n.id IN ({start_ids_str})
+                            AND n.workspace_id = :ws_id
+
+                            UNION
+
+                            SELECT
+                                target.id, target.name, target.type, target.description,
+                                t.depth + 1,
+                                t.path || target.id || ','
+                            FROM traversal t
+                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_nodes target ON (
+                                CASE
+                                    WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
+                                    ELSE e.source_node_id = target.id
+                                END
+                            )
+                            WHERE t.depth < :max_depth
+                            AND e.workspace_id = :ws_id
+                            AND target.workspace_id = :ws_id
+                            AND t.path NOT LIKE '%,' || target.id || ',%'
+                        )
+                        SELECT DISTINCT id, name, type, description, depth FROM traversal
+                        LIMIT 100;
+                    """)
+
+                    nodes_result = session.execute(traversal_sql, {
+                        "max_depth": depth,
+                        "ws_id": ws_id
+                    }).fetchall()
+
+                    found_node_ids = [n.id for n in nodes_result]
+                    if found_node_ids:
+                        found_ids_str = ", ".join(f"'{str(id_)}'" for id_ in found_node_ids)
+                        edges_sql = text(f"""
+                            SELECT e.source_node_id, e.target_node_id, e.relationship_type, e.properties
+                            FROM graph_edges e
+                            WHERE (e.source_node_id IN ({found_ids_str}) OR e.target_node_id IN ({found_ids_str}))
+                            AND e.workspace_id = :ws_id
+                            LIMIT 50
+                        """)
+                        edges_result = session.execute(edges_sql, {"ws_id": ws_id}).fetchall()
+                    else:
+                        edges_result = []
+
                 entities = [{"id": str(n.id), "name": n.name, "type": n.type, "description": n.description} for n in nodes_result]
                 relationships = [{"from": str(e.source_node_id), "to": str(e.target_node_id), "type": e.relationship_type} for e in edges_result]
-                
+
                 return {
                     "mode": "local",
                     "start_entities": [n.name for n in start_nodes],
@@ -826,7 +949,7 @@ class GraphRAGEngine:
                 }
             except Exception as e:
                 logger.error(f"Local search failed: {e}")
-                return {"error": str(e)}
+                return {"error": str(e), "mode": "local", "entities": [], "relationships": [], "count": 0}
 
     async def global_search(self, workspace_id: Optional[str] = None, 
                            tenant_id: Optional[str] = None,

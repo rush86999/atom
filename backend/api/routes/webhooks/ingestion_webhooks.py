@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from api.routes.webhooks.base import verify_hmac_signature
 from core.database import get_db
-from core.models import TenantIntegration, UserConnection
+from core.models import TenantIntegration, UserConnection, DiscoveredEntity
 from core.structured_logger import get_logger
 from core.tenant_discovery import TenantDiscoveryService
 from core.webhook_ingestion_triggers import WebhookIngestionQueue
@@ -135,23 +135,23 @@ async def slack_webhook_handler(
         except Exception as e:
             logger.warning(f"Slack webhook: Failed to resolve source_connection_id: {e}")
 
-        # 5. Enqueue ingestion job
-        job_id = await webhook_queue.enqueue_ingestion_job(
-            tenant_id=tenant_id,
+        # 5. CRUD Dispatch handling
+        from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+        change_type, resource_id = extract_crud_metadata("slack", event_data, dict(request.headers), dict(request.query_params))
+        if not change_type or not resource_id:
+            change_type = change_type or "created"
+            resource_id = resource_id or "generic"
+
+        result = await crud_dispatch(
+            db=db,
+            change_type=change_type,
             integration_id="slack",
-            trigger_type="webhook",
+            tenant_id=tenant_id,
+            resource_id=resource_id,
             payload=event_data,
             source_connection_id=source_connection_id,
         )
-
-        logger.info(
-            "Slack webhook enqueued for ingestion",
-            tenant_id=tenant_id,
-            team_id=team_id,
-            job_id=job_id,
-        )
-
-        return {"status": "enqueued", "job_id": job_id}
+        return result
 
     except HTTPException:
         raise
@@ -255,20 +255,21 @@ async def hubspot_webhook_handler(
             except Exception as e:
                 logger.warning(f"HubSpot webhook: Failed to resolve source_connection_id: {e}")
 
-            # Enqueue ingestion job
-            job_id = await webhook_queue.enqueue_ingestion_job(
-                tenant_id=tenant_id,
+            # CRUD Dispatch handling
+            from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+            change_type, resource_id = extract_crud_metadata("hubspot", event, dict(request.headers), dict(request.query_params))
+            if not change_type or not resource_id:
+                change_type = change_type or "created"
+                resource_id = resource_id or "generic"
+
+            await crud_dispatch(
+                db=db,
+                change_type=change_type,
                 integration_id="hubspot",
-                trigger_type="webhook",
+                tenant_id=tenant_id,
+                resource_id=resource_id,
                 payload=event,
                 source_connection_id=source_connection_id,
-            )
-
-            logger.info(
-                "HubSpot webhook enqueued for ingestion",
-                tenant_id=tenant_id,
-                portal_id=portal_id,
-                job_id=job_id,
             )
 
         return {"status": "enqueued"}
@@ -366,23 +367,23 @@ async def salesforce_webhook_handler(
         except Exception as e:
             logger.warning(f"Salesforce webhook: Failed to resolve source_connection_id: {e}")
 
-        # Enqueue ingestion job
-        job_id = await webhook_queue.enqueue_ingestion_job(
-            tenant_id=tenant_id,
+        # CRUD Dispatch handling
+        from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+        change_type, resource_id = extract_crud_metadata("salesforce", event_data, dict(request.headers), dict(request.query_params))
+        if not change_type or not resource_id:
+            change_type = change_type or "created"
+            resource_id = resource_id or "generic"
+
+        result = await crud_dispatch(
+            db=db,
+            change_type=change_type,
             integration_id="salesforce",
-            trigger_type="webhook",
+            tenant_id=tenant_id,
+            resource_id=resource_id,
             payload=event_data,
             source_connection_id=source_connection_id,
         )
-
-        logger.info(
-            "Salesforce webhook enqueued for ingestion",
-            tenant_id=tenant_id,
-            org_id=org_id,
-            job_id=job_id,
-        )
-
-        return {"status": "enqueued", "job_id": job_id}
+        return result
 
     except HTTPException:
         raise
@@ -575,23 +576,23 @@ async def notion_webhook_handler(
         except Exception as e:
             logger.warning(f"Notion webhook: Failed to resolve source_connection_id: {e}")
 
-        # Enqueue ingestion job
-        job_id = await webhook_queue.enqueue_ingestion_job(
-            tenant_id=tenant_id,
+        # CRUD Dispatch handling
+        from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+        change_type, resource_id = extract_crud_metadata("notion", event_data, dict(request.headers), dict(request.query_params))
+        if not change_type or not resource_id:
+            change_type = change_type or "created"
+            resource_id = resource_id or "generic"
+
+        result = await crud_dispatch(
+            db=db,
+            change_type=change_type,
             integration_id="notion",
-            trigger_type="webhook",
+            tenant_id=tenant_id,
+            resource_id=resource_id,
             payload=event_data,
             source_connection_id=source_connection_id,
         )
-
-        logger.info(
-            "Notion webhook enqueued for ingestion",
-            tenant_id=tenant_id,
-            workspace_id=workspace_id,
-            job_id=job_id,
-        )
-
-        return {"status": "enqueued", "job_id": job_id}
+        return result
 
     except HTTPException:
         raise
@@ -827,6 +828,68 @@ async def outlook_webhook_handler(
                     flush=True,
                 )
 
+                # 6. Deletion detection & execution
+                change_type = notification.get("changeType", "")
+                resource_path = notification.get("resource", "")
+                if "deleted" in change_type.lower():
+                    print(
+                        f"[OUTLOOK_WEBHOOK] Deletion event detected for resource: {resource_path}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    message_id = None
+                    if resource_path:
+                        path_clean = resource_path.split("?")[0].strip("/")
+                        message_id = path_clean.split("/")[-1]
+
+                    if not message_id:
+                        print(
+                            f"[OUTLOOK_WEBHOOK] ERROR: Could not extract message_id from resource: {resource_path}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        continue
+
+                    if db.bind and db.bind.dialect.name == "postgresql":
+                        db.execute(text("SET LOCAL row_security = off"))
+
+                    try:
+                        entities = (
+                            db.query(DiscoveredEntity)
+                            .filter(
+                                DiscoveredEntity.tenant_id == tenant_id,
+                                DiscoveredEntity.source_record_id == message_id,
+                                DiscoveredEntity.source_record_type == "outlook",
+                            )
+                            .all()
+                        )
+                        print(
+                            f"[OUTLOOK_WEBHOOK] Found {len(entities)} DiscoveredEntity records to delete for message_id {message_id}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        for entity in entities:
+                            db.delete(entity)
+                        db.commit()
+                    except Exception as db_err:
+                        db.rollback()
+                        print(
+                            f"[OUTLOOK_WEBHOOK] ERROR: Failed during DB deletion: {db_err}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        logger.error(f"Failed during DB deletion of Outlook entities: {db_err}")
+                    finally:
+                        if db.bind and db.bind.dialect.name == "postgresql":
+                            db.execute(text("SET LOCAL row_security = on"))
+
+                    print(
+                        f"[OUTLOOK_WEBHOOK] Deletion process completed for message_id {message_id}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    continue
+
                 # 6b. Resolve connection from clientState prefix
                 from sqlalchemy import String, cast
 
@@ -1033,23 +1096,23 @@ async def zoho_webhook_handler(
     except Exception as e:
         logger.warning(f"Zoho {integration_id} webhook: Failed to resolve source_connection_id: {e}")
 
-    # 4. Enqueue ingestion job
-    job_id = await webhook_queue.enqueue_ingestion_job(
-        tenant_id=tenant_id,
+    # 4. CRUD Dispatch handling
+    from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+    change_type, resource_id = extract_crud_metadata(integration_id, payload, dict(request.headers), dict(request.query_params))
+    if not change_type or not resource_id:
+        change_type = change_type or "created"
+        resource_id = resource_id or "generic"
+
+    result = await crud_dispatch(
+        db=db,
+        change_type=change_type,
         integration_id=integration_id,
-        trigger_type="webhook",
+        tenant_id=tenant_id,
+        resource_id=resource_id,
         payload=payload,
         source_connection_id=source_connection_id,
     )
-
-    logger.info(
-        f"Zoho {integration_id} webhook enqueued for ingestion",
-        tenant_id=tenant_id,
-        org_id=org_id,
-        job_id=job_id,
-    )
-
-    return {"status": "enqueued", "job_id": job_id}
+    return result
 
 
 # ============================================================================
@@ -1207,23 +1270,23 @@ async def pm_crm_webhook_handler(
     except Exception as e:
         logger.warning(f"PM/CRM {integration_id} webhook: Failed to resolve source_connection_id: {e}")
 
-    # 6. Enqueue ingestion job
-    job_id = await webhook_queue.enqueue_ingestion_job(
-        tenant_id=tenant_id,
+    # 6. CRUD Dispatch handling
+    from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+    change_type, resource_id = extract_crud_metadata(integration_id, payload, dict(request.headers), dict(request.query_params))
+    if not change_type or not resource_id:
+        change_type = change_type or "created"
+        resource_id = resource_id or "generic"
+
+    result = await crud_dispatch(
+        db=db,
+        change_type=change_type,
         integration_id=integration_id,
-        trigger_type="webhook",
+        tenant_id=tenant_id,
+        resource_id=resource_id,
         payload=payload,
         source_connection_id=source_connection_id,
     )
-
-    logger.info(
-        f"PM/CRM {integration_id} webhook enqueued for ingestion",
-        tenant_id=tenant_id,
-        external_id=external_id,
-        job_id=job_id,
-    )
-
-    return {"status": "enqueued", "job_id": job_id}
+    return result
 
 
 # ============================================================================
@@ -1361,23 +1424,23 @@ async def communication_webhook_handler(
     except Exception as e:
         logger.warning(f"Communication {integration_id} webhook: Failed to resolve source_connection_id: {e}")
 
-    # 5. Enqueue ingestion job
-    job_id = await webhook_queue.enqueue_ingestion_job(
-        tenant_id=tenant_id,
+    # 5. CRUD Dispatch handling
+    from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+    change_type, resource_id = extract_crud_metadata(integration_id, payload, dict(request.headers), dict(request.query_params))
+    if not change_type or not resource_id:
+        change_type = change_type or "created"
+        resource_id = resource_id or "generic"
+
+    result = await crud_dispatch(
+        db=db,
+        change_type=change_type,
         integration_id=integration_id,
-        trigger_type="webhook",
+        tenant_id=tenant_id,
+        resource_id=resource_id,
         payload=payload,
         source_connection_id=source_connection_id,
     )
-
-    logger.info(
-        f"Communication {integration_id} webhook enqueued for ingestion",
-        tenant_id=tenant_id,
-        external_id=external_id,
-        job_id=job_id,
-    )
-
-    return {"status": "enqueued", "job_id": job_id}
+    return result
 
 
 # ============================================================================
@@ -1534,23 +1597,23 @@ async def dev_prod_webhook_handler(
     except Exception as e:
         logger.warning(f"Dev/Prod {integration_id} webhook: Failed to resolve source_connection_id: {e}")
 
-    # 6. Enqueue ingestion job
-    job_id = await webhook_queue.enqueue_ingestion_job(
-        tenant_id=tenant_id,
+    # 6. CRUD Dispatch handling
+    from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+    change_type, resource_id = extract_crud_metadata(integration_id, payload, dict(request.headers), dict(request.query_params))
+    if not change_type or not resource_id:
+        change_type = change_type or "created"
+        resource_id = resource_id or "generic"
+
+    result = await crud_dispatch(
+        db=db,
+        change_type=change_type,
         integration_id=integration_id,
-        trigger_type="webhook",
+        tenant_id=tenant_id,
+        resource_id=resource_id,
         payload=payload,
         source_connection_id=source_connection_id,
     )
-
-    logger.info(
-        f"Dev/Prod {integration_id} webhook enqueued for ingestion",
-        tenant_id=tenant_id,
-        external_id=external_id,
-        job_id=job_id,
-    )
-
-    return {"status": "enqueued", "job_id": job_id}
+    return result
 
 
 # ============================================================================
@@ -1732,23 +1795,23 @@ async def ecommerce_marketing_webhook_handler(
     except Exception as e:
         logger.warning(f"E-commerce/Marketing {integration_id} webhook: Failed to resolve source_connection_id: {e}")
 
-    # 7. Enqueue ingestion job
-    job_id = await webhook_queue.enqueue_ingestion_job(
-        tenant_id=tenant_id,
+    # 7. CRUD Dispatch handling
+    from core.webhook_crud_dispatch import extract_crud_metadata, crud_dispatch
+    change_type, resource_id = extract_crud_metadata(integration_id, payload, dict(request.headers), dict(request.query_params))
+    if not change_type or not resource_id:
+        change_type = change_type or "created"
+        resource_id = resource_id or "generic"
+
+    result = await crud_dispatch(
+        db=db,
+        change_type=change_type,
         integration_id=integration_id,
-        trigger_type="webhook",
+        tenant_id=tenant_id,
+        resource_id=resource_id,
         payload=payload,
         source_connection_id=source_connection_id,
     )
-
-    logger.info(
-        f"E-commerce/Marketing {integration_id} webhook enqueued for ingestion",
-        tenant_id=tenant_id,
-        external_id=external_id,
-        job_id=job_id,
-    )
-
-    return {"status": "enqueued", "job_id": job_id}
+    return result
 
 
 

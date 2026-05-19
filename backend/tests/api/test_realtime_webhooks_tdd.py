@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 from core.database import get_db
-from core.models import Tenant, TenantIntegration
+from core.models import Tenant, TenantIntegration, UserConnection, DiscoveredEntity, WebhookTombstone
 from core.tenant_discovery import TenantDiscoveryService
 
 @pytest.fixture
@@ -2741,6 +2741,315 @@ class TestRollbackAndResilience:
             mock_ingestion_class.assert_called_once()
             init_kwargs = mock_ingestion_class.call_args[1]
             assert init_kwargs["workspace_id"] == "personal-workspace-uuid"
+
+    @pytest.mark.asyncio
+    async def test_microsoft365_create_subscription_change_type_expansion(self):
+        """Verify that create_subscription automatically appends ',deleted' if 'created' is present and 'deleted' is not."""
+        from integrations.microsoft365_service import Microsoft365Service
+        from unittest import mock
+        from unittest.mock import AsyncMock
+
+        service_instance = Microsoft365Service(config={})
+        with mock.patch.object(service_instance, "_make_graph_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"status": "success", "id": "sub_123"}
+            
+            # Scenario A: 'created' requested, 'deleted' not present -> should append ',deleted'
+            await service_instance.create_subscription(
+                token="token_123",
+                resource="/me/mailFolders('Inbox')/messages",
+                change_type="created",
+                notification_url="https://example.com/webhook",
+                expiration_datetime="2026-05-20T18:22:45Z"
+            )
+            mock_request.assert_called_once()
+            payload = mock_request.call_args[0][3]
+            assert payload["changeType"] == "created,deleted"
+            
+            # Scenario B: 'created,deleted' requested -> should not double-append
+            mock_request.reset_mock()
+            await service_instance.create_subscription(
+                token="token_123",
+                resource="/me/mailFolders('Inbox')/messages",
+                change_type="created,deleted",
+                notification_url="https://example.com/webhook",
+                expiration_datetime="2026-05-20T18:22:45Z"
+            )
+            mock_request.assert_called_once()
+            payload = mock_request.call_args[0][3]
+            assert payload["changeType"] == "created,deleted"
+
+            # Scenario C: 'updated' requested -> should remain 'updated'
+            mock_request.reset_mock()
+            await service_instance.create_subscription(
+                token="token_123",
+                resource="/me/events",
+                change_type="updated",
+                notification_url="https://example.com/webhook",
+                expiration_datetime="2026-05-20T18:22:45Z"
+            )
+            mock_request.assert_called_once()
+            payload = mock_request.call_args[0][3]
+            assert payload["changeType"] == "updated"
+
+    @pytest.mark.asyncio
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    async def test_outlook_webhook_deletion_cascade(self, mock_enqueue, client, db_session):
+        """Verify that an Outlook 'deleted' webhook event deletes the DiscoveredEntity records and skips queueing."""
+        from core.models import Tenant, TenantIntegration, UserConnection, DiscoveredEntity
+        from core.webhook_security import sign_client_state
+        import json
+
+        db_session.query(DiscoveredEntity).delete()
+        db_session.query(TenantIntegration).delete()
+        db_session.query(UserConnection).delete()
+        db_session.query(Tenant).delete()
+        db_session.commit()
+
+        # Setup test Tenant
+        tenant_id = "11234567-89ab-cdef-0123-456789abcdef"
+        tenant = Tenant(id=tenant_id, subdomain="test-subdomain", name="Test Tenant")
+        db_session.add(tenant)
+        db_session.flush()
+
+        # Setup Outlook integration config
+        outlook_integration = TenantIntegration(
+            tenant_id=tenant_id,
+            connector_id="outlook",
+            external_id="outlook_user_123",
+            is_active=True,
+            config={}
+        )
+        db_session.add(outlook_integration)
+
+        # Setup Outlook UserConnection
+        outlook_conn = UserConnection(
+            id="c1234567-89ab-cdef-0123-456789abcdef",
+            user_id="a1234567-89ab-cdef-0123-456789abcdef",
+            tenant_id=tenant_id,
+            workspace_id=tenant_id,
+            integration_id="outlook",
+            connection_name="Outlook Primary",
+            credentials={"access_token": "token_abc"},
+            status="active"
+        )
+        db_session.add(outlook_conn)
+        db_session.flush()
+
+        # Setup a DiscoveredEntity to be deleted
+        target_message_id = "msg_abc123"
+        entity = DiscoveredEntity(
+            id="e1234567-89ab-cdef-0123-456789abcdef",
+            tenant_id=tenant_id,
+            workspace_id=tenant_id,
+            source_record_id=target_message_id,
+            source_record_type="outlook",
+            _discovered_type="Email",
+            properties={"subject": "Test Deletion"}
+        )
+        db_session.add(entity)
+        db_session.commit()
+
+        # Generate a valid signed clientState
+        state_payload = {"c": str(outlook_conn.id)[:8]}
+        signed_state = sign_client_state(json.dumps(state_payload))
+
+        # Construct Outlook deleted event notification payload
+        payload_dict = {
+            "value": [
+                {
+                    "subscriptionId": "sub_123",
+                    "clientState": signed_state,
+                    "changeType": "deleted",
+                    "resource": f"Users/outlook_user_123/Messages/{target_message_id}"
+                }
+            ]
+        }
+        body_bytes = json.dumps(payload_dict).encode("utf-8")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Host": "test-subdomain.localhost"
+        }
+
+        response = client.post("/api/webhooks/communication/outlook", content=body_bytes, headers=headers)
+        assert response.status_code == 200
+        
+        # Verify DiscoveredEntity is deleted from database
+        deleted_entity = db_session.query(DiscoveredEntity).filter(DiscoveredEntity.source_record_id == target_message_id).first()
+        assert deleted_entity is None
+
+        # Verify no ingestion job was enqueued
+        mock_enqueue.assert_not_called()
+
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    def test_tier2_discord_create_and_delete_cascade(self, mock_enqueue, client, db_session):
+        tenant_id = "tenant_123"
+        discord_conn = UserConnection(
+            id="discord_conn_123",
+            user_id="user_123",
+            tenant_id=tenant_id,
+            workspace_id=tenant_id,
+            integration_id="discord",
+            connection_name="Discord Connect",
+            status="active"
+        )
+        db_session.add(discord_conn)
+        
+        from core.models import TenantIntegration
+        integration = TenantIntegration(
+            tenant_id=tenant_id,
+            connector_id="discord",
+            external_id="discord_server_123",
+            is_active=True
+        )
+        db_session.add(integration)
+        db_session.flush()
+
+        target_msg_id = "discord_msg_456"
+        entity = DiscoveredEntity(
+            id="discord_entity_123",
+            tenant_id=tenant_id,
+            workspace_id=tenant_id,
+            source_record_id=target_msg_id,
+            source_record_type="discord",
+            _discovered_type="Message",
+            properties={"content": "Hello Discord!"}
+        )
+        db_session.add(entity)
+        db_session.commit()
+
+        # Send delete webhook
+        payload_dict = {
+            "event": "MESSAGE_DELETE",
+            "id": target_msg_id
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Host": "test-subdomain.localhost"
+        }
+        
+        response = client.post("/api/webhooks/communication/discord?tenant_id=tenant_123", json=payload_dict, headers=headers)
+        assert response.status_code == 200
+        
+        # Verify DiscoveredEntity is deleted
+        deleted_entity = db_session.query(DiscoveredEntity).filter(DiscoveredEntity.source_record_id == target_msg_id).first()
+        assert deleted_entity is None
+        mock_enqueue.assert_not_called()
+
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    def test_tombstone_recording_on_delete(self, mock_enqueue, client, db_session):
+        tenant_id = "tenant_123"
+        from core.models import WebhookTombstone
+        
+        # Send delete webhook for non-existent resource
+        payload_dict = {
+            "event": "MESSAGE_DELETE",
+            "id": "non_existent_msg"
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Host": "test-subdomain.localhost"
+        }
+        
+        response = client.post("/api/webhooks/communication/discord?tenant_id=tenant_123", json=payload_dict, headers=headers)
+        assert response.status_code == 200
+        
+        # Verify WebhookTombstone is recorded
+        tombstone = db_session.query(WebhookTombstone).filter(
+            WebhookTombstone.tenant_id == tenant_id,
+            WebhookTombstone.integration_id == "discord",
+            WebhookTombstone.source_record_id == "non_existent_msg"
+        ).first()
+        assert tombstone is not None
+        mock_enqueue.assert_not_called()
+
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    def test_tombstone_enforcement_on_create(self, mock_enqueue, client, db_session):
+        tenant_id = "tenant_123"
+        from core.models import WebhookTombstone
+        
+        # Write tombstone to DB
+        tombstone = WebhookTombstone(
+            tenant_id=tenant_id,
+            integration_id="discord",
+            source_record_id="tombstoned_msg"
+        )
+        db_session.add(tombstone)
+        db_session.commit()
+
+        # Send create webhook
+        payload_dict = {
+            "event": "MESSAGE_CREATE",
+            "id": "tombstoned_msg",
+            "content": "Should be ignored"
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Host": "test-subdomain.localhost"
+        }
+        
+        response = client.post("/api/webhooks/communication/discord?tenant_id=tenant_123", json=payload_dict, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == "ignored"
+        assert response.json()["reason"] == "tombstoned"
+        
+        mock_enqueue.assert_not_called()
+
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    def test_tier1_slack_update_enqueuing(self, mock_enqueue, client, db_session):
+        tenant_id = "tenant_123"
+        slack_conn = UserConnection(
+            id="slack_conn_123",
+            user_id="user_123",
+            tenant_id=tenant_id,
+            workspace_id=tenant_id,
+            integration_id="slack",
+            connection_name="Slack Connect",
+            status="active"
+        )
+        db_session.add(slack_conn)
+        
+        from core.models import TenantIntegration
+        integration = TenantIntegration(
+            tenant_id=tenant_id,
+            connector_id="slack",
+            external_id="team_123",
+            is_active=True
+        )
+        db_session.add(integration)
+        db_session.flush()
+        db_session.commit()
+
+        # Mock enqueue return value
+        mock_enqueue.return_value = "job_999"
+
+        # Send update webhook
+        payload_dict = {
+            "team_id": "team_123",
+            "event": {
+                "type": "message",
+                "subtype": "message_changed",
+                "message": {
+                    "ts": "ts_123456",
+                    "text": "Updated text"
+                }
+            }
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Host": "test-subdomain.localhost"
+        }
+        
+        response = client.post("/api/webhooks/slack/events", json=payload_dict, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == "enqueued"
+        assert response.json()["job_id"] == "job_999"
+        
+        mock_enqueue.assert_called_once()
 
 
 

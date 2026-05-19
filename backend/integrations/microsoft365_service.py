@@ -832,6 +832,10 @@ class Microsoft365Service(IntegrationService):
     async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str) -> Dict[str, Any]:
         """Create a webhook subscription."""
         try:
+            # Automatically append ',deleted' to guarantee we sync deletion events
+            if "created" in change_type and "deleted" not in change_type:
+                change_type = f"{change_type},deleted"
+
             url = f"{self.base_url}/subscriptions"
             payload = {
                 "changeType": change_type,

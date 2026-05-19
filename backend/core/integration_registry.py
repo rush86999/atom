@@ -88,6 +88,33 @@ DEFAULT_SERVICE_REGISTRY = {
 }
 
 
+WEBHOOK_CRUD_TIERS = {
+    # Tier 1: Create + Update + Delete
+    "slack": 1,
+    "salesforce": 1,
+    "hubspot": 1,
+    "github": 1,
+    "google_drive": 1,
+    "notion": 1,
+
+    # Tier 2: Create + Delete
+    "outlook": 2,
+    "gmail": 2,
+    "discord": 2,
+    "teams": 2,
+    "telegram": 2,
+    "jira": 2,
+    "asana": 2,
+    "trello": 2,
+    "monday": 2,
+    "clickup": 2,
+    "linear": 2,
+    "shopify": 2,
+    "stripe": 2,
+    "airtable": 2,
+}
+
+
 class IntegrationRegistry:
     """
     Central registry for integration service discovery and loading.

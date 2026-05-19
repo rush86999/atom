@@ -2311,6 +2311,10 @@ class GraphNode(Base):
     type = Column(String, nullable=False) # e.g., 'person', 'task', 'document'
     description = Column(Text, nullable=True)
     properties = Column(JSONColumn, default={}) # Flexible metadata
+    embedding = Column(
+        Vector(EMBEDDING_DIM) if (PGVECTOR_AVAILABLE and Vector is not None) else JSON,
+        nullable=True
+    )
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -9972,4 +9976,24 @@ class HistoricalSyncJob(Base):
         backref="historical_sync_jobs",
         primaryjoin="cast(HistoricalSyncJob.source_connection_id, String) == cast(UserConnection.id, String)",
         foreign_keys=[source_connection_id],
+    )
+
+
+class WebhookTombstone(Base):
+    """
+    Tracks out-of-order webhook events (e.g., delete arrives before create).
+    If a delete arrives and no corresponding DiscoveredEntity is found,
+    we create a tombstone. When a create/update arrives, we check for a tombstone
+    and skip processing if one exists.
+    """
+    __tablename__ = "webhook_tombstones"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    integration_id = Column(String(100), nullable=False, index=True)
+    source_record_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_webhook_tombstones_lookup", "tenant_id", "integration_id", "source_record_id", unique=True),
     )
