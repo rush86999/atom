@@ -665,7 +665,7 @@ config/
 ├── .env.production.template         # Production environment
 ├── .env.credentials.template        # Credentials template
 ├── .env.unified.template            # Unified configuration
-└── .env.integrations                # Integration-specific settings
+└── .env.integrations.template         # Integration-specific template settings
 ```
 
 ### Docker Configuration

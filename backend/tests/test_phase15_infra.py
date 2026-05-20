@@ -19,19 +19,24 @@ class TestPhase15Infra(unittest.TestCase):
         test_key = "TEST_SECRET_KEY"
         test_val = "super_secret_value"
         
-        # 1. Set Secret
-        sm.set_secret(test_key, test_val)
-        
-        # 2. Get Secret
-        retrieved = sm.get_secret(test_key)
-        self.assertEqual(retrieved, test_val)
-        print("✅ Secret Manager encryption/decryption works")
-        
-        # 3. Verify .secrets.json is created/encrypted
-        # We can't easily verify encryption without reading raw file, 
-        # but the fact retrieving works implies loaded_cache -> decrypted -> returned
-        assert os.path.exists(".secrets.json")
-        print("✅ .secrets.json exists")
+        try:
+            # 1. Set Secret
+            sm.set_secret(test_key, test_val)
+            
+            # 2. Get Secret
+            retrieved = sm.get_secret(test_key)
+            self.assertEqual(retrieved, test_val)
+            print("✅ Secret Manager encryption/decryption works")
+            
+            # 3. Verify .secrets.json is created/encrypted
+            # We can't easily verify encryption without reading raw file, 
+            # but the fact retrieving works implies loaded_cache -> decrypted -> returned
+            assert os.path.exists(".secrets.json")
+            print("✅ .secrets.json exists")
+        finally:
+            if os.path.exists(".secrets.json"):
+                os.remove(".secrets.json")
+                print("🧹 Cleaned up generated .secrets.json")
 
     async def async_test_websockets(self):
         print("\n--- Testing WebSockets (Mock) ---")

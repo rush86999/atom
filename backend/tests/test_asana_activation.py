@@ -419,7 +419,7 @@ class AsanaActivationTest:
             print("   1. 🔑 Configure environment variables:")
             print("      - Set ASANA_CLIENT_ID and ASANA_CLIENT_SECRET")
             print("      - Configure DATABASE_URL for token storage")
-            print("      - Copy from .env.integrations template")
+            print("      - Copy from config/.env.integrations.template template")
 
         # Check service imports
         if not results.get("Service Imports", False):

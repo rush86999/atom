@@ -754,6 +754,10 @@ playwright-report/
 archive/
 tests/archive/
 .secrets.json
+backend/.secrets.json
+config/.env.integrations
+config/.env.notion
+config/.env.trello.test
 
 # Mobile coverage reports
 # Keep JSON for CI/CD tracking, ignore HTML for local development

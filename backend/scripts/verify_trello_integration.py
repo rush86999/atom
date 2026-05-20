@@ -205,7 +205,7 @@ def check_environment_variables():
         print(f"   📋 {var}")
 
     print("\n   💡 Note: Environment variables should be set in .env file")
-    print("   💡 Template available at: .env.trello.test")
+    print("   💡 Template available at: config/.env.trello.test.template")
 
     return True
 
