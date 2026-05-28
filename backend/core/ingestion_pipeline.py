@@ -776,23 +776,34 @@ class IngestionPipelineService(HybridDataIngestionService):
                 return self._record_to_text(record, integration_id)
 
         # ========================================================================
-        # Outlook Email Attachments (Phase 1: Attachment Ingestion)
+        # Email Attachments (Phase 1: Attachment Ingestion)
         # ========================================================================
+        # Check for attachments - handle both webhook and backfill type values
+        # Webhook: type="email" or "gmail_message"
+        # Backfill: type="messages" or "emails" (from historical sync raw API responses)
+        has_attachments = record.get("hasAttachments") is True
+        # Also check nested metadata or raw_json for backfill records
+        if not has_attachments and isinstance(record.get("metadata"), dict):
+            has_attachments = record["metadata"].get("hasAttachments") is True
+        if not has_attachments and isinstance(record.get("raw_json"), dict):
+            has_attachments = record["raw_json"].get("hasAttachments") is True
+
         if (
-            integration_id == "outlook"
-            and record.get("type") == "email"
-            and record.get("hasAttachments") is True
+            integration_id in ["outlook", "gmail"]
+            and record.get("type") in ["email", "gmail_message", "messages", "emails"]
+            and has_attachments
         ):
             try:
                 # Check feature flag
-                if os.getenv("ENABLE_OUTLOOK_ATTACHMENT_INGESTION", "true").lower() == "false":
+                flag_name = f"ENABLE_{integration_id.upper()}_ATTACHMENT_INGESTION"
+                if os.getenv(flag_name, "true").lower() == "false":
                     return self._record_to_text(record, integration_id)
 
                 message_id = record.get("id")
                 if not message_id:
                     return self._record_to_text(record, integration_id)
 
-                logger.info(f"Processing attachments for Outlook message {message_id}")
+                logger.info(f"Processing attachments for {integration_id} message {message_id}")
 
                 # Get service instance for attachment metadata
                 service = await self.integration_registry.get_service(
@@ -800,7 +811,9 @@ class IngestionPipelineService(HybridDataIngestionService):
                 )
 
                 if not service:
-                    logger.warning("Could not get Outlook service for attachment processing")
+                    logger.warning(
+                        f"Could not get {integration_id} service for attachment processing"
+                    )
                     return self._record_to_text(record, integration_id)
 
                 # Get base email body text
@@ -822,7 +835,9 @@ class IngestionPipelineService(HybridDataIngestionService):
                     return base_text
 
                 # Limit number of attachments processed to avoid runaway costs
-                MAX_ATTACHMENTS = int(os.getenv("MAX_OUTLOOK_ATTACHMENTS_PER_EMAIL", "5"))
+                MAX_ATTACHMENTS = int(
+                    os.getenv(f"MAX_{integration_id.upper()}_ATTACHMENTS_PER_EMAIL", "5")
+                )
                 processed_count = 0
                 attachment_texts = []
 
@@ -847,7 +862,9 @@ class IngestionPipelineService(HybridDataIngestionService):
 
                     # Skip oversized attachments
                     MAX_ATTACHMENT_SIZE = (
-                        int(os.getenv("MAX_OUTLOOK_ATTACHMENT_SIZE_MB", "10")) * 1024 * 1024
+                        int(os.getenv(f"MAX_{integration_id.upper()}_ATTACHMENT_SIZE_MB", "10"))
+                        * 1024
+                        * 1024
                     )
                     if attachment_size > MAX_ATTACHMENT_SIZE:
                         logger.warning(
@@ -911,7 +928,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                     return base_text
 
             except Exception as e:
-                logger.error(f"Error processing Outlook attachments: {e}")
+                logger.error(f"Error processing {integration_id} attachments: {e}")
                 # Fall back to base text
                 return self._record_to_text(record, integration_id)
 
@@ -986,8 +1003,18 @@ class IngestionPipelineService(HybridDataIngestionService):
                         file=sys.stderr,
                         flush=True,
                     )
-                    # Convert record to text
-                    text = self._record_to_text(record, integration_id)
+                    # Convert record to text (potentially parsing attachments asynchronously)
+                    text = await self._prepare_record_text_async(
+                        record, integration_id, source_connection_id
+                    )
+                    record["content"] = text
+                    if "body" in record:
+                        if isinstance(record["body"], dict):
+                            record["body"]["content"] = text
+                        else:
+                            record["body"] = text
+                    if "bodyPreview" in record:
+                        record["bodyPreview"] = ""
 
                     print(
                         f"[FATAL_DEBUG] Record text length: {len(text) if text else 0}, text preview: {text[:50] if text else 'None'}...",
@@ -1062,7 +1089,8 @@ class IngestionPipelineService(HybridDataIngestionService):
             )
             logger.info(f"[PHASE_323] Starting multi-entity extraction for {len(records)} records")
             for record in records:
-                text = self._record_to_text(record, integration_id)
+                # Use pre-mutated content (including attachment text) rather than recomputing via _record_to_text
+                text = record.get("content") or record.get("text", "")
                 print(
                     f"[FATAL_DEBUG] Phase 323: record_id={record.get('id', 'unknown')[:8]}, text_len={len(text) if text else 0}",
                     file=sys.stderr,

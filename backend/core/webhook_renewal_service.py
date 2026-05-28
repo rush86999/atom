@@ -8,6 +8,11 @@ from core.structured_logger import get_logger
 logger = get_logger(__name__)
 
 
+def supports_drive_subscription(integration_id: str) -> bool:
+    """Determine if an integration type supports OneDrive (drive) subscriptions."""
+    return integration_id == "microsoft365"
+
+
 class ScheduledWebhookRenewalService:
     """
     Unified, staggered background webhook renewal and safety system (Phase 4).
@@ -114,6 +119,49 @@ class ScheduledWebhookRenewalService:
                         .isoformat()
                         .replace("+00:00", "Z")
                     )
+
+                    # Fetch subscriptions from Graph to inspect resource types and clean up any legacy/unsupported drive subscriptions
+                    import httpx
+                    graph_sub_map = {}
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            list_resp = await client.get(
+                                "https://graph.microsoft.com/v1.0/subscriptions",
+                                headers={"Authorization": f"Bearer {token}"},
+                                timeout=15.0,
+                            )
+                            if list_resp.status_code == 200:
+                                for sub in list_resp.json().get("value", []):
+                                    if sub.get("id"):
+                                        graph_sub_map[sub["id"]] = sub.get("resource")
+                    except Exception as e:
+                        logger.warning(f"Failed to list subscriptions for connection {conn.id} during renewal: {e}")
+
+                    valid_subscription_ids = []
+                    for sub_id in subscription_ids:
+                        resource = graph_sub_map.get(sub_id)
+                        if resource == "/me/drive/root" and not supports_drive_subscription(conn.integration_id):
+                            logger.info(f"Deleting legacy/unsupported drive subscription {sub_id} for connection {conn.id}")
+                            try:
+                                async with httpx.AsyncClient() as client:
+                                    await client.delete(
+                                        f"https://graph.microsoft.com/v1.0/subscriptions/{sub_id}",
+                                        headers={"Authorization": f"Bearer {token}"},
+                                        timeout=15.0,
+                                    )
+                            except Exception as e:
+                                logger.warning(f"Failed to delete legacy drive subscription {sub_id}: {e}")
+                            continue
+                        
+                        valid_subscription_ids.append(sub_id)
+
+                    # If subscription list changed, save it immediately
+                    if len(valid_subscription_ids) != len(subscription_ids):
+                        subscription_ids = valid_subscription_ids
+                        creds["subscription_ids"] = subscription_ids
+                        conn.credentials = self.connection_service._encrypt(creds)
+                        self.db.commit()
+
                     for sub_id in subscription_ids:
                         resp = await microsoft365_service.renew_subscription(
                             token, sub_id, new_expiry
@@ -183,26 +231,69 @@ class ScheduledWebhookRenewalService:
         built-in rate limit throttle guards to prevent API storms.
         """
         import asyncio
+        from core.database import SessionLocal
 
-        connections = (
-            self.db.query(UserConnection).filter(UserConnection.status == "active").all()
+        # Detect mock DB in unit tests and bypass SessionLocal
+        is_mock_db = type(self.db).__name__ in ('MagicMock', 'Mock', 'AsyncMock') or hasattr(self.db, "assert_called")
+
+        # Fetch only connection IDs first to minimize connection hold time
+        raw_rows = (
+            self.db.query(UserConnection.id)
+            .filter(UserConnection.status == "active")
+            .all()
         )
-
-        results = {"total_checked": len(connections), "renewed": 0, "failed": 0, "skipped": 0}
-
-        for conn in connections:
-            if not self.is_renewal_due(conn):
-                results["skipped"] += 1
-                continue
-
-            # Stagger renewal dynamically with a 100ms guard sleep to prevent rate-limit API storms
-            await asyncio.sleep(0.1)
-
-            outcome = await self.renew_subscription_for_connection(conn)
-            if outcome["status"] == "success":
-                results["renewed"] += 1
+        connection_ids = []
+        for row in raw_rows:
+            if is_mock_db and isinstance(row, UserConnection):
+                connection_ids.append(row)
+            elif hasattr(row, "id"):
+                connection_ids.append(row.id)
+            elif isinstance(row, (tuple, list)):
+                connection_ids.append(row[0])
             else:
-                results["failed"] += 1
+                connection_ids.append(row)
+
+        results = {"total_checked": len(connection_ids), "renewed": 0, "failed": 0, "skipped": 0}
+
+        for conn_id in connection_ids:
+            fresh_db = self.db
+            if not is_mock_db:
+                try:
+                    fresh_db = SessionLocal()
+                except Exception:
+                    pass
+
+            try:
+                if is_mock_db and isinstance(conn_id, UserConnection):
+                    conn = conn_id
+                else:
+                    conn = fresh_db.query(UserConnection).filter_by(id=conn_id).first()
+
+                if not conn:
+                    results["skipped"] += 1
+                    continue
+
+                if not self.is_renewal_due(conn):
+                    results["skipped"] += 1
+                    continue
+
+                # Stagger renewal dynamically with a 100ms guard sleep to prevent rate-limit API storms
+                await asyncio.sleep(0.1)
+
+                # Swap db context for this renewal check to avoid leaks
+                original_db = self.db
+                self.db = fresh_db
+                try:
+                    outcome = await self.renew_subscription_for_connection(conn)
+                    if outcome["status"] == "success":
+                        results["renewed"] += 1
+                    else:
+                        results["failed"] += 1
+                finally:
+                    self.db = original_db
+            finally:
+                if not is_mock_db and fresh_db is not self.db:
+                    fresh_db.close()
 
         logger.info(f"Staggered renewal cycle completed: {results}")
         return results

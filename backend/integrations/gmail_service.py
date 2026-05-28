@@ -1027,6 +1027,28 @@ class GmailService(IntegrationService):
         logger.info(f"GmailService.sync_calendar_events: Syncing for {user_id}")
         return []
 
+    async def get_attachment_metadata(self, user_id: str, message_id: str) -> List[Dict[str, Any]]:
+        """Fetch attachment metadata for a message, normalized to standard schema"""
+        msg = self.get_message(message_id)
+        if not msg:
+            return []
+        
+        # Mapping Gmail keys to standard schema keys: id, name, size, contentType
+        normalized = []
+        for att in msg.get('attachments', []):
+            normalized.append({
+                'id': att.get('attachmentId'),
+                'name': att.get('filename', 'unknown'),
+                'size': att.get('size', 0),
+                'contentType': att.get('mimeType', '')
+            })
+        return normalized
+
+    async def download_attachment(self, user_id: str, message_id: str, attachment_id: str, token: Optional[str] = None) -> Optional[bytes]:
+        """Download attachment content as bytes"""
+        return self.get_attachment_content(message_id=message_id, attachment_id=attachment_id, token=token)
+
+
 def get_gmail_service(tenant_id: str = "default", config: Dict[str, Any] = {}) -> GmailService:
     """Factory function for GmailService (hub_sync_service compatibility)"""
     return GmailService(tenant_id, config)

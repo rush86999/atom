@@ -72,6 +72,7 @@ web_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.personal
 
 # parcel-bundler cache
 .cache
@@ -344,6 +345,7 @@ web_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.personal
 
 # parcel-bundler cache
 .cache
