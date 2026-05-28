@@ -409,8 +409,19 @@ class BYOKManager:
                 cost_per_token=0.000007875,
                 model="gpt-5.3",
                 reasoning_level=4
+            ),
+            AIProviderConfig(
+                id="xiaomi",
+                name="Xiaomi",
+                description="Xiaomi MiMo V2.5 Pro Agentic Model",
+                api_key_env_var="XIAOMI_API_KEY",
+                base_url="https://api.xiaomi.com/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis"],
+                cost_per_token=0.000001,
+                model="xiaomi/mimo-v2.5-pro",
+                reasoning_level=4,
+                supports_structured_output=True
             )
-
         ]
         
         for provider in defaults:
@@ -779,8 +790,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    # Validate provider_id
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3", "xiaomi"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

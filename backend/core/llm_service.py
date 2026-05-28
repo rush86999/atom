@@ -33,6 +33,7 @@ class LLMProvider(str, Enum):
     MISTRAL = "mistral"
     QWEN = "qwen"
     COHERE = "cohere"
+    XIAOMI = "xiaomi"
 
 
 class LLMModel(str, Enum):
@@ -62,6 +63,9 @@ class LLMModel(str, Enum):
 
     # MiniMax
     MINIMAX_2_5 = "minimax-m2.5"
+
+    # Xiaomi
+    XIAOMI_MIMO_2_5_PRO = "xiaomi/mimo-v2.5-pro"
 
 
 class LLMSentiment(BaseModel):
@@ -146,6 +150,8 @@ class LLMService:
             return LLMProvider.MISTRAL
         elif "qwen" in model_l:
             return LLMProvider.QWEN
+        elif "xiaomi" in model_l or "mimo" in model_l:
+            return LLMProvider.XIAOMI
         elif "command" in model_l:
             return LLMProvider.COHERE
         else:

@@ -120,6 +120,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "qwen-plus",
         QueryComplexity.ADVANCED: "qwen-max",
     },
+    "xiaomi": {
+        QueryComplexity.SIMPLE: "xiaomi/mimo-v2.5-pro",
+        QueryComplexity.MODERATE: "xiaomi/mimo-v2.5-pro",
+        QueryComplexity.COMPLEX: "xiaomi/mimo-v2.5-pro",
+        QueryComplexity.ADVANCED: "xiaomi/mimo-v2.5-pro",
+    },
 }
 
 
@@ -254,7 +260,7 @@ class BYOKHandler:
             return []
 
         # Fallback priority order (most reliable first)
-        priority_order = ["deepseek", "openai", "moonshot", "minimax", "deepinfra"]
+        priority_order = ["deepseek", "openai", "moonshot", "minimax", "xiaomi", "deepinfra"]
 
         # Build fallback list: primary first, then others in priority order
         fallback_order = []
@@ -386,6 +392,7 @@ class BYOKHandler:
             "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
             "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
+            "xiaomi": {"base_url": "https://api.xiaomi.com/v1"},
         }
 
         # Separate sync and async clients
