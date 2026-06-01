@@ -38,14 +38,14 @@ class TestMiniMaxProviderInit:
         assert provider.base_url == "https://api.minimax.io/v1"
 
     def test_default_model(self):
-        """Test default model is MiniMax-M2.7"""
+        """Test default model is MiniMax-M3"""
         provider = MiniMaxProvider("test-key")
-        assert provider.model == "MiniMax-M2.7"
+        assert provider.model == "MiniMax-M3"
 
     def test_custom_model(self):
         """Test custom model can be specified"""
-        provider = MiniMaxProvider("test-key", model="MiniMax-M2.7-highspeed")
-        assert provider.model == "MiniMax-M2.7-highspeed"
+        provider = MiniMaxProvider("test-key", model="MiniMax-M3-highspeed")
+        assert provider.model == "MiniMax-M3-highspeed"
 
 
 class TestClaimValidation:

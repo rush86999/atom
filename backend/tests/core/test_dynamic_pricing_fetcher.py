@@ -181,12 +181,13 @@ class TestLiteLLMFetch:
 
             result = await pricing_fetcher.fetch_litellm_pricing()
 
-            # 4 from mock + 3 MiniMax fallback models
-            assert len(result) == 7
+            # 4 from mock + 4 MiniMax fallback models (M3, M3-highspeed, M2.7, M2.7-highspeed)
+            assert len(result) == 8
             assert "gpt-4o" in result
             assert result["gpt-4o"]["input_cost_per_token"] == 0.000005
             assert result["gpt-4o"]["source"] == "litellm"
             # Check MiniMax fallback models added
+            assert "MiniMax-M3" in result
             assert "MiniMax-M2.7" in result
 
     @pytest.mark.asyncio

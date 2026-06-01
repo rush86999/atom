@@ -1,16 +1,18 @@
 """
-MiniMax M2.7 API Integration for BYOK Handler
+MiniMax M3 API Integration for BYOK Handler
 
 Provides cost-effective standard tier routing via OpenAI-compatible API.
-MiniMax M2.7 is the latest flagship model with 204K context window.
+MiniMax M3 is the latest flagship model with 512K context window and image input support.
 
 Available models:
-- MiniMax-M2.7: Latest flagship, 204K context
-- MiniMax-M2.7-highspeed: Optimized for lower latency, 204K context
+- MiniMax-M3: Latest flagship, 512K context, image input
+- MiniMax-M3-highspeed: Optimized for lower latency, 512K context
+- MiniMax-M2.7: Previous flagship, 204K context (retained for compatibility)
+- MiniMax-M2.7-highspeed: Previous low-latency variant, 204K context
 
 Integration:
-- Tier: STANDARD (quality score 90)
-- Vision: Not supported (text-only reasoning model)
+- Tier: STANDARD (quality score 92)
+- Vision: Supported on M3 (image input)
 - Tools: Native agent support via OpenAI-compatible function calling
 - Cache: No prompt caching
 - Pricing: Pay-as-you-go (no minimum commitment)
@@ -30,13 +32,13 @@ logger = logging.getLogger(__name__)
 
 # Available MiniMax models with context windows
 MINIMAX_MODELS = {
-    "MiniMax-M2.7": {"context_window": 204000, "description": "Latest flagship model"},
-    "MiniMax-M2.7-highspeed": {"context_window": 204000, "description": "Optimized for lower latency"},
-    "MiniMax-M2.5": {"context_window": 204000, "description": "Previous generation"},
-    "MiniMax-M2.5-highspeed": {"context_window": 204000, "description": "Previous generation, low latency"},
+    "MiniMax-M3": {"context_window": 512000, "description": "Latest flagship model with image input"},
+    "MiniMax-M3-highspeed": {"context_window": 512000, "description": "Latest flagship, low-latency variant"},
+    "MiniMax-M2.7": {"context_window": 204000, "description": "Previous flagship model"},
+    "MiniMax-M2.7-highspeed": {"context_window": 204000, "description": "Previous flagship, low-latency variant"},
 }
 
-DEFAULT_MODEL = "MiniMax-M2.7"
+DEFAULT_MODEL = "MiniMax-M3"
 
 
 def clamp_temperature(temperature: float) -> float:
@@ -57,16 +59,16 @@ class RateLimitedError(Exception):
 
 class MiniMaxIntegration:
     """
-    MiniMax M2.7 API wrapper for cost-effective standard tier routing.
+    MiniMax M3 API wrapper for cost-effective standard tier routing.
 
     Pricing:
     - Input: ~$1/M tokens
     - Output: ~$1/M tokens
-    - Context: 204K tokens (all models)
+    - Context: 512K tokens (M3), 204K tokens (M2.7)
 
     Capabilities:
-    - Quality Score: 90
-    - Vision: No (text-only reasoning)
+    - Quality Score: 92
+    - Vision: Yes on M3 (image input)
     - Tools: Yes (native agent / function calling support)
     - Cache: No
     """
@@ -76,12 +78,12 @@ class MiniMaxIntegration:
     ESTIMATED_PRICING = {
         "input_cost_per_token": 0.000001,   # ~$1/M tokens
         "output_cost_per_token": 0.000001,  # ~$1/M tokens
-        "max_tokens": 204000,
+        "max_tokens": 512000,
     }
 
     CAPABILITIES = {
-        "quality_score": 90,
-        "supports_vision": False,
+        "quality_score": 92,
+        "supports_vision": True,
         "supports_tools": True,
         "supports_cache": False,
         "tier": CognitiveTier.STANDARD,
@@ -93,7 +95,7 @@ class MiniMaxIntegration:
 
         Args:
             api_key: MiniMax API key (from MINIMAX_API_KEY env var or user config)
-            model: Model to use (default: MiniMax-M2.7)
+            model: Model to use (default: MiniMax-M3)
         """
         self.api_key = api_key
         self.model = model

@@ -2,8 +2,8 @@
 """
 MiniMax Provider Implementation for Independent AI Validator
 
-Uses MiniMax M2.7 via OpenAI-compatible API (https://api.minimax.io/v1).
-204K context window, temperature clamped to (0.0, 1.0].
+Uses MiniMax M3 via OpenAI-compatible API (https://api.minimax.io/v1).
+512K context window, temperature clamped to (0.0, 1.0].
 """
 
 import asyncio
@@ -28,17 +28,17 @@ def _clamp_temperature(temperature: float) -> float:
 
 class MiniMaxProvider(BaseLLMProvider):
     """
-    MiniMax M2.7 provider for marketing claim validation.
+    MiniMax M3 provider for marketing claim validation.
     Uses the OpenAI-compatible chat/completions endpoint.
     """
 
-    def __init__(self, api_key: str, weight: float = 1.0, model: str = "MiniMax-M2.7"):
+    def __init__(self, api_key: str, weight: float = 1.0, model: str = "MiniMax-M3"):
         super().__init__(api_key, "MiniMax", weight)
         self.base_url = "https://api.minimax.io/v1"
         self.model = model
 
     async def validate_claim(self, request: ValidationRequest) -> LLMResponse:
-        """Validate a marketing claim using MiniMax M2.7"""
+        """Validate a marketing claim using MiniMax M3"""
         start_time = time.time()
 
         try:
@@ -126,7 +126,7 @@ class MiniMaxProvider(BaseLLMProvider):
             )
 
     async def analyze_evidence(self, evidence: Dict[str, Any], claim: str) -> LLMResponse:
-        """Analyze evidence for a claim using MiniMax M2.7"""
+        """Analyze evidence for a claim using MiniMax M3"""
         evidence_json = json.dumps(evidence, indent=2)
         prompt = f"""
 You are an evidence analysis expert. Analyze the provided evidence for the following marketing claim.
@@ -201,7 +201,7 @@ Be thorough and objective in your analysis.
                     return LLMResponse(
                         content=content,
                         confidence=confidence,
-                        reasoning="Evidence analysis completed using MiniMax M2.7",
+                        reasoning="Evidence analysis completed using MiniMax M3",
                         metadata={"analysis_type": "evidence", "tokens_used": tokens_used},
                         provider=self.name,
                         model=self.model,
@@ -220,7 +220,7 @@ Be thorough and objective in your analysis.
             )
 
     async def check_bias(self, text: str) -> LLMResponse:
-        """Check for potential bias in the provided text using MiniMax M2.7"""
+        """Check for potential bias in the provided text using MiniMax M3"""
         prompt = f"""
 You are a bias detection expert. Analyze the following text for potential biases that could affect objective validation.
 
@@ -290,7 +290,7 @@ Be thorough and constructive in your analysis.
                     return LLMResponse(
                         content=content,
                         confidence=confidence,
-                        reasoning="Bias analysis completed using MiniMax M2.7",
+                        reasoning="Bias analysis completed using MiniMax M3",
                         metadata={"analysis_type": "bias", "tokens_used": tokens_used},
                         provider=self.name,
                         model=self.model,

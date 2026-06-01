@@ -642,7 +642,7 @@ class TestLLMServiceBackwardCompatibility(TestLLMServiceProviderSelection):
         assert compat_service.get_provider("claude-3-5-sonnet").value == "anthropic"
         assert compat_service.get_provider("deepseek-chat").value == "deepseek"
         assert compat_service.get_provider("gemini-1.5-pro").value == "gemini"
-        assert compat_service.get_provider("minimax-m2.5").value == "minimax"
+        assert compat_service.get_provider("MiniMax-M3").value == "minimax"
         assert compat_service.get_provider("mistral-7b").value == "mistral"
         assert compat_service.get_provider("qwen-7b").value == "qwen"
 

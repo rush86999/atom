@@ -1327,7 +1327,7 @@ class LLMService:
 | Anthropic | `anthropic` | claude-3-5-sonnet, claude-3-opus, claude-3-haiku |
 | DeepSeek | `deepseek` | deepseek-chat, deepseek-reasoner |
 | Gemini | `gemini` | gemini-1.5-pro, gemini-1.5-flash |
-| MiniMax | `minimax` | minimax-m2.5 |
+| MiniMax | `minimax` | MiniMax-M3, MiniMax-M3-highspeed, MiniMax-M2.7, MiniMax-M2.7-highspeed |
 | Groq | `groq` | llama-3.1-70b-versatile |
 | Mistral | `mistral` | mistral-large, mistral-7b |
 | Qwen | `qwen` | qwen-plus, qwen-max |

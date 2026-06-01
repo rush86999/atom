@@ -103,10 +103,10 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "qwen-3-max",
     },
     "minimax": {
-        QueryComplexity.SIMPLE: "MiniMax-M2.7-highspeed",
-        QueryComplexity.MODERATE: "MiniMax-M2.7-highspeed",
-        QueryComplexity.COMPLEX: "MiniMax-M2.7",
-        QueryComplexity.ADVANCED: "MiniMax-M2.7",
+        QueryComplexity.SIMPLE: "MiniMax-M3-highspeed",
+        QueryComplexity.MODERATE: "MiniMax-M3-highspeed",
+        QueryComplexity.COMPLEX: "MiniMax-M3",
+        QueryComplexity.ADVANCED: "MiniMax-M3",
     },
     "lux": {  # LUX Computer Use (Claude 3.5 Sonnet based)
         QueryComplexity.SIMPLE: "lux-1.0",
@@ -156,7 +156,7 @@ REASONING_MODELS_WITHOUT_VISION = {
     "o3",
     "o3-mini",
     "deepseek-chat",
-    "MiniMax-M2.7"
+    "MiniMax-M3"
 }
 
 VISION_ONLY_MODELS = {
@@ -170,10 +170,10 @@ class BYOKHandler:
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
     Automatically routes queries to the most cost-effective provider based on complexity.
 
-    Phase 68-04: MiniMax M2.5 Integration
+    Phase 68-04: MiniMax M3 Integration
     - Positioned in STANDARD tier with estimated $1/M pricing
     - API access may be closed - graceful fallback to next provider
-    - Quality score 88 (between gemini-2.0-flash @ 86 and deepseek-chat @ 80)
+    - Quality score 92 (latest flagship, 512K context, image input)
     - Native agent support, no prompt caching
     """
     def __init__(
@@ -388,7 +388,7 @@ class BYOKHandler:
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
-            "minimax": {"base_url": "https://api.minimax.io/v1"},  # MiniMax M2.7 (OpenAI-compatible)
+            "minimax": {"base_url": "https://api.minimax.io/v1"},  # MiniMax M3 (OpenAI-compatible)
             "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
             "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
