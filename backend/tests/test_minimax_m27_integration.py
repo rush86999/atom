@@ -44,11 +44,13 @@ class TestBYOKRoutingIntegration:
 
     def test_minimax_quality_scores_in_benchmarks(self):
         """Test all MiniMax models have quality scores (M3 + retained M2.7 + legacy)"""
-        assert get_quality_score("MiniMax-M3") == 92
-        assert get_quality_score("MiniMax-M3-highspeed") == 91
-        assert get_quality_score("MiniMax-M2.7") == 90
-        assert get_quality_score("MiniMax-M2.7-highspeed") == 89
-        assert get_quality_score("minimax-m2.5") == 88
+        # Mock dynamic benchmark fetcher to test static fallback scores
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            assert get_quality_score("MiniMax-M3") == 92
+            assert get_quality_score("MiniMax-M3-highspeed") == 91
+            assert get_quality_score("MiniMax-M2.7") == 90
+            assert get_quality_score("MiniMax-M2.7-highspeed") == 89
+            assert get_quality_score("minimax-m2.5") == 88
 
 
 class TestValidatorProviderIntegration:

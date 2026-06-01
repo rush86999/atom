@@ -289,28 +289,33 @@ class TestBenchmarkIntegration:
 
     def test_m3_quality_score_defined(self):
         """Test get_quality_score('MiniMax-M3') returns 92"""
-        score = get_quality_score("MiniMax-M3")
-        assert score == 92
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            score = get_quality_score("MiniMax-M3")
+            assert score == 92
 
     def test_m3_highspeed_quality_score_defined(self):
         """Test get_quality_score('MiniMax-M3-highspeed') returns 91"""
-        score = get_quality_score("MiniMax-M3-highspeed")
-        assert score == 91
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            score = get_quality_score("MiniMax-M3-highspeed")
+            assert score == 91
 
     def test_m27_quality_score_defined(self):
         """Test get_quality_score('MiniMax-M2.7') returns 90 (retained for compatibility)"""
-        score = get_quality_score("MiniMax-M2.7")
-        assert score == 90
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            score = get_quality_score("MiniMax-M2.7")
+            assert score == 90
 
     def test_m27_highspeed_quality_score_defined(self):
         """Test get_quality_score('MiniMax-M2.7-highspeed') returns 89"""
-        score = get_quality_score("MiniMax-M2.7-highspeed")
-        assert score == 89
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            score = get_quality_score("MiniMax-M2.7-highspeed")
+            assert score == 89
 
     def test_m25_quality_score_still_defined(self):
         """Test legacy minimax-m2.5 score still available"""
-        score = get_quality_score("minimax-m2.5")
-        assert score == 88
+        with patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher", side_effect=ImportError):
+            score = get_quality_score("minimax-m2.5")
+            assert score == 88
 
 
 class TestModelConstants:
