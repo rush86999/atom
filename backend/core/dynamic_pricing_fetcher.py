@@ -99,16 +99,17 @@ class DynamicPricingFetcher:
                         }
 
                 # Add MiniMax models fallback if not in LiteLLM yet
-                if "minimax-m2.5" not in pricing:
-                    pricing["minimax-m2.5"] = {
-                        "input_cost_per_token": 0.000001,  # $1/M estimated
-                        "output_cost_per_token": 0.000001,
-                        "max_tokens": 204000,
-                        "litellm_provider": "minimax",
-                        "mode": "chat",
-                        "source": "estimated",
-                        "supports_cache": False,
-                    }
+                for _m3 in ("MiniMax-M3", "MiniMax-M3-highspeed"):
+                    if _m3 not in pricing:
+                        pricing[_m3] = {
+                            "input_cost_per_token": 0.000001,
+                            "output_cost_per_token": 0.000001,
+                            "max_tokens": 512000,
+                            "litellm_provider": "minimax",
+                            "mode": "chat",
+                            "source": "estimated",
+                            "supports_cache": False,
+                        }
                 for _m27 in ("MiniMax-M2.7", "MiniMax-M2.7-highspeed"):
                     if _m27 not in pricing:
                         pricing[_m27] = {
@@ -491,7 +492,7 @@ class DynamicPricingFetcher:
             True if pricing is estimated, False if from official source
 
         Examples:
-            >>> fetcher.is_pricing_estimated("minimax-m2.5")
+            >>> fetcher.is_pricing_estimated("MiniMax-M3")
             True  # Estimated until official pricing announced
             >>> fetcher.is_pricing_estimated("gpt-4o")
             False  # Official from LiteLLM

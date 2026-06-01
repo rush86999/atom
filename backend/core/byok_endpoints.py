@@ -380,14 +380,14 @@ class BYOKManager:
                 reasoning_level=4
             ),
             AIProviderConfig(
-                id="minimax_2_5",
-                name="MiniMax 2.5",
-                description="MiniMax M2.5 Fast Inference",
+                id="minimax_m3",
+                name="MiniMax M3",
+                description="MiniMax M3 Flagship (512K context, image input)",
                 api_key_env_var="MINIMAX_API_KEY",
                 base_url="https://api.minimax.io/v1",
                 supported_tasks=["general", "chat", "code"],
                 cost_per_token=0.00000075,
-                model="minimax-m2.5",
+                model="MiniMax-M3",
                 reasoning_level=3
             ),
             AIProviderConfig(
@@ -790,7 +790,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3", "xiaomi"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

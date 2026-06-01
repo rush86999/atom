@@ -1,7 +1,7 @@
 """
-MiniMax M2.7 Integration Tests
+MiniMax M3 Integration Tests
 
-End-to-end integration tests verifying MiniMax M2.7 provider works
+End-to-end integration tests verifying MiniMax M3 provider works
 correctly across BYOK handler, validator engine, and pricing systems.
 
 These tests require MINIMAX_API_KEY to be set for live API calls.
@@ -34,16 +34,18 @@ class TestBYOKRoutingIntegration:
         handler = BYOKHandler()
         # MiniMax should be in the cost-efficient models
         assert "minimax" in COST_EFFICIENT_MODELS
-        # For simple queries, highspeed model should be selected
-        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.SIMPLE] == "MiniMax-M2.7-highspeed"
+        # For simple queries, M3 highspeed model should be selected
+        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.SIMPLE] == "MiniMax-M3-highspeed"
 
     def test_minimax_ranked_for_complex_queries(self):
-        """Test MiniMax uses full M2.7 for complex queries"""
-        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.COMPLEX] == "MiniMax-M2.7"
-        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.ADVANCED] == "MiniMax-M2.7"
+        """Test MiniMax uses full M3 for complex queries"""
+        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.COMPLEX] == "MiniMax-M3"
+        assert COST_EFFICIENT_MODELS["minimax"][QueryComplexity.ADVANCED] == "MiniMax-M3"
 
     def test_minimax_quality_scores_in_benchmarks(self):
-        """Test all MiniMax models have quality scores"""
+        """Test all MiniMax models have quality scores (M3 + retained M2.7 + legacy)"""
+        assert get_quality_score("MiniMax-M3") == 92
+        assert get_quality_score("MiniMax-M3-highspeed") == 91
         assert get_quality_score("MiniMax-M2.7") == 90
         assert get_quality_score("MiniMax-M2.7-highspeed") == 89
         assert get_quality_score("minimax-m2.5") == 88
@@ -94,7 +96,7 @@ class TestValidatorProviderIntegration:
         assert result.provider == "MiniMax"
         assert result.confidence == 0.88
         assert result.tokens_used == 800
-        assert result.model == "MiniMax-M2.7"
+        assert result.model == "MiniMax-M3"
         assert "Reasoning" in (result.reasoning or "")
 
     @pytest.mark.asyncio
@@ -163,8 +165,8 @@ class TestValidatorProviderIntegration:
 class TestPricingPipelineIntegration:
     """Test MiniMax pricing flows through the full pipeline"""
 
-    def test_pricing_fetcher_includes_m27(self):
-        """Test DynamicPricingFetcher includes M2.7 pricing after refresh"""
+    def test_pricing_fetcher_includes_m3(self):
+        """Test DynamicPricingFetcher includes M3 pricing after refresh"""
         fetcher = get_pricing_fetcher()
 
         # Mock the HTTP calls to avoid network dependency
@@ -188,13 +190,13 @@ class TestPricingPipelineIntegration:
 
         asyncio.run(_mock_refresh())
 
-        pricing = fetcher.get_model_price("MiniMax-M2.7")
+        pricing = fetcher.get_model_price("MiniMax-M3")
         assert pricing is not None
-        assert pricing["max_tokens"] == 204000
+        assert pricing["max_tokens"] == 512000
         assert pricing["source"] == "estimated"
 
-    def test_pricing_fetcher_includes_m27_highspeed(self):
-        """Test DynamicPricingFetcher includes M2.7-highspeed pricing"""
+    def test_pricing_fetcher_includes_m3_highspeed(self):
+        """Test DynamicPricingFetcher includes M3-highspeed pricing"""
         fetcher = get_pricing_fetcher()
 
         import asyncio
@@ -215,12 +217,12 @@ class TestPricingPipelineIntegration:
 
         asyncio.run(_mock_refresh())
 
-        pricing = fetcher.get_model_price("MiniMax-M2.7-highspeed")
+        pricing = fetcher.get_model_price("MiniMax-M3-highspeed")
         assert pricing is not None
-        assert pricing["max_tokens"] == 204000
+        assert pricing["max_tokens"] == 512000
 
-    def test_m25_pricing_updated_to_204k(self):
-        """Test M2.5 pricing reflects 204K context (not 128K)"""
+    def test_pricing_fetcher_retains_m27(self):
+        """Test DynamicPricingFetcher still includes M2.7 pricing for compatibility"""
         fetcher = get_pricing_fetcher()
 
         import asyncio
@@ -241,6 +243,6 @@ class TestPricingPipelineIntegration:
 
         asyncio.run(_mock_refresh())
 
-        pricing = fetcher.get_model_price("minimax-m2.5")
+        pricing = fetcher.get_model_price("MiniMax-M2.7")
         assert pricing is not None
         assert pricing["max_tokens"] == 204000

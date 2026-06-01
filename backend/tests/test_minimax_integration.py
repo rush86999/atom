@@ -1,5 +1,5 @@
 """
-MiniMax M2.7 Integration Tests
+MiniMax M3 Integration Tests
 
 Comprehensive test suite for MiniMax API wrapper, pricing integration,
 BYOK handler integration, and independent AI validator provider.
@@ -55,15 +55,15 @@ class TestMiniMaxClientInitialization:
         client = MiniMaxIntegration("test-key")
         assert client.client.timeout == 30.0 or str(client.client.timeout) == "Timeout(timeout=30.0)"
 
-    def test_default_model_is_m27(self):
-        """Test default model is MiniMax-M2.7"""
+    def test_default_model_is_m3(self):
+        """Test default model is MiniMax-M3"""
         client = MiniMaxIntegration("test-key")
-        assert client.model == "MiniMax-M2.7"
+        assert client.model == "MiniMax-M3"
 
     def test_custom_model_selection(self):
         """Test custom model can be specified"""
-        client = MiniMaxIntegration("test-key", model="MiniMax-M2.7-highspeed")
-        assert client.model == "MiniMax-M2.7-highspeed"
+        client = MiniMaxIntegration("test-key", model="MiniMax-M3-highspeed")
+        assert client.model == "MiniMax-M3-highspeed"
 
 
 class TestTemperatureClamping:
@@ -157,7 +157,7 @@ class TestGenerateMethod:
             payload = call_args[1]["json"]
             assert payload["temperature"] == 0.01
             assert payload["max_tokens"] == 500
-            assert payload["model"] == "MiniMax-M2.7"
+            assert payload["model"] == "MiniMax-M3"
 
     @pytest.mark.asyncio
     async def test_model_override_in_generate(self):
@@ -172,35 +172,35 @@ class TestGenerateMethod:
         mock_response.raise_for_status = MagicMock()
 
         with patch.object(client.client, "post", return_value=mock_response) as mock_post:
-            await client.generate("Test", model="MiniMax-M2.7-highspeed")
+            await client.generate("Test", model="MiniMax-M3-highspeed")
 
             call_args = mock_post.call_args
             payload = call_args[1]["json"]
-            assert payload["model"] == "MiniMax-M2.7-highspeed"
+            assert payload["model"] == "MiniMax-M3-highspeed"
 
 
 class TestPricingAndCapabilities:
     """Test pricing and capabilities methods"""
 
-    def test_get_pricing_returns_204k_context(self):
-        """Test returns 204K context window"""
+    def test_get_pricing_returns_512k_context(self):
+        """Test returns 512K context window (M3 default)"""
         client = MiniMaxIntegration("test-key")
         pricing = client.get_pricing()
 
         assert pricing["input_cost_per_token"] == 0.000001  # $1/M
         assert pricing["output_cost_per_token"] == 0.000001  # $1/M
-        assert pricing["max_tokens"] == 204000
+        assert pricing["max_tokens"] == 512000
 
     def test_get_capabilities(self):
-        """Test returns correct tier (STANDARD) and quality_score (90)"""
+        """Test returns correct tier (STANDARD) and quality_score (92)"""
         from core.llm.cognitive_tier_system import CognitiveTier
 
         client = MiniMaxIntegration("test-key")
         capabilities = client.get_capabilities()
 
-        assert capabilities["quality_score"] == 90
+        assert capabilities["quality_score"] == 92
         assert capabilities["tier"] == CognitiveTier.STANDARD
-        assert capabilities["supports_vision"] is False
+        assert capabilities["supports_vision"] is True
         assert capabilities["supports_tools"] is True
         assert capabilities["supports_cache"] is False
 
@@ -210,11 +210,14 @@ class TestPricingAndCapabilities:
         capabilities = client.get_capabilities()
         assert capabilities["supports_tools"] is True
 
-    def test_available_models_includes_m27(self):
-        """Test available models list includes M2.7 variants"""
+    def test_available_models_includes_m3_and_m27(self):
+        """Test available models list includes M3 and retained M2.7 variants"""
         models = MiniMaxIntegration.get_available_models()
+        assert "MiniMax-M3" in models
+        assert "MiniMax-M3-highspeed" in models
         assert "MiniMax-M2.7" in models
         assert "MiniMax-M2.7-highspeed" in models
+        assert models["MiniMax-M3"]["context_window"] == 512000
         assert models["MiniMax-M2.7"]["context_window"] == 204000
 
 
@@ -225,8 +228,8 @@ class TestBYOKIntegration:
         """Test listed in providers_config"""
         assert "minimax" in COST_EFFICIENT_MODELS
 
-    def test_minimax_uses_m27_models(self):
-        """Test mapped to M2.7 models"""
+    def test_minimax_uses_m3_models(self):
+        """Test mapped to M3 models (M3 highspeed for fast paths, M3 for complex)"""
         from core.llm.byok_handler import QueryComplexity
 
         minimax_models = COST_EFFICIENT_MODELS.get("minimax", {})
@@ -236,11 +239,11 @@ class TestBYOKIntegration:
         assert QueryComplexity.COMPLEX in minimax_models
         assert QueryComplexity.ADVANCED in minimax_models
 
-        # Simple/Moderate -> highspeed, Complex/Advanced -> M2.7
-        assert minimax_models[QueryComplexity.SIMPLE] == "MiniMax-M2.7-highspeed"
-        assert minimax_models[QueryComplexity.MODERATE] == "MiniMax-M2.7-highspeed"
-        assert minimax_models[QueryComplexity.COMPLEX] == "MiniMax-M2.7"
-        assert minimax_models[QueryComplexity.ADVANCED] == "MiniMax-M2.7"
+        # Simple/Moderate -> highspeed, Complex/Advanced -> M3
+        assert minimax_models[QueryComplexity.SIMPLE] == "MiniMax-M3-highspeed"
+        assert minimax_models[QueryComplexity.MODERATE] == "MiniMax-M3-highspeed"
+        assert minimax_models[QueryComplexity.COMPLEX] == "MiniMax-M3"
+        assert minimax_models[QueryComplexity.ADVANCED] == "MiniMax-M3"
 
     def test_minimax_in_static_fallback(self):
         """Test appears in provider_priority"""
@@ -284,8 +287,18 @@ class TestFallbackBehavior:
 class TestBenchmarkIntegration:
     """Test MiniMax integration with benchmark system"""
 
+    def test_m3_quality_score_defined(self):
+        """Test get_quality_score('MiniMax-M3') returns 92"""
+        score = get_quality_score("MiniMax-M3")
+        assert score == 92
+
+    def test_m3_highspeed_quality_score_defined(self):
+        """Test get_quality_score('MiniMax-M3-highspeed') returns 91"""
+        score = get_quality_score("MiniMax-M3-highspeed")
+        assert score == 91
+
     def test_m27_quality_score_defined(self):
-        """Test get_quality_score('MiniMax-M2.7') returns 90"""
+        """Test get_quality_score('MiniMax-M2.7') returns 90 (retained for compatibility)"""
         score = get_quality_score("MiniMax-M2.7")
         assert score == 90
 
@@ -304,17 +317,27 @@ class TestModelConstants:
     """Test model constants and configuration"""
 
     def test_default_model_constant(self):
-        """Test DEFAULT_MODEL is MiniMax-M2.7"""
-        assert DEFAULT_MODEL == "MiniMax-M2.7"
+        """Test DEFAULT_MODEL is MiniMax-M3"""
+        assert DEFAULT_MODEL == "MiniMax-M3"
 
-    def test_minimax_models_all_204k(self):
-        """Test all models have 204K context window"""
-        for model_name, info in MINIMAX_MODELS.items():
-            assert info["context_window"] == 204000, f"{model_name} should have 204K context"
+    def test_m3_models_have_512k_context(self):
+        """Test M3 models have 512K context window"""
+        assert MINIMAX_MODELS["MiniMax-M3"]["context_window"] == 512000
+        assert MINIMAX_MODELS["MiniMax-M3-highspeed"]["context_window"] == 512000
+
+    def test_m27_models_have_204k_context(self):
+        """Test retained M2.7 models still report 204K context window"""
+        assert MINIMAX_MODELS["MiniMax-M2.7"]["context_window"] == 204000
+        assert MINIMAX_MODELS["MiniMax-M2.7-highspeed"]["context_window"] == 204000
 
     def test_minimax_models_includes_all_variants(self):
-        """Test model registry includes M2.5 and M2.7 variants"""
+        """Test model registry includes M3 (new default) and retained M2.7 variants"""
+        assert "MiniMax-M3" in MINIMAX_MODELS
+        assert "MiniMax-M3-highspeed" in MINIMAX_MODELS
         assert "MiniMax-M2.7" in MINIMAX_MODELS
         assert "MiniMax-M2.7-highspeed" in MINIMAX_MODELS
-        assert "MiniMax-M2.5" in MINIMAX_MODELS
-        assert "MiniMax-M2.5-highspeed" in MINIMAX_MODELS
+
+    def test_minimax_models_drops_legacy_m25(self):
+        """Test deprecated M2.5 variants are removed from the available model list"""
+        assert "MiniMax-M2.5" not in MINIMAX_MODELS
+        assert "MiniMax-M2.5-highspeed" not in MINIMAX_MODELS

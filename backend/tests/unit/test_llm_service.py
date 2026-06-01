@@ -210,7 +210,7 @@ class TestProviderSelection:
 
     def test_get_provider_minimax(self, llm_service):
         """Test provider detection for MiniMax"""
-        provider = llm_service.get_provider("minimax-m2.5")
+        provider = llm_service.get_provider("MiniMax-M3")
         assert provider == LLMProvider.MINIMAX
 
     def test_get_provider_mistral(self, llm_service):
@@ -924,7 +924,7 @@ class TestIntegration:
             ("claude-3-5-sonnet", LLMProvider.ANTHROPIC),
             ("deepseek-chat", LLMProvider.DEEPSEEK),
             ("gemini-1.5-pro", LLMProvider.GEMINI),
-            ("minimax-m2.5", LLMProvider.MINIMAX)
+            ("MiniMax-M3", LLMProvider.MINIMAX)
         ]
 
         for model, expected_provider in test_cases:

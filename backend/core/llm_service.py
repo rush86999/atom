@@ -62,7 +62,11 @@ class LLMModel(str, Enum):
     GEMINI_3_5_FLASH = "gemini-3.5-flash"
 
     # MiniMax
-    MINIMAX_2_5 = "minimax-m2.5"
+    MINIMAX_M3 = "MiniMax-M3"
+    MINIMAX_M3_HIGHSPEED = "MiniMax-M3-highspeed"
+    MINIMAX_M27 = "MiniMax-M2.7"
+    MINIMAX_M27_HIGHSPEED = "MiniMax-M2.7-highspeed"
+    MINIMAX_2_5 = "minimax-m2.5"  # legacy
 
     # Xiaomi
     XIAOMI_MIMO_2_5_PRO = "xiaomi/mimo-v2.5-pro"
