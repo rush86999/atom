@@ -41,7 +41,11 @@ async def get_validation_report():
         return ValidationReportResponse(**report)
     except Exception as e:
         logger.error(f"Failed to generate validation report: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # LOGIC FIX: Don't expose internal errors to clients
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate validation report. Please contact support if this persists."
+        )
 
 @router.get("/ai-workflows-evidence", response_model=EvidenceSummaryResponse)
 async def get_ai_workflows_evidence():
@@ -60,7 +64,11 @@ async def get_ai_workflows_evidence():
         )
     except Exception as e:
         logger.error(f"Failed to collect AI workflows evidence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # LOGIC FIX: Don't expose internal errors to clients
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to collect AI workflows evidence. Please contact support if this persists."
+        )
 
 @router.post("/generate-evidence-report")
 async def generate_evidence_report(background_tasks: BackgroundTasks):
@@ -86,7 +94,11 @@ async def generate_evidence_report(background_tasks: BackgroundTasks):
         }
     except Exception as e:
         logger.error(f"Failed to generate evidence report: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # LOGIC FIX: Don't expose internal errors to clients
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate evidence report. Please contact support if this persists."
+        )
 
 @router.get("/independent-validator-prep")
 async def prepare_independent_validator_evidence():
@@ -169,4 +181,8 @@ async def prepare_independent_validator_evidence():
 
     except Exception as e:
         logger.error(f"Failed to prepare independent validator evidence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # LOGIC FIX: Don't expose internal errors to clients
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to prepare independent validator evidence. Please contact support if this persists."
+        )

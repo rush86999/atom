@@ -241,7 +241,8 @@ class DataTransformer:
 
         # Built-in functions
         if function_name == "generate_id":
-            return hashlib.md5(str(value).encode()).hexdigest()[:12]
+            # CRYPTOGRAPHY FIX: Using SHA256 instead of MD5 for better security
+            return hashlib.sha256(str(value).encode()).hexdigest()[:12]
         elif function_name == "slugify":
             return str(value).lower().replace(" ", "-").replace("_", "-")
         elif function_name == "extract_domain":

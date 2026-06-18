@@ -102,5 +102,15 @@ def optimize_workflow(request: OptimizeRequest):
         ]
         
         return OptimizeResponse(suggestions=results)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # LOGIC FIX: Don't expose internal errors to clients
+        # Log the actual error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Analytics optimization failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to optimize workflows. Please contact support if this persists."
+        )

@@ -29,29 +29,51 @@ class IntercomAdapter(PlatformAdapter):
     def verify_request(self, headers: Dict, body: str) -> bool:
         """
         Verify Intercom Webhook Signature (X-Hub-Signature).
-        HMAC-SHA1 of the request body using client_secret.
+
+        CRYPTOGRAPHY FIX: Supports both SHA256 (preferred) and SHA1 (legacy).
+        Uses SHA256 for stronger security, falls back to SHA1 for compatibility.
         """
         if not self.client_secret:
             logger.warning("Intercom client_secret not configured. Skipping verification.")
             return True
-            
+
         signature = headers.get("x-hub-signature")
         if not signature:
             logger.warning("Missing X-Hub-Signature header from Intercom")
             return False
-            
-        # Expected format: sha1=...
-        algo, sig = signature.split("=")
-        if algo != "sha1":
+
+        # Expected format: sha256=... or sha1=...
+        try:
+            algo, sig = signature.split("=", 1)
+        except ValueError:
+            logger.warning("Invalid signature format from Intercom")
             return False
-            
+
+        # Determine hash algorithm
+        # Prefer SHA256 for security, support SHA1 for legacy compatibility
+        if algo == "sha256":
+            digestmod = hashlib.sha256
+        elif algo == "sha1":
+            # SHA1 is deprecated but support for backward compatibility
+            logger.debug(
+                "Intercom using SHA1 signature (deprecated). "
+                "Consider upgrading to SHA256 if supported.",
+                extra={"security_note": "SHA1 is deprecated"}
+            )
+            digestmod = hashlib.sha1
+        else:
+            logger.warning(f"Unsupported signature algorithm: {algo}")
+            return False
+
+        # Compute HMAC signature
         mac = hmac.new(
             self.client_secret.encode("utf-8"),
             msg=body.encode("utf-8"),
-            digestmod=hashlib.sha1
+            digestmod=digestmod
         )
         expected_sig = mac.hexdigest()
-        
+
+        # Use constant-time comparison to prevent timing attacks
         return hmac.compare_digest(expected_sig, sig)
 
     def normalize_payload(self, payload: Dict) -> Optional[Dict[str, Any]]:

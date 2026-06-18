@@ -388,7 +388,8 @@ class UnifiedMessageProcessor:
 
         for msg in messages:
             # Create content hash (excluding timestamp and platform)
-            content_hash = hashlib.md5(
+            # CRYPTOGRAPHY FIX: Using SHA256 instead of MD5 for better security
+            content_hash = hashlib.sha256(
                 msg.content.lower().strip().encode()
             ).hexdigest()
 

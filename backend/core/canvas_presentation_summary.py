@@ -82,7 +82,8 @@ class CanvasPresentationSummaryService:
     def _hash_canvas_state(self, canvas_state: Dict[str, Any]) -> str:
         """Generate hash of canvas state for cache invalidation"""
         state_str = json.dumps(canvas_state, sort_keys=True)
-        return hashlib.md5(state_str.encode()).hexdigest()[:16]
+        # CRYPTOGRAPHY FIX: Using SHA256 instead of MD5 for better security
+        return hashlib.sha256(state_str.encode()).hexdigest()[:16]
 
     async def generate_presentation_summary(
         self,

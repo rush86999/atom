@@ -483,8 +483,9 @@ async def preseed_cache_aware_router(
         # Seed sample prompts with baseline probability
         for prompt in SAMPLE_PROMPTS:
             # Create hash of prompt prefix (first 1k tokens equivalent)
+            # CRYPTOGRAPHY FIX: Using SHA256 instead of MD5 for better security
             prompt_prefix = prompt[:100]  # First 100 chars as prefix
-            prompt_hash = hashlib.md5(prompt_prefix.encode()).hexdigest()
+            prompt_hash = hashlib.sha256(prompt_prefix.encode()).hexdigest()
 
             # Record baseline cache hit probability (50%)
             # This gives the router some initial data to work with

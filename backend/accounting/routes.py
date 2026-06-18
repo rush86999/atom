@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging
 from typing import Any, Dict, List, Optional
 import uuid
 from accounting.ap_service import APService
@@ -17,16 +18,142 @@ from accounting.models import (
 from accounting.sync_manager import AccountingSyncManager
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
+from werkzeug.utils import secure_filename
 
 from core.auth_endpoints import get_current_user
 from core.automation_settings import get_automation_settings
 from core.database import get_db
 
 router = APIRouter(prefix="/api/v1/accounting", tags=["Accounting"])
+logger = logging.getLogger(__name__)
+
+# ============================================================================
+# File Upload Security Configuration
+# ============================================================================
+
+# Maximum file size: 10MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+
+# Allowed file extensions - whitelist approach
+ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff'}
+
+# File extension to MIME type mapping for validation
+MIME_TYPES = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.tiff': 'image/tiff'
+}
+
+# Magic byte signatures for file type validation
+MAGIC_BYTES = {
+    b'%PDF': '.pdf',
+    b'\x89PNG\r\n\x1a\n': '.png',
+    b'\xff\xd8\xff': '.jpg',  # JPEG
+    b'GIF87a': '.gif',
+    b'GIF89a': '.gif',
+    b'BM': '.bmp',
+    b'II*\x00': '.tiff',
+    b'MM\x00*': '.tiff'
+}
+
 
 def check_accounting_enabled():
     if not get_automation_settings().is_accounting_enabled():
         raise HTTPException(status_code=403, detail="Accounting automations are disabled.")
+
+
+def validate_file_extension(filename: str) -> str:
+    """
+    Validate and extract file extension from filename.
+
+    Args:
+        filename: User-provided filename
+
+    Returns:
+        Lowercase file extension with leading dot
+
+    Raises:
+        HTTPException: If extension is not in whitelist
+    """
+    if not filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No filename provided"
+        )
+
+    # Sanitize filename to prevent path traversal
+    safe_filename = secure_filename(filename)
+    if not safe_filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid filename after sanitization"
+        )
+
+    # Extract extension
+    _, ext = os.path.splitext(safe_filename.lower())
+
+    # Validate against whitelist
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{ext}' not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    return ext
+
+
+def validate_file_type_with_magic_bytes(file_path: str, expected_ext: str) -> bool:
+    """
+    Validate actual file type using magic byte signatures.
+
+    Args:
+        file_path: Path to the uploaded file
+        expected_ext: Expected file extension from whitelist
+
+    Returns:
+        True if magic bytes match expected type
+
+    Raises:
+        HTTPException: If magic bytes don't match expected type
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(12)  # Read first 12 bytes for magic byte detection
+
+        # Check magic bytes
+        for magic_sig, file_ext in MAGIC_BYTES.items():
+            if header.startswith(magic_sig):
+                if file_ext == expected_ext:
+                    return True
+                else:
+                    # Mismatch between claimed extension and actual content
+                    os.remove(file_path)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File content type ({file_ext}) doesn't match extension ({expected_ext})"
+                    )
+
+        # No matching magic bytes found
+        os.remove(file_path)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type - magic byte validation failed"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating file type: {e}")
+        # Clean up file on error
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=500,
+            detail="Error validating file type"
+        )
 
 @router.get("/accounts")
 async def get_accounts(
@@ -161,38 +288,83 @@ async def upload_invoice(
     db: Session = Depends(get_db),
     _user = Depends(get_current_user)
 ):
+    """
+    Secure file upload endpoint for invoice documents.
+
+    SECURITY FIXES:
+    - File size limit validation (10MB max)
+    - Extension whitelist validation (.pdf, .png, .jpg, etc.)
+    - Filename sanitization with secure_filename()
+    - Magic byte validation for file type verification
+    - Path traversal protection
+    """
     check_accounting_enabled()
-    
-    # 1. Save file locally (Simulating cloud storage)
-    upload_dir = "/home/developer/projects/atom/backend/data/uploads/invoices"
+
+    # SECURITY FIX #1: Validate filename and extension
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # SECURITY FIX #2: Validate and sanitize file extension
+    file_ext = validate_file_extension(file.filename)
+
+    # SECURITY FIX #3: Create upload directory with safe path
+    upload_dir = os.path.join(os.getcwd(), "data", "uploads", "invoices")
     os.makedirs(upload_dir, exist_ok=True)
-    
+
+    # SECURITY FIX #4: Generate safe file path
     file_id = str(uuid.uuid4())
-    file_ext = os.path.splitext(file.filename)[1]
-    file_path = os.path.join(upload_dir, f"{file_id}{file_ext}")
-    
+    # Use UUID + sanitized extension instead of user-provided filename
+    safe_filename = f"{file_id}{file_ext}"
+    file_path = os.path.join(upload_dir, safe_filename)
+
+    # SECURITY FIX #5: Validate file size before saving
+    content = await file.read()
+
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+        )
+
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    # SECURITY FIX #6: Save file temporarily for validation
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    # 2. Track in Document table
-    doc = FinancialDocument(
-        workspace_id=workspace_id,
-        file_path=file_path,
-        file_name=file.filename,
-        file_type="pdf" if file_ext.lower() == ".pdf" else "image"
-    )
-    db.add(doc)
-    db.flush()
-    
-    # 3. Process with AP Service
-    ap_service = APService(db)
+        buffer.write(content)
+
     try:
+        # SECURITY FIX #7: Validate actual file type with magic bytes
+        validate_file_type_with_magic_bytes(file_path, file_ext)
+
+        # Track in Document table
+        # SECURITY FIX #8: Store sanitized filename only
+        doc = FinancialDocument(
+            workspace_id=workspace_id,
+            file_path=file_path,
+            file_name=safe_filename,  # Use safe filename, not user input
+            file_type="pdf" if file_ext == ".pdf" else "image"
+        )
+        db.add(doc)
+        db.flush()
+
+        # Process with AP Service
+        ap_service = APService(db)
         result = await ap_service.process_invoice_document(
-            document_id=doc.id, 
+            document_id=doc.id,
             workspace_id=workspace_id,
             expense_account_code=expense_account_code
         )
         return result
+
+    except HTTPException:
+        # Clean up file on validation error
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
     except Exception as e:
         logger.error(f"Error processing invoice: {e}")
+        # Clean up file on processing error
+        if os.path.exists(file_path):
+            os.remove(file_path)
         raise HTTPException(status_code=500, detail=f"Invoice processing failed: {str(e)}")
