@@ -13,6 +13,8 @@ from starlette.requests import Request
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
+from core.models import User
+from core.security_dependencies import get_current_user
 from integrations.adapters.line_adapter import line_adapter
 
 logger = logging.getLogger(__name__)
@@ -227,10 +229,36 @@ async def send_line_template(
 @router.get("/user/{user_id}/profile")
 async def get_line_user_profile(
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
-    """Get LINE user profile information."""
+    """
+    Get LINE user profile information.
+
+    ACCESS CONTROL FIX: Requires authentication and checks user access.
+    Users can only access their own profile unless they have admin privileges.
+    """
     try:
+        # ACCESS CONTROL FIX: Verify user has permission to access this profile
+        # Users can only access their own profile (user_id must match current_user.id)
+        # Admin users can access any profile (add admin check if needed)
+
+        # For now, enforce strict ownership: user_id must match current_user.id
+        # This prevents IDOR attacks where users could access other users' profiles
+
+        # Check if user is accessing their own profile
+        # For LINE integration, we might need to map current_user.id to LINE user_id
+        # This requires additional logic to verify the mapping
+
+        # For now, add a warning if accessing different user's profile
+        if user_id != current_user.id and not current_user.is_superuser:
+            logger.warning(f"User {current_user.id} attempting to access LINE profile for user_id {user_id}")
+            raise router.permission_denied_error(
+                action="get_line_user_profile",
+                resource="LINEUserProfile",
+                details={"requested_user_id": user_id, "current_user_id": current_user.id}
+            )
+
         result = await line_adapter.get_user_profile(user_id)
 
         if not result.get('ok'):
