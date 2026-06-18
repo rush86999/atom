@@ -469,7 +469,15 @@ class EnterpriseAuthService:
             from base64 import b64decode
             import re
             from urllib.parse import unquote
-            from xml.etree import ElementTree as ET
+
+            # XXE FIX: Use defusedxml instead of xml.etree.ElementTree
+            # defusedxml disables entities, DTDs, and other dangerous XML features
+            try:
+                from defusedxml import ElementTree as ET
+            except ImportError:
+                # Fallback to standard library with warning
+                logger.warning("defusedxml not installed, falling back to standard xml.etree.ElementTree (XXE vulnerability)")
+                from xml.etree import ElementTree as ET
 
             # Decode SAML response
             try:
@@ -481,7 +489,7 @@ class EnterpriseAuthService:
                 logger.error(f"Failed to decode SAML response: {decode_error}")
                 return None
 
-            # Parse XML
+            # Parse XML safely
             try:
                 root = ET.fromstring(xml_string)
             except ET.ParseError as parse_error:
@@ -579,7 +587,16 @@ class EnterpriseAuthService:
         try:
             import base64
             import re
-            from xml.etree import ElementTree as ET
+
+            # XXE FIX: Use defusedxml instead of xml.etree.ElementTree
+            # defusedxml disables entities, DTDs, and other dangerous XML features
+            try:
+                from defusedxml import ElementTree as ET
+            except ImportError:
+                # Fallback to standard library with warning
+                logger.warning("defusedxml not installed, falling back to standard xml.etree.ElementTree (XXE vulnerability)")
+                from xml.etree import ElementTree as ET
+
             from cryptography.hazmat.primitives import serialization
             from cryptography.hazmat.primitives.asymmetric import padding
             from cryptography.x509 import load_pem_x509_certificate
