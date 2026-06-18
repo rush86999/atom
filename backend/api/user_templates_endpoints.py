@@ -391,9 +391,23 @@ async def update_template(
                 details={"template_id": template_id, "user_id": user_id}
             )
 
+        # MASS ASSIGNMENT FIX: Block sensitive fields from mass assignment
+        # These fields should never be modifiable via user input
+        BLOCKED_FIELDS = {
+            'id', 'template_id', 'author_id', 'owner_id', 'user_id', 'workspace_id',
+            'created_at', 'updated_at', 'last_used_at', 'published_at',
+            'is_public', 'is_featured', 'is_official', 'version',
+            'usage_count', 'rating_count', 'average_rating'
+        }
+
         # Update fields
         update_data = request.dict(exclude_unset=True, exclude={'change_description'})
         for field, value in update_data.items():
+            # Skip blocked fields to prevent mass assignment attacks
+            if field in BLOCKED_FIELDS:
+                logger.warning(f"Mass assignment blocked: Attempted to modify protected field '{field}'")
+                continue
+
             if value is not None:
                 if field in ['inputs_schema', 'steps_schema']:
                     setattr(template, field, [item.dict() if hasattr(item, 'dict') else item for item in value])

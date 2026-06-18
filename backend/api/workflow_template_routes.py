@@ -153,10 +153,20 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
     """Update an existing workflow template"""
     try:
         manager = get_template_manager()
-        
-        # Convert request model to dict, excluding None values
-        updates = {k: v for k, v in request.dict().items() if v is not None}
-        
+
+        # MASS ASSIGNMENT FIX: Block sensitive fields from mass assignment
+        # These fields should never be modifiable via user input
+        BLOCKED_FIELDS = {
+            'id', 'template_id', 'owner_id', 'author_id', 'user_id', 'workspace_id',
+            'created_at', 'updated_at', 'created_by', 'modified_by',
+            'is_public', 'is_featured', 'is_official', 'is_active',
+            'version', 'usage_count', 'rating', 'category'
+        }
+
+        # Convert request model to dict, excluding None and blocked fields
+        updates = {k: v for k, v in request.dict().items()
+                   if v is not None and k not in BLOCKED_FIELDS}
+
         if not updates:
              raise router.validation_error(
                  field="updates",
@@ -165,7 +175,7 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
 
         # Special handling for steps if provided (need to map format)
         if "steps" in updates:
-            # We assume steps come in the same format as CreateRequest, 
+            # We assume steps come in the same format as CreateRequest,
             # so we might need to process them if the internal model expects differently.
             # However, workflow_template_system.py expects Pydantic models or dicts matching schema.
             # Let's clean up the steps just in case
