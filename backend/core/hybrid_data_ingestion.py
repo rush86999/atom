@@ -789,11 +789,11 @@ class HybridDataIngestionService:
                     IntegrationToken.tenant_id == self.tenant_id,
                     IntegrationToken.provider == "zoho"
                 ).first()
-                
-                logger.error(f"DEBUG: Token found for {self.tenant_id}: {token is not None}")
-                if token:
-                    logger.error(f"DEBUG: Token metadata: {token.metadata}")
-                
+
+                # LOGGING SECURITY FIX: Don't log token metadata (could contain credentials)
+                # Only log token existence for debugging
+                logger.debug(f"IntegrationToken found for tenant {self.tenant_id}: {token is not None}")
+
                 instance_url = token.instance_url if token else None
                 adapter = ZohoAdapter(db=db, workspace_id=self.workspace_id, instance_url=instance_url)
                 
