@@ -676,7 +676,17 @@ Enforcement Mode: {mode_labels.get(mode, mode)}
             logger.error(f"[BudgetEnforcementService] Error clearing enforcement state: {str(e)}")
             self.db.rollback()
 
-    def __del__(self):
-        """Cleanup database session."""
+    def __enter__(self):
+        """Context manager entry for proper resource cleanup."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures database session is closed."""
+        if hasattr(self, 'db'):
+            self.db.close()
+        return False
+
+    def close(self):
+        """Explicitly close database session. Call this when done with the service."""
         if hasattr(self, 'db'):
             self.db.close()

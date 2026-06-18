@@ -352,7 +352,16 @@ class LocalAgentService:
             process.kill()
             try:
                 stdout, stderr = await process.communicate()
-            except:
+            except ProcessLookupError:
+                # Process already terminated after kill()
+                stdout, stderr = b"", b""
+            except (OSError, BrokenPipeError) as e:
+                # ERROR HANDLING FIX: Specific exceptions instead of bare except
+                logger.warning(f"Error communicating with killed process: {type(e).__name__}: {e}")
+                stdout, stderr = b"", b""
+            except Exception as e:
+                # Catch-all for unexpected errors
+                logger.error(f"Unexpected error after process kill: {type(e).__name__}: {e}")
                 stdout, stderr = b"", b""
             timed_out = True
 
@@ -440,7 +449,13 @@ class LocalAgentService:
         try:
             response = await self.client.get("/health/live")
             backend_reachable = response.status_code == 200
-        except:
+        except (httpx.RequestError, httpx.HTTPError) as e:
+            # ERROR HANDLING FIX: Specific HTTP exceptions instead of bare except
+            logger.debug(f"Backend health check failed: {type(e).__name__}")
+            backend_reachable = False
+        except Exception as e:
+            # Catch-all for unexpected errors
+            logger.error(f"Unexpected error during health check: {type(e).__name__}: {e}")
             backend_reachable = False
 
         return {

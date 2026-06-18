@@ -213,6 +213,13 @@ class StateManager:
     def _persist_to_file(self, workflow_id: str, state: Dict[str, Any]):
         """Persist state to file"""
         import os
+
+        # PATH TRAVERSAL FIX: Sanitize workflow_id
+        # Prevents ../../../etc/passwd attacks
+        workflow_id = ''.join(c for c in workflow_id if c.isalnum() or c in '-_')
+        if not workflow_id:
+            raise ValueError("Invalid workflow_id: must contain alphanumeric characters")
+
         os.makedirs("workflow_states", exist_ok=True)
         filename = f"workflow_states/{workflow_id}.json"
 
@@ -222,6 +229,12 @@ class StateManager:
     def _load_from_file(self, workflow_id: str) -> Optional[Dict[str, Any]]:
         """Load state from file"""
         import os
+
+        # PATH TRAVERSAL FIX: Sanitize workflow_id
+        workflow_id = ''.join(c for c in workflow_id if c.isalnum() or c in '-_')
+        if not workflow_id:
+            return None
+
         filename = f"workflow_states/{workflow_id}.json"
 
         if not os.path.exists(filename):
@@ -371,6 +384,11 @@ class StateManager:
         """
         try:
             import os
+
+            # PATH TRAVERSAL FIX: Sanitize workflow_id
+            workflow_id = ''.join(c for c in workflow_id if c.isalnum() or c in '-_')
+            if not workflow_id:
+                return False
 
             # Remove from memory
             if workflow_id in self.state_store:

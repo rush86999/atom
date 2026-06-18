@@ -82,10 +82,26 @@ class TrajectoryRecorder:
         if not AIOFILES_AVAILABLE:
             raise ImportError("aiofiles is required for async file saving. Install with: pip install aiofiles")
 
+        # PATH TRAVERSAL FIX: Sanitize directory path
+        # Prevents ../../../etc/passwd attacks
+        import posixpath
+        directory = directory.lstrip('/')
+        directory = directory.replace('../', '').replace('..\\', '')
+        # Only allow alphanumeric, hyphen, underscore, and forward slash
+        directory = ''.join(c for c in directory if c.isalnum() or c in '/-_')
+        if not directory:
+            directory = "logs/traces"
+
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
-        filename = f"{directory}/{self.trace.trace_id}.json"
+        # PATH TRAVERSAL FIX: Sanitize trace_id in filename
+        trace_id = self.trace.trace_id
+        trace_id = ''.join(c for c in trace_id if c.isalnum() or c in '-_')
+        if not trace_id:
+            trace_id = str(uuid.uuid4())
+
+        filename = f"{directory}/{trace_id}.json"
 
         # Convert pydantic model to json
         data = self.trace.dict()
