@@ -3,6 +3,9 @@ Agent Graduation Service
 
 Validates agent readiness for promotion using episodic memory.
 Provides data-driven audit trails for governance compliance.
+
+Enhanced with POMDP Memory Framework for experience-driven graduation.
+Based on 2025-2026 research on memory for autonomous LLM agents.
 """
 
 from datetime import datetime
@@ -25,6 +28,22 @@ from core.models import (
 
 logger = logging.getLogger(__name__)
 
+# POMDP Memory Framework integration
+try:
+    from core.memory.pomdp_memory_framework import (
+        MemoryManager,
+        ExperienceCalculator,
+        ExperienceMetrics,
+        get_memory_manager,
+        get_experience_calculator,
+        MemoryType,
+        ObservationSpace,
+    )
+    POMDP_AVAILABLE = True
+except ImportError:
+    logger.warning("POMDP Memory Framework not available, using legacy graduation criteria")
+    POMDP_AVAILABLE = False
+
 
 
 
@@ -37,23 +56,44 @@ class AgentGraduationService:
         "INTERN": {
             "min_episodes": 10,
             "max_intervention_rate": 0.5,  # 50%
-            "min_constitutional_score": 0.70
+            "min_constitutional_score": 0.70,
+            # Enhanced POMDP-based criteria
+            "min_quality_weighted_episodes": 7.0,  # 70% of min_episodes with quality weighting
+            "min_learning_consistency": 0.60,
         },
         "SUPERVISED": {
             "min_episodes": 25,
             "max_intervention_rate": 0.2,  # 20%
-            "min_constitutional_score": 0.85
+            "min_constitutional_score": 0.85,
+            # Enhanced POMDP-based criteria
+            "min_quality_weighted_episodes": 18.0,  # 72% of min_episodes
+            "min_learning_consistency": 0.70,
         },
         "AUTONOMOUS": {
             "min_episodes": 50,
             "max_intervention_rate": 0.0,  # 0% - fully autonomous
-            "min_constitutional_score": 0.95
+            "min_constitutional_score": 0.95,
+            # Enhanced POMDP-based criteria
+            "min_quality_weighted_episodes": 45.0,  # 90% of min_episodes
+            "min_learning_consistency": 0.80,
         }
     }
 
     def __init__(self, db: Session):
         self.db = db
         self.lancedb = get_lancedb_handler()
+
+        # Initialize POMDP components if available
+        self.memory_manager = None
+        self.experience_calculator = None
+
+        if POMDP_AVAILABLE:
+            try:
+                self.memory_manager = get_memory_manager(db, self.lancedb)
+                self.experience_calculator = get_experience_calculator(db, self.memory_manager)
+                logger.debug("POMDP Memory Framework initialized for graduation service")
+            except Exception as e:
+                logger.warning(f"Failed to initialize POMDP framework: {e}")
 
     async def calculate_readiness_score(
         self,
@@ -102,8 +142,302 @@ class AgentGraduationService:
         result["current_maturity"] = current_maturity
         result["target_maturity"] = target_maturity
         result["ready"] = result["threshold_met"] # Map to upstream field name
-        
+
         return result
+
+    async def calculate_experience_driven_readiness(
+        self,
+        agent_id: str,
+        target_maturity: str,  # INTERN, SUPERVISED, AUTONOMOUS
+    ) -> Dict[str, Any]:
+        """
+        Calculate graduation readiness using POMDP experience-driven metrics.
+
+        Enhanced readiness calculation based on 2025-2026 research:
+        - Quality-weighted episodes (not just count)
+        - Intervention trajectory analysis
+        - Cross-episode learning consistency
+        - Memory quality assessment
+
+        Returns:
+            {
+                "ready": bool,
+                "score": float (0-100),
+                "experience_metrics": dict,
+                "quality_weighted_episodes": float,
+                "intervention_trajectory": dict,
+                "learning_consistency": float,
+                "gaps": List[str]
+            }
+        """
+        if not POMDP_AVAILABLE or not self.experience_calculator:
+            logger.info("POMDP not available, falling back to standard readiness")
+            return await self.calculate_readiness_score(agent_id, target_maturity)
+
+        # Query agent
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        if not agent:
+            return {"error": "Agent not found"}
+
+        # Get criteria for target maturity
+        if target_maturity not in self.CRITERIA:
+            return {"error": f"Unknown maturity level: {target_maturity}"}
+
+        criteria = self.CRITERIA[target_maturity]
+
+        # Calculate experience-driven readiness
+        result = self.experience_calculator.calculate_readiness_score(
+            agent_id=agent_id,
+            target_maturity=target_maturity,
+            criteria=self.CRITERIA
+        )
+
+        # Add current maturity info
+        result["current_maturity"] = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+        result["target_maturity"] = target_maturity
+
+        # Calculate intervention trajectory analysis
+        intervention_trajectory = await self._analyze_intervention_trajectory(agent_id)
+
+        # Add trajectory analysis to result
+        result["intervention_trajectory"] = intervention_trajectory
+
+        # Determine readiness based on multiple factors
+        ready = (
+            result.get("ready", False) and
+            intervention_trajectory.get("is_improving", True) and
+            result.get("learning_consistency", 0) >= criteria.get("min_learning_consistency", 0.6)
+        )
+
+        result["ready"] = ready
+
+        # Generate recommendation
+        result["recommendation"] = self._generate_experience_driven_recommendation(
+            ready=ready,
+            score=result.get("score", 0),
+            target=target_maturity,
+            gaps=result.get("gaps", []),
+            trajectory=intervention_trajectory
+        )
+
+        return result
+
+    async def _analyze_intervention_trajectory(
+        self,
+        agent_id: str
+    ) -> Dict[str, Any]:
+        """
+        Analyze intervention rate trajectory over time.
+
+        Calculates:
+        - Overall intervention rate trend
+        - Recent vs historical comparison
+        - Improvement rate (negative = declining, positive = improving)
+
+        Returns:
+            {
+                "overall_rate": float,
+                "recent_rate": float,
+                "historical_rate": float,
+                "improvement_rate": float,
+                "is_improving": bool,
+                "trend": str  # "improving", "stable", "declining"
+            }
+        """
+        if not POMDP_AVAILABLE or not self.memory_manager:
+            return {
+                "overall_rate": 0.0,
+                "recent_rate": 0.0,
+                "historical_rate": 0.0,
+                "improvement_rate": 0.0,
+                "is_improving": True,
+                "trend": "unknown"
+            }
+
+        # Get quality-sorted memories for trajectory analysis
+        memories = self.memory_manager.recall_by_quality(
+            agent_id=agent_id,
+            min_quality=0.3,
+            limit=100
+        )
+
+        if not memories or len(memories) < 5:
+            return {
+                "overall_rate": 0.0,
+                "recent_rate": 0.0,
+                "historical_rate": 0.0,
+                "improvement_rate": 0.0,
+                "is_improving": True,
+                "trend": "insufficient_data"
+            }
+
+        # Calculate intervention rates over time
+        # Split into recent (last 10) and historical (earlier)
+        recent_memories = memories[:10]
+        historical_memories = memories[10:]
+
+        recent_interventions = sum(1 for m in recent_memories if m.intervention_required)
+        recent_rate = recent_interventions / len(recent_memories) if recent_memories else 0
+
+        historical_interventions = sum(1 for m in historical_memories if m.intervention_required)
+        historical_rate = historical_interventions / len(historical_memories) if historical_memories else 0
+
+        total_interventions = sum(1 for m in memories if m.intervention_required)
+        overall_rate = total_interventions / len(memories)
+
+        # Calculate improvement rate (positive = getting better)
+        if historical_rate > 0:
+            improvement_rate = (historical_rate - recent_rate) / historical_rate
+        else:
+            improvement_rate = 0.0
+
+        # Determine trend
+        if improvement_rate > 0.2:
+            trend = "improving"
+            is_improving = True
+        elif improvement_rate < -0.2:
+            trend = "declining"
+            is_improving = False
+        else:
+            trend = "stable"
+            is_improving = True
+
+        return {
+            "overall_rate": round(overall_rate, 3),
+            "recent_rate": round(recent_rate, 3),
+            "historical_rate": round(historical_rate, 3),
+            "improvement_rate": round(improvement_rate, 3),
+            "is_improving": is_improving,
+            "trend": trend,
+            "sample_size": len(memories)
+        }
+
+    def _generate_experience_driven_recommendation(
+        self,
+        ready: bool,
+        score: float,
+        target: str,
+        gaps: List[str],
+        trajectory: Dict[str, Any]
+    ) -> str:
+        """Generate human-readable recommendation based on experience metrics"""
+        if ready:
+            return f"Agent ready for promotion to {target}. Score: {score:.1f}/100"
+
+        # Build context-aware recommendation
+        parts = []
+
+        if score < 40:
+            parts.append(f"Significant training needed for {target}.")
+        elif score < 70:
+            parts.append(f"Making progress toward {target}.")
+        else:
+            parts.append(f"Close to ready for {target}.")
+
+        # Add trajectory context
+        trend = trajectory.get("trend", "unknown")
+        if trend == "declining":
+            parts.append("⚠️ Intervention rate is declining - address performance issues.")
+        elif trend == "improving":
+            parts.append("✓ Intervention rate is improving.")
+
+        # Add gap context
+        if gaps:
+            parts.append(f"Key gaps: {', '.join(gaps[:2])}")
+
+        return " ".join(parts)
+
+    # ========================================================================
+    # Cross-Episode Learning Consistency Analysis
+    # ========================================================================
+
+    async def analyze_learning_consistency(
+        self,
+        agent_id: str,
+        days_back: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Analyze cross-episode learning consistency.
+
+        Measures:
+        - Performance variance across episodes
+        - Knowledge retention over time
+        - Error recurrence patterns
+
+        Returns:
+            {
+                "consistency_score": float (0-1),
+                "performance_variance": float,
+                "knowledge_retention": float,
+                "error_recurrence_rate": float,
+                "recommendation": str
+            }
+        """
+        if not POMDP_AVAILABLE or not self.memory_manager:
+            return {
+                "consistency_score": 0.5,
+                "performance_variance": 0.0,
+                "knowledge_retention": 0.5,
+                "error_recurrence_rate": 0.0,
+                "recommendation": "POMDP framework not available"
+            }
+
+        # Get memories for analysis
+        memories = self.memory_manager.recall_by_quality(
+            agent_id=agent_id,
+            min_quality=0.3,
+            limit=100
+        )
+
+        if not memories or len(memories) < 5:
+            return {
+                "consistency_score": 0.5,
+                "performance_variance": 0.0,
+                "knowledge_retention": 0.5,
+                "error_recurrence_rate": 0.0,
+                "recommendation": "Insufficient data for consistency analysis"
+            }
+
+        # Calculate performance variance
+        quality_scores = [m.quality_score for m in memories]
+        avg_quality = sum(quality_scores) / len(quality_scores)
+
+        # Variance calculation
+        variance = sum((q - avg_quality) ** 2 for q in quality_scores) / len(quality_scores)
+        normalized_variance = min(variance, 1.0)
+
+        # Knowledge retention (consistency of high-quality outcomes)
+        high_quality_count = sum(1 for q in quality_scores if q >= 0.7)
+        knowledge_retention = high_quality_count / len(quality_scores)
+
+        # Error recurrence (interventions in recent memories)
+        recent_memories = memories[:10]
+        error_recurrence = sum(1 for m in recent_memories if m.intervention_required) / len(recent_memories)
+
+        # Consistency score (inverse of variance, weighted by retention)
+        consistency_score = (1 - normalized_variance) * 0.6 + knowledge_retention * 0.4
+
+        # Generate recommendation
+        if consistency_score >= 0.8:
+            recommendation = "Excellent learning consistency"
+        elif consistency_score >= 0.6:
+            recommendation = "Good learning consistency"
+        elif consistency_score >= 0.4:
+            recommendation = "Moderate learning consistency - some variance detected"
+        else:
+            recommendation = "Poor learning consistency - high performance variance"
+
+        return {
+            "consistency_score": round(consistency_score, 3),
+            "performance_variance": round(normalized_variance, 3),
+            "knowledge_retention": round(knowledge_retention, 3),
+            "error_recurrence_rate": round(error_recurrence, 3),
+            "recommendation": recommendation,
+            "sample_size": len(memories)
+        }
 
     def _calculate_score(
         self,
