@@ -4,10 +4,13 @@ Governance Cache
 High-performance in-memory cache for governance decisions to minimize database lookups.
 Features:
 - 60-second TTL for cached decisions
-- Async cache operations
+- Async-safe operations using asyncio.Lock
 - Auto-invalidation on agent status changes
-- Thread-safe implementation
+- Both async and sync APIs for backward compatibility
 - Target >90% cache hit rate, <10ms lookup latency
+
+BUG FIX: Replaced threading.Lock with asyncio.Lock for proper async concurrency protection.
+Previous implementation had race conditions when used in async contexts.
 """
 
 import asyncio
@@ -24,10 +27,19 @@ logger = logging.getLogger(__name__)
 
 class GovernanceCache:
     """
-    Thread-safe LRU cache for governance decisions with TTL.
+    Dual-API LRU cache for governance decisions with TTL.
+
+    BUG FIX: Previous implementation used only threading.Lock which doesn't protect
+    against race conditions in asyncio contexts. This implementation provides:
+    - Synchronous methods using threading.Lock (for backward compatibility)
+    - Async-safe methods using asyncio.Lock (for proper async concurrency)
 
     Cache key format: "{agent_id}:{action_type}"
     Cache value: {"allowed": bool, "data": dict, "cached_at": timestamp}
+
+    Usage:
+    - Sync contexts: Use get(), set(), invalidate() etc.
+    - Async contexts: Use get_async(), set_async(), invalidate_async() etc.
     """
 
     def __init__(
@@ -45,9 +57,12 @@ class GovernanceCache:
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
 
-        # OrderedDict for LRU eviction (thread-safe operations)
+        # OrderedDict for LRU eviction
         self._cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+
+        # Dual locks: threading.Lock for sync methods, asyncio.Lock for async methods
         self._lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
 
         # Statistics
         self._hits = 0
@@ -77,19 +92,20 @@ class GovernanceCache:
         while True:
             try:
                 await asyncio.sleep(30)  # Run every 30 seconds
-                self._expire_stale()
+                await self._expire_stale()
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Error in cleanup task: {e}")
 
-    def _expire_stale(self):
-        """Remove expired entries from cache."""
+    async def _expire_stale(self):
+        """Remove expired entries from cache (async-safe)."""
         try:
-            with self._lock:
+            async with self._async_lock:
                 now = time.time()
                 expired_keys = []
 
+                # Collect expired keys first to avoid modifying during iteration
                 for key, value in self._cache.items():
                     cached_at = value.get("cached_at", 0)
                     if now - cached_at > self.ttl_seconds:
@@ -108,9 +124,16 @@ class GovernanceCache:
         """Generate cache key from agent_id and action_type."""
         return f"{agent_id}:{action_type.lower()}"
 
+    # ============================================================================
+    # Synchronous API (for backward compatibility)
+    # Uses threading.Lock - safe for synchronous contexts
+    # ============================================================================
+
     def get(self, agent_id: str, action_type: str) -> Optional[Dict[str, Any]]:
         """
-        Get cached governance decision.
+        Get cached governance decision (synchronous).
+
+        NOTE: For async contexts, use get_async() instead to avoid race conditions.
 
         Args:
             agent_id: Agent ID
@@ -124,7 +147,6 @@ class GovernanceCache:
         with self._lock:
             if key not in self._cache:
                 self._misses += 1
-                # Track directory-specific misses
                 if action_type.startswith("dir:"):
                     self._directory_misses += 1
                 return None
@@ -133,19 +155,15 @@ class GovernanceCache:
             cached_at = entry.get("cached_at", 0)
             age_seconds = time.time() - cached_at
 
-            # Check if expired
             if age_seconds > self.ttl_seconds:
                 del self._cache[key]
                 self._misses += 1
-                # Track directory-specific misses
                 if action_type.startswith("dir:"):
                     self._directory_misses += 1
                 return None
 
-            # Move to end (mark as recently used)
             self._cache.move_to_end(key)
             self._hits += 1
-            # Track directory-specific hits
             if action_type.startswith("dir:"):
                 self._directory_hits += 1
 
@@ -158,7 +176,9 @@ class GovernanceCache:
         data: Dict[str, Any]
     ) -> bool:
         """
-        Cache governance decision.
+        Cache governance decision (synchronous).
+
+        NOTE: For async contexts, use set_async() instead to avoid race conditions.
 
         Args:
             agent_id: Agent ID
@@ -172,21 +192,16 @@ class GovernanceCache:
 
         try:
             with self._lock:
-                # Evict oldest if at capacity
                 if len(self._cache) >= self.max_size and key not in self._cache:
                     oldest_key = next(iter(self._cache))
                     del self._cache[oldest_key]
                     self._evictions += 1
 
-                # Store entry
                 self._cache[key] = {
                     "data": data,
                     "cached_at": time.time()
                 }
-
-                # Move to end
                 self._cache.move_to_end(key)
-
                 return True
         except Exception as e:
             logger.error(f"Error caching governance decision: {e}")
@@ -194,7 +209,9 @@ class GovernanceCache:
 
     def invalidate(self, agent_id: str, action_type: Optional[str] = None):
         """
-        Invalidate cache entries for an agent.
+        Invalidate cache entries for an agent (synchronous).
+
+        NOTE: For async contexts, use invalidate_async() instead to avoid race conditions.
 
         Args:
             agent_id: Agent ID to invalidate
@@ -203,31 +220,28 @@ class GovernanceCache:
         try:
             with self._lock:
                 if action_type:
-                    # Invalidate specific action
                     key = self._make_key(agent_id, action_type)
                     if key in self._cache:
                         del self._cache[key]
                         self._invalidations += 1
                 else:
-                    # Invalidate all actions for agent
                     keys_to_delete = [
-                        k for k in self._cache.keys()
+                        k for k in list(self._cache.keys())
                         if k.startswith(f"{agent_id}:")
                     ]
                     for key in keys_to_delete:
                         del self._cache[key]
                         self._invalidations += 1
-
-                logger.debug(f"Invalidated cache for agent {agent_id}" + (f":{action_type}" if action_type else ""))
+                logger.debug(f"Invalidated cache for agent {agent_id}")
         except Exception as e:
             logger.error(f"Error invalidating cache: {e}")
 
     def invalidate_agent(self, agent_id: str):
-        """Convenience method to invalidate all cache entries for an agent."""
+        """Convenience method to invalidate all cache entries for an agent (synchronous)."""
         self.invalidate(agent_id, action_type=None)
 
     def clear(self):
-        """Clear all cache entries."""
+        """Clear all cache entries (synchronous)."""
         with self._lock:
             count = len(self._cache)
             self._cache.clear()
@@ -239,9 +253,11 @@ class GovernanceCache:
         directory: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Check directory permission from cache.
+        Check directory permission from cache (synchronous).
 
         Wrapper for directory permission cache with specialized key format.
+
+        NOTE: For async contexts, use check_directory_async() instead.
 
         Args:
             agent_id: Agent ID
@@ -250,7 +266,6 @@ class GovernanceCache:
         Returns:
             Cached directory permission dict or None if not found/expired
         """
-        # Use special "dir:" prefix to avoid collision with action_type keys
         action_type = f"dir:{directory}"
         return self.get(agent_id, action_type)
 
@@ -261,7 +276,9 @@ class GovernanceCache:
         permission_data: Dict[str, Any]
     ) -> bool:
         """
-        Cache directory permission result.
+        Cache directory permission result (synchronous).
+
+        NOTE: For async contexts, use cache_directory_async() instead.
 
         Args:
             agent_id: Agent ID
@@ -271,18 +288,207 @@ class GovernanceCache:
         Returns:
             True if cached successfully
         """
-        # Use special "dir:" prefix to avoid collision with action_type keys
         action_type = f"dir:{directory}"
         return self.set(agent_id, action_type, permission_data)
 
     def get_stats(self) -> Dict[str, Any]:
         """
-        Get cache statistics.
+        Get cache statistics (synchronous).
+
+        NOTE: For async contexts, use get_stats_async() instead.
 
         Returns:
             Dict with hit rate, size, and other metrics
         """
         with self._lock:
+            total_requests = self._hits + self._misses
+            hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0
+
+            dir_total = self._directory_hits + self._directory_misses
+            dir_hit_rate = (self._directory_hits / dir_total * 100) if dir_total > 0 else 0
+
+            return {
+                "size": len(self._cache),
+                "max_size": self.max_size,
+                "hits": self._hits,
+                "misses": self._misses,
+                "hit_rate": round(hit_rate, 2),
+                "directory_hits": self._directory_hits,
+                "directory_misses": self._directory_misses,
+                "directory_hit_rate": round(dir_hit_rate, 2),
+                "evictions": self._evictions,
+                "invalidations": self._invalidations,
+                "ttl_seconds": self.ttl_seconds
+            }
+
+    def get_hit_rate(self) -> float:
+        """Get current cache hit rate percentage (synchronous)."""
+        stats = self.get_stats()
+        return stats["hit_rate"]
+
+    # ============================================================================
+    # Async-safe API (for async contexts)
+    # Uses asyncio.Lock for proper async concurrency protection
+    # ============================================================================
+
+    async def get_async(self, agent_id: str, action_type: str) -> Optional[Dict[str, Any]]:
+        """
+        Get cached governance decision (async-safe).
+
+        Args:
+            agent_id: Agent ID
+            action_type: Action type (e.g., "stream_chat", "present_chart", "dir:/tmp")
+
+        Returns:
+            Cached decision dict or None if not found/expired
+        """
+        key = self._make_key(agent_id, action_type)
+
+        async with self._async_lock:
+            if key not in self._cache:
+                self._misses += 1
+                if action_type.startswith("dir:"):
+                    self._directory_misses += 1
+                return None
+
+            entry = self._cache[key]
+            cached_at = entry.get("cached_at", 0)
+            age_seconds = time.time() - cached_at
+
+            if age_seconds > self.ttl_seconds:
+                del self._cache[key]
+                self._misses += 1
+                if action_type.startswith("dir:"):
+                    self._directory_misses += 1
+                return None
+
+            self._cache.move_to_end(key)
+            self._hits += 1
+            if action_type.startswith("dir:"):
+                self._directory_hits += 1
+
+            return entry["data"]
+
+    async def set_async(
+        self,
+        agent_id: str,
+        action_type: str,
+        data: Dict[str, Any]
+    ) -> bool:
+        """
+        Cache governance decision (async-safe).
+
+        Args:
+            agent_id: Agent ID
+            action_type: Action type
+            data: Governance decision data to cache
+
+        Returns:
+            True if cached successfully
+        """
+        key = self._make_key(agent_id, action_type)
+
+        try:
+            async with self._async_lock:
+                if len(self._cache) >= self.max_size and key not in self._cache:
+                    oldest_key = next(iter(self._cache))
+                    del self._cache[oldest_key]
+                    self._evictions += 1
+
+                self._cache[key] = {
+                    "data": data,
+                    "cached_at": time.time()
+                }
+                self._cache.move_to_end(key)
+                return True
+        except Exception as e:
+            logger.error(f"Error caching governance decision: {e}")
+            return False
+
+    async def invalidate_async(self, agent_id: str, action_type: Optional[str] = None):
+        """
+        Invalidate cache entries for an agent (async-safe).
+
+        Args:
+            agent_id: Agent ID to invalidate
+            action_type: Specific action type to invalidate (None = all actions)
+        """
+        try:
+            async with self._async_lock:
+                if action_type:
+                    key = self._make_key(agent_id, action_type)
+                    if key in self._cache:
+                        del self._cache[key]
+                        self._invalidations += 1
+                else:
+                    keys_to_delete = [
+                        k for k in list(self._cache.keys())
+                        if k.startswith(f"{agent_id}:")
+                    ]
+                    for key in keys_to_delete:
+                        del self._cache[key]
+                        self._invalidations += 1
+                logger.debug(f"Invalidated cache for agent {agent_id}")
+        except Exception as e:
+            logger.error(f"Error invalidating cache: {e}")
+
+    async def invalidate_agent_async(self, agent_id: str):
+        """Convenience method to invalidate all cache entries for an agent (async-safe)."""
+        await self.invalidate_async(agent_id, action_type=None)
+
+    async def clear_async(self):
+        """Clear all cache entries (async-safe)."""
+        async with self._async_lock:
+            count = len(self._cache)
+            self._cache.clear()
+            logger.info(f"Cleared {count} cache entries")
+
+    async def check_directory_async(
+        self,
+        agent_id: str,
+        directory: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check directory permission from cache (async-safe).
+
+        Args:
+            agent_id: Agent ID
+            directory: Directory path to check
+
+        Returns:
+            Cached directory permission dict or None if not found/expired
+        """
+        action_type = f"dir:{directory}"
+        return await self.get_async(agent_id, action_type)
+
+    async def cache_directory_async(
+        self,
+        agent_id: str,
+        directory: str,
+        permission_data: Dict[str, Any]
+    ) -> bool:
+        """
+        Cache directory permission result (async-safe).
+
+        Args:
+            agent_id: Agent ID
+            directory: Directory path
+            permission_data: Permission decision data to cache
+
+        Returns:
+            True if cached successfully
+        """
+        action_type = f"dir:{directory}"
+        return await self.set_async(agent_id, action_type, permission_data)
+
+    async def get_stats_async(self) -> Dict[str, Any]:
+        """
+        Get cache statistics (async-safe).
+
+        Returns:
+            Dict with hit rate, size, and other metrics
+        """
+        async with self._async_lock:
             total_requests = self._hits + self._misses
             hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0
 
@@ -304,9 +510,9 @@ class GovernanceCache:
                 "ttl_seconds": self.ttl_seconds
             }
 
-    def get_hit_rate(self) -> float:
-        """Get current cache hit rate percentage."""
-        stats = self.get_stats()
+    async def get_hit_rate_async(self) -> float:
+        """Get current cache hit rate percentage (async-safe)."""
+        stats = await self.get_stats_async()
         return stats["hit_rate"]
 
 
@@ -325,7 +531,10 @@ def get_governance_cache() -> GovernanceCache:
 
 def cached_governance_check(func):
     """
-    Decorator to cache governance check results.
+    Decorator to cache governance check results (async-safe).
+
+    Uses async-safe cache methods (get_async, set_async) for proper
+    concurrency protection in async contexts.
 
     Usage:
         @cached_governance_check
@@ -337,8 +546,8 @@ def cached_governance_check(func):
     async def wrapper(agent_id: str, action_type: str, *args, **kwargs):
         cache = get_governance_cache()
 
-        # Try cache first
-        cached_result = cache.get(agent_id, action_type)
+        # Try cache first (using async-safe method)
+        cached_result = await cache.get_async(agent_id, action_type)
         if cached_result is not None:
             logger.debug(f"Cache HIT for {agent_id}:{action_type}")
             return cached_result
@@ -347,8 +556,8 @@ def cached_governance_check(func):
         logger.debug(f"Cache MISS for {agent_id}:{action_type}")
         result = await func(agent_id, action_type, *args, **kwargs)
 
-        # Cache the result
-        cache.set(agent_id, action_type, result)
+        # Cache the result (using async-safe method)
+        await cache.set_async(agent_id, action_type, result)
 
         return result
 
@@ -357,38 +566,38 @@ def cached_governance_check(func):
 
 class AsyncGovernanceCache:
     """
-    Async wrapper around GovernanceCache for async contexts.
+    Async wrapper around GovernanceCache.
 
-    Provides the same interface but with async methods for consistency
-    in async codebases.
+    Delegates to the async-safe methods (get_async, set_async, etc.)
+    for proper concurrency protection in async contexts.
     """
 
     def __init__(self, cache: Optional[GovernanceCache] = None):
         self._cache = cache or get_governance_cache()
 
     async def get(self, agent_id: str, action_type: str) -> Optional[Dict[str, Any]]:
-        """Async get - delegates to sync cache (thread-safe)."""
-        return self._cache.get(agent_id, action_type)
+        """Async get - delegates to async-safe cache method."""
+        return await self._cache.get_async(agent_id, action_type)
 
     async def set(self, agent_id: str, action_type: str, data: Dict[str, Any]) -> bool:
-        """Async set - delegates to sync cache (thread-safe)."""
-        return self._cache.set(agent_id, action_type, data)
+        """Async set - delegates to async-safe cache method."""
+        return await self._cache.set_async(agent_id, action_type, data)
 
     async def invalidate(self, agent_id: str, action_type: Optional[str] = None):
-        """Async invalidate - delegates to sync cache (thread-safe)."""
-        self._cache.invalidate(agent_id, action_type)
+        """Async invalidate - delegates to async-safe cache method."""
+        await self._cache.invalidate_async(agent_id, action_type)
 
     async def invalidate_agent(self, agent_id: str):
-        """Async invalidate agent - delegates to sync cache (thread-safe)."""
-        self._cache.invalidate_agent(agent_id)
+        """Async invalidate agent - delegates to async-safe cache method."""
+        await self._cache.invalidate_agent_async(agent_id)
 
     async def get_stats(self) -> Dict[str, Any]:
-        """Async get stats - delegates to sync cache (thread-safe)."""
-        return self._cache.get_stats()
+        """Async get stats - delegates to async-safe cache method."""
+        return await self._cache.get_stats_async()
 
     async def get_hit_rate(self) -> float:
-        """Async get hit rate - delegates to sync cache (thread-safe)."""
-        return self._cache.get_hit_rate()
+        """Async get hit rate - delegates to async-safe cache method."""
+        return await self._cache.get_hit_rate_async()
 
 
 def get_async_governance_cache() -> AsyncGovernanceCache:

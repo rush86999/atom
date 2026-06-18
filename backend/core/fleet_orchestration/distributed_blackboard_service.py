@@ -1,10 +1,15 @@
 import logging
 import json
+import asyncio
 from typing import Dict, Any, Callable, Optional
 from datetime import datetime, timezone
 import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
+
+# ==================== DEADLOCK PREVENTION TIMEOUTS ====================
+# Redis listener timeout to prevent indefinite hangs
+DEFAULT_LISTENER_TIMEOUT_SECONDS = 3600.0  # 1 hour (should be configurable)
 
 class FleetStateNotifier:
     """
@@ -37,8 +42,17 @@ class FleetStateNotifier:
         except Exception as e:
             logger.error(f"Failed to publish blackboard update: {e}")
 
-    async def subscribe_to_fleet(self, chain_id: str, callback: Callable):
-        """Subscribe to blackboard updates for a specific fleet."""
+    async def subscribe_to_fleet(self, chain_id: str, callback: Callable, timeout_seconds: float = None):
+        """
+        Subscribe to blackboard updates for a specific fleet.
+
+        DEADLOCK PREVENTION: Added timeout to prevent indefinite hangs.
+
+        Args:
+            chain_id: The delegation chain to subscribe to
+            callback: Async callback to process events
+            timeout_seconds: Optional timeout for listener (defaults to DEFAULT_LISTENER_TIMEOUT_SECONDS)
+        """
         if not self._redis_client:
             self._redis_client = redis.from_url(self.redis_url, decode_responses=True)
 
@@ -48,14 +62,34 @@ class FleetStateNotifier:
 
         logger.info(f"Subscribed to fleet channel: {channel}")
 
+        # Use default timeout if not provided
+        listener_timeout = timeout_seconds or DEFAULT_LISTENER_TIMEOUT_SECONDS
+
         async def listener():
-            async for message in pubsub.listen():
-                if message['type'] == 'message':
-                    try:
-                        event = json.loads(message['data'])
-                        await callback(event)
-                    except Exception as e:
-                        logger.error(f"Error processing fleet update: {e}")
+            # DEADLOCK PREVENTION: Add timeout to prevent infinite hangs
+            try:
+                start_time = asyncio.get_event_loop().time()
+
+                async for message in pubsub.listen():
+                    # Check for timeout
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed > listener_timeout:
+                        logger.warning(f"Listener timeout after {elapsed:.1f}s, closing subscription")
+                        await pubsub.close()
+                        break
+
+                    if message['type'] == 'message':
+                        try:
+                            event = json.loads(message['data'])
+                            await callback(event)
+                        except Exception as e:
+                            logger.error(f"Error processing fleet update: {e}")
+            except asyncio.CancelledError:
+                logger.debug(f"Listener for chain {chain_id} cancelled")
+                await pubsub.close()
+            except Exception as e:
+                logger.error(f"Listener error for chain {chain_id}: {e}")
+                await pubsub.close()
 
         return listener
 

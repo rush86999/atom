@@ -501,7 +501,17 @@ class HostShellService:
                 process.kill()
                 try:
                     stdout, stderr = await process.communicate()
-                except:
+                except ProcessLookupError:
+                    # Process already terminated - this is expected after kill()
+                    logger.debug("Process already terminated after kill()")
+                    stdout, stderr = b"", b""
+                except (OSError, BrokenPipeError) as e:
+                    # Log specific OS/pipe errors for debugging
+                    logger.warning(f"Error communicating with killed process: {type(e).__name__}: {e}")
+                    stdout, stderr = b"", b""
+                except Exception as e:
+                    # Log unexpected errors but still allow cleanup
+                    logger.error(f"Unexpected error communicating with killed process: {type(e).__name__}: {e}")
                     stdout, stderr = b"", b""
                 timed_out = True
 

@@ -90,16 +90,27 @@ class WorkflowEngine:
         # Topological sort (Kahn's algorithm)
         queue = [n for n in nodes if in_degree[n] == 0]
         sorted_ids = []
-        
+
         while queue:
             u = queue.pop(0)
             sorted_ids.append(u)
-            
+
             for v in adj[u]:
                 in_degree[v] -= 1
                 if in_degree[v] == 0:
                     queue.append(v)
-                    
+
+        # BUG FIX: Check for cycles - if not all nodes were processed, there's a cycle
+        if len(sorted_ids) != len(nodes):
+            # Find nodes that weren't processed (part of cycles)
+            cycle_nodes = [n for n in nodes if n not in sorted_ids]
+            logger.error(f"Workflow contains cycle. Nodes in cycle: {cycle_nodes}")
+            raise ValueError(
+                f"Workflow contains circular dependencies. "
+                f"Nodes involved in cycle: {cycle_nodes}. "
+                f"Please fix the workflow to remove circular references."
+            )
+
         # Convert to steps
         steps = []
         for i, node_id in enumerate(sorted_ids):

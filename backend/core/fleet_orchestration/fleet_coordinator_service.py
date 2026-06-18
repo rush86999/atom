@@ -32,6 +32,13 @@ from core.fleet.fleet_task_types import FleetTaskType
 
 logger = logging.getLogger(__name__)
 
+# ==================== DEADLOCK PREVENTION TIMEOUTS ====================
+# These timeouts prevent indefinite hangs in fleet operations
+
+DEFAULT_TASK_TIMEOUT_SECONDS = 300.0  # 5 minutes per task group
+DEFAULT_DECOMPOSITION_TIMEOUT_SECONDS = 120.0  # 2 minutes for LLM decomposition
+DEFAULT_DB_TIMEOUT_SECONDS = 30.0  # 30 seconds for database queries
+
 class FleetCoordinatorService:
     """
     Orchestrates parallel execution of multi-agent fleets.
@@ -75,6 +82,9 @@ class FleetCoordinatorService:
 
         # Initialize tracing service (lazy initialization pattern)
         self.tracing_service = tracing_service
+
+        # DEADLOCK PREVENTION: Lock for lazy initialization
+        self._init_lock = asyncio.Lock()
 
     async def recruit_parallel_batch(
         self,
@@ -265,8 +275,20 @@ class FleetCoordinatorService:
                 for task in group
             ]
 
-            # Wait for all tasks in group to complete
-            group_results = await asyncio.gather(*tasks, return_exceptions=True)
+            # DEADLOCK PREVENTION: Add timeout to prevent indefinite hangs
+            # If task group doesn't complete within timeout, raise TimeoutError
+            try:
+                group_results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=DEFAULT_TASK_TIMEOUT_SECONDS
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    f"Task group {group_idx + 1} exceeded timeout of {DEFAULT_TASK_TIMEOUT_SECONDS}s"
+                )
+                # Mark all tasks in group as failed due to timeout
+                group_results = [TimeoutError(f"Task group timeout after {DEFAULT_TASK_TIMEOUT_SECONDS}s")
+                                for _ in group]
 
             # Process results
             for i, result in enumerate(group_results):
@@ -717,28 +739,44 @@ class FleetCoordinatorService:
             f"{task_description[:100]}..."
         )
 
-        # Lazy initialize services if not provided
-        if not self.decomposition_service:
-            from core.llm.byok_handler import BYOKHandler
-            llm_service = BYOKHandler(self.db)
-            self.decomposition_service = TaskDecompositionService(
-                db=self.db,
-                llm_service=llm_service
-            )
+        # DEADLOCK PREVENTION: Use lock to prevent race condition during lazy initialization
+        async with self._init_lock:
+            # Lazy initialize services if not provided (double-check pattern)
+            if not self.decomposition_service:
+                from core.llm.byok_handler import BYOKHandler
+                llm_service = BYOKHandler(self.db)
+                self.decomposition_service = TaskDecompositionService(
+                    db=self.db,
+                    llm_service=llm_service
+                )
 
-        if not self.dependency_service:
-            self.dependency_service = DependencyGraphService()
+            if not self.dependency_service:
+                self.dependency_service = DependencyGraphService()
 
-        if not self.complexity_estimator:
-            self.complexity_estimator = ComplexityEstimator(self.db)
+            if not self.complexity_estimator:
+                self.complexity_estimator = ComplexityEstimator(self.db)
 
         # Step 1: Decompose task
         logger.info(f"Step 1: Decomposing task into subtasks (max {max_subtasks})")
-        decomposition = await self.decomposition_service.decompose_task(
-            task_description=task_description,
-                        context=context or {},
-            max_subtasks=max_subtasks
-        )
+
+        # DEADLOCK PREVENTION: Add timeout to prevent indefinite hangs on LLM calls
+        try:
+            decomposition = await asyncio.wait_for(
+                self.decomposition_service.decompose_task(
+                    task_description=task_description,
+                    context=context or {},
+                    max_subtasks=max_subtasks
+                ),
+                timeout=DEFAULT_DECOMPOSITION_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                f"LLM decomposition exceeded timeout of {DEFAULT_DECOMPOSITION_TIMEOUT_SECONDS}s"
+            )
+            raise TimeoutError(
+                f"Task decomposition timeout after {DEFAULT_DECOMPOSITION_TIMEOUT_SECONDS}s. "
+                "The LLM call did not complete in time."
+            )
 
         logger.info(
             f"Decomposed into {len(decomposition.subtasks)} subtasks, "

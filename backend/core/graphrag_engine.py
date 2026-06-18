@@ -101,6 +101,54 @@ class GraphRAGEngine:
             return ENTITY_REGISTRY[t_lower]
         return None
 
+    def _validate_search_input(self, name: str, max_length: int = 500) -> str:
+        """
+        Validate and sanitize search input.
+
+        Args:
+            name: User input search term
+            max_length: Maximum allowed length (default 500)
+
+        Returns:
+            Sanitized search term
+
+        Raises:
+            ValueError: If input is too long or contains invalid characters
+        """
+        if not name:
+            return ""
+
+        if len(name) > max_length:
+            raise ValueError(
+                f"Search term too long: {len(name)} characters (max {max_length}). "
+                "This could cause performance issues or be a DoS attempt."
+            )
+
+        # Remove any control characters (except tab, newline for readability)
+        # This prevents potential injection through control characters
+        cleaned = ''.join(char for char in name if ord(char) >= 32 or char in ['\t', '\n', '\r'])
+
+        return cleaned
+
+    def _escape_like_pattern(self, pattern: str) -> str:
+        """
+        Escape SQL LIKE special characters in search pattern.
+
+        Args:
+            pattern: Search pattern that may contain % or _
+
+        Returns:
+            Escaped pattern where % and _ are escaped to \%
+
+        Examples:
+            "test%" -> "test\\%"
+            "user_data" -> "user_data"
+            "50%" -> "50\\%"
+        """
+        # In SQL LIKE, % matches any sequence and _ matches any single character
+        # We escape them so users can search for literal % and _
+        return pattern.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
     def _sanitize_canonical_data(self, registry_entry: Dict, metadata: Dict) -> Dict:
         """Filter metadata to only allow updatable fields defined in the registry."""
         sanitized = {}
@@ -110,8 +158,8 @@ class GraphRAGEngine:
                 sanitized[field_name] = metadata[field_name]
         return sanitized
 
-    def _resolve_canonical_entity(self, session: Session, workspace_id: str, 
-                                 entity_type: str, name: str, 
+    def _resolve_canonical_entity(self, session: Session, workspace_id: str,
+                                 entity_type: str, name: str,
                                  canonical_id: Optional[str] = None) -> Optional[Any]:
         """Resolve a semantic node to a concrete database record."""
         registry = self._get_registry_entry(entity_type)
@@ -119,37 +167,44 @@ class GraphRAGEngine:
             return None
 
         model = registry["model"]
-        
+
+        # BUG FIX: Validate and sanitize input before using in queries
+        name = self._validate_search_input(name)
+
         # 1. Match by ID if provided
         if canonical_id:
             return session.query(model).filter(model.id == canonical_id).first()
-        
+
         # 2. Match by Name/Search fields
         display_field = registry.get("display_field", "name")
+        # BUG FIX: Escape LIKE special characters to prevent wildcard injection
+        escaped_name = self._escape_like_pattern(name)
         # Try exact match on display field first
         match = session.query(model).filter(
-            getattr(model, display_field).ilike(name)
+            getattr(model, display_field).ilike(escaped_name)
         ).first()
-        
+
         if match:
             return match
-            
+
         # 3. Fuzzy match across search fields
         for field_name in registry.get("search_fields", []):
+            # BUG FIX: Escape LIKE special characters to prevent wildcard injection
+            escaped_pattern = self._escape_like_pattern(name)
             match = session.query(model).filter(
-                getattr(model, field_name).ilike(f"%{name}%")
+                getattr(model, field_name).ilike(f"%{escaped_pattern}%")
             ).first()
             if match:
                 return match
-                
+
         return None
 
-    def canonical_search(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None, 
+    def canonical_search(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None,
                          entity_type: str = "unknown", query: str = "") -> List[Dict]:
         """Search for canonical records to anchor graph nodes."""
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
-        
+
         registry = self._get_registry_entry(entity_type)
         if not registry:
             return []
@@ -157,18 +212,23 @@ class GraphRAGEngine:
         model = registry["model"]
         search_fields = registry.get("search_fields", ["name"])
         display_field = registry.get("display_field", "name")
-        
+
+        # BUG FIX: Validate and sanitize input before using in queries
+        query = self._validate_search_input(query)
+
         with get_db_session() as session:
             try:
                 # Use a combined OR filter for all search fields
                 from sqlalchemy import or_
-                filters = [getattr(model, f_name).ilike(f"%{query}%") for f_name in search_fields]
-                
+                # BUG FIX: Escape LIKE special characters to prevent wildcard injection
+                escaped_query = self._escape_like_pattern(query)
+                filters = [getattr(model, f_name).ilike(f"%{escaped_query}%") for f_name in search_fields]
+
                 # Check for tenant/workspace isolation if the model has a column for it
                 # In personal edition, some models might not have workspace_id but use other links
                 # For simplicity, we'll try to find workspace_id or tenant_id
                 query_obj = session.query(model).filter(or_(*filters))
-                
+
                 if hasattr(model, 'workspace_id'):
                     query_obj = query_obj.filter(model.workspace_id == ws_id)
                 elif hasattr(model, 'tenant_id'):
@@ -662,22 +722,27 @@ class GraphRAGEngine:
         config = self._get_registry_entry(canonical_type, workspace_id)
         if not config or not config["model"]:
             return None
-            
+
         model = config["model"]
         search_field = config["search_field"]
-        search_term = f"%{name}%"
-        
+
+        # BUG FIX: Validate and sanitize input before using in queries
+        name = self._validate_search_input(name)
+        # BUG FIX: Escape LIKE special characters to prevent wildcard injection
+        escaped_name = self._escape_like_pattern(name)
+        search_term = f"%{escaped_name}%"
+
         try:
             query = session.query(model)
             if hasattr(model, "workspace_id"):
                 query = query.filter(model.workspace_id == workspace_id)
             elif hasattr(model, "tenant_id"):
                 query = query.filter(model.tenant_id == workspace_id)
-                
+
             result = query.filter(getattr(model, search_field).ilike(search_term)).first()
             if not result and config.get("match_id"):
                 result = query.filter(model.id == name).first()
-                
+
             return result.id if result else None
         except Exception as e:
             logger.warning(f"Error resolving canonical entity: {e}")
