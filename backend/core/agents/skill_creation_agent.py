@@ -202,6 +202,11 @@ class SkillCreationAgent:
 
     async def _fetch_api_docs(self, url: str) -> Dict[str, Any]:
         """Fetch OpenAPI/Swagger documentation from URL."""
+        # SSRF FIX: Validate URL before fetching
+        if not self._validate_url(url):
+            logger.error(f"SSRF blocked: Invalid API docs URL: {url}")
+            raise ValueError(f"Invalid URL: {url}")
+
         try:
             response = await self.client.get(url)
             response.raise_for_status()
@@ -209,6 +214,44 @@ class SkillCreationAgent:
         except Exception as e:
             logger.error(f"Error fetching API docs from {url}: {e}")
             raise ValueError(f"Failed to fetch API documentation: {e}")
+
+    def _validate_url(self, url: str) -> bool:
+        """
+        Validate URL to prevent SSRF attacks.
+
+        Args:
+            url: URL to validate
+
+        Returns:
+            True if URL is allowed, False otherwise
+        """
+        import re
+        from urllib.parse import urlparse
+
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+
+            # Block private IP ranges
+            if hostname in ('localhost', '127.0.0.1', '::1'):
+                logger.warning(f"SSRF blocked: localhost access denied: {hostname}")
+                return False
+
+            # Block private IPv4 ranges
+            ipv4_pattern = r'^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.)'
+            if re.match(ipv4_pattern, hostname):
+                logger.warning(f"SSRF blocked: private IPv4 address: {hostname}")
+                return False
+
+            # Only allow http and https schemes
+            if parsed.scheme not in ('http', 'https'):
+                logger.warning(f"SSRF blocked: invalid scheme: {parsed.scheme}")
+                return False
+
+            return True
+        except Exception as e:
+            logger.error(f"Error validating URL: {e}")
+            return False
 
     async def _analyze_api_spec(
         self,

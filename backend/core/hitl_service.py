@@ -107,11 +107,16 @@ class HITLService:
         # In the current sync implementation, request_approval waits on an event or polling.
         # For async persistence, we would trigger the callback URL if provided.
         logger.info(f"Resuming workflow for action {action.id}")
-        
+
         # Placeholder for actual resumption logic (e.g. QStash/Redis trigger)
         # If the action has a callback_url in params, we hit it.
         callback_url = (action.params or {}).get("callback_url")
         if callback_url:
+            # SSRF FIX: Validate URL before making request
+            if not self._validate_url(callback_url):
+                logger.error(f"SSRF blocked: Invalid callback_url: {callback_url}")
+                return
+
             import httpx
             async with httpx.AsyncClient() as client:
                 try:
@@ -122,6 +127,62 @@ class HITLService:
                     })
                 except Exception as e:
                     logger.error(f"Failed to trigger HITL callback: {e}")
+
+    def _validate_url(self, url: str) -> bool:
+        """
+        Validate URL to prevent SSRF attacks.
+
+        Blocks:
+        - Private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+        - localhost and 127.0.0.1
+        - Link-local addresses (169.254.0.0/16)
+        - Internal hostnames (metadata.google.internal, etc.)
+
+        Args:
+            url: URL to validate
+
+        Returns:
+            True if URL is allowed, False otherwise
+        """
+        import re
+        from urllib.parse import urlparse
+
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+
+            # Block private IP ranges
+            if hostname in ('localhost', '127.0.0.1', '::1'):
+                logger.warning(f"SSRF blocked: localhost access denied: {hostname}")
+                return False
+
+            # Block private IPv4 ranges
+            ipv4_pattern = r'^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.)'
+            if re.match(ipv4_pattern, hostname):
+                logger.warning(f"SSRF blocked: private IPv4 address: {hostname}")
+                return False
+
+            # Block internal hostnames
+            internal_patterns = [
+                'metadata.google.internal',
+                '.compute.internal',
+                '.cloudfunctions.internal',
+                'localhost',
+                'internal'
+            ]
+            if any(pattern in hostname.lower() for pattern in internal_patterns):
+                logger.warning(f"SSRF blocked: internal hostname: {hostname}")
+                return False
+
+            # Only allow http and https schemes
+            if parsed.scheme not in ('http', 'https'):
+                logger.warning(f"SSRF blocked: invalid scheme: {parsed.scheme}")
+                return False
+
+            return True
+        except Exception as e:
+            logger.error(f"Error validating URL: {e}")
+            return False
 
 # Singleton
 hitl_service = HITLService()
