@@ -290,13 +290,20 @@ class SkillCompositionEngine:
         Simple conditions like "fetch.success == true" or "process.count > 0".
         """
         try:
+            # CODE INJECTION FIX: Use safe_eval with AST validation
+            # This prevents sandbox escape via __class__, __base__, __subclasses__, etc.
+            from core.safe_evaluator import safe_eval, SafeEvalError
+
             # Create safe evaluation context
             context = {}
             for step_id, result in results.items():
                 context[step_id] = result
 
-            # Evaluate condition (simplified - in production use safer eval)
-            return eval(condition, {"__builtins__": {}}, context)
+            # Evaluate condition with AST validation
+            return safe_eval(condition, context)
+        except SafeEvalError as e:
+            logger.warning(f"Code injection blocked in condition '{condition}': {e}")
+            return False
         except Exception as e:
             logger.warning(f"Condition evaluation failed: {e}")
             return False

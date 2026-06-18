@@ -259,24 +259,22 @@ Output: {json.dumps(example_output)}
             return {"success": False, "error": f"Formula {formula_id} not found"}
 
         expression = formula.get("expression", "")
-        # ... (Execution logic same as before) ...
-        # Simplified for brevity, assume safe eval from previous code
-        
+
+        # CODE INJECTION FIX: Use safe_eval_with_math with AST validation
+        # This prevents sandbox escape via __class__, __base__, __subclasses__, etc.
+        from core.safe_evaluator import safe_eval_with_math, SafeEvalError
+
         try:
-            # Safe evaluation 
-            safe_globals = {"__builtins__": {}}
-            import math
-            safe_globals.update({
-                "sum": sum, "min": min, "max": max, "abs": abs, "round": round,
-                "sqrt": math.sqrt, "pow": pow
-            })
-            
-            result = eval(expression, safe_globals, inputs)
+            # Safe evaluation with AST validation and math functions
+            result = safe_eval_with_math(expression, inputs)
             return {
-                "success": True, 
+                "success": True,
                 "result": result,
                 "formula_name": formula.get("name")
             }
+        except SafeEvalError as e:
+            logger.error(f"Code injection blocked in formula '{formula_id}': {e}")
+            return {"success": False, "error": f"Unsafe expression: {str(e)}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

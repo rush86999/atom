@@ -843,25 +843,25 @@ class WorkflowEngine:
                 # Replace the variable reference in the expression
                 expr = expr.replace(f"${{{var_path}}}", replacement)
 
-            # Safe eval with limited globals and locals
-            # Only allow basic operators and comparisons
-            allowed_names = {
-                'True': True,
-                'False': False,
-                'None': None,
-                'true': True,  # Allow lowercase true/false
-                'false': False,
-            }
+            # CODE INJECTION FIX: Use safe_eval with AST validation
+            # This prevents sandbox escape via __class__, __base__, __subclasses__, etc.
+            from core.safe_evaluator import safe_eval, SafeEvalError
 
-            # Evaluate the expression
-            result = eval(expr, {"__builtins__": {}}, allowed_names)
+            try:
+                # Evaluate the expression with AST validation
+                result = safe_eval(expr, {})
 
-            # Convert to boolean
-            if isinstance(result, bool):
-                return result
-            else:
-                # Non-boolean result, treat as truthy/falsy
-                return bool(result)
+                # Convert to boolean
+                if isinstance(result, bool):
+                    return result
+                else:
+                    # Non-boolean result, treat as truthy/falsy
+                    return bool(result)
+
+            except SafeEvalError as e:
+                logger.error(f"Code injection blocked in condition '{condition}': {e}")
+                # If expression is unsafe, default to False for safety
+                return False
 
         except Exception as e:
             logger.error(f"Error evaluating condition '{condition}': {e}")
