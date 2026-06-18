@@ -35,16 +35,17 @@ class TokenStorage:
     
     def _load_tokens(self):
         """Load tokens from storage file"""
-        if os.path.exists(self.storage_file):
-            try:
-                with open(self.storage_file, 'r') as f:
-                    self._tokens = json.load(f)
-                logger.info(f"Loaded tokens for {len(self._tokens)} providers")
-            except Exception as e:
-                logger.error(f"Failed to load tokens: {e}")
-                self._tokens = {}
-        else:
+        # TOCTOU FIX: Use try-except instead of exists check
+        try:
+            with open(self.storage_file, 'r') as f:
+                self._tokens = json.load(f)
+            logger.info(f"Loaded tokens for {len(self._tokens)} providers")
+        except FileNotFoundError:
+            # File doesn't exist yet, start empty
             logger.info("No token storage file found, starting empty")
+            self._tokens = {}
+        except Exception as e:
+            logger.error(f"Failed to load tokens: {e}")
             self._tokens = {}
 
     def _save_tokens(self):

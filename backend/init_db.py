@@ -32,13 +32,26 @@ def init_db():
         # Check if admin exists
         admin_email = "admin@example.com"
         existing_user = db.query(User).filter(User.email == admin_email).first()
-        
+
         if not existing_user:
             logger.info("Creating default admin user...")
+
+            # SECURITY FIX: Use environment variable for admin password or generate secure random
+            admin_password = os.getenv("INIT_ADMIN_PASSWORD")
+            if not admin_password:
+                # Generate secure random password if not provided
+                import secrets
+                admin_password = secrets.token_urlsafe(16)
+                logger.warning(
+                    "INIT_ADMIN_PASSWORD not set. Generated random password: "
+                    f"{admin_password}. Save this password - it won't be shown again."
+                )
+                print(f"GENERATED_ADMIN_PASSWORD={admin_password}")
+
             admin_user = User(
                 id=str(uuid.uuid4()),
                 email=admin_email,
-                password_hash=get_password_hash("admin123"),
+                password_hash=get_password_hash(admin_password),
                 status="active",
                 role="admin",
                 first_name="Admin",

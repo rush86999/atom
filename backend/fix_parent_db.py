@@ -87,7 +87,18 @@ def fix_parent_db():
     
     try:
         email = "admin@example.com"
-        password = "securePass123"
+
+        # SECURITY FIX: Use environment variable for admin password or generate secure random
+        import secrets
+        password = os.getenv("FIX_ADMIN_PASSWORD")
+        if not password:
+            password = secrets.token_urlsafe(16)
+            logger.warning(
+                "FIX_ADMIN_PASSWORD not set. Generated random password: "
+                f"{password}. Save this password - it won't be shown again."
+            )
+            print(f"GENERATED_ADMIN_PASSWORD={password}")
+
         hashed_password = get_password_hash(password)
         
         user = db.query(User).filter(User.email == email).first()
