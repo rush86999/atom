@@ -1,6 +1,6 @@
 # Meta-Agent Routing System
 
-> **Last Updated**: April 7, 2026
+> **Last Updated**: June 18, 2026
 > **Phase**: 256-07 (Intent Classification & Fleet Admiralty)
 > **Status**: ✅ Production Ready
 
@@ -13,6 +13,7 @@ The **Meta-Agent** (AtomMetaAgent) is Atom's central orchestrator responsible fo
 - **Intent-Based Routing** - Classifying requests and routing to appropriate handlers
 - **Fleet Recruitment** - Assembling multi-agent teams for complex tasks
 - **Agent Lifecycle Management** - Overseeing agent creation, deployment, and evolution
+- **🆕 Enhanced Orchestration** - Conductor agent, state machine, event bus (2026)
 
 ---
 
@@ -386,6 +387,56 @@ ALLOW_CUSTOM_DOMAINS=true
 - **Concurrent fleets**: Up to 10 fleets per workspace
 - **Agents per fleet**: 2-10 agents (auto-scaled)
 - **Domain templates**: 8+ pre-configured, unlimited custom
+
+---
+
+## Enhanced Orchestration (2026) ✨
+
+### Conductor Agent Integration
+
+Meta-Agent now integrates with the **Conductor Agent** for advanced execution strategies:
+
+| Strategy | Meta-Agent Integration | Use Case |
+|-----------|----------------------|----------|
+| **SEQUENTIAL** | Single agent, linear steps | Simple domain tasks |
+| **PARALLEL** | Multi-agent, concurrent execution | Performance optimization |
+| **HYBRID** | Mixed sequential/parallel | Complex fleet coordination |
+| **ADAPTIVE** | Strategy adjustment based on context | Dynamic task requirements |
+| **ROLLBACK_SAFE** | Automatic rollback on failure | Critical operations |
+
+**Usage:**
+```python
+from core.orchestration.conductor_agent import ConductorAgent, ExecutionStrategy
+
+conductor = ConductorAgent()
+
+# Meta-Agent uses PARALLEL strategy for fleet coordination
+result = conductor.execute_workflow(
+    steps=[
+        {"step_id": "research", "agent": "research_specialist"},
+        {"step_id": "analyze", "agent": "analysis_specialist"},
+        {"step_id": "report", "agent": "reporting_specialist"}
+    ],
+    strategy=ExecutionStrategy.PARALLEL
+)
+```
+
+### Enhanced Fleet Coordination
+
+| Feature | Original | Enhanced (2026) |
+|---------|----------|-----------------|
+| **Fleet State** | Basic status tracking | Full state machine with validated transitions |
+| **Coordination** | Blackboard only | Event bus + blackboard |
+| **Recovery** | Manual retry | Automatic rollback and recovery |
+| **Composition** | Manual assembly | Template-based composition |
+
+**Performance Metrics:**
+- Fleet coordination overhead: <50ms
+- State transition success: >99%
+- Event delivery success: >99%
+- Rollback completion: <5min
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation.
 
 ---
 

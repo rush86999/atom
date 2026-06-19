@@ -731,6 +731,91 @@ if human_correction_made:
 
 ---
 
+## Enhanced Governance Integration (2026) ✨
+
+### Three-Layer Governance
+
+Graduation decisions now integrate with **enhanced three-layer governance architecture**:
+
+| Layer | Graduation Role | Decision Type |
+|-------|----------------|---------------|
+| **OPERATIONAL** | Routine graduation checks | Automated (<10ms) |
+| **TACTICAL** | Graduation with policy review | Adaptive (<100ms) |
+| **STRATEGIC** | Critical promotions (AUTONOMOUS) | Human-in-the-loop |
+
+**Usage:**
+```python
+from core.governance.dynamic_governance import DynamicGovernanceManager, GovernanceLayer
+
+manager = DynamicGovernanceManager()
+
+# OPERATIONAL layer - Standard graduation checks
+decision = manager.decide(
+    agent_id="agent_123",
+    action="graduate_to_intern",
+    layer=GovernanceLayer.OPERATIONAL
+)
+
+# STRATEGIC layer - AUTONOMOUS promotion requires human approval
+decision = manager.decide(
+    agent_id="agent_123",
+    action="graduate_to_autonomous",
+    layer=GovernanceLayer.STRATEGIC
+)
+```
+
+### Policy-Based Graduation
+
+Graduation criteria can be enforced via policy engine:
+
+```python
+from core.governance.policy_engine import PolicyEngine, GovernancePolicy
+
+engine = PolicyEngine()
+
+# Define graduation policy
+policy = GovernancePolicy(
+    policy_id="graduation_policy",
+    priority=PolicyPriority.HIGH,
+    condition="action == 'graduate_to_autonomous'",
+    effect="DENY",
+    layer="strategic",
+    rules={
+        "min_episodes": 50,
+        "max_intervention_rate": 0.0,
+        "min_constitutional_score": 0.95
+    }
+)
+
+engine.register_policy(policy)
+
+# Evaluate graduation request
+result = engine.evaluate(
+    agent_id="agent_123",
+    action="graduate_to_autonomous",
+    layer="strategic",
+    context={
+        "episode_count": 48,
+        "intervention_rate": 0.02,
+        "constitutional_score": 0.92
+    }
+)
+# Result: DENIED (episodes < 50, intervention > 0%, score < 0.95)
+```
+
+### Enhanced Performance Metrics
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| Graduation Decision Latency P50 | <10ms | ✅ Tests passing |
+| Graduation Decision Latency P95 | <50ms | ✅ Tests passing |
+| Policy Evaluation Time | <100ms | ✅ Tests passing |
+| Human Intervention Rate | <5% operational | ✅ Framework ready |
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+
+---
+
 ## Next Steps
 
 1. **Set up tracking**: Ensure all agent executions track interventions

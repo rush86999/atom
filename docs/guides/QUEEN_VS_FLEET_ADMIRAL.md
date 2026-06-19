@@ -1,7 +1,7 @@
 # Queen Agent vs Fleet Admiral: Which Orchestrator Do I Need?
 
-**Last Updated:** April 10, 2026
-**Reading Time:** 6 minutes
+**Last Updated:** June 18, 2026
+**Reading Time:** 8 minutes
 **Difficulty:** Beginner
 
 ---
@@ -87,6 +87,94 @@ Atom has two powerful orchestration systems for automating complex tasks:
 | **INTERN** | ⚠️ Approval required | ⚠️ Approval required |
 | **SUPERVISED** | ✅ Supervised | ✅ Supervised |
 | **AUTONOMOUS** | ✅ Full access | ✅ Full access |
+
+---
+
+## Enhanced Orchestration (2026) ✨
+
+Both orchestrators now include **enterprise-grade capabilities** based on 2026 research:
+
+### Conductor Agent (5 Execution Strategies)
+
+| Strategy | Description | Best For |
+|-----------|-------------|----------|
+| **SEQUENTIAL** | Execute steps one-by-one | Simple workflows |
+| **PARALLEL** | Execute independent steps simultaneously | Performance optimization |
+| **HYBRID** | Mix of sequential and parallel | Complex workflows |
+| **ADAPTIVE** | Adjust strategy based on execution context | Dynamic workflows |
+| **ROLLBACK_SAFE** | Atomic execution with automatic rollback | Critical workflows |
+
+**Usage:**
+```python
+from core.orchestration.conductor_agent import ConductorAgent, ExecutionStrategy
+
+conductor = ConductorAgent()
+
+# Queen Agent with PARALLEL strategy
+result = conductor.execute_workflow(
+    steps=[
+        {"step_id": "fetch_data", "action": "fetch"},
+        {"step_id": "process_data", "action": "transform"},
+        {"step_id": "save_data", "action": "save"}
+    ],
+    strategy=ExecutionStrategy.PARALLEL
+)
+```
+
+### Workflow State Machine
+
+Validated state transitions ensure reliable execution:
+
+```
+CREATED → VALIDATED → QUEUED → RUNNING → COMPLETED
+   ↓            ↓          ↓         ↓
+CANCELLED   PAUSED    WAITING   FAILED
+                           ↓
+                      ROLLING_BACK → ROLLED_BACK
+```
+
+### Event Bus
+
+Event-driven workflow triggering with pub/sub:
+
+```python
+from core.orchestration.event_bus import EventBus, EventType
+
+bus = EventBus()
+
+# Subscribe to workflow events
+bus.subscribe(
+    subscriber_id="my_subscriber",
+    event_types=[EventType.WORKFLOW_CREATED],
+    handler=lambda event: print(f"Workflow: {event.source}")
+)
+
+# Publish event
+bus.publish(
+    event_type=EventType.WORKFLOW_CREATED,
+    source="my_workflow",
+    data={"workflow_id": "wf_123"}
+)
+```
+
+### Enhanced Capabilities
+
+| Feature | Queen Agent | Fleet Admiral |
+|---------|-------------|---------------|
+| **Conductor Agent** | ✅ SEQUENTIAL, PARALLEL, HYBRID | ✅ All 5 strategies |
+| **State Machine** | ✅ Validated transitions | ✅ Fleet state tracking |
+| **Event Bus** | ✅ Workflow triggers | ✅ Fleet coordination |
+| **Templates** | ✅ Pre-built blueprints | ✅ Research patterns |
+| **Composition** | ✅ 8 primitives | ✅ Dynamic composition |
+| **Rollback** | ✅ Automatic rollback | ✅ Fleet recovery |
+
+**Performance Metrics:**
+- State Transition Success: >99%
+- Rollback Completion Time: <5min
+- Event Delivery Success: >99%
+- Orchestration Overhead: <50ms
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation.
 
 ---
 

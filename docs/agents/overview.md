@@ -4,8 +4,11 @@ Core agent capabilities including governance, graduation, and orchestration.
 
 ## Core Components
 
-### Governance & Maturity
+### Governance & Maturity ✨ Enhanced 2026
 - **[Agent Governance](agents/governance.md)** - Maturity levels, permissions, and lifecycle management
+  - **Three-Layer Governance** - OPERATIONAL, TACTICAL, STRATEGIC decision layers
+  - **Policy Engine** - Context-aware policy evaluation with priority resolution
+  - **Governance-as-a-Service** - Multi-tenant governance API
 - **[Agent Graduation Guide](graduation.md)** - How agents learn and get promoted
 - **[Capability Graduation](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic)** ⚡ **Individual capability progression (5/20/50 rule)**
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow for student agents
@@ -15,9 +18,14 @@ Core agent capabilities including governance, graduation, and orchestration.
 - **[Agent Guidance Implementation](guidance-system.md)** - Real-time agent operation tracking
 - **[Governance Learning Integration](agents/governance.md)** - Learning from governance events
 
-### Multi-Agent Coordination ✨ NEW
+### Multi-Agent Coordination ✨ Enhanced 2026
 - **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and dynamic routing
 - **[Fleet Admiral](agents/fleet-admiral.md)** - Multi-agent orchestration for complex tasks
+  - **Conductor Agent** - 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+  - **Workflow State Machine** - Validated state transitions with rollback support
+  - **Event Bus** - Event-driven workflow triggering with pub/sub
+  - **Workflow Templates** - Pre-built enterprise patterns
+- **[Queen Agent](QUEEN_AGENT.md)** - Structured workflow automation for repeatable processes
 
 ## Key Concepts
 
