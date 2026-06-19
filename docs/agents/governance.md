@@ -1,12 +1,36 @@
 # Agent Governance System
 
-**Last Updated**: April 7, 2026
+**Last Updated**: June 18, 2026
 
 ---
 
 ## Overview
 
 The Agent Governance System is a comprehensive framework that ensures all AI agent actions are attributable, governable, and auditable. It provides multi-tiered maturity levels, permission checks, complete audit trails, and integration with real-time monitoring through Canvas Hub.
+
+### 🆕 2026 Enhanced Governance
+
+Atom's governance system now includes **advanced three-layer governance architecture** based on enterprise workflow research:
+
+- **Three-Layer Governance** - OPERATIONAL, TACTICAL, and STRATEGIC decision layers
+- **Policy Engine** - Context-aware policy evaluation with priority resolution
+- **Governance-as-a-Service** - Multi-tenant governance API with caching
+
+**Usage:**
+```python
+from core.governance.dynamic_governance import DynamicGovernanceManager, GovernanceLayer
+
+manager = DynamicGovernanceManager()
+
+# Operational layer (fast, automated)
+decision = manager.decide(
+    agent_id="agent_123",
+    action="read_chart",
+    layer=GovernanceLayer.OPERATIONAL
+)
+```
+
+See [Enhanced Governance](#enhanced-governance-2026) section for details.
 
 ---
 
@@ -20,8 +44,9 @@ The Agent Governance System is a comprehensive framework that ensures all AI age
 6. [Audit Trails](#audit-trails)
 7. [Capability Graduation](#capability-graduation)
 8. [Performance & Caching](#performance--caching)
-9. [Configuration](#configuration)
-10. [Best Practices](#best-practices)
+9. [Enhanced Governance (2026)](#enhanced-governance-2026)
+10. [Configuration](#configuration)
+11. [Best Practices](#best-practices)
 
 ---
 
@@ -434,6 +459,119 @@ allowed = cache.is_allowed(agent_id, action_type)
 - Average lookup time: <1ms
 - P99 latency: 0.027ms
 - Throughput: 616k ops/s
+
+---
+
+## Enhanced Governance (2026)
+
+### Three-Layer Governance Architecture
+
+Based on [Governance-as-a-Service: Multi-Agent Framework](https://arxiv.org/html/2508.18765v1)
+
+| Layer | Scope | Response Time | Human Involvement |
+|-------|-------|---------------|-------------------|
+| **OPERATIONAL** | Fast, routine decisions | <10ms | Fully automated |
+| **TACTICAL** | Adaptive, performance-based | <100ms | Minimal (<5%) |
+| **STRATEGIC** | Policy, cross-tenant decisions | Variable | Human-in-the-loop |
+
+**Usage:**
+```python
+from core.governance.dynamic_governance import DynamicGovernanceManager, GovernanceLayer
+
+manager = DynamicGovernanceManager()
+
+# Operational layer (fast, automated)
+decision = manager.decide(
+    agent_id="agent_123",
+    action="read_chart",
+    layer=GovernanceLayer.OPERATIONAL
+)
+
+# Strategic layer (human-in-the-loop for policy changes)
+decision = manager.decide(
+    agent_id="agent_123",
+    action="delete_database",
+    layer=GovernanceLayer.STRATEGIC
+)
+```
+
+### Policy Engine
+
+Context-aware policy evaluation with priority-based resolution:
+
+```python
+from core.governance.policy_engine import PolicyEngine, GovernancePolicy
+
+engine = PolicyEngine()
+
+# Register policy with priority
+policy = GovernancePolicy(
+    policy_id="data_access_policy",
+    priority=PolicyPriority.HIGH,
+    condition="action.startswith('delete_')",
+    effect="DENY",
+    layer="operational"
+)
+
+engine.register_policy(policy)
+
+# Evaluate request
+result = engine.evaluate(
+    agent_id="agent_123",
+    action="delete_user_data",
+    layer="operational",
+    context={"resource_type": "user"}
+)
+```
+
+### Governance-as-a-Service
+
+Multi-tenant governance API with caching and rate limiting:
+
+```python
+from core.governance.governance_service import GovernanceAsAService
+
+service = GovernanceAsAService()
+
+# Multi-tenant permission check
+response = service.check_permission(
+    tenant_id="tenant_123",
+    user_id="user_456",
+    agent_id="agent_789",
+    action="submit_form",
+    resource="customer_data"
+)
+```
+
+### Performance Metrics (Enhanced)
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| Decision Latency P50 | <10ms | ✅ Tests passing |
+| Decision Latency P95 | <50ms | ✅ Tests passing |
+| Human Intervention Rate | <5% operational | ✅ Framework ready |
+| Policy Evaluation | <100ms | ✅ Tests passing |
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+
+### Migration Notes
+
+**From Original to Enhanced:**
+1. **Original governance still works** - No breaking changes
+2. **Enhanced features opt-in** - Use new modules when needed
+3. **Three-layer architecture** - Add for complex multi-tenant scenarios
+4. **Policy engine** - Replace hardcoded action complexity
+5. **Governance-as-a-Service** - Use for multi-tenant API exposure
+
+**When to Use Each Approach:**
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Single-tenant, simple governance | Original `AgentGovernanceService` |
+| Multi-tenant with policies | `GovernanceAsAService` |
+| Complex decision layers | `DynamicGovernanceManager` |
+| Policy-based evaluation | `PolicyEngine` |
+| Production validation | See `VALIDATION_METRICS.md` |
 
 ---
 

@@ -114,11 +114,13 @@ That's it! 🚀
 - Natural language understanding — no proprietary syntax
 - Real-time feedback as Atom visualizes its reasoning
 
-### 🤖 Specialty Agents
+### 🤖 Specialty Agents & Orchestration ✨ Enhanced 2026
 - **Sales, Marketing, Engineering**: CRM pipelines, campaigns, deployments, incidents
-- **Hive Orchestration**: Queen Agent (architectural design) and FleetAdmiral (dynamic specialist recruitment)
-- **Self-Evolving Capabilities**: Memento Skills learns from failures, AlphaEvolver optimizes via mutation ✨ NEW
-- **Governance**: Progress from "Student" to "Autonomous" as they gain trust
+- **Hive Orchestration**: Queen Agent (structured workflows) and FleetAdmiral (dynamic recruitment)
+- **Conductor Agent**: 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+- **Workflow State Machine**: Validated transitions with automatic rollback
+- **Event Bus**: Event-driven workflow triggering with pub/sub
+- **Self-Evolving Capabilities**: Memento Skills learns from failures, AlphaEvolver optimizes via mutation
 
 [Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/GUIDES/AUTO_DEV_USER_GUIDE.md)
 
@@ -132,10 +134,14 @@ Experience-based learning with recursive self-evolution, dual-trigger graduation
 
 [Agent Graduation Guide →](docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md)
 
-### 🛡️ Agent Governance System
-- 4-tier maturity-based routing and approval system
-- AI-powered training duration estimation
-- Every action logged, timestamped, and traceable
+### 🛡️ Agent Governance System ✨ Enhanced 2026
+- **4-tier maturity**: Student → Intern → Supervised → Autonomous
+- **Three-layer governance**: OPERATIONAL (<10ms), TACTICAL (<100ms), STRATEGIC (human-in-the-loop)
+- **Policy engine**: Context-aware evaluation with priority resolution
+- **AI-powered training**: Duration estimation with historical data
+- **Complete audit trail**: Every action logged, timestamped, and traceable
+
+[Governance Documentation →](docs/governance/) | [Enhancement Plan →](ATOM_ENHANCEMENT_PLAN.md)
 
 ### 🔌 Deep Integrations
 - **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce, Zendesk

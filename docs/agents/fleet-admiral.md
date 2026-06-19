@@ -1,6 +1,6 @@
 # Fleet Admiral - Multi-Agent Orchestration
 
-> **Last Updated**: April 5, 2026
+> **Last Updated**: June 18, 2026
 > **Phase**: 256-07 (Intent Classification & Fleet Admiralty)
 > **Status**: ✅ Production Ready
 
@@ -17,6 +17,37 @@
 - **Intelligent Task Analysis** - LLM-powered decomposition
 - **Performance Optimization** - FleetOptimizationService tuning
 - **Governance Integration** - Maturity-based access control
+- **🆕 Enhanced Orchestration** - State machine, event bus, workflow templates (Phase 5)
+
+### 🆕 Enhanced Orchestration (2026)
+
+Atom now includes **enterprise-grade orchestration capabilities**:
+
+- **Conductor Agent** - 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+- **Workflow State Machine** - Validated state transitions with rollback support
+- **Event Bus** - Event-driven workflow triggering with pub/sub
+- **Workflow Templates** - Pre-built enterprise patterns
+- **Workflow Composition** - 8 reusable primitives
+
+**Usage:**
+```python
+from core.orchestration.conductor_agent import ConductorAgent, ExecutionStrategy
+
+conductor = ConductorAgent()
+
+# Execute with PARALLEL strategy
+result = conductor.execute_workflow(
+    steps=[
+        {"step_id": "fetch_data", "action": "fetch"},
+        {"step_id": "process_data", "action": "transform"},
+        {"step_id": "save_data", "action": "save"}
+    ],
+    start_step="fetch_data",
+    strategy=ExecutionStrategy.PARALLEL  # Enable parallel execution
+)
+```
+
+See [Enhanced Orchestration](#enhanced-orchestration-2026) section for details.
 
 ---
 
@@ -486,6 +517,137 @@ sub_tasks = [
     {"domain": "finance", "task": "Reconcile and analyze Q1 transactions"}
 ]
 ```
+
+---
+
+## Enhanced Orchestration (2026)
+
+### Conductor Agent
+
+The Conductor Agent provides advanced execution strategies beyond simple fleet coordination:
+
+| Strategy | Description | Use Case |
+|-----------|-------------|----------|
+| **SEQUENTIAL** | Execute steps one-by-one | Simple workflows |
+| **PARALLEL** | Execute independent steps simultaneously | Performance optimization |
+| **HYBRID** | Mix of sequential and parallel | Complex workflows |
+| **ADAPTIVE** | Adjust strategy based on execution context | Dynamic workflows |
+| **ROLLBACK_SAFE** | Atomic execution with automatic rollback | Critical workflows |
+
+**Usage:**
+```python
+from core.orchestration.conductor_agent import ConductorAgent, ExecutionStrategy
+
+conductor = ConductorAgent()
+
+# Execute with PARALLEL strategy
+result = conductor.execute_workflow(
+    steps=[
+        {"step_id": "fetch_data", "action": "fetch"},
+        {"step_id": "process_data", "action": "transform"},
+        {"step_id": "save_data", "action": "save"}
+    ],
+    start_step="fetch_data",
+    strategy=ExecutionStrategy.PARALLEL
+)
+```
+
+### Workflow State Machine
+
+Validated state transitions ensure reliable workflow execution:
+
+```
+CREATED → VALIDATED → QUEUED → RUNNING → COMPLETED
+   ↓            ↓          ↓         ↓
+CANCELLED   PAUSED    WAITING   FAILED
+                           ↓
+                      ROLLING_BACK → ROLLED_BACK
+```
+
+**Usage:**
+```python
+from core.orchestration.workflow_state_machine import WorkflowStateMachine, WorkflowState
+
+machine = WorkflowStateMachine()
+
+# Initialize state
+machine.initialize_state("workflow_123", "exec_456", WorkflowState.CREATED)
+
+# Transition through states
+machine.transition("workflow_123", "exec_456", WorkflowState.VALIDATED)
+machine.transition("workflow_123", "exec_456", WorkflowState.QUEUED)
+machine.transition("workflow_123", "exec_456", WorkflowState.RUNNING)
+
+# Create rollback plan if needed
+if error_occurs:
+    plan = machine.create_rollback_plan(
+        workflow_id="workflow_123",
+        execution_id="exec_456",
+        compensation_actions=["undo_step_1", "undo_step_2"]
+    )
+```
+
+### Event Bus
+
+Event-driven workflow triggering:
+
+```python
+from core.orchestration.event_bus import EventBus, EventType
+
+bus = EventBus()
+bus.start()
+
+# Subscribe to workflow events
+def handle_workflow_created(event):
+    print(f"Workflow created: {event.source}")
+    # Trigger downstream process
+
+bus.subscribe(
+    subscriber_id="subscriber_1",
+    event_types=[EventType.WORKFLOW_CREATED],
+    handler=handle_workflow_created
+)
+
+# Publish event
+bus.publish(
+    event_type=EventType.WORKFLOW_CREATED,
+    source="my_workflow",
+    data={"workflow_id": "wf_123"}
+)
+```
+
+### Workflow Templates
+
+Pre-built enterprise workflow templates:
+
+```python
+from core.orchestration.workflow_templates import get_template_library
+
+library = get_template_library()
+
+# Browse templates by category
+templates = library.get_templates_by_category(TemplateCategory.AUTOMATION)
+
+# Instantiate a template
+template = library.get_template("data_sync_automation")
+
+workflow = template.instantiate({
+    "source_system": "postgres",
+    "target_system": "s3",
+    "sync_mode": "incremental"
+})
+```
+
+### Performance Metrics
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| State Transition Success | >99% | ✅ Tests passing |
+| Rollback Completion Time | <5min | ✅ Tests passing |
+| Event Delivery Success | >99% | ✅ Tests passing |
+| Orchestration Overhead | <50ms | ✅ Tests passing |
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
 
 ---
 
