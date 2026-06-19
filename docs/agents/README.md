@@ -115,4 +115,45 @@ See: [Fleet Admiral Documentation](fleet-admiral.md)
 
 ---
 
-*Last Updated: April 7, 2026*
+*Last Updated: June 18, 2026*
+
+---
+
+## 🚀 2026 Enhancement Plan Integration
+
+The agent system has been significantly enhanced through the 2026 Enhancement Plan:
+
+### Phase 5: Enhanced Orchestration Patterns ✅ COMPLETE
+- **Conductor Agent**: 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+- **Workflow State Machine**: Validated transitions with automatic rollback capability
+- **Event Bus**: Real-time event-driven workflow triggering with pub/sub
+- **Arbor Framework**: Hypothesis Tree Refinement (HTR) for workflow optimization
+
+**See**: [ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md) - Complete Arbor documentation with WorkflowHypothesisNode
+
+### Enhanced Governance (2026) ✅ COMPLETE
+- **Three-Layer Governance**: OPERATIONAL (<10ms), TACTICAL (<100ms), STRATEGIC (human-in-the-loop)
+- **Policy Engine**: Context-aware evaluation with priority resolution
+- **Experience-Driven Graduation**: Quality-weighted episodes (20% improvement in accuracy)
+
+**See**: [governance.md](governance.md) - Complete governance documentation with 2026 enhancements
+
+### Enhanced Learning (2026) ✅ COMPLETE
+- **POMDP Memory Framework**: Write-manage-read loop for agent learning
+- **Memory Consolidation**: Offline processing (inspired by human sleep)
+- **Canvas Integration**: Canvas feedback feeds directly into graduation criteria
+
+**See**: [../intelligence/episodic-memory.md](../intelligence/episodic-memory.md) - POMDP memory documentation
+
+### Conductor Agent vs Queen Agent vs Fleet Admiral
+
+| Aspect | Queen Agent | Fleet Admiral | Conductor Agent ✨ |
+|--------|-------------|---------------|-------------------|
+| **Task Type** | Structured, repeatable | Unstructured, novel | Complex optimization |
+| **Planning** | Predefined blueprints | Dynamic discovery | Adaptive strategies |
+| **Agents** | Fixed team | Dynamic recruitment | Dynamic recruitment |
+| **Execution** | Blueprint-based | Intent-based | Strategy-based |
+| **Strategies** | Sequential | Parallel | 5 strategies (SEQ, PAR, HYB, ADAPT, ROLLBACK) |
+| **Use Case** | "Execute sales blueprint" | "Research + build integration" | "Optimize workflow with Arbor" |
+
+**See**: [Conductor Agent Guide](../guides/QUEEN_AGENT_USER_GUIDE.md) - Complete Conductor documentation
