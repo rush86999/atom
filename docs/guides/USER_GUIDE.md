@@ -125,7 +125,7 @@ Atom is your intelligent personal assistant that helps you manage your entire li
 
 ## Advanced Features
 
-### 🤖 Multi-Agent System
+### 🤖 Multi-Agent System (Enhanced 2026)
 
 **Agent Management**
 - Create specialized AI agents for different tasks
@@ -133,17 +133,109 @@ Atom is your intelligent personal assistant that helps you manage your entire li
 - Configure agent capabilities and permissions
 - Monitor agent performance and activity
 
-**Role Configuration**
-- Define agent roles with specific capabilities
-- Set system prompts and behavior guidelines
-- Configure AI model settings per role
-- Manage permissions and access levels
+**Agent Maturity Levels (4-Tier Governance)** ✨ NEW
+- **STUDENT**: Read-only access (charts, markdown presentations)
+- **INTERN**: Streaming and form presentations (requires approval for state changes)
+- **SUPERVISED**: Full access with real-time supervision monitoring
+- **AUTONOMOUS**: Complete independence, no oversight required
 
-**Agent Coordination**
-- Visualize agent tasks and dependencies
-- Monitor task progress in real-time
-- Handle task conflicts and reassignments
-- View agent collaboration patterns
+**Agent Graduation** ✨ ENHANCED
+- Experience-driven promotion based on quality, not just episode count
+- 20% improvement in graduation accuracy with POMDP memory framework
+- Canvas feedback contributes to graduation criteria
+- Intervention rate trajectory analysis for fair assessment
+
+**Example**:
+```
+You: "Atom, create a research agent for competitive analysis."
+Atom: "Creating new agent 'CompetitiveAnalyst' with STUDENT maturity.
+The agent can present charts and summaries but cannot modify data.
+As it learns from your feedback, it will graduate to higher maturity levels."
+```
+
+**Enhanced Coordination (2026)** ✨ NEW
+- **Conductor Agent**: Orchestrates complex workflows with 5 execution strategies
+  - SEQUENTIAL: Step-by-step execution
+  - PARALLEL: Concurrent task execution
+  - HYBRID: Mixed sequential and parallel
+  - ADAPTIVE: Adjusts based on feedback
+  - ROLLBACK_SAFE: Automatic recovery on errors
+- **Event Bus**: Real-time event-driven workflow triggering
+- **Workflow Templates**: 8 composition primitives for common patterns
+
+### 🧠 Episodic Memory (Enhanced 2026) ✨ NEW
+
+**Memory Framework**
+- **POMDP (Partially Observable Markov Decision Process)**: Formal memory-as-learning framework
+- **Write-Manage-Read Loop**: Structured memory creation, management, and retrieval
+- **Quality-Weighted Episodes**: High-quality experiences weighted more heavily
+- **Memory Consolidation**: Overnight processing (inspired by human sleep)
+
+**Memory Retrieval Modes**
+- **Temporal**: Recent episodes first
+- **Semantic**: Vector similarity search
+- **Sequential**: Episode chains with context
+- **Contextual**: Situation-aware retrieval
+
+**Canvas-Enhanced Memory** ✨ ENHANCED
+- Canvases automatically linked to episodes
+- User feedback on presentations improves future retrieval
+- Canvas engagement patterns influence learning
+
+**Example**:
+```
+You: "Atom, what did I decide about the Q4 budget?"
+Atom: "Based on Episode #45 (Budget Meeting, Oct 15): You approved $50K for
+marketing with the condition to review results in 30 days. [Canvas shows
+the original budget chart you presented and approved]"
+```
+
+### 🔍 Knowledge Graph & GraphRAG (Enhanced 2026) ✨ NEW
+
+**Multi-Hop Query Expansion**
+- Trace relationships across multiple entities
+- Cue-driven activation for relevant information
+- Configurable hop depth limits
+
+**Dynamic Graph Construction**
+- Incremental updates (no full rebuild required)
+- Temporal graph evolution tracking
+- Graph versioning for rollback capability
+
+**Community Detection**
+- Leiden algorithm for entity clustering
+- Community-based summarization
+- Optimized query performance using clusters
+
+**Example**:
+```
+You: "Show me how the Q4 budget connects to marketing results."
+Atom: "Tracing relationships: Budget → (hop 1) → Marketing Campaign →
+(hop 2) → Customer Acquisition → (hop 3) → Revenue Impact. [Canvas shows
+connected knowledge graph with 7 related entities]"
+```
+
+### 🔌 Deep Integrations (35+)
+
+**Communication**
+- Email: Gmail, Outlook
+- Chat: Slack, Microsoft Teams, Discord
+- Social: Twitter, LinkedIn
+
+**Productivity**
+- Task Management: Notion, Trello, Asana, Jira
+- File Storage: Google Drive, Dropbox, OneDrive, Box
+- Calendar: Google Calendar, Outlook Calendar
+
+**Finance**
+- Banking: Plaid integration
+- Accounting: QuickBooks, Xero
+- Payments: Stripe, PayPal
+
+**CRM & Business**
+- CRM: Salesforce, HubSpot
+- E-commerce: Shopify
+- Development: GitHub
 
 ### ⚙️ Automation Workflows
 

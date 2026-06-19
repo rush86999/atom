@@ -1,13 +1,146 @@
 # Canvas Context for Agent Learning
 
-**Date**: February 2, 2026
-**Related**: Agent Guidance System, Agent Governance & Learning Integration
+**Date**: February 2, 2026 (Updated June 18, 2026)
+**Related**: Agent Guidance System, Agent Governance & Learning Integration, 2026 Enhancement Plan
 
 ---
 
 ## Overview
 
 The Canvas system is not just a **display** layer - it's a **bidirectional feedback system** that continuously learns from user interactions to improve agent performance, confidence scoring, and decision-making.
+
+## 🚀 2026 Enhancement Plan Integration
+
+### Phase 5: Enhanced Orchestration Patterns ✅
+
+Canvas learning is integrated with the enhanced orchestration patterns from Phase 5:
+
+**Conductor Agent Integration**:
+```python
+from core.orchestration.conductor_agent import ConductorAgent
+
+conductor = ConductorAgent()
+
+# Canvas workflow with learning
+workflow = conductor.execute_workflow(
+    strategy="ADAPTIVE",  # Adjusts based on user feedback
+    steps=[
+        {
+            "agent": "analyst",
+            "action": "present_canvas",
+            "canvas_type": "charts",
+            "learning_mode": "observe_preferences"  # Track user choices
+        },
+        {
+            "agent": "learner",
+            "action": "update_preferences",
+            "feedback_source": "canvas_interactions"
+        }
+    ]
+)
+
+# Strategy adapts based on canvas feedback
+if strategy == "ADAPTIVE":
+    # User closes charts quickly → switch to sheets
+    # User engages with forms → prioritize form presentations
+    # User submits corrections → increase supervision level
+```
+
+**Workflow State Machine**:
+```python
+# Canvas transitions with state machine validation
+from core.orchestration.workflow_state_machine import WorkflowStateMachine
+
+state_machine = WorkflowStateMachine()
+
+state_machine.define_states({
+    "canvas_presenting": {
+        "valid_transitions": ["user_reviewing", "canvas_closed", "error_occurred"],
+        "rollback_on_error": True
+    },
+    "user_reviewing": {
+        "valid_transitions": ["feedback_submitted", "canvas_closed", "approval_granted"],
+        "timeout_seconds": 300  # 5 minutes
+    },
+    "feedback_submitted": {
+        "valid_transitions": ["learning_updated", "graduation_evaluated"],
+        "auto_proceed": True  # Feedback triggers automatic learning
+    }
+})
+
+# Automatic rollback on negative feedback
+if feedback_type == "thumbs_down" and feedback_score < -0.5:
+    state_machine.rollback_to("canvas_presenting")
+    # Agent retries with different presentation
+```
+
+**Event Bus Integration**:
+```python
+# Canvas events trigger workflows
+from core.orchestration.event_bus import EventBus
+
+event_bus = EventBus()
+
+# Subscribe to canvas events
+@event_bus.subscribe("canvas:presented")
+def on_canvas_presented(event):
+    """Track canvas presentation for learning"""
+    canvas_analytics.track_presentation(
+        canvas_type=event.data["canvas_type"],
+        agent_id=event.data["agent_id"],
+        timestamp=event.timestamp
+    )
+
+@event_bus.subscribe("canvas:feedback_received")
+def on_feedback_received(event):
+    """Process feedback for learning"""
+    confidence_scorer.update_from_feedback(
+        agent_id=event.data["agent_id"],
+        feedback_type=event.data["feedback_type"],
+        rating=event.data.get("rating"),
+        engagement_time=event.data.get("engagement_seconds")
+    )
+
+    # Check if ready for graduation
+    if confidence_scorer.is_graduation_ready(event.data["agent_id"]):
+        graduation_service.evaluate_promotion(event.data["agent_id"])
+
+@event_bus.subscribe("canvas:error_shown")
+def on_error_shown(event):
+    """Track error patterns for learning"""
+    error_recovery_learner.track_resolution(
+        error_type=event.data["error_type"],
+        resolution_selected=event.data["resolution_index"],
+        user_outcome=event.data.get("outcome")
+    )
+```
+
+**Workflow Templates & Composition**:
+```python
+# 8 workflow composition primitives for canvas workflows
+from core.orchestration.workflow_templates import WorkflowTemplates
+
+templates = WorkflowTemplates()
+
+# Canvas presentation template
+canvas_workflow = templates.compose([
+    templates.SEQUENCE_PRESENT_REVIEW,  # Present → User reviews
+    templates.CONDITION_FEEDBACK,       # Branch on feedback
+    templates.LEARN_FROM_RESULT,        # Update learning
+    templates.RETRY_OR_PROCEED         # Retry or continue
+])
+
+# Example: Adaptive chart presentation
+workflow = templates.create_canvas_workflow(
+    presentation_type="charts",
+    adaptive_rules={
+        "if_closed_quickly": "switch_to_sheets",
+        "if_positive_feedback": "reinforce_pattern",
+        "if_negative_feedback": "try_different_type",
+        "if_no_response": "timeout_and_retry"
+    }
+)
+```
 
 ## Key Principle: Every Canvas Interaction is Learning Data
 

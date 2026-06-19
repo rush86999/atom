@@ -6,6 +6,76 @@ Episodes now include lightweight references to canvas presentations and user fee
 
 **Key Principle**: Canvas and feedback context are **ALWAYS** fetched during every episode recall, not just for canvas-specific tasks. This ensures agents have complete context for ALL decision-making.
 
+## 🚀 2026 Enhancement Plan Integration
+
+### Phase 1: POMDP Memory Framework ✅
+
+Canvas and feedback integration is enhanced with the POMDP (Partially Observable Markov Decision Process) memory framework from Phase 1:
+
+**Canvas as POMDP Observations**:
+```python
+from core.memory.pomdp_memory_framework import POMDPMemoryFramework
+
+pomdp = POMDPMemoryFramework()
+
+# Canvas interactions form observation space
+pomdp.define_observation_space(
+    states=[
+        "canvas_presented",
+        "canvas_closed_quickly",  # < 5 seconds
+        "canvas_closed_slowly",   # > 5 seconds
+        "canvas_form_submitted",
+        "canvas_error_shown"
+    ],
+    observation_rewards={
+        "canvas_closed_quickly": -0.2,  # User didn't engage
+        "canvas_closed_slowly": 0.1,   # User reviewed content
+        "canvas_form_submitted": 0.5,   # Positive outcome
+        "thumbs_up_feedback": 0.3,      # Explicit approval
+        "thumbs_down_feedback": -0.3    # Explicit disapproval
+    }
+)
+```
+
+**Experience-Driven Graduation**:
+- Canvas feedback contributes to quality-weighted episode scoring
+- Graduation criteria now consider canvas success rates (20% improvement)
+- Intervention rate includes canvas-based corrections
+
+**Memory Consolidation**:
+- Canvas summaries processed during offline consolidation (inspired by human sleep)
+- Canvas patterns extracted for replay in critical episodes
+- Canvas interaction "forgetting curve" for stale memories
+
+**Example**:
+```python
+# Canvas feedback influences graduation
+from core.agent_graduation_service import AgentGraduationService
+
+graduation = AgentGraduationService()
+
+# Quality-weighted episode scoring
+episode_score = graduation.calculate_quality_score(
+    episode=episode,
+    weights={
+        "task_completion": 0.4,
+        "canvas_success": 0.3,  # Canvas engagement rates
+        "feedback_quality": 0.2,
+        "consistency": 0.1
+    }
+)
+
+# Intervention rate includes canvas corrections
+intervention_rate = graduation.calculate_intervention_rate(
+    episodes=agent_episodes,
+    correction_sources=[
+        "chat_corrections",
+        "canvas_corrections",  # NEW: Canvas feedback
+        "workflow_corrections"
+    ]
+)
+```
+
 ## Architecture
 
 ### Storage Pattern: Metadata-Only Linkage
