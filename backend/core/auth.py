@@ -120,7 +120,6 @@ async def get_current_user(
         if user_id is None:
             # Try "id" field if "sub" is missing (NextAuth sometimes differs)
             user_id = payload.get("id")
-            user_id = payload.get("id")
             if user_id is None:
                 print("AUTH DEBUG: Token payload missing 'sub' and 'id'")
                 raise credentials_exception

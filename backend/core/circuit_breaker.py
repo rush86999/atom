@@ -232,6 +232,29 @@ class CircuitBreaker:
                 all_stats[name] = await self.get_stats(name)
 
         return all_stats
+
+    def get_state(self, integration: str) -> CircuitState:
+        """
+        Get the current circuit state for an integration.
+
+        Returns:
+            CircuitState: CLOSED (enabled), OPEN (disabled), or HALF_OPEN (testing)
+        """
+        # Check if integration is currently disabled
+        if integration in self.disabled:
+            return CircuitState.OPEN
+
+        # Check if disabled with timeout
+        if integration in self.disabled_until:
+            disabled_until = self.disabled_until[integration]
+            if time.time() < disabled_until:
+                return CircuitState.OPEN
+            else:
+                # Cooldown period expired, enter HALF_OPEN state
+                return CircuitState.HALF_OPEN
+
+        # Integration is enabled
+        return CircuitState.CLOSED
     
     async def reset(self, integration: str = None):
         """Reset statistics for an integration or all integrations"""

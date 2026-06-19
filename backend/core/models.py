@@ -6066,7 +6066,7 @@ class GuacamoleSession(Base):
     metadata_json = Column(JSONColumn, nullable=True)
 
     # Relationships
-    machine = relationship("Machine", backref="session")
+    machine = relationship("Machine", back_populates="guacamole_sessions")
     tenant = relationship("Tenant", backref="guacamole_sessions")
 
 
