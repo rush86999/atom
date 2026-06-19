@@ -4,7 +4,15 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 
 ## Core Features
 
-*   **Agent Governance System**: 30+ integrated skills with maturity-based autonomy and human-in-the-loop approvals
+*   **Agent Governance System ✨ Enhanced 2026**: 30+ integrated skills with maturity-based autonomy and human-in-the-loop approvals
+    *   **Three-Layer Governance**: OPERATIONAL (<10ms), TACTICAL (<100ms), STRATEGIC (human-in-the-loop)
+    *   **Policy Engine**: Context-aware policy evaluation with priority resolution
+    *   **Governance-as-a-Service**: Multi-tenant governance API with caching
+*   **Enhanced Orchestration ✨ NEW 2026**: Enterprise-grade workflow automation capabilities
+    *   **Conductor Agent**: 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+    *   **Workflow State Machine**: Validated state transitions with automatic rollback
+    *   **Event Bus**: Event-driven workflow triggering with pub/sub
+    *   **Workflow Templates**: Pre-built enterprise patterns
 *   **Unified Command Centers**: Aggregate views for Projects, Sales, Support, and Knowledge management.
 *   **Global Intelligence Hub**: Cross-platform semantic search across storage, tasks, deals, and tickets.
 *   **Real-time Team Discussion**: Integrated collaboration suite in every departmental dashboard.

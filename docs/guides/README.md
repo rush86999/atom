@@ -33,12 +33,15 @@ Comprehensive guides organized by user type and topic.
 - **[Auto-Dev User Guide](AUTO_DEV_USER_GUIDE.md)** - Self-evolving agents ✨ NEW
 - **[Enterprise](ENTERPRISE)** - Enterprise deployment
 - **[Federation & Instance Identity](FEDERATION_INSTANCE_IDENTITY.md)** - Multi-instance communication ✨ NEW
+  - Zero-Trust Identity (2026): DID/VC federation
 - **[Marketplace Quick Start](MARKETPLACE_QUICKSTART.md)** - Marketplace setup ✨ NEW
 - **[Messaging Guide](MESSAGING_GUIDE.md)** - Messaging platforms
 - **[Messaging Platforms](MESSAGING_PLATFORMS.md)** - Platform integrations
 - **[Privacy Notice](PRIVACY_NOTICE.md)** - Privacy policy
-- **[Queen Agent User Guide](QUEEN_AGENT_USER_GUIDE.md)** - Queen Agent guide ✨ NEW
-- **[Queen vs Fleet Admiral](QUEEN_VS_FLEET_ADMIRAL.md)** - Orchestrator comparison ✨ NEW
+- **[Queen Agent User Guide](QUEEN_AGENT_USER_GUIDE.md)** - Queen Agent guide ✨ ENHANCED 2026
+  - Orchestration Engine: Conductor Agent, State Machine, Event Bus
+- **[Queen vs Fleet Admiral](QUEEN_VS_FLEET_ADMIRAL.md)** - Orchestrator comparison ✨ ENHANCED 2026
+  - Enhanced orchestration with 5 execution strategies
 - **[Quickstart](QUICKSTART.md)** - Quick start guide
 
 ## 🎯 Quick Links
