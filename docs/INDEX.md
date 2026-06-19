@@ -7,6 +7,24 @@
 
 ---
 
+## 🚀 Recent Updates (June 2026)
+
+- **2026 Enhancement Plan**: ✅ COMPLETE - All 5 phases delivered with validation metrics
+  - [ARBOR_FRAMEWORK.md](ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
+  - Phase 1: POMDP Memory Framework - Experience-driven agent learning
+  - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
+  - Phase 3: Learning-Based LLM Routing - RouteLLM with 15% cost savings
+  - Phase 4: Zero-Trust Federation Identity - DID/VC with mTLS
+  - Phase 5: Enhanced Orchestration - Conductor Agent, workflow state machine
+- **Canvas Integration**: ✅ COMPLETE - Canvas system integrated with Phase 1-5 features
+  - [canvas/README.md](canvas/README.md) - Canvas with POMDP memory, GraphRAG, orchestration
+  - [canvas/feedback-memory.md](canvas/feedback-memory.md) - Canvas feedback with experience-driven graduation
+  - [canvas/agent-learning.md](canvas/agent-learning.md) - Canvas learning with Conductor Agent
+- **UI/UX Enhancement**: ✅ COMPLETE - User journeys updated with 2026 features
+  - [guides/USER_PERSONAS_AND_JOURNEYS.md](guides/USER_PERSONAS_AND_JOURNEYS.md) - Enhanced personas with Phase 1-5
+  - [guides/USER_GUIDE.md](guides/USER_GUIDE.md) - Multi-agent governance and memory sections
+  - [guides/QUICKSTART.md](guides/QUICKSTART.md) - Phase 1-5 quick examples
+
 ## 🚀 Recent Updates (April 2026)
 
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
@@ -144,6 +162,7 @@
 ### Intelligence & Learning Systems
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [ARBOR_FRAMEWORK.md](ARBOR_FRAMEWORK.md) | **✨ Arbor Framework - Hypothesis Tree Refinement (HTR)** - LLM code generation with tree search | Jun 18, 2026 |
 | [intelligence/overview.md](intelligence/overview.md) | **Intelligence systems overview** - Memory, knowledge, and reasoning | Apr 7, 2026 |
 | [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory - Agent learning framework** | Feb 3, 2026 |
 | [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ Self-Evolution & Reflection Pool** - Critique-based learning and Auto-Dev | Apr 12, 2026 |
