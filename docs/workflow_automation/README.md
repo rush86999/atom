@@ -12,15 +12,20 @@ Workflow engines, optimization, and automation systems.
 
 ## 🔄 Workflow Types
 
-### Structured Workflows (Queen Agent)
+### Structured Workflows (Queen Agent) ✨ Enhanced 2026
 - **Blueprint-Based**: Predefined workflow templates
-- **Repeatable**: Reliable, consistent execution
+- **Conductor Agent**: 5 execution strategies (SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE)
+- **Workflow State Machine**: Validated state transitions with rollback support
+- **Event Bus**: Event-driven workflow triggering with pub/sub
+- **Workflow Templates**: Pre-built enterprise patterns
 - **Use Cases**: Daily reports, data pipelines, CRM workflows
 - **Guide**: [Queen Agent User Guide](../GUIDES/QUEEN_AGENT_USER_GUIDE.md)
 
-### Unstructured Tasks (Fleet Admiral)
+### Unstructured Tasks (Fleet Admiral) ✨ Enhanced 2026
 - **Dynamic**: Agent recruitment for complex tasks
 - **Flexible**: Adapts to task requirements
+- **Enhanced Coordination**: Event bus + blackboard communication
+- **Rollback Support**: Automatic fleet recovery
 - **Use Cases**: Research, multi-step projects, cross-domain tasks
 - **Guide**: [Fleet Admiral](../agents/fleet-admiral.md)
 
