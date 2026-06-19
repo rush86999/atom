@@ -37,6 +37,18 @@ AI capabilities, knowledge management, and cognitive systems.
 ### Agent Learning
 - **[Agent Graduation Guide](../agents/graduation.md)** - Agent promotion system
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
+- **🆕 Enhanced Governance Integration** - Three-layer governance with intelligence systems
+
+### Enhanced Governance (2026) ✨
+- **[Three-Layer Governance](../governance/)** - OPERATIONAL, TACTICAL, STRATEGIC decision layers
+- **[Policy Engine](../governance/)** - Context-aware policy evaluation with intelligence data
+- **[Governance-as-a-Service](../governance/)** - Multi-tenant governance API
+
+**Integration with Intelligence:**
+- Episode data informs governance graduation decisions
+- Policy engine uses memory retrieval for context-aware decisions
+- Knowledge graph data validates strategic governance choices
+- See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for performance metrics
 
 ## Canvas Intelligence
 

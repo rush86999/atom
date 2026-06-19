@@ -438,6 +438,117 @@ else:
 
 ---
 
+## Enhanced Governance (2026) ✨
+
+### Three-Layer Governance Architecture
+
+Atom now includes **advanced three-layer governance** based on enterprise workflow research:
+
+| Layer | Scope | Response Time | Human Involvement |
+|-------|-------|---------------|-------------------|
+| **OPERATIONAL** | Fast, routine decisions | <10ms | Fully automated |
+| **TACTICAL** | Adaptive, performance-based | <100ms | Minimal (<5%) |
+| **STRATEGIC** | Policy, cross-tenant decisions | Variable | Human-in-the-loop |
+
+**Enhanced Pattern**:
+```python
+from core.governance.dynamic_governance import DynamicGovernanceManager, GovernanceLayer
+
+manager = DynamicGovernanceManager()
+
+# OPERATIONAL layer - Fast, automated
+decision = manager.decide(
+    agent_id="agent_123",
+    action="read_chart",
+    layer=GovernanceLayer.OPERATIONAL
+)
+
+# STRATEGIC layer - Human-in-the-loop for critical actions
+decision = manager.decide(
+    agent_id="agent_123",
+    action="delete_database",
+    layer=GovernanceLayer.STRATEGIC
+)
+```
+
+### Policy Engine Integration
+
+**Enhanced Pattern**:
+```python
+from core.governance.policy_engine import PolicyEngine, GovernancePolicy
+
+engine = PolicyEngine()
+
+# Register policy with priority
+policy = GovernancePolicy(
+    policy_id="data_access_policy",
+    priority=PolicyPriority.HIGH,
+    condition="action.startswith('delete_')",
+    effect="DENY",
+    layer="operational"
+)
+
+engine.register_policy(policy)
+
+# Evaluate request
+result = engine.evaluate(
+    agent_id="agent_123",
+    action="delete_user_data",
+    layer="operational",
+    context={"resource_type": "user"}
+)
+```
+
+### Governance-as-a-Service
+
+**Enhanced Pattern**:
+```python
+from core.governance.governance_service import GovernanceAsAService
+
+service = GovernanceAsAService()
+
+# Multi-tenant permission check
+response = service.check_permission(
+    tenant_id="tenant_123",
+    user_id="user_456",
+    agent_id="agent_789",
+    action="submit_form",
+    resource="customer_data"
+)
+```
+
+### Migration Notes
+
+**From Original to Enhanced:**
+1. **Original governance still works** - No breaking changes
+2. **Enhanced features opt-in** - Use new modules when needed
+3. **Three-layer architecture** - Add for complex multi-tenant scenarios
+4. **Policy engine** - Replace hardcoded action complexity
+5. **Governance-as-a-Service** - Use for multi-tenant API exposure
+
+**When to Use Each Approach:**
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Single-tenant, simple governance | Original `AgentGovernanceService` |
+| Multi-tenant with policies | `GovernanceAsAService` |
+| Complex decision layers | `DynamicGovernanceManager` |
+| Policy-based evaluation | `PolicyEngine` |
+| Production validation | See `VALIDATION_METRICS.md` |
+
+### Performance Metrics (Enhanced)
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| Decision Latency P50 | <10ms | ✅ Tests passing |
+| Decision Latency P95 | <50ms | ✅ Tests passing |
+| Human Intervention Rate | <5% operational | ✅ Framework ready |
+| Policy Evaluation | <100ms | ✅ Tests passing |
+
+See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+
+---
+
 ## Summary
 
 ### Current State
