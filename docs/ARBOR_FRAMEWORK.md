@@ -108,6 +108,29 @@ class CodeHypothesisNode(OptimizationNode):
 
 **Use Case**: Auto-refactoring, code generation, optimization
 
+**Integration with Auto-Dev**: CodeHypothesisNode integrates with Auto-Dev's Memento-Skills and AlphaEvolver:
+
+```python
+# Arbor validates AlphaEvolver variants
+from auto_dev.alpha_evolver import AlphaEvolverEngine
+
+evolver = AlphaEvolverEngine()
+variants = evolver.create_variants(base_skill="data_analysis")
+
+# Arbor tests each variant as a hypothesis
+for variant_code in variants:
+    node = CodeHypothesisNode(
+        code_diff=variant_code,
+        language="python",
+        cyclomatic_complexity=calculate_complexity(variant_code),
+        code_coverage=run_tests(variant_code)
+    )
+    # Arbor prunes failing variants (lint errors, test failures)
+    # Winning path = best performing variant
+```
+
+**See Also**: [Auto-Dev User Guide](docs/guides/AUTO_DEV_USER_GUIDE.md) - Skill evolution with Arbor integration
+
 #### 2. WorkflowHypothesisNode
 ```python
 @dataclass
@@ -245,6 +268,12 @@ if not tree.add_node(node):
 ## Integration with Phase 1-5 Features
 
 ### Phase 1: POMDP Memory Framework
+
+- **Hypothesis as Actions**: Each hypothesis is an action in the POMDP action space
+- **Observations**: Validation results (lint, tests, performance) form observations
+- **Rewards**: Successful paths feed into memory quality assessment
+
+**See Also**: [Episodic Memory](docs/intelligence/episodic-memory.md) - Complete POMDP integration guide
 - **Hypothesis as Actions**: Each hypothesis is an action in the POMDP action space
 - **Observations**: Validation results (lint, tests, performance) form observations
 - **Rewards**: Successful paths feed into memory quality assessment
@@ -257,9 +286,13 @@ if not tree.add_node(node):
 - **Model Selection**: RouteLLM selects optimal LLM for hypothesis generation
 - **Cost Optimization**: Tree search respects LLM routing cost tiers
 
+**See Also**: [Cognitive Tier System](docs/architecture/COGNITIVE_TIER_SYSTEM.md) - Routing optimization with RoutingHypothesisNode
+
 ### Phase 5: Enhanced Orchestration
 - **Conductor Agent**: Uses workflow hypothesis nodes for optimization
 - **WorkflowHypothesisNode**: Domain-specific node for workflow refinement
+
+**See Also**: [Atom Enhancement Plan](ATOM_ENHANCEMENT_PLAN.md) - Phase 5 orchestration patterns with Arbor integration
 
 ## API Endpoints
 
@@ -324,8 +357,12 @@ PYTHONPATH=. pytest tests/test_hypothesis_tree.py -v
 ## Documentation References
 
 - **Implementation**: `backend/core/hypothesis_tree.py`
-- **Phase 5 Integration**: `docs/agents/governance.md` (Enhanced Orchestration)
-- **Cognitive Tier**: `docs/architecture/COGNITIVE_TIER_SYSTEM.md` (Routing optimization)
+- **Agent Governance**: [docs/agents/governance.md](docs/agents/governance.md) - Enhanced Orchestration with Arbor optimization learning
+- **Cognitive Tier System**: [docs/architecture/COGNITIVE_TIER_SYSTEM.md](docs/architecture/COGNITIVE_TIER_SYSTEM.md) - Routing optimization with RoutingHypothesisNode
+- **Auto-Dev Guide**: [docs/guides/AUTO_DEV_USER_GUIDE.md](docs/guides/AUTO_DEV_USER_GUIDE.md) - Code generation and skill evolution with Arbor
+- **Episodic Memory**: [docs/intelligence/episodic-memory.md](docs/intelligence/episodic-memory.md) - POMDP action space integration
+- **Canvas Learning**: [docs/canvas/agent-learning.md](docs/canvas/agent-learning.md) - Optimization node learning from feedback
+- **Enhancement Plan**: [ATOM_ENHANCEMENT_PLAN.md](ATOM_ENHANCEMENT_PLAN.md) - Phase 5 orchestration with Arbor
 
 ---
 

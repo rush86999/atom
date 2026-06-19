@@ -536,6 +536,44 @@ hit_prob = optimizer.predict_cache_hit(
 - Cache hit prediction accuracy: >85%
 - Training time: <5min for 10k samples
 
+### Arbor Framework Integration
+
+For advanced LLM routing optimization, the RouteLLM system integrates with the **Arbor Framework** for hypothesis-based routing refinement:
+
+```python
+from core.hypothesis_tree import RoutingHypothesisNode, OptimizationTree
+
+# Create routing optimization tree
+routing_tree = OptimizationTree(
+    task_type=TaskType.ROUTING,
+    task_description="Optimize LLM routing for code generation tasks"
+)
+
+# Create routing-specific hypothesis node
+node = routing_tree.create_node(
+    node_type=TaskType.ROUTING,
+    model_sequence=["gpt-4o-mini", "claude-3-5-haiku", "gpt-4o"],
+    caching_enabled=True,
+    streaming_enabled=True,
+    # Quality vs cost metrics
+    accuracy_score=0.92,
+    cost_per_1k_tokens=0.50,
+    p95_latency_ms=125
+)
+
+# Arbor learns optimal routing patterns through hypothesis refinement
+promise = node.calculate_promise_score()
+# Higher promise = better routing efficiency
+```
+
+**Benefits**:
+- **Exploration**: Tests multiple routing hypotheses in parallel
+- **Pruning**: Eliminates underperforming routes early (latency, cost, quality)
+- **Learning**: Negative constraints avoid known poor routing patterns
+- **Cost Optimization**: Finds optimal balance between quality and cost
+
+**See Also**: [Arbor Framework](../ARBOR_FRAMEWORK.md) - Complete HTR system documentation
+
 ---
 
 ## API Reference

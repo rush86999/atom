@@ -303,12 +303,16 @@ This plan outlines targeted enhancements to Atom based on cutting-edge research 
 - `core/workflow_engine.py`
 - New: `core/orchestration/conductor_agent.py`
 - New: `core/orchestration/workflow_state_machine.py`
+- `core/hypothesis_tree.py` - Arbor Framework integration
 
 **Deliverables**:
 - Conductor agent implementation
 - Three-layer governance architecture
 - Workflow state machine
 - Enterprise workflow templates
+- Arbor Framework integration for workflow optimization (Hypothesis Tree Refinement)
+
+**See Also**: [Arbor Framework](docs/ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement (HTR) system for LLM code generation and workflow optimization
 
 ---
 

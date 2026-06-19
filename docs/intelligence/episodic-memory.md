@@ -981,3 +981,38 @@ pytest tests/test_episode_*.py --cov=core.episode_segmentation_service --cov-rep
 ### Integration Guides
 - **[Memory Integration Guide](memory-integration.md)** - Complete memory system integration
 - **[Canvas Feedback Integration](../canvas/feedback-memory.md)** - Canvas presentations in episodes
+- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for POMDP action optimization
+
+### POMDP Integration with Arbor Framework
+
+The POMDP memory framework integrates with Arbor's Hypothesis Tree Refinement for action optimization:
+
+```python
+from core.memory.pomdp_memory_framework import POMDPMemoryFramework
+from core.hypothesis_tree import HypothesisTree
+
+# Arbor explores optimal actions within POMDP action space
+pomdp = POMDPMemoryFramework()
+tree = HypothesisTree(
+    task_description="Find optimal action for task completion",
+    tier="solo"
+)
+
+# Each hypothesis = one action in POMDP action space
+for action in pomdp.action_space:
+    node = tree.create_node(
+        hypothesis=action,
+        description=f"Test action: {action}"
+    )
+
+# Arbor validates actions against learned constraints
+# (actions that consistently fail are pruned early)
+winning_path = tree.search(params)
+optimal_action = winning_path[-1]
+```
+
+**Integration Benefits**:
+- **Action Exploration**: Arbor tests multiple POMDP actions in parallel
+- **Observation Learning**: Validation results form POMDP observations
+- **Reward Optimization**: Winning path maximizes cumulative reward
+- **Constraint Learning**: Negative constraints from failed actions improve future episodes

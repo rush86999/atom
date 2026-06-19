@@ -337,6 +337,41 @@ async def run_evolution_cycle(tenant_id):
 
 Multi-layered skill creation mechanism:
 
+**Arbor Framework Integration**: For code generation and skill optimization, the governance system integrates with Arbor's Hypothesis Tree Refinement:
+
+```python
+from core.hypothesis_tree import CodeHypothesisNode, HypothesisTree
+
+# Agent generates skill proposal with Arbor validation
+tree = HypothesisTree(
+    task_description="Generate skill for API retry logic",
+    tier="solo"
+)
+
+# Arbor validates code quality before skill approval
+node = CodeHypothesisNode(
+    code_diff=proposed_skill_code,
+    language="python",
+    cyclomatic_complexity=5,
+    code_coverage=0.85,
+    security_vulnerabilities=0
+)
+
+# Only skills passing Arbor checks are approved
+if node.calculate_promise_score() > 0.8:
+    approve_skill_proposal()
+```
+
+**Governance Benefits**:
+- **Quality Gates**: Arbor validates code before governance approval
+- **Security**: Prunes skills with vulnerabilities or complexity violations
+- **Cost Control**: Respects budget limits for skill generation
+- **Learning**: Negative constraints prevent repeated failure patterns
+
+**See Also**: [Arbor Framework](../../ARBOR_FRAMEWORK.md) - Complete HTR documentation
+
+Multi-layered skill creation mechanism:
+
 | Layer | Mechanism | Application |
 |-------|-----------|-------------|
 | **Instructional Skills** | Natural language directives | System prompt modifications |
@@ -690,6 +725,7 @@ raise HTTPException(status_code=403, detail="Not allowed")
 - **[Agent Guidance System](./guidance-system.md)** - Real-time monitoring
 - **[Episodic Memory](../intelligence/episodic-memory.md)** - Agent learning system
 - **[Canvas Reference](../canvas/reference.md)** - Canvas operations
+- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for optimization learning
 
 ---
 

@@ -227,6 +227,37 @@ async def api_call_with_retry(
 
 AlphaEvolver improves existing skills through iterative mutation and testing. It creates variants, tests them in a sandbox, and keeps the best performing version.
 
+**Integration with Arbor Framework**: AlphaEvolver uses Arbor's Hypothesis Tree Refinement (HTR) system for intelligent variant exploration:
+
+```python
+from core.hypothesis_tree import CodeHypothesisNode, HypothesisTree
+
+# Arbor-powered skill evolution
+tree = HypothesisTree(
+    task_description="Optimize data_analysis skill for latency",
+    tier="solo"
+)
+
+# Create code hypothesis nodes for each variant
+variant_node = CodeHypothesisNode(
+    code_diff="batch_size = 10  # Increased from 1",
+    language="python",
+    cyclomatic_complexity=3,
+    code_coverage=0.92,
+    security_vulnerabilities=0
+)
+
+# Arbor prunes failed variants (lint errors, test failures)
+# and tracks winning path (best performing variant)
+winning_path = tree.search(params)
+```
+
+**Benefits of Arbor Integration**:
+- **Intelligent Pruning**: Eliminates variants with lint errors or test failures early
+- **Parallel Exploration**: Tests multiple variants simultaneously
+- **Cumulative Learning**: Remembers patterns that fail across evolution sessions
+- **Budget Control**: Respects token and cost limits for evolution
+
 ### When to Use It
 
 - ⚡ **Skill is too slow** - Optimize for performance
@@ -598,6 +629,7 @@ GET /api/v1/auto-dev/evolutions/{evolution_id}
 - **[Evolution Strategies](#best-practices)** - Advanced evolution techniques (see Best Practices above)
 - **[Performance Tuning](../operations/performance.md)** - Optimization best practices
 - **[Package Governance](../security/package-governance.md)** - Security constraints and sandbox configuration
+- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for code generation optimization
 
 ### Get Help
 - **Documentation:** [docs.atomagentos.com](https://docs.atomagentos.com)

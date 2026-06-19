@@ -911,3 +911,46 @@ This creates a **virtuous cycle**:
 - [Agent Guidance Implementation](../agents/guidance-system.md)
 - [Agent Governance & Learning Integration](../agents/governance.md)
 - [Confidence Scoring System](../backend/core/confidence_scorer.py)
+- [Arbor Framework](../ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement for optimization node learning
+
+### Arbor Framework Integration for Optimization Learning
+
+Canvas learning integrates with Arbor's Hypothesis Tree Refinement for intelligent optimization node exploration:
+
+```python
+from core.hypothesis_tree import OptimizationTree, TaskType
+from core.canvas_analytics import CanvasEngagementTracker
+
+# Arbor explores optimization hypotheses based on canvas feedback
+tree = OptimizationTree(
+    task_type=TaskType.WORKFLOW,
+    task_description="Optimize agent workflow based on user feedback"
+)
+
+# Create workflow hypothesis node from canvas patterns
+node = tree.create_node(
+    node_type=TaskType.WORKFLOW,
+    parallel_steps=["agent_1", "agent_2"],
+    estimated_latency_ms=500,
+    cost_optimization_potential=0.4
+)
+
+# Arbor uses canvas feedback to calculate promise scores
+engagement = CanvasEngagementTracker()
+if engagement.calculate_engagement_score(
+    view_duration=120,
+    feedback_provided=True,
+    guidance_followed=True
+) > 0.8:
+    # High engagement → high promise for this optimization
+    node.promise_score += 0.2
+
+# Arbor prunes low-engagement optimizations early
+winning_path = tree.search(params)
+```
+
+**Integration Benefits**:
+- **Feedback-Driven Optimization**: Canvas engagement metrics guide hypothesis selection
+- **Pruning Rules**: Low-engagement patterns eliminated early
+- **Learning**: Negative constraints avoid presentation styles users dislike
+- **Personalization**: Winning paths adapt to individual user preferences
