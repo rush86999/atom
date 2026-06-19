@@ -135,6 +135,20 @@ This plan outlines targeted enhancements to Atom based on cutting-edge research 
 
 ## Proposed Enhancements
 
+### Arbor Framework Integration Note
+
+**Arbor Framework (Hypothesis Tree Refinement - HTR)** is a cross-phase optimization framework that integrates with all 5 enhancement phases:
+
+- **Phase 1**: POMDP memory provides observation space for hypothesis exploration
+- **Phase 2**: GraphRAG enables constraint discovery from failed hypotheses
+- **Phase 3**: Learning-based routing optimizes hypothesis generation LLM selection
+- **Phase 4**: DID/VC secures cross-instance hypothesis sharing
+- **Phase 5**: Conductor Agent uses workflow hypothesis nodes for optimization
+
+**Documentation**: See [ARBOR_FRAMEWORK.md](docs/ARBOR_FRAMEWORK.md) for complete technical reference.
+
+---
+
 ### Phase 1: Enhanced Episodic Memory & Graduation (4-6 weeks)
 
 **Priority**: HIGH
@@ -378,6 +392,25 @@ Month 4-5:   Phase 5 - Enhanced Orchestration Patterns ✅ COMPLETE
 | Orchestration overhead | <50ms |
 | Workflow rollback success | 100% |
 
+### Arbor Framework (Cross-Phase Integration)
+- Tree expansion latency <100ms
+- Node creation overhead <50ms
+- Pruning decision time <10ms
+- Budget enforcement accuracy >99%
+- Cumulative learning improvement >15% (session-to-session)
+- Cross-instance hypothesis sharing DID-verified (Phase 4)
+
+**Arbor Metrics**:
+| Metric | Target | Validation Method |
+|--------|--------|-------------------|
+| Code Hypothesis Success Rate | >70% | Automated testing |
+| Workflow Optimization Gain | >20% latency reduction | Benchmarking |
+| LLM Routing Cost Savings | >10% via Arbor | Cost analysis |
+| Negative Constraint Accuracy | >90% | Pattern validation |
+| Learning Tag Reuse Rate | >40% | Cross-session tracking |
+
+**See Also**: [ARBOR_FRAMEWORK.md](docs/ARBOR_FRAMEWORK.md) - Complete Arbor Framework documentation with examples
+
 ---
 
 ## Dependencies
@@ -388,6 +421,14 @@ Month 4-5:   Phase 5 - Enhanced Orchestration Patterns ✅ COMPLETE
 - BYOK/cognitive tier infrastructure
 - Federation service
 - Queen/Fleet agent architecture
+- **Arbor Framework** (`core/hypothesis_tree.py`) - Cross-phase optimization engine
+
+### Arbor Framework Dependencies
+- Phase 1: POMDP memory framework for observation/action spaces
+- Phase 2: GraphRAG for constraint discovery and pattern learning
+- Phase 3: Cognitive tier system for hypothesis generation routing
+- Phase 4: DID/VC system for cross-instance hypothesis sharing
+- Phase 5: Conductor Agent for workflow hypothesis optimization
 
 ### External Dependencies
 - Python 3.11+
@@ -502,10 +543,21 @@ Based on 2026 industry research, the following validation metrics ensure improve
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Last Updated**: June 18, 2026
-**Status**: Phases 4 & 5 Complete
+**Status**: All Phases Complete + Arbor Framework Integrated
 **Changes**:
-- Added Validation & Metrics Framework section
-- Updated implementation timeline with completion status
-- Documented industry validation sources
+- v1.2: Added Arbor Framework integration notes across all phases
+- v1.2: Added Arbor Framework success criteria and metrics
+- v1.2: Updated dependencies to include Arbor Framework
+- v1.1: Added Validation & Metrics Framework section
+- v1.1: Updated implementation timeline with completion status
+- v1.1: Documented industry validation sources
+
+**Arbor Framework Integration**:
+- Phase 1: POMDP memory provides observation/action spaces for hypothesis exploration
+- Phase 2: GraphRAG enables constraint discovery from failed hypotheses
+- Phase 3: Learning-based routing optimizes hypothesis generation
+- Phase 4: DID/VC secures cross-instance hypothesis sharing
+- Phase 5: Conductor Agent uses workflow hypothesis nodes for optimization
+- Complete documentation: [ARBOR_FRAMEWORK.md](docs/ARBOR_FRAMEWORK.md)
