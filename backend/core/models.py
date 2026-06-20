@@ -5171,57 +5171,9 @@ from service_delivery.models import (
     AppointmentStatus,
 )
 
-class ClientHealthScore(Base):
-    __tablename__ = "intelligence_client_health"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    client_entity_id = Column(String, ForeignKey("accounting_entities.id"), nullable=False)
-    
-    overall_score = Column(Float, default=0.0)
-    sentiment_score = Column(Float, default=0.0)
-    financial_score = Column(Float, default=0.0)
-    usage_score = Column(Float, default=0.0)
-    
-    calculated_at = Column(DateTime(timezone=True), server_default=func.now())
-    metadata_json = Column(JSONColumn, nullable=True)
-
-class ResourceRole(Base):
-    __tablename__ = "intelligence_resource_roles"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    hourly_cost = Column(Float, default=0.0)
-    billable_target = Column(Float, default=0.80)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class CapacityPlan(Base):
-    __tablename__ = "intelligence_capacity_plans"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    role_id = Column(String, ForeignKey("intelligence_resource_roles.id"), nullable=False)
-    
-    period_start = Column(DateTime(timezone=True), nullable=False)
-    period_end = Column(DateTime(timezone=True), nullable=False)
-    available_hours = Column(Float, default=0.0)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    role = relationship("ResourceRole")
-
-class BusinessScenario(Base):
-    __tablename__ = "intelligence_business_scenarios"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    
-    parameters_json = Column(JSONColumn, nullable=True)
-    impact_json = Column(JSONColumn, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+# Intelligence models (ClientHealthScore, ResourceRole, CapacityPlan, BusinessScenario)
+# have been moved to intelligence/models.py to avoid duplicate table definitions
+# causing SQLAlchemy MetaData conflicts.
 
 class WorkflowExecutionLog(Base):
     __tablename__ = "analytics_workflow_logs"

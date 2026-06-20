@@ -41,17 +41,45 @@ sys_modules_patcher = patch.dict('sys.modules', {
     'google.auth': MagicMock(),
 })
 
-sys_modules_patcher.start()
+# Don't start patcher at module level - will be managed by pytest fixtures
 
-# Now import after mocking
+# Now import after mocking (will be patched during test execution)
 from core.agent_integration_gateway import AgentIntegrationGateway, ActionType
+
+# Store patcher for cleanup
+_sys_modules_patcher = None
 
 
 @pytest.fixture(autouse=True)
-def cleanup_modules():
-    """Clean up module patches after tests."""
+def setup_mocks():
+    """Set up module mocks before tests and clean up after."""
+    global _sys_modules_patcher
+    _sys_modules_patcher = patch.dict('sys.modules', {
+        'integrations.atom_discord_integration': MagicMock(),
+        'integrations.atom_ingestion_pipeline': MagicMock(),
+        'integrations.atom_telegram_integration': MagicMock(),
+        'integrations.atom_whatsapp_integration': MagicMock(),
+        'integrations.document_logic_service': MagicMock(),
+        'integrations.ecommerce_unified_service': MagicMock(),
+        'integrations.google_chat_enhanced_service': MagicMock(),
+        'integrations.marketing_unified_service': MagicMock(),
+        'integrations.meta_business_service': MagicMock(),
+        'integrations.openclaw_service': MagicMock(),
+        'integrations.shopify_service': MagicMock(),
+        'integrations.slack_enhanced_service': MagicMock(),
+        'integrations.teams_enhanced_service': MagicMock(),
+        'integrations.twilio_service': MagicMock(),
+        'integrations.universal_webhook_bridge': MagicMock(),
+        'core.formula_memory': MagicMock(),
+        'core.agent_world_model': MagicMock(),
+        'core.agent_governance_service': MagicMock(),
+        'core.database': MagicMock(),
+        'google': MagicMock(),
+        'google.auth': MagicMock(),
+    })
+    _sys_modules_patcher.start()
     yield
-    sys_modules_patcher.stop()
+    _sys_modules_patcher.stop()
 
 
 class TestAgentIntegrationGatewayCoverage:
