@@ -287,11 +287,11 @@ class EnterpriseAuthService:
                 return None
 
             # Verify password
-            if not user.password_hash:
+            if not user.hashed_password:
                 logger.warning(f"User {user.id} has no password hash (SSO user?)")
                 return None
 
-            if not self.verify_password(password, user.password_hash):
+            if not self.verify_password(password, user.hashed_password):
                 logger.warning(f"Invalid password for user {user.id}")
                 return None
 
@@ -743,7 +743,7 @@ class EnterpriseAuthService:
                     email=email,
                     first_name=first_name,
                     last_name=last_name,
-                    password_hash=None,  # SSO users don't have passwords
+                    hashed_password=None,  # SSO users don't have passwords
                     role=self._map_saml_role_to_user_role(saml_roles[0]) if saml_roles else UserRole.MEMBER.value,
                     status=UserStatus.ACTIVE.value,
                     last_login=datetime.now(timezone.utc),

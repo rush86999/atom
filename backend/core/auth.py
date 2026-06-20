@@ -364,7 +364,7 @@ async def authenticate_mobile_user(
     if not user:
         return None
 
-    if not verify_password(password, user.password_hash):
+    if not verify_password(password, user.hashed_password):
         return None
 
     # Register or update device

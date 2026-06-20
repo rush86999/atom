@@ -70,7 +70,7 @@ async def login_for_access_token(
     import pyotp
     try:
         user = db.query(User).filter(User.email == login_data.username).first()
-        if not user or not verify_password(login_data.password, user.password_hash):
+        if not user or not verify_password(login_data.password, user.hashed_password):
             audit_service.log_event(
                 db, 
                 event_type=AuditEventType.LOGIN.value,
@@ -171,7 +171,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     new_user = User(
         email=user_data.email,
-        password_hash=get_password_hash(user_data.password),
+        hashed_password=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         status=UserStatus.ACTIVE
@@ -279,7 +279,7 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="User not found")
     
     # Update password
-    user.password_hash = get_password_hash(request.password)
+    user.hashed_password = get_password_hash(request.password)
     reset_token.is_used = True
     db.commit()
     

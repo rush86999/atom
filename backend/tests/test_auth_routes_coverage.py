@@ -128,13 +128,13 @@ def test_user(test_db: Session) -> User:
     user = User(
         id=str(uuid.uuid4()),
         email="test@example.com",
-        password_hash=password_hash,
+        hashed_password=password_hash,
         first_name="Test",
         last_name="User",
         role="member",
         status="active",
-        email_verified=True,
-        created_at=datetime.now(timezone.utc)
+        # email_verified=True,  # Field commented out in User model
+        # created_at=datetime.now(timezone.utc)  # Auto-managed by database
     )
     test_db.add(user)
     test_db.commit()
@@ -152,13 +152,13 @@ def test_admin_user(test_db: Session) -> User:
     user = User(
         id=str(uuid.uuid4()),
         email="admin@example.com",
-        password_hash=password_hash,
+        hashed_password=password_hash,
         first_name="Admin",
         last_name="User",
         role="admin",
         status="active",
-        email_verified=True,
-        created_at=datetime.now(timezone.utc)
+        # email_verified=True,  # Field commented out in User model
+        # created_at=datetime.now(timezone.utc)  # Auto-managed by database
     )
     test_db.add(user)
     test_db.commit()
@@ -176,13 +176,13 @@ def locked_user(test_db: Session) -> User:
     user = User(
         id=str(uuid.uuid4()),
         email="locked@example.com",
-        password_hash=password_hash,
+        hashed_password=password_hash,
         first_name="Locked",
         last_name="User",
         role="member",
         status="locked",
-        email_verified=True,
-        created_at=datetime.now(timezone.utc)
+        # email_verified=True,  # Field commented out in User model
+        # created_at=datetime.now(timezone.utc)  # Auto-managed by database
     )
     test_db.add(user)
     test_db.commit()
@@ -200,13 +200,13 @@ def inactive_user(test_db: Session) -> User:
     user = User(
         id=str(uuid.uuid4()),
         email="inactive@example.com",
-        password_hash=password_hash,
+        hashed_password=password_hash,
         first_name="Inactive",
         last_name="User",
         role="member",
         status="inactive",
-        email_verified=True,
-        created_at=datetime.now(timezone.utc)
+        # email_verified=True,  # Field commented out in User model
+        # created_at=datetime.now(timezone.utc)  # Auto-managed by database
     )
     test_db.add(user)
     test_db.commit()
@@ -571,12 +571,12 @@ class TestRegisterEndpoint:
         # Retrieve user from database
         user = test_db.query(User).filter(User.email == "hashed@example.com").first()
         assert user is not None
-        assert user.password_hash != "PlainTextPassword123!"
+        assert user.hashed_password != "PlainTextPassword123!"
 
         # Verify it's a valid bcrypt hash
         assert bcrypt.checkpw(
             "PlainTextPassword123!".encode('utf-8'),
-            user.password_hash.encode('utf-8')
+            user.hashed_password.encode('utf-8')
         )
 
     def test_register_with_default_role(self, client: TestClient):
@@ -940,7 +940,7 @@ class TestBoundaryConditions:
         auth_service = EnterpriseAuthService()
         unicode_password = "パスワード123!"
 
-        test_user.password_hash = auth_service.hash_password(unicode_password)
+        test_user.hashed_password = auth_service.hash_password(unicode_password)
         test_db.commit()
 
         response = client.post("/api/auth/login", json={
