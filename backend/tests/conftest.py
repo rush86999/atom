@@ -26,6 +26,13 @@ pytest_plugins = ('pytest_asyncio',)
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Ensure numpy and other critical modules are imported BEFORE any test imports
+# This prevents them from being mocked during test collection
+import numpy
+import pandas
+import lancedb
+import pyarrow
+
 # Import fixture modules for availability in tests (avoid circular imports)
 # Note: Some fixture modules contain placeholder implementations
 # TODO: Implement actual models in workflow_fixtures.py and episode_fixtures.py
