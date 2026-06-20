@@ -68,8 +68,8 @@ def sample_entity_type(db_session):
                 "amount": {"type": "number"}
             }
         },
-        source="llm_discovery",
-        is_active=True
+        is_active=True,
+        metadata_json={"source": "llm_discovery"}
     )
     db_session.add(entity_type)
     db_session.commit()
