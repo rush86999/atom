@@ -134,7 +134,7 @@ class AgentGraduationService:
         episode_service = get_episode_service(self.db)
         readiness = episode_service.get_graduation_readiness(
             agent_id=agent_id,
-            tenant_id=agent.user_id,  # agent.user_id maps to tenant_id in episode service
+            tenant_id=agent.tenant_id or "default",
             target_level=target_maturity.lower()
         )
         

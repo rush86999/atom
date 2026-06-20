@@ -211,7 +211,7 @@ class GraduationExamSandboxExecutor:
 
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
-            return {"success": False, "error": "Agent not found"}
+            return {"success": False, "score": 0.0, "error": "Agent not found"}
 
         current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
         episodes = self.db.query(Episode).filter(
@@ -243,10 +243,20 @@ class GraduationExamSandboxExecutor:
 
         passed = total_score >= criteria.get("min_constitutional_score", 0.70)
 
+        # Build violations list
+        violations = []
+        if not passed:
+            if intervention_rate > max_intervention_rate:
+                violations.append("excessive_interventions")
+            if episode_count < min_episodes:
+                violations.append("insufficient_episode_count")
+
         return {
             "success": True,
             "score": round(total_score, 2),
+            "constitutional_compliance": round(compliance_score / 30, 2),  # Normalized to 0-1
             "passed": passed,
+            "constitutional_violations": violations,
             "attempt": 1
         }
 

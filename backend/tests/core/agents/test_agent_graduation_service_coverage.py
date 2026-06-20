@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from core.agent_graduation_service import AgentGraduationService
-from core.sandbox_executor import SandboxExecutor
+from core.sandbox_executor import GraduationExamSandboxExecutor
 from core.models import (
     AgentRegistry,
     AgentStatus,
@@ -32,18 +32,18 @@ from core.models import (
 
 
 class TestSandboxExecutor:
-    """Tests for SandboxExecutor class (lines 26-144)"""
+    """Tests for GraduationExamSandboxExecutor class (lines 26-144)"""
 
     def test_sandbox_executor_initialization(self, db_session):
-        """Cover SandboxExecutor.__init__ (lines 34-35)"""
-        executor = SandboxExecutor(db_session)
+        """Cover GraduationExamSandboxExecutor.__init__ (lines 34-35)"""
+        executor = GraduationExamSandboxExecutor(db_session)
         assert executor.db == db_session
         assert hasattr(executor, 'db')
 
     @pytest.mark.asyncio
     async def test_execute_exam_agent_not_found(self, db_session):
         """Cover execute_exam agent not found path (lines 62-73)"""
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
 
         result = await executor.execute_exam(
             agent_id="nonexistent-agent",
@@ -70,7 +70,7 @@ class TestSandboxExecutor:
         db_session.add(agent)
         db_session.commit()
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
 
         result = await executor.execute_exam(
             agent_id="test-agent",
@@ -104,6 +104,7 @@ class TestSandboxExecutor:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -114,7 +115,7 @@ class TestSandboxExecutor:
             db_session.add(episode)
         db_session.commit()
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
 
         result = await executor.execute_exam(
             agent_id="test-agent",
@@ -147,6 +148,7 @@ class TestSandboxExecutor:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -157,7 +159,7 @@ class TestSandboxExecutor:
             db_session.add(episode)
         db_session.commit()
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
 
         result = await executor.execute_exam(
             agent_id="test-agent",
@@ -295,11 +297,13 @@ class TestCalculateReadinessScore:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
-                human_intervention_count=0 if i < 9 else 1,  # Only 1 intervention out of 10 (10% rate)
+                human_intervention_count=0,  # No interventions for maximum readiness
                 constitutional_score=0.80,  # Above 0.70 threshold
+                confidence_score=0.85,  # High confidence score
                 started_at=datetime.now()
             )
             db_session.add(episode)
@@ -339,6 +343,7 @@ class TestCalculateReadinessScore:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -381,6 +386,7 @@ class TestCalculateReadinessScore:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -423,6 +429,7 @@ class TestCalculateReadinessScore:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -464,6 +471,7 @@ class TestCalculateReadinessScore:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -756,6 +764,7 @@ class TestGetGraduationAuditTrail:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="intern",
                 status="completed",
@@ -802,6 +811,7 @@ class TestGetGraduationAuditTrail:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Student Episode {i}",
                 maturity_at_time="student",
                 status="completed",
@@ -817,6 +827,7 @@ class TestGetGraduationAuditTrail:
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Intern Episode {i}",
                 maturity_at_time="intern",
                 status="completed",

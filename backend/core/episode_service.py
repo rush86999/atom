@@ -649,7 +649,10 @@ class EpisodeService:
 
         # Get threshold for target level
         threshold = self._get_threshold_for_level(target_level)
-        threshold_met = readiness_score >= threshold
+        # Get minimum episode count for target level
+        min_episodes = self._get_min_episodes_for_level(target_level)
+        # Check both score threshold and minimum episode count
+        threshold_met = readiness_score >= threshold and len(episodes) >= min_episodes
 
         return ReadinessResponse(
             agent_id=agent_id,
@@ -1151,6 +1154,15 @@ class EpisodeService:
             AgentStatus.AUTONOMOUS.value: ReadinessThresholds.SUPERVISED_TO_AUTONOMOUS["overall"]
         }
         return thresholds.get(target_level, 0.70)
+
+    def _get_min_episodes_for_level(self, target_level: str) -> int:
+        """Get minimum episode count for target level"""
+        min_episodes = {
+            AgentStatus.INTERN.value: 10,
+            AgentStatus.SUPERVISED.value: 25,
+            AgentStatus.AUTONOMOUS.value: 50
+        }
+        return min_episodes.get(target_level, 10)
 
     # ============================================================================
     # Episode Feedback Methods (RLHF Integration)
