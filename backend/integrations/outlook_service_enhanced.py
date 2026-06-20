@@ -295,7 +295,7 @@ class OutlookEnhancedService:
         """Get access token for user (implementation depends on token storage)"""
         # In production, this would retrieve tokens from secure storage
         # For now, return the stored access token
-            if (
+        if (
             self.access_token
             and self.token_expiry
             and datetime.now(timezone.utc) < self.token_expiry
