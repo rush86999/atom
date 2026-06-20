@@ -47,6 +47,13 @@ sys_modules_patcher.start()
 from core.agent_integration_gateway import AgentIntegrationGateway, ActionType
 
 
+@pytest.fixture(autouse=True)
+def cleanup_modules():
+    """Clean up module patches after tests."""
+    yield
+    sys_modules_patcher.stop()
+
+
 class TestAgentIntegrationGatewayCoverage:
     """Coverage-driven tests for agent_integration_gateway.py"""
 
