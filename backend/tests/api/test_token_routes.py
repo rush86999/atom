@@ -43,7 +43,7 @@ def admin_user(db_session: Session):
     user = User(
         id=user_id,
         email=f"admin-{user_id}@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         first_name="Admin",
         last_name="User",
         role=UserRole.SUPER_ADMIN,
@@ -63,7 +63,7 @@ def regular_user(db_session: Session):
     user = User(
         id=user_id,
         email=f"user-{user_id}@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         first_name="Regular",
         last_name="User",
         role=UserRole.MEMBER,

@@ -60,7 +60,7 @@ class TestConcurrentEpisodeCreation:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -169,7 +169,7 @@ class TestConcurrentEpisodeCreation:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -294,7 +294,7 @@ class TestConcurrentSegmentationOperations:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -401,7 +401,7 @@ class TestConcurrentLanceDBArchival:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -506,7 +506,7 @@ class TestConcurrentCanvasContextExtraction:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -631,7 +631,7 @@ class TestAsyncResourceCleanup:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -730,7 +730,7 @@ class TestAsyncResourceCleanup:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)
@@ -844,7 +844,7 @@ class TestAsyncResourceCleanup:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
         db_session.add(user)

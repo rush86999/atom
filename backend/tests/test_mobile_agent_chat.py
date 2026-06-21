@@ -27,7 +27,7 @@ def test_user(db_session: Session):
         email="mobile_agent@test.com",
         first_name="Mobile",
         last_name="Agent User",
-        password_hash="$2b$12$test_hashed_password",
+        hashed_password="$2b$12$test_hashed_password",
         role="MEMBER"
     )
     db_session.add(user)

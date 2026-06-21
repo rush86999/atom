@@ -211,7 +211,7 @@ def test_admin_user(test_db: Session, test_admin_role: AdminRole) -> AdminUser:
         id=str(uuid.uuid4()),
         email="testadmin@test.com",
         name="Test Admin User",
-        password_hash=get_password_hash("TestPass123!"),
+        hashed_password=get_password_hash("TestPass123!"),
         role_id=test_admin_role.id,
         status="active",
         last_login=None,
@@ -271,7 +271,7 @@ class TestAdminUserList:
             id=str(uuid.uuid4()),
             email="admin1@test.com",
             name="Admin One",
-            password_hash=get_password_hash("Pass123!"),
+            hashed_password=get_password_hash("Pass123!"),
             role_id=test_admin_role.id,
             status="active"
         )
@@ -279,7 +279,7 @@ class TestAdminUserList:
             id=str(uuid.uuid4()),
             email="admin2@test.com",
             name="Admin Two",
-            password_hash=get_password_hash("Pass456!"),
+            hashed_password=get_password_hash("Pass456!"),
             role_id=test_admin_role.id,
             status="active"
         )
@@ -326,7 +326,7 @@ class TestAdminUserList:
             id=str(uuid.uuid4()),
             email="permissionadmin@test.com",
             name="Permission Test Admin",
-            password_hash=get_password_hash("Pass123!"),
+            hashed_password=get_password_hash("Pass123!"),
             role_id=test_admin_role.id,
             status="active"
         )

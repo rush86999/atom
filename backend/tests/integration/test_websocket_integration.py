@@ -117,7 +117,7 @@ class TestWebSocketAuthentication:
         # Given: User and expired token
         user = UserFactory(
             email="ws_expired@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
             _session=db_session
         )
         db_session.add(user)

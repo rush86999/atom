@@ -29,7 +29,7 @@ class TestLoginWithValidCredentials:
         # Create test user
         user = User(
             email="login@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Login",
             last_name="Test",
             status="active"
@@ -65,7 +65,7 @@ class TestLoginWithValidCredentials:
 
         user = User(
             email="timestamp@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Time",
             last_name="Stamp",
             status="active"
@@ -116,7 +116,7 @@ class TestLoginWithInvalidCredentials:
         """Test login fails with wrong password"""
         user = User(
             email="wrongpass@example.com",
-            password_hash=get_password_hash("CorrectPass123!"),
+            hashed_password=get_password_hash("CorrectPass123!"),
             first_name="Wrong",
             last_name="Pass",
             status="active"
@@ -139,7 +139,7 @@ class TestLoginWithInvalidCredentials:
         """Test login fails with empty password"""
         user = User(
             email="empty@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Empty",
             last_name="Pass",
             status="active"
@@ -192,7 +192,7 @@ class TestLoginSQLInjectionProtection:
         """Test login safely handles SQL injection in password"""
         user = User(
             email="safepass@example.com",
-            password_hash=get_password_hash("RealPassword123!"),
+            hashed_password=get_password_hash("RealPassword123!"),
             first_name="Safe",
             last_name="Pass",
             status="active"
@@ -256,7 +256,7 @@ class TestLoginAccountStatus:
         """Test login fails for inactive user account"""
         user = User(
             email="inactive@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="In",
             last_name="Active",
             status="inactive"
@@ -279,7 +279,7 @@ class TestLoginAccountStatus:
         """Test login succeeds for active user account"""
         user = User(
             email="activeuser@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Active",
             last_name="User",
             status="active"
@@ -306,7 +306,7 @@ class TestLoginPasswordSecurity:
         """Test login response does not include password"""
         user = User(
             email="nopass@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="No",
             last_name="Pass",
             status="active"
@@ -337,7 +337,7 @@ class TestLoginPasswordSecurity:
         # Create user
         user = User(
             email="timing@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Timing",
             last_name="Test",
             status="active"
@@ -383,7 +383,7 @@ class TestLoginTokenGeneration:
         """Test login token contains user ID claim"""
         user = User(
             email="tokenid@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Token",
             last_name="ID",
             status="active"
@@ -412,7 +412,7 @@ class TestLoginTokenGeneration:
 
         user = User(
             email="expirelogin@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Expire",
             last_name="Login",
             status="active"
@@ -443,7 +443,7 @@ class TestLoginCaseSensitivity:
         """Test login with uppercase email (should work if emails stored lowercase)"""
         user = User(
             email="case@example.com",  # Stored as lowercase
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Case",
             last_name="Test",
             status="active"

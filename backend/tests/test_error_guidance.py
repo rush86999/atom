@@ -29,7 +29,7 @@ def test_user(db):
     user = User(
         id=str(uuid.uuid4()),
         email="test@example.com",
-        password_hash="hash"
+        hashed_password="hash"
     )
     db.add(user)
     db.commit()

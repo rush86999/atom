@@ -38,7 +38,7 @@ def test_user_with_id(db_session: Session):
     user = User(
         id="transaction-test-user",
         email="transaction-test@example.com",
-        password_hash="hash",
+        hashed_password="hash",
         first_name="Transaction",
         last_name="Test User",
     )

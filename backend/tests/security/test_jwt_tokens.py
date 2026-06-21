@@ -31,7 +31,7 @@ class TestJWTTokenStructure:
         # Create user
         user = User(
             email="jwt@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="JWT",
             last_name="Test",
             status="active"
@@ -59,7 +59,7 @@ class TestJWTTokenStructure:
         """Test JWT header contains algorithm information"""
         user = User(
             email="header@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Header",
             last_name="Test",
             status="active"
@@ -86,7 +86,7 @@ class TestJWTTokenStructure:
         """Test JWT header contains token type"""
         user = User(
             email="type@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Type",
             last_name="Test",
             status="active"
@@ -116,7 +116,7 @@ class TestJWTTokenExpiration:
         """Test JWT token contains 'exp' claim"""
         user = User(
             email="expclaim@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="Claim",
             status="active"
@@ -143,7 +143,7 @@ class TestJWTTokenExpiration:
         """Test JWT token expiration is in the future"""
         user = User(
             email="future@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Future",
             last_name="Exp",
             status="active"
@@ -171,7 +171,7 @@ class TestJWTTokenExpiration:
         """Test JWT token expiration is approximately 24 hours from issuance"""
         user = User(
             email="24h@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="24",
             last_name="Hour",
             status="active"
@@ -205,7 +205,7 @@ class TestJWTTokenValidation:
         """Test valid JWT token allows access to protected endpoint"""
         user = User(
             email="valid@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Valid",
             last_name="Token",
             status="active"
@@ -273,7 +273,7 @@ class TestJWTTokenInvalidSignature:
         """Test token signed with wrong secret is rejected"""
         user = User(
             email="sig@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Wrong",
             last_name="Sig",
             status="active"
@@ -300,7 +300,7 @@ class TestJWTTokenInvalidSignature:
         """Test tampered token is rejected"""
         user = User(
             email="tamper@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Tam",
             last_name="per",
             status="active"
@@ -374,7 +374,7 @@ class TestJWTTokenAlgorithmSecurity:
         """Test JWT token uses HS256 algorithm (not 'none')"""
         user = User(
             email="algo@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Algo",
             last_name="Test",
             status="active"

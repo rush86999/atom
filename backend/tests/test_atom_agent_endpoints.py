@@ -73,7 +73,7 @@ def test_user(db_session):
     """Create a test user."""
     user = User(
         email="test@example.com",
-        password_hash="hashed_password_here",
+        hashed_password="hashed_password_here",
         status="active",
         role="member"
     )

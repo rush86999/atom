@@ -51,7 +51,7 @@ def test_user(db_session: Session):
     """Create a test user"""
     user = User(
         email="test@example.com",
-        password_hash=get_password_hash("password123"),
+        hashed_password=get_password_hash("password123"),
         first_name="Test",
         last_name="User",
         role="member",
@@ -121,7 +121,7 @@ def super_admin_user(db_session: Session):
     # Create super admin user in User table
     user = User(
         email="superadmin@example.com",
-        password_hash=get_password_hash("superadmin123"),
+        hashed_password=get_password_hash("superadmin123"),
         first_name="Super",
         last_name="Admin",
         role="super_admin",
@@ -137,7 +137,7 @@ def super_admin_user(db_session: Session):
         id=user.id,
         email=user.email,
         name=f"{user.first_name} {user.last_name}",
-        password_hash=user.password_hash,
+        hashed_password=user.password_hash,
         role_id=role.id,
         status="active"
     )
@@ -169,7 +169,7 @@ def test_admin(db_session: Session):
     admin = AdminUser(
         email="admin@example.com",
         name="Test Admin",
-        password_hash=get_password_hash("admin123"),
+        hashed_password=get_password_hash("admin123"),
         role_id=role.id,
         status="active"
     )
@@ -234,7 +234,7 @@ class TestEmailVerificationAPI:
         # Create a test user
         user = User(
             email="verify@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
             status=UserStatus.ACTIVE.value
         )
         db_session.add(user)
@@ -262,7 +262,7 @@ class TestEmailVerificationAPI:
         # Create a test user
         user = User(
             email="verify_success@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
             status=UserStatus.ACTIVE.value,
             email_verified=False
         )
@@ -292,7 +292,7 @@ class TestEmailVerificationAPI:
         # Create a test user
         user = User(
             email="newuser@example.com",
-            password_hash=get_password_hash("password123"),
+            hashed_password=get_password_hash("password123"),
             status=UserStatus.ACTIVE.value
         )
         db_session.add(user)
@@ -675,7 +675,7 @@ class TestDatabaseModels:
         admin = AdminUser(
             email="security@example.com",
             name="Security Admin",
-            password_hash=get_password_hash("secure123"),
+            hashed_password=get_password_hash("secure123"),
             role_id=role.id,
             status="active"
         )

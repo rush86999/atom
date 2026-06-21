@@ -65,7 +65,7 @@ def test_user(db_session: Session):
     user = User(
         id=user_id,
         email=f"test-{user_id}@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         first_name="Test",
         last_name="User",
         role=UserRole.MEMBER,

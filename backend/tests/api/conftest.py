@@ -588,7 +588,7 @@ def test_user_with_device(db_session: Session) -> tuple:
     user = User(
         id=user_id,
         email=f"test-mobile-{user_id}@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         first_name="Test",
         last_name="Mobile",
         role="member",

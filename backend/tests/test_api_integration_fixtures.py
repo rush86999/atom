@@ -77,7 +77,7 @@ def api_test_client(db_session: Session):
     test_user = User(
         id="test-api-user-123",
         email="test-api@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         first_name="Test",
         last_name="API",
         status="active",

@@ -33,7 +33,7 @@ def test_password_reset_flow():
         password = "testpassword123"
         user = User(
             email=test_email,
-            password_hash=get_password_hash(password),
+            hashed_password=get_password_hash(password),
             first_name="Test",
             last_name="User",
             status=UserStatus.ACTIVE

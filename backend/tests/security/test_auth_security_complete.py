@@ -43,7 +43,7 @@ class TestJWTTokenRefresh:
         """Test token refresh with valid refresh token"""
         user = User(
             email="refresh@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Refresh",
             last_name="Token",
             status="active"
@@ -69,7 +69,7 @@ class TestJWTTokenRefresh:
         """Test token refresh fails with expired refresh token"""
         user = User(
             email="exprefresh@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="Refresh",
             status="active"
@@ -106,7 +106,7 @@ class TestJWTClaims:
         """Test JWT contains user ID (sub) claim"""
         user = User(
             email="claims@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Claims",
             last_name="Test",
             status="active"
@@ -132,7 +132,7 @@ class TestJWTClaims:
         """Test JWT contains issued-at (iat) claim if present"""
         user = User(
             email="iat@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Issued",
             last_name="At",
             status="active"
@@ -167,7 +167,7 @@ class TestSessionManagement:
         """Test session is created on successful login"""
         user = User(
             email="session@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Session",
             last_name="Test",
             status="active"
@@ -197,7 +197,7 @@ class TestSessionManagement:
         """Test user can have multiple active sessions"""
         user = User(
             email="multisession@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Multi",
             last_name="Session",
             status="active"
@@ -242,7 +242,7 @@ class TestPasswordChange:
         """Test password change requires current password verification"""
         user = User(
             email="changepass@example.com",
-            password_hash=get_password_hash("OldPass123!"),
+            hashed_password=get_password_hash("OldPass123!"),
             first_name="Change",
             last_name="Pass",
             status="active"
@@ -285,7 +285,7 @@ class TestPasswordReset:
         """Test password reset request creates reset token"""
         user = User(
             email="reset@example.com",
-            password_hash=get_password_hash("OldPass123!"),
+            hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Test",
             status="active"
@@ -309,7 +309,7 @@ class TestPasswordReset:
 
         user = User(
             email="resetvalid@example.com",
-            password_hash=get_password_hash("OldPass123!"),
+            hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Valid",
             status="active"
@@ -348,7 +348,7 @@ class TestPasswordReset:
 
         user = User(
             email="resetexp@example.com",
-            password_hash=get_password_hash("OldPass123!"),
+            hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Expired",
             status="active"
@@ -429,7 +429,7 @@ class TestAuthXSSProtection:
 
         user = User(
             email="xssauth@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name=xss_payload,
             last_name="Test",
             status="active"

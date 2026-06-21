@@ -35,7 +35,7 @@ def test_user_with_password(db_session: Session):
 
     user = UserFactory(
         email="auth@test.com",
-        password_hash=get_password_hash("KnownPassword123!"),
+        hashed_password=get_password_hash("KnownPassword123!"),
         _session=db_session
     )
     return user

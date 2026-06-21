@@ -173,7 +173,7 @@ def mock_admin_user(test_db: Session, mock_admin_role: AdminRole) -> AdminUser:
         id=str(uuid.uuid4()),
         email="testadmin@test.com",
         name="Test Admin User",
-        password_hash=get_password_hash("TestPass123!"),
+        hashed_password=get_password_hash("TestPass123!"),
         role_id=mock_admin_role.id,
         status="active",
         last_login=None,
@@ -192,7 +192,7 @@ def mock_inactive_admin_user(test_db: Session, mock_admin_role: AdminRole) -> Ad
         id=str(uuid.uuid4()),
         email="inactiveadmin@test.com",
         name="Inactive Admin",
-        password_hash=get_password_hash("TestPass123!"),
+        hashed_password=get_password_hash("TestPass123!"),
         role_id=mock_admin_role.id,
         status="inactive",
         last_login=None,
@@ -243,7 +243,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="admin1@test.com",
             name="Admin One",
-            password_hash=get_password_hash("Pass123!"),
+            hashed_password=get_password_hash("Pass123!"),
             role_id=mock_admin_role.id,
             status="active"
         )
@@ -251,7 +251,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="admin2@test.com",
             name="Admin Two",
-            password_hash=get_password_hash("Pass456!"),
+            hashed_password=get_password_hash("Pass456!"),
             role_id=mock_admin_role.id,
             status="active"
         )
@@ -296,7 +296,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="roleadmin@test.com",
             name="Role Test Admin",
-            password_hash=get_password_hash("Pass123!"),
+            hashed_password=get_password_hash("Pass123!"),
             role_id=mock_admin_role.id,
             status="active"
         )

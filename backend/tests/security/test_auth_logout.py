@@ -29,7 +29,7 @@ class TestLogoutWithValidToken:
         # Create user
         user = User(
             email="logout@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Log",
             last_name="Out",
             status="active"
@@ -61,7 +61,7 @@ class TestLogoutWithValidToken:
         """Test logout instructs client to discard token"""
         user = User(
             email="cleartoken@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Clear",
             last_name="Token",
             status="active"
@@ -135,7 +135,7 @@ class TestLogoutWithExpiredToken:
         # Create user
         user = User(
             email="expired@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="ired",
             status="active"
@@ -172,7 +172,7 @@ class TestLogoutTokenRevocation:
         """Test logout adds token to revoked tokens list"""
         user = User(
             email="revoke@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Rev",
             last_name="oke",
             status="active"
@@ -220,7 +220,7 @@ class TestLogoutMultipleSessions:
         """Test logout doesn't invalidate other session tokens"""
         user = User(
             email="multisession@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="Multi",
             last_name="Session",
             status="active"
@@ -270,7 +270,7 @@ class TestLogoutSecurity:
         """Test logout endpoint is protected against CSRF"""
         user = User(
             email="csrf@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="CS",
             last_name="RF",
             status="active"
@@ -302,7 +302,7 @@ class TestLogoutSecurity:
         """Test logout response doesn't leak sensitive data"""
         user = User(
             email="leak@example.com",
-            password_hash=get_password_hash("SecurePass123!"),
+            hashed_password=get_password_hash("SecurePass123!"),
             first_name="No",
             last_name="Leak",
             status="active"

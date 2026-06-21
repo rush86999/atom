@@ -55,7 +55,7 @@ def mobile_test_user(db_session) -> User:
     # Create user with hashed password
     user = User(
         email=email,
-        password_hash=get_password_hash("MobileTest123!"),
+        hashed_password=get_password_hash("MobileTest123!"),
         status="active",
         created_at=datetime.utcnow()
     )
@@ -206,7 +206,7 @@ def mobile_admin_user(db_session) -> Tuple[User, str]:
 
     admin = User(
         email=email,
-        password_hash=get_password_hash("MobileAdmin123!"),
+        hashed_password=get_password_hash("MobileAdmin123!"),
         role="super_admin",
         status="active",
         created_at=datetime.utcnow()

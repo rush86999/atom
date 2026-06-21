@@ -31,7 +31,7 @@ def test_user(db_session: Session):
     """Create a test user"""
     user = User(
         email="test@example.com",
-        password_hash="hashed_password",
+        hashed_password="hashed_password",
         status=UserStatus.PENDING.value,
         email_verified=False
     )

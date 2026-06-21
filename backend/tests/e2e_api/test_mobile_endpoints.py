@@ -47,7 +47,7 @@ def create_test_user(db_session: Session, email: str, password: str) -> User:
     user = User(
         email=email,
         username=f"mobileapi_{str(uuid.uuid4())[:8]}",
-        password_hash=get_password_hash(password),
+        hashed_password=get_password_hash(password),
         is_active=True,
         status="active",
         email_verified=True,

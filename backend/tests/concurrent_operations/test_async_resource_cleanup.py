@@ -51,7 +51,7 @@ class TestDatabaseConnectionCleanup:
         user = User(
             id=str(uuid.uuid4()),
             email="test@example.com",
-            password_hash="hash",
+            hashed_password="hash",
             status="active",
         )
 
@@ -111,7 +111,7 @@ class TestDatabaseConnectionCleanup:
                 user = User(
                     id=user_id,
                     email="test@example.com",
-                    password_hash="hash",
+                    hashed_password="hash",
                     status="active",
                 )
                 db.add(user)

@@ -34,7 +34,7 @@ def menubar_user(db_session: Session):
         email="menubar@test.com",
         first_name="Menu",
         last_name="Bar User",
-        password_hash="$2b$12$test_hashed_password",
+        hashed_password="$2b$12$test_hashed_password",
         role="MEMBER"
     )
     db_session.add(user)

@@ -24,7 +24,7 @@ def canvas_user(db_session):
     """Create authenticated test user."""
     user = User(
         email="canvas_test@example.com",
-        password_hash="hashed_password_here",
+        hashed_password="hashed_password_here",
         status="active",
         created_at=datetime.utcnow()
     )
