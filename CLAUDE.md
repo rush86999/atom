@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: April 10, 2026
+**Last Updated**: June 21, 2026
 
 ---
 
@@ -321,12 +321,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Entity Registry**: Centralized configuration for canonical-to-database mapping with field whitelisting
 - **Community Detection**: NetworkX + Leiden algorithm for graph clustering
 - **Performance**: Local search ~50-80ms, global search ~100-150ms, entity extraction ~2-3s
-- **Tests**: 40+ tests across 4 test files
+- **Tests**: 100+ tests across 4 test files (pattern extraction, hybrid search, enhancements, openie schema discovery)
 - **Docs**: `docs/GRAPHRAG_AND_ENTITY_TYPES.md`, `docs/GRAPHRAG_PORTED.md`, `docs/ai-world-model.md`
 
 ---
 
 ## Recent Major Changes
+
+### BYOK v6.0 Migration Finalized + Launch Fixes (June 21, 2026) ✨
+Closed the final 3 BYOK gaps (openie_schema_discovery, graphrag_engine, lancedb_handler) — all LLM traffic now routes through `LLMService` for unified cost tracking, governance, and provider fallback. Fixed a launch blocker where `main.py` never mounted the health router (`/health/live`, `/health/ready`, `/health/metrics` were 404). Corrected 4 buggy regex patterns in the GraphRAG fallback extractor. `openie_schema_discovery.py` now at 100% test coverage.
+
+[BYOK Migration Guide →](docs/architecture/BYOK_V6_MIGRATION_GUIDE.md)
 
 ### Auto-Dev Module & Federation (April 10, 2026) ✨
 Self-evolving agents with Memento-Skills (learn from failures) and AlphaEvolver (optimize via mutation). Federation enables multi-instance communication with X-Federation-Key headers.

@@ -1,7 +1,7 @@
 # BYOK v6.0 Migration Guide
 
 **Defined**: March 22, 2026
-**Status**: Planning Phase
+**Status**: In Progress (~95% complete)
 **Target**: Atom v6.0 Release
 
 ---
@@ -30,21 +30,46 @@ The BYOK v6.0 migration consolidates all LLM interactions to a unified **LLMServ
 
 ## Migration Scope
 
+### Migration Log (June 2026 cleanup)
+
+The final three remaining BYOK gaps were closed in the June 2026 cleanup pass.
+All three bypassed `LLMService` and now route through it for cost tracking
+(`llm_usage_tracker`), governance de-escalation, and provider fallback.
+
+| Gap | File | Change | Commit |
+|-----|------|--------|--------|
+| **Gap 1** | `core/openie_schema_discovery.py` | Replaced direct `OpenAI(api_key=...)` client in `_get_llm_client()` + `extract_entities_with_core_hardcoding()` with `LLMService.generate()`. Deleted `_get_llm_client`, added `_run_sync` helper (mirrors graphrag pattern), added defensive `_extract_json_text` to restore JSON-only contract (since `response_format` kwarg is not forwarded by `BYOKHandler.generate_response`). Coverage: **100% (57 tests)**. | `eab4bb9`, `a7aa9cf`, `a45786c` |
+| **Gap 2** | `core/graphrag_engine.py` | Replaced `BYOKHandler(...).generate_embedding(query)` in `local_search()` with `self.llm_service.generate_embedding(query, workspace_id, tenant_id)`. Removed module-level BYOKHandler import. Deleted dead `_get_llm_client` stub + its test. | `7632e0b`, `a45786c` |
+| **Gap 3** | `core/lancedb_handler.py` | Deleted dead `self.openai_api_key = os.getenv("OPENAI_API_KEY")` attribute — never read anywhere; handler already uses `LLMService` at lines 174-181. | `b2ea59d` |
+
+**Verification**: Grep confirms 0 remaining matches for:
+- `BYOKHandler` in `graphrag_engine.py`
+- `openai_api_key` in `lancedb_handler.py`
+- `_get_llm_client` / `from openai import OpenAI` in `openie_schema_discovery.py`
+
+**Known deviation from original plan**: `response_format={"type": "json_object"}` cannot
+be forwarded through `LLMService.generate(**kwargs)` because `BYOKHandler.generate_response`
+does not accept `**kwargs`. JSON-only contract is now enforced via (a) explicit
+`system_instruction` ("Output ONLY valid JSON, no markdown, no prose") and (b) a
+defensive `_extract_json_text` that strips a single markdown fence before `json.loads`.
+The `BYOKHandler.generate_structured_response` (Instructor-based) is an alternative
+if stronger guarantees are needed in the future.
+
 ### Phase Breakdown (222-232)
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| 222 | LLMService Enhancement (LLM-01 to LLM-05) | Pending |
-| 223 | Critical API Migration Part 1 (MIG-01 to MIG-03) | Pending |
-| 224 | Critical API Migration Part 2 (MIG-04 to MIG-06) | Pending |
-| 225 | Critical API Migration Part 3 (MIG-07 to MIG-09) | Pending |
-| 226 | BYOKHandler Standardization Part 1 (STD-01 to STD-02) | Pending |
-| 227 | BYOKHandler Standardization Part 2 (STD-03) | Pending |
-| 228 | BYOKHandler Standardization Part 3 (STD-04 to STD-05) | Pending |
-| 229 | Deprecation & Documentation (STD-06 to STD-07) | Pending |
-| 230 | Enhanced Observability (OBS-01 to OBS-05) | Pending |
-| 231 | Testing Infrastructure Part 1 (TEST-01 to TEST-04) | Pending |
-| 232 | Testing Documentation Part 2 (TEST-05 to TEST-07) | Pending |
+| 222 | LLMService Enhancement (LLM-01 to LLM-05) | ✅ Complete |
+| 223 | Critical API Migration Part 1 (MIG-01 to MIG-03) | ✅ Complete (see Migration Log) |
+| 224 | Critical API Migration Part 2 (MIG-04 to MIG-06) | ✅ Complete (see Migration Log) |
+| 225 | Critical API Migration Part 3 (MIG-07 to MIG-09) | ✅ Complete (see Migration Log) |
+| 226 | BYOKHandler Standardization Part 1 (STD-01 to STD-02) | ✅ Complete |
+| 227 | BYOKHandler Standardization Part 2 (STD-03) | ✅ Complete |
+| 228 | BYOKHandler Standardization Part 3 (STD-04 to STD-05) | ✅ Complete |
+| 229 | Deprecation & Documentation (STD-06 to STD-07) | ⏳ In Progress |
+| 230 | Enhanced Observability (OBS-01 to OBS-05) | ✅ Complete |
+| 231 | Testing Infrastructure Part 1 (TEST-01 to TEST-04) | ✅ Complete |
+| 232 | Testing Documentation Part 2 (TEST-05 to TEST-07) | ⏳ In Progress |
 
 ---
 
@@ -179,13 +204,15 @@ The following are explicitly **out of scope** for v6.0:
 
 ## Progress Tracking
 
-**Current Status**: Planning Phase
+**Current Status**: ~95% complete — final 3 gaps closed June 2026
 **Requirements Locked**: March 22, 2026
-**Target Completion**: TBD (based on roadmap)
+**Remaining**: STD-06 (deprecation warnings), STD-07 (dev migration docs), TEST-05 to TEST-07 (API reference docs)
 
 ### Coverage Metrics
 - Total requirements: 31
 - Mapped to phases: 31 (100%)
+- Complete: 27 (87%)
+- In progress: 4 (STD-06, STD-07, TEST-05..07)
 - Unmapped: 0
 
 ---
@@ -205,4 +232,4 @@ See `.planning/REQUIREMENTS-v6.0-BYOK.md` for detailed requirements and traceabi
 
 ---
 
-*Last Updated: March 24, 2026*
+*Last Updated: June 21, 2026*
