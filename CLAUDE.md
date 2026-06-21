@@ -328,6 +328,18 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Security Vulnerability Sweep (June 21, 2026) ✨
+Closed 7 security vulnerabilities (4 CRITICAL, 3 HIGH) found via focused
+bug hunt on agent execution, tool safety, and API auth coverage:
+- **BUG 2 (CRITICAL)**: SQL injection in `episode_retrieval_service.retrieve_by_business_data` — user-supplied filter keys/values interpolated into raw SQL
+- **BUG 3 (CRITICAL)**: `POST /api/shell/execute` had no authentication — anyone could execute shell commands by guessing an agent ID
+- **BUG 4 (CRITICAL)**: `POST /api/local-agent/execute` and `/approve` had no auth
+- **BUG 5 (HIGH)**: Canvas coding routes + `execute-generated` endpoint lacked auth; `user_id` taken from request body (impersonation)
+- **BUG 6 (HIGH)**: Session ownership check returned HTTP 200 instead of 403
+- **BUG 9 (HIGH)**: `browser_screenshot` path traversal — arbitrary file write via `{"path": "/etc/..."}`
+
+16 TDD regression tests in `tests/test_security_bug_hunt.py` guard all fixes.
+
 ### Auth Bug Hunt + Launch Hardening (June 21, 2026) ✨
 Closed 10 bugs (2 CRITICAL, 5 HIGH, 3 MEDIUM) found via systematic bug hunt:
 - **BUG 2 (CRITICAL)**: `enterprise_auth_service.py` referenced `UserStatus` without importing it → SAML user provisioning silently failed
