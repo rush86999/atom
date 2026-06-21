@@ -329,14 +329,19 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ## Recent Major Changes
 
 ### Auth Bug Hunt + Launch Hardening (June 21, 2026) ✨
-Closed 5 auth bugs (2 CRITICAL, 3 HIGH) found via systematic bug hunt:
+Closed 10 bugs (2 CRITICAL, 5 HIGH, 3 MEDIUM) found via systematic bug hunt:
 - **BUG 2 (CRITICAL)**: `enterprise_auth_service.py` referenced `UserStatus` without importing it → SAML user provisioning silently failed
 - **BUG 3 (HIGH)**: `jwt_verifier.py` hard-required `sub` claim, rejecting all enterprise-issued tokens (same class as the earlier `core/auth.py` fix)
 - **BUG 5 (HIGH, CVE-class)**: `oauth_routes.get_current_user` trusted client-supplied `X-User-ID` header with zero JWT verification → full auth bypass
 - **BUG 6 (HIGH)**: `/api/auth/refresh` parsed `refresh_token` as query param instead of JSON body
 - **BUG 1 (CRITICAL)**: refresh endpoint subscripted a `UserCredentials` dataclass as dict → TypeError
+- **BUG 4 (HIGH)**: DB session leaks in `agent_world_model.py` (3 call sites) — `SessionLocal()` closed only on success path; connection pool exhaustion under errors
+- **BUG 7 (MEDIUM)**: Same leak in `archive_session_to_cold_storage` — mixed Postgres + LanceDB I/O
+- **BUG 8 (MEDIUM)**: `enterprise_auth_service.py` module-level singleton performed RSA file I/O at import time → blocks/crashes on network mounts
+- **BUG 9 (MEDIUM)**: `UniversalCacheService` and `AgentScheduler` singletons lacked thread locks → double-init under concurrency
+- **BUG 10 (LOW)**: Inconsistent bcrypt 71-byte truncation between `core/auth.py` and `EnterpriseAuthService`
 
-18 TDD regression tests guard all fixes (`tests/test_auth_fixes.py`, `tests/test_bug_hunt_fixes.py`).
+29 TDD regression tests guard all fixes across `tests/test_auth_fixes.py`, `tests/test_bug_hunt_fixes.py`, and `tests/test_bug_hunt_round2.py`.
 
 ### BYOK v6.0 Migration Finalized + Launch Fixes (June 21, 2026) ✨
 Closed the final 3 BYOK gaps (openie_schema_discovery, graphrag_engine, lancedb_handler) — all LLM traffic now routes through `LLMService` for unified cost tracking, governance, and provider fallback. Fixed a launch blocker where `main.py` never mounted the health router (`/health/live`, `/health/ready`, `/health/metrics` were 404). Corrected 4 buggy regex patterns in the GraphRAG fallback extractor. `openie_schema_discovery.py` now at 100% test coverage.
