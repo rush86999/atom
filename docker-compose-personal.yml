@@ -112,9 +112,15 @@ services:
     volumes:
       # Persist all data
       - ./data:/app/data
-      - ./backend:/app  # Hot reload for development
-    working_dir: /app
-    command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload
+      # Mount repo root at /app so `backend.*` imports resolve (main.py uses
+      # `from backend.api.agent_routes import ...`). Hot reload for dev.
+      - ./:/app
+    working_dir: /app/backend
+    environment:
+      # Ensure both bare (advanced_workflow_orchestrator) and backend.*
+      # (backend.api.agent_routes) imports resolve inside the container.
+      - PYTHONPATH=/app:/app/backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     depends_on:
       valkey:

@@ -13,7 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -64,8 +64,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code from builder stage
 COPY --from=builder --chown=atomuser:atomuser /app /app
 
-# Set working directory and user
-WORKDIR /app
+# Set working directory and user.
+# WORKDIR is /app/backend so uvicorn finds main:app there.
+# PYTHONPATH includes /app (for `backend.api.*` imports) and /app/backend
+# (for bare imports like `advanced_workflow_orchestrator`).
+WORKDIR /app/backend
+ENV PYTHONPATH=/app:/app/backend
 USER atomuser
 
 # Health check
