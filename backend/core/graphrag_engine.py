@@ -360,8 +360,8 @@ class GraphRAGEngine:
                     ))
                     entity_names.add(url)
 
-            # 3. Phone numbers (US format)
-            phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+            # 3. Phone numbers (US format: 555-123-4567, (555) 123-4567, 5551234567)
+            phone_pattern = r'(?:\(\d{3}\)\s*|\b\d{3}[-.]?)\d{3}[-.]?\d{4}\b'
             for match in re.finditer(phone_pattern, text):
                 phone = match.group()
                 if phone not in entity_names:
@@ -416,8 +416,11 @@ class GraphRAGEngine:
                     ))
                     entity_names.add(date)
 
-            # 7. Currency amounts ($99.99)
-            currency_pattern = r'\$\d+(?:\.\d{2})?'
+            # 7. Currency amounts ($99.99, $1,234.56, 100 USD)
+            currency_pattern = (
+                r'\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?'      # $dollars with optional thousands + cents
+                r'|\b\d+(?:\.\d+)?\s*(?:USD|EUR|GBP|JPY|CAD|AUD|CNY|INR|CHF)\b'  # ISO 4217 codes
+            )
             for match in re.finditer(currency_pattern, text):
                 currency = match.group()
                 if currency not in entity_names:
@@ -431,7 +434,10 @@ class GraphRAGEngine:
                     entity_names.add(currency)
 
             # 8. File paths (/path/to/file.txt)
-            file_path_pattern = r'[/\\][\w\-./]+(?:\.\w+)'
+            # Negative lookbehind avoids matching URL substrings (e.g. the
+            # '//example.com' inside 'http://example.com'). Pre-existing
+            # behavior requires a file extension (the (?:\.\w+) tail).
+            file_path_pattern = r'(?<![:/\w])[/\\][\w\-./]+(?:\.\w+)'
             for match in re.finditer(file_path_pattern, text):
                 path = match.group()
                 if path not in entity_names:
@@ -444,8 +450,12 @@ class GraphRAGEngine:
                     ))
                     entity_names.add(path)
 
-            # 9. IP addresses (192.168.1.1)
-            ip_pattern = r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+            # 9. IP addresses (192.168.1.1) — octets validated to 0-255
+            # so 999.999.999.999 is correctly rejected.
+            ip_pattern = (
+                r'\b(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)'
+                r'(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}\b'
+            )
             for match in re.finditer(ip_pattern, text):
                 ip = match.group()
                 if ip not in entity_names:
