@@ -35,7 +35,8 @@ def test_user(db_session: Session):
         first_name="Mobile",
         last_name="Test User",
         hashed_password="$2b$12$test_hashed_password",  # Mock hashed password
-        role="MEMBER"
+        role="MEMBER",
+        status="active"
     )
     db_session.add(user)
     db_session.commit()
