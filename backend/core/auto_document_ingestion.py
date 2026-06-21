@@ -205,15 +205,8 @@ class DocumentParser:
                 text_parts.append(page.extract_text() or "")
             return "\n\n".join(text_parts)
         except ImportError:
-                from pypdf import PdfReader
-                reader = PdfReader(io.BytesIO(content))
-                text_parts = []
-                for page in reader.pages[:50]:
-                    text_parts.append(page.extract_text() or "")
-                return "\n\n".join(text_parts)
-            except ImportError:
-                logger.warning("No PDF parser available")
-                return "[PDF content - parser not available]"
+            logger.warning("pypdf not available, PDF parsing disabled")
+            return "[PDF content - parser not available]"
         except Exception as e:
             logger.error(f"PDF parse error: {e}")
             return ""
