@@ -300,10 +300,10 @@ async def get_session_history(
 
         # Verify user owns the session
         if session.get("user_id") != current_user.id:
-            return {
-                "success": False,
-                "error": "Unauthorized access to session"
-            }
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: session belongs to another user"
+            )
 
         # Retrieve messages from LanceDB
         messages = chat_history.get_session_history(session_id, limit=100)
@@ -419,10 +419,10 @@ async def chat_with_agent(
             else:
                 # Verify ownership
                 if session.get("user_id") != current_user.id:
-                    return {
-                        "success": False,
-                        "error": "Unauthorized access to session"
-                    }
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Forbidden: session belongs to another user"
+                    )
         
         # Load conversation history from LanceDB (replaces passed history)
         stored_history = chat_history.get_session_history(session_id, limit=20)
@@ -1291,7 +1291,10 @@ def handle_help_request() -> Dict[str, Any]:
     }
 
 @router.post("/execute-generated")
-async def execute_generated_workflow(request: ExecuteGeneratedRequest):
+async def execute_generated_workflow(
+    request: ExecuteGeneratedRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Execute a workflow generated via chat."""
     try:
         workflows = load_workflows()

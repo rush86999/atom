@@ -5,9 +5,11 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_coding_service import CodingCanvasService
 from core.database import get_db
+from core.models import User
 
 logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/coding", tags=["canvas_coding"])
@@ -37,11 +39,15 @@ class AddDiffRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_coding_canvas(request: CreateCodingRequest, db: Session = Depends(get_db)):
+async def create_coding_canvas(
+    request: CreateCodingRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Create a new coding canvas."""
     service = CodingCanvasService(db)
     result = service.create_coding_canvas(
-        user_id=request.user_id,
+        user_id=str(current_user.id),  # Override body-supplied user_id for security
         repo=request.repo,
         branch=request.branch,
         canvas_id=request.canvas_id,
@@ -62,12 +68,17 @@ async def create_coding_canvas(request: CreateCodingRequest, db: Session = Depen
 
 
 @router.post("/{canvas_id}/file")
-async def add_file(canvas_id: str, request: AddFileRequest, db: Session = Depends(get_db)):
+async def add_file(
+    canvas_id: str,
+    request: AddFileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Add a file to the coding workspace."""
     service = CodingCanvasService(db)
     result = service.add_file(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=str(current_user.id),  # Override body-supplied user_id
         path=request.path,
         content=request.content,
         language=request.language
@@ -86,12 +97,17 @@ async def add_file(canvas_id: str, request: AddFileRequest, db: Session = Depend
 
 
 @router.post("/{canvas_id}/diff")
-async def add_diff(canvas_id: str, request: AddDiffRequest, db: Session = Depends(get_db)):
+async def add_diff(
+    canvas_id: str,
+    request: AddDiffRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Add a diff view."""
     service = CodingCanvasService(db)
     result = service.add_diff(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=str(current_user.id),  # Override body-supplied user_id
         file_path=request.file_path,
         old_content=request.old_content,
         new_content=request.new_content

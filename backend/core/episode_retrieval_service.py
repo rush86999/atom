@@ -693,25 +693,33 @@ class EpisodeRetrievalService:
             )
 
             # Apply filters
+            import re as _re
+            _KEY_RE = _re.compile(r'^[a-zA-Z0-9_]+$')
             for key, value in business_filters.items():
                 if key == "$gt" or key == "$lt" or key == "$gte" or key == "$lte":
                     continue  # Handle operators separately
 
-                # Check if filter is on critical_data_points
+                # SECURITY: validate key against a strict alphanumeric whitelist
+                # to prevent SQL injection via the JSON path interpolation below.
+                if not _KEY_RE.match(str(key)):
+                    logger.warning(f"Rejected suspicious filter key in business data query: {key!r}")
+                    continue
+
                 filter_path = f"canvas_context->'critical_data_points'->>'{key}'"
                 if isinstance(value, dict):
                     # Handle operators like {"$gt": 1000000}
+                    # SECURITY: parameterize op_value to prevent injection.
                     for op, op_value in value.items():
                         if op == "$gt":
-                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) > {op_value}"))
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) > :bv_{key}_gt")).params(**{f"bv_{key}_gt": float(op_value)})
                         elif op == "$lt":
-                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) < {op_value}"))
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) < :bv_{key}_lt")).params(**{f"bv_{key}_lt": float(op_value)})
                         elif op == "$gte":
-                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) >= {op_value}"))
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) >= :bv_{key}_gte")).params(**{f"bv_{key}_gte": float(op_value)})
                         elif op == "$lte":
-                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) <= {op_value}"))
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) <= :bv_{key}_lte")).params(**{f"bv_{key}_lte": float(op_value)})
                 else:
-                    # Direct equality check
+                    # Direct equality check (already parameterized)
                     query = query.filter(text(f"{filter_path} = :value")).params(value=str(value))
 
             segments = query.limit(limit).all()

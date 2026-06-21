@@ -10,9 +10,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from core.auth import get_current_user
+from core.database import get_db
 from core.host_shell_service import host_shell_service
-from core.models import get_db, ShellSession
-from core.agent_governance_service import agent_governance_service
+from core.models import ShellSession, User
 
 router = APIRouter(prefix="/api/shell", tags=["Shell"])
 
@@ -36,8 +37,8 @@ class ShellCommandResponse(BaseModel):
 async def execute_shell_command(
     request: ShellCommandRequest,
     agent_id: str,
-    user_id: str,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -76,7 +77,7 @@ async def execute_shell_command(
         # Execute with governance checks
         result = await host_shell_service.execute_shell_command(
             agent_id=agent_id,
-            user_id=user_id,
+            user_id=str(current_user.id),
             command=request.command,
             working_directory=request.working_directory,
             timeout=request.timeout,

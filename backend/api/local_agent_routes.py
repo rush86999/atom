@@ -12,7 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
+from core.models import User
 from core.models import AgentRegistry, ShellSession
 from core.host_shell_service import host_shell_service
 
@@ -94,7 +96,8 @@ def _command_not_allowed_error(command: str, reason: str) -> HTTPException:
 @router.post("/execute", response_model=ExecuteCommandResponse)
 async def execute_command(
     request: ExecuteCommandRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ) -> ExecuteCommandResponse:
     """
     Execute command via local agent.
@@ -179,7 +182,8 @@ async def execute_command(
 @router.post("/approve")
 async def approve_command(
     request: ApproveCommandRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Approve pending command for lower maturity agents.

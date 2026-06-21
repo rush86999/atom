@@ -418,14 +418,32 @@ async def browser_screenshot(
         # Save to file if path provided
         if path:
             import os
-            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-            with open(path, "wb") as f:
+            # SECURITY: sanitize path to prevent directory traversal.
+            # Reject absolute paths, parent-dir traversal, and confine
+            # writes to a configured screenshot directory (or cwd if unset).
+            if ".." in path or os.path.isabs(path):
+                logger.warning(f"Rejected suspicious screenshot path: {path!r}")
+                return {
+                    "success": False,
+                    "error": "Invalid screenshot path: relative paths only, no '..'",
+                }
+            screenshot_dir = os.getenv("SCREENSHOT_DIR", os.getcwd())
+            safe_path = os.path.normpath(os.path.join(screenshot_dir, path))
+            # Verify the resolved path hasn't escaped the screenshot dir
+            if not os.path.abspath(safe_path).startswith(os.path.abspath(screenshot_dir)):
+                logger.warning(f"Screenshot path escaped base directory: {path!r}")
+                return {
+                    "success": False,
+                    "error": "Invalid screenshot path: must stay within screenshot directory",
+                }
+            os.makedirs(os.path.dirname(safe_path) or screenshot_dir, exist_ok=True)
+            with open(safe_path, "wb") as f:
                 f.write(screenshot_bytes)
 
-            logger.info(f"Screenshot saved to {path}")
+            logger.info(f"Screenshot saved to {safe_path}")
             return {
                 "success": True,
-                "path": path,
+                "path": safe_path,
                 "size_bytes": len(screenshot_bytes)
             }
 
