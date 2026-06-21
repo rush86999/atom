@@ -617,22 +617,31 @@ def check_rate_limit_health(connector_id: str, tenant_id: str) -> dict[str, Any]
     }
 
 
-# Singleton instances
-_subscription_monitor = WebhookSubscriptionMonitor()
-_rate_limit_tracker = RateLimitTracker()
-_monitoring_service = WebhookMonitoringService()
+# Lazy singleton instances (initialized on first access to avoid import-time errors)
+_subscription_monitor: Optional[WebhookSubscriptionMonitor] = None
+_rate_limit_tracker: Optional[RateLimitTracker] = None
+_monitoring_service: Optional[WebhookMonitoringService] = None
 
 
 def get_subscription_monitor() -> WebhookSubscriptionMonitor:
-    """Get singleton subscription monitor."""
+    """Get singleton subscription monitor (lazy initialization)."""
+    global _subscription_monitor
+    if _subscription_monitor is None:
+        _subscription_monitor = WebhookSubscriptionMonitor()
     return _subscription_monitor
 
 
 def get_rate_limit_tracker() -> RateLimitTracker:
-    """Get singleton rate limit tracker."""
+    """Get singleton rate limit tracker (lazy initialization)."""
+    global _rate_limit_tracker
+    if _rate_limit_tracker is None:
+        _rate_limit_tracker = RateLimitTracker()
     return _rate_limit_tracker
 
 
 def get_monitoring_service() -> WebhookMonitoringService:
-    """Get singleton monitoring service."""
+    """Get singleton monitoring service (lazy initialization)."""
+    global _monitoring_service
+    if _monitoring_service is None:
+        _monitoring_service = WebhookMonitoringService()
     return _monitoring_service
