@@ -223,15 +223,17 @@ class TestGraphRAGHybridSearch:
 
         engine = GraphRAGEngine(workspace_id=workspace_id, tenant_id=tenant_id)
 
-        # Mock BYOKHandler to succeed (returns a valid embedding)
-        mock_byok = MagicMock()
-        mock_byok.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
+        # Mock engine.llm_service.generate_embedding to return a valid embedding.
+        # Previously this patched core.graphrag_engine.BYOKHandler, but that
+        # import was removed; local_search now calls self.llm_service.generate_embedding.
+        mock_llm = MagicMock()
+        mock_llm.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
+        engine.llm_service = mock_llm
 
         def _fake_ctx():
             return sqlite_session_ctx(Session)
 
-        with patch("core.graphrag_engine.get_db_session", _fake_ctx), \
-             patch("core.graphrag_engine.BYOKHandler", return_value=mock_byok):
+        with patch("core.graphrag_engine.get_db_session", _fake_ctx):
             # Query that keyword-matches "ACME-001" by substring
             results = engine.local_search(
                 workspace_id=workspace_id,
@@ -263,14 +265,16 @@ class TestGraphRAGHybridSearch:
 
         engine = GraphRAGEngine(workspace_id=workspace_id, tenant_id=tenant_id)
 
-        mock_byok = MagicMock()
-        mock_byok.generate_embedding = AsyncMock(side_effect=Exception("no embedding"))
+        # Mock engine.llm_service.generate_embedding to raise, exercising the
+        # keyword-fallback branch. Previously patched BYOKHandler module-level.
+        mock_llm = MagicMock()
+        mock_llm.generate_embedding = AsyncMock(side_effect=Exception("no embedding"))
+        engine.llm_service = mock_llm
 
         def _fake_ctx():
             return sqlite_session_ctx(Session)
 
-        with patch("core.graphrag_engine.get_db_session", _fake_ctx), \
-             patch("core.graphrag_engine.BYOKHandler", return_value=mock_byok):
+        with patch("core.graphrag_engine.get_db_session", _fake_ctx):
             results = engine.local_search(
                 workspace_id=workspace_id,
                 tenant_id=tenant_id,

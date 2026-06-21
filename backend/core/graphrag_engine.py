@@ -26,12 +26,6 @@ from core.models import (
 # Import LLMService for unified LLM interactions
 from core.llm_service import LLMService
 
-# Import BYOKHandler for embedding generation (module-level for testability)
-try:
-    from core.llm.byok_handler import BYOKHandler
-except ImportError:
-    BYOKHandler = None  # type: ignore
-
 logger = logging.getLogger(__name__)
 
 # Automation Integration (Optional check for upstream)
@@ -841,8 +835,11 @@ class GraphRAGEngine:
                 #    (IDs, acronyms, proper nouns) are never dropped.
                 query_embedding = None
                 try:
-                    byok = BYOKHandler(workspace_id=ws_id, tenant_id=tid, db_session=session)
-                    query_embedding = _run_sync(byok.generate_embedding(query))
+                    query_embedding = _run_sync(
+                        self.llm_service.generate_embedding(
+                            query, workspace_id=ws_id, tenant_id=tid
+                        )
+                    )
                 except Exception as emb_err:
                     logger.debug(f"Could not generate query embedding for local_search: {emb_err}")
 
