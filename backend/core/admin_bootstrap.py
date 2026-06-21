@@ -1,4 +1,6 @@
 import logging
+import os
+import secrets
 from sqlalchemy.orm import Session
 
 from core.auth import get_password_hash
@@ -10,23 +12,36 @@ logger = logging.getLogger("ATOM_BOOTSTRAP")
 
 def ensure_admin_user():
     """
-    Ensures the admin@example.com user exists with the correct password.
+    Ensures the admin@example.com user exists with a secure password.
     This runs INSIDE the main application process to avoid DB locks.
+
+    Password security:
+    - Uses ADMIN_PASSWORD env var if set
+    - Otherwise generates a secure random password on first run
+    - Logs a warning to change the password in production
     """
     with get_db_session() as db:
         try:
             email = "admin@example.com"
-            password = "securePass123"
-            
+            # Use environment variable or generate secure random password
+            password = os.getenv("ADMIN_PASSWORD")
+            is_generated = False
+            if not password:
+                password = secrets.token_urlsafe(16)  # Generate secure random password
+                is_generated = True
+
             user = db.query(User).filter(User.email == email).first()
-            
+
             if user:
-                logger.info(f"BOOTSTRAP: User {email} found. resetting password...")
+                logger.info(f"BOOTSTRAP: User {email} found. Resetting password...")
                 user.hashed_password = get_password_hash(password)
                 user.status = UserStatus.ACTIVE
                 user.role = "workspace_admin"  # Ensure role is set
                 db.commit()
-                logger.info(f"BOOTSTRAP: Password for {email} reset to '{password}'")
+                logger.info(f"BOOTSTRAP: Password for {email} has been reset")
+                if is_generated:
+                    logger.warning(f"BOOTSTRAP: Generated temporary password: {password}")
+                    logger.warning("BOOTSTRAP: Set ADMIN_PASSWORD environment variable for production!")
             else:
                 logger.info(f"BOOTSTRAP: User {email} not found. Creating...")
                 new_user = User(
@@ -40,7 +55,10 @@ def ensure_admin_user():
                 )
                 db.add(new_user)
                 db.commit()
-                logger.info(f"BOOTSTRAP: Created {email} with password '{password}'")
+                logger.info(f"BOOTSTRAP: Created {email}")
+                if is_generated:
+                    logger.warning(f"BOOTSTRAP: Generated temporary password: {password}")
+                    logger.warning("BOOTSTRAP: Set ADMIN_PASSWORD environment variable for production!")
             
             # Ensure default tenant and workspace
             ensure_default_tenant_and_workspace(db)
