@@ -77,7 +77,7 @@ class TestCoreModelConstraints:
                 email="unique@test.com",
                 first_name="Duplicate",
                 last_name="User",
-                password_hash="hash",
+                hashed_password="hash",
             )
             db_session.add(user2)
             db_session.commit()
