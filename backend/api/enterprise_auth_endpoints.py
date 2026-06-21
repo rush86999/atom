@@ -372,13 +372,13 @@ async def change_password(
             )
 
         # Verify old password
-        if not auth_service.verify_password(data.old_password, user.password_hash):
+        if not auth_service.verify_password(data.old_password, user.hashed_password):
             raise router.unauthorized_error(
                 message="Current password is incorrect"
             )
 
         # Hash new password
-        user.password_hash = auth_service.hash_password(data.new_password)
+        user.hashed_password = auth_service.hash_password(data.new_password)
         user.updated_at = datetime.now(timezone.utc)
 
         db.commit()
