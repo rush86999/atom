@@ -225,7 +225,7 @@ class TestRequireAuthenticatedUser:
         default_user = User(
             id="admin-default-id",
             email="admin@atom.ai",
-            password_hash=get_password_hash("admin123"),
+            hashed_password=get_password_hash("admin123"),
             role=UserRole.SUPER_ADMIN.value,
             status=UserStatus.ACTIVE.value
         )
