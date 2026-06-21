@@ -102,11 +102,18 @@ def map_dynamics_deal(deal: Dict[str, Any]) -> UnifiedDeal:
 async def get_live_pipeline(
     limit: int = 50,
     # In a real app, we would get user_id from auth dependency
-    # user_id: str = Depends(get_current_user) 
+    # user_id: str = Depends(get_current_user)
 ):
     """
     Fetch live opportunities/deals from connected CRMs (Salesforce, HubSpot)
     and aggregate them into a unified pipeline view.
+
+    Args:
+        limit: Maximum number of deals to return per platform (must be between 1 and 200)
+    """
+    # Validate limit to prevent SOQL injection
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 200")
     """
     deals = []
     providers_status = {"salesforce": False, "hubspot": False, "zoho": False, "dynamics": False}

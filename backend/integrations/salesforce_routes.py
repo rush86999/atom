@@ -261,13 +261,20 @@ async def get_salesforce_account(
         )
 
     try:
+        # Validate Salesforce ID format to prevent SOQL injection
+        from integrations.salesforce_service import validate_salesforce_id, escape_soql_string
+        if not validate_salesforce_id(account_id):
+            return format_salesforce_error_response("Invalid account ID format")
+
         # Use simple service
         # Note: get_account is not in simple service, using SOQL
         sf = get_salesforce_client_from_env()
         if not sf:
              return format_salesforce_error_response("No credentials found")
-        
-        query = f"SELECT Id, Name, Type, Industry, Phone, Website, Description FROM Account WHERE Id = '{account_id}'"
+
+        # Escape account_id to prevent SOQL injection
+        safe_account_id = escape_soql_string(account_id)
+        query = f"SELECT Id, Name, Type, Industry, Phone, Website, Description FROM Account WHERE Id = '{safe_account_id}'"
         result = await execute_soql_query(sf, query)
         if result and result['records']:
             return format_salesforce_response(result['records'][0])

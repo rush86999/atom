@@ -297,6 +297,44 @@ async def get_user_info(sf: Salesforce) -> Dict[str, Any]:
         raise
 
 
+def escape_soql_string(value: str) -> str:
+    """
+    Escape a string value for safe use in SOQL queries.
+
+    SOQL uses backslash escaping for special characters.
+    Single quotes must be escaped by doubling them.
+
+    Args:
+        value: String to escape
+
+    Returns:
+        Escaped string safe for SOQL queries
+    """
+    if value is None:
+        return ""
+    # Escape single quotes by doubling them (SOQL standard)
+    # Also escape backslashes first to avoid double-escaping
+    return str(value).replace("\\", "\\\\").replace("'", "''")
+
+
+def validate_salesforce_id(account_id: str) -> bool:
+    """
+    Validate that a string looks like a Salesforce ID.
+
+    Salesforce IDs are 15 or 18 character alphanumeric strings.
+
+    Args:
+        account_id: String to validate
+
+    Returns:
+        True if valid format, False otherwise
+    """
+    if not account_id or not isinstance(account_id, str):
+        return False
+    # Salesforce IDs are 15 or 18 alphanumeric characters
+    return len(account_id) in (15, 18) and account_id.isalnum()
+
+
 async def execute_soql_query(sf: Salesforce, query: str) -> Dict[str, Any]:
     """Execute a custom SOQL query"""
     try:

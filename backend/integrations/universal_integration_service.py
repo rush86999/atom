@@ -326,20 +326,24 @@ class UniversalIntegrationService:
     async def _search_salesforce(self, query: str, entity_type: str, user_id: str, context: Dict[str, Any] = None) -> List[Dict]:
         registry = context.get("registry")
         tenant_id = context.get("tenant_id", "system")
-        
+
         sf_service = await registry.get_service_instance("salesforce", tenant_id)
         if not sf_service: return []
-        
+
         token = getattr(sf_service, 'access_token', None)
         if not token: return []
-        
+
+        # Escape query to prevent SOQL injection
+        from integrations.salesforce_service import escape_soql_string
+        safe_query = escape_soql_string(query)
+
         if entity_type == "contact":
-            soql = f"SELECT Id, Name, Email FROM Contact WHERE Name LIKE '%{query}%'"
+            soql = f"SELECT Id, Name, Email FROM Contact WHERE Name LIKE '%{safe_query}%'"
         elif entity_type == "account":
-            soql = f"SELECT Id, Name FROM Account WHERE Name LIKE '%{query}%'"
+            soql = f"SELECT Id, Name FROM Account WHERE Name LIKE '%{safe_query}%'"
         else:
             return [{"message": "Only specific entity search implemented via SOQL"}]
-            
+
         res = await sf_service.execute_query(token, soql)
         return res.get("records", [])
 
