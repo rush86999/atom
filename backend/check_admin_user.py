@@ -30,7 +30,7 @@ def debug_login():
             user = db.query(User).filter(User.email == "admin@example.com").first()
             if user:
                 logger.info(f"✓ User 'admin@example.com' found. ID: {user.id}, Status: {user.status}")
-                logger.info(f"  Password Hash start: {user.password_hash[:10] if user.password_hash else 'None'}...")
+                logger.info(f"  Password Hash start: {user.hashed_password[:10] if user.hashed_password else 'None'}...")
             else:
                 logger.error("✗ User 'admin@example.com' NOT FOUND")
 

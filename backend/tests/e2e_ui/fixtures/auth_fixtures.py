@@ -51,7 +51,7 @@ def test_user(db_session: Session) -> User:
     # Create user with hashed password
     user = User(
         email=email,
-        password_hash=get_password_hash("TestPassword123!"),
+        hashed_password=get_password_hash("TestPassword123!"),
         status="active",
         created_at=datetime.utcnow()
     )
