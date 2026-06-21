@@ -239,16 +239,6 @@ class GraphRAGEngine:
             finally:
                 session.close()
     
-    def _get_llm_client(self, workspace_id: str) -> None:
-        """
-        LLM client management now handled by LLMService.
-
-        This method returns None for compatibility. Actual LLM calls
-        use self.llm_service.generate_completion which handles
-        provider selection, API key resolution, and caching internally.
-        """
-        return None
-
     def _is_llm_available(self, workspace_id: str) -> bool:
         """
         Check if LLM is available for GraphRAG operations.

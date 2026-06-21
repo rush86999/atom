@@ -127,6 +127,32 @@ class TestDateExtraction:
         assert len(entities) == 1
         assert entities[0].name == "12/25/2024"
 
+    def test_extract_textual_date(self):
+        """Test extracting textual date (Jan 15, 2024) — covers lines 408-417."""
+        engine = GraphRAGEngine()
+        text = "The launch is scheduled for Jan 15, 2024."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_textual", source="test"
+        )
+
+        assert len(entities) == 1
+        assert entities[0].name == "Jan 15, 2024"
+        assert entities[0].entity_type == "date"
+
+    def test_extract_textual_date_full_month(self):
+        """Textual date with full month name (September 3 2025)."""
+        engine = GraphRAGEngine()
+        text = "Deadline is September 3 2025."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_textual2", source="test"
+        )
+
+        assert len(entities) == 1
+        assert entities[0].entity_type == "date"
+        assert "September" in entities[0].name
+
 
 class TestCurrencyExtraction:
     """Tests for currency pattern extraction"""
@@ -157,6 +183,53 @@ class TestCurrencyExtraction:
         assert entities[0].entity_type == "currency"
 
 
+class TestFilePathExtraction:
+    """Tests for file path pattern extraction (covers lines 442-451)."""
+
+    def test_extract_unix_file_path(self):
+        """Test extracting a Unix file path with extension."""
+        engine = GraphRAGEngine()
+        text = "Config lives at /etc/app/config.yaml."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_fp1", source="test"
+        )
+
+        paths = [e for e in entities if e.entity_type == "file_path"]
+        assert len(paths) == 1
+        assert paths[0].name == "/etc/app/config.yaml"
+
+    def test_extract_nested_file_path(self):
+        """Test extracting a deeply nested file path."""
+        engine = GraphRAGEngine()
+        text = "See /usr/local/bin/app.conf.txt for details."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_fp2", source="test"
+        )
+
+        paths = [e for e in entities if e.entity_type == "file_path"]
+        assert len(paths) == 1
+        assert paths[0].name == "/usr/local/bin/app.conf.txt"
+
+    def test_file_path_not_extracted_from_url(self):
+        """file_path regex must NOT match URL substrings (negative lookbehind).
+        This is the regression guard for the fix that closed the URL
+        over-extraction bug."""
+        engine = GraphRAGEngine()
+        text = "Visit http://example.com/page.html for info."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_fp3", source="test"
+        )
+
+        paths = [e for e in entities if e.entity_type == "file_path"]
+        # URL is extracted as a single url entity; no spurious file_path entity
+        assert paths == []
+        urls = [e for e in entities if e.entity_type == "url"]
+        assert len(urls) == 1
+
+
 class TestIPExtraction:
     """Tests for IP address pattern extraction"""
 
@@ -184,6 +257,31 @@ class TestIPExtraction:
 
         # Should not extract invalid IP (octets > 255)
         assert len(entities) == 0
+
+    def test_extract_boundary_ip_values(self):
+        """Test IP octets at boundaries (0, 255, 127)."""
+        engine = GraphRAGEngine()
+        text = "loopback 127.0.0.1 and broadcast 255.255.255.255"
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_ip_boundary", source="test"
+        )
+
+        ips = [e.name for e in entities if e.entity_type == "ip_address"]
+        assert "127.0.0.1" in ips
+        assert "255.255.255.255" in ips
+
+    def test_reject_mixed_valid_invalid_octets(self):
+        """IP with one invalid octet (192.168.1.999) must not partially match."""
+        engine = GraphRAGEngine()
+        text = "Bad IP 192.168.1.999 here."
+
+        entities, relationships = engine._pattern_extract_entities_and_relationships(
+            text, doc_id="test_ip_mixed", source="test"
+        )
+
+        ips = [e.name for e in entities if e.entity_type == "ip_address"]
+        assert ips == [], f"Expected no IP match, got {ips}"
 
 
 class TestUUIDExtraction:

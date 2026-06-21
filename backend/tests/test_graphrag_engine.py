@@ -168,12 +168,6 @@ class TestGraphRAGInit:
         result = engine._is_llm_available("test-workspace")
         assert result is False
 
-    def test_get_llm_client_returns_none(self):
-        """Verify _get_llm_client returns None (LLMService handles client creation)"""
-        engine = GraphRAGEngine()
-        result = engine._get_llm_client("test-workspace")
-        assert result is None
-
 
 # ==================== TEST CLASS 2: LLM Extraction (via LLMService) ====================
 
