@@ -150,7 +150,8 @@ async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        # Same fallback chain as get_current_user: sub → id → user_id
+        user_id: str = payload.get("sub") or payload.get("id") or payload.get("user_id")
         if user_id is None:
             return None
         return db.query(User).filter(User.id == user_id).first()

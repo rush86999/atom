@@ -393,7 +393,30 @@ manager = CanvasStateConnectionManager()
 
 @router.websocket("/ws/{canvas_id}")
 async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
-    """WebSocket for real-time state sync."""
+    """WebSocket for real-time canvas state sync.
+
+    SECURITY: Requires JWT authentication via the ``token`` query parameter.
+    Without this, any attacker who knows a canvas ID could inject state
+    changes into other users' sessions via ``canvas:state_update`` messages.
+    """
+    from core.auth import get_current_user_ws
+    from core.database import SessionLocal
+
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008, reason="Missing authentication token")
+        return
+
+    db = SessionLocal()
+    try:
+        user = await get_current_user_ws(token, db)
+    finally:
+        db.close()
+
+    if user is None:
+        await websocket.close(code=1008, reason="Invalid or expired token")
+        return
+
     await manager.connect(canvas_id, websocket)
     try:
         while True:

@@ -11,10 +11,12 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Depends
 from pydantic import BaseModel
 
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +130,11 @@ async def get_agent_info(agent_id: str):
     return AgentInfo(**agent_data)
 
 @router.post("/agent/{agent_id}/heartbeat")
-async def agent_heartbeat(agent_id: str, status: Dict[str, Any]):
+async def agent_heartbeat(
+    agent_id: str,
+    status: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
     """Update agent heartbeat and status"""
     data = load_agent_status()
 
@@ -153,7 +159,11 @@ async def agent_heartbeat(agent_id: str, status: Dict[str, Any]):
     )
 
 @router.post("/agent/task/{task_id}/update")
-async def update_task_status(task_id: str, update: Dict[str, Any]):
+async def update_task_status(
+    task_id: str,
+    update: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
     """Update status of a specific task"""
     data = load_agent_status()
 
@@ -185,7 +195,10 @@ async def update_task_status(task_id: str, update: Dict[str, Any]):
     return router.success_response(message="Task status updated successfully")
 
 @router.post("/agent/task")
-async def create_task(task: AgentTask):
+async def create_task(
+    task: AgentTask,
+    current_user: User = Depends(get_current_user)
+):
     """Create a new agent task"""
     data = load_agent_status()
 
@@ -207,7 +220,10 @@ async def create_task(task: AgentTask):
     )
 
 @router.delete("/agent/task/{task_id}")
-async def delete_task(task_id: str):
+async def delete_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
     """Delete a task"""
     data = load_agent_status()
 

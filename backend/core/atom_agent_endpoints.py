@@ -198,7 +198,8 @@ async def list_sessions(
         }
     except Exception as e:
         logger.error(f"Failed to list sessions: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 @router.post(
     "/sessions",
@@ -231,7 +232,8 @@ async def create_new_session(current_user: User = Depends(get_current_user)):
         return {"success": True, "session_id": session_id}
     except Exception as e:
         logger.error(f"Failed to create session: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 @router.get(
     "/sessions/{session_id}/history",
@@ -343,10 +345,10 @@ async def get_session_history(
         }
         
     except Exception as e:
-        logger.error(f"Failed to retrieve session history: {e}")
+        logger.error(f"Failed to retrieve session history: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "error": "Internal server error"
         }
 
 @router.post(
@@ -643,7 +645,8 @@ async def chat_with_agent(
 
     except Exception as e:
         logger.error(f"Error in chat agent: {str(e)}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def classify_intent_with_llm(
     message: str, 
@@ -1318,7 +1321,8 @@ async def execute_generated_workflow(
         }
     except Exception as e:
         logger.error(f"Execution failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to follow up on emails by triggering the workflow template"""
@@ -1351,7 +1355,8 @@ async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]
         }
     except Exception as e:
         logger.error(f"Follow-up handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_wellness_check(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to check user wellness/burnout and trigger mitigation workflow"""
@@ -1371,7 +1376,8 @@ async def handle_wellness_check(request: ChatRequest, entities: Dict[str, Any]) 
         }
     except Exception as e:
         logger.error(f"Wellness handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_automation_insights(request: ChatRequest) -> Dict[str, Any]:
     """Handle request to view automation insights and behavioral suggestions"""
@@ -1425,7 +1431,8 @@ async def handle_automation_insights(request: ChatRequest) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Insights handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_resolve_conflicts(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to optimize schedule and resolve conflicts"""
@@ -1441,7 +1448,8 @@ async def handle_resolve_conflicts(request: ChatRequest, entities: Dict[str, Any
         }
     except Exception as e:
         logger.error(f"Conflict resolution handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to set a new high-level goal"""
@@ -1476,7 +1484,8 @@ async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dic
         }
     except Exception as e:
         logger.error(f"Set goal handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_silent_stakeholders(request: ChatRequest) -> Dict[str, Any]:
     """Handle request to identify silent stakeholders and suggest outreach"""
@@ -1519,7 +1528,8 @@ async def handle_silent_stakeholders(request: ChatRequest) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Stakeholder handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to check status of active goals"""
@@ -1538,7 +1548,8 @@ async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> 
         }
     except Exception as e:
         logger.error(f"Goal status handler failed: {e}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 # --- System & Search Handlers (Phase 25C) ---
 
@@ -1924,7 +1935,8 @@ Provide helpful, concise responses. When you need to take actions, describe what
 
     except Exception as e:
         logger.error(f"Error in streaming chat: {str(e)}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Internal error: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
 
 
 # ========================================================================
@@ -1990,10 +2002,10 @@ async def retrieve_hybrid(
         }
 
     except Exception as e:
-        logger.error(f"Hybrid retrieval failed: {e}")
+        logger.error(f"Hybrid retrieval failed: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e),
+            "error": "Internal server error",
             "results": []
         }
 
@@ -2044,9 +2056,9 @@ async def retrieve_baseline(
         }
 
     except Exception as e:
-        logger.error(f"Baseline retrieval failed: {e}")
+        logger.error(f"Baseline retrieval failed: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e),
+            "error": "Internal server error",
             "results": []
         }
