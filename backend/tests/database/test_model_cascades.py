@@ -461,7 +461,7 @@ class TestTransactionRollback:
                 email=f"rollback{i}@test.com",
                 first_name="User",
                 last_name=f"{i}",
-                password_hash="hash"
+                hashed_password="hash"
             )
             users_to_create.append(user)
 
@@ -470,7 +470,7 @@ class TestTransactionRollback:
             email="rollback0@test.com",  # Duplicate!
             first_name="Duplicate",
             last_name="User",
-            password_hash="hash"
+            hashed_password="hash"
         )
         users_to_create.append(duplicate_user)
 
@@ -507,7 +507,7 @@ class TestTransactionRollback:
                 email="multi1@test.com",  # Duplicate!
                 first_name="Duplicate",
                 last_name="User",
-                password_hash="hash"
+                hashed_password="hash"
             )
             db_session.add(user2)
 
