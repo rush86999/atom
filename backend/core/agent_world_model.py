@@ -616,17 +616,17 @@ class WorldModelService:
         Archive a completed conversation session from Postgres (Hot) to LanceDB (Cold).
         This keeps Postgres small and fast while preserving long-term memory on S3.
         """
+        db = None
         try:
             db = SessionLocal()
             messages = db.query(ChatMessage).filter(
                 ChatMessage.conversation_id == conversation_id,
                 ChatMessage.tenant_id == self.db.workspace_id
             ).order_by(ChatMessage.created_at.asc()).all()
-            
+
             if not messages:
-                db.close()
                 return False
-                
+
             # Combine session history into a single archival document
             session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
             metadata = {
@@ -635,7 +635,7 @@ class WorldModelService:
                 "type": "archived_session",
                 "archived_at": datetime.now(timezone.utc).isoformat()
             }
-            
+
             # Save to LanceDB (Cold Storage)
             success = self.db.add_document(
                 table_name="archived_memories",
@@ -644,7 +644,7 @@ class WorldModelService:
                 metadata=metadata,
                 user_id="system_archiver"
             )
-            
+
             if success:
                 # Soft delete: mark as archived in metadata instead of hard delete
                 # This allows recovery if needed and provides audit trail
@@ -675,11 +675,13 @@ class WorldModelService:
                     logger.error(f"Failed to mark session as archived: {commit_err}")
                     db.rollback()
 
-            db.close()
             return success
         except Exception as e:
             logger.error(f"Failed to archive session {conversation_id}: {e}")
             return False
+        finally:
+            if db is not None:
+                db.close()
 
     async def archive_session_to_cold_storage_with_cleanup(
         self,
@@ -1068,6 +1070,7 @@ class WorldModelService:
 
         # 4. Search Conversations (Postgres Persistence)
         conversation_results = []
+        db = None
         try:
             db = SessionLocal()
             # Get latest 5 messages for this tenant/agent context (generic)
@@ -1075,7 +1078,7 @@ class WorldModelService:
             messages = db.query(ChatMessage).filter(
                 ChatMessage.tenant_id == self.db.workspace_id
             ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
-            
+
             conversation_results = [
                 {
                     "role": m.role,
@@ -1084,10 +1087,12 @@ class WorldModelService:
                 }
                 for m in messages
             ]
-            db.close()
             logger.info(f"Retrieved {len(conversation_results)} recent conversation messages")
         except Exception as ce:
             logger.warning(f"Conversation recall failed: {ce}")
+        finally:
+            if db is not None:
+                db.close()
 
         # 5. Search Business Facts (Trusted Memory)
         business_facts = await self.get_relevant_business_facts(current_task_description, limit=limit)
@@ -1568,31 +1573,35 @@ class WorldModelService:
             from core.database import SessionLocal
             from core.models import AgentEpisode
 
-            db = SessionLocal()
-            episodes = db.query(AgentEpisode).filter(
-                AgentEpisode.agent_id == agent_id,
-                AgentEpisode.tenant_id == tenant_id
-            ).order_by(AgentEpisode.started_at.desc()).limit(limit).all()
+            db = None
+            try:
+                db = SessionLocal()
+                episodes = db.query(AgentEpisode).filter(
+                    AgentEpisode.agent_id == agent_id,
+                    AgentEpisode.tenant_id == tenant_id
+                ).order_by(AgentEpisode.started_at.desc()).limit(limit).all()
 
-            result = [
-                {
-                    "episode_id": ep.id,
-                    "task_description": ep.task_description,
-                    "outcome": ep.outcome,
-                    "success": ep.success,
-                    "maturity_at_time": ep.maturity_at_time,
-                    "constitutional_score": ep.constitutional_score,
-                    "human_intervention_count": ep.human_intervention_count,
-                    "confidence_score": ep.confidence_score,
-                    "step_efficiency": ep.step_efficiency,
-                    "started_at": ep.started_at.isoformat() if ep.started_at else None,
-                    "completed_at": ep.completed_at.isoformat() if ep.completed_at else None
-                }
-                for ep in episodes
-            ]
+                result = [
+                    {
+                        "episode_id": ep.id,
+                        "task_description": ep.task_description,
+                        "outcome": ep.outcome,
+                        "success": ep.success,
+                        "maturity_at_time": ep.maturity_at_time,
+                        "constitutional_score": ep.constitutional_score,
+                        "human_intervention_count": ep.human_intervention_count,
+                        "confidence_score": ep.confidence_score,
+                        "step_efficiency": ep.step_efficiency,
+                        "started_at": ep.started_at.isoformat() if ep.started_at else None,
+                        "completed_at": ep.completed_at.isoformat() if ep.completed_at else None
+                    }
+                    for ep in episodes
+                ]
 
-            db.close()
-            return result
+                return result
+            finally:
+                if db is not None:
+                    db.close()
 
         except Exception as e:
             logger.warning(f"Failed to get recent episodes from PostgreSQL: {e}")
@@ -1853,28 +1862,31 @@ class WorldModelService:
             from core.models import AgentEpisode
             from sqlalchemy import cast
 
-            db = SessionLocal()
+            db = None
+            try:
+                db = SessionLocal()
 
-            # Query successful OpenClaw skill executions
-            episodes = db.query(AgentEpisode).filter(
-                AgentEpisode.agent_id == agent_id,
-                AgentEpisode.tenant_id == tenant_id,
-                AgentEpisode.success == True,
-                AgentEpisode.metadata_json["skill_type"].astext == "openclaw"
-            ).limit(limit).all()
+                # Query successful OpenClaw skill executions
+                episodes = db.query(AgentEpisode).filter(
+                    AgentEpisode.agent_id == agent_id,
+                    AgentEpisode.tenant_id == tenant_id,
+                    AgentEpisode.success == True,
+                    AgentEpisode.metadata_json["skill_type"].astext == "openclaw"
+                ).limit(limit).all()
 
-            # Extract unique skill IDs
-            skill_ids = set()
-            for ep in episodes:
-                if ep.metadata_json:
-                    skill_id = ep.metadata_json.get("skill_id")
-                    if skill_id:
-                        skill_ids.add(skill_id)
+                # Extract unique skill IDs
+                skill_ids = set()
+                for ep in episodes:
+                    if ep.metadata_json:
+                        skill_id = ep.metadata_json.get("skill_id")
+                        if skill_id:
+                            skill_ids.add(skill_id)
 
-            db.close()
-
-            logger.info(f"Found {len(skill_ids)} successful skills for agent {agent_id}")
-            return skill_ids
+                logger.info(f"Found {len(skill_ids)} successful skills for agent {agent_id}")
+                return skill_ids
+            finally:
+                if db is not None:
+                    db.close()
 
         except Exception as e:
             logger.error(f"Failed to get successful skills for agent: {e}")

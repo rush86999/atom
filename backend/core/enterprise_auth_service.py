@@ -162,19 +162,29 @@ class EnterpriseAuthService:
         """
         Hash password using bcrypt with appropriate cost factor.
 
+        Truncates to 71 bytes to match core/auth.py:get_password_hash — bcrypt
+        has a 72-byte limit (including null terminator), so the safe margin is
+        71. Without consistent truncation, a password hashed by one path may
+        fail verification by the other if it crosses the 72-byte boundary.
+
         Args:
             password: Plain text password
 
         Returns:
             Salted hash string
         """
+        # Encode and truncate to 71 bytes (consistent with core/auth.py)
+        pw_bytes = password.encode('utf-8')[:71]
         salt = bcrypt.gensalt(rounds=12)  # Cost factor 12 (recommended for 2024)
-        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+        hashed = bcrypt.hashpw(pw_bytes, salt)
         return hashed.decode('utf-8')
 
     def verify_password(self, password: str, hashed_password: str) -> bool:
         """
         Verify password against hash.
+
+        Truncates to 71 bytes to match core/auth.py:verify_password so that
+        passwords hashed by either path verify consistently.
 
         Args:
             password: Plain text password
@@ -184,7 +194,13 @@ class EnterpriseAuthService:
             True if password matches hash
         """
         try:
-            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+            pw_bytes = password.encode('utf-8')[:71]
+            return bcrypt.checkpw(pw_bytes, hashed_password.encode('utf-8'))
+        except ValueError as e:
+            # Non-bcrypt hash (e.g., SSO user with hashed_password=None, or
+            # legacy MD5/SHA hash). Distinguish from wrong-password for ops.
+            logger.warning(f"Password hash format invalid (not bcrypt): {e}")
+            return False
         except Exception as e:
             logger.error(f"Password verification error: {e}")
             return False
@@ -804,10 +820,24 @@ class EnterpriseAuthService:
         return role_mapping.get(saml_role.lower(), UserRole.MEMBER.value)
 
 
-# Global instance
-enterprise_auth_service = EnterpriseAuthService()
+# Lazy singleton — created on first call to get_enterprise_auth_service().
+# Previously this was instantiated at module import time (enterprise_auth_service =
+# EnterpriseAuthService()), which performed file I/O (RSA key loading) during
+# import. If JWT_PRIVATE_KEY_PATH / JWT_PUBLIC_KEY_PATH pointed to a network
+# mount or read-only filesystem (common in containers), importing this module
+# would block or crash the entire process. Endpoints already instantiate
+# EnterpriseAuthService() per-request, so this singleton is only for callers
+# of get_enterprise_auth_service().
+_enterprise_auth_service_instance: Optional["EnterpriseAuthService"] = None
 
 
 def get_enterprise_auth_service() -> EnterpriseAuthService:
-    """Get or create enterprise auth service instance"""
-    return enterprise_auth_service
+    """Get or create the shared enterprise auth service instance (lazy).
+
+    The instance is created on first call, NOT at import time, so module
+    import never blocks on file I/O.
+    """
+    global _enterprise_auth_service_instance
+    if _enterprise_auth_service_instance is None:
+        _enterprise_auth_service_instance = EnterpriseAuthService()
+    return _enterprise_auth_service_instance

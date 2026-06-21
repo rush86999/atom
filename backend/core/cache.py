@@ -2,6 +2,7 @@
 import os
 import json
 import logging
+import threading
 import time
 import asyncio
 import httpx
@@ -148,11 +149,16 @@ class SyncLocalCache:
 
 class UniversalCacheService:
     _instance = None
+    _init_lock = threading.Lock()
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(UniversalCacheService, cls).__new__(cls)
-            cls._instance._initialize()
+            with cls._init_lock:
+                # Double-checked locking: re-verify inside the lock to avoid
+                # the race where two threads both pass the outer None check.
+                if cls._instance is None:
+                    cls._instance = super(UniversalCacheService, cls).__new__(cls)
+                    cls._instance._initialize()
         return cls._instance
 
     def _initialize(self):

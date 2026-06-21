@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import threading
 import uuid
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class AgentScheduler:
     _instance = None
+    _init_lock = threading.Lock()
 
     def __init__(self):
         jobstores = {
@@ -28,8 +30,8 @@ class AgentScheduler:
             'max_instances': 3
         }
         self.scheduler = BackgroundScheduler(
-            jobstores=jobstores, 
-            executors=executors, 
+            jobstores=jobstores,
+            executors=executors,
             job_defaults=job_defaults
         )
         self.scheduler.start()
@@ -38,7 +40,12 @@ class AgentScheduler:
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
-            cls._instance = AgentScheduler()
+            with cls._init_lock:
+                # Double-checked locking: prevents two concurrent callers
+                # from both creating a scheduler, which would start two
+                # BackgroundScheduler threads writing to the same jobstore.
+                if cls._instance is None:
+                    cls._instance = AgentScheduler()
         return cls._instance
 
     def schedule_job(self, agent_id: str, cron_expression: str, func, args=None):
