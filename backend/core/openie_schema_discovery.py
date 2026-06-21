@@ -7,17 +7,39 @@ AI-powered entity type discovery using Open Information Extraction.
 Extracts entity types from integration data without pre-defined schemas.
 Uses LLM with core entity hardcoding for intelligent classification.
 """
+import asyncio
+import concurrent.futures
 import json
 import logging
 from typing import Any, Union
 
 from sqlalchemy.orm import Session
 
-from core.byok_endpoints import get_byok_manager
 from core.database import SessionLocal
 from core.entity_type_service import EntityTypeService
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
+
+
+def _run_sync(coro):
+    """Run an awaitable from a sync context.
+
+    If no event loop is running in the current thread, ``asyncio.run`` is used.
+    If a loop IS running (async caller), we offload to a fresh thread + new
+    loop via ThreadPoolExecutor to avoid "asyncio.run() cannot be called from a
+    running event loop". Mirrors the pattern in graphrag_engine.local_search.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(lambda: asyncio.run(coro))
+            return future.result()
+    return asyncio.run(coro)
 
 # Core entity schemas with few-shot examples for LLM guidance
 # These are hardcoded to ensure consistent mapping to canonical types
@@ -102,34 +124,13 @@ class OpenIESchemaDiscovery:
         self.workspace_id = workspace_id
         self.db = db or SessionLocal()
         self.entity_type_service = EntityTypeService(db=self.db)
-
-    def _get_llm_client(self):
-        """
-        Get LLM client with BYOK support.
-
-        Returns:
-            OpenAI client or None if no key available
-        """
-        try:
-            from openai import OpenAI
-
-            byok = get_byok_manager()
-            # 1. Try Tenant-specific Key
-            api_key = byok.get_tenant_api_key(self.tenant_id, "openai")
-
-            # 2. Fallback to Platform Key
-            if not api_key:
-                api_key = byok.get_api_key("openai")
-
-            if api_key:
-                return OpenAI(api_key=api_key)
-            return None
-        except ImportError:
-            logger.warning("OpenAI or BYOK Manager not available")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get LLM client: {e}")
-            return None
+        # Unified LLM entry point: BYOK key resolution, cost tracking via
+        # llm_usage_tracker, provider fallback, governance de-escalation.
+        self.llm_service = LLMService(
+            db=self.db,
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
+        )
 
     def _build_extraction_prompt(self, sample_data: list[dict[str, Any]]) -> str:
         """
@@ -189,6 +190,10 @@ JSON Schema:
         """
         Extract entities with core entity hardcoding using LLM.
 
+        Routes through ``LLMService.generate`` for BYOK key resolution,
+        cost tracking (``llm_usage_tracker``), provider fallback, and
+        governance de-escalation. Previously called a direct OpenAI client.
+
         Args:
             text: Integration data text to analyze
             source: Data source identifier
@@ -196,8 +201,7 @@ JSON Schema:
         Returns:
             Dict with entities, relationships, and classification counts
         """
-        client = self._get_llm_client()
-        if not client:
+        if not self.llm_service or not self.llm_service.is_available():
             logger.warning("LLM client not available, skipping extraction")
             return {
                 "entities": [],
@@ -210,20 +214,19 @@ JSON Schema:
         try:
             prompt = self._build_extraction_prompt_from_text(text)
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a knowledge graph extractor. Output valid JSON.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                response_format={"type": "json_object"},
+            content = _run_sync(
+                self.llm_service.generate(
+                    prompt=prompt,
+                    system_instruction=(
+                        "You are a knowledge graph extractor. "
+                        "Output ONLY valid JSON, no markdown, no prose. "
+                        "The response must parse with json.loads."
+                    ),
+                    model="gpt-4o-mini",
+                    temperature=0.1,
+                )
             )
 
-            content = response.choices[0].message.content
             data = json.loads(content)
 
             entities = []
