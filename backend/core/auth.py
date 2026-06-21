@@ -114,15 +114,21 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        # Support multiple JWT claim conventions:
+        #   - "sub"     : standard OIDC/JWT claim
+        #   - "id"      : NextAuth fallback
+        #   - "user_id" : Atom enterprise_auth_endpoints token format (issued at
+        #                 api/enterprise_auth_endpoints.py:109). Without this,
+        #                 every token issued by /api/auth/login fails validation
+        #                 here, breaking /api/users/me and any endpoint using
+        #                 get_current_user as a dependency.
+        user_id: str = payload.get("sub") or payload.get("id") or payload.get("user_id")
 
-        
         if user_id is None:
-            # Try "id" field if "sub" is missing (NextAuth sometimes differs)
-            user_id = payload.get("id")
-            if user_id is None:
-                print("AUTH DEBUG: Token payload missing 'sub' and 'id'")
-                raise credentials_exception
+            logger.warning(
+                "JWT validation failed: token payload missing 'sub', 'id', and 'user_id' claims"
+            )
+            raise credentials_exception
     except JWTError as e:
         print(f"AUTH DEBUG: JWT Decode Error: {e}")
         raise credentials_exception

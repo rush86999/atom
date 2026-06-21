@@ -62,8 +62,27 @@ class EnterpriseAuthService:
 
         Args:
             secret_key: Secret key for JWT signing (loads from env if not provided)
+
+        Secret key resolution order:
+            1. Explicit ``secret_key`` argument
+            2. ``ENTERPRISE_JWT_SECRET`` env var (legacy enterprise-specific)
+            3. ``SECRET_KEY`` env var (unified — same key used by core/auth.py)
+            4. ``JWT_SECRET`` env var (alias)
+            5. Hardcoded dev fallback
+
+        Without the SECRET_KEY/JWT_SECRET fallback, tokens issued by the
+        enterprise auth service (login, register) were signed with a different
+        key than core/auth.py:get_current_user uses to verify them, causing
+        every authenticated endpoint to reject tokens with 401
+        "Could not validate credentials".
         """
-        self.secret_key = secret_key or os.getenv("ENTERPRISE_JWT_SECRET", "default-secret-key-change-in-production")
+        self.secret_key = (
+            secret_key
+            or os.getenv("ENTERPRISE_JWT_SECRET")
+            or os.getenv("SECRET_KEY")
+            or os.getenv("JWT_SECRET")
+            or "default-secret-key-change-in-production"
+        )
 
         # Load RSA keys for RS256 signing (recommended for production)
         self.private_key = self._load_private_key()
