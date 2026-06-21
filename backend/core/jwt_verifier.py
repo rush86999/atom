@@ -234,9 +234,14 @@ class JWTVerifier:
                 options=decode_options,
             )
 
-            # Additional validations
-            if not payload.get("sub"):
-                logger.error("JWT_VERIFICATION: Token missing 'sub' claim")
+            # Additional validations — accept "sub" (standard JWT), "id"
+            # (NextAuth convention), or "user_id" (EnterpriseAuthService token
+            # format issued at core/enterprise_auth_service.py:205). Without
+            # this fallback, every token issued by /api/auth/login fails
+            # verification here even though it's perfectly valid.
+            subject = payload.get("sub") or payload.get("id") or payload.get("user_id")
+            if not subject:
+                logger.error("JWT_VERIFICATION: Token missing subject claim (sub/id/user_id)")
                 raise HTTPException(status_code=401, detail="Invalid token: missing subject")
 
             # Check token age (optional - warn if token is very old)

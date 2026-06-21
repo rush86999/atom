@@ -41,22 +41,19 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ============================================================================
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user from session/headers."""
-    # Simplified for this context - should use the same logic as auth_routes.py
-    user_id = request.headers.get("X-User-ID")
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            return user
-            
-    # Fallback to dev user if allowed
-    if os.getenv("ENVIRONMENT") == "development":
-        user = db.query(User).first()
-        if user:
-            return user
-            
-    raise HTTPException(status_code=401, detail="Unauthorized")
+async def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Get current user from JWT Bearer token.
+
+    SECURITY: Previously this function trusted a client-supplied ``X-User-ID``
+    header with no verification, allowing any caller to impersonate any user
+    by simply setting that header. This is a CVE-class authentication bypass.
+
+    Now delegates to the unified ``core.auth.get_current_user`` which verifies
+    a JWT (Bearer header or NextAuth cookie) and resolves the user from the DB.
+    """
+    from core.auth import get_current_user as _core_get_current_user
+
+    return await _core_get_current_user(request=request, token=None, db=db)
 
 async def _handle_callback_logic(provider: str, code: str, config: Any, request: Request, db: Session):
     """Common logic for handling OAuth callbacks."""

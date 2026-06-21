@@ -6,7 +6,7 @@ FastAPI-based REST API for user registration, login, and session management.
 from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, status
+from fastapi import Body, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -197,13 +197,15 @@ async def login_user(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
-    refresh_token: str,
+    refresh_token: str = Body(..., embed=True),
     db: Session = Depends(get_db)
 ):
     """
     Refresh access token using refresh token.
 
     Validates the refresh token and issues new access token.
+
+    Body: ``{"refresh_token": "<jwt>"}``
     """
     try:
         from core.enterprise_auth_service import EnterpriseAuthService
@@ -227,10 +229,22 @@ async def refresh_token(
                 message="User not found"
             )
 
-        # Get user credentials for token creation
-        user_creds = auth_service.verify_credentials(db, user.email, "")  # No password needed for refresh
-        if not user_creds:
-            # Fallback: create basic credentials
+        # Get user credentials for token creation.
+        # verify_credentials returns a UserCredentials dataclass (or None),
+        # NOT a dict — so we normalize to a dict here to avoid TypeError on
+        # the subscript access below.
+        user_creds_raw = auth_service.verify_credentials(db, user.email, "")
+        if user_creds_raw is not None:
+            user_creds = {
+                'user_id': getattr(user_creds_raw, 'user_id', user.id),
+                'username': getattr(user_creds_raw, 'username', user.email),
+                'email': getattr(user_creds_raw, 'email', user.email),
+                'roles': getattr(user_creds_raw, 'roles', [user.role]),
+                'security_level': getattr(user_creds_raw, 'security_level', 'standard'),
+                'permissions': getattr(user_creds_raw, 'permissions', []),
+            }
+        else:
+            # Fallback: create basic credentials from the user record
             user_creds = {
                 'user_id': user.id,
                 'username': user.email,

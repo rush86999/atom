@@ -18,7 +18,7 @@ import jwt
 from sqlalchemy.orm import Session
 
 # Import UserRole from models to avoid duplication
-from core.models import UserRole
+from core.models import UserRole, UserStatus
 
 logger = logging.getLogger(__name__)
 
