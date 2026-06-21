@@ -31,7 +31,7 @@ def seed_admin():
                 logger.info("✓ User 'admin@example.com' already exists.")
                 # Optional: Reset password if needed? The user said "securePass123"
                 # Let's update it just in case
-                user.password_hash = get_password_hash("securePass123")
+                user.hashed_password = get_password_hash("securePass123")
                 user.status = UserStatus.ACTIVE
                 db.commit()
                 logger.info("✓ Password updated to 'securePass123' and status set to ACTIVE")
@@ -39,7 +39,7 @@ def seed_admin():
                 logger.info("Creating 'admin@example.com'...")
                 new_user = User(
                     email="admin@example.com",
-                    password_hash=get_password_hash("securePass123"),
+                    hashed_password=get_password_hash("securePass123"),
                     first_name="Admin",
                     last_name="User",
                     status=UserStatus.ACTIVE,

@@ -323,7 +323,7 @@ def revoke_all_user_tokens(
             db: Session = Depends(get_db)
         ):
             # Update password
-            current_user.password_hash = hash_password(request.new_password)
+            current_user.hashed_password = hash_password(request.new_password)
             db.commit()
 
             # Revoke all existing tokens

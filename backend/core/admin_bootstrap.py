@@ -22,7 +22,7 @@ def ensure_admin_user():
             
             if user:
                 logger.info(f"BOOTSTRAP: User {email} found. resetting password...")
-                user.password_hash = get_password_hash(password)
+                user.hashed_password = get_password_hash(password)
                 user.status = UserStatus.ACTIVE
                 user.role = "workspace_admin"  # Ensure role is set
                 db.commit()
@@ -32,7 +32,7 @@ def ensure_admin_user():
                 new_user = User(
                     id="00000000-0000-0000-0000-000000000000", # Fixed ID for development stability
                     email=email,
-                    password_hash=get_password_hash(password),
+                    hashed_password=get_password_hash(password),
                     first_name="Admin",
                     last_name="User",
                     role="workspace_admin", # Explicitly set role

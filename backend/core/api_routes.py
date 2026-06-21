@@ -86,15 +86,15 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
         )
 
     # Create new user with secure password hashing
-    password_hash = None
+    hashed_password = None
     if user.password:
-        password_hash = get_password_hash(user.password)
+        hashed_password = get_password_hash(user.password)
 
     # Use SQLAlchemy ORM directly instead of db_manager
     new_user = User(
         email=user.email,
         first_name=user.name,
-        password_hash=password_hash,
+        hashed_password=hashed_password,
         status="active",
         role="member"
     )
