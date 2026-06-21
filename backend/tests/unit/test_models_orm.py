@@ -633,7 +633,7 @@ class TestUserModel:
         # Try to create another user with same email
         user2 = User(
             email="unique@example.com",  # Duplicate email
-            password_hash="hash"
+            hashed_password="hash"
         )
         db.add(user2)
 
@@ -895,7 +895,7 @@ class TestFieldValidation:
         """Test user.email NOT NULL constraint."""
         # FIXED (GAP-01): Add user to session and flush
         user = User(
-            password_hash="hash"  # Missing email
+            hashed_password="hash"  # Missing email
         )
         db.add(user)
 
