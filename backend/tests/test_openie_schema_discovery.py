@@ -194,6 +194,127 @@ class TestExtractionFailureHandling:
         assert result["entities"] == []
         assert "error" in result
 
+    def test_markdown_wrapped_json_is_extracted(self, fake_llm_service):
+        """REG-1: Without response_format, the LLM may wrap JSON in markdown
+        fences. The extractor must defensively strip the fence before parsing,
+        otherwise every markdown-wrapped response becomes an error payload."""
+        wrapped = '```json\n{"entities": [], "relationships": [], "discovery_reasoning": ""}\n```'
+        fake_llm_service.generate = AsyncMock(return_value=wrapped)
+
+        with patch("core.openie_schema_discovery.LLMService", return_value=fake_llm_service):
+            inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+
+        result = inst.extract_entities_with_core_hardcoding("sample", source="x")
+
+        # Must NOT surface an error — the fence must be stripped and JSON parsed
+        assert "error" not in result, f"Expected JSON extraction, got error: {result.get('error')}"
+        assert result["entities"] == []
+        assert result["discovery_reasoning"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — empty payloads, missing keys, defaults
+# ---------------------------------------------------------------------------
+
+
+class TestExtractionEdgeCases:
+    """Robustness coverage for the LLM-payload processing loop."""
+
+    def test_empty_entities_and_relationships(self, fake_llm_service):
+        """LLM returns well-formed but empty payload — counts stay 0, no error."""
+        fake_llm_service.generate = AsyncMock(
+            return_value=json.dumps({"entities": [], "relationships": []})
+        )
+        with patch("core.openie_schema_discovery.LLMService", return_value=fake_llm_service):
+            inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+
+        result = inst.extract_entities_with_core_hardcoding("sample", source="x")
+
+        assert result["entities"] == []
+        assert result["relationships"] == []
+        assert result["core_entity_count"] == 0
+        assert result["custom_entity_count"] == 0
+
+    def test_missing_discovery_reasoning_defaults_to_empty(self, fake_llm_service):
+        """data.get('discovery_reasoning', '') must default to empty string."""
+        fake_llm_service.generate = AsyncMock(
+            return_value=json.dumps({"entities": [], "relationships": []})
+        )
+        with patch("core.openie_schema_discovery.LLMService", return_value=fake_llm_service):
+            inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+
+        result = inst.extract_entities_with_core_hardcoding("sample", source="x")
+
+        assert result.get("discovery_reasoning") == ""
+
+    def test_entity_missing_name_key_caught_gracefully(self, fake_llm_service):
+        """GAP-3: Entity dict missing 'name' → KeyError caught by except Exception,
+        whole batch returns error payload. Documents the current behavior."""
+        fake_llm_service.generate = AsyncMock(
+            return_value=json.dumps({
+                "entities": [{"type": "person", "description": "no name field"}],
+                "relationships": [],
+            })
+        )
+        with patch("core.openie_schema_discovery.LLMService", return_value=fake_llm_service):
+            inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+
+        result = inst.extract_entities_with_core_hardcoding("sample", source="x")
+
+        # The broad except Exception catches the KeyError and returns the
+        # canonical error shape. This documents the pre-existing behavior
+        # (one malformed entity discards the whole batch).
+        assert "error" in result
+        assert result["entities"] == []
+
+    def test_relationship_missing_required_keys_caught_gracefully(self, fake_llm_service):
+        """GAP-4: Relationship dict missing 'from'/'to'/'type' → KeyError caught."""
+        fake_llm_service.generate = AsyncMock(
+            return_value=json.dumps({
+                "entities": [],
+                "relationships": [{"description": "missing from/to/type"}],
+            })
+        )
+        with patch("core.openie_schema_discovery.LLMService", return_value=fake_llm_service):
+            inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+
+        result = inst.extract_entities_with_core_hardcoding("sample", source="x")
+
+        assert "error" in result
+        assert result["relationships"] == []
+
+
+# ---------------------------------------------------------------------------
+# _run_sync thread-pool branch (caller is itself async)
+# ---------------------------------------------------------------------------
+
+
+class TestRunSyncAsyncBranch:
+    """GAP-6: The thread-pool branch of _run_sync executes when the caller is
+    already running inside an event loop. This is the production reality for
+    any FastAPI route handler that calls the sync extract_* method."""
+
+    def test_extraction_works_from_async_context(self, fake_llm_service):
+        """Call extract_* from inside an async coroutine — forces the
+        ThreadPoolExecutor branch of _run_sync."""
+        import asyncio
+
+        async def driver():
+            # We're now inside a running loop. _run_sync must detect this and
+            # offload via ThreadPoolExecutor rather than calling asyncio.run().
+            with patch(
+                "core.openie_schema_discovery.LLMService",
+                return_value=fake_llm_service,
+            ):
+                inst = OpenIESchemaDiscovery(tenant_id="t", workspace_id="w")
+            return inst.extract_entities_with_core_hardcoding("Alice", source="t")
+
+        result = asyncio.run(driver())
+
+        fake_llm_service.generate.assert_called_once()
+        assert "error" not in result
+        assert len(result["entities"]) >= 1
+
 
 # ---------------------------------------------------------------------------
 # Constructor wiring — LLMService instantiated with tenant/workspace context

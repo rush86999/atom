@@ -247,6 +247,15 @@ class TestGraphRAGHybridSearch:
         names = {e["name"] for e in results["entities"]}
         assert "ACME-001" in names, f"Keyword-only match missing. Got: {names}"
 
+        # GAP-8: Verify workspace_id / tenant_id are forwarded to
+        # generate_embedding — required for BYOK key resolution on
+        # non-default tenants. If a future refactor drops these kwargs,
+        # multi-tenant BYOK silently breaks.
+        assert mock_llm.generate_embedding.called
+        _, emb_kwargs = mock_llm.generate_embedding.call_args
+        assert emb_kwargs.get("workspace_id") == workspace_id
+        assert emb_kwargs.get("tenant_id") == tenant_id
+
     def test_local_search_fallback_on_sqlite(self, db_setup):
         """local_search keyword leg works on SQLite even when pgvector is unavailable."""
         Session, tenant_id, workspace_id = db_setup

@@ -11,6 +11,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import re
 from typing import Any, Union
 
 from sqlalchemy.orm import Session
@@ -40,6 +41,24 @@ def _run_sync(coro):
             future = executor.submit(lambda: asyncio.run(coro))
             return future.result()
     return asyncio.run(coro)
+
+
+# Some LLM providers wrap JSON output in markdown fences (```json ... ```)
+# despite prompt instructions. The legacy code passed
+# response_format={"type": "json_object"} to OpenAI to enforce JSON at the API
+# level, but that kwarg is not forwarded by BYOKHandler.generate_response, so
+# the unified LLMService path cannot rely on it. This extractor strips a single
+# surrounding fence defensively before json.loads.
+_MD_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
+
+
+def _extract_json_text(raw: str) -> str:
+    """Strip a markdown ```json ... ``` fence if present; otherwise return raw."""
+    if not raw:
+        return raw
+    stripped = raw.strip()
+    m = _MD_FENCE_RE.match(stripped)
+    return m.group(1) if m else stripped
 
 # Core entity schemas with few-shot examples for LLM guidance
 # These are hardcoded to ensure consistent mapping to canonical types
@@ -227,7 +246,10 @@ JSON Schema:
                 )
             )
 
-            data = json.loads(content)
+            # Defensively strip markdown ```json ... ``` fences. Some providers
+            # wrap despite the instruction above; the old codepath avoided this
+            # via response_format which is not forwarded by BYOKHandler.
+            data = json.loads(_extract_json_text(content))
 
             entities = []
             relationships = []
