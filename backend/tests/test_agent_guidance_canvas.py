@@ -20,7 +20,11 @@ def test_user(db_session):
     user = User(
         id=str(uuid.uuid4()),
         email="test@example.com",
-        password_hash="hash"
+        hashed_password="hash",
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
     db_session.add(user)
     db_session.commit()
