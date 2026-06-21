@@ -638,8 +638,10 @@ class TestLanceDBEmbeddingProviders:
             embedding_provider="openai",
         )
 
-        # Verify API key is set
-        assert handler.openai_api_key == "sk-test-key"
+        # openai_api_key attribute was removed (dead code); OPENAI_API_KEY is
+        # now resolved centrally via LLMService/BYOKHandler at call time.
+        # Verify the handler still constructs cleanly with the env var set.
+        assert handler.embedding_provider == "openai"
 
     @patch('core.lancedb_handler.OPENAI_AVAILABLE', True)
     def test_openai_embed_text_returns_vector(self, mock_openai_config):

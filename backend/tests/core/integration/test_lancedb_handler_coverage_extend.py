@@ -182,7 +182,8 @@ class TestLanceDBHandlerCoverageExtend:
 
         assert handler.embedding_provider == "fastembed"
         assert handler.embedding_model == "BAAI/bge-small-en-v1.5"
-        assert handler.openai_api_key == "sk-test-key"
+        # openai_api_key attribute removed (dead code); key resolved via
+        # LLMService/BYOKHandler at call time.
 
     def test_dual_vector_storage_config(self):
         """Test dual vector storage configuration."""

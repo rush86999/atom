@@ -162,7 +162,6 @@ class LanceDBHandler:
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", embedding_model)
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
 
         self.vector_columns = {
             "vector": 1536,  # OpenAI (default) - text-embedding-3-small
