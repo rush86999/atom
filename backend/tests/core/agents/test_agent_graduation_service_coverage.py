@@ -1374,7 +1374,7 @@ class TestExecuteGraduationExam:
     async def test_execute_graduation_exam_failure(self, db_session):
         """Cover graduation exam failure (lines 962-967)"""
         # Mock executor to return failure
-        with patch.object(SandboxExecutor, 'execute_exam', return_value={
+        with patch.object(GraduationExamSandboxExecutor, 'execute_exam', return_value={
             "success": False,
             "error": "Exam execution failed"
         }):
