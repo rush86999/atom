@@ -46,7 +46,7 @@ def create_test_user_with_canvas(db_session: Session, email: str) -> User:
     user = User(
         email=email,
         username=f"canvasuser_{str(uuid.uuid4())[:8]}",
-        password_hash=get_password_hash("TestPassword123!"),
+        hashed_password=get_password_hash("TestPassword123!"),
         is_active=True,
         status="active",
         email_verified=True,  # Skip email verification for tests

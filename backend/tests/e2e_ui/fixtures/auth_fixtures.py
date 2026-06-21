@@ -202,7 +202,7 @@ def admin_user(db_session: Session) -> Tuple[User, str]:
 
     admin = User(
         email=email,
-        password_hash=get_password_hash("AdminPassword123!"),
+        hashed_password=get_password_hash("AdminPassword123!"),
         role="super_admin",
         status="active",
         created_at=datetime.utcnow()

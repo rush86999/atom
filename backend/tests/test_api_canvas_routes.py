@@ -66,7 +66,7 @@ def authenticated_user(db_session):
     user = User(
         id=str(uuid.uuid4()),
         email="canvas-test@example.com",
-        password_hash="hashed_password"
+        hashed_password="hashed_password"
     )
     db_session.add(user)
     db_session.commit()
