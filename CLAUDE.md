@@ -328,6 +328,16 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Auth Bug Hunt + Launch Hardening (June 21, 2026) ✨
+Closed 5 auth bugs (2 CRITICAL, 3 HIGH) found via systematic bug hunt:
+- **BUG 2 (CRITICAL)**: `enterprise_auth_service.py` referenced `UserStatus` without importing it → SAML user provisioning silently failed
+- **BUG 3 (HIGH)**: `jwt_verifier.py` hard-required `sub` claim, rejecting all enterprise-issued tokens (same class as the earlier `core/auth.py` fix)
+- **BUG 5 (HIGH, CVE-class)**: `oauth_routes.get_current_user` trusted client-supplied `X-User-ID` header with zero JWT verification → full auth bypass
+- **BUG 6 (HIGH)**: `/api/auth/refresh` parsed `refresh_token` as query param instead of JSON body
+- **BUG 1 (CRITICAL)**: refresh endpoint subscripted a `UserCredentials` dataclass as dict → TypeError
+
+18 TDD regression tests guard all fixes (`tests/test_auth_fixes.py`, `tests/test_bug_hunt_fixes.py`).
+
 ### BYOK v6.0 Migration Finalized + Launch Fixes (June 21, 2026) ✨
 Closed the final 3 BYOK gaps (openie_schema_discovery, graphrag_engine, lancedb_handler) — all LLM traffic now routes through `LLMService` for unified cost tracking, governance, and provider fallback. Fixed a launch blocker where `main.py` never mounted the health router (`/health/live`, `/health/ready`, `/health/metrics` were 404). Corrected 4 buggy regex patterns in the GraphRAG fallback extractor. `openie_schema_discovery.py` now at 100% test coverage.
 
@@ -737,8 +747,14 @@ alembic history                        # View history
 ## Quick Reference Commands
 
 ```bash
-# Development
-python -m uvicorn main:app --reload --port 8000
+# Development (launch from repo root — main.py uses backend.* imports)
+cd /path/to/atom
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+
+# Auth (admin password auto-generated on first launch, check startup logs)
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin@example.com","password":"<from-log>"}'
 
 # Daemon mode (Personal Edition)
 atom-os daemon              # Start background service

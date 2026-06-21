@@ -1,92 +1,155 @@
 # Atom Platform - Quick Start Guide
 
-## One-Time Setup
+## Quick Launch (SQLite, no external DB)
+
+The fastest path to a running backend — verified working as of June 2026.
 
 ### 1. Clone & Install
 ```bash
 git clone git@github.com:rush86999/atom.git
 cd atom
 
-# Backend dependencies
+# Backend dependencies (use the venv if present, else pip install)
 cd backend
-pip install -r requirements.txt
+python3.11 -m venv venv
+./venv/bin/pip install -r requirements.txt
 
 # Frontend dependencies
 cd ../frontend-nextjs
 npm install --legacy-peer-deps
-
-# Return to root
 cd ..
 ```
 
-### 2. Database Setup
+### 2. Environment Configuration
+Create `backend/.env` (copy from `backend/.env.example` and fill in):
+
 ```bash
-# Create PostgreSQL database
-createdb atom_production
+# Database (SQLite for local dev — no external DB required)
+DATABASE_URL=sqlite:///./atom_dev.db
 
-# Set environment variable
-export DATABASE_URL="postgresql://user:password@localhost:5432/atom_production"
+# JWT signing key — generate with: openssl rand -base64 48
+# MUST be set for JWT sessions to persist across restarts.
+SECRET_KEY=<your-generated-key>
 
-# Run migrations
-psql $DATABASE_URL < backend/migrations/001_create_users_table.sql
-psql $DATABASE_URL < backend/migrations/002_create_password_reset_tokens.sql
+# AI Providers (at least one required for LLM features)
+OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=...
+# DEEPSEEK_API_KEY=...
 ```
 
-### 3. Environment Configuration
-Create `frontend-nextjs/.env.local`:
+### 3. Launch the Backend
 ```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/atom_production
-
-# NextAuth
-NEXTAUTH_SECRET=your-secret-here  # Generate: openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
-
-# Backend API
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-
-# Optional: OAuth Providers
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
+# From the repo root (NOT from backend/ — main.py uses backend.* imports)
+cd /path/to/atom
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 ```
 
-Create `backend/.env`:
-```bash
-DATABASE_URL=postgresql://user:password@localhost:5432/atom_production
-PYTHON_API_SERVICE_BASE_URL=http://localhost:8000
+On first launch, the app auto-creates `admin@example.com` and logs a
+randomly-generated password to stdout:
+```
+WARNING:ATOM_BOOTSTRAP:Generated temporary password: <random-string>
+```
+Set `ADMIN_PASSWORD` in `backend/.env` to control this.
 
-# AI Providers (from notes/credentials.md)
-OPENAI_API_KEY=your-key
-ANTHROPIC_API_KEY=your-key
-DEEPSEEK_API_KEY=your-key
-MINIMAX_API_KEY=your-key  # Optional: MiniMax M2.5 support
+### 4. Verify Health
+```bash
+curl http://localhost:8000/health/live    # → {"status":"alive"}
+curl http://localhost:8000/health/ready   # → database + disk checks
+curl http://localhost:8000/docs           # → OpenAPI Swagger UI
 ```
 
-### 4. Create First User
+### 5. Login
 ```bash
-curl -X POST http://localhost:3000/api/auth/register \
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"securePass123","name":"Admin"}'
+  -d '{"username":"admin@example.com","password":"<password-from-log>"}' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+curl http://localhost:8000/api/users/me -H "Authorization: Bearer $TOKEN"
+# → {"email":"admin@example.com","role":"workspace_admin", ...}
 ```
 
-## Running the Application
-
-### Development Mode
+### 6. Launch the Frontend (optional)
 ```bash
-# Terminal 1: Backend
-cd backend
-python main_api_app.py
-
-# Terminal 2: Frontend
 cd frontend-nextjs
-npm run dev
-
-# Terminal 3: Desktop (Tauri)
-cd frontend-nextjs/src-tauri
-cargo tauri dev
+npm run dev   # → http://localhost:3000
 ```
+
+The backend is CORS-enabled for `http://localhost:3000` by default.
+
+---
+
+## Production Setup (PostgreSQL)
+
+### 1. Database
+```bash
+createdb atom_production
+export DATABASE_URL="postgresql://user:password@localhost:5432/atom_production"
+```
+
+### 2. Run Migrations
+```bash
+cd backend
+# Note: run alembic from OUTSIDE the backend/ dir to avoid the local
+# alembic/ package shadowing the installed alembic binary.
+cd ..
+DATABASE_URL="postgresql://..." ./backend/venv/bin/alembic \
+  -c backend/alembic.ini upgrade head
+```
+
+### 3. Launch
+```bash
+ENVIRONMENT=production \
+SECRET_KEY=<strong-key> \
+DATABASE_URL=postgresql://... \
+PYTHONPATH=$PWD:$PWD/backend \
+./backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+In production, `SECRET_KEY` is **required** (the app refuses to start without it).
+
+---
+
+## Docker Launch (Personal Edition)
+
+```bash
+cp .env.personal .env   # edit with your API keys
+docker-compose -f docker-compose-personal.yml up -d
+```
+
+The compose file mounts the repo root at `/app`, sets `PYTHONPATH=/app:/app/backend`,
+and launches `uvicorn main:app`. This matches the local launch path.
+
+---
+
+## Troubleshooting
+
+### "ModuleNotFoundError: No module named 'backend.api'"
+Launch from the **repo root**, not from `backend/`. `main.py` uses
+`from backend.api...` imports which require the repo root on `PYTHONPATH`.
+
+### "Could not validate credentials" (401 on every authenticated request)
+Two possible causes (both fixed in June 2026):
+1. `SECRET_KEY` not set in `.env` — tokens are signed with a random key
+   that changes on restart. Set a persistent `SECRET_KEY`.
+2. Historical bug: `core/auth.get_current_user` didn't read the `user_id`
+   JWT claim used by EnterpriseAuthService. Fixed (now reads sub/id/user_id).
+
+### Admin password lost
+Delete the admin user from the DB and restart — the bootstrap will recreate it:
+```bash
+sqlite3 backend/atom_dev.db "DELETE FROM users WHERE email='admin@example.com'"
+```
+Or set `ADMIN_PASSWORD` in `backend/.env` before launching.
+
+### Alembic commands fail with "No module named 'alembic.config'"
+The local `backend/alembic/` directory shadows the installed `alembic` package.
+Run alembic from outside `backend/`:
+```bash
+cd /path/to/atom
+./backend/venv/bin/alembic -c backend/alembic.ini current
+```
+
 
 ### Desktop Features
 - **System Tray**: ATOM runs in the background. Close the window to minimize to the tray; right-click the tray icon to Show or Quit.
