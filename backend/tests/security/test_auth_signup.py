@@ -51,9 +51,9 @@ class TestSignupWithValidData:
         assert user.last_name == "User"
 
         # Verify password was hashed correctly
-        assert user.password_hash is not None
-        assert user.password_hash != "SecurePass123!"
-        assert verify_password("SecurePass123!", user.password_hash) is True
+        assert user.hashed_password is not None
+        assert user.hashed_password != "SecurePass123!"
+        assert verify_password("SecurePass123!", user.hashed_password) is True
 
     def test_signup_creates_jwt_token(self, client):
         """Test signup creates valid JWT token"""
@@ -375,7 +375,7 @@ class TestSignupPasswordHashing:
         assert user is not None
 
         # Bcrypt hashes start with $2a$, $2b$, or $2y$
-        assert user.password_hash.startswith("$2")
+        assert user.hashed_password.startswith("$2")
 
     def test_password_hash_uses_salt(self, client, db_session: Session):
         """Test password hashing uses unique salt"""
@@ -406,11 +406,11 @@ class TestSignupPasswordHashing:
         user2 = db_session.query(User).filter(User.email == "salt2@example.com").first()
 
         # Hashes should be different (different salts)
-        assert user1.password_hash != user2.password_hash
+        assert user1.hashed_password != user2.hashed_password
 
         # But both should verify correctly
-        assert verify_password(password, user1.password_hash) is True
-        assert verify_password(password, user2.password_hash) is True
+        assert verify_password(password, user1.hashed_password) is True
+        assert verify_password(password, user2.hashed_password) is True
 
     def test_password_not_stored_in_plaintext(self, client, db_session: Session):
         """Test password is never stored in plaintext"""
@@ -428,9 +428,9 @@ class TestSignupPasswordHashing:
         assert user is not None
 
         # Password should not be in database
-        assert "SecurePass123!" not in user.password_hash
-        assert user.password_hash != "SecurePass123!"
-        assert len(user.password_hash) == 60  # Bcrypt hash length
+        assert "SecurePass123!" not in user.hashed_password
+        assert user.hashed_password != "SecurePass123!"
+        assert len(user.hashed_password) == 60  # Bcrypt hash length
 
 
 class TestSignupTokenGeneration:

@@ -28,16 +28,16 @@ def test_login():
             return
             
         print(f"User Found: {user.id}")
-        print(f"Stored Hash: {user.password_hash}")
+        print(f"Stored Hash: {user.hashed_password}")
         
         # Test Verify Password
-        is_valid = verify_password(password, user.password_hash)
+        is_valid = verify_password(password, user.hashed_password)
         print(f"Password Check ('{password}'): {'✅ VALID' if is_valid else '❌ INVALID'}")
         
         if not is_valid:
             print("Resetting password to ensure validity...")
             new_hash = get_password_hash(password)
-            user.password_hash = new_hash
+            user.hashed_password = new_hash
             db.commit()
             print("✓ Password reset. Re-verifying...")
             is_valid_recheck = verify_password(password, new_hash)

@@ -69,15 +69,15 @@ def test_password_reset_flow():
 
         # 4. Reset password
         new_password = "newpassword456"
-        user.password_hash = get_password_hash(new_password)
+        user.hashed_password = get_password_hash(new_password)
         db_token.is_used = True
         db.commit()
         print("  [✓] Password reset in DB successful")
 
         # 5. Verify new password
         db.refresh(user)
-        assert verify_password(new_password, user.password_hash), "New password verification failed"
-        assert not verify_password(password, user.password_hash), "Old password still works"
+        assert verify_password(new_password, user.hashed_password), "New password verification failed"
+        assert not verify_password(password, user.hashed_password), "Old password still works"
         print("  [✓] Final password verification successful")
 
         # 6. Cleanup

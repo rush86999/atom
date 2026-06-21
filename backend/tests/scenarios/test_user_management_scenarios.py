@@ -365,7 +365,7 @@ class TestAccountStatus:
             status="SUSPENDED",
             _session=db_session
         )
-        user.password_hash = get_password_hash("Password123!")
+        user.hashed_password = get_password_hash("Password123!")
         db_session.commit()
 
         response = client.post("/api/auth/login", json={
@@ -432,7 +432,7 @@ class TestUserActivity:
     ):
         """Test failed login attempts are tracked."""
         user = UserFactory(email="attempts@example.com", _session=db_session)
-        user.password_hash = get_password_hash("Password123!")
+        user.hashed_password = get_password_hash("Password123!")
         db_session.commit()
 
         # Multiple failed attempts

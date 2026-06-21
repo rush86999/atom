@@ -90,7 +90,7 @@ def sample_user():
     user = MagicMock()
     user.id = "user_123"
     user.email = "test@example.com"
-    user.password_hash = "$2b$12$abcdefghijklmnopqrstuvwxyz123456"
+    user.hashed_password = "$2b$12$abcdefghijklmnopqrstuvwxyz123456"
     user.role = "admin"
     user.status = "active"
     user.first_name = "Test"

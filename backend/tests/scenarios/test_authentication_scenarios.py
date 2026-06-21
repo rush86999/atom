@@ -77,7 +77,7 @@ class TestUserLoginValidCredentials:
     ):
         """Test login updates user's last_login timestamp."""
         user = UserFactory(email="loginstamp@example.com", _session=db_session)
-        user.password_hash = get_password_hash("Password123!")
+        user.hashed_password = get_password_hash("Password123!")
         db_session.commit()
 
         original_login = user.last_login
@@ -213,7 +213,7 @@ class TestPasswordReset:
     ):
         """Test password reset actually updates password."""
         user = UserFactory(email="resetpass@example.com", _session=db_session)
-        old_hash = user.password_hash
+        old_hash = user.hashed_password
         db_session.commit()
 
         # Create reset token
@@ -232,7 +232,7 @@ class TestPasswordReset:
 
         if response.status_code == 200:
             db_session.refresh(user)
-            assert user.password_hash != old_hash
+            assert user.hashed_password != old_hash
 
     def test_password_complexity_enforced(
         self, client: TestClient, db_session: Session
@@ -267,7 +267,7 @@ class TestPasswordReset:
     ):
         """Test old password doesn't work after reset."""
         user = UserFactory(email="oldpass@example.com", _session=db_session)
-        user.password_hash = get_password_hash("OldPassword123!")
+        user.hashed_password = get_password_hash("OldPassword123!")
         db_session.commit()
 
         # Reset password

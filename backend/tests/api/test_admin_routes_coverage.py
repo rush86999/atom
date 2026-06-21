@@ -413,7 +413,7 @@ class TestAdminUserCreate:
         # Verify user created in DB
         admin = test_db.query(AdminUser).filter(AdminUser.email == "newadmin@test.com").first()
         assert admin is not None
-        assert admin.password_hash != "SecurePass123!"  # Password should be hashed
+        assert admin.hashed_password != "SecurePass123!"  # Password should be hashed
 
     def test_create_admin_user_role_not_found(self, authenticated_admin_client: TestClient):
         """Test creation with non-existent role."""
@@ -459,8 +459,8 @@ class TestAdminUserCreate:
         # Verify password hashed
         admin = test_db.query(AdminUser).filter(AdminUser.email == "hashed@test.com").first()
         assert admin is not None
-        assert admin.password_hash != "PlainPassword123!"
-        assert admin.password_hash.startswith("$2b$") or len(admin.password_hash) > 50
+        assert admin.hashed_password != "PlainPassword123!"
+        assert admin.hashed_password.startswith("$2b$") or len(admin.hashed_password) > 50
 
     def test_create_admin_user_default_status(self, authenticated_admin_client: TestClient,
                                              test_db: Session, test_admin_role: AdminRole):

@@ -190,7 +190,7 @@ class TestCredentialVerification:
         """verify_credentials returns None for SSO users without password."""
         service = EnterpriseAuthService()
         mock_user = Mock()
-        mock_user.password_hash = None
+        mock_user.hashed_password = None
         mock_user.status = "active"
         mock_user.id = "user-123"
         mock_user.email = "sso@example.com"
@@ -206,7 +206,7 @@ class TestCredentialVerification:
         """verify_credentials returns None for incorrect password."""
         service = EnterpriseAuthService()
         mock_user = Mock()
-        mock_user.password_hash = service.hash_password("correct-password")
+        mock_user.hashed_password = service.hash_password("correct-password")
         mock_user.status = "active"
         mock_user.id = "user-123"
         mock_user.email = "test@example.com"
@@ -222,7 +222,7 @@ class TestCredentialVerification:
         """verify_credentials returns None for inactive users."""
         service = EnterpriseAuthService()
         mock_user = Mock()
-        mock_user.password_hash = service.hash_password("password")
+        mock_user.hashed_password = service.hash_password("password")
         mock_user.status = "inactive"
         mock_user.id = "user-123"
         mock_user.email = "test@example.com"
@@ -238,7 +238,7 @@ class TestCredentialVerification:
         """verify_credentials returns UserCredentials for valid user."""
         service = EnterpriseAuthService()
         mock_user = Mock()
-        mock_user.password_hash = service.hash_password("password")
+        mock_user.hashed_password = service.hash_password("password")
         mock_user.status = "active"
         mock_user.id = "user-123"
         mock_user.email = "test@example.com"

@@ -137,7 +137,7 @@ def super_admin_user(db_session: Session):
         id=user.id,
         email=user.email,
         name=f"{user.first_name} {user.last_name}",
-        hashed_password=user.password_hash,
+        hashed_password=user.hashed_password,
         role_id=role.id,
         status="active"
     )
