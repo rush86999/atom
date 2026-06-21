@@ -90,7 +90,7 @@ async def register_user(
         # Create user
         user = User(
             email=user_data.email,
-            password_hash=password_hash,
+            hashed_password=password_hash,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
             role=user_data.role,

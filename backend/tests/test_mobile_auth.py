@@ -34,7 +34,7 @@ def test_user(db_session: Session):
         email="mobile@test.com",
         first_name="Mobile",
         last_name="Test User",
-        password_hash="$2b$12$test_hashed_password",  # Mock hashed password
+        hashed_password="$2b$12$test_hashed_password",  # Mock hashed password
         role="MEMBER"
     )
     db_session.add(user)

@@ -117,7 +117,7 @@ def fix_parent_db():
             logger.info(f"Creating new admin user: {email}")
             new_user = User(
                 email=email,
-                password_hash=hashed_password,
+                hashed_password=hashed_password,
                 first_name="Admin",
                 last_name="User",
                 role=UserRole.WORKSPACE_ADMIN,

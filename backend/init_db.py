@@ -51,7 +51,7 @@ def init_db():
             admin_user = User(
                 id=str(uuid.uuid4()),
                 email=admin_email,
-                password_hash=get_password_hash(admin_password),
+                hashed_password=get_password_hash(admin_password),
                 status="active",
                 role="admin",
                 first_name="Admin",

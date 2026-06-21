@@ -33,7 +33,7 @@ with SessionLocal() as db:
         print(f"User {email} not found. Creating...")
         new_user = User(
             email=email,
-            password_hash=get_password_hash(password),
+            hashed_password=get_password_hash(password),
             first_name="Admin",
             last_name="User",
             status=UserStatus.ACTIVE
