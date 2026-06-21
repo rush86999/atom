@@ -48,7 +48,7 @@ except ImportError:
             pass
 
 from core.auth import (
-    get_password_hash,
+    get_hashed_password,
     verify_password,
     create_access_token,
     SECRET_KEY,
@@ -125,10 +125,10 @@ class TestAuthEndpointsMobile:
 
     def test_mobile_login_with_valid_credentials(self, client: TestClient, db_session: Session):
         """Test mobile login with device registration."""
-        password_hash = get_password_hash("MobilePass123!")
+        hashed_password = get_hashed_password("MobilePass123!")
         user = UserFactory(
             email="mobile@example.com",
-            password_hash=password_hash
+            hashed_password=hashed_password
         )
         db_session.add(user)
         db_session.commit()
@@ -150,10 +150,10 @@ class TestAuthEndpointsMobile:
 
     def test_mobile_login_creates_device_record(self, client: TestClient, db_session: Session):
         """Test mobile login creates or updates device record."""
-        password_hash = get_password_hash("DevicePass123!")
+        hashed_password = get_hashed_password("DevicePass123!")
         user = UserFactory(
             email="deviceuser@example.com",
-            password_hash=password_hash
+            hashed_password=hashed_password
         )
         db_session.add(user)
         db_session.commit()
@@ -289,10 +289,10 @@ class TestAuthEndpointsBiometric:
 
     def test_mobile_login_with_missing_device_token(self, client: TestClient, db_session: Session):
         """Test mobile login rejects missing device token."""
-        password_hash = get_password_hash("MissingDevice123!")
+        hashed_password = get_hashed_password("MissingDevice123!")
         user = UserFactory(
             email="missingdevice@example.com",
-            password_hash=password_hash
+            hashed_password=hashed_password
         )
         db_session.add(user)
         db_session.commit()
@@ -308,10 +308,10 @@ class TestAuthEndpointsBiometric:
 
     def test_mobile_login_with_invalid_platform(self, client: TestClient, db_session: Session):
         """Test mobile login handles invalid platform values."""
-        password_hash = get_password_hash("InvalidPlatform123!")
+        hashed_password = get_hashed_password("InvalidPlatform123!")
         user = UserFactory(
             email="invalidplatform@example.com",
-            password_hash=password_hash
+            hashed_password=hashed_password
         )
         db_session.add(user)
         db_session.commit()
@@ -328,10 +328,10 @@ class TestAuthEndpointsBiometric:
 
     def test_mobile_login_with_device_info(self, client: TestClient, db_session: Session):
         """Test mobile login accepts device_info metadata."""
-        password_hash = get_password_hash("DeviceInfo123!")
+        hashed_password = get_hashed_password("DeviceInfo123!")
         user = UserFactory(
             email="deviceinfo@example.com",
-            password_hash=password_hash
+            hashed_password=hashed_password
         )
         db_session.add(user)
         db_session.commit()
