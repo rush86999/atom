@@ -10,7 +10,7 @@ from core.knowledge_extractor import KnowledgeExtractor
 
 logger = logging.getLogger(__name__)
 
-import PyPDF2
+import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
 
 
 class DocumentLifecycleLearner:

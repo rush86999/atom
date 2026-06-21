@@ -197,16 +197,14 @@ class DocumentParser:
     async def _parse_pdf(content: bytes) -> str:
         """Parse PDF to text - compatible with DocumentLifecycleLearner"""
         try:
-            # Try PyPDF2 (used by DocumentLifecycleLearner)
-            import PyPDF2
+            # Use pypdf (PyPDF2 merged into pypdf package)
+            import pypdf as PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(content))
             text_parts = []
             for page in reader.pages[:50]:  # Limit pages
                 text_parts.append(page.extract_text() or "")
             return "\n\n".join(text_parts)
         except ImportError:
-            # Fallback to pypdf
-            try:
                 from pypdf import PdfReader
                 reader = PdfReader(io.BytesIO(content))
                 text_parts = []

@@ -313,7 +313,7 @@ async def list_supported_file_types():
         docling_available = False
         docling_formats = []
     
-    base_parser = "docling (OCR)" if docling_available else "PyPDF2"
+    base_parser = "docling (OCR)" if docling_available else "pypdf (PyPDF2)"
 
     return router.success_response(
         data=[

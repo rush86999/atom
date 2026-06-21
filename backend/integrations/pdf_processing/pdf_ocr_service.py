@@ -18,7 +18,7 @@ except ImportError:
     logger.warning("PIL (Pillow) not available - image processing features will be limited")
 
 try:
-    import PyPDF2
+    import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
 except ImportError:
     PyPDF2 = None
 
