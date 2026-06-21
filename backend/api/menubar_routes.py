@@ -197,7 +197,7 @@ async def menubar_login(
 
         # Verify user credentials
         user = db.query(User).filter(User.email == request.email).first()
-        if not user or not verify_password(request.password, user.password_hash):
+        if not user or not verify_password(request.password, user.hashed_password):
             audit.success = False
             audit.error_message = "Invalid email or password"
             db.add(audit)

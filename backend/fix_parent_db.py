@@ -105,7 +105,7 @@ def fix_parent_db():
         
         if user:
             logger.info(f"Updating existing user: {email}")
-            user.password_hash = hashed_password
+            user.hashed_password = hashed_password
             user.email_verified = True
             user.status = UserStatus.ACTIVE
             if user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:

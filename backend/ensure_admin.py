@@ -25,7 +25,7 @@ def ensure_admin():
         
         if user:
             logger.info(f"Updating existing user: {email}")
-            user.password_hash = hashed_password
+            user.hashed_password = hashed_password
             user.status = UserStatus.ACTIVE
             # Ensure admin role if not already
             if user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:

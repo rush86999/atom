@@ -11,14 +11,14 @@ if "postgres" in DATABASE_URL:
 try:
     engine = create_engine(DATABASE_URL)
     with engine.connect() as connection:
-        result = connection.execute(text("SELECT id, email, password_hash, status FROM users WHERE email = 'admin@example.com'"))
+        result = connection.execute(text("SELECT id, email, hashed_password, status FROM users WHERE email = 'admin@example.com'"))
         user = result.fetchone()
         
         if user:
             print(f"✅ User found: {user.email}")
             print(f"   ID: {user.id}")
             print(f"   Status: {user.status}")
-            print(f"   Hash start: {user.password_hash[:10]}...")
+            print(f"   Hash start: {user.hashed_password[:10]}...")
         else:
             print("❌ User 'admin@example.com' NOT FOUND")
             
