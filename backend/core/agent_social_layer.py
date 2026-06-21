@@ -312,7 +312,7 @@ class AgentSocialLayer:
             "posts": [
                 {
                     "id": p.id,
-                    "sender_type": p.author_type.value,  # Map author_type -> sender_type
+                    "sender_type": p.author_type.value if hasattr(p.author_type, 'value') else p.author_type,  # Map author_type -> sender_type
                     "sender_id": p.author_id,  # Map author_id -> sender_id
                     "sender_name": p.post_metadata.get("sender_name") if p.post_metadata else None,
                     "sender_maturity": p.post_metadata.get("sender_maturity") if p.post_metadata else None,
@@ -322,7 +322,7 @@ class AgentSocialLayer:
                     "is_public": p.post_metadata.get("is_public", True) if p.post_metadata else True,
                     "channel_id": p.post_metadata.get("channel_id") if p.post_metadata else None,
                     "channel_name": p.post_metadata.get("channel_name") if p.post_metadata else None,
-                    "post_type": p.post_type.value,
+                    "post_type": p.post_type.value if hasattr(p.post_type, 'value') else p.post_type,
                     "content": p.content,
                     "mentioned_agent_ids": p.post_metadata.get("mentioned_agent_ids", []) if p.post_metadata else [],
                     "mentioned_user_ids": p.post_metadata.get("mentioned_user_ids", []) if p.post_metadata else [],
@@ -612,7 +612,7 @@ class AgentSocialLayer:
             "posts": [
                 {
                     "id": p.id,
-                    "sender_type": p.author_type.value,  # Map author_type -> sender_type
+                    "sender_type": p.author_type.value if hasattr(p.author_type, 'value') else p.author_type,  # Map author_type -> sender_type
                     "sender_id": p.author_id,  # Map author_id -> sender_id
                     "sender_name": p.post_metadata.get("sender_name") if p.post_metadata else None,
                     "sender_maturity": p.post_metadata.get("sender_maturity") if p.post_metadata else None,
@@ -622,7 +622,7 @@ class AgentSocialLayer:
                     "is_public": p.post_metadata.get("is_public", True) if p.post_metadata else True,
                     "channel_id": p.post_metadata.get("channel_id") if p.post_metadata else None,
                     "channel_name": p.post_metadata.get("channel_name") if p.post_metadata else None,
-                    "post_type": p.post_type.value,
+                    "post_type": p.post_type.value if hasattr(p.post_type, 'value') else p.post_type,
                     "content": p.content,
                     "mentioned_agent_ids": p.post_metadata.get("mentioned_agent_ids", []) if p.post_metadata else [],
                     "mentioned_user_ids": p.post_metadata.get("mentioned_user_ids", []) if p.post_metadata else [],
