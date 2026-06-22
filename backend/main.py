@@ -50,6 +50,15 @@ from backend.api.workflow_debugging import router as workflow_router
 
 logger = logging.getLogger("ATOM_MAIN")
 
+# Chat router may fail to import if cv2 (OpenCV) has installation issues
+# in the environment. The router itself is correct; the failure is in a
+# transitive dependency (chat_orchestrator → browser_tool → cv2).
+try:
+    from backend.integrations.chat_routes import router as chat_router
+except ImportError as _e:
+    logger.warning("Chat router not available (cv2/env issue): %s", _e)
+    chat_router = None
+
 app = FastAPI(
     title="Atom API",
     description="AI-powered business automation platform",
@@ -80,6 +89,8 @@ app.include_router(agent_router)
 app.include_router(workflow_router)
 app.include_router(canvas_router)
 app.include_router(shell_router)             # /api/shell/* (auth required)
+if chat_router is not None:
+    app.include_router(chat_router)          # /api/chat/* (message, history, sessions)
 
 
 @app.on_event("startup")

@@ -2,15 +2,9 @@
 Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
-import os
-
-# Add parent directory to path to import from backend
-import sys
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from core.models import User
 from core.security_dependencies import get_current_user
@@ -86,16 +80,10 @@ async def rename_session(
     **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != request.user_id:
-            logger.warning(
-                f"Session rename denied: user {current_user.id} attempted to rename "
-                f"session {session_id} belonging to {request.user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only rename your own chat sessions"
-            )
+        # Override body-supplied user_id with the authenticated user's ID.
+        # The frontend historically sends "default_user" here; the token is
+        # the authoritative source.
+        request.user_id = str(current_user.id)
 
         # Check permissions first
         session = chat_orchestrator.conversation_sessions.get(session_id)
@@ -142,16 +130,8 @@ async def get_session_details(
     **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != user_id:
-            logger.warning(
-                f"Chat access denied: user {current_user.id} attempted to access "
-                f"session {session_id} belonging to {user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only access your own chat sessions"
-            )
+        # Override query-param user_id with the authenticated user's ID.
+        user_id = str(current_user.id)
 
         # We can use orchestrator's memory or fetch from session manager
         # Since orchestrator has get_user_sessions, let's use a direct get_session
@@ -202,16 +182,8 @@ async def send_chat_message(
     **Security**: Requires authentication and verifies user matches request.user_id
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != request.user_id:
-            logger.warning(
-                f"Chat message denied: user {current_user.id} attempted to send message "
-                f"as user {request.user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only send messages as yourself"
-            )
+        # Override body-supplied user_id with the authenticated user's ID.
+        request.user_id = str(current_user.id)
 
         logger.info(f"Processing chat message from user {current_user.id}: {request.message}")
 
@@ -259,16 +231,8 @@ async def get_chat_memory(
     **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != user_id:
-            logger.warning(
-                f"Chat memory access denied: user {current_user.id} attempted to access "
-                f"memory for session {session_id} belonging to {user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only access your own chat sessions"
-            )
+        # Override query-param user_id with the authenticated user's ID.
+        user_id = str(current_user.id)
 
         logger.info(f"Retrieving memory for session {session_id} and user {current_user.id}")
 
@@ -310,16 +274,8 @@ async def get_chat_history(
     **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != user_id:
-            logger.warning(
-                f"Chat history access denied: user {current_user.id} attempted to access "
-                f"history for session {session_id} belonging to {user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only access your own chat sessions"
-            )
+        # Override query-param user_id with the authenticated user's ID.
+        user_id = str(current_user.id)
 
         logger.info(f"Retrieving history for session {session_id} and user {current_user.id}")
 
@@ -362,16 +318,8 @@ async def get_user_sessions(
     **Security**: Requires authentication and verifies user matches requested user_id
     """
     try:
-        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
-        if current_user.id != user_id:
-            logger.warning(
-                f"User sessions access denied: user {current_user.id} attempted to access "
-                f"sessions belonging to {user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You can only access your own chat sessions"
-            )
+        # Override query-param user_id with the authenticated user's ID.
+        user_id = str(current_user.id)
 
         logger.info(f"Retrieving sessions for user {current_user.id}")
 
