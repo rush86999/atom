@@ -328,6 +328,16 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Round 13 — Timezone Bugs (June 22, 2026) ✨
+Closed 9 timezone bugs that silently corrupt timestamps or crash on Postgres:
+- **R13-1 to R13-4 (HIGH)**: `datetime.utcnow()` compared against DB-loaded aware datetimes raises TypeError on Postgres TIMESTAMPTZ. Fixed in:
+  - `api/user_management_routes.py` (session expiry filter)
+  - `integrations/github_routes.py` (token expiry check + last_used write)
+  - `core/productivity/notion_service.py` (token expiry check + cache expiry)
+- **R13-5 to R13-9 (HIGH)**: 5 columns in `core/models.py` declared as `DateTime(timezone=True)` but defaulted with naive `datetime.utcnow()` — Postgres interprets naive datetime as session-local time and converts to UTC, silently storing wrong timestamps (off by server's UTC offset). Fixed `linked_at`, `timestamp` (3 tables), `created_at`.
+
+3 TDD regression tests in `test_round13_fixes.py`. AST-based check excludes the benign `.isoformat()` payload-string pattern (only flags real comparisons / DB writes).
+
 ### Round 12 — Test Infrastructure + Security Headers (June 22, 2026) ✨
 Closed 5 bugs blocking test collection and security-header deployment:
 - **R12-1 (HIGH)**: `pytest.ini` didn't register the `timeout` marker used by `tests/chaos/` — every `pytest tests/` invocation died with INTERNALERROR before collecting anything. Registered `timeout` as a no-op marker (17 chaos tests now collect).
