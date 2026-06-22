@@ -145,6 +145,12 @@ class LearningBasedRouter:
         self._preference_data: Dict[str, List[RoutingFeedback]] = {}
         self._router_cache: Dict[str, Tuple[ModelSpec, float]] = {}
         self._training_samples: List[Dict[str, Any]] = []
+        # SECURITY/STABILITY: caps to prevent unbounded memory growth
+        # in long-running processes. Each cache evicts oldest entries
+        # when the cap is exceeded.
+        self._max_router_cache_size = 1000
+        self._max_preference_data_per_key = 50
+        self._max_training_samples = 5000
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -913,6 +919,12 @@ class LearningBasedRouter:
 
         self._preference_data[feedback_key].append(feedback)
 
+        # Cap per-key history to prevent unbounded growth in long-running
+        # processes. Keep the most recent entries (highest signal value).
+        if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
+            overflow = len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
+            del self._preference_data[feedback_key][:overflow]
+
         # Trigger retraining after accumulating enough feedback
         if len(self._preference_data[feedback_key]) >= 10:
             await self._retrain_router(feedback.tenant_id, feedback.task_type)
@@ -948,6 +960,11 @@ class LearningBasedRouter:
             None,  # Placeholder for trained model
             0.0,  # Placeholder for accuracy
         )
+        # Evict oldest entries if cache exceeds cap. Dicts preserve insertion
+        # order in Python 3.7+ so the first key is the oldest.
+        if len(self._router_cache) > self._max_router_cache_size:
+            oldest = next(iter(self._router_cache))
+            del self._router_cache[oldest]
 
         logger.info(
             f"Retrained router for tenant={tenant_id}, task={task_type} "
