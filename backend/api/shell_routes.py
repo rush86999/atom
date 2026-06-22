@@ -90,9 +90,11 @@ async def execute_shell_command(
         return ShellCommandResponse(**result)
 
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        logger.warning(f"Shell permission denied: {e}")
+        raise HTTPException(status_code=403, detail="Permission denied")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning(f"Shell invalid request: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
         logger.error(f"Shell execution failed: {e}")
         raise HTTPException(status_code=500, detail="Shell execution failed")

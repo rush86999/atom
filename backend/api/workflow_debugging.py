@@ -106,7 +106,7 @@ async def create_debug_session(
         logger.error(f"Error creating debug session: {e}")
         raise router.internal_error(
             message="Failed to create debug session",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -141,7 +141,7 @@ async def get_debug_sessions(
         logger.error(f"Error getting debug sessions: {e}")
         raise router.internal_error(
             message="Failed to retrieve debug sessions",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -165,7 +165,7 @@ async def pause_debug_session(
         logger.error(f"Error pausing debug session: {e}")
         raise router.internal_error(
             message="Failed to pause debug session",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -189,7 +189,7 @@ async def resume_debug_session(
         logger.error(f"Error resuming debug session: {e}")
         raise router.internal_error(
             message="Failed to resume debug session",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -213,7 +213,7 @@ async def complete_debug_session(
         logger.error(f"Error completing debug session: {e}")
         raise router.internal_error(
             message="Failed to complete debug session",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -260,7 +260,7 @@ async def add_breakpoint(
         logger.error(f"Error adding breakpoint: {e}")
         raise router.internal_error(
             message="Failed to add breakpoint",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -300,7 +300,7 @@ async def get_breakpoints(
         logger.error(f"Error getting breakpoints: {e}")
         raise router.internal_error(
             message="Failed to retrieve breakpoints",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -324,7 +324,7 @@ async def remove_breakpoint(
         logger.error(f"Error removing breakpoint: {e}")
         raise router.internal_error(
             message="Failed to remove breakpoint",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -352,7 +352,7 @@ async def toggle_breakpoint(
         logger.error(f"Error toggling breakpoint: {e}")
         raise router.internal_error(
             message="Failed to toggle breakpoint",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -394,7 +394,7 @@ async def step_execution(
         logger.error(f"Error controlling step execution: {e}")
         raise router.internal_error(
             message="Failed to control step execution",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -436,7 +436,7 @@ async def create_trace(
         logger.error(f"Error creating trace: {e}")
         raise router.internal_error(
             message="Failed to create execution trace",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -466,7 +466,7 @@ async def complete_trace(
         logger.error(f"Error completing trace: {e}")
         raise router.internal_error(
             message="Failed to complete execution trace",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -508,7 +508,7 @@ async def get_execution_traces(
         logger.error(f"Error getting execution traces: {e}")
         raise router.internal_error(
             message="Failed to retrieve execution traces",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -548,7 +548,7 @@ async def get_session_variables(
         logger.error(f"Error getting session variables: {e}")
         raise router.internal_error(
             message="Failed to retrieve session variables",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -583,7 +583,7 @@ async def get_trace_variables(
         logger.error(f"Error getting trace variables: {e}")
         raise router.internal_error(
             message="Failed to retrieve trace variables",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 

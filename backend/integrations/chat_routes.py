@@ -116,7 +116,7 @@ async def rename_session(
         raise
     except Exception as e:
         logger.error(f"Failed to rename session: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to rename session: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to rename session")
 
 @router.get("/sessions/{session_id}")
 async def get_session_details(
@@ -166,7 +166,7 @@ async def get_session_details(
         raise
     except Exception as e:
         logger.error(f"Failed to get session details: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get session details: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get session details")
 
 
 
@@ -216,7 +216,7 @@ async def send_chat_message(
 
     except Exception as e:
         logger.error(f"Chat message processing failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Chat processing failed")
 
 
 @router.get("/memory/{session_id}")
@@ -259,7 +259,7 @@ async def get_chat_memory(
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve chat memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve chat memory: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve chat memory")
 
 
 @router.get("/history/{session_id}")
@@ -304,7 +304,7 @@ async def get_chat_history(
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve chat history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve chat history")
 
 
 @router.get("/sessions")
@@ -335,7 +335,7 @@ async def get_user_sessions(
 
     except Exception as e:
         logger.error(f"Failed to retrieve user sessions: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve user sessions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user sessions")
 
 
 

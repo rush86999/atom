@@ -118,7 +118,7 @@ async def register_user(
         logger.error(f"Registration error: {e}")
         raise router.internal_error(
             message="Failed to register user",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -191,7 +191,7 @@ async def login_user(
         logger.error(f"Login error: {e}")
         raise router.internal_error(
             message="Login failed",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -288,7 +288,7 @@ async def refresh_token(
         logger.error(f"Token refresh error: {e}")
         raise router.unauthorized_error(
             message="Invalid refresh token",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -343,7 +343,7 @@ async def get_current_user(
         logger.error(f"Get current user error: {e}")
         raise router.internal_error(
             message="Failed to get user info",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
@@ -409,7 +409,7 @@ async def change_password(
         logger.error(f"Change password error: {e}")
         raise router.internal_error(
             message="Failed to change password",
-            details={"error": str(e)}
+            details={"error": "internal error"}
         )
 
 
