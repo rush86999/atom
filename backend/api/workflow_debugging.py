@@ -16,6 +16,7 @@ from fastapi import Depends, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
@@ -77,8 +78,8 @@ class CompleteTraceRequest(BaseModel):
 async def create_debug_session(
     workflow_id: str,
     request: CreateDebugSessionRequest,
-    user_id: str = Query(..., description="User ID creating the session"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new debug session for a workflow"""
     try:
@@ -86,7 +87,7 @@ async def create_debug_session(
 
         session = debugger.create_debug_session(
             workflow_id=workflow_id,
-            user_id=user_id,
+            user_id=str(current_user.id),
             execution_id=request.execution_id,
             session_name=request.session_name,
             stop_on_entry=request.stop_on_entry,
@@ -112,13 +113,13 @@ async def create_debug_session(
 @router.get("/{workflow_id}/debug/sessions")
 async def get_debug_sessions(
     workflow_id: str,
-    user_id: Optional[str] = Query(None, description="Filter by user ID"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all debug sessions for a workflow"""
     try:
         debugger = WorkflowDebugger(db)
-        sessions = debugger.get_active_debug_sessions(workflow_id, user_id)
+        sessions = debugger.get_active_debug_sessions(workflow_id, str(current_user.id))
 
         return [
             {
@@ -147,7 +148,8 @@ async def get_debug_sessions(
 @router.post("/debug/sessions/{session_id}/pause")
 async def pause_debug_session(
     session_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Pause a debug session"""
     try:
@@ -170,7 +172,8 @@ async def pause_debug_session(
 @router.post("/debug/sessions/{session_id}/resume")
 async def resume_debug_session(
     session_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Resume a paused debug session"""
     try:
@@ -193,7 +196,8 @@ async def resume_debug_session(
 @router.post("/debug/sessions/{session_id}/complete")
 async def complete_debug_session(
     session_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Complete a debug session"""
     try:
@@ -219,8 +223,8 @@ async def complete_debug_session(
 async def add_breakpoint(
     workflow_id: str,
     request: AddBreakpointRequest,
-    user_id: str = Query(..., description="User ID adding the breakpoint"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Add a breakpoint to a workflow"""
     try:
@@ -229,7 +233,7 @@ async def add_breakpoint(
         breakpoint = debugger.add_breakpoint(
             workflow_id=workflow_id,
             node_id=request.node_id,
-            user_id=user_id,
+            user_id=str(current_user.id),
             debug_session_id=request.debug_session_id,
             edge_id=request.edge_id,
             breakpoint_type=request.breakpoint_type,
@@ -263,14 +267,14 @@ async def add_breakpoint(
 @router.get("/{workflow_id}/debug/breakpoints")
 async def get_breakpoints(
     workflow_id: str,
-    user_id: Optional[str] = Query(None, description="Filter by user ID"),
     active_only: bool = Query(True, description="Only return active breakpoints"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all breakpoints for a workflow"""
     try:
         debugger = WorkflowDebugger(db)
-        breakpoints = debugger.get_breakpoints(workflow_id, user_id, active_only)
+        breakpoints = debugger.get_breakpoints(workflow_id, str(current_user.id), active_only)
 
         return [
             {
@@ -303,13 +307,13 @@ async def get_breakpoints(
 @router.delete("/debug/breakpoints/{breakpoint_id}")
 async def remove_breakpoint(
     breakpoint_id: str,
-    user_id: str = Query(..., description="User ID removing the breakpoint"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Remove a breakpoint"""
     try:
         debugger = WorkflowDebugger(db)
-        success = debugger.remove_breakpoint(breakpoint_id, user_id)
+        success = debugger.remove_breakpoint(breakpoint_id, str(current_user.id))
 
         if not success:
             raise router.not_found_error("Breakpoint", breakpoint_id)
@@ -327,13 +331,13 @@ async def remove_breakpoint(
 @router.put("/debug/breakpoints/{breakpoint_id}/toggle")
 async def toggle_breakpoint(
     breakpoint_id: str,
-    user_id: str = Query(..., description="User ID toggling the breakpoint"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Toggle breakpoint enabled/disabled"""
     try:
         debugger = WorkflowDebugger(db)
-        new_state = debugger.toggle_breakpoint(breakpoint_id, user_id)
+        new_state = debugger.toggle_breakpoint(breakpoint_id, str(current_user.id))
 
         if new_state is None:
             raise router.not_found_error("Breakpoint", breakpoint_id)
@@ -357,7 +361,8 @@ async def toggle_breakpoint(
 @router.post("/debug/step")
 async def step_execution(
     request: StepExecutionRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Control step execution (step over, into, out, continue, pause)"""
     try:
@@ -398,7 +403,8 @@ async def step_execution(
 @router.post("/debug/traces")
 async def create_trace(
     request: CreateTraceRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new execution trace entry"""
     try:
@@ -438,7 +444,8 @@ async def create_trace(
 async def complete_trace(
     trace_id: str,
     request: CompleteTraceRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Mark an execution trace as completed"""
     try:
@@ -468,7 +475,8 @@ async def get_execution_traces(
     execution_id: str,
     debug_session_id: Optional[str] = Query(None, description="Filter by debug session"),
     limit: int = Query(100, ge=1, le=500, description="Maximum traces to return"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get execution traces for an execution"""
     try:
@@ -509,7 +517,8 @@ async def get_execution_traces(
 @router.get("/debug/sessions/{session_id}/variables")
 async def get_session_variables(
     session_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all watch variables for a debug session"""
     try:
@@ -546,7 +555,8 @@ async def get_session_variables(
 @router.get("/debug/traces/{trace_id}/variables")
 async def get_trace_variables(
     trace_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all variable snapshots for a trace"""
     try:
