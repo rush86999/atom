@@ -9,11 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
+import logging
 
 from core.auth import get_current_user
 from core.database import get_db
 from core.host_shell_service import host_shell_service
 from core.models import ShellSession, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/shell", tags=["Shell"])
 
@@ -91,21 +94,27 @@ async def execute_shell_command(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Shell execution failed: {str(e)}")
+        logger.error(f"Shell execution failed: {e}")
+        raise HTTPException(status_code=500, detail="Shell execution failed")
 
 
 @router.get("/sessions")
 async def list_shell_sessions(
     agent_id: Optional[str] = None,
     limit: int = 50,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List shell command execution sessions.
 
     Returns audit trail of shell commands executed by agents.
+    SECURITY: Requires authentication. Results are scoped to the
+    authenticated user (other users' sessions are not exposed).
     """
-    query = db.query(ShellSession)
+    query = db.query(ShellSession).filter(
+        ShellSession.user_id == str(current_user.id)
+    )
 
     if agent_id:
         query = query.filter(ShellSession.agent_id == agent_id)
@@ -129,7 +138,10 @@ async def list_shell_sessions(
 
 
 @router.get("/validate")
-async def validate_command(command: str):
+async def validate_command(
+    command: str,
+    current_user: User = Depends(get_current_user),
+):
     """
     Validate shell command against whitelist.
 
