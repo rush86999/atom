@@ -6,7 +6,7 @@ FastAPI-based REST API for user registration, login, and session management.
 from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Body, Depends, status
+from fastapi import Body, Depends, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.exc import IntegrityError
@@ -14,6 +14,11 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.security.auth_rate_limit import (
+    login_rate_limit,
+    refresh_rate_limit,
+    register_rate_limit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +67,8 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/register", status_code=201)
 async def register_user(
     user_data: UserRegister,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(register_rate_limit),
 ):
     """
     Register a new user.
@@ -136,8 +142,10 @@ async def register_user(
 
 @router.post("/login", response_model=TokenResponse)
 async def login_user(
+    request: Request,
     credentials: UserLogin,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(login_rate_limit),
 ):
     """
     Authenticate user and return JWT tokens.
@@ -185,6 +193,11 @@ async def login_user(
 
         logger.info(f"User logged in: {user_creds['email']}")
 
+        # Reset login rate limit on success so legit users with typos
+        # don't accumulate strikes that would eventually block them.
+        from core.security.auth_rate_limit import _login_limiter
+        _login_limiter.reset_ip(_login_limiter._client_ip(request))
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -210,7 +223,8 @@ async def login_user(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     refresh_token: str = Body(..., embed=True),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(refresh_rate_limit),
 ):
     """
     Refresh access token using refresh token.

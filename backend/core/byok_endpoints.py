@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,9 @@ class AddAPIKeyRequest(BaseModel):
     api_key: str = Field(..., min_length=10, description="API key string")
     key_name: str = Field(default="default", max_length=100, description="Key identifier")
 
-    @validator('key_name')
-    def validate_key_name(cls, v):
+    @field_validator('key_name')
+    @classmethod
+    def validate_key_name(cls, v: str) -> str:
         if v and not v.replace('_', '').isalnum():
             raise ValueError("key_name must be alphanumeric with underscores only")
         return v
