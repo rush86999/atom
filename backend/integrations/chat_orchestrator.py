@@ -371,7 +371,7 @@ class ChatOrchestrator:
 
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
-            return self._generate_error_response(str(e), session_id)
+            return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
 
     async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
         """Get a real conversational AI response using unified LLMService."""
@@ -545,7 +545,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.info(f"Handler {feature_type} returned failure/empty")
                 except Exception as e:
                     logger.error(f"Feature handler {feature_type} failed: {e}")
-                    feature_responses[feature_type] = {"error": str(e)}
+                    feature_responses[feature_type] = {"error": "internal_error"}
 
         logger.info(f"Feature handling complete. Handled: {handled}, Intent: {primary_intent}")
 
@@ -768,7 +768,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             }
         except Exception as e:
             logger.error(f"Search handler failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "search_failed"}
 
     async def _handle_communication_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -851,7 +851,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 
         except Exception as e:
             logger.error(f"Task handler failed: {e}")
-            return {"success": False, "error": str(e), "data": {"message": f"Failed to create task: {str(e)}"}}
+            return {"success": False, "error": "task_creation_failed", "data": {"message": "Failed to create task"}}
 
     async def _handle_workflow_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -980,8 +980,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.error(f"Failed to trigger agent {target_agent_id}: {e}")
             return {
                 "success": False,
-                "error": str(e),
-                "message": f"I tried to start the agent but encountered an error: {str(e)}"
+                "error": "agent_start_failed",
+                "message": "I tried to start the agent but encountered an error. Please try again."
             }
 
     async def _handle_document_request(
@@ -1057,7 +1057,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 db.close()
         except Exception as e:
             logger.error(f"Finance handler failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "finance_handler_failed"}
 
     async def _handle_crm_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -1088,7 +1088,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 db.close()
         except Exception as e:
             logger.error(f"CRM handler failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "crm_handler_failed"}
 
     async def _handle_business_health_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -1144,7 +1144,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 }
         except Exception as e:
             logger.error(f"Business Health handler failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "business_health_failed"}
 
     async def _handle_social_media_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -1229,7 +1229,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.error(f"Agent request handler failed: {e}")
             return {
                 "status": "error",
-                "error": str(e),
+                "error": "agent_request_failed",
                 "feature": "agent"
             }
 

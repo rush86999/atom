@@ -647,7 +647,7 @@ class AtomMetaAgent:
             
         except Exception as e:
             logger.error(f"Delegation failed: {e}")
-            return f"Delegation failed: {str(e)}"
+            return "Delegation failed. Please try again."
 
 
 
@@ -876,7 +876,8 @@ What is your next step?"""
             return str(result)
 
         except Exception as e:
-            return f"Tool error: {str(e)}"
+            logger.error(f"Tool error: {e}")
+            return "Tool error. Please try again."
 
     async def _recruit_fleet(self, goal: str, sub_tasks: List[Dict[str, str]], 
                               context: Dict, step_callback: Optional[callable] = None) -> str:
@@ -948,7 +949,7 @@ What is your next step?"""
 
         except Exception as e:
             logger.error(f"Fleet recruitment failed in Upstream: {e}")
-            return f"Fleet recruitment error: {str(e)}"
+            return "Fleet recruitment failed. Please try again."
 
     
     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
