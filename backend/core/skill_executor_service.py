@@ -6,7 +6,7 @@ Ported from atom-upstream patterns.
 import logging
 from typing import Dict, Any, Optional
 from core.database import get_db
-from core.sandbox_execution_service import SandboxExecutionService
+from core.sandbox_executor import SandboxExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class SkillExecutorService:
         """
         Execute a skill and return results in the format expected by SkillCompositionService.
         """
-        sandbox = SandboxExecutionService(self.db)
+        sandbox = SandboxExecutor(self.db)
         
         try:
             result = await sandbox.execute_skill(

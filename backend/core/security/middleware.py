@@ -69,8 +69,18 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                     )
                 # Re-inject body for later handlers
                 request._body = body
-            except Exception:
-                pass
+            except Exception as exc:
+                # SECURITY: fail-closed. If the body scan itself errors, we
+                # cannot guarantee the request is safe — reject rather than
+                # allow through unchecked. The old code had `except: pass`
+                # here, which silently let every scan failure through.
+                security_logger.error(
+                    "Body security scan failed (rejecting request): %s", exc
+                )
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Request body could not be validated"},
+                )
 
         return await call_next(request)
 

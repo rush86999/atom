@@ -972,10 +972,8 @@ What is your next step?"""
                 # Register capabilities at STUDENT level if they don't exist
                 for capability in initial_capabilities:
                     self.graduation_service.reset_maturity(
-                        self.tenant_id, 
-                        # Use a deterministic ID placeholder if agent is not yet persisted
-                        "atom_specialty_init", 
-                        capability, 
+                        "atom_specialty_init",
+                        capability,
                         "initial_spawn_registration"
                     )
             template = SpecialtyAgentTemplate.TEMPLATES[template_name]

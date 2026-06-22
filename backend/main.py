@@ -82,11 +82,26 @@ app.include_router(canvas_router)
 
 @app.on_event("startup")
 def _startup_bootstrap() -> None:
-    """Create the default admin user on first launch.
+    """Ensure DB schema exists and create the default admin user.
 
-    Idempotent — skips if admin@example.com already exists. Password is drawn
-    from ADMIN_PASSWORD env var, or securely generated and logged once.
+    On a fresh install (no atom_dev.db, or alembic chain incomplete), this
+    creates all tables defined by SQLAlchemy models via
+    ``Base.metadata.create_all()``. This is a safety net — the proper path
+    is ``alembic upgrade head``, but the migration chain has known gaps
+    (missing parent revisions). ``create_all`` is idempotent: it only
+    creates tables that don't already exist.
+
+    Then calls ``ensure_admin_user()`` to create admin@example.com.
     """
+    try:
+        from backend.core.database import engine
+        from backend.core.models import Base
+
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schema verified (create_all idempotent)")
+    except Exception as exc:
+        logger.warning("Schema creation skipped: %s", exc)
+
     try:
         from backend.core.admin_bootstrap import ensure_admin_user
 
