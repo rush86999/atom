@@ -109,7 +109,7 @@ async def get_current_user(
     # Early validation: Skip obviously invalid tokens before JWT decode
     # Valid JWTs must have 2 dots separating 3 segments: header.payload.signature
     if token.count('.') != 2:
-        logger.warning(f"❌ JWT validation skipped: Invalid token format (Token: {token[:20]}...)")
+        logger.warning("JWT validation skipped: invalid token format")
         raise credentials_exception
 
     try:

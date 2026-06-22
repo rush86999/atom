@@ -210,11 +210,21 @@ async def run_agent(
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
     db: Session = Depends(get_db)
 ):
-    """Trigger an agent execution in the background"""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    """Trigger an agent execution in the background.
+
+    SECURITY: uses SELECT FOR UPDATE on the agent row to atomically
+    transition to 'running' state. Prevents two concurrent run
+    requests from both passing the status check.
+    """
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == agent_id)
+        .with_for_update()
+        .first()
+    )
     if not agent:
         raise router.not_found_error("Agent", agent_id)
-        
+
     # Check if agent is deprecated or paused
     if agent.status in [AgentStatus.DEPRECATED.value, AgentStatus.PAUSED.value]:
         raise router.error_response(

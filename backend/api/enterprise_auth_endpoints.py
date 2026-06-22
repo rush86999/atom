@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Body, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -77,7 +78,8 @@ async def register_user(
 
         auth_service = EnterpriseAuthService()
 
-        # Check if user already exists
+        # Check if user already exists (defensive; unique constraint catches
+        # concurrent duplicate registrations as IntegrityError below).
         existing_user = db.query(User).filter(User.email == user_data.email).first()
         if existing_user:
             raise router.conflict_error(
@@ -100,7 +102,16 @@ async def register_user(
         )
 
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Race: another request inserted the same email between our
+            # check and our commit. Roll back and report conflict.
+            db.rollback()
+            raise router.conflict_error(
+                message="User with this email already exists",
+                conflicting_resource=user_data.email
+            )
         db.refresh(user)
 
         logger.info(f"User registered: {user.email}")
