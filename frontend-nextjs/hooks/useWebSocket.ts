@@ -32,13 +32,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-        // Dev Token Fallback: If no session, check if we are in dev/local
-        // @ts-ignore
+        // Resolve JWT token: check localStorage first (set by login page),
+        // then fall back to NextAuth session.
         let token = session?.backendToken || (session as any)?.accessToken;
 
-        // Auto-use dev token if no session is present (for simple local testing)
+        // Check localStorage for auth_token (written by pages/login.tsx)
+        if (!token && typeof window !== "undefined") {
+            token = localStorage.getItem("auth_token") || undefined;
+        }
+
         if (!token) {
-            token = "dev-token";
+            console.warn("[useWebSocket] No auth token found — skipping connection");
+            return;
         }
 
         // Bypass Next.js Proxy for WebSockets (it doesn't support WS upgrading well)
