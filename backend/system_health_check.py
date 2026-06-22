@@ -1,4 +1,5 @@
 
+import os
 import sys
 import requests
 
@@ -31,7 +32,12 @@ def main():
     check("Health", "http://localhost:8000/health")
     
     # 2. Auth - Login
-    login_data = {"username": "admin@example.com", "password": "securePass123"}
+    # SECURITY: pull admin password from env (matches admin_bootstrap.py convention)
+    admin_pw = os.getenv("ADMIN_PASSWORD")
+    if not admin_pw:
+        print("⚠️  ADMIN_PASSWORD env var not set; skipping auth check")
+        return
+    login_data = {"username": "admin@example.com", "password": admin_pw}
     res = requests.post(f"{AUTH_URL}/login", data=login_data)
     
     token = None
