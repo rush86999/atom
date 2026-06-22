@@ -135,7 +135,7 @@ async def list_user_sessions(
         UserSession.user_id == current_user.id,
         UserSession.is_active == True,
         UserSession.expires_at > datetime.utcnow()
-    ).order_by(UserSession.last_active_at.desc()).all()
+    ).order_by(UserSession.last_active_at.desc()).limit(50).all()
 
     return [
         UserSessionResponse(
