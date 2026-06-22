@@ -62,7 +62,7 @@ class GenericAgent:
         # - Layer 2 (Middle): BYOKHandler (unified internal interface)
         # - Layer 3 (Top): LLMService (single source of truth for all code)
         # - All code: Uses Layer 3 (LLMService) for unified observability and management
-        self.llm = LLMService(tenant_id=workspace_id)
+        self.llm = LLMService(workspace_id=workspace_id)
 
         # Initialize Services (must come after self.llm is created)
         self.world_model = WorldModelService(workspace_id)
