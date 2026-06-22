@@ -13,7 +13,21 @@ Governance: AUTONOMOUS maturity level required (file safety)
 
 import os
 from typing import Optional
-from langchain.tools import BaseTool
+
+try:
+    from langchain.tools import BaseTool
+except ImportError:
+    # langchain not installed — fall back to a minimal stand-in with
+    # the same attribute surface used by FFmpegTool below.
+    class BaseTool:  # type: ignore[no-redef]
+        name: str = ""
+        description: str = ""
+
+        def _run(self, *args, **kwargs):
+            raise NotImplementedError("langchain not installed")
+
+        async def _arun(self, *args, **kwargs):
+            raise NotImplementedError("langchain not installed")
 
 from core.creative.ffmpeg_service import FFmpegService
 from core.governance_cache import GovernanceCache
