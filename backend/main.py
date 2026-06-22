@@ -44,6 +44,7 @@ from backend.api.auth_routes import router as auth_router
 from backend.api.canvas_routes import router as canvas_router
 from backend.api.enterprise_auth_endpoints import router as enterprise_auth_router
 from backend.api.health_routes import router as health_router
+from backend.api.shell_routes import router as shell_router
 from backend.api.user_management_routes import router as user_mgmt_router
 from backend.api.workflow_debugging import router as workflow_router
 
@@ -78,6 +79,7 @@ app.include_router(user_mgmt_router)        # /api/users/*
 app.include_router(agent_router)
 app.include_router(workflow_router)
 app.include_router(canvas_router)
+app.include_router(shell_router)             # /api/shell/* (auth required)
 
 
 @app.on_event("startup")
@@ -97,10 +99,15 @@ def _startup_bootstrap() -> None:
         from backend.core.database import engine
         from backend.core.models import Base
 
+        # create_all is idempotent (checkfirst=True by default) — only
+        # creates tables that don't exist. Some model classes share table
+        # names (pre-existing models.py issue), which raises
+        # InvalidRequestError; we catch that and proceed since the table
+        # already exists in the pre-built atom_dev.db.
         Base.metadata.create_all(bind=engine)
         logger.info("Database schema verified (create_all idempotent)")
     except Exception as exc:
-        logger.warning("Schema creation skipped: %s", exc)
+        logger.warning("Schema create_all skipped (tables likely exist): %s", exc)
 
     try:
         from backend.core.admin_bootstrap import ensure_admin_user

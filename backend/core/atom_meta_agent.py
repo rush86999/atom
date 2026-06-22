@@ -1034,7 +1034,7 @@ What is your next step?"""
                 logger.info(f"Persisted spawned agent: {agent.id}")
         else:
             # Ephemeral agent - just keep in memory
-            self._spawned_agents[agent_id] = agent
+            self.spawned_agents[agent_id] = agent
             logger.info(f"Created ephemeral agent: {agent_id}")
         
         return agent
