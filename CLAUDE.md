@@ -328,6 +328,19 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Rounds 5+6 Bug Hunt (June 22, 2026) ✨
+Closed 8 more bugs found via deeper BYOK + router audit:
+- **R5-1 (CRITICAL)**: `api/admin/cache_routes.py` `require_admin` returned `None` on missing auth — unauthenticated admin access to cache preseed/clear/stats
+- **R5-2 (HIGH)**: `core/byok_endpoints.py` `get_byok_manager()` lacked thread lock — race condition under concurrency
+- **R5-3 (HIGH)**: 8 `HTTPException(detail=str(e))` instances in `byok_endpoints.py` leaked internals
+- **R6-1 (CRITICAL)**: `core/fleet_orchestration/fleet_coordinator_service.py` `BYOKHandler(self.db)` passed db as workspace_id (wrong positional arg)
+- **R6-2 (HIGH)**: `core/generic_agent.py` `LLMService(tenant_id=workspace_id)` mislabeled workspace as tenant — broke BYOK key resolution
+- **R6-3 (CRITICAL)**: All 15 endpoints in `api/workflow_debugging.py` had zero authentication
+- **R6-4 (HIGH)**: `api/shell_routes.py` `/sessions` and `/validate` had no auth; `/sessions` leaked all users' audit trail
+- **R6-5 (MEDIUM)**: `execute_shell_command` 500 response leaked `str(e)`
+
+12 TDD regression tests in `test_round5_fixes.py` and `test_round6_fixes.py`. Also restored missing `test_auth_fixes.py` from prior round.
+
 ### Security Vulnerability Sweep (June 21, 2026) ✨
 Closed 11 security vulnerabilities across 4 rounds of systematic bug hunting:
 - **BUG 1 (CRITICAL)**: Unauthenticated WebSocket endpoints leaked all real-time data (canvas updates, streaming tokens, broadcasts)
