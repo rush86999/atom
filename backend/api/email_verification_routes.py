@@ -4,22 +4,39 @@ Handles email verification codes and sending verification emails via Mailgun
 """
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 import secrets
 from typing import Dict, Optional
-from fastapi import Depends, status
+from fastapi import Depends, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import EmailVerificationToken, User, UserStatus
+from core.security.auth_rate_limit import AuthRateLimiter
 
 logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/email-verification", tags=["Email Verification"])
+
+# Rate limiter for /verify — prevents brute-forcing 6-digit codes.
+# 5 attempts per minute per IP (legitimate users rarely mistype 5x).
+_verify_limiter = AuthRateLimiter(limit=5, window_seconds=60)
+
+
+def verify_rate_limit(request: Request) -> None:
+    """FastAPI dependency: rate limit /api/email-verification/verify."""
+    from fastapi import HTTPException
+    allowed, _ = _verify_limiter.check(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many verification attempts. Try again in a minute.",
+            headers={"Retry-After": "60"},
+        )
 
 # Rate limiting: Track email sending per user (in-memory for simplicity)
 # For production, use Redis or similar
@@ -55,7 +72,7 @@ class EmailService:
 
         Returns: (allowed, reason)
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Clean up old entries outside the rate limit window
         if email in _email_rate_tracker:
@@ -74,7 +91,7 @@ class EmailService:
         """Record that an email was sent to this user"""
         if email not in _email_rate_tracker:
             _email_rate_tracker[email] = []
-        _email_rate_tracker[email].append(datetime.utcnow())
+        _email_rate_tracker[email].append(datetime.now(timezone.utc))
 
     async def send_verification_email(self, to_email: str, code: str) -> bool:
         """
@@ -241,24 +258,32 @@ class SendVerificationResponse(BaseModel):
 @router.post("/verify", response_model=VerifyEmailResponse, status_code=status.HTTP_200_OK)
 async def verify_email(
     request: VerifyEmailRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(verify_rate_limit),
 ):
     """
-    Verify user email with 6-digit code
+    Verify user email with 6-digit code.
 
     Validates the verification code and activates the user account.
     Codes expire after 24 hours.
+
+    SECURITY: returns the same error message whether the user doesn't
+    exist or the code is invalid — prevents email enumeration.
     """
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
-        raise router.not_found_error("User", request.email)
+        # SECURITY: return same error as invalid code to prevent enumeration
+        raise router.validation_error(
+            field="code",
+            message="Invalid or expired verification code"
+        )
 
     # Find valid token
     token = db.query(EmailVerificationToken).filter(
         EmailVerificationToken.user_id == user.id,
         EmailVerificationToken.token == request.code.strip(),
-        EmailVerificationToken.expires_at > datetime.utcnow()
+        EmailVerificationToken.expires_at > datetime.now(timezone.utc)
     ).first()
 
     if not token:
@@ -302,9 +327,10 @@ async def send_verification_email(
             message="If user exists, verification email sent"
         )
 
-    # Generate 6-digit code
-    code = secrets.token_hex(3)  # 6 characters
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    # Generate verification code. Use 4 bytes (8 hex chars) — better
+    # entropy than 3 bytes while still being short enough to type.
+    code = secrets.token_hex(4)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
 
     # Delete existing tokens for this user
     db.query(EmailVerificationToken).filter(
