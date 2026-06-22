@@ -266,12 +266,18 @@ async def refresh_token(
             }
         )
 
+        # SECURITY: rotate refresh token on every use.
+        # Without rotation, a stolen refresh token is valid for its entire
+        # 7-day lifetime. With rotation, a stolen token stops working as
+        # soon as the legitimate user refreshes.
+        new_refresh_token = auth_service.create_refresh_token(user_id)
+
         # Calculate expiry
         expires_in = int(auth_service.access_token_expiry.total_seconds())
 
         return TokenResponse(
             access_token=access_token,
-            refresh_token=refresh_token,  # Return same refresh token
+            refresh_token=new_refresh_token,
             token_type="bearer",
             expires_in=expires_in,
             user_id=user_creds['user_id'],

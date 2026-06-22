@@ -130,15 +130,15 @@ async def get_current_user(
             )
             raise credentials_exception
     except JWTError as e:
-        print(f"AUTH DEBUG: JWT Decode Error: {e}")
+        logger.warning("JWT decode error during user lookup")
         raise credentials_exception
     except Exception as e:
-        print(f"AUTH DEBUG: Unexpected Auth Error: {e}")
+        logger.warning("Unexpected error during token validation")
         raise credentials_exception
-        
+
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        print(f"AUTH DEBUG: User {user_id} not found in DB")
+        logger.warning("Token referenced non-existent user_id=%s", user_id)
         raise credentials_exception
     return user
 

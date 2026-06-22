@@ -370,20 +370,43 @@ async def decide_hitl_action(
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """Approve or Reject a paused agent action"""
-    action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+    """Approve or Reject a paused agent action.
+
+    SECURITY: uses SELECT ... FOR UPDATE to prevent race condition
+    where two concurrent approvals both succeed (double-spend).
+    SQLite ignores with_for_update() so this is a no-op there;
+    PostgreSQL acquires a row lock for the duration of the transaction.
+    """
+    # SELECT FOR UPDATE — concurrent approvals block until this commits
+    action = (
+        db.query(HITLAction)
+        .filter(HITLAction.id == action_id)
+        .with_for_update()
+        .first()
+    )
     if not action:
         raise router.not_found_error("HITLAction", action_id)
-    
+
+    # Idempotent: already-resolved actions return current state, don't double-apply
+    already_resolved = action.status in (
+        HITLActionStatus.APPROVED.value,
+        HITLActionStatus.REJECTED.value,
+    )
+    if already_resolved:
+        return router.success_response(
+            data={"decision": action.status, "action_id": action_id, "already_resolved": True},
+            message=f"Action {action_id} already resolved as {action.status}"
+        )
+
     if req.decision.lower() == "approved":
         action.status = HITLActionStatus.APPROVED.value
     else:
         action.status = HITLActionStatus.REJECTED.value
-        
+
     action.user_feedback = req.feedback
     action.reviewed_at = datetime.datetime.now()
     action.reviewed_by = user.id
-    
+
     db.commit()
     
     # Broadcast update to UI via WebSocket
