@@ -313,14 +313,23 @@ async def get_recording(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get recording details and timeline."""
+    """Get recording details and timeline.
+
+    SECURITY: Verifies the recording belongs to the authenticated user
+    before returning data (prevents IDOR).
+    """
     service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
-    
-    playback = service.get_playback_data(recording_id)
-    if not playback:
+
+    recording = service.get_recording(recording_id)
+    if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
-        
-    return router.success_response(data=playback)
+
+    # Ownership check — recording["user_id"] must match current_user.id
+    if str(recording.get("user_id", "")) != str(current_user.id):
+        # Return 404 (not 403) to avoid leaking existence of other users' recordings
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    return router.success_response(data=recording)
 
 
 # ============================================================================
