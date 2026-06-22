@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
 from core.models import User, UserRole
 from core.byok_cache_preseeding import (
@@ -89,30 +90,46 @@ class CacheStatsResponse(BaseModel):
 # Dependencies
 # =============================================================================
 
-async def require_admin(user_id: str = None, db: Session = Depends(get_db)):
-    """
-    Require ADMIN role for administrative endpoints.
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Require an authenticated ADMIN-tier user.
+
+    SECURITY: This must always raise on missing/non-admin users — silently
+    allowing access exposes administrative endpoints (cache preseed, clear,
+    stats) to unauthenticated callers.
 
     Args:
-        user_id: User ID from authentication context
-        db: Database session
+        user: Authenticated user from ``get_current_user`` dependency.
 
     Returns:
-        User object if ADMIN
+        The user object if they hold an ADMIN-tier role.
 
     Raises:
-        HTTPException 403 if user is not ADMIN
+        HTTPException 401 if unauthenticated.
+        HTTPException 403 if authenticated but not ADMIN-tier.
     """
-    # TODO: Integrate with actual authentication system
-    # For now, this is a placeholder
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user and user.role == UserRole.ADMIN:
-            return user
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
 
-    # Allow access for development (remove in production)
-    logger.warning("Admin endpoint accessed without authentication")
-    return None
+    admin_roles = {
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.ADMIN,
+        UserRole.WORKSPACE_ADMIN,
+    }
+    if user.role not in admin_roles:
+        logger.warning(
+            "Admin endpoint denied: user %s has role %s (requires ADMIN)",
+            getattr(user, "id", "?"),
+            getattr(user, "role", "?"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
 
 
 # =============================================================================

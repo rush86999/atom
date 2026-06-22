@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import secrets
+import threading
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -672,13 +673,17 @@ class BYOKManager:
 
 # Global BYOK Manager instance
 _byok_manager = None
+_byok_manager_lock = threading.Lock()
 
 
 def get_byok_manager() -> BYOKManager:
-    """Get the global BYOK manager instance"""
+    """Get the global BYOK manager instance (thread-safe singleton)."""
     global _byok_manager
     if _byok_manager is None:
-        _byok_manager = BYOKManager()
+        with _byok_manager_lock:
+            # Double-checked locking — avoid re-creating under contention
+            if _byok_manager is None:
+                _byok_manager = BYOKManager()
     return _byok_manager
 
 
@@ -740,10 +745,11 @@ async def add_api_key(key_data: Dict[str, str], byok_manager: BYOKManager = Depe
             "masked_key": f"{key[:4]}...{key[-4:]}"
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Add API key ValueError: %s", e)
+        raise HTTPException(status_code=404, detail="Resource not found")
     except Exception as e:
         logger.error(f"Failed to add API key: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to add API key")
 
 @router.get("/api/ai/providers")
 async def get_ai_providers(byok_manager: BYOKManager = Depends(get_byok_manager)):
@@ -775,7 +781,8 @@ async def get_ai_provider(
         status = byok_manager.get_provider_status(provider_id)
         return status
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Provider status ValueError: %s", e)
+        raise HTTPException(status_code=404, detail="Provider not found")
 
 
 @router.post("/api/ai/providers/{provider_id}/keys")
@@ -828,11 +835,12 @@ async def store_api_key(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Store API key ValueError: %s", e)
+        raise HTTPException(status_code=404, detail="Resource not found")
     except Exception as e:
         logger.error(f"Failed to store API key: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to store API key: {str(e)}"
+            status_code=500, detail="Failed to store API key"
         )
 
 
@@ -936,9 +944,11 @@ async def optimize_cost_usage(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Optimization ValueError: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+        logger.error(f"Optimization failed: {e}")
+        raise HTTPException(status_code=500, detail="Optimization failed")
 
 
 @router.post("/api/ai/usage/track")
@@ -968,7 +978,8 @@ async def track_ai_usage(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to track usage: {str(e)}")
+        logger.error(f"Failed to track usage: {e}")
+        raise HTTPException(status_code=500, detail="Failed to track usage")
 
 
 @router.get("/api/ai/usage/stats")
@@ -997,8 +1008,9 @@ async def get_usage_stats(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to get usage stats: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get usage stats: {str(e)}"
+            status_code=500, detail="Failed to get usage stats"
         )
 
 
@@ -1134,10 +1146,12 @@ async def optimize_pdf_processing(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("PDF optimization ValueError: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
+        logger.error(f"PDF optimization failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"PDF optimization failed: {str(e)}"
+            status_code=500, detail="PDF optimization failed"
         )
 
 
@@ -1183,7 +1197,8 @@ async def byok_health_check(byok_manager: BYOKManager = Depends(get_byok_manager
         }
 
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"BYOK system unhealthy: {str(e)}")
+        logger.error(f"BYOK health check failed: {e}")
+        raise HTTPException(status_code=503, detail="BYOK system unhealthy")
 
 
 # Backward compatibility endpoints for /api/v1/byok/*
