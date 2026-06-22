@@ -399,6 +399,10 @@ try:
     # Create async engine
     async_engine_kwargs = {
         "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
+        # Match sync engine's pool settings for consistency
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+        "pool_timeout": 30,
     }
 
     # Add pool configuration for async engine

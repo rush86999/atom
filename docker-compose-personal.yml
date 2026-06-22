@@ -60,9 +60,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
 
-      # Encryption keys (required - generate with: openssl rand -base64 32)
-      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:-default-insecure-key-change-me}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-jwt-secret-change-me}
+      # Encryption keys — REQUIRED. No insecure defaults.
+      # Generate with: openssl rand -base64 32
+      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:?BYOK_ENCRYPTION_KEY is required. Generate with: openssl rand -base64 32}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required. Generate with: openssl rand -base64 32}
 
       # Vector embeddings (local, fast, free)
       - LANCEDB_PATH=./data/lancedb

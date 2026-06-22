@@ -222,14 +222,14 @@ async def _check_database() -> Dict[str, Any]:
         logger.error(f"Database health check failed: {e}")
         return {
             "healthy": False,
-            "message": f"Database error: {str(e)}",
+            "message": "Database error",
             "latency_ms": 0,
         }
     except Exception as e:
         logger.error(f"Unexpected database health check error: {e}")
         return {
             "healthy": False,
-            "message": f"Unexpected error: {str(e)}",
+            "message": "Unexpected database error",
             "latency_ms": 0,
         }
 
