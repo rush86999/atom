@@ -718,10 +718,19 @@ class ConductorAgent:
         condition: str,
         context: WorkflowExecutionContext
     ) -> bool:
-        """Evaluate a condition expression"""
+        """Evaluate a condition expression.
+
+        SECURITY: uses AST-validated safe_eval to prevent code injection
+        via workflow conditions. Raw eval() — even with __builtins__={}
+        — is bypassable via attribute access on context objects.
+        """
         try:
-            # Simple evaluation - in production use safer eval
-            return eval(condition, {"__builtins__": {}}, context.shared_context)
+            from core.safe_evaluator import safe_eval, SafeEvalError
+            try:
+                return bool(safe_eval(condition, context.shared_context))
+            except SafeEvalError as e:
+                logger.warning(f"Condition rejected by safe_eval: {e}")
+                return False
         except Exception as e:
             logger.warning(f"Condition evaluation failed: {e}")
             return False

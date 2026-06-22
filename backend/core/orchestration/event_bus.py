@@ -505,8 +505,15 @@ class EventBus:
             # Check condition
             if condition:
                 try:
-                    # Simple condition evaluation
-                    if not eval(condition, {"event": event, "data": event.data}, {}):
+                    # SECURITY: use safe_eval (AST-validated) instead of raw eval()
+                    # to prevent code injection via workflow trigger conditions.
+                    from core.safe_evaluator import safe_eval, SafeEvalError
+                    try:
+                        result = safe_eval(condition, {"event": event, "data": event.data})
+                    except SafeEvalError as e:
+                        logger.warning(f"Condition rejected by safe_eval: {e}")
+                        return
+                    if not result:
                         logger.debug(f"Condition not met for workflow {workflow_id}")
                         return
                 except Exception as e:
