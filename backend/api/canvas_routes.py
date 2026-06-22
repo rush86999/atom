@@ -271,17 +271,16 @@ async def start_recording(
     """Start recording a canvas session."""
     service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
     
-    recording = service.start_recording(
-        canvas_id=request.canvas_id,
-        canvas_type=request.canvas_type,
-        user_id=current_user.id,
+    recording_id = await service.start_recording(
+        user_id=str(current_user.id),
         agent_id=request.agent_id,
-        session_name=request.session_name,
-        autonomous=request.autonomous
+        canvas_id=request.canvas_id,
+        reason=f"manual_{request.canvas_type}",
+        tags=[request.canvas_type] if request.canvas_type else None,
     )
-    
+
     return router.success_response(
-        data={"recording_id": recording.recording_id},
+        data={"recording_id": recording_id},
         message="Recording started"
     )
 
@@ -297,9 +296,8 @@ async def list_recordings(
     """List canvas recordings."""
     service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
     
-    recordings = service.list_recordings(
-        user_id=current_user.id,
-        canvas_id=canvas_id,
+    recordings = await service.list_recordings(
+        user_id=str(current_user.id),
         agent_id=agent_id,
         limit=limit
     )
