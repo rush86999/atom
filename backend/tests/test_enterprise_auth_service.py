@@ -14,7 +14,6 @@ from core.enterprise_auth_service import (
     SecurityLevel,
     UserCredentials,
     EnterpriseAuthService,
-    enterprise_auth_service,
     get_enterprise_auth_service
 )
 
@@ -415,9 +414,10 @@ class TestGlobalServiceInstance:
     """Test global service instance."""
 
     def test_global_service_instance_exists(self):
-        """Global enterprise_auth_service instance is available."""
-        assert enterprise_auth_service is not None
-        assert isinstance(enterprise_auth_service, EnterpriseAuthService)
+        """get_enterprise_auth_service() returns a usable instance."""
+        service = get_enterprise_auth_service()
+        assert service is not None
+        assert isinstance(service, EnterpriseAuthService)
 
     def test_get_enterprise_auth_service_returns_instance(self):
         """get_enterprise_auth_service returns service instance."""
