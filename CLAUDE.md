@@ -328,6 +328,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Round 14 — Auth Rate Limiting + Pydantic v2 Migration (June 22, 2026) ✨
+Closed the highest-impact gap from the password-flow audit:
+- **R14-1/2/3 (CRITICAL)**: `/api/auth/login`, `/register`, `/refresh` had zero rate limiting — brute-force and credential-stuffing attacks possible at unlimited rates. Added `core/security/auth_rate_limit.py` with `AuthRateLimiter` (sliding-window, thread-safe, in-memory, optional Redis). Per-endpoint dependencies:
+  - login: 10 req/min per IP (resets on success)
+  - register: 3 req/5min per IP
+  - refresh: 30 req/min per IP
+  Returns HTTP 429 with `Retry-After` header. Verified live: 10 wrong attempts → 401, 11th → 429.
+- **R14-4 (LOW)**: `core/byok_endpoints.py` used deprecated `@validator` (Pydantic v1) → `@field_validator` (v2). Removes DeprecationWarning that becomes an error in Pydantic v3.
+
+5 TDD regression tests in `test_round14_fixes.py` including a behavior test that exercises `AuthRateLimiter` directly.
+
 ### Round 13 — Timezone Bugs (June 22, 2026) ✨
 Closed 9 timezone bugs that silently corrupt timestamps or crash on Postgres:
 - **R13-1 to R13-4 (HIGH)**: `datetime.utcnow()` compared against DB-loaded aware datetimes raises TypeError on Postgres TIMESTAMPTZ. Fixed in:
