@@ -531,7 +531,7 @@ class UserAccount(Base):
     platform_user_id = Column(String)  # Platform's internal user ID
     chat_id = Column(String, index=True)  # For direct messaging
     username = Column(String)  # Platform username/handle
-    linked_at = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
+    linked_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     last_used_at = Column(DateTime(timezone=True))
     is_active = Column(Boolean, default=True, nullable=False)
 
@@ -564,7 +564,7 @@ class IMAuditLog(Base):
     response = Column(Text)
     status = Column(String, nullable=False)  # success, error, blocked, rate_limited
     error_message = Column(Text)
-    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Relationships
     tenant = relationship("Tenant")
@@ -588,7 +588,7 @@ class LinkToken(Base):
     platform = Column(String, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     used_at = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     user = relationship("User")
@@ -627,7 +627,7 @@ class ShellAuditLog(Base):
     required_approval = Column(Boolean, nullable=False, default=False)
     approval_granted = Column(Boolean, nullable=True)
     approved_by = Column(String)  # user_id or 'auto' for mature agents
-    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     source = Column(String, nullable=False, default="tauri")  # tauri, im, api
 
     # Relationships
@@ -2070,7 +2070,7 @@ class AgentFeedEvent(Base):
     message = Column(Text, nullable=False)
     data = Column(JSONColumn, nullable=True)
     importance = Column(Integer, nullable=False, default=1, index=True)  # 0=low, 1=normal, 2=high
-    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Relationships
     tenant = relationship("Tenant")
