@@ -320,7 +320,7 @@ async def get_recording(
     """
     service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
 
-    recording = service.get_recording(recording_id)
+    recording = await service.get_recording(recording_id)
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
