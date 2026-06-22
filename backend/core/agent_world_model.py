@@ -1042,14 +1042,15 @@ class WorldModelService:
             
             # Hot Fallback: If no semantic matches, get recently updated formulas for this domain
             if len(formula_results) < limit:
+                hot_db = None
                 try:
                     from core.models import Formula
-                    db = SessionLocal()
-                    hot_formulas = db.query(Formula).filter(
+                    hot_db = SessionLocal()
+                    hot_formulas = hot_db.query(Formula).filter(
                         Formula.tenant_id == self.db.workspace_id,
                         Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
                     ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
-                    
+
                     for f in hot_formulas:
                         # Avoid duplicates
                         if not any(fr["id"] == f.id for fr in formula_results):
@@ -1062,9 +1063,11 @@ class WorldModelService:
                                 "parameters": f.parameters,
                                 "type": "formula_hot"
                             })
-                    db.close()
                 except Exception as he:
                     logger.warning(f"Hot formula fallback failed: {he}")
+                finally:
+                    if hot_db is not None:
+                        hot_db.close()
         except Exception as fe:
             logger.warning(f"Formula recall failed: {fe}")
 
@@ -1628,9 +1631,10 @@ class WorldModelService:
         if not episode_ids:
             return {}
 
+        fb_db = None
         try:
-            db = SessionLocal()
-            feedback_records = db.query(EpisodeFeedback).filter(
+            fb_db = SessionLocal()
+            feedback_records = fb_db.query(EpisodeFeedback).filter(
                 EpisodeFeedback.episode_id.in_(episode_ids)
             ).all()
 
@@ -1649,12 +1653,14 @@ class WorldModelService:
                     "provided_at": f.provided_at.isoformat()
                 })
 
-            db.close()
             return result
 
         except Exception as e:
             logger.error(f"Failed to get episode feedback for decision: {e}")
             return {}
+        finally:
+            if fb_db is not None:
+                fb_db.close()
 
     # ============================================================================
     # Skill Recommendation Methods (OpenClaw Integration)
