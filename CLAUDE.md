@@ -328,6 +328,19 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Rounds 15+16 — Email Verification + 2FA Security (June 22, 2026) ✨
+Closed 8 more auth-flow bugs:
+- **R15-1 (HIGH)**: `/api/email-verification/verify` raised `not_found_error` on missing user — different error than invalid code, leaking which emails are registered. Now returns same `validation_error` for both.
+- **R15-2 (HIGH)**: `/verify` had no rate limit — 6-digit code (1M combinations) brute-forceable. Added `verify_rate_limit` (5 req/min per IP).
+- **R15-3 (MEDIUM)**: Verification code entropy doubled: `secrets.token_hex(3)` (6 hex chars) → `secrets.token_hex(4)` (8 hex chars).
+- **R15-4 (HIGH)**: 3 `datetime.utcnow()` calls in token comparison and rate tracking → `datetime.now(timezone.utc)`.
+- **R16-1 (CRITICAL)**: `enable_2fa` hardcoded `backup_codes = ["UP-BACKUP-1234-5678"]` — every user got the same known backup code. Replaced with `_generate_backup_codes()` producing 5 random per-user codes (64 bits entropy each).
+- **R16-2 (HIGH)**: `verify_action_2fa` had no rate limit — TOTP brute-force possible. Added `totp_rate_limit` (5 req/min per IP).
+- **R16-3 (MEDIUM)**: `verify_action_2fa` leaked `str(e)` in HTTP 500 detail — replaced with generic message.
+- **R16-4 (LOW)**: Added rate-limit pattern to all 2FA endpoints via shared `AuthRateLimiter`.
+
+7 TDD regression tests across `test_round15_fixes.py` and `test_round16_fixes.py`.
+
 ### Round 14 — Auth Rate Limiting + Pydantic v2 Migration (June 22, 2026) ✨
 Closed the highest-impact gap from the password-flow audit:
 - **R14-1/2/3 (CRITICAL)**: `/api/auth/login`, `/register`, `/refresh` had zero rate limiting — brute-force and credential-stuffing attacks possible at unlimited rates. Added `core/security/auth_rate_limit.py` with `AuthRateLimiter` (sliding-window, thread-safe, in-memory, optional Redis). Per-endpoint dependencies:
