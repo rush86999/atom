@@ -328,6 +328,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Round 11 Bug Hunt — Auth + Race Conditions (June 22, 2026) ✨
+Closed 6 bugs found via password-flow and race-condition audit:
+- **R11-1 (HIGH)**: `/api/auth/refresh` returned the same refresh token it received — stolen tokens valid 7 days. Now mints a new refresh token on every use.
+- **R11-2 (MEDIUM)**: `core/auth.py` had 3 `print("AUTH DEBUG: ...")` statements leaking JWT decode errors and user IDs to stdout. Replaced with `logger.warning()`.
+- **R11-3 (HIGH)**: `decide_hitl_action` allowed double-spend — two concurrent approvals could both pass the "already resolved?" check. Added `.with_for_update()` (SELECT FOR UPDATE on Postgres) + idempotency check.
+- **R11-4 (MEDIUM)**: `register_user` had TOCTOU on email uniqueness — concurrent requests could both pass the check and create duplicate users. Now wraps commit in try/IntegrityError.
+- **R11-5 (HIGH)**: `run_agent` had TOCTOU on agent.status == "running" — concurrent requests could both pass and trigger duplicate executions. Added `.with_for_update()`.
+- **R11-6 (LOW)**: `core/auth.py` logged first 20 chars of malformed Authorization headers. Replaced with generic message.
+
+4 TDD regression tests in `test_round11_fixes.py`. Refresh rotation live-verified.
+
 ### Rounds 9+10 Bug Hunt (June 22, 2026) ✨
 Closed 5 more bugs found via deserialization/secret/eval audit:
 - **R9-1/2 (CRITICAL)**: `create_admin.py` and `ensure_admin.py` hardcoded `password = "securePass123"` — known password anyone could try against admin@example.com. Now read `ADMIN_PASSWORD` env var or generate random per-run.
