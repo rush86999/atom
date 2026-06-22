@@ -328,6 +328,16 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Round 12 — Test Infrastructure + Security Headers (June 22, 2026) ✨
+Closed 5 bugs blocking test collection and security-header deployment:
+- **R12-1 (HIGH)**: `pytest.ini` didn't register the `timeout` marker used by `tests/chaos/` — every `pytest tests/` invocation died with INTERNALERROR before collecting anything. Registered `timeout` as a no-op marker (17 chaos tests now collect).
+- **R12-2 (CRITICAL)**: `tools/creative_tool.py` and `core/skill_adapter.py` did `from langchain.tools import BaseTool` at module top — failed when langchain wasn't installed, breaking test collection for 11+ test files. Wrapped in try/except with a minimal stand-in.
+- **R12-3 (HIGH)**: `core/security/middleware.py` `SecurityHeadersMiddleware` skipped ALL security headers on `/api/` routes citing HTTP 431 risk. The skipped headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy) are <200 bytes combined and protect against MIME sniffing + clickjacking. Now applied to all routes.
+- **R12-4 (HIGH)**: `SecurityHeadersMiddleware` was never registered via `app.add_middleware` in `main.py` — security headers were missing entirely from the running app. Now registered.
+- **R12-5 (MEDIUM)**: `main.py` FastAPI() hardcoded `docs_url="/docs"` unconditionally. Now disabled when `ENVIRONMENT=production` to avoid exposing the OpenAPI surface.
+
+Also fixed `tests/test_enterprise_auth_service.py` to use the `get_enterprise_auth_service()` factory (was importing a removed singleton — 38 tests now pass).
+
 ### Round 11 Bug Hunt — Auth + Race Conditions (June 22, 2026) ✨
 Closed 6 bugs found via password-flow and race-condition audit:
 - **R11-1 (HIGH)**: `/api/auth/refresh` returned the same refresh token it received — stolen tokens valid 7 days. Now mints a new refresh token on every use.
