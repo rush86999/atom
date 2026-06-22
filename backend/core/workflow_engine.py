@@ -34,6 +34,7 @@ from core.websockets import get_connection_manager
 from core.service_factory import ServiceFactory
 from core.workflow_notifier import notifier
 from core.marketplace_usage_tracker import MarketplaceUsageTracker
+import threading
 
 # Stripe integration (SaaS-specific)
 try:
@@ -2403,10 +2404,12 @@ class StepTimeoutError(Exception):
 
 # Global instance
 _workflow_engine = None
-
+_workflow_engine_lock = __import__('threading').Lock()
 def get_workflow_engine() -> WorkflowEngine:
     global _workflow_engine
     if _workflow_engine is None:
-        _workflow_engine = WorkflowEngine()
+        with _workflow_engine_lock:
+            if _workflow_engine is None:
+                _workflow_engine = WorkflowEngine()
     return _workflow_engine
     return _workflow_engine

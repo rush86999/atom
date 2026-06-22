@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -577,10 +578,12 @@ class IntegrationDataMapper:
 
 # Global data mapper instance
 _data_mapper = None
-
+_data_mapper_lock = __import__('threading').Lock()
 def get_data_mapper() -> IntegrationDataMapper:
     """Get the global data mapper instance"""
     global _data_mapper
     if _data_mapper is None:
-        _data_mapper = IntegrationDataMapper()
+        with _data_mapper_lock:
+            if _data_mapper is None:
+                _data_mapper = IntegrationDataMapper()
     return _data_mapper

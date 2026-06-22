@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 from core.workflow_analytics_engine import get_analytics_engine
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,11 @@ class BehaviorAnalyzer:
 
 # Global instance
 _behavior_analyzer = None
-
+_behavior_analyzer_lock = __import__('threading').Lock()
 def get_behavior_analyzer() -> BehaviorAnalyzer:
     global _behavior_analyzer
     if _behavior_analyzer is None:
-        _behavior_analyzer = BehaviorAnalyzer()
+        with _behavior_analyzer_lock:
+            if _behavior_analyzer is None:
+                _behavior_analyzer = BehaviorAnalyzer()
     return _behavior_analyzer

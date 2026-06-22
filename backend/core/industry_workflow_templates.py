@@ -9,6 +9,7 @@ from enum import Enum
 import json
 import os
 from typing import Any, Dict, List, Optional
+import threading
 
 
 class Industry(Enum):
@@ -844,10 +845,12 @@ class IndustryWorkflowEngine:
 
 # Global industry workflow engine instance
 _industry_workflow_engine = None
-
+_industry_workflow_engine_lock = __import__('threading').Lock()
 def get_industry_workflow_engine() -> IndustryWorkflowEngine:
     """Get the global industry workflow engine instance"""
     global _industry_workflow_engine
     if _industry_workflow_engine is None:
-        _industry_workflow_engine = IndustryWorkflowEngine()
+        with _industry_workflow_engine_lock:
+            if _industry_workflow_engine is None:
+                _industry_workflow_engine = IndustryWorkflowEngine()
     return _industry_workflow_engine

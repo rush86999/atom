@@ -6,6 +6,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from core.workflow_analytics_engine import get_analytics_engine
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -141,9 +142,11 @@ class AutomationInsightManager:
 
 # Global instance
 _insight_manager = None
-
+_insight_manager_lock = __import__('threading').Lock()
 def get_insight_manager() -> AutomationInsightManager:
     global _insight_manager
     if _insight_manager is None:
-        _insight_manager = AutomationInsightManager()
+        with _insight_manager_lock:
+            if _insight_manager is None:
+                _insight_manager = AutomationInsightManager()
     return _insight_manager

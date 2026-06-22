@@ -709,10 +709,12 @@ class IntegrationBulkProcessor:
 
 # Global bulk processor instance
 _bulk_processor = None
-
+_bulk_processor_lock = __import__('threading').Lock()
 def get_bulk_processor() -> IntegrationBulkProcessor:
     """Get the global bulk processor instance"""
     global _bulk_processor
     if _bulk_processor is None:
-        _bulk_processor = IntegrationBulkProcessor()
+        with _bulk_processor_lock:
+            if _bulk_processor is None:
+                _bulk_processor = IntegrationBulkProcessor()
     return _bulk_processor

@@ -27,6 +27,7 @@ from core.models import (
 from core.database import get_db
 from core.lancedb_service import LanceDBService
 from core.embedding_service import EmbeddingService
+import threading
 
 logger = logging.getLogger(__name__)
 

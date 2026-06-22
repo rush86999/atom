@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db_session
 from core.models import WorkflowExecution
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -176,9 +177,11 @@ class ExecutionStateManager:
 
 # Global instance
 _state_manager = None
-
+_state_manager_lock = __import__('threading').Lock()
 def get_state_manager() -> ExecutionStateManager:
     global _state_manager
     if _state_manager is None:
-        _state_manager = ExecutionStateManager()
+        with _state_manager_lock:
+            if _state_manager is None:
+                _state_manager = ExecutionStateManager()
     return _state_manager

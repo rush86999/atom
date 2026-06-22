@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -704,10 +705,12 @@ class AIWorkflowOptimizer:
 
 # Global AI workflow optimizer instance
 _ai_workflow_optimizer = None
-
+_ai_workflow_optimizer_lock = __import__('threading').Lock()
 def get_ai_workflow_optimizer() -> AIWorkflowOptimizer:
     """Get the global AI workflow optimizer instance"""
     global _ai_workflow_optimizer
     if _ai_workflow_optimizer is None:
-        _ai_workflow_optimizer = AIWorkflowOptimizer()
+        with _ai_workflow_optimizer_lock:
+            if _ai_workflow_optimizer is None:
+                _ai_workflow_optimizer = AIWorkflowOptimizer()
     return _ai_workflow_optimizer

@@ -7,6 +7,7 @@ from core.database import get_db_session
 from core.proposal_service import ProposalService
 from core.intervention_service import InterventionService
 from core.agent_governance_service import AgentGovernanceService
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -147,9 +148,11 @@ class MessagingActionDispatcher:
         return {"success": False, "error": f"Unsupported feedback type: {feedback_subtype}"}
 
 _dispatcher = None
-
+_dispatcher_lock = __import__('threading').Lock()
 def get_messaging_action_dispatcher(db: Optional[Session] = None) -> MessagingActionDispatcher:
     global _dispatcher
     if _dispatcher is None:
-        _dispatcher = MessagingActionDispatcher(db)
+        with _dispatcher_lock:
+            if _dispatcher is None:
+                _dispatcher = MessagingActionDispatcher(db)
     return _dispatcher

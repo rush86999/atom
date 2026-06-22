@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -177,9 +178,11 @@ class AnalyticsEngine:
 
 # Global instance
 _analytics_engine = None
-
+_analytics_engine_lock = __import__('threading').Lock()
 def get_analytics_engine() -> AnalyticsEngine:
     global _analytics_engine
     if _analytics_engine is None:
-        _analytics_engine = AnalyticsEngine()
+        with _analytics_engine_lock:
+            if _analytics_engine is None:
+                _analytics_engine = AnalyticsEngine()
     return _analytics_engine

@@ -10,17 +10,20 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from .byok_cost_optimizer import BYOKCostOptimizer
 from .byok_endpoints import BYOKManager, get_byok_manager
+import threading
 
 router = APIRouter()
 
 # Global cost optimizer instance
 _cost_optimizer = None
-
+_cost_optimizer_lock = __import__('threading').Lock()
 def get_cost_optimizer(byok_manager: BYOKManager = Depends(get_byok_manager)) -> BYOKCostOptimizer:
     """Get the global cost optimizer instance"""
     global _cost_optimizer
     if _cost_optimizer is None:
-        _cost_optimizer = BYOKCostOptimizer(byok_manager)
+        with _cost_optimizer_lock:
+            if _cost_optimizer is None:
+                _cost_optimizer = BYOKCostOptimizer(byok_manager)
     return _cost_optimizer
 
 @router.get("/api/v1/byok/competitive-analysis")

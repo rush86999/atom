@@ -28,6 +28,7 @@ import logging
 import operator
 import re
 from typing import Any, Dict, List, Optional, Union
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -351,11 +352,12 @@ class ExpressionEvaluator:
 
 # Singleton instance
 _expression_evaluator = None
-
-
+_expression_evaluator_lock = __import__('threading').Lock()
 def get_expression_evaluator() -> ExpressionEvaluator:
     """Get the singleton expression evaluator instance."""
     global _expression_evaluator
     if _expression_evaluator is None:
-        _expression_evaluator = ExpressionEvaluator()
+        with _expression_evaluator_lock:
+            if _expression_evaluator is None:
+                _expression_evaluator = ExpressionEvaluator()
     return _expression_evaluator

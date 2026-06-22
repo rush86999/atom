@@ -22,6 +22,7 @@ Changes: Replaced tenant_id with workspace_id, removed multi-tenancy
 import json
 import logging
 import os
+import threading
 from enum import Enum
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -278,10 +279,13 @@ Respond in JSON format:
 
 # Singleton instance helper
 _intent_classifier_instance = None
+_intent_classifier_lock = threading.Lock()
 
 def get_intent_classifier(db=None, workspace_id: str = "default") -> IntentClassifier:
-    """Get or create IntentClassifier instance"""
+    """Get or create IntentClassifier instance (thread-safe singleton)."""
     global _intent_classifier_instance
     if _intent_classifier_instance is None:
-        _intent_classifier_instance = IntentClassifier(db, workspace_id)
+        with _intent_classifier_lock:
+            if _intent_classifier_instance is None:
+                _intent_classifier_instance = IntentClassifier(db, workspace_id)
     return _intent_classifier_instance

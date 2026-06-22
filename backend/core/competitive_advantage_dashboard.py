@@ -9,6 +9,7 @@ from enum import Enum
 import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -690,10 +691,12 @@ class CompetitiveAdvantageEngine:
 
 # Global competitive advantage engine instance
 _competitive_advantage_engine = None
-
+_competitive_advantage_engine_lock = __import__('threading').Lock()
 def get_competitive_advantage_engine() -> CompetitiveAdvantageEngine:
     """Get the global competitive advantage engine instance"""
     global _competitive_advantage_engine
     if _competitive_advantage_engine is None:
-        _competitive_advantage_engine = CompetitiveAdvantageEngine()
+        with _competitive_advantage_engine_lock:
+            if _competitive_advantage_engine is None:
+                _competitive_advantage_engine = CompetitiveAdvantageEngine()
     return _competitive_advantage_engine

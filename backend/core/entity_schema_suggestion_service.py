@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from core.llm_service import LLMService
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -64,5 +65,7 @@ _instance: Optional[EntitySchemaSuggestionService] = None
 def get_entity_schema_suggestion_service() -> EntitySchemaSuggestionService:
     global _instance
     if _instance is None:
-        _instance = EntitySchemaSuggestionService()
+        with _instance_lock:
+            if _instance is None:
+                _instance = EntitySchemaSuggestionService()
     return _instance

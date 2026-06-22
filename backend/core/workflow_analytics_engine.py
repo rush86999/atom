@@ -1602,9 +1602,11 @@ class WorkflowAnalyticsEngine:
 
 # Global analytics engine instance
 _analytics_engine = None
-
+_analytics_engine_lock = __import__('threading').Lock()
 def get_analytics_engine() -> WorkflowAnalyticsEngine:
     global _analytics_engine
     if _analytics_engine is None:
-        _analytics_engine = WorkflowAnalyticsEngine()
+        with _analytics_engine_lock:
+            if _analytics_engine is None:
+                _analytics_engine = WorkflowAnalyticsEngine()
     return _analytics_engine

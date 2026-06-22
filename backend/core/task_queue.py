@@ -10,6 +10,7 @@ import os
 import redis
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
+import threading
 
 try:
     from rq import Queue
@@ -306,14 +307,14 @@ class TaskQueueManager:
 
 # Global instance
 _task_queue_manager = None
-
-
+_task_queue_manager_lock = __import__('threading').Lock()
 def get_task_queue() -> TaskQueueManager:
     """Get the global task queue manager instance"""
     global _task_queue_manager
-
     if _task_queue_manager is None:
-        _task_queue_manager = TaskQueueManager()
+        with _task_queue_manager_lock:
+            if _task_queue_manager is None:
+                _task_queue_manager = TaskQueueManager()
 
     return _task_queue_manager
 

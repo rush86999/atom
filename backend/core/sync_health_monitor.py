@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.models import SyncState
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -211,11 +212,12 @@ class SyncHealthMonitor:
 
 # Singleton instance
 _health_monitor = None
-
-
+_health_monitor_lock = __import__('threading').Lock()
 def get_sync_health_monitor() -> SyncHealthMonitor:
     """Get or create singleton health monitor instance"""
     global _health_monitor
     if _health_monitor is None:
-        _health_monitor = SyncHealthMonitor()
+        with _health_monitor_lock:
+            if _health_monitor is None:
+                _health_monitor = SyncHealthMonitor()
     return _health_monitor

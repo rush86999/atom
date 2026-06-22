@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db_session
 from core.models import ChatProcess
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -247,9 +248,11 @@ class ChatProcessManager:
 
 # Global instance
 _process_manager = None
-
+_process_manager_lock = __import__('threading').Lock()
 def get_process_manager() -> ChatProcessManager:
     global _process_manager
     if _process_manager is None:
-        _process_manager = ChatProcessManager()
+        with _process_manager_lock:
+            if _process_manager is None:
+                _process_manager = ChatProcessManager()
     return _process_manager

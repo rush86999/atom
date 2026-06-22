@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -242,8 +243,7 @@ class UserContextManager:
 
 # Global instance for convenience
 _global_context_manager = None
-
-
+_global_context_manager_lock = __import__('threading').Lock()
 def get_user_context_manager(db: Optional[Session] = None) -> UserContextManager:
     """
     Get the global user context manager instance.
@@ -255,9 +255,10 @@ def get_user_context_manager(db: Optional[Session] = None) -> UserContextManager
         UserContextManager instance
     """
     global _global_context_manager
-
     if _global_context_manager is None:
-        _global_context_manager = UserContextManager(db)
+        with _global_context_manager_lock:
+            if _global_context_manager is None:
+                _global_context_manager = UserContextManager(db)
     elif db is not None:
         _global_context_manager.db = db
 
