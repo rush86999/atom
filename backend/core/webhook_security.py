@@ -208,12 +208,37 @@ def verify_whatsapp_webhook(payload: bytes, signature: str, app_secret: str) -> 
     return verify_webhook_signature(payload, signature, app_secret, "sha256")
 
 
+def _get_webhook_secret() -> str:
+    """Resolve the webhook signing secret.
+
+    SECURITY: prefer WEBHOOK_CLIENT_STATE_SECRET, then JWT_SECRET.
+    Never fall back to a hardcoded constant — generate a random
+    per-process secret instead (and warn) so signed data cannot
+    be forged by attackers who know the historical default.
+    """
+    secret = os.getenv("WEBHOOK_CLIENT_STATE_SECRET") or os.getenv("JWT_SECRET")
+    if secret:
+        return secret
+    # Per-process fallback — signed data won't survive restart, but
+    # cannot be predicted by an attacker.
+    import secrets as _secrets
+    if not hasattr(_get_webhook_secret, "_fallback"):
+        _get_webhook_secret._fallback = _secrets.token_urlsafe(32)
+        import logging
+        logging.getLogger(__name__).warning(
+            "WEBHOOK_CLIENT_STATE_SECRET and JWT_SECRET both unset. "
+            "Using random per-process secret — signed client state "
+            "will not survive restart."
+        )
+    return _get_webhook_secret._fallback
+
+
 def sign_client_state(data: str) -> str:
     """
     Sign a clientState string to prevent spoofing.
     Format: data::signature (double colon to avoid conflict with JSON content)
     """
-    secret = os.getenv("WEBHOOK_CLIENT_STATE_SECRET", os.getenv("JWT_SECRET", "atom-secret-313"))
+    secret = _get_webhook_secret()
     signature = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
     return f"{data}::{signature}"
 
@@ -231,7 +256,7 @@ def verify_client_state(signed_data: str) -> bool:
 
     try:
         data, signature = signed_data.rsplit("::", 1)
-        secret = os.getenv("WEBHOOK_CLIENT_STATE_SECRET", os.getenv("JWT_SECRET", "atom-secret-313"))
+        secret = _get_webhook_secret()
         expected = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(signature, expected)
     except Exception:

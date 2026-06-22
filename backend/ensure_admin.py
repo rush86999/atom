@@ -1,5 +1,6 @@
 import sys
 import os
+import secrets
 import logging
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,8 @@ def ensure_admin():
     db = SessionLocal()
     try:
         email = "admin@example.com"
-        password = "securePass123"
+        # SECURITY: never hardcode — pull from env or generate a random password
+        password = os.getenv("ADMIN_PASSWORD") or secrets.token_urlsafe(16)
         hashed_password = get_password_hash(password)
         
         user = db.query(User).filter(User.email == email).first()
