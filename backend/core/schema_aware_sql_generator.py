@@ -106,23 +106,28 @@ A:"""
         return prompt
 
     def _inject_workspace_filter(self, sql: str, workspace_id: str) -> str:
-        """Inject workspace_id filter into SQL query."""
+        """Inject workspace_id filter into SQL query.
+
+        SECURITY: workspace_id is escaped by doubling single quotes,
+        preventing SQL injection even if workspace_id is attacker-controlled.
+        """
+        safe_ws = str(workspace_id).replace("'", "''")
         try:
             parsed = sqlparse.parse(sql)[0]
         except Exception:
-            return f"{sql} AND workspace_id = '{workspace_id}'"
+            return f"{sql} AND workspace_id = '{safe_ws}'"
 
         has_where = any(t.ttype is sqlparse.tokens.Keyword and t.value.upper() == 'WHERE' for t in parsed.tokens)
 
         if has_where:
-            sql_with_workspace = re.sub(r'\bWHERE\b', f"WHERE workspace_id = '{workspace_id}' AND", sql, count=1, flags=re.I)
+            sql_with_workspace = re.sub(r'\bWHERE\b', f"WHERE workspace_id = '{safe_ws}' AND", sql, count=1, flags=re.I)
         else:
             match = re.search(r'\s+(GROUP BY|ORDER BY|LIMIT|OFFSET|HAVING)\b', sql, re.I)
             if match:
                 pos = match.start()
-                sql_with_workspace = f"{sql[:pos]} WHERE workspace_id = '{workspace_id}' {sql[pos:]}"
+                sql_with_workspace = f"{sql[:pos]} WHERE workspace_id = '{safe_ws}' {sql[pos:]}"
             else:
-                sql_with_workspace = f"{sql} WHERE workspace_id = '{workspace_id}'"
+                sql_with_workspace = f"{sql} WHERE workspace_id = '{safe_ws}'"
 
         return sql_with_workspace
 

@@ -8,6 +8,7 @@ Supports document upload, fact extraction, and CRUD operations.
 from datetime import datetime
 import logging
 import os
+import re
 import tempfile
 from typing import Any, Dict, List, Optional
 import uuid
@@ -22,6 +23,22 @@ from core.database import get_db
 from core.models import UserRole
 from core.policy_fact_extractor import get_policy_fact_extractor
 from core.security.rbac import require_role
+
+
+def _sanitize_filename(filename: Optional[str]) -> str:
+    """Strip path components and dangerous characters from a user-supplied filename.
+
+    SECURITY: defends against path traversal via '../../etc/passwd' style
+    filenames. Returns a basename-only, alphanumeric-plus-dash string.
+    """
+    if not filename:
+        return "upload"
+    # Take basename only — strips any directory components
+    base = os.path.basename(filename)
+    # Replace any character that isn't alphanumeric, dot, dash, or underscore
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", base)
+    # Limit length
+    return safe[:128] if safe else "upload"
 
 logger = logging.getLogger(__name__)
 
@@ -239,29 +256,32 @@ async def upload_and_extract(
     Upload a policy document to R2 and extract business facts.
     """
     workspace_id = getattr(current_user, 'workspace_id', None) or "default"
-    
+
+    # SECURITY: sanitize filename to prevent path traversal
+    safe_filename = _sanitize_filename(file.filename)
+
     # Validate file type
     allowed_extensions = ['.pdf', '.docx', '.doc', '.txt', '.png', '.tiff', '.tif', '.jpeg', '.jpg']
-    ext = os.path.splitext(file.filename)[1].lower()
+    ext = os.path.splitext(safe_filename)[1].lower()
     if ext not in allowed_extensions:
         raise router.validation_error(
             field="file",
             message=f"Unsupported file type: {ext}. Allowed: {', '.join(allowed_extensions)}"
         )
-    
+
     # Save to temp file for extraction
     temp_dir = tempfile.mkdtemp()
-    temp_path = os.path.join(temp_dir, file.filename)
-    
+    temp_path = os.path.join(temp_dir, safe_filename)
+
     try:
         content = await file.read()
         with open(temp_path, 'wb') as f:
             f.write(content)
-        
+
         # 1. Upload to R2 (Persistent Storage)
         from core.storage import get_storage_service
         storage = get_storage_service()
-        file_key = f"business_facts/{workspace_id}/{uuid.uuid4()}/{file.filename}"
+        file_key = f"business_facts/{workspace_id}/{uuid.uuid4()}/{safe_filename}"
         
         # Reset file pointer for upload if needed, or just upload bytes
         # Since we have 'content' in memory, we can wrap it

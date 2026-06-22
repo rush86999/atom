@@ -761,16 +761,19 @@ class LanceDBHandler:
             # Build search query
             search_query = table.search(query_vector.tolist()).limit(limit)
 
-            # Apply workspace_id and user_id filter
+            # Apply workspace_id and user_id filter.
+            # SECURITY: escape single quotes to prevent filter injection.
             filters = []
 
             # 1. Enforce Workspace Isolation
             if self.workspace_id:
-                filters.append(f"workspace_id == '{self.workspace_id}'")
+                safe_ws = str(self.workspace_id).replace("'", "\\'")
+                filters.append(f"workspace_id == '{safe_ws}'")
 
             # 2. Apply User Filter
             if user_id:
-                filters.append(f"user_id == '{user_id}'")
+                safe_user = str(user_id).replace("'", "\\'")
+                filters.append(f"user_id == '{safe_user}'")
 
             # 3. Apply Custom Filter
             if filter_str:

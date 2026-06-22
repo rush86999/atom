@@ -119,7 +119,9 @@ A:"""
         if not aliases:
             return self._inject_workspace_filter(sql, self.workspace_id)
 
-        workspace_filters = " AND ".join([f"{alias}.workspace_id = '{self.workspace_id}'" for alias in aliases])
+        # SECURITY: escape workspace_id to prevent SQL injection
+        safe_ws = str(self.workspace_id).replace("'", "''")
+        workspace_filters = " AND ".join([f"{alias}.workspace_id = '{safe_ws}'" for alias in aliases])
 
         try:
             parsed = sqlparse.parse(sql)[0]
