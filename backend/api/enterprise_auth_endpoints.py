@@ -26,7 +26,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token/login")
 class UserRegister(BaseModel):
     """User registration request"""
     email: EmailStr = Field(..., description="User email")
-    password: str = Field(..., min_length=8, description="Password (min 8 characters)")
+    password: str = Field(..., min_length=8, max_length=128, description="Password (8-128 characters)")
     first_name: str = Field(..., description="First name")
     last_name: str = Field(..., description="Last name")
     role: str = Field("member", description="User role")
@@ -35,7 +35,8 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     """User login request"""
     username: str = Field(..., description="Email or username")
-    password: str = Field(..., description="Password")
+    # SECURITY: cap password length to prevent bcrypt CPU exhaustion DoS
+    password: str = Field(..., max_length=128, description="Password")
 
 
 class TokenResponse(BaseModel):
@@ -53,8 +54,8 @@ class TokenResponse(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     """Change password request"""
-    old_password: str
-    new_password: str = Field(..., min_length=8)
+    old_password: str = Field(..., max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 @router.post("/register", status_code=201)

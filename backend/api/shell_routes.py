@@ -6,7 +6,7 @@ on host filesystem through governed API endpoints.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
@@ -24,7 +24,8 @@ router = APIRouter(prefix="/api/shell", tags=["Shell"])
 class ShellCommandRequest(BaseModel):
     command: str
     working_directory: Optional[str] = None
-    timeout: int = 300  # 5 minutes default
+    # SECURITY: cap timeout at 10 min to prevent long-running shell DoS
+    timeout: int = Field(default=300, ge=1, le=600)
 
 
 class ShellCommandResponse(BaseModel):

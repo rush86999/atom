@@ -339,11 +339,21 @@ async def promote_agent(
 
 @router.get("/approvals/pending", response_model=List[Dict[str, Any]])
 async def list_pending_approvals(
+    limit: int = 100,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """List all actions waiting for human approval"""
-    actions = db.query(HITLAction).filter(HITLAction.status == HITLActionStatus.PENDING.value).all()
+    """List actions waiting for human approval.
+
+    SECURITY: capped at 1000 rows to prevent DoS via pending-action
+    flooding. Caller can paginate with limit + offset if needed.
+    """
+    # Clamp limit server-side regardless of caller input
+    if limit < 1 or limit > 1000:
+        limit = 100
+    actions = db.query(HITLAction).filter(
+        HITLAction.status == HITLActionStatus.PENDING.value
+    ).order_by(HITLAction.created_at.desc()).limit(limit).all()
     return [{
         "id": a.id,
         "agent_id": a.agent_id,
