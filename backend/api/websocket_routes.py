@@ -51,31 +51,5 @@ async def websocket_endpoint_default(websocket: WebSocket):
     Frontend connects to ``ws://host/ws?token=<jwt>`` — no workspace_id
     path segment. Defaults to "default" workspace.
     """
+    # Delegate to the parametrized endpoint. Auth/loop happen there.
     await websocket_endpoint(websocket, "default")
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=1008, reason="Missing authentication token")
-        return
-
-    db = SessionLocal()
-    try:
-        user = await get_current_user_ws(token, db)
-    finally:
-        db.close()
-
-    if user is None:
-        await websocket.close(code=1008, reason="Invalid or expired token")
-        return
-
-    await notification_manager.connect(websocket, workspace_id)
-    try:
-        while True:
-            # Keep connection alive + listen for client heartbeats/messages
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text("pong")
-    except WebSocketDisconnect:
-        notification_manager.disconnect(websocket, workspace_id)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        notification_manager.disconnect(websocket, workspace_id)

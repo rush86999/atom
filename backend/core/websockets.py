@@ -59,9 +59,16 @@ class ConnectionManager:
         # Authenticate
         with get_db_session() as db:
             try:
-                # Allow dev bypass ONLY in non-production environments
-                if token == "dev-token" and os.getenv("ENVIRONMENT") != "production":
-                    logger.warning("WebSocket dev-token bypass used in non-production environment")
+                # SECURITY: dev-token bypass requires BOTH:
+                # 1. Explicit ALLOW_WS_DEV_TOKEN=true env var
+                # 2. ENVIRONMENT != "production"
+                # Prevents accidental bypass if ENVIRONMENT is unset/misconfigured.
+                allow_dev = (
+                    os.getenv("ALLOW_WS_DEV_TOKEN", "").lower() == "true"
+                    and os.getenv("ENVIRONMENT") != "production"
+                )
+                if token == "dev-token" and allow_dev:
+                    logger.warning("WebSocket dev-token bypass used (explicitly enabled)")
                     # Create a mock user for dev
                     class MockUser:
                         id = "dev-user"
