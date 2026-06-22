@@ -2,7 +2,7 @@
 User Management API Routes
 Provides endpoints for user profile and session management
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from fastapi import Depends, Request, status
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -134,7 +134,7 @@ async def list_user_sessions(
     sessions = db.query(UserSession).filter(
         UserSession.user_id == current_user.id,
         UserSession.is_active == True,
-        UserSession.expires_at > datetime.utcnow()
+        UserSession.expires_at > datetime.now(timezone.utc)
     ).order_by(UserSession.last_active_at.desc()).limit(50).all()
 
     return [

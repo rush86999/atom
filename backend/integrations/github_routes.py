@@ -7,7 +7,7 @@ Feature Flags:
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 import sys
@@ -77,7 +77,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
 
                 if token_record:
                     # Check if token is expired
-                    if token_record.expires_at and token_record.expires_at < datetime.utcnow():
+                    if token_record.expires_at and token_record.expires_at < datetime.now(timezone.utc):
                         logger.warning(f"GitHub token for user {user_id} is expired")
                         if OAUTH_STRICT_MODE:
                             raise HTTPException(
@@ -92,7 +92,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
                         return None
 
                     # Update last_used timestamp
-                    token_record.last_used = datetime.utcnow()
+                    token_record.last_used = datetime.now(timezone.utc)
                     db.commit()
 
                     logger.info(f"Using GitHub token from database for user {user_id}")

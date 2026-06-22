@@ -9,7 +9,7 @@ Notion API: https://developers.notion.com/reference
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from fastapi import HTTPException
 import httpx
@@ -91,7 +91,7 @@ class NotionService:
                 )
 
             # Check if token expired (shouldn't happen for Notion, but safe check)
-            if token.expires_at and token.expires_at < datetime.utcnow():
+            if token.expires_at and token.expires_at < datetime.now(timezone.utc):
                 raise HTTPException(
                     status_code=401,
                     detail="Notion token expired. Please re-authorize."
@@ -219,7 +219,7 @@ class NotionService:
                 user_id=user_id,
                 provider="notion",
                 state=state,
-                expires_at=datetime.utcnow() + timedelta(hours=1)
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
             )
             db.add(oauth_state)
             db.commit()
