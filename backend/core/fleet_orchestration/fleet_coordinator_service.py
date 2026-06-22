@@ -744,7 +744,7 @@ class FleetCoordinatorService:
             # Lazy initialize services if not provided (double-check pattern)
             if not self.decomposition_service:
                 from core.llm.byok_handler import BYOKHandler
-                llm_service = BYOKHandler(self.db)
+                llm_service = BYOKHandler(db_session=self.db)
                 self.decomposition_service = TaskDecompositionService(
                     db=self.db,
                     llm_service=llm_service
