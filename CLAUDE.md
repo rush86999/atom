@@ -328,6 +328,20 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Rounds 7+8 Bug Hunt (June 22, 2026) ✨
+Closed 11 more bugs found via injection/IDOR/broken-endpoint audit:
+- **R7-1 (CRITICAL)**: `api/admin/business_facts_routes.py` upload wrote `file.filename` directly to disk — path traversal via `../../etc/passwd` filenames
+- **R7-2/3 (HIGH)**: `core/schema_aware_sql_generator.py` and `core/multi_entity_sql_generator.py` interpolated `workspace_id` into SQL via f-strings — now escape single quotes
+- **R7-4 (HIGH)**: `core/lancedb_handler.py` built search filters via f-strings with `workspace_id`/`user_id` — now escapes single quotes
+- **R8-1 (HIGH)**: `api/canvas_routes.py` `get_recording` called non-existent `get_playback_data` method + no ownership check (IDOR)
+- **R8-2 (CRITICAL)**: `api/agent_routes.py` `/promote` called non-existent `service.promote_to_autonomous` — always crashed with AttributeError
+- **R8-3 (CRITICAL)**: `api/canvas_routes.py` `/summary` passed wrong params to `generate_summary` + factory returned wrong service class
+- **R8-4 (HIGH)**: `api/auth_routes.py` mobile/refresh used `os.getenv` but never imported `os` — NameError on every call
+- **R8-5 (HIGH)**: `api/canvas_routes.py` `get_recording` didn't await async `service.get_recording`
+- **R8-6/7/8 (HIGH)**: `api/canvas_routes.py` `start_recording` and `list_recordings` — missing await + wrong parameters
+
+11 TDD regression tests across `test_round7_fixes.py` and `test_round8_fixes.py`/`test_round8b_fixes.py`.
+
 ### Rounds 5+6 Bug Hunt (June 22, 2026) ✨
 Closed 8 more bugs found via deeper BYOK + router audit:
 - **R5-1 (CRITICAL)**: `api/admin/cache_routes.py` `require_admin` returned `None` on missing auth — unauthenticated admin access to cache preseed/clear/stats
