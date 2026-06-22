@@ -328,6 +328,14 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Rounds 9+10 Bug Hunt (June 22, 2026) ✨
+Closed 5 more bugs found via deserialization/secret/eval audit:
+- **R9-1/2 (CRITICAL)**: `create_admin.py` and `ensure_admin.py` hardcoded `password = "securePass123"` — known password anyone could try against admin@example.com. Now read `ADMIN_PASSWORD` env var or generate random per-run.
+- **R9-3 (HIGH)**: `core/webhook_security.py` fell back to `"atom-secret-313"` when `WEBHOOK_CLIENT_STATE_SECRET`/`JWT_SECRET` both unset. Predictable secret → webhook forgery. Now generates random per-process secret + warns.
+- **R10-1/2 (CRITICAL, CWE-94)**: `core/orchestration/event_bus.py` and `conductor_agent.py` used raw `eval()` to evaluate workflow trigger conditions. Despite attempts to restrict globals/`__builtins__`, the sandbox was bypassable (Python auto-injects `__builtins__` into globals dict; conductor relied on `{"__builtins__": {}}` which is also escapeable via attribute access on context objects). Both now use `core.safe_evaluator.safe_eval` (AST-validated, whitelisted functions only).
+
+7 TDD regression tests across `test_round9_fixes.py` and `test_round10_fixes.py`.
+
 ### Rounds 7+8 Bug Hunt (June 22, 2026) ✨
 Closed 11 more bugs found via injection/IDOR/broken-endpoint audit:
 - **R7-1 (CRITICAL)**: `api/admin/business_facts_routes.py` upload wrote `file.filename` directly to disk — path traversal via `../../etc/passwd` filenames
