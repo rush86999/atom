@@ -343,15 +343,37 @@ async def get_canvas_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate LLM-powered summary of canvas state."""
-    service = ServiceFactory.get_canvas_summary_service(db, tenant_id=current_user.tenant_id)
+    """Generate LLM-powered summary of canvas state.
+
+    Flow:
+    1. Fetch canvas context (canvas_type + state) via CanvasContextService.
+    2. Pass to CanvasSummaryService.generate_summary with correct signature.
+    """
+    from core.llm.canvas_summary_service import CanvasSummaryService
 
     try:
-        summary = await service.generate_summary(
-            canvas_id=canvas_id,
-            user_id=current_user.id,
-            force_refresh=force_refresh
+        # 1. Fetch the canvas context (ownership-checked via user_id)
+        ctx_service = ServiceFactory.get_canvas_context_service(
+            db, tenant_id=current_user.tenant_id
         )
+        snapshot = ctx_service.get_context_snapshot(
+            canvas_id=canvas_id,
+            user_id=current_user.id
+        )
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="Canvas context not found")
+
+        canvas_type = snapshot.get("canvas_type", "unknown")
+        canvas_state = snapshot.get("state", snapshot)
+
+        # 2. Generate summary with correct signature
+        summary_service = CanvasSummaryService(db)
+        summary = await summary_service.generate_summary(
+            canvas_type=canvas_type,
+            canvas_state=canvas_state,
+        )
+    except HTTPException:
+        raise
     except TimeoutError:
         raise HTTPException(status_code=504, detail="Summary generation timed out")
     except Exception as e:

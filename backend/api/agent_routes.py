@@ -320,11 +320,20 @@ async def promote_agent(
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     db: Session = Depends(get_db)
 ):
-    """Promote agent to Autonomous mode"""
-    service = AgentGovernanceService(db)
-    agent = service.promote_to_autonomous(agent_id, user)
+    """Promote agent to Autonomous mode.
+
+    Manual promotion bypasses the graduation framework — use for agents
+    that have demonstrated readiness outside the episodic memory system.
+    """
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    agent.status = AgentStatus.AUTONOMOUS.value
+    db.commit()
+
     return router.success_response(
-        data={"agent_status": agent.status},
+        data={"agent_status": agent.status, "agent_id": agent_id},
         message=f"Agent {agent_id} promoted to autonomous successfully"
     )
 
