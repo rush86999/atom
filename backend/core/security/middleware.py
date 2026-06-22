@@ -101,15 +101,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Skip security headers for API responses to avoid HTTP 431 errors
-        if request.url.path.startswith("/api/"):
-            return response
-
+        # Lightweight security headers that protect API responses too
+        # (MIME sniffing, clickjacking, referrer leakage). These are <200
+        # bytes combined and don't trigger HTTP 431 (header too large).
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Skip the larger headers (CSP, Permissions-Policy, HSTS) on /api/
+        # routes to keep response size minimal and avoid proxy/reverse-proxy
+        # 431 errors when many other headers are added downstream.
+        is_api = request.url.path.startswith("/api/")
+        if is_api:
+            return response
+
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Hardened Content Security Policy for HTML routes
         response.headers["Content-Security-Policy"] = (

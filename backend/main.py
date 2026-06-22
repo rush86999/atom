@@ -59,12 +59,17 @@ except ImportError as _e:
     logger.warning("Chat router not available (cv2/env issue): %s", _e)
     chat_router = None
 
+# SECURITY: disable interactive docs in production to avoid exposing
+# the API surface (paths, schemas, request examples) to attackers.
+_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+
 app = FastAPI(
     title="Atom API",
     description="AI-powered business automation platform",
     version="6.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 # --- CORS (permissive for local dev; tighten via ALLOWED_ORIGINS in prod) ---
@@ -79,6 +84,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Security headers middleware ---
+# Adds X-Content-Type-Options, X-Frame-Options, Referrer-Policy to
+# every response (incl. API routes). Adds HSTS + CSP to HTML routes.
+try:
+    from core.security.middleware import SecurityHeadersMiddleware
+    app.add_middleware(SecurityHeadersMiddleware)
+except ImportError:
+    logger.warning("SecurityHeadersMiddleware not available; security headers missing")
 
 # --- Routers ---
 app.include_router(health_router)
