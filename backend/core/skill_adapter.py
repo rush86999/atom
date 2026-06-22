@@ -26,7 +26,20 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Type
 
-from langchain.tools import BaseTool
+try:
+    from langchain.tools import BaseTool
+except ImportError:
+    # langchain optional — provide minimal stand-in so module imports succeed
+    class BaseTool:  # type: ignore[no-redef]
+        name: str = ""
+        description: str = ""
+
+        def _run(self, *args, **kwargs):
+            raise NotImplementedError("langchain not installed")
+
+        async def _arun(self, *args, **kwargs):
+            raise NotImplementedError("langchain not installed")
+
 from pydantic import BaseModel, Field, ConfigDict
 
 # Import CLI command wrapper for atom-* skills
