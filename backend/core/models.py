@@ -597,7 +597,7 @@ class LinkToken(Base):
     @property
     def is_valid(self) -> bool:
         """Check if token is still valid (not expired and not used)"""
-        return self.expires_at > datetime.utcnow() and self.used_at is None
+        return self.expires_at > datetime.now(timezone.utc) and self.used_at is None
 
     def __repr__(self):
         return f"<LinkToken(token={self.token[:8]}..., platform={self.platform})>"
@@ -1248,7 +1248,7 @@ class ActionProposal(Base):
     user_guidance = Column(String, nullable=True)
     meta_guidance = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     responded_at = Column(DateTime, nullable=True)
 
 class AgentStatus(str, enum.Enum):
@@ -2532,7 +2532,7 @@ class UnifiedCommunication(Base):
     subject = Column(String(255))
     body = Column(Text, nullable=False)
     internal = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     metadata_json = Column(JSONColumn)  # Additional data like attachments, headers, etc.
 
     tenant = relationship("Tenant")
@@ -2575,8 +2575,8 @@ class UnifiedCalendarEvent(Base):
     status = Column(String(50))  # 'confirmed', 'tentative', 'cancelled'
     recurrence_rule = Column(String(255))  # iCal RRULE if recurring
     conference_url = Column(String(500))  # Meeting link
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     meta_data = Column(JSONColumn)  # Provider-specific data
 
     tenant = relationship("Tenant")
@@ -2605,8 +2605,8 @@ class SSOConfiguration(Base):
     enabled = Column(Boolean, default=True)
     domain_mapping = Column(String(255))  # Optional: domain for auto-provisioning
     role_mapping = Column(JSONColumn)  # Map SSO roles to platform roles
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     last_sync_at = Column(DateTime)
 
     tenant = relationship("Tenant")
@@ -2623,8 +2623,8 @@ class SCIMConfiguration(Base):
     sync_users = Column(Boolean, default=True)
     sync_groups = Column(Boolean, default=True)
     last_sync_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     meta_data = Column(JSONColumn)  # Provider-specific configuration
 
     tenant = relationship("Tenant")
@@ -2642,8 +2642,8 @@ class CommunicationComment(Base):
     author_email = Column(String(255))
     content = Column(Text, nullable=False)
     internal = Column(Boolean, default=False)  # Internal-only comment
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     mentions = Column(JSONColumn)  # List of mentioned user IDs
     attachments = Column(JSONColumn)  # Comment attachments
 
