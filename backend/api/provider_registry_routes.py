@@ -4,6 +4,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.provider_registry import get_provider_registry
 from core.provider_auto_discovery import get_auto_discovery
 import logging

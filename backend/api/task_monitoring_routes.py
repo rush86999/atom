@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import SocialPostHistory, User
 from core.task_queue import get_task_queue
@@ -89,6 +90,7 @@ def get_current_user_from_request(request, db: Session) -> User:
 async def list_scheduled_posts(
     request,
     status_filter: Optional[str] = Query(None, description="Filter by status"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -137,6 +139,7 @@ async def list_scheduled_posts(
 async def get_scheduled_post_status(
     post_id: str,
     request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -187,6 +190,7 @@ async def get_scheduled_post_status(
 async def cancel_scheduled_post(
     post_id: str,
     request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

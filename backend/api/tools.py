@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from tools.registry import ToolRegistry, get_tool_registry
 
 logger = logging.getLogger(__name__)

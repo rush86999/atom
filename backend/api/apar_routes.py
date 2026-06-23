@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"])
 
@@ -102,7 +103,7 @@ async def get_upcoming_payments(days: int = 7):
 # ==================== ACCOUNTS RECEIVABLE ====================
 
 @router.post("/ar/generate")
-async def generate_ar_invoice(request: ARGenerateRequest):
+async def generate_ar_invoice(request: ARGenerateRequest, current_user: User = Depends(get_current_user)):
     from core.apar_engine import apar_engine
 
     data = {

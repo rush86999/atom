@@ -99,7 +99,7 @@ async def ingest_bank_feed(request: BankFeedRequest):
 # ==================== CATEGORIZATION ====================
 
 @router.post("/categorize")
-async def categorize_transaction(request: CategorizeRequest, user_id: str = "user"):
+async def categorize_transaction(request: CategorizeRequest, user_id: str = "user", current_user: User = Depends(get_current_user)):
     """Manually categorize a transaction (teaches the system)"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -314,6 +314,7 @@ async def run_scenario(workspace_id: str = "default", scenario_description: str 
 
 @router.get("/dashboard/summary")
 async def get_accounting_dashboard_summary(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

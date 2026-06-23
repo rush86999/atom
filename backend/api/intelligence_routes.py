@@ -4,6 +4,7 @@ from ai.data_intelligence import DataIntelligenceEngine, PlatformType
 from fastapi import Depends
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ async def refresh_intelligence():
         raise router.internal_error("Internal error")
 
 @router.post("/execute")
-async def execute_insight_action(request: Dict[str, Any]):
+async def execute_insight_action(request: Dict[str, Any], current_user: User = Depends(get_current_user)):
     """
     Execute an actionable recommendation from an insight.
     """

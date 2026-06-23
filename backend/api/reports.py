@@ -1,4 +1,5 @@
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 router = BaseAPIRouter(prefix="/api/reports", tags=["Reports"])
 

@@ -58,6 +58,7 @@ def search_marketplace_skills(
     sort_by: str = Query("relevance", description="Sort order: relevance, created, name"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -88,6 +89,7 @@ def search_marketplace_skills(
 @router.get("/skills/{skill_id}")
 def get_marketplace_skill(
     skill_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -121,6 +123,7 @@ def list_marketplace_categories(db: Session = Depends(get_db)):
 def rate_marketplace_skill(
     skill_id: str,
     request: RatingRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -180,6 +183,7 @@ def install_marketplace_skill(
 def uninstall_marketplace_skill(
     skill_id: str,
     agent_id: str = Query(..., description="Agent ID to uninstall skill from"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -211,6 +215,7 @@ def browse_marketplace_domains(
     category: Optional[str] = Query(None, description="Filter by category"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Browse domains on atomagentos.com"""
@@ -223,6 +228,7 @@ def install_marketplace_domain(
     template_domain_id: str = Query(...),
     tenant_id: str = Query(...),
     custom_name: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Install a domain from atomagentos.com"""
@@ -248,6 +254,7 @@ def browse_marketplace_components(
     category: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Browse components on atomagentos.com"""
@@ -260,6 +267,7 @@ def install_marketplace_component(
     component_id: str = Query(...),
     canvas_id: str = Query(...),
     tenant_id: str = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Install a component from atomagentos.com"""
@@ -285,6 +293,7 @@ def browse_marketplace_agents(
     category: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Browse agents on atomagentos.com"""
@@ -297,6 +306,7 @@ def install_marketplace_agent(
     template_id: str = Query(...),
     tenant_id: str = Query(...),
     user_id: str = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Install an agent template from atomagentos.com"""

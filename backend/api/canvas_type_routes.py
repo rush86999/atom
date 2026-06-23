@@ -6,9 +6,11 @@ including validation, metadata lookup, and governance requirements.
 """
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.canvas_type_registry import CanvasType, MaturityLevel, canvas_type_registry
 
 logger = logging.getLogger(__name__)
@@ -161,7 +163,7 @@ async def get_canvas_layouts(canvas_type: str):
 
 
 @router.post("/validate", response_model=CanvasTypeValidationResponse)
-async def validate_canvas_type(request: CanvasTypeValidationRequest):
+async def validate_canvas_type(request: CanvasTypeValidationRequest, current_user: User = Depends(get_current_user)):
     """
     Validate a canvas type configuration.
 

@@ -161,6 +161,7 @@ async def trigger_sync(
     integration_id: str,
     force: bool = Query(False, description="Force sync even if recently synced"),
     request: Request = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

@@ -6,10 +6,11 @@ Provides aggregated metrics and KPIs for the analytics dashboard
 from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Query, HTTPException
+from fastapi import Query, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import SessionLocal
 from core.workflow_analytics_engine import (
     AlertSeverity,

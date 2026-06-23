@@ -142,6 +142,7 @@ async def oauth_callback(
     code: str = Query(...),
     state: str = Query(None),
     request: Request = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Handle OAuth callback for all providers."""
