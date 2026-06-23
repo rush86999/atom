@@ -5,6 +5,7 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AsyncStorage } from 'react-native';
+import { secureSet, secureGet, secureDelete } from '../storage/secureTokenStorage';
 import { ApiResponse } from '../types/common';
 
 // API base URL - configure for your environment
@@ -55,7 +56,7 @@ class ApiService {
    */
   async setToken(token: string): Promise<void> {
     this.token = token;
-    await AsyncStorage.setItem('auth_token', token);
+    await secureSet('auth_token', token);
   }
 
   /**
@@ -63,7 +64,7 @@ class ApiService {
    */
   async getToken(): Promise<string | null> {
     if (!this.token) {
-      this.token = await AsyncStorage.getItem('auth_token');
+      this.token = await secureGet('auth_token');
     }
     return this.token;
   }
@@ -73,7 +74,7 @@ class ApiService {
    */
   async clearToken(): Promise<void> {
     this.token = null;
-    await AsyncStorage.removeItem('auth_token');
+    await secureDelete('auth_token');
   }
 
   /**

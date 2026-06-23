@@ -27,6 +27,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGet } from '../../storage/secureTokenStorage';
 import Constants from 'expo-constants';
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
@@ -98,7 +99,7 @@ export const ChatTabScreen = () => {
    */
   const loadToken = async () => {
     try {
-      const token = await AsyncStorage.getItem('atom_access_token');
+      const token = await secureGet('atom_access_token');
       setAccessToken(token);
     } catch (error) {
       console.error('Failed to load token:', error);

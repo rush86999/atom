@@ -14,6 +14,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGet, secureSet } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import * as Constants from 'expo-constants';
 
@@ -137,7 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const loadDeviceInfo = async () => {
     try {
-      const storedDeviceId = await AsyncStorage.getItem(DEVICE_ID_KEY);
+      const storedDeviceId = await secureGet(DEVICE_ID_KEY);
       // Device info would be populated from expo-device constants
       setDeviceInfo({
         device_token: storedDeviceId || generateDeviceId(),
@@ -166,10 +167,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(true);
 
       // Generate device token if not exists
-      let deviceToken = await AsyncStorage.getItem(DEVICE_ID_KEY);
+      let deviceToken = await secureGet(DEVICE_ID_KEY);
       if (!deviceToken) {
         deviceToken = generateDeviceId();
-        await AsyncStorage.setItem(DEVICE_ID_KEY, deviceToken);
+        await secureSet(DEVICE_ID_KEY, deviceToken);
       }
 
       // Build device info
@@ -475,7 +476,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       // Store device ID
-      await AsyncStorage.setItem(DEVICE_ID_KEY, data.device_id);
+      await secureSet(DEVICE_ID_KEY, data.device_id);
 
       return { success: true, deviceId: data.device_id };
     } catch (error: any) {

@@ -13,6 +13,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGet } from '../storage/secureTokenStorage';
 import Constants from 'expo-constants';
 
 // Types
@@ -90,7 +91,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   const getToken = async (): Promise<string | null> => {
     // This would come from AuthContext, but for now we'll use a placeholder
     try {
-      return await AsyncStorage.getItem('atom_access_token');
+      return await secureGet('atom_access_token');
     } catch (error) {
       console.error('Failed to get token:', error);
       return null;

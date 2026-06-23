@@ -13,6 +13,7 @@
 
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGet } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import * as Camera from 'expo-camera';
@@ -87,7 +88,7 @@ class DeviceSocketService {
   async connect(): Promise<boolean> {
     try {
       // Get auth token
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureGet('auth_token');
       if (!token) {
         console.error('[DeviceSocket] No auth token found');
         return false;

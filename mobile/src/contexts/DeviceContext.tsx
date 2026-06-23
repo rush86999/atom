@@ -14,6 +14,7 @@ import * as Device from 'expo-device';
 import * as Constants from 'expo-constants';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGet, secureSet, secureDelete } from '../storage/secureTokenStorage';
 
 // Expo modules for permissions
 import * as Camera from 'expo-camera';
@@ -98,8 +99,8 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const loadDeviceState = async () => {
     try {
       const [deviceId, deviceToken, isRegistered, capabilitiesStr, lastSyncStr] = await Promise.all([
-        AsyncStorage.getItem(DEVICE_ID_KEY),
-        AsyncStorage.getItem(DEVICE_TOKEN_KEY),
+        secureGet(DEVICE_ID_KEY),
+        secureGet(DEVICE_TOKEN_KEY),
         AsyncStorage.getItem(DEVICE_REGISTERED_KEY),
         AsyncStorage.getItem(CAPABILITIES_KEY),
         AsyncStorage.getItem(LAST_SYNC_KEY),
@@ -164,7 +165,7 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       // In a real implementation, you'd get the access token from AuthContext
       // For now, we'll assume it's stored
-      const accessToken = await AsyncStorage.getItem('atom_access_token');
+      const accessToken = await secureGet('atom_access_token');
 
       if (!accessToken) {
         return { success: false, error: 'No access token' };
@@ -199,8 +200,8 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // Store device state
       const newDeviceId = data.device_id;
       await Promise.all([
-        AsyncStorage.setItem(DEVICE_ID_KEY, newDeviceId),
-        AsyncStorage.setItem(DEVICE_TOKEN_KEY, pushToken),
+        secureSet(DEVICE_ID_KEY, newDeviceId),
+        secureSet(DEVICE_TOKEN_KEY, pushToken),
         AsyncStorage.setItem(DEVICE_REGISTERED_KEY, 'true'),
         AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString()),
       ]);
@@ -231,7 +232,7 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       // In a real implementation, you'd call an API to update the token
-      await AsyncStorage.setItem(DEVICE_TOKEN_KEY, newToken);
+      await secureSet(DEVICE_TOKEN_KEY, newToken);
 
       setDeviceState((prev) => ({
         ...prev,
@@ -418,7 +419,7 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return { success: false, error: 'Device not registered' };
       }
 
-      const accessToken = await AsyncStorage.getItem('atom_access_token');
+      const accessToken = await secureGet('atom_access_token');
 
       if (!accessToken) {
         return { success: false, error: 'Not authenticated' };
@@ -467,7 +468,7 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return;
       }
 
-      const accessToken = await AsyncStorage.getItem('atom_access_token');
+      const accessToken = await secureGet('atom_access_token');
 
       if (accessToken) {
         await fetch(`${API_BASE_URL}/api/mobile/notifications/unregister`, {
@@ -484,8 +485,8 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       // Clear device state
       await Promise.all([
-        AsyncStorage.removeItem(DEVICE_ID_KEY),
-        AsyncStorage.removeItem(DEVICE_TOKEN_KEY),
+        secureDelete(DEVICE_ID_KEY),
+        secureDelete(DEVICE_TOKEN_KEY),
         AsyncStorage.removeItem(DEVICE_REGISTERED_KEY),
         AsyncStorage.removeItem(LAST_SYNC_KEY),
       ]);
