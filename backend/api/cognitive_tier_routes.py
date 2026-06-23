@@ -132,6 +132,7 @@ _classifier = CognitiveClassifier()
 )
 def get_preferences(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> TierPreferenceResponse:
     """
@@ -197,6 +198,7 @@ def get_preferences(
 def create_or_update_preferences(
     workspace_id: str,
     request: TierPreferenceRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> TierPreferenceResponse:
     """
@@ -396,6 +398,7 @@ def estimate_cost(
     prompt: Optional[str] = None,
     estimated_tokens: Optional[int] = None,
     tier: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> CostEstimateResponse:
     """
@@ -490,6 +493,7 @@ def estimate_cost(
     description="Returns a comparison table showing quality vs cost tradeoffs for all tiers."
 )
 def compare_tiers(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> TierComparisonResponse:
     """

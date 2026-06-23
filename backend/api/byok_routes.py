@@ -770,7 +770,7 @@ router = APIRouter()
 # API Endpoints
 
 @router.get("/api/v1/byok/health")
-async def byok_health_check():
+async def byok_health_check(current_user: User = Depends(get_current_user)):
     """Health check for BYOK system"""
     return ApiResponse(success=True, data={
         "status": "healthy",
@@ -838,6 +838,7 @@ async def get_ai_providers(
 @router.get("/api/ai/providers/{provider_id}")
 async def get_ai_provider(
     provider_id: str,
+    current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)
@@ -884,6 +885,7 @@ async def get_api_key_status(
     provider_id: str,
     key_name: str = "default",
     environment: str = "production",
+    current_user: User = Depends(get_current_user),
     byok_manager: BYOKManager = Depends(get_byok_manager),
 ):
     """Get status of an API key (without revealing the key)"""
@@ -912,6 +914,7 @@ async def delete_api_key(
     provider_id: str,
     key_name: str = "default",
     environment: str = "production",
+    current_user: User = Depends(get_current_user),
     byok_manager: BYOKManager = Depends(get_byok_manager),
 ):
     """Delete an API key"""
@@ -928,7 +931,7 @@ async def delete_api_key(
 
 @router.post("/api/ai/optimize-cost")
 async def optimize_cost_usage(
-    usage_data: Dict[Any, Any], byok_manager: BYOKManager = Depends(get_byok_manager)
+    usage_data: Dict[Any, Any], current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)
 ):
     """Optimize AI cost usage and recommend providers"""
     task_type = usage_data.get("task_type", "general")
@@ -989,6 +992,7 @@ async def optimize_cost_usage(
 async def track_ai_usage(
     usage_data: Dict[Any, Any],
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     tenant: Tenant = Depends(get_current_tenant),
 ):
@@ -1015,6 +1019,7 @@ async def track_ai_usage(
 @router.get("/api/ai/usage/stats")
 async def get_usage_stats(
     tenant_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     provider_id: Optional[str] = None,
     byok_manager: BYOKManager = Depends(get_byok_manager),
 ):
@@ -1050,7 +1055,7 @@ async def get_usage_stats(
 
 
 @router.get("/api/ai/pdf/providers")
-async def get_pdf_ai_providers(byok_manager: BYOKManager = Depends(get_byok_manager)):
+async def get_pdf_ai_providers(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Get AI providers specifically for PDF processing tasks"""
     pdf_providers = []
 
@@ -1084,6 +1089,7 @@ async def get_pdf_ai_providers(byok_manager: BYOKManager = Depends(get_byok_mana
 @router.post("/api/ai/pdf/optimize")
 async def optimize_pdf_processing(
     pdf_characteristics: Dict[Any, Any],
+    current_user: User = Depends(get_current_user),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     tenant: Tenant = Depends(get_current_tenant),
     db: Session = Depends(get_db),
@@ -1189,7 +1195,7 @@ async def optimize_pdf_processing(
 
 
 @router.get("/api/ai/health")
-async def byok_health_check(byok_manager: BYOKManager = Depends(get_byok_manager)):
+async def byok_health_check(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Health check for BYOK system"""
     try:
         active_providers = 0
@@ -1238,7 +1244,7 @@ async def byok_health_check(byok_manager: BYOKManager = Depends(get_byok_manager
 
 # Backward compatibility endpoints for /api/v1/byok/*
 @router.get("/api/v1/byok/health")
-async def byok_health_v1(byok_manager: BYOKManager = Depends(get_byok_manager)):
+async def byok_health_v1(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Health check endpoint for BYOK system (v1 API compatibility)"""
     return await byok_health_check(byok_manager)
 

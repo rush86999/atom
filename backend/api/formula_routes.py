@@ -76,7 +76,7 @@ async def create_formula(request: FormulaCreateRequest, current_user: User = Dep
         raise router.internal_error(message="Failed to create formula", details={"error": "Internal error"})
 
 @router.get("", response_model=List[FormulaResponse])
-async def list_formulas(category: Optional[str] = None, tag: Optional[str] = None):
+async def list_formulas(category: Optional[str] = None, tag: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """List all formulas"""
     formulas = list(_formula_store.values())
     
@@ -88,7 +88,7 @@ async def list_formulas(category: Optional[str] = None, tag: Optional[str] = Non
     return [FormulaResponse(**f) for f in formulas]
 
 @router.get("/{formula_id}", response_model=FormulaResponse)
-async def get_formula(formula_id: str):
+async def get_formula(formula_id: str, current_user: User = Depends(get_current_user)):
     """Get a formula by ID"""
     if formula_id not in _formula_store:
         raise router.not_found_error("Formula", formula_id)

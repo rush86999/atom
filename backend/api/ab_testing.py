@@ -126,6 +126,7 @@ async def create_test(
 @router.post("/{test_id}/start")
 async def start_test(
     test_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -153,6 +154,7 @@ async def start_test(
 @router.post("/{test_id}/complete")
 async def complete_test(
     test_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -189,6 +191,7 @@ async def complete_test(
 async def assign_variant(
     test_id: str,
     request: AssignVariantRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -229,6 +232,7 @@ async def assign_variant(
 async def record_metric(
     test_id: str,
     request: RecordMetricRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -271,6 +275,7 @@ async def record_metric(
 @router.get("/{test_id}/results")
 async def get_test_results(
     test_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -299,6 +304,7 @@ async def list_tests(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

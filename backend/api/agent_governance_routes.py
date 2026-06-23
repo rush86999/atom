@@ -156,7 +156,7 @@ MOCK_AGENTS = {
 # ==================== API Endpoints ====================
 
 @router.get("/rules")
-async def get_governance_rules():
+async def get_governance_rules(current_user: User = Depends(get_current_user)):
     """
     Get governance rules and maturity level definitions.
     Used by frontend to understand the governance framework.
@@ -207,7 +207,8 @@ async def get_governance_rules():
 
 @router.get("/agents", response_model=List[AgentMaturityResponse])
 async def list_agents_with_maturity(
-    category: Optional[str] = Query(None, description="Filter by category")
+    category: Optional[str] = Query(None, description="Filter by category"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     List all specialty agents with their maturity levels.
@@ -244,7 +245,7 @@ async def list_agents_with_maturity(
 
 
 @router.get("/agents/{agent_id}", response_model=AgentMaturityResponse)
-async def get_agent_maturity(agent_id: str):
+async def get_agent_maturity(agent_id: str, current_user: User = Depends(get_current_user)):
     """
     Get maturity status for a specific agent.
     Used by AgentWorkflowGenerator when an agent is selected.
@@ -511,7 +512,7 @@ class ActionEnforceRequest(BaseModel):
 
 
 @router.get("/agents/{agent_id}/capabilities")
-async def get_agent_capabilities(agent_id: str):
+async def get_agent_capabilities(agent_id: str, current_user: User = Depends(get_current_user)):
     """
     Get what actions an agent is allowed to perform based on maturity level.
     Returns allowed and restricted action types.

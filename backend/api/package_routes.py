@@ -223,6 +223,7 @@ def check_package_permission(
     agent_id: str = Query(..., description="Agent ID"),
     package_name: str = Query(..., description="Package name"),
     version: str = Query(..., description="Package version"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -255,6 +256,7 @@ def check_package_permission(
 @router.post("/request")
 def request_package_approval(
     request: PackageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -336,6 +338,7 @@ def approve_package(
 @router.post("/ban")
 def ban_package(
     request: PackageBanRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -375,6 +378,7 @@ def ban_package(
 @router.get("/", response_model=PackageListResponse)
 def list_packages(
     status: Optional[str] = Query(None, description="Filter by status (untrusted, active, banned, pending)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -413,7 +417,7 @@ def list_packages(
 
 
 @router.get("/stats")
-def get_cache_stats():
+def get_cache_stats(current_user: User = Depends(get_current_user)):
     """
     Get package governance cache statistics.
 
@@ -439,6 +443,7 @@ def get_cache_stats():
 @router.post("/npm/request")
 def request_npm_package_approval(
     request: PackageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -479,6 +484,7 @@ def check_npm_package_permission(
     agent_id: str = Query(..., description="Agent ID"),
     package_name: str = Query(..., description="npm package name"),
     version: str = Query(..., description="Package version"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -528,6 +534,7 @@ def check_npm_package_permission(
 @router.post("/npm/approve")
 def approve_npm_package(
     request: PackageApprovalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -574,6 +581,7 @@ def approve_npm_package(
 @router.post("/npm/ban")
 def ban_npm_package(
     request: PackageBanRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -619,6 +627,7 @@ def ban_npm_package(
 @router.post("/npm/install", response_model=PackageInstallResponse)
 def install_npm_packages(
     request: NpmPackageInstallRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -762,6 +771,7 @@ def install_npm_packages(
 @router.post("/npm/execute", response_model=PackageExecuteResponse)
 def execute_npm_code(
     request: NpmPackageExecuteRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -945,6 +955,7 @@ def install_packages(
 @router.post("/execute", response_model=PackageExecuteResponse)
 def execute_with_packages(
     request: PackageExecuteRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1076,6 +1087,7 @@ def get_skill_image_status(skill_id: str):
 @router.get("/npm", response_model=PackageListResponse)
 def list_npm_packages(
     status: Optional[str] = Query(None, description="Filter by status (untrusted, active, banned, pending)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1188,6 +1200,7 @@ def get_npm_skill_image_status(skill_id: str):
 def list_package_operations(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
     skill_id: Optional[str] = Query(None, description="Filter by skill ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
