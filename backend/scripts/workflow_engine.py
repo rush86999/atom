@@ -116,10 +116,11 @@ class WorkflowEngine:
             if not condition:
                 return True
 
-            # Simple condition evaluation
-            # In production, use a proper expression evaluator
+            # Simple condition evaluation — use the safe AST-based evaluator
+            # (raw eval() is an RCE vector via __import__/().__class__.__subclasses__())
             try:
-                return eval(condition, {}, context.variables)
+                from core.safe_evaluator import safe_eval
+                return safe_eval(condition, context.variables)
             except Exception as e:
                 logger.error(f"Condition evaluation failed: {e}")
                 return False

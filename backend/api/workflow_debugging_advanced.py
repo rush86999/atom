@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.workflow_debugger import WorkflowDebugger
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,7 @@ class CreateTraceStreamRequest(BaseModel):
 @router.post("/variables/modify")
 async def modify_variable(
     request: ModifyVariableRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -127,6 +129,7 @@ async def modify_variable(
 @router.post("/variables/modify-bulk")
 async def bulk_modify_variables(
     request: BulkModifyVariablesRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -163,6 +166,7 @@ async def bulk_modify_variables(
 @router.get("/sessions/{session_id}/export")
 async def export_debug_session(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ExportSessionResponse:
     """
@@ -182,6 +186,7 @@ async def export_debug_session(
 @router.post("/sessions/import")
 async def import_debug_session(
     request: ImportSessionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -215,6 +220,7 @@ async def import_debug_session(
 @router.post("/sessions/{session_id}/profiling/start")
 async def start_performance_profiling(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """

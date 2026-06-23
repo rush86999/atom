@@ -13,6 +13,37 @@ from pydantic import BaseModel, validator
 
 logger = logging.getLogger(__name__)
 
+# ReDoS protection — user-supplied regex patterns are compiled and executed
+# during parameter validation. Without a length cap and nested-quantifier
+# check, a malicious pattern like `(a+)+$` can cause catastrophic
+# backtracking and CPU exhaustion (denial of service).
+MAX_REGEX_LENGTH = 200
+
+
+def _has_redos_risk(pattern: str) -> bool:
+    """Heuristic check for regex patterns prone to catastrophic backtracking.
+
+    Detects nested quantifiers like ``(a+)+``, ``(a*)*``, ``(a|b)*+`` which are
+    the classic ReDoS shape. This is intentionally conservative — it may reject
+    some safe patterns, but that's the right trade-off for untrusted input.
+    """
+    # Strip escaped sequences so we don't false-positive on literal `\+`
+    cleaned = re.sub(r"\\.", "", pattern)
+    # Nested quantifier: a quantifier immediately following another quantified
+    # atom, e.g. `+ +`, `* +`, `? *`, `{n,m}+`, etc.
+    if re.search(r"[+*?]\s*[+*?]", cleaned):
+        return True
+    if re.search(r"\}[*+?]", cleaned):
+        return True
+    # Overlapping alternation under a quantifier: `(a|a)*`
+    if re.search(r"\(([^()]*)\)[+*?]", cleaned):
+        inner = re.search(r"\(([^()]*)\)[+*?]", cleaned)
+        if inner:
+            parts = inner.group(1).split("|")
+            if len(parts) > 1 and any(p and parts.count(p) > 1 for p in parts):
+                return True
+    return False
+
 class ValidationRule(ABC):
     """
     Base class for validation rules (Abstract).
@@ -96,6 +127,13 @@ class PatternRule(ValidationRule):
         pattern = self.config.get("pattern")
         if not pattern:
             return True, None
+
+        # ReDoS protection: cap pattern length and reject nested quantifiers
+        # that are known to cause catastrophic backtracking.
+        if len(pattern) > MAX_REGEX_LENGTH:
+            return False, "Regex pattern too long"
+        if _has_redos_risk(pattern):
+            return False, "Regex pattern rejected (potential ReDoS)"
 
         try:
             compiled_pattern = re.compile(pattern)

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -138,7 +139,7 @@ async def list_templates(category: Optional[str] = None, limit: int = 50):
         )
 
 @router.get("/{template_id}")
-async def get_template(template_id: str):
+async def get_template(template_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific template by ID"""
     manager = get_template_manager()
     template = manager.get_template(template_id)
@@ -149,7 +150,7 @@ async def get_template(template_id: str):
     return template.dict()
 
 @router.put("/{template_id}")
-async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest):
+async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest, current_user: User = Depends(get_current_user)):
     """Update an existing workflow template"""
     try:
         manager = get_template_manager()
@@ -215,7 +216,7 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
         )
 
 @router.post("/{template_id}/instantiate")
-async def instantiate_template(template_id: str, request: InstantiateRequest):
+async def instantiate_template(template_id: str, request: InstantiateRequest, current_user: User = Depends(get_current_user)):
     """Create a runnable workflow from a template"""
     try:
         manager = get_template_manager()

@@ -21,6 +21,7 @@ from .advanced_workflow_system import (
     WorkflowStep,
 )
 from .workflow_template_manager import WorkflowTemplateManager, get_workflow_template_manager
+from .auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -82,7 +83,7 @@ def serialize_workflow(workflow: AdvancedWorkflowDefinition) -> Dict[str, Any]:
 
 # Endpoints
 @router.post("/workflows", response_model=Dict[str, Any])
-async def create_workflow(request: CreateWorkflowRequest):
+async def create_workflow(request: CreateWorkflowRequest, current_user: User = Depends(get_current_user)):
     """Create a new advanced workflow"""
     try:
         # Convert request to workflow definition
@@ -108,7 +109,7 @@ async def create_workflow(request: CreateWorkflowRequest):
 
     except Exception as e:
         logger.error(f"Failed to create workflow: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/workflows")
 async def list_workflows(
@@ -118,7 +119,8 @@ async def list_workflows(
     sort_by: str = "updated_at",
     sort_order: str = "desc",
     limit: Optional[int] = None,
-    offset: int = 0
+    offset: int = 0,
+    current_user: User = Depends(get_current_user)
 ):
     """
     List workflows with comprehensive filtering and sorting.
@@ -176,10 +178,10 @@ async def list_workflows(
 
     except Exception as e:
         logger.error(f"Failed to list workflows: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}", response_model=Dict[str, Any])
-async def get_workflow(workflow_id: str):
+async def get_workflow(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Get workflow details"""
     try:
         state = state_manager.load_state(workflow_id)
@@ -198,10 +200,10 @@ async def get_workflow(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/start", response_model=Dict[str, Any])
-async def start_workflow(workflow_id: str, request: StartWorkflowRequest):
+async def start_workflow(workflow_id: str, request: StartWorkflowRequest, current_user: User = Depends(get_current_user)):
     """Start or resume workflow execution"""
     try:
         # Validate inputs
@@ -237,10 +239,10 @@ async def start_workflow(workflow_id: str, request: StartWorkflowRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to start workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/pause", response_model=Dict[str, Any])
-async def pause_workflow(workflow_id: str):
+async def pause_workflow(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Pause workflow execution"""
     try:
         success = execution_engine.pause_workflow(workflow_id)
@@ -257,7 +259,7 @@ async def pause_workflow(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to pause workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/resume", response_model=Dict[str, Any])
 async def resume_workflow(workflow_id: str, request: UpdateWorkflowRequest):
@@ -272,10 +274,10 @@ async def resume_workflow(workflow_id: str, request: UpdateWorkflowRequest):
 
     except Exception as e:
         logger.error(f"Failed to resume workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/cancel", response_model=Dict[str, Any])
-async def cancel_workflow(workflow_id: str):
+async def cancel_workflow(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Cancel workflow execution"""
     try:
         success = execution_engine.cancel_workflow(workflow_id)
@@ -292,7 +294,7 @@ async def cancel_workflow(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to cancel workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}/status", response_model=Dict[str, Any])
 async def get_workflow_status(workflow_id: str):
@@ -312,7 +314,7 @@ async def get_workflow_status(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get workflow status {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}/step/{step_id}", response_model=Dict[str, Any])
 async def get_workflow_step(workflow_id: str, step_id: str):
@@ -343,7 +345,7 @@ async def get_workflow_step(workflow_id: str, step_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get workflow step {workflow_id}/{step_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/step/{step_id}/execute", response_model=Dict[str, Any])
 async def execute_workflow_step(workflow_id: str, step_id: str, request: WorkflowStepRequest):
@@ -395,7 +397,7 @@ async def execute_workflow_step(workflow_id: str, step_id: str, request: Workflo
         raise
     except Exception as e:
         logger.error(f"Failed to execute workflow step {workflow_id}/{step_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}/inputs/required", response_model=Dict[str, Any])
 async def get_required_inputs(workflow_id: str):
@@ -421,7 +423,7 @@ async def get_required_inputs(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get required inputs {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Template Management
 @router.get("/workflows/templates", response_model=List[Dict[str, Any]])
@@ -442,7 +444,7 @@ async def list_workflow_templates(
 
     except Exception as e:
         logger.error(f"Failed to list workflow templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/templates", response_model=Dict[str, Any])
 async def create_workflow_template(template: Dict[str, Any]):
@@ -457,10 +459,10 @@ async def create_workflow_template(template: Dict[str, Any]):
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to create workflow template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/from-template", response_model=Dict[str, Any])
 async def create_workflow_from_template(
@@ -486,10 +488,10 @@ async def create_workflow_from_template(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to create workflow from template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Parameter Types and Validation
 @router.get("/workflows/parameter-types", response_model=List[str])
@@ -527,11 +529,11 @@ async def validate_parameters(
 
     except Exception as e:
         logger.error(f"Failed to validate parameters: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Export/Import
 @router.get("/workflows/{workflow_id}/export", response_model=Dict[str, Any])
-async def export_workflow(workflow_id: str):
+async def export_workflow(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Export workflow definition"""
     try:
         state = state_manager.load_state(workflow_id)
@@ -554,10 +556,10 @@ async def export_workflow(workflow_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to export workflow {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/import", response_model=Dict[str, Any])
-async def import_workflow(workflow_definition: Dict[str, Any]):
+async def import_workflow(workflow_definition: Dict[str, Any], current_user: User = Depends(get_current_user)):
     """Import workflow definition"""
     try:
         # Create new workflow from definition
@@ -574,4 +576,4 @@ async def import_workflow(workflow_definition: Dict[str, Any]):
 
     except Exception as e:
         logger.error(f"Failed to import workflow: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
