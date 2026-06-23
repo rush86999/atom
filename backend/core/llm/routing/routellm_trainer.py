@@ -335,15 +335,31 @@ class RouteLLMTrainer:
         if self.model is None:
             return
 
-        model_file = Path(self.config.model_path) / f"{model_id}.pkl"
+        model_file = self._safe_model_path(model_id)
         with open(model_file, 'wb') as f:
             pickle.dump(self.model, f)
 
         logger.info(f"Model saved to {model_file}")
 
+    def _safe_model_path(self, model_id: str) -> Path:
+        """Resolve model file path with path-traversal containment.
+
+        Pickle deserialization is an RCE vector if an attacker can control the
+        file path. Ensure model_id cannot escape the configured model directory.
+        """
+        base = Path(self.config.model_path).resolve()
+        # Sanitize model_id: strip path separators and parent-dir references
+        safe_id = model_id.replace("/", "_").replace("\\", "_").replace("..", "_")
+        resolved = (base / f"{safe_id}.pkl").resolve()
+        try:
+            resolved.relative_to(base)
+        except ValueError:
+            raise ValueError(f"Model ID '{model_id}' resolves outside model directory")
+        return resolved
+
     def load_model(self, model_id: str) -> bool:
         """Load trained model from disk"""
-        model_file = Path(self.config.model_path) / f"{model_id}.pkl"
+        model_file = self._safe_model_path(model_id)
 
         if not model_file.exists():
             logger.warning(f"Model file not found: {model_file}")
