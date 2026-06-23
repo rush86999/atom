@@ -101,7 +101,7 @@ class FaultToleranceService:
         alternatives = self.db.query(AgentRegistry).filter(
             AgentRegistry.category == domain,
             AgentRegistry.id.notin_(exclude_ids),
-            AgentRegistry.            AgentRegistry.status == "active"  # Only active agents
+            AgentRegistry.status == "active"  # Only active agents
         ).all()
 
         if not alternatives:

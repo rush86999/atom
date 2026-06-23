@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import (
     AgentProposal,
@@ -177,10 +178,11 @@ async def get_training_proposal(
 async def approve_training_proposal(
     proposal_id: str,
     request: ApproveTrainingRequest,
-    user_id: str = Query(..., description="User approving the training"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Approve training proposal and create training session"""
+    user_id = current_user.id
     if not request.approve:
         # Reject proposal
         proposal = db.query(AgentProposal).filter(
@@ -231,10 +233,11 @@ async def approve_training_proposal(
 async def reject_training_proposal(
     proposal_id: str,
     request: RejectProposalRequest,
-    user_id: str = Query(..., description="User rejecting the proposal"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Reject training proposal"""
+    user_id = current_user.id
     proposal = db.query(AgentProposal).filter(
         AgentProposal.id == proposal_id
     ).first()
@@ -417,10 +420,11 @@ async def get_action_proposal(
 async def approve_action_proposal(
     proposal_id: str,
     request: ApproveActionProposalRequest,
-    user_id: str = Query(..., description="User approving the proposal"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Approve action proposal and execute"""
+    user_id = current_user.id
     proposal_service = ProposalService(db)
 
     try:
@@ -470,10 +474,11 @@ async def approve_action_proposal(
 async def reject_action_proposal(
     proposal_id: str,
     request: RejectProposalRequest,
-    user_id: str = Query(..., description="User rejecting the proposal"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Reject action proposal"""
+    user_id = current_user.id
     proposal_service = ProposalService(db)
 
     try:
@@ -687,7 +692,26 @@ async def supervision_websocket(
     - Intermediate results
     - Potential issues
     - Intervention notifications
+
+    Authentication: a ``token`` query parameter is required and must decode to a
+    valid JWT belonging to a user who owns or is supervising the session.
     """
+    # Auth: extract and verify token from the WebSocket handshake query string.
+    # FastAPI's WebSocket object exposes query params via websocket.query_params.
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4401)
+        return
+    try:
+        from core.jwt_verifier import verify_token
+        payload = verify_token(token)
+        if payload is None:
+            await websocket.close(code=4401)
+            return
+    except Exception:
+        await websocket.close(code=4401)
+        return
+
     await websocket.accept()
 
     try:

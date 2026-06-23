@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -20,7 +21,7 @@ class RegisterAgentRequest(BaseModel):
     interval_seconds: int = 3600
 
 @router.get("/tasks")
-async def list_background_tasks():
+async def list_background_tasks(current_user: User = Depends(get_current_user)):
     """List all background agent tasks"""
     try:
         from core.background_agent_runner import background_runner
