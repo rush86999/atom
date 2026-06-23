@@ -239,7 +239,7 @@ async def list_agents_with_maturity(
     
     except Exception as e:
         logger.error(f"Failed to list agents: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/agents/{agent_id}", response_model=AgentMaturityResponse)
@@ -271,7 +271,7 @@ async def get_agent_maturity(agent_id: str):
     
     except Exception as e:
         logger.error(f"Failed to get agent {agent_id}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/check-deployment", response_model=WorkflowApprovalResponse)
@@ -317,7 +317,7 @@ async def check_workflow_deployment(request: WorkflowApprovalRequest):
     
     except Exception as e:
         logger.error(f"Failed to check deployment: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/submit-for-approval")
@@ -361,7 +361,7 @@ async def submit_workflow_for_approval(request: WorkflowApprovalRequest):
     
     except Exception as e:
         logger.error(f"Failed to submit for approval: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/feedback")
@@ -388,7 +388,7 @@ async def submit_agent_feedback(request: AgentFeedbackRequest):
     
     except Exception as e:
         logger.error(f"Failed to submit feedback: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/pending-approvals")
@@ -411,7 +411,7 @@ async def list_pending_approvals(
     
     except Exception as e:
         logger.error(f"Failed to list pending approvals: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/approve/{approval_id}")
@@ -460,7 +460,7 @@ async def approve_workflow(
 
     except Exception as e:
         logger.error(f"Failed to approve workflow: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/reject/{approval_id}")
@@ -496,7 +496,7 @@ async def reject_workflow(
 
     except Exception as e:
         logger.error(f"Failed to reject workflow: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # ==================== SKILL LEVEL ENFORCEMENT ENDPOINTS ====================
@@ -557,7 +557,7 @@ async def get_agent_capabilities(agent_id: str):
     
     except Exception as e:
         logger.error(f"Failed to get capabilities: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/enforce-action")
@@ -647,7 +647,7 @@ async def enforce_action(request: ActionEnforceRequest):
     
     except Exception as e:
         logger.error(f"Failed to enforce action: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/generate-workflow")
@@ -709,4 +709,4 @@ async def generate_workflow_from_description(
     
     except Exception as e:
         logger.error(f"Failed to generate workflow: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

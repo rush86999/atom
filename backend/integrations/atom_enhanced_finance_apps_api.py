@@ -78,7 +78,7 @@ class AtomEnhancedFinanceAppsAPI:
                 }
             except Exception as e:
                 logger.error(f"Error getting finance apps: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/apps/{app_id}")
         async def get_finance_app_details(app_id: str):
@@ -118,7 +118,7 @@ class AtomEnhancedFinanceAppsAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error getting finance app details: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/apps/{app_id}/sync")
         async def sync_finance_app_data(
@@ -151,7 +151,7 @@ class AtomEnhancedFinanceAppsAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error syncing finance app data: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/apps/{app_id}/ingest")
         async def ingest_finance_data(
@@ -197,7 +197,7 @@ class AtomEnhancedFinanceAppsAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting finance data: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/analytics")
         async def get_finance_analytics(
@@ -234,7 +234,7 @@ class AtomEnhancedFinanceAppsAPI:
                 
             except Exception as e:
                 logger.error(f"Error getting finance analytics: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/financial-health")
         async def get_financial_health(
@@ -260,7 +260,7 @@ class AtomEnhancedFinanceAppsAPI:
                 
             except Exception as e:
                 logger.error(f"Error getting financial health: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/webhooks/{app_id}")
         async def handle_finance_webhook(
@@ -294,7 +294,7 @@ class AtomEnhancedFinanceAppsAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error handling finance webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/reports")
         async def get_finance_reports(
@@ -327,7 +327,7 @@ class AtomEnhancedFinanceAppsAPI:
                 
             except Exception as e:
                 logger.error(f"Error generating finance report: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
     
     async def _get_app_statistics(self, app_id: str) -> Dict[str, Any]:
         """Get statistics for a finance app"""

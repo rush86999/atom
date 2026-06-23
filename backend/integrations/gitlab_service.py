@@ -151,7 +151,7 @@ class GitLabService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"GitLab token exchange failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_user(self, access_token: str) -> Dict[str, Any]:
         """Get authenticated user info"""
@@ -165,7 +165,7 @@ class GitLabService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get user info: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch user info: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_projects(self, access_token: str, limit: int = 20, membership: bool = True) -> List[Dict[str, Any]]:
         """Get list of projects"""
@@ -184,7 +184,7 @@ class GitLabService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get projects: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch projects: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_issues(self, access_token: str, project_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of issues (globally or for a project)"""
@@ -203,7 +203,7 @@ class GitLabService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get issues: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch issues: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def search_projects(self, access_token: str, query: str) -> List[Dict[str, Any]]:
         """Search for projects"""
@@ -218,7 +218,7 @@ class GitLabService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Search failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync GitLab analytics to PostgreSQL IntegrationMetric table."""

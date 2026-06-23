@@ -196,7 +196,7 @@ class TestGithubRoutesNoStrELeak:
             stripped = line.lstrip()
             if stripped.startswith("#"):
                 continue
-            # Look for HTTPException(... detail=f"... {str(e)}" or {e})
+            # Look for HTTPException(... detail="Internal error" or {e})
             if "HTTPException" in line:
                 # scan forward a few lines for the detail
                 window = "\n".join(src.split("\n")[i - 1:i + 4])

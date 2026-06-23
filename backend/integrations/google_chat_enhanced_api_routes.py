@@ -56,7 +56,7 @@ async def send_google_chat_message(request: GoogleChatMessageRequest):
         return {"success": True, "result": result}
     except Exception as e:
         logger.error(f"Failed to send Google Chat message: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/spaces")
 async def list_google_chat_spaces():
@@ -66,4 +66,4 @@ async def list_google_chat_spaces():
         return {"spaces": []}
     except Exception as e:
         logger.error(f"Failed to list Google Chat spaces: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

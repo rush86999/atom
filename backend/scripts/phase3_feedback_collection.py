@@ -415,7 +415,7 @@ async def submit_feedback(
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to submit feedback: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -462,7 +462,7 @@ async def export_feedback(format_type: str = "json") -> Dict[str, str]:
         data = feedback_collector.export_feedback(format_type)
         return {"status": "success", "format": format_type, "data": data}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 
 @app.get("/health")

@@ -399,7 +399,7 @@ async def get_estimation_bias(user_id: Optional[str] = None):
             "data": bias_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/skill-gaps")
 async def get_skill_gaps():
@@ -415,7 +415,7 @@ async def get_skill_gaps():
             "data": gap_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/email-followups", response_model=List[FollowUpCandidate])
 async def get_email_followups():

@@ -254,7 +254,7 @@ class DeepgramService(IntegrationService):
             logger.error(f"Failed to transcribe audio: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to transcribe audio: {str(e)}"
+                detail="Internal error"
             )
 
     async def transcribe_file(
@@ -296,7 +296,7 @@ class DeepgramService(IntegrationService):
             logger.error(f"Failed to transcribe file: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to transcribe file: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_projects(self) -> List[Dict[str, Any]]:
@@ -319,7 +319,7 @@ class DeepgramService(IntegrationService):
             logger.error(f"Failed to get projects: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get projects: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_usage(
@@ -353,7 +353,7 @@ class DeepgramService(IntegrationService):
             logger.error(f"Failed to get usage: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get usage: {str(e)}"
+                detail="Internal error"
             )
 
 # Singleton instance removed - use IntegrationRegistry for per-tenant instances

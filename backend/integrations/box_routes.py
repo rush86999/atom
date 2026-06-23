@@ -42,7 +42,7 @@ async def get_auth_url(user_id: str = "default"):
         return {"url": result.get("auth_url", ""), "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to generate auth URL: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/files")
@@ -57,7 +57,7 @@ async def get_files(
         result = await box_service.list_files(access_token, folder_id, limit, offset)
         return {"ok": True, "files": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/files/{file_id}")
@@ -67,7 +67,7 @@ async def get_file_metadata(file_id: str, access_token: str):
         result = await box_service.get_file_metadata(access_token, file_id)
         return {"ok": True, "file": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/download/{file_id}")
@@ -77,7 +77,7 @@ async def download_file(file_id: str, access_token: str):
         result = await box_service.download_file(access_token, file_id)
         return {"ok": True, **result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/folders")
@@ -91,7 +91,7 @@ async def create_folder(
         result = await box_service.create_folder(access_token, parent_folder_id, folder_name)
         return {"ok": True, "folder": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")
@@ -106,7 +106,7 @@ async def search_files(request: BoxSearchRequest, access_token: str):
         )
         return {"ok": True, "results": result, "query": request.query, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status")

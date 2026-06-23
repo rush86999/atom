@@ -96,7 +96,7 @@ async def get_all_ingestion_settings(
         return [IngestionSettingsResponse(**s) for s in settings_list]
     except Exception as e:
         logger.error(f"Failed to get ingestion settings: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/settings/{integration_id}", response_model=IngestionSettingsResponse)
@@ -124,7 +124,7 @@ async def get_integration_settings(
         )
     except Exception as e:
         logger.error(f"Failed to get settings for {integration_id}: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.put("/settings")
@@ -161,7 +161,7 @@ async def update_ingestion_settings(
         )
     except Exception as e:
         logger.error(f"Failed to update settings: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResultResponse)
@@ -190,7 +190,7 @@ async def trigger_document_sync(
         )
     except Exception as e:
         logger.error(f"Document sync failed: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.delete("/memory/{integration_id}", response_model=RemoveMemoryResponse)
@@ -216,7 +216,7 @@ async def remove_integration_memory(
         )
     except Exception as e:
         logger.error(f"Memory removal failed: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/documents")
@@ -252,7 +252,7 @@ async def list_ingested_documents(
         )
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/supported-integrations")
@@ -534,4 +534,4 @@ async def upload_document(
         raise he
     except Exception as e:
         logger.error(f"Upload failed: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")

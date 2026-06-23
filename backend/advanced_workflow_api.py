@@ -87,7 +87,7 @@ async def execute_advanced_workflow(
 
     except Exception as e:
         logger.error(f"Advanced workflow execution failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/definitions", response_model=List[WorkflowDefinitionResponse])
 async def get_workflow_definitions():
@@ -101,7 +101,7 @@ async def get_workflow_definitions():
         ]
     except Exception as e:
         logger.error(f"Failed to get workflow definitions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/stats", response_model=WorkflowStatsResponse)
 async def get_workflow_stats():
@@ -112,7 +112,7 @@ async def get_workflow_stats():
         return WorkflowStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Failed to get workflow stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-customer-support")
 async def demo_customer_support_workflow():
@@ -158,7 +158,7 @@ async def demo_customer_support_workflow():
 
     except Exception as e:
         logger.error(f"Demo workflow failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-project-management")
 async def demo_project_management_workflow():
@@ -204,7 +204,7 @@ async def demo_project_management_workflow():
 
     except Exception as e:
         logger.error(f"Demo workflow failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-sales-lead")
 async def demo_sales_lead_workflow():
@@ -249,7 +249,7 @@ async def demo_sales_lead_workflow():
 
     except Exception as e:
         logger.error(f"Demo workflow failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/validation-summary")
 async def get_workflow_validation_summary():
@@ -313,7 +313,7 @@ async def get_workflow_validation_summary():
 
     except Exception as e:
         logger.error(f"Failed to get validation summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 class AgentWorkflowRequest(BaseModel):
     """Request model for agent-driven workflow generation"""
     prompt: str
@@ -363,4 +363,4 @@ async def generate_workflow_from_agent(request: AgentWorkflowRequest):
         }
     except Exception as e:
         logger.error(f"Failed to generate workflow from agent: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

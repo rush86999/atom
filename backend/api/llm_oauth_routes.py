@@ -248,7 +248,7 @@ async def oauth_callback(
         logger.error(f"OAuth callback failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"OAuth callback failed: {str(e)}"
+            detail="Internal error"
         )
 
 

@@ -78,7 +78,7 @@ class AtomCommunicationMemoryAPI:
                 }
             except Exception as e:
                 logger.error(f"Error getting memory system status: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/apps")
         async def get_configured_memory_apps():
@@ -108,7 +108,7 @@ class AtomCommunicationMemoryAPI:
                 }
             except Exception as e:
                 logger.error(f"Error getting configured apps: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest")
         async def ingest_communication_message(
@@ -155,7 +155,7 @@ class AtomCommunicationMemoryAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting message: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest/batch")
         async def ingest_communication_batch(
@@ -193,7 +193,7 @@ class AtomCommunicationMemoryAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting batch: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/search")
         async def search_memory(
@@ -246,10 +246,10 @@ class AtomCommunicationMemoryAPI:
                 }
                 
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error searching memory: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/communications/{app_id}")
         async def get_app_communications(
@@ -294,7 +294,7 @@ class AtomCommunicationMemoryAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error getting communications: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/analytics")
         async def get_memory_analytics(
@@ -472,10 +472,10 @@ class AtomCommunicationMemoryAPI:
                 }
                 
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error getting analytics: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/configure")
         async def configure_app_memory(
@@ -503,7 +503,7 @@ class AtomCommunicationMemoryAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error configuring app: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
     
     def get_router(self):
         """Get the configured router"""

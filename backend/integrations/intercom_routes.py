@@ -49,7 +49,7 @@ async def auth_callback(request: IntercomAuthRequest):
         }
     except Exception as e:
         logger.error(f"Intercom auth callback failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 
 @router.get("/contacts")
@@ -69,7 +69,7 @@ async def get_contacts(
         }
     except Exception as e:
         logger.error(f"Failed to get contacts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/conversations")
@@ -89,7 +89,7 @@ async def get_conversations(
         }
     except Exception as e:
         logger.error(f"Failed to get conversations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/admins")
@@ -106,7 +106,7 @@ async def get_admins(access_token: str = Query(..., description="Access token"))
         }
     except Exception as e:
         logger.error(f"Failed to get admins: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")
@@ -127,7 +127,7 @@ async def search_contacts(
         }
     except Exception as e:
         logger.error(f"Intercom search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status")

@@ -831,7 +831,7 @@ def execute_npm_code(
         logger.error(f"Error executing npm skill {request.skill_id}: {e}")
         raise HTTPException(
             status_code=500,
-            detail={"error": f"Execution failed: {str(e)}"}
+            detail={"error": "Internal error"}
         )
 
 
@@ -901,7 +901,7 @@ def install_packages(
                 raise
             raise HTTPException(
                 status_code=400,
-                detail={"error": f"Invalid requirement '{req_str}': {str(e)}"}
+                detail={"error": "Internal error"}
             )
 
     # Step 2: Install packages (includes vulnerability scanning if enabled)
@@ -994,7 +994,7 @@ def execute_with_packages(
         logger.error(f"Error executing skill {request.skill_id}: {e}")
         raise HTTPException(
             status_code=500,
-            detail={"error": f"Execution failed: {str(e)}"}
+            detail={"error": "Internal error"}
         )
 
 
@@ -1065,7 +1065,7 @@ def get_skill_image_status(skill_id: str):
         logger.error(f"Error checking image status for {skill_id}: {e}")
         raise HTTPException(
             status_code=500,
-            detail={"error": f"Failed to check image status: {str(e)}"}
+            detail={"error": "Internal error"}
         )
 
 
@@ -1180,7 +1180,7 @@ def get_npm_skill_image_status(skill_id: str):
         logger.error(f"Error checking npm image status for {skill_id}: {e}")
         raise HTTPException(
             status_code=500,
-            detail={"error": f"Failed to check npm image status: {str(e)}"}
+            detail={"error": "Internal error"}
         )
 
 

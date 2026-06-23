@@ -38,7 +38,7 @@ async def mailchimp_auth_callback(auth_request: MailchimpAuthRequest):
             "service": "mailchimp"
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/audiences")
 async def get_audiences(

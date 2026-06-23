@@ -110,7 +110,7 @@ async def ingest_document(
         )
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
@@ -182,7 +182,7 @@ async def upload_document(
         )
     except Exception as e:
         logger.error(f"File upload failed: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 @router.get("/search", response_model=SearchResponse)
 async def search_documents(
@@ -236,7 +236,7 @@ async def search_documents(
         )
     except Exception as e:
         logger.error(f"Document search failed: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 @router.get("/{doc_id}")
 async def get_document(
@@ -269,7 +269,7 @@ async def get_document(
         })
     except Exception as e:
         logger.error(f"Failed to get document {doc_id}: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 @router.delete("/{doc_id}")
 @require_governance(
@@ -333,4 +333,4 @@ async def list_documents(
         )
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
-        return router.internal_error(message=str(e))
+        return router.internal_error(message="Internal error")

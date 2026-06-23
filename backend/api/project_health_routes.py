@@ -431,7 +431,7 @@ async def check_project_health(
         logger.error(f"Project health check failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to check project health: {str(e)}"
+            detail="Internal error"
         )
 
 

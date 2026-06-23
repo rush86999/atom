@@ -136,7 +136,7 @@ class OAuthHandler:
             logger.error(f"OAuth token request failed: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to connect to OAuth provider: {str(e)}"
+                detail="Internal error"
             )
     
     async def refresh_access_token(self, refresh_token: str) -> Dict:
@@ -175,7 +175,7 @@ class OAuthHandler:
             logger.error(f"OAuth refresh request failed: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to connect to OAuth provider: {str(e)}"
+                detail="Internal error"
             )
 
 

@@ -75,7 +75,7 @@ class WorkdayService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Workday get_worker failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def health_check(self) -> Dict[str, Any]:
         """Check Workday connectivity"""

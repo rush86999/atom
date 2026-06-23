@@ -139,7 +139,7 @@ async def start_operation(
 
     except Exception as e:
         logger.error(f"Failed to start operation: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.put("/operation/{operation_id}/update")
@@ -181,7 +181,7 @@ async def update_operation(
 
     except Exception as e:
         logger.error(f"Failed to update operation: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/operation/{operation_id}/complete")
@@ -210,7 +210,7 @@ async def complete_operation(
 
     except Exception as e:
         logger.error(f"Failed to complete operation: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/operation/{operation_id}")
@@ -259,7 +259,7 @@ async def get_operation(
 
     except Exception as e:
         logger.error(f"Failed to get operation: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # View Orchestration Endpoints
@@ -308,7 +308,7 @@ async def switch_view(
 
     except Exception as e:
         logger.error(f"Failed to switch view: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/view/layout")
@@ -335,7 +335,7 @@ async def set_layout(
 
     except Exception as e:
         logger.error(f"Failed to set layout: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # Error Guidance Endpoints
@@ -364,7 +364,7 @@ async def present_error(
 
     except Exception as e:
         logger.error(f"Failed to present error: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/error/track-resolution")
@@ -394,7 +394,7 @@ async def track_resolution(
 
     except Exception as e:
         logger.error(f"Failed to track resolution: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # Agent Request Endpoints
@@ -429,7 +429,7 @@ async def create_permission_request(
 
     except Exception as e:
         logger.error(f"Failed to create permission request: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/request/decision")
@@ -465,7 +465,7 @@ async def create_decision_request(
 
     except Exception as e:
         logger.error(f"Failed to create decision request: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/request/{request_id}/respond")
@@ -493,7 +493,7 @@ async def respond_to_request(
 
     except Exception as e:
         logger.error(f"Failed to respond to request: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/request/{request_id}")
@@ -534,4 +534,4 @@ async def get_request(
 
     except Exception as e:
         logger.error(f"Failed to get request: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

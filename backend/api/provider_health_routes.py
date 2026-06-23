@@ -144,5 +144,5 @@ async def trigger_provider_sync() -> Dict[str, Any]:
         logger.error(f"Manual sync failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Sync failed: {str(e)}"
+            detail="Internal error"
         )

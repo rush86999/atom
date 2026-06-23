@@ -181,7 +181,7 @@ async def send_slack_message(
             )
         except SlackApiError as e:
             logger.error(f"Error sending message: {e.response['error']}")
-            raise HTTPException(status_code=400, detail=f"Slack API Error: {e.response['error']}")
+            raise HTTPException(status_code=400, detail="Internal error"error']}")
 
     # Fallback to mock
     return SlackMessageResponse(
@@ -629,7 +629,7 @@ async def slack_oauth_callback(
             logger.info(f"OAuth state validated for user {current_user.id}")
         except ValueError as e:
             logger.warning(f"OAuth state validation failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid state parameter: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
         # Exchange code for tokens
         handler = OAuthHandler(SLACK_OAUTH_CONFIG)
@@ -662,7 +662,7 @@ async def slack_oauth_callback(
         raise
     except Exception as e:
         logger.error(f"Slack OAuth callback error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/auth/url")
 async def get_auth_url(current_user: User = Depends(get_current_user)):
@@ -691,4 +691,4 @@ async def get_auth_url(current_user: User = Depends(get_current_user)):
         }
     except Exception as e:
         logger.error(f"Error generating Slack auth URL: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

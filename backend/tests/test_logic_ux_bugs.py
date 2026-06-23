@@ -4,8 +4,8 @@ Test suite for Logic Bugs and UX Issues.
 RED PHASE: These tests expose logic bugs and UX issues.
 
 The bugs:
-1. analytics/routes.py:106 - Exposes internal errors via detail=str(e)
-2. evidence_collection_api.py:44,63,89 - Exposes internal errors via detail=str(e)
+1. analytics/routes.py:106 - Exposes internal errors via detail="Internal error"
+2. evidence_collection_api.py:44,63,89 - Exposes internal errors via detail="Internal error"
 3. api/canvas_routes.py:180 - Missing canvas-specific schema validation (TODO)
 4. tests/failure_modes/test_resource_exhaustion.py:38 - Missing max_size validation (TODO)
 """
@@ -27,7 +27,7 @@ class TestLogicAndUXBugs:
         """
         Test that analytics routes exposes internal errors.
 
-        BUG: Line 106 - Uses detail=str(e) which exposes internal errors.
+        BUG: Line 106 - Uses detail="Internal error" which exposes internal errors.
         This is a security issue (information disclosure) and UX issue
         (technical error messages to end users).
         """
@@ -35,14 +35,14 @@ class TestLogicAndUXBugs:
             source = f.read()
 
         # Verify the bug - internal error is exposed
-        assert 'detail=str(e)' in source, \
-            "Bug confirmed: Internal errors exposed via detail=str(e)"
+        assert 'detail="Internal error"' in source, \
+            "Bug confirmed: Internal errors exposed via detail="Internal error""
 
     def test_evidence_collection_api_exposes_internal_errors(self):
         """
         Test that evidence collection API exposes internal errors.
 
-        BUG: Lines 44,63,89 - Uses detail=str(e) which exposes internal errors.
+        BUG: Lines 44,63,89 - Uses detail="Internal error" which exposes internal errors.
         This is a security issue (information disclosure) and UX issue
         (technical error messages to end users).
         """
@@ -50,9 +50,9 @@ class TestLogicAndUXBugs:
             source = f.read()
 
         # Verify the bug - internal errors are exposed
-        count = source.count('detail=str(e)')
+        count = source.count('detail="Internal error"')
         assert count >= 3, \
-            f"Bug confirmed: {count} instances of internal errors exposed via detail=str(e)"
+            f"Bug confirmed: {count} instances of internal errors exposed via detail="Internal error""
 
     def test_canvas_routes_missing_schema_validation(self):
         """
@@ -90,7 +90,7 @@ class TestLogicAndUXBugs:
         """
         Test that error messages could be used for injection attacks.
 
-        BUG: Using detail=str(e) directly could allow attackers to inject
+        BUG: Using detail="Internal error" directly could allow attackers to inject
         malicious content into error responses if exceptions contain
         user-controlled data.
         """
@@ -104,13 +104,13 @@ class TestLogicAndUXBugs:
             try:
                 with open(file_path, 'r') as f:
                     source = f.read()
-                if 'detail=str(e)' in source:
+                if 'detail="Internal error"' in source:
                     vulnerable_count += 1
             except Exception:
                 pass
 
         assert vulnerable_count >= 1, \
-            f"Bug confirmed: {vulnerable_count} files expose internal errors via detail=str(e)"
+            f"Bug confirmed: {vulnerable_count} files expose internal errors via detail="Internal error""
 
     def test_generic_exception_handling(self):
         """

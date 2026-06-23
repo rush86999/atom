@@ -93,7 +93,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Discord token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
@@ -116,7 +116,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Failed to get current user: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get user info: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_user_guilds(
@@ -145,7 +145,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Failed to get user guilds: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get guilds: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_guild_channels(
@@ -169,7 +169,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Failed to get guild channels: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get channels: {str(e)}"
+                detail="Internal error"
             )
 
     async def send_message(
@@ -200,7 +200,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Failed to send message: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to send message: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_channel_messages(
@@ -227,7 +227,7 @@ class DiscordService(IntegrationService):
             logger.error(f"Failed to get messages: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get messages: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

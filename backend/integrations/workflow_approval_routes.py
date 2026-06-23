@@ -62,7 +62,7 @@ async def respond_to_approval(
         raise HTTPException(status_code=404, detail="Execution not found")
         
     if execution.status != WorkflowStatus.WAITING_APPROVAL.value:
-        raise HTTPException(status_code=400, detail=f"Execution is in {execution.status} state, not WAITING_APPROVAL")
+        raise HTTPException(status_code=400, detail="Internal error")
 
     orchestrator = AdvancedWorkflowOrchestrator() # In real app, this should be a singleton/injected
     
@@ -73,7 +73,7 @@ async def respond_to_approval(
             return {"status": "success", "message": f"Workflow {execution_id} resumed"}
         except Exception as e:
             logger.error(f"Failed to resume workflow: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
     else:
         # Reject/Cancel
         execution.status = WorkflowExecutionStatus.FAILED.value

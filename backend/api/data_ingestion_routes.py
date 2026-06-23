@@ -64,7 +64,7 @@ async def get_integration_usage(current_user: User = Depends(get_current_user)):
         return UsageSummaryResponse(**summary)
     except Exception as e:
         logger.error(f"Failed to get usage summary: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.post("/enable-sync")
@@ -114,7 +114,7 @@ async def enable_auto_sync(
         )
     except Exception as e:
         logger.error(f"Failed to enable auto-sync: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.post("/disable-sync/{integration_id}")
@@ -148,7 +148,7 @@ async def disable_auto_sync(
         )
     except Exception as e:
         logger.error(f"Failed to disable auto-sync: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResponse)
@@ -186,7 +186,7 @@ async def trigger_sync(
         )
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/sync-status/{integration_id}")
@@ -224,7 +224,7 @@ async def get_sync_status(
         }
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/available-integrations")

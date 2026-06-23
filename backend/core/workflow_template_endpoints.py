@@ -148,7 +148,7 @@ async def create_template(request: CreateTemplateRequest):
 
     except Exception as e:
         logger.error(f"Failed to create template: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/templates", response_model=List[TemplateResponse])
 async def list_templates(
@@ -178,7 +178,7 @@ async def list_templates(
 
     except Exception as e:
         logger.error(f"Failed to list templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/search", response_model=List[TemplateResponse])
 async def search_templates(
@@ -192,7 +192,7 @@ async def search_templates(
 
     except Exception as e:
         logger.error(f"Failed to search templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template(template_id: str):
@@ -208,7 +208,7 @@ async def get_template(template_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.put("/templates/{template_id}", response_model=TemplateResponse)
 async def update_template(template_id: str, request: UpdateTemplateRequest):
@@ -221,10 +221,10 @@ async def update_template(template_id: str, request: UpdateTemplateRequest):
         return serialize_template(template)
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to update template {template_id}: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.delete("/templates/{template_id}")
 async def delete_template(template_id: str):
@@ -240,7 +240,7 @@ async def delete_template(template_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to delete template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Workflow Creation from Templates
 @router.post("/templates/{template_id}/create-workflow", response_model=WorkflowCreationResponse)
@@ -260,10 +260,10 @@ async def create_workflow_from_template(
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to create workflow from template {template_id}: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 # Template Rating and Analytics
 @router.post("/templates/{template_id}/rate")
@@ -287,7 +287,7 @@ async def rate_template(template_id: str, rating: Dict[str, float]):
         raise
     except Exception as e:
         logger.error(f"Failed to rate template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/statistics")
 async def get_template_statistics():
@@ -298,7 +298,7 @@ async def get_template_statistics():
 
     except Exception as e:
         logger.error(f"Failed to get template statistics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Template Import/Export
 @router.get("/templates/{template_id}/export")
@@ -314,10 +314,10 @@ async def export_template(template_id: str):
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to export template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/templates/import")
 async def import_template(
@@ -334,10 +334,10 @@ async def import_template(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to import template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/templates/import-file")
 async def import_template_from_file(
@@ -362,10 +362,10 @@ async def import_template_from_file(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file format")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to import template from file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Template Categories and Metadata
 @router.get("/templates/categories")
@@ -418,7 +418,7 @@ async def get_template_usage(template_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get template usage for {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Template Validation
 @router.post("/templates/validate")
@@ -458,7 +458,7 @@ async def get_featured_templates(limit: int = Query(10, ge=1, le=50)):
 
     except Exception as e:
         logger.error(f"Failed to get featured templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/popular", response_model=List[TemplateResponse])
 async def get_popular_templates(limit: int = Query(10, ge=1, le=50)):
@@ -471,7 +471,7 @@ async def get_popular_templates(limit: int = Query(10, ge=1, le=50)):
 
     except Exception as e:
         logger.error(f"Failed to get popular templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/top-rated", response_model=List[TemplateResponse])
 async def get_top_rated_templates(limit: int = Query(10, ge=1, le=50)):
@@ -485,7 +485,7 @@ async def get_top_rated_templates(limit: int = Query(10, ge=1, le=50)):
 
     except Exception as e:
         logger.error(f"Failed to get top rated templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/templates/recent", response_model=List[TemplateResponse])
 async def get_recent_templates(limit: int = Query(10, ge=1, le=50)):
@@ -498,4 +498,4 @@ async def get_recent_templates(limit: int = Query(10, ge=1, le=50)):
 
     except Exception as e:
         logger.error(f"Failed to get recent templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

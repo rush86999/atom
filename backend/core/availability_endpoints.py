@@ -53,4 +53,4 @@ async def negotiate_availability(
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Negotiation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

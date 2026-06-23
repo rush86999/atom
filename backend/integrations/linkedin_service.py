@@ -81,7 +81,7 @@ class LinkedInService(IntegrationService):
             logger.error(f"LinkedIn token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_profile(self, access_token: str = None) -> Dict[str, Any]:
@@ -104,7 +104,7 @@ class LinkedInService(IntegrationService):
             logger.error(f"Failed to get profile: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get profile: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_email(self, access_token: str = None) -> Dict[str, Any]:
@@ -129,7 +129,7 @@ class LinkedInService(IntegrationService):
             logger.error(f"Failed to get email: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get email: {str(e)}"
+                detail="Internal error"
             )
 
     async def share_update(
@@ -178,7 +178,7 @@ class LinkedInService(IntegrationService):
             logger.error(f"Failed to share update: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to share update: {str(e)}"
+                detail="Internal error"
             )
 
     def health_check(self) -> Dict[str, Any]:

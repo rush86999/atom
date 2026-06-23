@@ -150,7 +150,7 @@ async def mobile_login(
         raise
     except Exception as e:
         logger.error(f"Mobile login error: {e}")
-        raise router.internal_error(f"Login failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/mobile/biometric/register", response_model=BiometricRegisterResponse)
@@ -210,7 +210,7 @@ async def register_biometric(
         raise
     except Exception as e:
         logger.error(f"Biometric registration error: {e}")
-        raise router.internal_error(f"Registration failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/mobile/biometric/authenticate", response_model=BiometricAuthResponse)
@@ -291,7 +291,7 @@ async def authenticate_with_biometric(
         raise
     except Exception as e:
         logger.error(f"Biometric authentication error: {e}")
-        raise router.internal_error(f"Authentication failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/mobile/refresh")
@@ -353,7 +353,7 @@ async def refresh_mobile_token(
         raise
     except Exception as e:
         logger.error(f"Token refresh error: {e}")
-        raise router.internal_error(f"Refresh failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/mobile/device", response_model=DeviceInfoResponse)
@@ -395,7 +395,7 @@ async def get_mobile_device_info(
         raise
     except Exception as e:
         logger.error(f"Get device info error: {e}")
-        raise router.internal_error(f"Failed to get device info: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.delete("/mobile/device")
@@ -435,4 +435,4 @@ async def delete_mobile_device(
         raise
     except Exception as e:
         logger.error(f"Delete device error: {e}")
-        raise router.internal_error(f"Failed to unregister device: {str(e)}")
+        raise router.internal_error("Internal error")

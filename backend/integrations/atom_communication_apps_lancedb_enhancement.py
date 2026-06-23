@@ -42,7 +42,7 @@ async def ingest_whatsapp_message_to_memory(message_data: Dict[str, Any]):
         }
     except Exception as e:
         logger.error(f"Error ingesting WhatsApp message to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/ingest-memory/batch")
 async def ingest_whatsapp_batch_to_memory(messages: List[Dict[str, Any]]):
@@ -63,7 +63,7 @@ async def ingest_whatsapp_batch_to_memory(messages: List[Dict[str, Any]]):
         }
     except Exception as e:
         logger.error(f"Error ingesting WhatsApp batch to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Enhanced message handling with memory ingestion
 original_send_message = send_message
@@ -136,7 +136,7 @@ async def ingest_email_message_to_memory(email_data: Dict[str, Any]):
         }
     except Exception as e:
         logger.error(f"Error ingesting email message to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/ingest-memory/thread")
 async def ingest_email_thread_to_memory(thread_data: Dict[str, Any]):
@@ -176,7 +176,7 @@ async def ingest_email_thread_to_memory(thread_data: Dict[str, Any]):
         }
     except Exception as e:
         logger.error(f"Error ingesting email thread to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 '''
         
         self.apps_enhanced.append({
@@ -215,7 +215,7 @@ async def ingest_slack_message_to_memory(message_data: Dict[str, Any]):
         }
     except Exception as e:
         logger.error(f"Error ingesting Slack message to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/ingest-memory/channel")
 async def ingest_slack_channel_history_to_memory(channel_data: Dict[str, Any]):
@@ -256,7 +256,7 @@ async def ingest_slack_channel_history_to_memory(channel_data: Dict[str, Any]):
         }
     except Exception as e:
         logger.error(f"Error ingesting Slack channel to memory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 '''
         
         self.apps_enhanced.append({
@@ -308,7 +308,7 @@ async def ingest_{app}_message_to_memory(message_data: Dict[str, Any]):
         }}
     except Exception as e:
         logger.error(f"Error ingesting {app} message to memory: {{str(e)}}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/ingest-memory/batch")
 async def ingest_{app}_batch_to_memory(messages: List[Dict[str, Any]]):
@@ -329,7 +329,7 @@ async def ingest_{app}_batch_to_memory(messages: List[Dict[str, Any]]):
         }}
     except Exception as e:
         logger.error(f"Error ingesting {app} batch to memory: {{str(e)}}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 '''
             
             app_enhancements[app] = generic_enhancement

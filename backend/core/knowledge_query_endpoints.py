@@ -88,4 +88,4 @@ async def knowledge_query(
         return {"success": True, "answer": result.get("answer"), "relevant_facts": result.get("relevant_facts"), "mode": result.get("mode")}
     except Exception as e:
         logger.error(f"Knowledge query failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

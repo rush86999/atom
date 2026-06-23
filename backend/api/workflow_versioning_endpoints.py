@@ -238,7 +238,7 @@ async def create_workflow_version(
 
     except Exception as e:
         logger.error(f"Error creating version for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/versions", response_model=List[VersionResponse])
 async def get_workflow_versions(
@@ -280,7 +280,7 @@ async def get_workflow_versions(
 
     except Exception as e:
         logger.error(f"Error getting versions for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/versions/{version}", response_model=VersionResponse)
 async def get_workflow_version(
@@ -313,7 +313,7 @@ async def get_workflow_version(
         logger.error(f"Error getting version {version} for workflow {workflow_id}: {str(e)}")
         if "not found" in str(e).lower():
             raise router.not_found_error("Version", version)
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/versions/{version}/data")
 async def get_workflow_version_data(
@@ -341,7 +341,7 @@ async def get_workflow_version_data(
         logger.error(f"Error getting version data {version} for workflow {workflow_id}: {str(e)}")
         if "not found" in str(e).lower():
             raise
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.post("/{workflow_id}/rollback")
 async def rollback_workflow(
@@ -382,7 +382,7 @@ async def rollback_workflow(
         logger.error(f"Error rolling back workflow {workflow_id}: {str(e)}")
         if "not found" in str(e).lower():
             raise
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/versions/compare", response_model=VersionDiffResponse)
 async def compare_workflow_versions(
@@ -432,7 +432,7 @@ async def compare_workflow_versions(
         logger.error(f"Error comparing versions for workflow {workflow_id}: {str(e)}")
         if "not found" in str(e).lower():
             raise
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.delete("/{workflow_id}/versions/{version}")
 async def delete_workflow_version(
@@ -467,7 +467,7 @@ async def delete_workflow_version(
         logger.error(f"Error deleting version {version} for workflow {workflow_id}: {str(e)}")
         if "validation" in str(e).lower():
             raise
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 # Branch Management Endpoints
 
@@ -500,7 +500,7 @@ async def create_workflow_branch(
 
     except Exception as e:
         logger.error(f"Error creating branch for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/branches", response_model=List[BranchResponse])
 async def get_workflow_branches(
@@ -527,7 +527,7 @@ async def get_workflow_branches(
 
     except Exception as e:
         logger.error(f"Error getting branches for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.post("/{workflow_id}/branches/merge")
 async def merge_workflow_branch(
@@ -560,7 +560,7 @@ async def merge_workflow_branch(
 
     except Exception as e:
         logger.error(f"Error merging branches for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 # Version Metrics and Analytics Endpoints
 
@@ -593,7 +593,7 @@ async def get_version_metrics(
 
     except Exception as e:
         logger.error(f"Error getting metrics for version {version}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.post("/{workflow_id}/versions/{version}/metrics")
 async def update_version_metrics(
@@ -622,7 +622,7 @@ async def update_version_metrics(
 
     except Exception as e:
         logger.error(f"Error updating metrics for version {version}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 # Utility Endpoints
 
@@ -664,7 +664,7 @@ async def get_latest_version(
         logger.error(f"Error getting latest version for workflow {workflow_id}: {str(e)}")
         if "not found" in str(e).lower():
             raise
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/{workflow_id}/versions/summary")
 async def get_version_summary(
@@ -717,7 +717,7 @@ async def get_version_summary(
 
     except Exception as e:
         logger.error(f"Error getting version summary for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 # Health check endpoint
 @router.get("/versioning/health")

@@ -207,7 +207,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"HubSpot authentication failed: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Authentication failed: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error during HubSpot authentication: {e}")
@@ -244,7 +244,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot contacts: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get contacts: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -276,7 +276,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot companies: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get companies: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -306,7 +306,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot deals: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get deals: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def get_campaigns(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -335,7 +335,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot campaigns: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get campaigns: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def search_content(self, query: str, object_type: str = "contact") -> Dict[str, Any]:
@@ -364,7 +364,7 @@ class HubSpotService(IntegrationService):
 
         except httpx.HTTPError as e:
             logger.error(f"HubSpot search failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Search failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def create_contact(self, email: str, first_name: Optional[str] = None, last_name: Optional[str] = None, company: Optional[str] = None, phone: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot contact"""
@@ -402,7 +402,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot contact: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to create contact: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def create_company(self, name: str, domain: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
@@ -438,7 +438,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot company: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to create company: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
@@ -489,7 +489,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot deal: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to create deal: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def get_contact(self, contact_id: str, token: Optional[str] = None) -> Dict[str, Any]:
@@ -520,7 +520,7 @@ class HubSpotService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot {object_type} {object_id}: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get {object_type}: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
         """Update an existing HubSpot contact"""
         return await self.update_object("contacts", contact_id, properties, token)
 
@@ -554,7 +554,7 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to update HubSpot {object_type}: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to update {object_type}: {str(e)}"
+                status_code=400, detail="Internal error"
             )
 
     async def get_analytics(self, token: Optional[str] = None) -> Dict[str, Any]:

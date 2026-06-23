@@ -136,7 +136,7 @@ async def get_user_queue(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get user queue: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -173,7 +173,7 @@ async def cancel_queue_entry(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cancel queue entry: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -220,7 +220,7 @@ async def process_queue_manually(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process queue: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -244,7 +244,7 @@ async def get_queue_stats(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get queue stats: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -270,7 +270,7 @@ async def mark_expired_entries(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to mark expired entries: {str(e)}"
+            detail="Internal error"
         )
 
 

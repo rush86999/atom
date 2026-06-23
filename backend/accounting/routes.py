@@ -367,4 +367,4 @@ async def upload_invoice(
         # Clean up file on processing error
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise HTTPException(status_code=500, detail=f"Invoice processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")

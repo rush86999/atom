@@ -1,490 +1,132 @@
 # Atom - AI-Powered Business Automation Platform
 
-> **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
+> **Project Context**: Intelligent business automation/integration platform using AI agents to automate workflows, integrate services, and manage operations.
 
-**Last Updated**: June 21, 2026
+**Last Updated**: June 22, 2026
 
 ---
 
 ## Quick Overview
 
-**What is Atom?**
-- AI-powered workflow automation platform with multi-agent system and governance
-- Real-time streaming LLM responses with multi-provider support
-- Canvas-based visual presentations with custom components
-- Browser automation (CDP) and device capabilities
-- Enhanced feedback system with A/B testing
-- Mobile support architecture (React Native)
-- **✨ Episodic Memory & Graduation Framework** - Agent learning from past experiences
-- **✨ Auto-Dev Module** - Self-evolving agents that learn from failures and optimize skills
-- **✨ Federation & Instance Identity** - Multi-instance communication and resource sharing
-- **✨ Personal Edition** - Run Atom locally with Docker
-- **✨ Production-Ready** - CI/CD pipeline, monitoring, health checks
+**What**: AI-powered workflow automation with multi-agent governance, real-time streaming LLM, canvas presentations, browser/device automation, episodic memory, auto-dev, federation, personal edition, production CI/CD.
 
 **Tech Stack**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite/PostgreSQL, Multi-provider LLM, Playwright, Redis (WebSocket), Alembic
 
-**Key Directories**: `backend/core/`, `backend/api/`, `backend/tools/`, `backend/tests/`, `frontend-nextjs/`, `mobile/`, `docs/`
+**Key Dirs**: `backend/core/`, `backend/api/`, `backend/tools/`, `backend/tests/`, `frontend-nextjs/`, `mobile/`, `docs/`
 
-**Key Services**:
-- `agent_governance_service.py` - Agent lifecycle and permissions
-- `trigger_interceptor.py` - Maturity-based trigger routing
-- `student_training_service.py` - Training proposals and sessions
-- `supervision_service.py` - Real-time supervision monitoring
-- `governance_cache.py` - High-performance caching (<1ms lookups)
-- `intent_classifier.py` - Intent classification (CHAT/WORKFLOW/TASK routing)
-- `queen_agent.py` - Structured workflow automation (Queen Hive)
-- `fleet_admiral.py` - Dynamic agent recruitment for unstructured complex tasks
-- `atom_meta_agent.py` - Central orchestrator with domain creation and fleet recruitment
-- `auto_dev/` - Auto-Dev module (Memento-Skills, AlphaEvolver, EventBus, Sandbox)
-- `atom_saas_client.py` - Marketplace client with federation headers
-- `health_routes.py` - Health check endpoints
-- `monitoring.py` - Prometheus metrics and structured logging
-- `cli/daemon.py` - Daemon mode for background agent execution
-- `useCanvasState.ts` - Canvas state subscription hook
-- `canvas/types/index.ts` - Canvas state type definitions
-- `core/llm/canvas_summary_service.py` - LLM canvas summary service
+**Key Services**: `agent_governance_service.py`, `trigger_interceptor.py`, `student_training_service.py`, `supervision_service.py`, `governance_cache.py`, `intent_classifier.py`, `queen_agent.py`, `fleet_admiral.py`, `atom_meta_agent.py`, `auto_dev/`, `atom_saas_client.py`, `health_routes.py`, `monitoring.py`, `cli/daemon.py`, `useCanvasState.ts`, `core/llm/canvas_summary_service.py`
 
 ---
 
 ## ⚠️ Security: NEVER Commit These Files
 
-**CRITICAL**: The following files and directories contain sensitive information and must NEVER be committed to the repository:
+| File/Directory | Risk |
+|----------------|------|
+| **`.claude/`** | API key exposure |
+| **`.env*`** | Credential leakage |
+| **`secrets.json`** | Full system compromise |
+| **`*.pem`, `*.key`** | MITM attacks |
+| **`credentials.json`** | Unauthorized access |
+| **`backend/token.json`** | Session hijacking |
 
-| File/Directory | Content | Risk |
-|----------------|---------|------|
-| **`.claude/`** | Claude Code API keys and configuration | API key exposure |
-| **`.env*`** | Environment variables with secrets | Credential leakage |
-| **`secrets.json`** | Secret keys and tokens | Full system compromise |
-| **`*.pem`, `*.key`** | TLS certificates and private keys | Man-in-the-middle attacks |
-| **`credentials.json`** | OAuth credentials, API keys | Unauthorized access |
-| **`backend/token.json`** | Authentication tokens | Session hijacking |
+**Before committing**: `git status` and verify none of the above are staged.
 
-### Verification Before Committing
-Always run `git status` before committing. Verify these files are NOT in the staged changes.
-
-### If You Accidentally Commit Secrets
-1. **IMMEDIATELY rotate all compromised keys** - Change API keys, passwords, tokens
-2. **Remove from git history** - Use `git filter-repo` or BFG Repo-Cleaner (NOT just `git rm`)
-3. **Force push carefully** - Only after confirming history is clean
-4. **Notify team** - Inform maintainers immediately
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed cleanup instructions.
+**If secrets accidentally committed**: (1) Rotate all keys immediately (2) Use `git filter-repo` or BFG (NOT `git rm`) (3) Force push only after history is clean (4) Notify maintainers. See CONTRIBUTING.md.
 
 ---
 
 ## Architecture Overview
 
-### Multi-Agent System with Governance
-
+### Multi-Agent Governance Flow
 ```
 User Request → AgentContextResolver → GovernanceCache → AgentGovernanceService → Agent Execution → Response
 ```
 
 ### Maturity Levels
 
-| Level | Confidence | Automated Triggers | Capabilities |
-|-------|-----------|-------------------|--------------|
-| STUDENT | <0.5 | **BLOCKED** → Route to Training | Read-only (charts, markdown) |
-| INTERN | 0.5-0.7 | **PROPOSAL ONLY** → Human Approval Required | Streaming, form presentation |
-| SUPERVISED | 0.7-0.9 | **RUN UNDER SUPERVISION** → Real-time Monitoring | Form submissions, state changes |
-| AUTONOMOUS | >0.9 | **FULL EXECUTION** → No Oversight | Full autonomy, all actions |
+| Level | Confidence | Triggers | Capabilities |
+|-------|-----------|----------|--------------|
+| STUDENT | <0.5 | BLOCKED → Training | Read-only |
+| INTERN | 0.5-0.7 | PROPOSAL → Approval required | Streaming, forms |
+| SUPERVISED | 0.7-0.9 | Under supervision | State changes |
+| AUTONOMOUS | >0.9 | Full execution | All actions |
 
-**Action Complexity**: 1 (LOW): Presentations → STUDENT+ | 2 (MODERATE): Streaming → INTERN+ | 3 (HIGH): State changes → SUPERVISED+ | 4 (CRITICAL): Deletions → AUTONOMOUS only
+**Action Complexity**: 1 LOW (presentations STUDENT+) | 2 MODERATE (streaming INTERN+) | 3 HIGH (state changes SUPERVISED+) | 4 CRITICAL (deletions AUTONOMOUS only)
 
 ---
 
 ## Core Components
 
-### 1. Agent Governance System
-**Files**: `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`
-- Manages agent lifecycle, permissions, and maturity
-- <1ms cached governance checks
-
-### 2. Streaming LLM Integration
-**Files**: `llm/byok_handler.py`, `atom_agent_endpoints.py`
-- Multi-provider support (OpenAI, Anthropic, DeepSeek, Gemini)
-- Token-by-token streaming via WebSocket
-
-### 3. Canvas Presentation System
-**Files**: `tools/canvas_tool.py`, `api/canvas_routes.py`
-- Charts (line, bar, pie), markdown, forms with governance
-
-### 4. Real-Time Agent Guidance System ✨
-**Files**: `tools/agent_guidance_canvas_tool.py`, `core/view_coordinator.py`, `core/error_guidance_engine.py`
-- Live operation tracking with progress bars
-- Multi-view orchestration (browser/terminal/canvas)
-- Smart error resolution with 7 error categories
-- Interactive permission/decision requests
-- **Docs**: `docs/archive/CANVAS_IMPLEMENTATION_COMPLETE.md`
-
-### 5. Python Package Support ✨ (Phase 35)
-**Files**: `core/package_governance_service.py`, `core/package_dependency_scanner.py`, `core/package_installer.py`
-- Per-skill Docker images with dedicated packages
-- Vulnerability scanning using pip-audit + Safety
-- Maturity-based access control (STUDENT blocked, INTERN requires approval)
-- Container security (network disabled, read-only filesystem, resource limits)
-- **Performance**: <5min image build, <1ms permission checks
-- **Tests**: 117 tests across 7 test files
-- **Docs**: See `.planning/phases/35-python-package-support/`
-
-### 6. Canvas AI Accessibility System ✨
-**Files**: `frontend-nextjs/hooks/useCanvasState.ts`
-- Hidden accessibility trees exposing canvas state as JSON
-- Canvas State API: `window.atom.canvas.getState()`, `getAllStates()`, `subscribe()`
-- TypeScript type definitions for all 7 canvas types
-- **Performance**: <10ms serialization overhead per render
-
-### 7. LLM Canvas Summaries ✨
-**Files**: `core/llm/canvas_summary_service.py`
-- LLM-generated summaries (50-100 words) for enhanced episodic memory
-- Support for all 7 canvas types with specialized prompts
-- Summary cache by canvas state hash
-- **Benefits**: Better episode retrieval, agent learning, semantic search
-
-### 8. Queen Agent - Structured Workflow Automation ✨ (April 2026)
-**Files**: `backend/core/agents/queen_agent.py`, `core/intent_classifier.py`
-- **Queen Agent (Queen Hive)**: Orchestrator for structured, repeatable business processes with predefined blueprints
-- **Workflow Automation**: Executes known business processes with reliable, repeatable steps (daily reports, data pipelines, CRM workflows)
-- **Blueprint System**: Predefined workflow templates with parameterizable steps, validation, and error handling
-- **Intent Routing**: WORKFLOW intents (structured tasks) → Queen Agent, TASK intents (unstructured) → Fleet Admiral
-- **Governance Integration**: STUDENT blocked, INTERN requires approval, SUPERVISED/AUTONOMOUS full access
-- **Performance**: <35ms blueprint loading, ~80ms error recovery, 1-5 minute typical execution
-- **Docs**: `docs/QUEEN_AGENT.md`, `docs/guides/QUEEN_AGENT_USER_GUIDE.md`
-
-### 9. Unstructured Complex Tasks & Domain Creation ✨
-**Files**: `core/atom_meta_agent.py`, `core/intent_classifier.py`, `core/fleet_admiral.py`
-- **Intent Classification**: CHAT (simple queries) → LLMService, WORKFLOW (structured tasks) → QueenAgent, TASK (unstructured complex) → FleetAdmiral
-- **FleetAdmiral**: Dynamic agent recruitment for long-horizon unstructured tasks requiring multiple specialist agents
-- **Domain Creation**: SpecialtyAgentTemplate system with 8+ domain templates
-- **Agent Spawning**: `spawn_agent()` method for creating custom specialty agents with capability graduation tracking
-- **Multi-Agent Fleet**: Blackboard-based coordination with recruitment intelligence
-- **Governance-Gated Routing**: CHAT bypasses governance, WORKFLOW/TASK require maturity checks
-- **Performance**: <100ms intent classification, <500ms fleet recruitment
-
-### 10. BYOK Cognitive Tier System ✨ (Phase 68)
-**Files**: `core/llm/cognitive_tier_system.py`, `core/llm/cache_aware_router.py`, `core/llm/escalation_manager.py`
-- 5-tier intelligent LLM routing (Micro, Standard, Versatile, Heavy, Complex)
-- Multi-factor classification: token count + semantic complexity + task type
-- Cache-aware routing: 90% cost reduction with prompt caching
-- Auto-escalation: Quality-based tier escalation with 5-min cooldown
-- MiniMax M2.5: Standard tier option at ~$1/M tokens
-- **Performance**: <100ms routing, <50ms classification, 30%+ cost savings
-- **Tests**: 100+ tests across 8 test files
-- **Docs**: `docs/COGNITIVE_TIER_SYSTEM.md`
-
-### 11. Browser Automation System
-**Files**: `tools/browser_tool.py`, `api/browser_routes.py`
-- Web scraping, form filling, screenshots via Playwright CDP
-- **Governance**: INTERN+ required
-- **Docs**: `docs/archive/2025-12/BROWSER_IMPLEMENTATION_SUMMARY.md`
-
-### 12. Device Capabilities System
-**Files**: `tools/device_tool.py`, `api/device_capabilities.py`
-- Camera (INTERN+), Screen Recording (SUPERVISED+), Location (INTERN+), Notifications (INTERN+), Command Execution (AUTONOMOUS only)
-- **Docs**: `docs/DEVICE_CAPABILITIES.md`
-
-### 13. Atom CLI Skills System ✨
-**Files**: `backend/tools/atom_cli_skill_wrapper.py`, `backend/skills/atom-cli/` (6 SKILL.md files)
-- 6 built-in skills: atom-daemon, atom-status, atom-start, atom-stop, atom-execute, atom-config
-- AUTONOMOUS maturity for daemon control, STUDENT for read-only operations
-- Subprocess wrapper with 30s timeout, structured output, error handling
-- **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
-
-### 14. Deep Linking System
-**Files**: `core/deeplinks.py`, `api/deeplinks.py`
-- `atom://agent/{id}`, `atom://workflow/{id}`, `atom://canvas/{id}`, `atom://tool/{name}`
-- **Docs**: `docs/DEEPLINK_IMPLEMENTATION.md`
-
-### 15. Enhanced Feedback System
-**Files**: `api/feedback_enhanced.py`, `api/feedback_analytics.py`
-- Thumbs up/down, star ratings, corrections, analytics dashboard
-- Batch operations, promotion suggestions, A/B testing
-
-### 16. Student Agent Training System ✨
-**Files**: `core/trigger_interceptor.py`, `core/student_training_service.py`
-- Four-tier maturity routing: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
-- AI-based training duration estimation with historical data analysis
-- Real-time supervision for SUPERVISED agents with intervention support
-- Action proposal workflow for INTERN agents (human approval required)
-- **Performance**: <5ms routing decisions using GovernanceCache
-- **Database**: 4 new models (BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession)
-- **API**: 20+ REST endpoints covering training, proposals, and supervision
-- **Tests**: `tests/test_trigger_interceptor.py` (11 tests)
-
-### 17. Database Models
-**File**: `core/models.py`
-- Key models: AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, BrowserSession, DeviceSession, DeepLinkAudit, ChatSession
-- **NEW**: AgentOperationTracker, AgentRequestLog, ViewOrchestrationState, OperationErrorResolution
-- **NEW**: BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession
-- **NEW**: Episode, EpisodeSegment, EpisodeAccessLog (Episodic Memory with graduation tracking)
-- **NEW**: CommunitySkill, SkillSecurityScan, SkillExecution (Community Skills with security validation)
-
-### 18. Episodic Memory & Graduation Framework ✨
-**Files**: `episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`
-- Automatic episode segmentation (time gaps, topic changes, task completion)
-- Four retrieval modes: Temporal, Semantic, Sequential, Contextual
-- Hybrid PostgreSQL (hot) + LanceDB (cold) storage architecture
-- Canvas-aware episodes: Track canvas presentations (charts, forms, sheets)
-- Feedback-linked episodes: Aggregate user feedback scores for retrieval weighting
-- LLM-powered summaries: 80%+ semantic richness with progressive detail levels
-- **Graduation Criteria**:
-  - STUDENT → INTERN: 10 episodes, 50% intervention rate, 0.70 constitutional score
-  - INTERN → SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
-  - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
-- **Performance**: Episode creation <5s, Temporal retrieval ~10ms, Semantic retrieval ~50-100ms
-- **API**: 25+ REST endpoints for episodes, graduation, and canvas/feedback integration
-- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
-
-### 19. World Model & Business Facts ✨
-**Files**: `core/agent_world_model.py`, `api/admin/business_facts_routes.py`, `core/policy_fact_extractor.py`
-- Business Facts: Verified knowledge with citations (e.g., "Invoices > $500 need VP approval" with policy.pdf:p4)
-- JIT Verification: Real-time citation validation via R2/S3 storage checks
-- Semantic Fact Retrieval: Vector search in LanceDB for contextually relevant facts
-- Knowledge Graph Integration: GraphRAG traversal for connected knowledge
-- Multi-Source Memory: Combines facts, experiences, formulas, episodes, and conversations
-- Real-Time Synthesis: LLM-powered answer generation from retrieved context
-- Security: Secrets redaction, RBAC enforcement (ADMIN-only management)
-- **Performance**: <100ms fact retrieval, <500ms citation verification, <50ms vector search
-- **Docs**: `docs/JIT_FACT_PROVISION_SYSTEM.md`, `docs/CITATION_SYSTEM_GUIDE.md`
-
-### 20. Production Monitoring & Observability ✨
-**Files**: `api/health_routes.py`, `core/monitoring.py`, `tests/test_health_routes.py`
-- Health check endpoints: `/health/live` (liveness), `/health/ready` (readiness with DB/disk checks)
-- Prometheus metrics: HTTP requests, agent executions, skill executions, DB queries
-- Structured logging: JSON output with structlog, context binding (request_id, agent_id, skill_id)
-- Performance benchmarks: <10ms (live), <100ms (ready), <50ms (metrics scrape)
-- Orchestration Ready: Kubernetes/ECS health check configurations documented
-- Grafana Integration: Dashboard setup instructions provided
-- **Tests**: 13 tests covering liveness, readiness, metrics, and performance
-- **Docs**: `backend/docs/MONITORING_SETUP.md`
-
-### 21. CI/CD Pipeline & Deployment ✨
-**File**: `.github/workflows/deploy.yml`
-- Automated testing, Docker builds, staging/production deployments
-- Jobs: test → build → deploy-staging (auto) → deploy-production (manual approval) → verify
-- Automated rollback on failure with one-line command
-- Database backup before production deployment
-- Smoke tests for agent execution, canvas presentation, skill execution
-- Metrics monitoring (error rate, latency) with automatic alerts
-- Slack notifications for deployment status
-- **Docs**: `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`, `backend/docs/OPERATIONS_GUIDE.md`, `backend/docs/TROUBLESHOOTING.md`
-
-### 22. Personal Edition & Daemon Mode ✨
-**Files**: `cli/daemon.py`, `cli/main.py`, `.env.personal`, `docker-compose-personal.yml`
-- Personal Edition: Docker Compose setup with SQLite, simplified configuration
-- Daemon Mode: Background service with PID tracking, graceful shutdown, status monitoring
-- CLI Commands: `atom-os daemon`, `atom-os status`, `atom-os stop`, `atom-os execute <command>`
-- Agent Control REST API: Trigger agents, stop execution, monitor status
-- systemd Service: Auto-start on Linux systems
-- Host Shell Access: Optional filesystem mount with AUTONOMOUS gate, command whitelist
-- Vector Embeddings: FastEmbed (local) with 384-dim vectors, 10-20ms generation time
-- **Performance**: <10ms liveness probe, <100ms readiness probe (includes DB check)
-- **Docs**: `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`
-
-### 23. Code Quality & Type Hints ✨
-**Files**: `backend/docs/CODE_QUALITY_STANDARDS.md`, `mypy.ini`, `.github/workflows/ci.yml`
-- MyPy configuration for static type checking
-- Type hints on critical service functions (agent governance, LLM, episodic memory)
-- CODE_QUALITY_STANDARDS.md (809 lines) covering Python standards, error handling, testing patterns
-- API response standards, database session patterns, import ordering
-- CI Integration: Type checking runs on every push via GitHub Actions
-
-### 24. E2E Testing Infrastructure ✨ (Phase 234)
-**Files**: `backend/tests/e2e_ui/conftest.py`, `backend/tests/e2e_ui/fixtures/`, `backend/tests/e2e_ui/pages/`
-- **486 E2E test functions** across authentication and agent critical paths
-- API-first authentication: 10-100x faster than UI login (JWT tokens in localStorage)
-- Worker-based database isolation for parallel test execution
-- Page Object Model for maintainable UI abstractions
-- Comprehensive fixture suite: auth, database, API, factory fixtures
-- **Performance**: Tests complete in under 10 minutes with parallel execution
-- **Coverage**: AUTH-01 through AUTH-07, AGNT-01 through AGNT-08
-- **Docs**: `backend/tests/e2e_ui/README.md`
-
-### 25. Advanced Skill Execution & Composition ✨
-**Phase**: 60-advanced-skill-execution (February 19, 2026)
-- Skill Marketplace: PostgreSQL-based with search, ratings, categories
-- Dynamic Skill Loading: importlib-based hot-reload with watchdog file monitoring
-- Skill Composition Engine: DAG workflows with NetworkX validation
-- Auto-Installation: Python + npm with conflict detection and rollback
-- E2E Supply Chain Security: 36 tests covering typosquatting, dependency confusion, postinstall malware
-- **Performance**: Package installation <5s, skill loading <1s, marketplace search <100ms, workflow validation <50ms
-- **Tests**: 82+ tests across 6 test files
-- **Docs**: `docs/ADVANCED_SKILL_EXECUTION.md`, `docs/SKILL_MARKETPLACE_GUIDE.md`, `docs/SKILL_COMPOSITION_PATTERNS.md`
-
-### 26. GraphRAG & Entity Types System ✨
-**Files**: `backend/core/graphrag_engine.py`, `backend/core/entity_type_service.py`, `backend/core/model_factory.py`
-- **PostgreSQL-backed GraphRAG V2**: Stateless recursive CTEs for high-performance traversal (<100ms)
-- **6 Canonical Entity Types**: user, workspace, team, task, ticket, formula with bidirectional sync
-- **Dynamic Custom Entity Types**: JSON Schema-based runtime model creation with validation
-- **LLM-Based Extraction**: Extract entities and relationships from unstructured text (documents, emails)
-- **Local & Global Search**: Neighborhood traversal (depth-based) and community-based summarization
-- **Entity Registry**: Centralized configuration for canonical-to-database mapping with field whitelisting
-- **Community Detection**: NetworkX + Leiden algorithm for graph clustering
-- **Performance**: Local search ~50-80ms, global search ~100-150ms, entity extraction ~2-3s
-- **Tests**: 100+ tests across 4 test files (pattern extraction, hybrid search, enhancements, openie schema discovery)
-- **Docs**: `docs/GRAPHRAG_AND_ENTITY_TYPES.md`, `docs/GRAPHRAG_PORTED.md`, `docs/ai-world-model.md`
+1. **Agent Governance** (`agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`): Lifecycle/permissions/maturity, <1ms cached checks
+2. **Streaming LLM** (`llm/byok_handler.py`, `atom_agent_endpoints.py`): Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini), token streaming via WebSocket
+3. **Canvas Presentation** (`tools/canvas_tool.py`, `api/canvas_routes.py`): Charts, markdown, forms with governance
+4. **Real-Time Agent Guidance** (`tools/agent_guidance_canvas_tool.py`, `core/view_coordinator.py`, `core/error_guidance_engine.py`): Live tracking, multi-view orchestration, error resolution
+5. **Python Package Support** (`core/package_governance_service.py`, `package_dependency_scanner.py`, `package_installer.py`): Per-skill Docker, pip-audit+Safety scanning, maturity gating
+6. **Canvas AI Accessibility** (`frontend-nextjs/hooks/useCanvasState.ts`): Hidden a11y trees, `window.atom.canvas.getState()`, <10ms overhead
+7. **LLM Canvas Summaries** (`core/llm/canvas_summary_service.py`): 50-100 word summaries for episodic memory
+8. **Queen Agent** (`core/agents/queen_agent.py`, `intent_classifier.py`): Structured workflow automation with blueprints. WORKFLOW intents → Queen
+9. **Unstructured Tasks** (`atom_meta_agent.py`, `fleet_admiral.py`): FleetAdmiral recruits specialists; TASK intents → Fleet. `spawn_agent()` for custom domains
+10. **BYOK Cognitive Tiers** (`core/llm/cognitive_tier_system.py`, `cache_aware_router.py`, `escalation_manager.py`): 5-tier LLM routing, 90% cost reduction via caching
+11. **Browser Automation** (`tools/browser_tool.py`, `api/browser_routes.py`): Playwright CDP, INTERN+ required
+12. **Device Capabilities** (`tools/device_tool.py`, `api/device_capabilities.py`): Camera (INTERN+), Screen (SUPERVISED+), Location/Notifications (INTERN+), Cmd Exec (AUTONOMOUS only)
+13. **Atom CLI Skills** (`tools/atom_cli_skill_wrapper.py`, `skills/atom-cli/`): 6 built-in skills, subprocess wrapper with 30s timeout
+14. **Deep Linking** (`core/deeplinks.py`, `api/deeplinks.py`): `atom://agent/{id}`, `atom://workflow/{id}`, etc.
+15. **Enhanced Feedback** (`api/feedback_enhanced.py`, `feedback_analytics.py`): Ratings, corrections, A/B testing
+16. **Student Training** (`core/trigger_interceptor.py`, `student_training_service.py`): 4-tier routing, AI duration estimation, supervision, proposals
+17. **Database Models** (`core/models.py`): AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, Episode* (episodic memory), CommunitySkill*, TrainingSession, etc.
+18. **Episodic Memory** (`episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`): Hybrid PG+LanceDB, 4 retrieval modes, graduation criteria (10/25/50 episodes)
+19. **World Model & Business Facts** (`core/agent_world_model.py`, `api/admin/business_facts_routes.py`): Verified knowledge with citations, JIT verification, GraphRAG integration
+20. **Monitoring** (`api/health_routes.py`, `core/monitoring.py`): `/health/live`, `/health/ready`, `/health/metrics` (Prometheus), structlog
+21. **CI/CD** (`.github/workflows/deploy.yml`): test → build → staging → production (manual) → verify, auto-rollback
+22. **Personal Edition** (`cli/daemon.py`, `docker-compose-personal.yml`): Local Docker + SQLite, daemon mode, FastEmbed embeddings
+23. **Code Quality** (`mypy.ini`, `backend/docs/CODE_QUALITY_STANDARDS.md`): Type hints enforced via CI
+24. **E2E Tests** (`backend/tests/e2e_ui/`): 486 test functions, API-first auth, worker isolation, Page Object Model
+25. **Advanced Skills** (Phase 60): Marketplace, dynamic loading, DAG composition, supply-chain security
+26. **GraphRAG & Entity Types** (`core/graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`): PostgreSQL recursive CTEs, 6 canonical types, dynamic custom types
 
 ---
 
-## Recent Major Changes
+## Recent Bug Hunt History (TDD)
 
-### Rounds 15+16 — Email Verification + 2FA Security (June 22, 2026) ✨
-Closed 8 more auth-flow bugs:
-- **R15-1 (HIGH)**: `/api/email-verification/verify` raised `not_found_error` on missing user — different error than invalid code, leaking which emails are registered. Now returns same `validation_error` for both.
-- **R15-2 (HIGH)**: `/verify` had no rate limit — 6-digit code (1M combinations) brute-forceable. Added `verify_rate_limit` (5 req/min per IP).
-- **R15-3 (MEDIUM)**: Verification code entropy doubled: `secrets.token_hex(3)` (6 hex chars) → `secrets.token_hex(4)` (8 hex chars).
-- **R15-4 (HIGH)**: 3 `datetime.utcnow()` calls in token comparison and rate tracking → `datetime.now(timezone.utc)`.
-- **R16-1 (CRITICAL)**: `enable_2fa` hardcoded `backup_codes = ["UP-BACKUP-1234-5678"]` — every user got the same known backup code. Replaced with `_generate_backup_codes()` producing 5 random per-user codes (64 bits entropy each).
-- **R16-2 (HIGH)**: `verify_action_2fa` had no rate limit — TOTP brute-force possible. Added `totp_rate_limit` (5 req/min per IP).
-- **R16-3 (MEDIUM)**: `verify_action_2fa` leaked `str(e)` in HTTP 500 detail — replaced with generic message.
-- **R16-4 (LOW)**: Added rate-limit pattern to all 2FA endpoints via shared `AuthRateLimiter`.
+All fixes use Red-Green-Refactor: failing test first, minimal fix, regression tests committed. Test files: `tests/test_roundN_fixes.py`, `tests/test_security_bug_hunt.py`, `tests/test_auth_fixes.py`, etc.
 
-7 TDD regression tests across `test_round15_fixes.py` and `test_round16_fixes.py`.
+### Rounds 15+16 — Email Verification + 2FA (June 22, 2026) ✨
+8 bugs: email enumeration in `/verify`, missing rate limits on verify/TOTP, weak entropy (`token_hex(3)`→`(4)`), `utcnow()` in comparisons, **hardcoded backup codes** (`UP-BACKUP-1234-5678` for all users), TOTP brute-force, `str(e)` leak. 7 tests.
 
-### Round 14 — Auth Rate Limiting + Pydantic v2 Migration (June 22, 2026) ✨
-Closed the highest-impact gap from the password-flow audit:
-- **R14-1/2/3 (CRITICAL)**: `/api/auth/login`, `/register`, `/refresh` had zero rate limiting — brute-force and credential-stuffing attacks possible at unlimited rates. Added `core/security/auth_rate_limit.py` with `AuthRateLimiter` (sliding-window, thread-safe, in-memory, optional Redis). Per-endpoint dependencies:
-  - login: 10 req/min per IP (resets on success)
-  - register: 3 req/5min per IP
-  - refresh: 30 req/min per IP
-  Returns HTTP 429 with `Retry-After` header. Verified live: 10 wrong attempts → 401, 11th → 429.
-- **R14-4 (LOW)**: `core/byok_endpoints.py` used deprecated `@validator` (Pydantic v1) → `@field_validator` (v2). Removes DeprecationWarning that becomes an error in Pydantic v3.
-
-5 TDD regression tests in `test_round14_fixes.py` including a behavior test that exercises `AuthRateLimiter` directly.
+### Round 14 — Auth Rate Limiting + Pydantic v2 (June 22, 2026) ✨
+4 bugs: No rate limit on `/login`, `/register`, `/refresh` → `AuthRateLimiter` added (10/min, 3/5min, 30/min). Deprecated `@validator` → `@field_validator`. 5 tests.
 
 ### Round 13 — Timezone Bugs (June 22, 2026) ✨
-Closed 9 timezone bugs that silently corrupt timestamps or crash on Postgres:
-- **R13-1 to R13-4 (HIGH)**: `datetime.utcnow()` compared against DB-loaded aware datetimes raises TypeError on Postgres TIMESTAMPTZ. Fixed in:
-  - `api/user_management_routes.py` (session expiry filter)
-  - `integrations/github_routes.py` (token expiry check + last_used write)
-  - `core/productivity/notion_service.py` (token expiry check + cache expiry)
-- **R13-5 to R13-9 (HIGH)**: 5 columns in `core/models.py` declared as `DateTime(timezone=True)` but defaulted with naive `datetime.utcnow()` — Postgres interprets naive datetime as session-local time and converts to UTC, silently storing wrong timestamps (off by server's UTC offset). Fixed `linked_at`, `timestamp` (3 tables), `created_at`.
+9 bugs: `datetime.utcnow()` vs DB-aware datetimes (TypeError on Postgres) in `user_management_routes.py`, `github_routes.py`, `notion_service.py`, and 5 naive defaults in `models.py`. 3 tests.
 
-3 TDD regression tests in `test_round13_fixes.py`. AST-based check excludes the benign `.isoformat()` payload-string pattern (only flags real comparisons / DB writes).
+### Round 12 — Test Infra + Security Headers (June 22, 2026) ✨
+5 bugs: Unregistered `timeout` pytest marker (INTERNALERROR), langchain import breaking collection, security headers skipped on `/api/`, `SecurityHeadersMiddleware` never registered, `/docs` exposed in prod.
 
-### Round 12 — Test Infrastructure + Security Headers (June 22, 2026) ✨
-Closed 5 bugs blocking test collection and security-header deployment:
-- **R12-1 (HIGH)**: `pytest.ini` didn't register the `timeout` marker used by `tests/chaos/` — every `pytest tests/` invocation died with INTERNALERROR before collecting anything. Registered `timeout` as a no-op marker (17 chaos tests now collect).
-- **R12-2 (CRITICAL)**: `tools/creative_tool.py` and `core/skill_adapter.py` did `from langchain.tools import BaseTool` at module top — failed when langchain wasn't installed, breaking test collection for 11+ test files. Wrapped in try/except with a minimal stand-in.
-- **R12-3 (HIGH)**: `core/security/middleware.py` `SecurityHeadersMiddleware` skipped ALL security headers on `/api/` routes citing HTTP 431 risk. The skipped headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy) are <200 bytes combined and protect against MIME sniffing + clickjacking. Now applied to all routes.
-- **R12-4 (HIGH)**: `SecurityHeadersMiddleware` was never registered via `app.add_middleware` in `main.py` — security headers were missing entirely from the running app. Now registered.
-- **R12-5 (MEDIUM)**: `main.py` FastAPI() hardcoded `docs_url="/docs"` unconditionally. Now disabled when `ENVIRONMENT=production` to avoid exposing the OpenAPI surface.
+### Round 11 — Auth + Race Conditions (June 22, 2026) ✨
+6 bugs: Refresh token reuse (7-day stolen tokens), `print()` debug leaks, `decide_hitl_action` double-spend (added `with_for_update`), `register_user` TOCTOU, `run_agent` TOCTOU, header logging. 4 tests.
 
-Also fixed `tests/test_enterprise_auth_service.py` to use the `get_enterprise_auth_service()` factory (was importing a removed singleton — 38 tests now pass).
+### Rounds 9+10 — Deserialization + Secrets + eval (June 22, 2026) ✨
+5 bugs: Hardcoded admin password `securePass123`, `webhook_security.py` fallback to `atom-secret-313`, **raw `eval()` in `event_bus.py` and `conductor_agent.py`** (CWE-94, bypassable sandbox) → `safe_evaluator.safe_eval`. 7 tests.
 
-### Round 11 Bug Hunt — Auth + Race Conditions (June 22, 2026) ✨
-Closed 6 bugs found via password-flow and race-condition audit:
-- **R11-1 (HIGH)**: `/api/auth/refresh` returned the same refresh token it received — stolen tokens valid 7 days. Now mints a new refresh token on every use.
-- **R11-2 (MEDIUM)**: `core/auth.py` had 3 `print("AUTH DEBUG: ...")` statements leaking JWT decode errors and user IDs to stdout. Replaced with `logger.warning()`.
-- **R11-3 (HIGH)**: `decide_hitl_action` allowed double-spend — two concurrent approvals could both pass the "already resolved?" check. Added `.with_for_update()` (SELECT FOR UPDATE on Postgres) + idempotency check.
-- **R11-4 (MEDIUM)**: `register_user` had TOCTOU on email uniqueness — concurrent requests could both pass the check and create duplicate users. Now wraps commit in try/IntegrityError.
-- **R11-5 (HIGH)**: `run_agent` had TOCTOU on agent.status == "running" — concurrent requests could both pass and trigger duplicate executions. Added `.with_for_update()`.
-- **R11-6 (LOW)**: `core/auth.py` logged first 20 chars of malformed Authorization headers. Replaced with generic message.
+### Rounds 7+8 — Injection + IDOR + Broken Endpoints (June 22, 2026) ✨
+11 bugs: Path traversal in `business_facts` upload, SQL interpolation in 3 generators, IDOR in `get_recording`, non-existent methods called (`promote_to_autonomous`, `get_playback_data`), missing `os` import (NameError), missing `await` on async, wrong params. 11 tests.
 
-4 TDD regression tests in `test_round11_fixes.py`. Refresh rotation live-verified.
+### Rounds 5+6 — BYOK + Router Audit (June 22, 2026) ✨
+8 bugs: `require_admin` returning None (unauth admin), race in `get_byok_manager()`, 8 `str(e)` leaks, `BYOKHandler(self.db)` wrong arg, `LLMService(tenant_id=workspace_id)` mislabel, **15 endpoints in `workflow_debugging.py` with zero auth**, `shell_routes.py` `/sessions` no auth + leaks all users, `str(e)` leak. 12 tests.
 
-### Rounds 9+10 Bug Hunt (June 22, 2026) ✨
-Closed 5 more bugs found via deserialization/secret/eval audit:
-- **R9-1/2 (CRITICAL)**: `create_admin.py` and `ensure_admin.py` hardcoded `password = "securePass123"` — known password anyone could try against admin@example.com. Now read `ADMIN_PASSWORD` env var or generate random per-run.
-- **R9-3 (HIGH)**: `core/webhook_security.py` fell back to `"atom-secret-313"` when `WEBHOOK_CLIENT_STATE_SECRET`/`JWT_SECRET` both unset. Predictable secret → webhook forgery. Now generates random per-process secret + warns.
-- **R10-1/2 (CRITICAL, CWE-94)**: `core/orchestration/event_bus.py` and `conductor_agent.py` used raw `eval()` to evaluate workflow trigger conditions. Despite attempts to restrict globals/`__builtins__`, the sandbox was bypassable (Python auto-injects `__builtins__` into globals dict; conductor relied on `{"__builtins__": {}}` which is also escapeable via attribute access on context objects). Both now use `core.safe_evaluator.safe_eval` (AST-validated, whitelisted functions only).
+### Security Sweep (June 21, 2026) ✨
+11 bugs: Unauth WebSocket leaks, SQL injection in `episode_retrieval_service`, unauth `/api/shell/execute`, unauth `/api/local-agent/execute`, canvas/agent_status missing auth + impersonation, session ownership 200 vs 403, 12+ `str(e)` leaks, `browser_screenshot` path traversal, migration SQL interpolation. 26 tests.
 
-7 TDD regression tests across `test_round9_fixes.py` and `test_round10_fixes.py`.
+### Auth Launch Hardening (June 21, 2026) ✨
+10 bugs: Missing `UserStatus` import (SAML failures), JWT hard-required `sub`, **`X-User-ID` header trust = full auth bypass**, refresh as query param, `UserCredentials` dict subscript, DB session leaks in `agent_world_model.py`, singleton RSA I/O at import, singleton thread locks, bcrypt 71-byte truncation inconsistency. 29 tests.
 
-### Rounds 7+8 Bug Hunt (June 22, 2026) ✨
-Closed 11 more bugs found via injection/IDOR/broken-endpoint audit:
-- **R7-1 (CRITICAL)**: `api/admin/business_facts_routes.py` upload wrote `file.filename` directly to disk — path traversal via `../../etc/passwd` filenames
-- **R7-2/3 (HIGH)**: `core/schema_aware_sql_generator.py` and `core/multi_entity_sql_generator.py` interpolated `workspace_id` into SQL via f-strings — now escape single quotes
-- **R7-4 (HIGH)**: `core/lancedb_handler.py` built search filters via f-strings with `workspace_id`/`user_id` — now escapes single quotes
-- **R8-1 (HIGH)**: `api/canvas_routes.py` `get_recording` called non-existent `get_playback_data` method + no ownership check (IDOR)
-- **R8-2 (CRITICAL)**: `api/agent_routes.py` `/promote` called non-existent `service.promote_to_autonomous` — always crashed with AttributeError
-- **R8-3 (CRITICAL)**: `api/canvas_routes.py` `/summary` passed wrong params to `generate_summary` + factory returned wrong service class
-- **R8-4 (HIGH)**: `api/auth_routes.py` mobile/refresh used `os.getenv` but never imported `os` — NameError on every call
-- **R8-5 (HIGH)**: `api/canvas_routes.py` `get_recording` didn't await async `service.get_recording`
-- **R8-6/7/8 (HIGH)**: `api/canvas_routes.py` `start_recording` and `list_recordings` — missing await + wrong parameters
-
-11 TDD regression tests across `test_round7_fixes.py` and `test_round8_fixes.py`/`test_round8b_fixes.py`.
-
-### Rounds 5+6 Bug Hunt (June 22, 2026) ✨
-Closed 8 more bugs found via deeper BYOK + router audit:
-- **R5-1 (CRITICAL)**: `api/admin/cache_routes.py` `require_admin` returned `None` on missing auth — unauthenticated admin access to cache preseed/clear/stats
-- **R5-2 (HIGH)**: `core/byok_endpoints.py` `get_byok_manager()` lacked thread lock — race condition under concurrency
-- **R5-3 (HIGH)**: 8 `HTTPException(detail=str(e))` instances in `byok_endpoints.py` leaked internals
-- **R6-1 (CRITICAL)**: `core/fleet_orchestration/fleet_coordinator_service.py` `BYOKHandler(self.db)` passed db as workspace_id (wrong positional arg)
-- **R6-2 (HIGH)**: `core/generic_agent.py` `LLMService(tenant_id=workspace_id)` mislabeled workspace as tenant — broke BYOK key resolution
-- **R6-3 (CRITICAL)**: All 15 endpoints in `api/workflow_debugging.py` had zero authentication
-- **R6-4 (HIGH)**: `api/shell_routes.py` `/sessions` and `/validate` had no auth; `/sessions` leaked all users' audit trail
-- **R6-5 (MEDIUM)**: `execute_shell_command` 500 response leaked `str(e)`
-
-12 TDD regression tests in `test_round5_fixes.py` and `test_round6_fixes.py`. Also restored missing `test_auth_fixes.py` from prior round.
-
-### Security Vulnerability Sweep (June 21, 2026) ✨
-Closed 11 security vulnerabilities across 4 rounds of systematic bug hunting:
-- **BUG 1 (CRITICAL)**: Unauthenticated WebSocket endpoints leaked all real-time data (canvas updates, streaming tokens, broadcasts)
-- **BUG 2 (CRITICAL)**: SQL injection in `episode_retrieval_service` — filter keys/values interpolated into raw SQL
-- **BUG 3 (CRITICAL)**: `POST /api/shell/execute` had no authentication
-- **BUG 4 (CRITICAL)**: `POST /api/local-agent/execute` and `/approve` had no auth
-- **BUG 5 (HIGH)**: Canvas coding, agent_status, and execute-generated endpoints lacked auth; `user_id` from body (impersonation)
-- **BUG 6 (HIGH)**: Session ownership returned HTTP 200 instead of 403
-- **BUG 7 (HIGH)**: 12+ exception handlers leaked `str(e)` to clients (DB strings, internals)
-- **BUG 9 (HIGH)**: `browser_screenshot` path traversal — arbitrary file write
-- **BUG 10 (MEDIUM)**: Migration scripts interpolated identifiers into SQL without validation
-
-26 TDD regression tests across `test_security_bug_hunt.py` and `test_round4_fixes.py`.
-
-### Auth Bug Hunt + Launch Hardening (June 21, 2026) ✨
-Closed 10 bugs (2 CRITICAL, 5 HIGH, 3 MEDIUM) found via systematic bug hunt:
-- **BUG 2 (CRITICAL)**: `enterprise_auth_service.py` referenced `UserStatus` without importing it → SAML user provisioning silently failed
-- **BUG 3 (HIGH)**: `jwt_verifier.py` hard-required `sub` claim, rejecting all enterprise-issued tokens (same class as the earlier `core/auth.py` fix)
-- **BUG 5 (HIGH, CVE-class)**: `oauth_routes.get_current_user` trusted client-supplied `X-User-ID` header with zero JWT verification → full auth bypass
-- **BUG 6 (HIGH)**: `/api/auth/refresh` parsed `refresh_token` as query param instead of JSON body
-- **BUG 1 (CRITICAL)**: refresh endpoint subscripted a `UserCredentials` dataclass as dict → TypeError
-- **BUG 4 (HIGH)**: DB session leaks in `agent_world_model.py` (3 call sites) — `SessionLocal()` closed only on success path; connection pool exhaustion under errors
-- **BUG 7 (MEDIUM)**: Same leak in `archive_session_to_cold_storage` — mixed Postgres + LanceDB I/O
-- **BUG 8 (MEDIUM)**: `enterprise_auth_service.py` module-level singleton performed RSA file I/O at import time → blocks/crashes on network mounts
-- **BUG 9 (MEDIUM)**: `UniversalCacheService` and `AgentScheduler` singletons lacked thread locks → double-init under concurrency
-- **BUG 10 (LOW)**: Inconsistent bcrypt 71-byte truncation between `core/auth.py` and `EnterpriseAuthService`
-
-29 TDD regression tests guard all fixes across `tests/test_auth_fixes.py`, `tests/test_bug_hunt_fixes.py`, and `tests/test_bug_hunt_round2.py`.
-
-### BYOK v6.0 Migration Finalized + Launch Fixes (June 21, 2026) ✨
-Closed the final 3 BYOK gaps (openie_schema_discovery, graphrag_engine, lancedb_handler) — all LLM traffic now routes through `LLMService` for unified cost tracking, governance, and provider fallback. Fixed a launch blocker where `main.py` never mounted the health router (`/health/live`, `/health/ready`, `/health/metrics` were 404). Corrected 4 buggy regex patterns in the GraphRAG fallback extractor. `openie_schema_discovery.py` now at 100% test coverage.
-
-[BYOK Migration Guide →](docs/architecture/BYOK_V6_MIGRATION_GUIDE.md)
-
-### Auto-Dev Module & Federation (April 10, 2026) ✨
-Self-evolving agents with Memento-Skills (learn from failures) and AlphaEvolver (optimize via mutation). Federation enables multi-instance communication with X-Federation-Key headers.
-
-[Auto-Dev Guide →](docs/guides/AUTO_DEV_USER_GUIDE.md) | [Federation Guide →](docs/guides/FEDERATION_INSTANCE_IDENTITY.md)
-
-### Queen Agent & Marketplace (April 10, 2026) ✨
-Structured workflow automation for repeatable business processes. Commercial marketplace at atomagentos.com for agents, skills, components, and domains.
-
-[Queen Agent →](docs/QUEEN_AGENT.md) | [Marketplace →](docs/marketplace/)
-
-### Phase 234: E2E Tests (March 24, 2026) ✨
-486 E2E test functions across authentication and agent workflows. API-first auth (10-100x faster), worker-based DB isolation, Page Object Model.
-
-[E2E Tests →](backend/tests/e2e_ui/README.md)
-
-### Phase 68: Cognitive Tier System (Feb 20, 2026) ✨
-5-tier LLM routing with cache-aware optimization (90% cost reduction), auto-escalation, MiniMax M2.5 support (~$1/M tokens). 100+ tests, production-ready.
-
-[Cognitive Tiers →](docs/COGNITIVE_TIER_SYSTEM.md)
-
-### Phase 35: Python Packages (Feb 19, 2026) ✨
-Per-skill Docker images, vulnerability scanning (pip-audit + Safety), maturity-based access control. 117 tests, production-ready.
-
-[Python Packages →](docs/PYTHON_PACKAGES.md)
-
-### Earlier Phases ✨
-- **Phase 25**: CLI Skills (6 built-in skills with AUTONOMOUS maturity)
-- **Phase 21**: LLM Canvas Summaries (50-100 words for episodic memory)
-- **Phase 20**: Canvas AI Context (hidden accessibility trees, TypeScript definitions)
-- **Phase 15**: Codebase Completion (CI/CD, health checks, monitoring)
-- **Phase 14**: Community Skills (5,000+ OpenClaw/ClawHub integration)
-- **Episodic Memory**: Hybrid PostgreSQL + LanceDB, 4 retrieval modes, graduation framework
-- **Student Training**: 4-tier maturity routing, AI-powered training estimation
+### Earlier ✨
+- **BYOK v6.0 Migration**: All LLM traffic via `LLMService`, health router mounted, GraphRAG regex fixed, `openie_schema_discovery.py` 100% coverage
+- **Auto-Dev & Federation** (Apr 2026): Memento-Skills, AlphaEvolver, X-Federation-Key
+- **Queen Agent & Marketplace** (Apr 2026): atomagentos.com
+- **Phase 234 E2E** (Mar 2026): 486 functions, API-first auth
+- **Phase 68 Cognitive Tiers** (Feb 2026): 5-tier routing, 100+ tests
+- **Phase 35 Python Packages** (Feb 2026): Per-skill Docker, 117 tests
 
 ---
 
@@ -496,275 +138,113 @@ FEATURE_ENABLED = os.getenv("MY_FEATURE_ENABLED", "true").lower() == "true"
 EMERGENCY_BYPASS = os.getenv("EMERGENCY_BYPASS", "false").lower() == "true"
 ```
 
-### Error Handling
+### Database Session Patterns
 ```python
-try:
-    # Operation
-    pass
-except Exception as e:
-    logger.error(f"Operation failed: {e}")
-    return {"success": False, "error": str(e)}
+# Service layer (ALWAYS use context manager to avoid leaks)
+with get_db_session() as db:
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+
+# API routes (dependency injection)
+@app.get("/agents/{agent_id}")
+def get_agent(agent_id: str, db: Session = Depends(get_db)):
+    return db.query(Agent).filter(Agent.id == agent_id).first()
 ```
 
-### Database Operations
+### Error Handling (NEVER leak `str(e)` to clients)
 ```python
-with SessionLocal() as db:
-    agent = db.query(AgentRegistry).filter(...).first()
-    execution = AgentExecution(...)
-    db.add(execution)
-    db.commit()
+try:
+    with SessionLocal() as db:
+        # operation
+        db.commit()
+except Exception as e:
+    logger.error(f"Operation failed: {e}")
+    raise api_error(ErrorCode.DATABASE_ERROR, "Database operation failed")
+```
+
+### API Response Standards
+```python
+{"success": True, "data": {...}, "message": "...", "timestamp": "2026-02-06T10:30:00Z"}
+{"success": False, "error_code": "AGENT_NOT_FOUND", "message": "...", "details": {...}}
 ```
 
 ---
 
-## Coding Standards & Best Practices
+## Coding Standards
 
-### Python Standards
-- **Version**: Python 3.11+
-- **Style**: PEP 8 compliant
-- **Naming**: Classes: `PascalCase`, Functions: `snake_case`, Constants: `UPPER_SNAKE_CASE`
-- **Type Hints**: Required for all function signatures (enforced by MyPy in CI)
-- **Docstrings**: Google-style with Args/Returns sections
-- **See**: `backend/docs/CODE_QUALITY_STANDARDS.md`
-
-### Error Handling Patterns
-```python
-try:
-    with SessionLocal() as db:
-        agent = db.query(AgentRegistry).filter(...).first()
-        db.add(agent)
-        db.commit()
-except Exception as e:
-    logger.error(f"Operation failed: {e}")
-    raise api_error(ErrorCode.DATABASE_ERROR, "Database operation failed", {"error": str(e)})
-```
-
-### Database Session Patterns
-1. **Context Manager** (Service Layer):
-   ```python
-   with get_db_session() as db:
-       agent = db.query(Agent).filter(Agent.id == agent_id).first()
-   ```
-
-2. **Dependency Injection** (API Routes):
-   ```python
-   @app.get("/agents/{agent_id}")
-   def get_agent(agent_id: str, db: Session = Depends(get_db)):
-       return db.query(Agent).filter(Agent.id == agent_id).first()
-   ```
-
-### API Response Standards
-```python
-# Success Response
-{"success": True, "data": {...}, "message": "Operation successful", "timestamp": "2026-02-06T10:30:00.000Z"}
-
-# Error Response
-{"success": False, "error_code": "AGENT_NOT_FOUND", "message": "Agent with ID 'abc123' not found", "details": {"agent_id": "abc123"}}
-```
-
-### Testing Patterns
-- Test files: `backend/tests/test_*.py`
-- Test naming: `test_specific_behavior()`
-- Always clean up test data in `finally` blocks
-- Use mocks for external services (AsyncMock, MagicMock)
-
-### TDD Patterns for Bug Fixes ✨
-**Follow Test-Driven Development for ALL bug fixes** - See `docs/testing/BUG_FIX_PROCESS.md`
-
-**Red-Green-Refactor Cycle:**
-1. **Red:** Write failing test that reproduces the bug
-2. **Green:** Write minimal fix to make test pass
-3. **Refactor:** Improve code while tests pass
-
-**Why TDD for Bug Fixes?**
-- Prevents regression (tests ensure bugs don't reoccur)
-- Documents intent (tests explain what code should do)
-- Enables refactoring (safe improvements with test safety net)
-- Catches root causes (tests reveal deeper issues)
-
-**Example Bug Fix:**
-```python
-# RED: Write failing test
-def test_agent_maturity_blocks_demotion():
-    agent = AgentRegistry(id="test", maturity=AgentMaturity.AUTONOMOUS)
-    service = AgentGovernanceService(db)
-    with pytest.raises(ValueError):
-        service.update_maturity("test", AgentMaturity.STUDENT)
-
-# GREEN: Minimal fix
-def update_maturity(self, agent_id: str, new_maturity: AgentMaturity):
-    if self._is_demotion(agent.maturity, new_maturity):
-        raise ValueError(f"Invalid maturity transition")
-    agent.maturity = new_maturity
-
-# REFACTOR: Improve code
-def _is_demotion(self, current: AgentMaturity, new: AgentMaturity) -> bool:
-    levels = {STUDENT: 1, INTERN: 2, SUPERVISED: 3, AUTONOMOUS: 4}
-    return levels[new] < levels[current]
-```
-
-**Key Principles:**
-- Never fix bug without failing test first
-- Commit test before fix
-- Keep fixes minimal and focused
-- Run full test suite after each fix
-- Document root cause and lessons learned
-
-**Frontend Test Fixes (Jest/React Testing Library):**
-```typescript
-// RED: Failing test for missing element
-test('render user avatar', () => {
-  render(<UserProfile userId="123" />);
-  expect(screen.getByRole('img', { name: /avatar/i })).toBeInTheDocument();
-  // FAILS: "Unable to find an img with accessible name: /avatar/i"
-});
-
-// GREEN: Add missing prop or mock
-test('render user avatar', () => {
-  render(<UserProfile userId="123" showAvatar={true} />);
-  expect(screen.getByRole('img', { name: /avatar/i })).toBeInTheDocument();
-});
-
-// REFACTOR: Extract reusable render helper
-function renderUserProfile(props = {}) {
-  return render(<UserProfile userId="123" {...props} />);
-}
-```
-
-**Common Bug Fix Patterns:**
-- **Input validation:** Add null/undefined checks
-- **Edge cases:** Handle empty/zero/negative values
-- **State mutation:** Copy objects before modifying
-- **Integration issues:** Fix component communication
-- **Timeout errors:** Add waitFor, increase timeouts, fake timers
+### Python
+- 3.11+, PEP 8, PascalCase classes / snake_case functions / UPPER_SNAKE constants
+- Type hints required (MyPy enforced in CI), Google-style docstrings
+- See `backend/docs/CODE_QUALITY_STANDARDS.md`
 
 ### Import Order
-```python
-# 1. Standard library
-import os
-from datetime import datetime
-
-# 2. Third-party
-from fastapi import FastAPI
-from sqlalchemy.orm import Session
-
-# 3. Local imports
-from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry
-```
+1. Standard library 2. Third-party 3. Local imports
 
 ### Performance Patterns
-- Use `GovernanceCache` for frequently accessed data (<1ms lookups)
-- Async/await for I/O operations
-- Connection pooling for databases
-- Stream LLM responses via WebSocket
+- `GovernanceCache` for hot data (<1ms lookups)
+- Async/await for I/O, connection pooling, stream LLM via WebSocket
 
 ---
 
 ## Testing
 
-### Unit & Integration Tests
+### TDD for Bug Fixes (MANDATORY)
+See `docs/testing/BUG_FIX_PROCESS.md`. **Never fix a bug without a failing test first.**
+
+**Red-Green-Refactor:**
+1. **Red**: Write failing test reproducing the bug
+2. **Green**: Minimal fix to pass
+3. **Refactor**: Improve while tests pass
+
+```python
+# RED
+def test_agent_maturity_blocks_demotion():
+    service = AgentGovernanceService(db)
+    with pytest.raises(ValueError):
+        service.update_maturity("test", AgentMaturity.STUDENT)
+
+# GREEN then REFACTOR: add _is_demotion() helper
+```
+
+**Frontend (Jest/RTL)**: same pattern — failing assertion → add prop/mock → extract helper.
+
+**Common patterns**: input validation (null/empty/negative checks), edge cases, state mutation (copy first), integration issues, timeouts (`waitFor`, fake timers).
+
+### Unit & Integration
 ```bash
-# All tests
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v
-
-# Specific tests
 pytest tests/test_governance_streaming.py -v
-pytest tests/test_browser_automation.py -v
-pytest tests/test_governance_performance.py -v -s
-
-# With coverage
 pytest tests/ --cov=core --cov-report=html
 ```
 
-### E2E UI Tests ✨
+### E2E UI (Phase 234)
 ```bash
-# E2E Test Infrastructure (Phase 234)
-cd backend/tests/e2e_ui
-
-# Start E2E test environment (Docker Compose)
-./scripts/start-e2e-env.sh
-
-# Run all E2E tests
-pytest backend/tests/e2e_ui/ -v
-
-# Run with 4 parallel workers
-pytest backend/tests/e2e_ui/ -v -n 4
-
-# Run specific authentication E2E tests
-pytest backend/tests/e2e_ui/tests/test_auth_login.py -v
-pytest backend/tests/e2e_ui/tests/test_auth_jwt_validation.py -v
-pytest backend/tests/e2e_ui/tests/test_auth_session.py -v
-pytest backend/tests/e2e_ui/tests/test_auth_protected_routes.py -v
-
-# Run agent workflow E2E tests
-pytest backend/tests/e2e_ui/tests/test_agent_creation.py -v
-pytest backend/tests/e2e_ui/tests/test_agent_streaming.py -v
-pytest backend/tests/e2e_ui/tests/test_agent_concurrent.py -v
-pytest backend/tests/e2e_ui/tests/test_agent_governance.py -v
-
-# Run with Allure reporting
-pytest backend/tests/e2e_ui/ -v --alluredir=allure-results
-allure serve allure-results
+cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh
+pytest backend/tests/e2e_ui/ -v -n 4                    # 4 parallel workers
+pytest backend/tests/e2e_ui/tests/test_auth_login.py -v # Specific file
+pytest backend/tests/e2e_ui/ -v --alluredir=allure-results && allure serve allure-results
 ```
 
-**E2E Test Coverage** (486 test functions across 68 test files):
-- **Authentication** (AUTH-01 to AUTH-07): Login/logout, JWT validation, session persistence, token refresh, mobile auth, API-first auth
-- **Agent Workflows** (AGNT-01 to AGNT-08): Creation, registry, streaming, WebSocket reconnection, concurrent execution, governance enforcement, lifecycle, cross-platform
+**Coverage** (486 tests, 68 files): AUTH-01..07 (login, JWT, session, refresh, mobile, API-first), AGNT-01..08 (creation, streaming, reconnection, concurrent, governance, lifecycle).
 
-**See**: `backend/tests/e2e_ui/README.md`, `.planning/phases/234-authentication-and-agent-e2e/`
+Test files: `backend/tests/e2e_ui/conftest.py`, `fixtures/auth_fixtures.py` (API-first, 10-100x faster), `pages/page_objects.py` (LoginPage, DashboardPage, ChatPage).
 
 ---
 
 ## Important File Locations
 
-**Core Services**:
-- `backend/core/agent_governance_service.py` - Agent governance
-- `backend/core/agent_context_resolver.py` - Agent resolution
-- `backend/core/governance_cache.py` - Performance cache
-- `backend/core/llm/byok_handler.py` - LLM routing
-- `backend/core/models.py` - Database models
-- `backend/core/agent_world_model.py` - World Model & JIT Fact Provision
-- `backend/core/graphrag_engine.py` - GraphRAG V2 (PostgreSQL-backed)
-- `backend/core/entity_type_service.py` - Dynamic entity type management
-- `backend/core/model_factory.py` - Runtime model creation for custom entities
+**Core**: `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`, `llm/byok_handler.py`, `models.py`, `agent_world_model.py`, `graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`
 
-**API Endpoints**:
-- `backend/core/atom_agent_endpoints.py` - Chat/streaming
-- `backend/api/canvas_routes.py` - Canvas/forms
-- `backend/api/browser_routes.py` - Browser automation
-- `backend/api/device_capabilities.py` - Device control
-- `backend/api/deeplinks.py` - Deep linking
-- `backend/api/admin/business_facts_routes.py` - Business Facts & JIT Citation Verification
-- `backend/api/entity_type_routes.py` - Entity type CRUD operations
-- `backend/api/graphrag_routes.py` - Graph search and ingestion
+**API**: `atom_agent_endpoints.py`, `api/canvas_routes.py`, `api/browser_routes.py`, `api/device_capabilities.py`, `api/deeplinks.py`, `api/admin/business_facts_routes.py`, `api/entity_type_routes.py`, `api/graphrag_routes.py`, `api/health_routes.py`
 
-**Canvas & Accessibility**:
-- `frontend-nextjs/hooks/useCanvasState.ts` - Canvas state hook
-- `frontend-nextjs/components/canvas/types/index.ts` - Canvas state types
-- `core/llm/canvas_summary_service.py` - LLM canvas summary service
+**Frontend**: `frontend-nextjs/hooks/useCanvasState.ts`, `components/canvas/types/index.ts`
 
-**Tools**:
-- `backend/tools/canvas_tool.py` - Canvas presentations
-- `backend/tools/browser_tool.py` - Browser automation
-- `backend/tools/device_tool.py` - Device capabilities
-- `backend/tools/atom_cli_skill_wrapper.py` - CLI command subprocess wrapper
+**Tools**: `tools/canvas_tool.py`, `tools/browser_tool.py`, `tools/device_tool.py`, `tools/atom_cli_skill_wrapper.py`
 
-**Skills**:
-- `backend/skills/atom-cli/` - CLI skills SKILL.md files (daemon, status, start, stop, execute, config)
-- `backend/core/skill_adapter.py` - Community Skills integration
+**Skills**: `skills/atom-cli/` (6 SKILL.md), `core/skill_adapter.py`
 
-**E2E Testing** ✨:
-- `backend/tests/e2e_ui/README.md` - E2E test infrastructure guide
-- `backend/tests/e2e_ui/conftest.py` - Pytest fixtures and configuration
-- `backend/tests/e2e_ui/fixtures/auth_fixtures.py` - API-first authentication (10-100x faster)
-- `backend/tests/e2e_ui/pages/page_objects.py` - Page Object Model (LoginPage, DashboardPage, ChatPage)
-- `docs/testing/E2E_TESTING_PHASE_234.md` - Phase 234 test coverage summary (91 tests)
+**E2E**: `backend/tests/e2e_ui/README.md`, `conftest.py`, `fixtures/auth_fixtures.py`, `pages/page_objects.py`
 
-**BYOK Migration** ✨:
-- `docs/ARCHITECTURE/BYOK_V6_MIGRATION_GUIDE.md` - v6.0 BYOK migration guide
-- `.planning/REQUIREMENTS-v6.0-BYOK.md` - v6.0 BYOK requirements (31 requirements)
-- `backend/core/llm/llm_service.py` - Unified LLM service API (target for migration)
+**BYOK**: `docs/architecture/BYOK_V6_MIGRATION_GUIDE.md`, `.planning/REQUIREMENTS-v6.0-BYOK.md`, `core/llm/llm_service.py`
 
 ---
 
@@ -772,8 +252,8 @@ allure serve allure-results
 
 ```bash
 # Database
-DATABASE_URL=sqlite:///./atom_dev.db  # Personal Edition default
-# DATABASE_URL=postgresql://user:pass@localhost/atom  # Production
+DATABASE_URL=sqlite:///./atom_dev.db            # Personal (default)
+# DATABASE_URL=postgresql://user:pass@host/atom # Production
 
 # Governance
 STREAMING_GOVERNANCE_ENABLED=true
@@ -782,27 +262,20 @@ FORM_GOVERNANCE_ENABLED=true
 BROWSER_GOVERNANCE_ENABLED=true
 EMERGENCY_GOVERNANCE_BYPASS=false
 
-# Browser
 BROWSER_HEADLESS=true
-
-# LLM Providers
 OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk--...
-MINIMAX_API_KEY=...  # Optional: MiniMax M2.7 (204K context, OpenAI-compatible)
-
-# Application
+ANTHROPIC_API_KEY=sk-...
+MINIMAX_API_KEY=...        # Optional: M2.7 204K context
 PORT=8000
 LOG_LEVEL=INFO
 
-# Monitoring (Production)
+# Monitoring
 PROMETHEUS_ENABLED=true
 STRUCTLOG_LEVEL=INFO
 HEALTH_CHECK_DISK_THRESHOLD_GB=1
 
 # Personal Edition
-ATOM_HOST_MOUNT_ENABLED=false  # Enable host filesystem access (AUTONOMOUS only)
-
-# Vector Embeddings (Personal Edition defaults)
+ATOM_HOST_MOUNT_ENABLED=false    # AUTONOMOUS gate
 EMBEDDING_PROVIDER=fastembed
 FASTEMBED_MODEL=BAAI/bge-small-en-v1.5
 LANCEDB_PATH=./data/lancedb
@@ -813,11 +286,11 @@ LANCEDB_PATH=./data/lancedb
 ## Database Migrations
 
 ```bash
-alembic revision -m "description"    # Create migration
-alembic upgrade head                  # Upgrade to latest
-alembic downgrade -1                  # Downgrade one step
-alembic current                        # Check current version
-alembic history                        # View history
+alembic revision -m "description"
+alembic upgrade head
+alembic downgrade -1
+alembic current
+alembic history
 ```
 
 ---
@@ -832,31 +305,31 @@ alembic history                        # View history
 | Cache hit rate | >90% | 95% |
 | Cache throughput | >5k ops/s | 616k ops/s |
 | Browser session creation | <5s | ~1-2s avg |
-| Health liveness probe | <10ms | 2ms P50, 10ms P99 |
-| Health readiness probe | <100ms | 15ms P50, 40ms P99 |
-| Prometheus metrics scrape | <50ms | 8ms P50, 25ms P99 |
-| Vector embedding generation | <20ms | 10-20ms (FastEmbed) |
+| Health liveness | <10ms | 2ms P50, 10ms P99 |
+| Health readiness | <100ms | 15ms P50, 40ms P99 |
+| Metrics scrape | <50ms | 8ms P50, 25ms P99 |
+| Vector embedding | <20ms | 10-20ms (FastEmbed) |
 
 ---
 
 ## Key Concepts
 
-1. **Multi-Agent Architecture** - Specialized agents with different maturity levels
-2. **Governance First** - Every AI action is attributable, governable, and auditable
+1. **Multi-Agent Architecture** - Specialized agents with maturity levels
+2. **Governance First** - Every AI action attributable, governable, auditable
 3. **Single-Tenant** - No workspace isolation, global dataset
 4. **Graceful Degradation** - Log errors but allow requests if governance fails
-5. **Performance Matters** - Cache provides sub-millisecond performance
-6. **Observability** - Health checks, metrics, and structured logs for production monitoring
-7. **E2E Testing Excellence** - 486 E2E test functions with API-first auth (10-100x faster), worker isolation, and parallel execution
-8. **Personal Edition** - Local deployment option with simplified setup (Docker Compose + SQLite)
-9. **Type Safety** - MyPy type checking enforced in CI for code quality
+5. **Performance** - Sub-ms cache
+6. **Observability** - Health, metrics, structured logs
+7. **E2E Excellence** - 486 functions, API-first auth, parallel
+8. **Personal Edition** - Docker Compose local
+9. **Type Safety** - MyPy in CI
 
 ---
 
 ## Quick Reference Commands
 
 ```bash
-# Development (launch from repo root — main.py uses backend.* imports)
+# Development (run from repo root — main.py uses backend.* imports)
 cd /path/to/atom
 PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 
@@ -865,78 +338,60 @@ curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin@example.com","password":"<from-log>"}'
 
-# Daemon mode (Personal Edition)
-atom-os daemon              # Start background service
-atom-os status              # Check daemon status
-atom-os stop                # Stop daemon
-atom-os execute <command>   # Run on-demand
+# Daemon (Personal Edition)
+atom-os daemon | status | stop | execute <command>
 
-# Health checks
-curl http://localhost:8000/health/live    # Liveness probe
-curl http://localhost:8000/health/ready   # Readiness probe (DB + disk)
-curl http://localhost:8000/health/metrics # Prometheus metrics
+# Health
+curl http://localhost:8000/health/live
+curl http://localhost:8000/health/ready
+curl http://localhost:8000/health/metrics
 
 # Canvas State API (browser console)
 window.atom.canvas.getState('canvas-id')
 window.atom.canvas.getAllStates()
 
-# Cognitive Tier System
-python -c "from core.llm.cognitive_tier_system import CognitiveClassifier; print(CognitiveClassifier().classify('hello world'))"
+# Cognitive Tiers
+python -c "from core.llm.cognitive_tier_system import CognitiveClassifier; print(CognitiveClassifier().classify('hello'))"
 curl -X GET "/api/v1/cognitive-tier/compare-tiers"
-curl -X GET "/api/v1/cognitive-tier/estimate-cost?prompt=test&estimated_tokens=100"
 
 # GraphRAG & Entity Types
 python -c "from core.graphrag_engine import graphrag_engine; print(graphrag_engine.local_search('default', 'John Doe', depth=2))"
 curl -X POST "/api/v1/graph/search/local" -d '{"query": "Project Alpha", "depth": 2}'
-curl -X POST "/api/v1/entity-types" -d '{"slug": "invoice", "display_name": "Invoice", "json_schema": {...}}'
-curl -X GET "/api/v1/entity-types?is_active=true"
+curl -X POST "/api/v1/entity-types" -d '{"slug":"invoice","display_name":"Invoice","json_schema":{...}}'
 
-# Intent Classification & Fleet Admiral
-python -c "from core.intent_classifier import IntentClassifier; print(IntentClassifier().classify_intent('Research competitors and build Slack integration'))"
+# Intent + Fleet Admiral
+python -c "from core.intent_classifier import IntentClassifier; print(IntentClassifier().classify_intent('Research competitors'))"
 python -c "from core.atom_meta_agent import AtomMetaAgent; print(AtomMetaAgent().spawn_agent('finance_analyst'))"
-curl -X POST "/api/v1/agent/route" -d '{"request": "Analyze sales data and create marketing strategy"}'
+curl -X POST "/api/v1/agent/route" -d '{"request": "Analyze sales data"}'
 
 # Playwright
 playwright install chromium
 
 # Database
-alembic upgrade head
-alembic current
-alembic history
+alembic upgrade head | current | history
 
 # Git
-git status
-git add .
-git commit -m "feat: description"
-git push origin main
+git status | add . | commit -m "feat: description" | push origin main
 
 # Logs
 tail -f logs/atom.log
 grep "governance" logs/atom.log | tail -100
 
-# E2E Tests (Phase 234)
-cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh  # Start test environment
-pytest backend/tests/e2e_ui/ -v                          # Run all E2E tests
-pytest backend/tests/e2e_ui/ -v -n 4                     # Run with 4 workers (10x faster)
-pytest backend/tests/e2e_ui/tests/test_auth_login.py -v # Run specific test file
-allure serve allure-results                              # View Allure reports
+# E2E Tests
+cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh
+pytest backend/tests/e2e_ui/ -v -n 4
+allure serve allure-results
 
-# Personal Edition (Docker)
-docker-compose -f docker-compose-personal.yml up -d
-docker-compose -f docker-compose-personal.yml logs -f
-docker-compose -f docker-compose-personal.yml down
+# Personal Edition
+docker-compose -f docker-compose-personal.yml up -d | logs -f | down
 ```
 
 ---
 
 ## Summary
 
-Atom is an AI-powered automation platform with multi-agent governance, episodic memory, real-time guidance, and production-ready monitoring. **Key**: Always think about **agent attribution** and **governance** when working with any AI feature.
+Atom: AI-powered automation with multi-agent governance, episodic memory, real-time guidance, production monitoring. **Always consider agent attribution and governance** for any AI feature.
 
-**Production-ready**: CI/CD pipeline, health checks, Prometheus metrics, comprehensive documentation, type safety enforcement, and 486 E2E test functions covering authentication and agent critical paths.
+**Production-ready**: CI/CD, health checks, Prometheus, docs, type safety, 486 E2E tests. **Personal Edition**: Docker Compose local (see `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`).
 
-**Personal Edition Available**: Run Atom locally with Docker Compose for personal automation and development (see `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`).
-
----
-
-*For comprehensive documentation, see `docs/` directory, `backend/docs/` for operational guides, and test files for usage examples.*
+*Full docs in `docs/`, `backend/docs/`, and test files.*

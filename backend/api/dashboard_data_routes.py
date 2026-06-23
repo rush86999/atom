@@ -368,7 +368,7 @@ async def get_dashboard_data(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch dashboard data: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -392,7 +392,7 @@ async def get_dashboard_stats(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch dashboard stats: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -410,7 +410,7 @@ async def get_calendar_events(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch calendar events: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -434,7 +434,7 @@ async def get_tasks(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch tasks: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -458,7 +458,7 @@ async def get_messages(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch messages: {str(e)}"
+            detail="Internal error"
         )
 
 

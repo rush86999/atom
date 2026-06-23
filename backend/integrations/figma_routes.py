@@ -34,7 +34,7 @@ async def get_figma_oauth_url(state: Optional[str] = None):
         }
     except Exception as e:
         logger.error(f"Error generating Figma OAuth URL: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/oauth/callback")
 async def figma_oauth_callback(code: str = Query(...), state: Optional[str] = None):
@@ -53,7 +53,7 @@ async def figma_oauth_callback(code: str = Query(...), state: Optional[str] = No
         raise
     except Exception as e:
         logger.error(f"Error in Figma OAuth callback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/oauth/status")
 async def get_figma_oauth_status():
@@ -67,7 +67,7 @@ async def get_figma_oauth_status():
         }
     except Exception as e:
         logger.error(f"Error getting Figma OAuth status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # API Endpoints
 @router.get("/status")
@@ -100,7 +100,7 @@ async def get_figma_user():
         raise
     except Exception as e:
         logger.error(f"Error getting Figma user: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/files")
 async def list_figma_files(team_id: Optional[str] = Query(None), project_id: Optional[str] = Query(None)):
@@ -172,7 +172,7 @@ async def list_figma_files(team_id: Optional[str] = Query(None), project_id: Opt
         raise
     except Exception as e:
         logger.error(f"Error listing Figma files: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/search")
 async def figma_search(request: FigmaSearchRequest, team_id: Optional[str] = Query(None)):
@@ -196,7 +196,7 @@ async def figma_search(request: FigmaSearchRequest, team_id: Optional[str] = Que
         raise
     except Exception as e:
         logger.error(f"Error searching Figma: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/items")
 async def list_figma_items(user_id: str = "test_user"):
@@ -220,7 +220,7 @@ async def list_figma_items(user_id: str = "test_user"):
         raise
     except Exception as e:
         logger.error(f"Error listing Figma items: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/health")
 async def figma_health():

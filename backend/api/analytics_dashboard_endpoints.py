@@ -159,7 +159,7 @@ async def get_dashboard_kpis(
 
     except Exception as e:
         logger.error(f"Error getting dashboard KPIs: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/workflows/top-performing", response_model=List[WorkflowPerformanceRanking])
@@ -226,7 +226,7 @@ async def get_top_workflows(
 
     except Exception as e:
         logger.error(f"Error getting top workflows: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/timeline", response_model=List[ExecutionTimelineData])
@@ -275,7 +275,7 @@ async def get_execution_timeline(
 
     except Exception as e:
         logger.error(f"Error getting execution timeline: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/errors/breakdown")
@@ -303,7 +303,7 @@ async def get_error_breakdown(
 
     except Exception as e:
         logger.error(f"Error getting error breakdown: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/alerts", response_model=List[AlertConfiguration])
@@ -345,7 +345,7 @@ async def get_alerts(
 
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/api/analytics/alerts")
@@ -384,7 +384,7 @@ async def create_alert(alert: AlertConfiguration):
 
     except Exception as e:
         logger.error(f"Error creating alert: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.put("/api/analytics/alerts/{alert_id}")
@@ -413,7 +413,7 @@ async def update_alert(
 
     except Exception as e:
         logger.error(f"Error updating alert: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.delete("/api/analytics/alerts/{alert_id}")
@@ -426,7 +426,7 @@ async def delete_alert(alert_id: str):
 
     except Exception as e:
         logger.error(f"Error deleting alert: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/realtime-feed", response_model=List[RealtimeExecutionEvent])
@@ -470,7 +470,7 @@ async def get_realtime_execution_feed(
 
     except Exception as e:
         logger.error(f"Error getting real-time feed: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/metrics/summary")
@@ -522,7 +522,7 @@ async def get_metrics_summary(
 
     except Exception as e:
         logger.error(f"Error getting metrics summary: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/api/analytics/dashboard/workflow/{workflow_id}/performance")
@@ -580,4 +580,4 @@ async def get_workflow_performance_detail(
         raise
     except Exception as e:
         logger.error(f"Error getting workflow performance detail: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")

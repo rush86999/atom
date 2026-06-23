@@ -3616,7 +3616,7 @@ async def load_integration_endpoint(
     except Exception as e:
         circuit_breaker.record_failure(integration_name, e)
         logger.error(f"Failed to load {integration_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @app.get("/api/integrations/stats")

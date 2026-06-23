@@ -373,7 +373,7 @@ class WebhookProcessor:
             raise
         except Exception as e:
             logger.error(f"Error processing Slack webhook: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def process_teams_webhook(
         self,
@@ -410,7 +410,7 @@ class WebhookProcessor:
 
         except Exception as e:
             logger.error(f"Error processing Teams webhook: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def process_gmail_webhook(
         self,
@@ -448,7 +448,7 @@ class WebhookProcessor:
 
         except Exception as e:
             logger.error(f"Error processing Gmail webhook: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def _is_duplicate(self, event_id: str) -> bool:
         """Check if event has already been processed"""

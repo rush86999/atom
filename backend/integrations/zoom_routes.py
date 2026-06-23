@@ -44,7 +44,7 @@ async def handle_oauth_callback(code: str):
         }
     except Exception as e:
         logger.error(f"Zoom OAuth callback failed: {e}")
-        raise HTTPException(status_code=400, detail=f"OAuth callback failed: {str(e)}")
+        raise HTTPException(status_code=400, detail="Internal error")
 
 class ZoomMeetingRequest(BaseModel):
     topic: str
@@ -138,7 +138,7 @@ async def create_zoom_meeting(meeting: ZoomMeetingRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to create Zoom meeting: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/meetings")
@@ -190,7 +190,7 @@ async def list_zoom_users(status: str = "active", page_size: int = 30):
         raise
     except Exception as e:
         logger.error(f"Failed to list Zoom users: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/recordings")
@@ -219,4 +219,4 @@ async def list_zoom_recordings(user_id: str = "me", from_date: str = None, to_da
         raise
     except Exception as e:
         logger.error(f"Failed to list Zoom recordings: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list recordings: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")

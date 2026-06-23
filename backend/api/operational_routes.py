@@ -24,7 +24,7 @@ async def get_daily_priorities(db: Session = Depends(get_db)):
         return router.success_response(data=result)
     except Exception as e:
         logger.error(f"Error fetching daily priorities: {e}")
-        raise router.internal_error(message=f"Failed to fetch daily priorities: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 @router.post("/simulate")
 async def simulate_business_decision(
@@ -39,7 +39,7 @@ async def simulate_business_decision(
         return router.success_response(data=result)
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
-        raise router.internal_error(message=f"Failed to run simulation: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/price-drift")
 async def get_price_drift(db: Session = Depends(get_db)):
@@ -56,7 +56,7 @@ async def get_price_drift(db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error(f"Error fetching price drift: {e}")
-        raise router.internal_error(message=f"Failed to fetch price drift: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/pricing-advisor")
 async def get_pricing_advice(db: Session = Depends(get_db)):
@@ -73,7 +73,7 @@ async def get_pricing_advice(db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error(f"Error fetching pricing advice: {e}")
-        raise router.internal_error(message=f"Failed to fetch pricing advice: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/waste")
 async def get_subscription_waste(db: Session = Depends(get_db)):
@@ -126,4 +126,4 @@ async def execute_intervention(
         )
     except Exception as e:
         logger.error(f"Execution failed: {e}")
-        raise router.internal_error(message=f"Failed to execute intervention: {str(e)}")
+        raise router.internal_error(message="Internal error")

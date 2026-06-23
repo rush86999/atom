@@ -87,7 +87,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Zoom token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_user(self, user_id: str = "me", access_token: str = None) -> Dict[str, Any]:
@@ -110,7 +110,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to get user: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get user: {str(e)}"
+                detail="Internal error"
             )
 
     async def list_meetings(
@@ -144,7 +144,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to list meetings: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to list meetings: {str(e)}"
+                detail="Internal error"
             )
 
     async def create_meeting(
@@ -189,7 +189,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to create meeting: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to create meeting: {str(e)}"
+                detail="Internal error"
             )
 
     async def delete_meeting(
@@ -216,7 +216,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to delete meeting: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to delete meeting: {str(e)}"
+                detail="Internal error"
             )
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -373,7 +373,7 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to list users: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to list users: {str(e)}"
+                detail="Internal error"
             )
 
     async def list_recordings(
@@ -411,5 +411,5 @@ class ZoomService(IntegrationService):
             logger.error(f"Failed to list recordings: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to list recordings: {str(e)}"
+                detail="Internal error"
             )

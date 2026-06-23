@@ -59,7 +59,7 @@ class XeroService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Xero token exchange failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_tenants(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected tenants (organizations)"""
@@ -73,7 +73,7 @@ class XeroService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get tenants: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch tenants: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_invoices(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of invoices"""
@@ -91,7 +91,7 @@ class XeroService(IntegrationService):
             return invoices[:limit]
         except Exception as e:
             logger.error(f"Failed to get invoices: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch invoices: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_contacts(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of contacts"""
@@ -107,7 +107,7 @@ class XeroService(IntegrationService):
             return contacts[:limit]
         except Exception as e:
             logger.error(f"Failed to get contacts: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch contacts: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def health_check(self) -> Dict[str, Any]:
         """Health check for Xero service"""

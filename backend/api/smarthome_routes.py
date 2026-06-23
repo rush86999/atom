@@ -132,13 +132,13 @@ async def get_hue_bridges(
         logger.warning("Hue bridge discovery blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to discover Hue bridges", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to discover Hue bridges: {e}"
+            detail="Internal error"
         )
 
 
@@ -192,7 +192,7 @@ async def connect_hue_bridge(
         logger.error("Failed to connect to Hue bridge", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to connect to Hue bridge: {e}"
+            detail="Internal error"
         )
 
 
@@ -236,13 +236,13 @@ async def get_hue_lights(
         logger.warning("Hue get_lights blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to get Hue lights", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get Hue lights: {e}"
+            detail="Internal error"
         )
 
 
@@ -299,7 +299,7 @@ async def set_hue_light_state(
         logger.warning("Hue set_light_state blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except HTTPException:
         raise
@@ -307,7 +307,7 @@ async def set_hue_light_state(
         logger.error("Failed to set Hue light state", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to set light state: {e}"
+            detail="Internal error"
         )
 
 
@@ -365,7 +365,7 @@ async def connect_home_assistant(
         logger.error("Failed to connect to Home Assistant", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to connect to Home Assistant: {e}"
+            detail="Internal error"
         )
 
 
@@ -409,13 +409,13 @@ async def get_home_assistant_states(
         logger.warning("Home Assistant get_states blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to get Home Assistant states", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get entity states: {e}"
+            detail="Internal error"
         )
 
 
@@ -475,7 +475,7 @@ async def get_home_assistant_state(
         logger.warning("Home Assistant get_state blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except HTTPException:
         raise
@@ -483,7 +483,7 @@ async def get_home_assistant_state(
         logger.error("Failed to get Home Assistant entity state", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get entity state: {e}"
+            detail="Internal error"
         )
 
 
@@ -547,7 +547,7 @@ async def call_home_assistant_service(
         logger.warning("Home Assistant call_service blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except HTTPException:
         raise
@@ -555,7 +555,7 @@ async def call_home_assistant_service(
         logger.error("Failed to call Home Assistant service", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to call service: {e}"
+            detail="Internal error"
         )
 
 
@@ -598,13 +598,13 @@ async def get_home_assistant_lights(
         logger.warning("Home Assistant get_lights blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to get Home Assistant lights", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get lights: {e}"
+            detail="Internal error"
         )
 
 
@@ -656,13 +656,13 @@ async def get_home_assistant_switches(
         logger.warning("Home Assistant get_switches blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to get Home Assistant switches", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get switches: {e}"
+            detail="Internal error"
         )
 
 
@@ -714,11 +714,11 @@ async def get_home_assistant_groups(
         logger.warning("Home Assistant get_groups blocked", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error("Failed to get Home Assistant groups", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to get groups: {e}"
+            detail="Internal error"
         )

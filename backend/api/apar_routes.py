@@ -220,9 +220,9 @@ async def download_ar_invoice(invoice_id: str):
             headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.pdf"}
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except ImportError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/ap/{invoice_id}/download")
 async def download_ap_invoice(invoice_id: str):
@@ -236,6 +236,6 @@ async def download_ap_invoice(invoice_id: str):
             headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.pdf"}
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except ImportError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

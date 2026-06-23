@@ -296,7 +296,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"HubSpot authentication failed: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Authentication failed: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error during HubSpot authentication: {e}")
@@ -370,7 +370,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot contacts: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get contacts: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot contacts: {e}")
@@ -435,7 +435,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot companies: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get companies: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot companies: {e}")
@@ -494,7 +494,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot deals: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get deals: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot deals: {e}")
@@ -554,7 +554,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot campaigns: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get campaigns: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot campaigns: {e}")
@@ -602,7 +602,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot lists: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to get lists: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot lists: {e}")
@@ -639,7 +639,7 @@ class HubSpotService:
 
         except httpx.HTTPError as e:
             logger.error(f"HubSpot search failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Search failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
         except Exception as e:
             logger.error(f"Unexpected error during HubSpot search: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -679,7 +679,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot contact: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to create contact: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error creating HubSpot contact: {e}")
@@ -720,7 +720,7 @@ class HubSpotService:
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot deal: {e}")
             raise HTTPException(
-                status_code=400, detail=f"Failed to create deal: {str(e)}"
+                status_code=400, detail="Internal error"
             )
         except Exception as e:
             logger.error(f"Unexpected error creating HubSpot deal: {e}")

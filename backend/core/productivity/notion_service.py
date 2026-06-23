@@ -174,7 +174,7 @@ class NotionService:
                     else:
                         raise HTTPException(
                             status_code=response.status_code,
-                            detail=f"Notion API error: {error_detail}"
+                            detail="Internal error"
                         )
 
                 return response.json()
@@ -183,7 +183,7 @@ class NotionService:
             logger.error(f"Notion API request failed: {e}")
             raise HTTPException(
                 status_code=502,
-                detail=f"Failed to connect to Notion API: {str(e)}"
+                detail="Internal error"
             )
 
     # ==================== OAuth Methods ====================

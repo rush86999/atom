@@ -122,7 +122,7 @@ class MFAService:
             }
         else:
             raise HTTPException(
-                status_code=400, detail=f"Unsupported MFA method: {enrollment.method}"
+                status_code=400, detail="Internal error"
             )
 
         # Generate backup codes
@@ -275,7 +275,7 @@ async def enable_mfa(config: MFAConfig):
         else:
             raise HTTPException(status_code=500, detail="Failed to enable MFA system")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to enable MFA: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @mfa_router.post("/mfa/enroll")
@@ -289,7 +289,7 @@ async def enroll_user(enrollment: MFAEnrollment):
             "data": result,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to enroll user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @mfa_router.post("/mfa/verify")
@@ -300,7 +300,7 @@ async def verify_mfa(auth: MFAAuthentication):
         return result
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"MFA verification failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -311,7 +311,7 @@ async def recover_with_backup_code(recovery: MFARecovery):
         result = await mfa_service.verify_backup_code(recovery)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recovery failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @mfa_router.post("/mfa/users/{user_id}/backup-codes")
@@ -327,7 +327,7 @@ async def generate_backup_codes(user_id: str):
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to generate backup codes: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -339,7 +339,7 @@ async def get_user_mfa_status(user_id: str):
         return {"user_id": user_id, "status": status}
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get MFA status: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -383,7 +383,7 @@ async def get_mfa_stats():
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get MFA stats: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 

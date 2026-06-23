@@ -67,4 +67,4 @@ async def submit_step_feedback(
         )
 
     except Exception as e:
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

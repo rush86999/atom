@@ -31,7 +31,7 @@ async def get_competitive_dashboard(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate competitive dashboard: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/summary")
@@ -67,7 +67,7 @@ async def get_competitive_summary(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate competitive summary: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/byok-analysis")
@@ -138,7 +138,7 @@ async def get_byok_competitive_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate BYOK analysis: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/roi-calculator")
@@ -224,7 +224,7 @@ async def calculate_roi(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"ROI calculation failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/differentiators")
@@ -273,7 +273,7 @@ async def get_key_differentiators(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get differentiators: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/testimonials")
@@ -417,7 +417,7 @@ async def get_industry_competitive_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Industry analysis failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/competitive-advantage/implementation-roadmap")

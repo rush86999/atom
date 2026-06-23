@@ -74,7 +74,7 @@ async def list_canvas_types():
         )
     except Exception as e:
         logger.error(f"Failed to list canvas types: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{canvas_type}", response_model=CanvasTypeInfo)
@@ -101,7 +101,7 @@ async def get_canvas_type(canvas_type: str):
         return CanvasTypeInfo(**canvas_info)
     except Exception as e:
         logger.error(f"Failed to get canvas type {canvas_type}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{canvas_type}/components")
@@ -128,7 +128,7 @@ async def get_canvas_components(canvas_type: str):
         }
     except Exception as e:
         logger.error(f"Failed to get components for {canvas_type}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{canvas_type}/layouts")
@@ -157,7 +157,7 @@ async def get_canvas_layouts(canvas_type: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get layouts for {canvas_type}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/validate", response_model=CanvasTypeValidationResponse)
@@ -250,7 +250,7 @@ async def validate_canvas_type(request: CanvasTypeValidationRequest):
         )
     except Exception as e:
         logger.error(f"Failed to validate canvas type: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{canvas_type}/permissions/{maturity_level}")
@@ -297,7 +297,7 @@ async def get_canvas_permissions(canvas_type: str, maturity_level: str):
         }
     except Exception as e:
         logger.error(f"Failed to get permissions for {canvas_type} at {maturity_level}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{canvas_type}/examples")
@@ -324,4 +324,4 @@ async def get_canvas_examples(canvas_type: str):
         }
     except Exception as e:
         logger.error(f"Failed to get examples for {canvas_type}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

@@ -73,7 +73,7 @@ class CalendlyService(IntegrationService):
             logger.error(f"Calendly token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
@@ -92,7 +92,7 @@ class CalendlyService(IntegrationService):
             logger.error(f"Failed to get current user: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get user info: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_event_types(
@@ -123,7 +123,7 @@ class CalendlyService(IntegrationService):
             logger.error(f"Failed to get event types: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get event types: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_scheduled_events(
@@ -158,7 +158,7 @@ class CalendlyService(IntegrationService):
             logger.error(f"Failed to get scheduled events: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get scheduled events: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

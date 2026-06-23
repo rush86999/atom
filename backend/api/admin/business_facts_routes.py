@@ -342,7 +342,7 @@ async def upload_and_extract(
         
     except Exception as e:
         logger.error(f"Failed to extract facts from {file.filename}: {e}")
-        raise router.internal_error(message="Failed to extract facts", details={"error": str(e)})
+        raise router.internal_error(message="Failed to extract facts", details={"error": "Internal error"})
     
     finally:
         # Cleanup temp file

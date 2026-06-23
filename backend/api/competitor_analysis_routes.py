@@ -597,7 +597,7 @@ async def analyze_competitors(
         logger.error(f"Competitor analysis failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to analyze competitors: {str(e)}"
+            detail="Internal error"
         )
 
 

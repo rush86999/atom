@@ -858,7 +858,7 @@ async def import_template_by_id(template_id: str):
         return marketplace.import_workflow(template.workflow_data)
     except Exception as e:
         logger.error(f"Import failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Advanced Template Endpoints
 @router.post("/templates/advanced", response_model=AdvancedWorkflowTemplate)
@@ -868,7 +868,7 @@ async def create_advanced_template(template_data: Dict[str, Any]):
         template = marketplace.create_advanced_template(template_data)
         return template
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.post("/templates/{template_id}/create-workflow")
 async def create_workflow_from_advanced_template(
@@ -889,9 +889,9 @@ async def create_workflow_from_advanced_template(
             "message": f"Workflow '{workflow_name}' created successfully from template {template_id}"
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 # Legacy Import/Export Endpoints
 @router.post("/import")
@@ -903,9 +903,9 @@ async def import_workflow(file: UploadFile = File(...)):
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/export")
 async def export_workflow(workflow_data: Dict[str, Any]):
@@ -914,9 +914,9 @@ async def export_workflow(workflow_data: Dict[str, Any]):
         export_data = marketplace.export_workflow(workflow_data)
         return export_data
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Template Statistics
 @router.get("/templates/statistics")

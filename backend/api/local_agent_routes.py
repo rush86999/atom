@@ -175,7 +175,7 @@ async def execute_command(
         logger.error(f"Command execution failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Command execution failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -239,7 +239,7 @@ async def approve_command(
         logger.error(f"Approved command execution failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Command execution failed: {str(e)}"
+            detail="Internal error"
         )
 
 

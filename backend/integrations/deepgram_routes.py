@@ -39,7 +39,7 @@ async def transcribe_url(request: TranscribeURLRequest):
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.post("/transcribe/file")
 async def transcribe_file(
@@ -71,7 +71,7 @@ async def transcribe_file(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/projects")
 async def get_projects():
@@ -84,7 +84,7 @@ async def get_projects():
         projects = await service.get_projects()
         return {"projects": projects}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/usage/{project_id}")
 async def get_usage(
@@ -101,7 +101,7 @@ async def get_usage(
         usage = await service.get_usage(project_id, start_date, end_date)
         return usage
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/status")
 async def deepgram_status():

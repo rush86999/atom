@@ -110,7 +110,7 @@ async def list_files(request: FileListRequest):
         }
     except Exception as e:
         logger.error(f"Error listing files: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/files/upload", summary="Upload file")
@@ -138,7 +138,7 @@ async def upload_file(request: FileUploadRequest):
         }
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/files/download", summary="Download file")
@@ -161,7 +161,7 @@ async def download_file(request: FileDownloadRequest):
     except Exception as e:
         logger.error(f"Error downloading file: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to download file: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -181,7 +181,7 @@ async def search_files(request: FileSearchRequest):
         }
     except Exception as e:
         logger.error(f"Error searching files: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to search files: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # Folder endpoints
@@ -208,7 +208,7 @@ async def create_folder(request: FolderCreateRequest):
     except Exception as e:
         logger.error(f"Error creating folder: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create folder: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -228,7 +228,7 @@ async def list_folders(request: FileListRequest):
         }
     except Exception as e:
         logger.error(f"Error listing folders: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list folders: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # Item management endpoints
@@ -254,7 +254,7 @@ async def delete_item(request: ItemDeleteRequest):
         }
     except Exception as e:
         logger.error(f"Error deleting item: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete item: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/items/move", summary="Move item")
@@ -279,7 +279,7 @@ async def move_item(request: ItemMoveRequest):
         }
     except Exception as e:
         logger.error(f"Error moving item: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to move item: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/items/copy", summary="Copy item")
@@ -304,7 +304,7 @@ async def copy_item(request: ItemCopyRequest):
         }
     except Exception as e:
         logger.error(f"Error copying item: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to copy item: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # Sharing endpoints
@@ -336,7 +336,7 @@ async def create_shared_link(request: SharedLinkCreateRequest):
     except Exception as e:
         logger.error(f"Error creating shared link: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create shared link: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -372,7 +372,7 @@ async def get_user_info(user_id: str = Query(..., description="User ID")):
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get user info: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -397,7 +397,7 @@ async def get_space_usage(user_id: str = Query(..., description="User ID")):
     except Exception as e:
         logger.error(f"Error getting space usage: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get space usage: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -432,7 +432,7 @@ async def get_file_metadata(
     except Exception as e:
         logger.error(f"Error getting file metadata: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get file metadata: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -452,5 +452,5 @@ async def health_check():
     except Exception as e:
         logger.error(f"Dropbox health check failed: {e}")
         raise HTTPException(
-            status_code=503, detail=f"Dropbox service is unhealthy: {str(e)}"
+            status_code=503, detail="Internal error"
         )

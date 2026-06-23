@@ -22,7 +22,7 @@ async def get_silent_stakeholders(current_user: User = Depends(get_current_user)
             "count": len(silent_stakeholders)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/all")
 async def get_all_stakeholders(current_user: User = Depends(get_current_user)):
@@ -36,4 +36,4 @@ async def get_all_stakeholders(current_user: User = Depends(get_current_user)):
             "stakeholders": stakeholders
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

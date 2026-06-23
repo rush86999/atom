@@ -399,7 +399,7 @@ async def execute_ai_workflow(request: Dict[str, Any]):
         return await ai_service.run_react_agent(input_text, requested_provider)
     except Exception as e:
         logger.error(f"Execution Failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_agent(request: ChatRequest):
@@ -440,7 +440,7 @@ async def chat_with_agent(request: ChatRequest):
         )
     except Exception as e:
         logger.error(f"Chat failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/nlu", response_model=NLUProcessingResponse)
 async def process_natural_language(request: Dict[str, Any]):
@@ -469,7 +469,7 @@ async def process_natural_language(request: Dict[str, Any]):
         )
     except Exception as e:
         logger.error(f"NLU Endpoint Failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/status", response_model=Dict[str, Any])
 async def get_ai_status():
@@ -508,4 +508,4 @@ async def analyze_content(request: Dict[str, Any]):
         breakdown = await ai_service.process_with_nlu_structured(text, provider)
         return {"status": "success", "analysis": breakdown.model_dump(), "provider": provider or "auto"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

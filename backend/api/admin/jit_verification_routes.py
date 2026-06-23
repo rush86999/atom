@@ -149,7 +149,7 @@ async def verify_citations(
         )
     except Exception as e:
         logger.error(f"Failed to verify citations: {e}")
-        raise HTTPException(status_code=500, detail=f"Citation verification failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/worker/metrics", response_model=WorkerMetricsResponse)
@@ -169,7 +169,7 @@ async def get_worker_metrics(
         return WorkerMetricsResponse(**metrics)
     except Exception as e:
         logger.error(f"Failed to get worker metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get worker metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/worker/start")

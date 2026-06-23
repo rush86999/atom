@@ -75,7 +75,7 @@ class LinearService(IntegrationService):
             logger.error(f"Linear token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def _graphql_query(self, query: str, variables: Dict = None, access_token: str = None) -> Dict[str, Any]:
@@ -102,7 +102,7 @@ class LinearService(IntegrationService):
             logger.error(f"GraphQL query failed: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"GraphQL query failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_viewer(self, access_token: str = None) -> Dict[str, Any]:

@@ -97,7 +97,7 @@ async def validate_audit_compliance(
         return result
     except Exception as e:
         logger.error(f"Compliance validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/compliance")
@@ -143,7 +143,7 @@ async def get_compliance_report(
         return report
     except Exception as e:
         logger.error(f"Compliance report generation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/trail/{account_id}")
@@ -217,7 +217,7 @@ async def get_audit_trail(
         return export
     except Exception as e:
         logger.error(f"Audit trail export failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/health")
@@ -258,7 +258,7 @@ async def get_audit_health(
         return metrics
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/verify/{account_id}")
@@ -317,7 +317,7 @@ async def verify_hash_chain(
         return result
     except Exception as e:
         logger.error(f"Hash chain verification failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/gaps")
@@ -378,4 +378,4 @@ async def detect_audit_gaps(
         return gaps
     except Exception as e:
         logger.error(f"Gap detection failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gap detection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")

@@ -56,4 +56,4 @@ def set_preference(
         )
         return {"success": True, "key": request.key, "value": request.value}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

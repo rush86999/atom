@@ -130,7 +130,7 @@ async def list_scheduled_posts(
         raise
     except Exception as e:
         logger.error(f"Failed to list scheduled posts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/scheduled-posts/{post_id}/status", response_model=TaskStatusResponse)
@@ -180,7 +180,7 @@ async def get_scheduled_post_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get post status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.delete("/scheduled-posts/{post_id}/cancel")
@@ -251,7 +251,7 @@ async def cancel_scheduled_post(
         raise
     except Exception as e:
         logger.error(f"Failed to cancel scheduled post: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/queues", response_model=AllQueuesInfoResponse)
@@ -279,7 +279,7 @@ async def get_all_queues_info():
 
     except Exception as e:
         logger.error(f"Failed to get queues info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/queues/{queue_name}", response_model=QueueInfoResponse)
@@ -313,7 +313,7 @@ async def get_queue_info(queue_name: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get queue info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/health")

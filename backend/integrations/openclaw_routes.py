@@ -44,4 +44,4 @@ async def receive_webhook(request: Request, x_openclaw_signature: Optional[str] 
         return result
     except Exception as e:
         logger.error(f"OpenClaw Webhook Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

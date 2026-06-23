@@ -351,4 +351,4 @@ async def get_accounting_dashboard_summary(
 
     except Exception as e:
         logger.error(f"Error fetching accounting summary: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

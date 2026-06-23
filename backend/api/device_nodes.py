@@ -55,7 +55,7 @@ async def register_node(
         )
     except Exception as e:
         logger.error(f"Failed to register node: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 @router.post("/{device_id}/heartbeat")
 async def heartbeat(

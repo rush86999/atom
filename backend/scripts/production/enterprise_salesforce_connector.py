@@ -408,7 +408,7 @@ class EnterpriseSalesforceConnector:
 
         except Exception as e:
             logger.error(f"Failed to get accounts: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get accounts: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_account(self, account_id: str) -> SalesforceAccount:
         """Get Salesforce account by ID"""
@@ -437,7 +437,7 @@ class EnterpriseSalesforceConnector:
             raise
         except Exception as e:
             logger.error(f"Failed to get account: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get account: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_contacts(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
         """Get Salesforce contacts"""
@@ -469,7 +469,7 @@ class EnterpriseSalesforceConnector:
 
         except Exception as e:
             logger.error(f"Failed to get contacts: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get contacts: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_contact(self, contact_id: str) -> SalesforceContact:
         """Get Salesforce contact by ID"""
@@ -497,7 +497,7 @@ class EnterpriseSalesforceConnector:
             raise
         except Exception as e:
             logger.error(f"Failed to get contact: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get contact: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_opportunities(
         self, limit: int = 100, offset: int = 0
@@ -533,7 +533,7 @@ class EnterpriseSalesforceConnector:
         except Exception as e:
             logger.error(f"Failed to get opportunities: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to get opportunities: {e}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_opportunity(self, opportunity_id: str) -> SalesforceOpportunity:
@@ -562,7 +562,7 @@ class EnterpriseSalesforceConnector:
         except Exception as e:
             logger.error(f"Failed to get opportunity: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to get opportunity: {e}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_cases(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
@@ -594,7 +594,7 @@ class EnterpriseSalesforceConnector:
 
         except Exception as e:
             logger.error(f"Failed to get cases: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get cases: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_case(self, case_id: str) -> SalesforceCase:
         """Get Salesforce case by ID"""
@@ -621,7 +621,7 @@ class EnterpriseSalesforceConnector:
             raise
         except Exception as e:
             logger.error(f"Failed to get case: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get case: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def execute_query(self, query_request: SalesforceQuery) -> Dict[str, Any]:
         """Execute SOQL query"""
@@ -650,7 +650,7 @@ class EnterpriseSalesforceConnector:
 
         except Exception as e:
             logger.error(f"SOQL query execution failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Query execution failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def execute_search(self, search_request: SalesforceSearch) -> Dict[str, Any]:
         """Execute SOSL search"""
@@ -679,7 +679,7 @@ class EnterpriseSalesforceConnector:
 
         except Exception as e:
             logger.error(f"SOSL search execution failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Search execution failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def sync_data(self, full_sync: bool = False) -> SalesforceSyncResult:
         """Synchronize Salesforce data"""
@@ -828,7 +828,7 @@ class EnterpriseSalesforceConnector:
             raise
         except Exception as e:
             logger.error(f"SOQL query execution error: {e}")
-            raise HTTPException(status_code=500, detail=f"Query execution error: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def _execute_sosl_search(self, sosl_query: str) -> Dict[str, List]:
         """Execute SOSL search against Salesforce"""
@@ -859,7 +859,7 @@ class EnterpriseSalesforceConnector:
             raise
         except Exception as e:
             logger.error(f"SOSL search execution error: {e}")
-            raise HTTPException(status_code=500, detail=f"Search execution error: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def _parse_account_result(self, result: Dict) -> SalesforceAccount:
         """Parse Salesforce account result"""

@@ -92,7 +92,7 @@ class SonosService:
             logger.error(f"Sonos discovery failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Failed to discover Sonos speakers: {str(e)}"
+                detail="Internal error"
             )
 
     async def _get_speaker(self, speaker_ip: str):
@@ -130,7 +130,7 @@ class SonosService:
             logger.error(f"Failed to connect to Sonos speaker at {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Speaker not found at {speaker_ip}: {str(e)}"
+                detail="Internal error"
             )
 
     async def play(
@@ -170,7 +170,7 @@ class SonosService:
             logger.error(f"Failed to play on Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to play: {str(e)}"
+                detail="Internal error"
             )
 
     async def pause(self, speaker_ip: str) -> Dict:
@@ -196,7 +196,7 @@ class SonosService:
             logger.error(f"Failed to pause Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to pause: {str(e)}"
+                detail="Internal error"
             )
 
     async def next_track(self, speaker_ip: str) -> Dict:
@@ -222,7 +222,7 @@ class SonosService:
             logger.error(f"Failed to skip next on Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to skip track: {str(e)}"
+                detail="Internal error"
             )
 
     async def previous_track(self, speaker_ip: str) -> Dict:
@@ -248,7 +248,7 @@ class SonosService:
             logger.error(f"Failed to skip previous on Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to skip to previous: {str(e)}"
+                detail="Internal error"
             )
 
     async def set_volume(self, speaker_ip: str, volume: int) -> Dict:
@@ -289,7 +289,7 @@ class SonosService:
             logger.error(f"Failed to set volume on Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to set volume: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_current_track_info(self, speaker_ip: str) -> Dict:
@@ -326,7 +326,7 @@ class SonosService:
             logger.error(f"Failed to get track info from Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get track info: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_groups(self) -> List[Dict]:
@@ -370,7 +370,7 @@ class SonosService:
             logger.error(f"Failed to get Sonos groups: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Failed to get groups: {str(e)}"
+                detail="Internal error"
             )
 
     async def join_group(
@@ -409,7 +409,7 @@ class SonosService:
             logger.error(f"Failed to join Sonos speaker {speaker_ip} to group: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to join group: {str(e)}"
+                detail="Internal error"
             )
 
     async def leave_group(self, speaker_ip: str) -> Dict:
@@ -439,5 +439,5 @@ class SonosService:
             logger.error(f"Failed to leave group for Sonos speaker {speaker_ip}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to leave group: {str(e)}"
+                detail="Internal error"
             )

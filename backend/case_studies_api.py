@@ -71,7 +71,7 @@ async def generate_all_case_studies(background_tasks: BackgroundTasks):
 
     except Exception as e:
         logger.error(f"Failed to generate case studies: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/aggregate-impact", response_model=AggregateImpactResponse)
 async def get_aggregate_business_impact():
@@ -88,7 +88,7 @@ async def get_aggregate_business_impact():
 
     except Exception as e:
         logger.error(f"Failed to calculate aggregate impact: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/customer-support")
 async def get_customer_support_case_study():
@@ -135,7 +135,7 @@ async def get_customer_support_case_study():
 
     except Exception as e:
         logger.error(f"Failed to get customer support case study: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/project-management")
 async def get_project_management_case_study():
@@ -181,7 +181,7 @@ async def get_project_management_case_study():
 
     except Exception as e:
         logger.error(f"Failed to get project management case study: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/independent-validator-evidence")
 async def get_independent_validator_evidence():
@@ -241,7 +241,7 @@ async def get_independent_validator_evidence():
 
     except Exception as e:
         logger.error(f"Failed to prepare independent validator evidence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/generate-comprehensive-report")
 async def generate_comprehensive_validation_report():
@@ -311,7 +311,7 @@ async def generate_comprehensive_validation_report():
 
     except Exception as e:
         logger.error(f"Failed to generate comprehensive report: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Import datetime for report generation
 import datetime

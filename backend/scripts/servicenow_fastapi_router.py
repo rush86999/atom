@@ -239,7 +239,7 @@ async def servicenow_connect(auth: ServiceNowAuth):
                 status_code=400, detail="Failed to connect to ServiceNow"
             )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Connection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @servicenow_router.get("/servicenow/health")
@@ -268,7 +268,7 @@ async def create_incident(incident: ServiceNowIncident):
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to create incident: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -281,7 +281,7 @@ async def get_incidents(
         return {"incidents": incidents, "total": len(incidents), "state_filter": state}
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get incidents: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -297,7 +297,7 @@ async def create_change(change: ServiceNowChange):
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to create change: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -307,7 +307,7 @@ async def get_changes():
         changes = await servicenow_service.get_changes()
         return {"changes": changes, "total": len(changes)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get changes: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @servicenow_router.post("/servicenow/knowledge")
@@ -322,7 +322,7 @@ async def create_knowledge_article(article: ServiceNowKnowledge):
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to create knowledge article: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -333,7 +333,7 @@ async def search_knowledge(query: str = Query(..., description="Search query")):
         return {"results": results, "query": query, "total": len(results)}
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to search knowledge: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -380,7 +380,7 @@ async def get_servicenow_dashboard():
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get dashboard: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 

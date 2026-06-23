@@ -83,7 +83,7 @@ async def analyze_workflow(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Workflow analysis failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/workflows/optimization-plan")
@@ -129,7 +129,7 @@ async def create_optimization_plan(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Optimization plan creation failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/workflows/{workflow_id}/monitor")
@@ -163,7 +163,7 @@ async def monitor_workflow_performance(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Performance monitoring failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/workflows/{workflow_id}/recommendations")
@@ -232,7 +232,7 @@ async def get_workflow_recommendations(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get recommendations: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/workflows/optimization-types")
@@ -354,7 +354,7 @@ async def batch_analyze_workflows(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Batch analysis failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/workflows/optimization-insights")
@@ -404,7 +404,7 @@ async def get_optimization_insights(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get optimization insights: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/workflows/{workflow_id}/implement-optimization")
@@ -437,7 +437,7 @@ async def implement_optimization(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to initiate optimization: {str(e)}"
+            detail="Internal error"
         )
 
 async def _execute_optimization_implementation(

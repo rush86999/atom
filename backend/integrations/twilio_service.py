@@ -73,7 +73,7 @@ class TwilioService(IntegrationService):
             logger.error(f"Failed to send SMS: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to send SMS: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_messages(
@@ -106,7 +106,7 @@ class TwilioService(IntegrationService):
             logger.error(f"Failed to get messages: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get messages: {str(e)}"
+                detail="Internal error"
             )
 
     async def make_call(
@@ -142,7 +142,7 @@ class TwilioService(IntegrationService):
             logger.error(f"Failed to make call: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to make call: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_calls(
@@ -175,7 +175,7 @@ class TwilioService(IntegrationService):
             logger.error(f"Failed to get calls: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get calls: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_account_info(self) -> Dict[str, Any]:
@@ -195,7 +195,7 @@ class TwilioService(IntegrationService):
             logger.error(f"Failed to get account info: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get account info: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

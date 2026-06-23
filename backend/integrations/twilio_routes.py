@@ -47,7 +47,7 @@ async def send_sms(request: SendSMSRequest):
         return {"ok": True, "message": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to send SMS: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/messages")
@@ -63,7 +63,7 @@ async def get_messages(
         return {"ok": True, "messages": messages, "count": len(messages), "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to get messages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/calls/make")
@@ -75,7 +75,7 @@ async def make_call(request: MakeCallRequest):
         return {"ok": True, "call": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to make call: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/calls")
@@ -91,7 +91,7 @@ async def get_calls(
         return {"ok": True, "calls": calls, "count": len(calls), "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to get calls: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/account")
@@ -103,7 +103,7 @@ async def get_account_info():
         return {"ok": True, "account": account, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to get account: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status")
@@ -152,4 +152,4 @@ async def twilio_webhook(request: Request):
         
     except Exception as e:
         logger.error(f"Error handling Twilio webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

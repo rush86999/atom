@@ -85,7 +85,7 @@ async def handle_oauth_callback(request: OAuthCallbackRequest):
         return result
     except Exception as e:
         logger.error(f"Error handling OAuth callback: {e}")
-        raise router.internal_error(details=str(e))
+        raise router.internal_error(details="Internal error")
 
 class RefreshTokenRequest(BaseModel):
     """Request to refresh access token"""
@@ -156,7 +156,7 @@ async def send_interactive_card(request: SendCardRequest):
 
     except Exception as e:
         logger.error(f"Error sending card: {e}")
-        raise router.internal_error(details=str(e))
+        raise router.internal_error(details="Internal error")
 
 class UpdateCardRequest(BaseModel):
     """Request to update an existing card"""
@@ -213,7 +213,7 @@ async def open_dialog(request: OpenDialogRequest):
 
     except Exception as e:
         logger.error(f"Error opening dialog: {e}")
-        raise router.internal_error(details=str(e))
+        raise router.internal_error(details="Internal error")
 
 # ============================================================================
 # Space Management Endpoints
@@ -247,7 +247,7 @@ async def create_space(request: CreateSpaceRequest):
 
     except Exception as e:
         logger.error(f"Error creating space: {e}")
-        raise router.internal_error(details=str(e))
+        raise router.internal_error(details="Internal error")
 
 @router.get("/spaces/list")
 async def list_spaces():
@@ -365,7 +365,7 @@ async def send_google_chat_message(request: SendMessageRequest):
 
     except Exception as e:
         logger.error(f"Error sending message: {e}")
-        raise router.internal_error(details=str(e))
+        raise router.internal_error(details="Internal error")
 
 class UploadFileRequest(BaseModel):
     """Request to upload a file to Google Chat"""

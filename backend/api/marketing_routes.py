@@ -102,7 +102,7 @@ async def get_marketing_summary(
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")
-        raise router.internal_error(message="Error fetching marketing summary", details={"error": str(e)})
+        raise router.internal_error(message="Error fetching marketing summary", details={"error": "Internal error"})
 
 
 @router.post("/leads/{lead_id}/score")

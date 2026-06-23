@@ -322,7 +322,7 @@ async def get_platform_status():
 
         return status
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/health")

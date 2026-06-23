@@ -111,7 +111,7 @@ async def start_troubleshooting_session(request: StartTroubleshootingRequest):
     except Exception as e:
         logger.error(f"Failed to start troubleshooting session: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to start troubleshooting session: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -150,7 +150,7 @@ async def get_session_issues(session_id: str):
     except Exception as e:
         logger.error(f"Failed to get session issues: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get session issues: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -187,11 +187,11 @@ async def analyze_workflow_metrics(session_id: str, request: MetricsAnalysisRequ
             "issues": issues_response,
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to analyze workflow metrics: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to analyze workflow metrics: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -210,11 +210,11 @@ async def diagnose_root_causes(session_id: str):
             "current_step": session.current_step.value if session else "unknown",
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to diagnose root causes: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to diagnose root causes: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -233,11 +233,11 @@ async def generate_recommendations(session_id: str):
             "current_step": session.current_step.value if session else "unknown",
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to generate recommendations: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to generate recommendations: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -253,11 +253,11 @@ async def verify_resolution(session_id: str, request: VerificationRequest):
 
         return verification_results
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to verify resolution: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to verify resolution: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -272,11 +272,11 @@ async def get_session_summary(session_id: str):
         summary = troubleshooting_engine.get_session_summary(session_id)
         return TroubleshootingSummaryResponse(**summary)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to get session summary: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get session summary: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -297,7 +297,7 @@ async def get_workflow_health_score(workflow_id: str):
     except Exception as e:
         logger.error(f"Failed to get workflow health score: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get workflow health score: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -328,7 +328,7 @@ async def list_active_sessions():
     except Exception as e:
         logger.error(f"Failed to list active sessions: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to list active sessions: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -357,7 +357,7 @@ async def close_session(session_id: str):
     except Exception as e:
         logger.error(f"Failed to close session: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to close session: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -410,5 +410,5 @@ async def trigger_automated_troubleshooting(
         logger.error(f"Failed to trigger automated troubleshooting: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to trigger automated troubleshooting: {str(e)}",
+            detail="Internal error",
         )

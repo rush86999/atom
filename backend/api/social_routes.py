@@ -119,9 +119,9 @@ async def create_post(
         return CreatePostResponse(**post)
 
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail="Internal error")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 
 @router.get("/feed")
@@ -231,9 +231,9 @@ async def add_reply(
         )
         return {"success": True, "reply": reply}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail="Internal error")
 
 
 @router.get("/posts/{post_id}/replies")
@@ -286,7 +286,7 @@ async def create_channel(
         )
         return {"success": True, "channel": channel}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 
 @router.get("/channels")

@@ -204,7 +204,7 @@ async def store_memory(
         return MemoryResponse(**entry)
     except Exception as e:
         logger.error(f"Failed to store memory: {e}")
-        raise router.internal_error(detail=str(e))
+        raise router.internal_error(detail="Internal error")
 
 # Parameterized routes MUST come after static routes
 @router.get("/{key}", response_model=MemoryResponse)

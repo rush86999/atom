@@ -103,7 +103,7 @@ async def get_metrics(
         )
     except Exception as e:
         logger.error(f"Error getting metrics: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/health", response_model=Dict[str, Any])
@@ -131,7 +131,7 @@ async def get_health(
         )
     except Exception as e:
         logger.error(f"Error getting health status: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/status/overall", response_model=OverallStatusResponse)
@@ -150,7 +150,7 @@ async def get_overall_status() -> OverallStatusResponse:
         return OverallStatusResponse(**status)
     except Exception as e:
         logger.error(f"Error getting overall status: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/alerts", response_model=List[AlertResponse])
@@ -178,7 +178,7 @@ async def get_alerts(
         return [AlertResponse(**alert) for alert in alerts]
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/alerts/count")
@@ -207,7 +207,7 @@ async def get_alerts_count() -> Dict[str, int]:
         )
     except Exception as e:
         logger.error(f"Error getting alert counts: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/statistics/summary")
@@ -229,7 +229,7 @@ async def get_statistics_summary() -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error getting statistics summary: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/configuration")
@@ -257,7 +257,7 @@ async def get_configuration(
         )
     except Exception as e:
         logger.error(f"Error getting configuration: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/configuration/{integration}")
@@ -306,7 +306,7 @@ async def update_configuration(
         )
     except Exception as e:
         logger.error(f"Error updating configuration: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/metrics/reset")
@@ -338,7 +338,7 @@ async def reset_metrics(
         )
     except Exception as e:
         logger.error(f"Error resetting metrics: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/integrations")
@@ -375,7 +375,7 @@ async def list_integrations() -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error listing integrations: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/integrations/{integration}/details")
@@ -411,7 +411,7 @@ async def get_integration_details(integration: str) -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error getting integration details: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/health/{integration}/check")
@@ -446,7 +446,7 @@ async def check_integration_health(integration: str) -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error checking integration health: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/performance")
@@ -480,7 +480,7 @@ async def get_performance_metrics() -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/data-quality")
@@ -514,4 +514,4 @@ async def get_data_quality_metrics() -> Dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Error getting data quality metrics: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")

@@ -50,7 +50,7 @@ async def get_memory_service_status(
     except Exception as e:
         logger.error(f"Failed to get memory service status: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Service status check failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -102,7 +102,7 @@ async def store_processed_pdf(
         raise
     except Exception as e:
         logger.error(f"PDF storage failed: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF storage failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/search")
@@ -164,7 +164,7 @@ async def search_pdfs(
         raise
     except Exception as e:
         logger.error(f"PDF search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/documents/{doc_id}")
@@ -202,7 +202,7 @@ async def get_document(
     except Exception as e:
         logger.error(f"Document retrieval failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Document retrieval failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -245,7 +245,7 @@ async def delete_document(
     except Exception as e:
         logger.error(f"Document deletion failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Document deletion failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -273,7 +273,7 @@ async def get_user_document_stats(
     except Exception as e:
         logger.error(f"Statistics retrieval failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Statistics retrieval failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -344,7 +344,7 @@ async def list_user_documents(
     except Exception as e:
         logger.error(f"Document listing failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Document listing failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -402,7 +402,7 @@ async def update_document_tags(
         raise
     except Exception as e:
         logger.error(f"Tag update failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Tag update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/documents/{doc_id}/tags")
@@ -445,7 +445,7 @@ async def get_document_tags(
         raise
     except Exception as e:
         logger.error(f"Get tags failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get tags failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.delete("/documents/{doc_id}/tags")
@@ -499,7 +499,7 @@ async def delete_document_tags(
         raise
     except Exception as e:
         logger.error(f"Delete tags failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Delete tags failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/users/{user_id}/documents/search")
@@ -547,7 +547,7 @@ async def search_documents_by_tags(
         raise
     except Exception as e:
         logger.error(f"Search by tags failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/health")
@@ -566,4 +566,4 @@ async def health_check(service: PDFMemoryIntegration = Depends(get_pdf_memory_se
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Internal error")

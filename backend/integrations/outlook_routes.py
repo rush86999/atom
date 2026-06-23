@@ -146,7 +146,7 @@ async def list_emails(request: EmailListRequest):
         }
     except Exception as e:
         logger.error(f"Error listing emails: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list emails: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/emails/send", summary="Send email")
@@ -175,7 +175,7 @@ async def send_email(request: EmailSendRequest):
 
     except Exception as e:
         logger.error(f"Error sending email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/emails/draft", summary="Create draft email")
@@ -205,7 +205,7 @@ async def create_draft_email(request: EmailDraftRequest):
     except Exception as e:
         logger.error(f"Error creating draft email: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create draft email: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -227,7 +227,7 @@ async def get_email(email_id: str, user_id: str = Query(..., description="User I
 
     except Exception as e:
         logger.error(f"Error getting email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.delete("/emails/{email_id}", summary="Delete email")
@@ -248,7 +248,7 @@ async def delete_email(email_id: str, user_id: str = Query(..., description="Use
 
     except Exception as e:
         logger.error(f"Error deleting email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # Calendar endpoints
@@ -272,7 +272,7 @@ async def list_calendar_events(request: CalendarEventListRequest):
     except Exception as e:
         logger.error(f"Error listing calendar events: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to list calendar events: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -306,7 +306,7 @@ async def create_calendar_event(request: CalendarEventCreateRequest):
     except Exception as e:
         logger.error(f"Error creating calendar event: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create calendar event: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -330,7 +330,7 @@ async def list_contacts(request: ContactListRequest):
     except Exception as e:
         logger.error(f"Error listing contacts: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to list contacts: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -362,7 +362,7 @@ async def create_contact(request: ContactCreateRequest):
     except Exception as e:
         logger.error(f"Error creating contact: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create contact: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -385,7 +385,7 @@ async def list_tasks(request: TaskListRequest):
         }
     except Exception as e:
         logger.error(f"Error listing tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/tasks/create", summary="Create task")
@@ -414,7 +414,7 @@ async def create_task(request: TaskCreateRequest):
 
     except Exception as e:
         logger.error(f"Error creating task: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create task: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # Search endpoint
@@ -438,7 +438,7 @@ async def search_emails(request: SearchRequest):
     except Exception as e:
         logger.error(f"Error searching emails: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to search emails: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -462,7 +462,7 @@ async def get_user_profile(user_id: str = Query(..., description="User ID")):
     except Exception as e:
         logger.error(f"Error getting user profile: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get user profile: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -485,7 +485,7 @@ async def get_unread_emails(
     except Exception as e:
         logger.error(f"Error getting unread emails: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get unread emails: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -505,7 +505,7 @@ async def health_check():
     except Exception as e:
         logger.error(f"Outlook health check failed: {e}")
         raise HTTPException(
-            status_code=503, detail=f"Outlook service is unhealthy: {str(e)}"
+            status_code=503, detail="Internal error"
         )
 
 
@@ -563,7 +563,7 @@ async def backfill_outlook_memory(
     except Exception as e:
         logger.error(f"Error backfilling Outlook memory: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to backfill Outlook memory: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -591,5 +591,5 @@ async def get_backfill_status(job_id: str):
     except Exception as e:
         logger.error(f"Error getting backfill status: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get backfill status: {str(e)}"
+            status_code=500, detail="Internal error"
         )

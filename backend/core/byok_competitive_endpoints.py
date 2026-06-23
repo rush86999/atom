@@ -41,7 +41,7 @@ async def get_competitive_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate competitive analysis: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/byok/optimize-costs")
@@ -73,7 +73,7 @@ async def optimize_costs(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate cost optimization: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/byok/simulate-savings")
@@ -96,7 +96,7 @@ async def simulate_cost_savings(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to simulate savings: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/byok/value-proposition")
@@ -172,7 +172,7 @@ async def get_value_proposition(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate value proposition: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/byok/provider-intelligence/{provider_id}")
@@ -233,11 +233,11 @@ async def get_provider_intelligence(
             "generated_at": datetime.now().isoformat()
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get provider intelligence: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/byok/workflow-optimization")
@@ -320,7 +320,7 @@ async def optimize_workflow_costs(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to optimize workflow: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/byok/market-insights")
@@ -415,5 +415,5 @@ async def get_market_insights(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate market insights: {str(e)}"
+            detail="Internal error"
         )

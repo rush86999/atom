@@ -96,7 +96,7 @@ async def list_records(
         raise
     except Exception as e:
         logger.error(f"Failed to list records: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/records/{base_id}/{table_name}/{record_id}")
@@ -117,7 +117,7 @@ async def get_record(base_id: str, table_name: str, record_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get record: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/records")
@@ -141,7 +141,7 @@ async def create_record(
         raise
     except Exception as e:
         logger.error(f"Failed to create record: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.patch("/records")
@@ -166,7 +166,7 @@ async def update_record(
         raise
     except Exception as e:
         logger.error(f"Failed to update record: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.delete("/records/{base_id}/{table_name}/{record_id}")
@@ -193,7 +193,7 @@ async def delete_record(
         raise
     except Exception as e:
         logger.error(f"Failed to delete record: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")

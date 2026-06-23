@@ -106,7 +106,7 @@ class ZohoBooksService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Zoho token exchange failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Zoho token exchange failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_organizations(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected Zoho organizations"""

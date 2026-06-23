@@ -506,10 +506,10 @@ async def schedule_workflow(
         return {"success": True, "job_id": job_id, "message": f"Workflow scheduled with ID {job_id}"}
         
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Scheduling failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.delete("/workflows/{workflow_id}/schedule/{job_id}")
 async def unschedule_workflow(
@@ -537,5 +537,5 @@ async def reload_scheduler_jobs(user: User = Depends(require_permission(Permissi
         return {"status": "success", "message": "System pipelines reloaded from preferences"}
     except Exception as e:
         logger.error(f"Failed to reload scheduler: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 

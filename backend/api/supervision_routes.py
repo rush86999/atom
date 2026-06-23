@@ -86,7 +86,7 @@ async def stream_supervision_logs(
     if not execution:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Execution not found: {execution_id}"
+            detail="Internal error"
         )
 
     # Get supervision session
@@ -185,12 +185,12 @@ async def intervene_in_session(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to intervene: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -226,12 +226,12 @@ async def complete_supervision_session(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to complete session: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -273,7 +273,7 @@ async def get_active_sessions(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get active sessions: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -311,7 +311,7 @@ async def get_agent_supervision_history(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get supervision history: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -374,10 +374,10 @@ async def autonomous_approve_proposal(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process autonomous approval: {str(e)}"
+            detail="Internal error"
         )

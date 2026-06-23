@@ -93,7 +93,7 @@ async def handle_line_webhook(
         raise
     except Exception as e:
         logger.error(f"Error handling LINE webhook: {e}")
-        raise router.internal_error(message="Error handling LINE webhook", details={"error": str(e)})
+        raise router.internal_error(message="Error handling LINE webhook", details={"error": "Internal error"})
 
 
 @router.post("/send-message")
@@ -125,7 +125,7 @@ async def send_line_message(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE message: {e}")
-        raise router.internal_error(message="Error sending LINE message", details={"error": str(e)})
+        raise router.internal_error(message="Error sending LINE message", details={"error": "Internal error"})
 
 
 @router.post("/send-messages")
@@ -157,7 +157,7 @@ async def send_line_messages(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE messages: {e}")
-        raise router.internal_error(message="Error sending LINE messages", details={"error": str(e)})
+        raise router.internal_error(message="Error sending LINE messages", details={"error": "Internal error"})
 
 
 @router.post("/send-quick-reply")
@@ -190,7 +190,7 @@ async def send_line_quick_reply(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE quick reply: {e}")
-        raise router.internal_error(message="Error sending LINE quick reply", details={"error": str(e)})
+        raise router.internal_error(message="Error sending LINE quick reply", details={"error": "Internal error"})
 
 
 @router.post("/send-template")
@@ -223,7 +223,7 @@ async def send_line_template(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE template: {e}")
-        raise router.internal_error(message="Error sending LINE template", details={"error": str(e)})
+        raise router.internal_error(message="Error sending LINE template", details={"error": "Internal error"})
 
 
 @router.get("/user/{user_id}/profile")
@@ -270,7 +270,7 @@ async def get_line_user_profile(
         raise
     except Exception as e:
         logger.error(f"Error getting LINE user profile: {e}")
-        raise router.internal_error(message="Error getting LINE user profile", details={"error": str(e)})
+        raise router.internal_error(message="Error getting LINE user profile", details={"error": "Internal error"})
 
 
 @router.get("/health")

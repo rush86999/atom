@@ -164,7 +164,7 @@ class SpotifyService:
             self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to exchange authorization code: {str(e)}"
+                detail="Internal error"
             )
 
     async def refresh_tokens(self, user_id: str) -> Dict:
@@ -227,7 +227,7 @@ class SpotifyService:
             self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to refresh token: {str(e)}"
+                detail="Internal error"
             )
 
     async def _get_access_token(self, user_id: str) -> str:
@@ -385,7 +385,7 @@ class SpotifyService:
             logger.error(f"Failed to get current track for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve current track: {str(e)}"
+                detail="Internal error"
             )
 
     async def play_track(
@@ -436,7 +436,7 @@ class SpotifyService:
             logger.error(f"Failed to play track for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to play track: {str(e)}"
+                detail="Internal error"
             )
 
     async def pause_playback(self, user_id: str, device_id: Optional[str] = None) -> Dict:
@@ -471,7 +471,7 @@ class SpotifyService:
             logger.error(f"Failed to pause playback for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to pause playback: {str(e)}"
+                detail="Internal error"
             )
 
     async def skip_next(self, user_id: str, device_id: Optional[str] = None) -> Dict:
@@ -506,7 +506,7 @@ class SpotifyService:
             logger.error(f"Failed to skip next for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to skip track: {str(e)}"
+                detail="Internal error"
             )
 
     async def skip_previous(self, user_id: str, device_id: Optional[str] = None) -> Dict:
@@ -541,7 +541,7 @@ class SpotifyService:
             logger.error(f"Failed to skip previous for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to skip to previous track: {str(e)}"
+                detail="Internal error"
             )
 
     async def set_volume(
@@ -589,7 +589,7 @@ class SpotifyService:
             logger.error(f"Failed to set volume for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to set volume: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_available_devices(self, user_id: str) -> Dict:
@@ -629,5 +629,5 @@ class SpotifyService:
             logger.error(f"Failed to get devices for user {user_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve devices: {str(e)}"
+                detail="Internal error"
             )

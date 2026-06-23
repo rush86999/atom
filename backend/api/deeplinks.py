@@ -168,7 +168,7 @@ async def execute_deeplink_endpoint(
         raise router.validation_error("deeplink_url", str(e))
     except Exception as e:
         logger.error(f"Unexpected error executing deep link: {e}")
-        raise router.internal_error(f"Internal server error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/audit", response_model=List[DeepLinkAuditResponse])
@@ -297,7 +297,7 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest):
         raise router.validation_error("request", str(e))
     except Exception as e:
         logger.error(f"Unexpected error generating deep link: {e}")
-        raise router.internal_error(f"Internal server error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/stats", response_model=DeepLinkStatsResponse)

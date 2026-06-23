@@ -204,7 +204,7 @@ async def get_notion_authorization_url(
         logger.error(f"Failed to generate Notion authorization URL: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate authorization URL: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -263,7 +263,7 @@ async def notion_oauth_callback(
         logger.error(f"Notion OAuth callback failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"OAuth callback failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -304,7 +304,7 @@ async def search_notion_workspace(
         logger.error(f"Notion search failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Search failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -339,7 +339,7 @@ async def list_notion_databases(
         logger.error(f"Failed to list Notion databases: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to list databases: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -380,7 +380,7 @@ async def get_notion_database_schema(
         logger.error(f"Failed to get database schema: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get database schema: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -425,7 +425,7 @@ async def query_notion_database(
         logger.error(f"Failed to query database: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Database query failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -466,7 +466,7 @@ async def get_notion_page(
         logger.error(f"Failed to get page: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get page: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -505,7 +505,7 @@ async def create_notion_page(
         logger.error(f"Failed to create page: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create page: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -545,7 +545,7 @@ async def update_notion_page(
         logger.error(f"Failed to update page: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to update page: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -595,5 +595,5 @@ async def append_notion_page_blocks(
         logger.error(f"Failed to append blocks: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to append blocks: {str(e)}"
+            detail="Internal error"
         )

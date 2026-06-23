@@ -557,7 +557,7 @@ async def create_learning_plan(
         logger.error(f"Learning plan creation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create learning plan: {str(e)}"
+            detail="Internal error"
         )
 
 

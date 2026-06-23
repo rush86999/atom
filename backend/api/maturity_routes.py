@@ -318,7 +318,7 @@ async def get_agent_training_history(
         return {"agent_id": agent_id, "training_history": history}
 
     except Exception as e:
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # ============================================================================
@@ -520,7 +520,7 @@ async def get_agent_proposal_history(
         return {"agent_id": agent_id, "proposal_history": history}
 
     except Exception as e:
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 # ============================================================================

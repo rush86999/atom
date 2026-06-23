@@ -20,7 +20,7 @@ class TestLogicAndUXFixes:
             source = f.read()
 
         # Verify the fix - internal errors are NOT exposed
-        assert 'detail=str(e)' not in source, \
+        assert 'detail="Internal error"' not in source, \
             "Fix applied: Internal errors are no longer exposed"
 
         # Verify generic error message is used
@@ -39,7 +39,7 @@ class TestLogicAndUXFixes:
             source = f.read()
 
         # Verify the fix - internal errors are NOT exposed
-        assert 'detail=str(e)' not in source, \
+        assert 'detail="Internal error"' not in source, \
             "Fix applied: Internal errors are no longer exposed"
 
         # Verify generic error messages are used

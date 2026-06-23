@@ -145,7 +145,7 @@ async def register_schema(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to register schema: {str(e)}"
+            detail="Internal error"
         )
 
 # Data Mapping Endpoints
@@ -211,11 +211,11 @@ async def create_mapping(
             "field_count": len(field_mappings)
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create mapping: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/integrations/mappings/{mapping_id}")
@@ -231,7 +231,7 @@ async def get_mapping_details(
             "mapping": mapping_data
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
 
 @router.post("/api/v1/integrations/mappings/{mapping_id}/transform")
 async def transform_data(
@@ -257,7 +257,7 @@ async def transform_data(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Data transformation failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/integrations/validate")
@@ -274,11 +274,11 @@ async def validate_data(
             "validation": validation_result
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Data validation failed: {str(e)}"
+            detail="Internal error"
         )
 
 # Bulk Operations Endpoints
@@ -316,7 +316,7 @@ async def submit_bulk_operation(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to submit bulk operation: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/integrations/bulk/{job_id}")
@@ -431,7 +431,7 @@ async def get_integration_analytics(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate analytics: {str(e)}"
+            detail="Internal error"
         )
 
 # Pre-built Mapping Templates
@@ -604,5 +604,5 @@ async def apply_mapping_template(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to apply template: {str(e)}"
+            detail="Internal error"
         )

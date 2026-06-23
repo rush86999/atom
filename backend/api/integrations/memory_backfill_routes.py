@@ -135,10 +135,10 @@ async def trigger_backfill(
 
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to trigger backfill for {integration_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/{integration_id}/backfill/status/{job_id}")
@@ -181,7 +181,7 @@ async def get_backfill_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get job status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/backfill/all")
@@ -269,10 +269,10 @@ async def trigger_all_backfills(
 
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to trigger all backfills: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/backfill/active")
@@ -310,4 +310,4 @@ async def list_active_backfills(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"Failed to list active jobs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

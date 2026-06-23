@@ -170,7 +170,7 @@ async def start_oauth(request: Request, user_id: str):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth start failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @app.get("/api/auth/jira/callback")
 async def oauth_callback(
@@ -303,7 +303,7 @@ async def get_user_resources(request: Request, user_id: str):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get resources: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @app.get("/api/auth/jira/{cloud_id}/projects")
 async def get_jira_projects(request: Request, user_id: str, cloud_id: str):
@@ -348,7 +348,7 @@ async def get_jira_projects(request: Request, user_id: str, cloud_id: str):
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch projects")
                 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get projects: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @app.delete("/api/auth/jira/{cloud_id}")
 async def revoke_access(request: Request, user_id: str, cloud_id: str):
@@ -371,7 +371,7 @@ async def revoke_access(request: Request, user_id: str, cloud_id: str):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to revoke access: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 async def exchange_code_for_token(code: str) -> Optional[Dict[str, Any]]:
     """Exchange authorization code for access token"""

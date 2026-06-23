@@ -89,7 +89,7 @@ class QuickBooksService(IntegrationService):
             logger.error(f"QuickBooks token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_company_info(self, realm_id: str = None, access_token: str = None) -> Dict[str, Any]:
@@ -113,7 +113,7 @@ class QuickBooksService(IntegrationService):
             logger.error(f"Failed to get company info: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get company info: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_customers(
@@ -145,7 +145,7 @@ class QuickBooksService(IntegrationService):
             logger.error(f"Failed to get customers: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get customers: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_invoices(
@@ -177,7 +177,7 @@ class QuickBooksService(IntegrationService):
             logger.error(f"Failed to get invoices: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get invoices: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_expenses(
@@ -209,7 +209,7 @@ class QuickBooksService(IntegrationService):
             logger.error(f"Failed to get expenses: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get expenses: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

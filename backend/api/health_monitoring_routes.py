@@ -113,7 +113,7 @@ async def get_agent_health(
 
     except Exception as e:
         logger.error(f"Failed to get agent health: {e}")
-        raise router.internal_error(message=f"Failed to get agent health: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/integrations", response_model=list[IntegrationHealthResponse])
@@ -139,7 +139,7 @@ async def get_integrations_health(
 
     except Exception as e:
         logger.error(f"Failed to get integrations health: {e}")
-        raise router.internal_error(message=f"Failed to get integrations health: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/system", response_model=SystemMetricsResponse)
@@ -166,7 +166,7 @@ async def get_system_metrics(
 
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}")
-        raise router.internal_error(message=f"Failed to get system metrics: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/alerts", response_model=list[AlertResponse])
@@ -200,7 +200,7 @@ async def get_alerts(
 
     except Exception as e:
         logger.error(f"Failed to get alerts: {e}")
-        raise router.internal_error(message=f"Failed to get alerts: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/alerts/{alert_id}/acknowledge")
@@ -231,7 +231,7 @@ async def acknowledge_alert(
 
     except Exception as e:
         logger.error(f"Failed to acknowledge alert: {e}")
-        raise router.internal_error(message=f"Failed to acknowledge alert: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/history/{health_type}")
@@ -273,7 +273,7 @@ async def get_health_history(
 
     except Exception as e:
         logger.error(f"Failed to get health history: {e}")
-        raise router.internal_error(message=f"Failed to get health history: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/external-data")
@@ -343,7 +343,7 @@ async def external_data_health():
 
     except Exception as e:
         logger.error(f"Failed to get external data health: {e}")
-        return router.internal_error(message=f"Failed to get external data health: {str(e)}")
+        return router.internal_error(message="Internal error")
 
 
 @router.get("/health")

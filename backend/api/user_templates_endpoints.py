@@ -211,7 +211,7 @@ async def create_user_template(
     except Exception as e:
         logger.error(f"Error creating template: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("", response_model=List[TemplateResponse])
@@ -275,7 +275,7 @@ async def list_user_templates(
 
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/stats", response_model=TemplateStatisticsResponse)
@@ -338,7 +338,7 @@ async def get_user_template_statistics(
 
     except Exception as e:
         logger.error(f"Error getting template statistics: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -364,7 +364,7 @@ async def get_template(
 
     except Exception as e:
         logger.error(f"Error getting template {template_id}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.put("/{template_id}", response_model=TemplateResponse)
@@ -451,7 +451,7 @@ async def update_template(
     except Exception as e:
         logger.error(f"Error updating template {template_id}: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -501,7 +501,7 @@ async def delete_template(
     except Exception as e:
         logger.error(f"Error deleting template {template_id}: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/{template_id}/publish", response_model=TemplateResponse)
@@ -561,7 +561,7 @@ async def publish_template(
     except Exception as e:
         logger.error(f"Error publishing template {template_id}: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/{template_id}/duplicate", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -631,7 +631,7 @@ async def duplicate_template(
     except Exception as e:
         logger.error(f"Error duplicating template {template_id}: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{template_id}/versions", response_model=List[Dict[str, Any]])
@@ -672,7 +672,7 @@ async def get_template_versions(
 
     except Exception as e:
         logger.error(f"Error getting versions for template {template_id}: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 
 @router.post("/{template_id}/rate")
@@ -712,4 +712,4 @@ async def rate_template(
     except Exception as e:
         logger.error(f"Error rating template {template_id}: {e}")
         db.rollback()
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

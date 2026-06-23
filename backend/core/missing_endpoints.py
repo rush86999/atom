@@ -83,7 +83,7 @@ async def demo_project_management(request: WorkflowRequest):
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/api/v1/workflows/demo-customer-support")
 async def demo_customer_support(request: WorkflowRequest):
@@ -116,7 +116,7 @@ async def demo_customer_support(request: WorkflowRequest):
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/api/v1/workflows/demo-sales-lead")
 async def demo_sales_lead(request: WorkflowRequest):
@@ -148,7 +148,7 @@ async def demo_sales_lead(request: WorkflowRequest):
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 # --- AI Provider Endpoints ---

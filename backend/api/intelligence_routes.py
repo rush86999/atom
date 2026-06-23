@@ -50,7 +50,7 @@ async def get_insights():
         )
     except Exception as e:
         logger.error(f"Error fetching insights: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.get("/entities")
 async def get_entities(type: Optional[str] = None, platform: Optional[str] = None):
@@ -82,7 +82,7 @@ async def get_entities(type: Optional[str] = None, platform: Optional[str] = Non
         )
     except Exception as e:
         logger.error(f"Error fetching entities: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.post("/refresh")
 async def refresh_intelligence():
@@ -174,7 +174,7 @@ async def refresh_intelligence():
         )
     except Exception as e:
         logger.error(f"Error refreshing intelligence: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")
 
 @router.post("/execute")
 async def execute_insight_action(request: Dict[str, Any]):
@@ -219,4 +219,4 @@ async def execute_insight_action(request: Dict[str, Any]):
         raise router.validation_error("action_type", f"Unsupported action type: {action_type}")
     except Exception as e:
         logger.error(f"Error executing insight action: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

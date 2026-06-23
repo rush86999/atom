@@ -747,7 +747,7 @@ async def list_connected_accounts(
         logger.error(f"Failed to list connected accounts: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to retrieve connected accounts: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -784,5 +784,5 @@ async def get_rate_limit_status(
         logger.error(f"Failed to check rate limit: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to check rate limit: {str(e)}"
+            detail="Internal error"
         )

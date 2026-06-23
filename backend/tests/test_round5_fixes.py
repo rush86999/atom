@@ -112,15 +112,15 @@ class TestNoExceptionLeakage:
     """byok_endpoints handlers must not leak str(e) in HTTPException detail."""
 
     def test_no_str_e_in_detail(self):
-        """Inspect source of byok_endpoints — HTTPException detail=str(e) is forbidden."""
+        """Inspect source of byok_endpoints — HTTPException detail="Internal error" is forbidden."""
         from core import byok_endpoints
 
         src = inspect.getsource(byok_endpoints)
-        # Find any HTTPException with detail=str(e) or detail=f"...{e}"
+        # Find any HTTPException with detail="Internal error" or detail="Internal error"
         bad_patterns = [
-            "detail=str(e)",
-            'detail=f"{str(e)}"',
-            'detail=f"{e}"',
+            "detail="Internal error"",
+            'detail="Internal error"',
+            'detail="Internal error"',
         ]
         for pattern in bad_patterns:
             assert pattern not in src, (

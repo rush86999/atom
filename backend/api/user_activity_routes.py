@@ -119,7 +119,7 @@ async def send_heartbeat(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to record heartbeat: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -162,7 +162,7 @@ async def get_user_state(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get user state: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -220,7 +220,7 @@ async def set_manual_override(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to set manual override: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -249,12 +249,12 @@ async def clear_manual_override(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear manual override: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -288,7 +288,7 @@ async def get_available_supervisors(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get available supervisors: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -324,7 +324,7 @@ async def get_active_sessions(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get active sessions: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -354,5 +354,5 @@ async def terminate_session(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to terminate session: {str(e)}"
+            detail="Internal error"
         )

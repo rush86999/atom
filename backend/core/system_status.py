@@ -221,7 +221,7 @@ async def get_system_status():
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get system status: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -259,5 +259,5 @@ async def get_metrics():
             f"system_memory_usage {resources.get('memory', {}).get('percent', 0)}\n"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 

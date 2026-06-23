@@ -32,7 +32,7 @@ async def execute_mcp_action(
         return {"status": "success", "result": result}
     except Exception as e:
         logger.error(f"MCP Tool Execution Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/search")
 async def perform_search(query: str):
@@ -42,4 +42,4 @@ async def perform_search(query: str):
         return result
     except Exception as e:
         logger.error(f"MCP Search Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

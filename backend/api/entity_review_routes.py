@@ -180,7 +180,7 @@ async def approve_entity(
     )
 
     if not graph_node:
-        raise HTTPException(status_code=404, detail=f"Entity {entity_id} not found or approval failed")
+        raise HTTPException(status_code=404, detail="Internal error")
 
     return {
         "success": True,
@@ -215,7 +215,7 @@ async def reject_entity(
     )
 
     if not success:
-        raise HTTPException(status_code=404, detail=f"Entity {entity_id} not found")
+        raise HTTPException(status_code=404, detail="Internal error")
 
     return {
         "success": True,

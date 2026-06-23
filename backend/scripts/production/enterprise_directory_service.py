@@ -181,7 +181,7 @@ class DirectoryConnection:
 
         except LDAPException as e:
             logger.error(f"LDAP search error: {e}")
-            raise HTTPException(status_code=500, detail=f"Directory search failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
 
 class EnterpriseDirectoryService:
@@ -349,7 +349,7 @@ class EnterpriseDirectoryService:
 
         except Exception as e:
             logger.error(f"User search failed: {e}")
-            raise HTTPException(status_code=500, detail=f"User search failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_user(self, user_id: str) -> DirectoryUser:
         """Get directory user by ID"""
@@ -390,7 +390,7 @@ class EnterpriseDirectoryService:
             raise
         except Exception as e:
             logger.error(f"Failed to get user: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get user: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def search_groups(
         self, query: str = "", limit: int = 100, offset: int = 0
@@ -428,7 +428,7 @@ class EnterpriseDirectoryService:
 
         except Exception as e:
             logger.error(f"Group search failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Group search failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_group(self, group_name: str) -> DirectoryGroup:
         """Get directory group by name"""
@@ -456,7 +456,7 @@ class EnterpriseDirectoryService:
             raise
         except Exception as e:
             logger.error(f"Failed to get group: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get group: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def sync_directory(self, full_sync: bool = False) -> SyncResult:
         """Synchronize directory data"""

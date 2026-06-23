@@ -159,7 +159,7 @@ async def register_device(
 
     except Exception as e:
         logger.error(f"Failed to register device: {e}")
-        raise router.internal_error(f"Device registration failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/offline/queue", response_model=QueueOfflineActionResponse)
@@ -222,7 +222,7 @@ async def queue_offline_action(
 
     except Exception as e:
         logger.error(f"Failed to queue offline action: {e}")
-        raise router.internal_error(f"Failed to queue action: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/sync/trigger")
@@ -343,7 +343,7 @@ async def trigger_sync(
 
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
-        raise router.internal_error(f"Sync failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/sync/status", response_model=SyncStatusResponse)
@@ -398,7 +398,7 @@ async def get_sync_status(
 
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
-        raise router.internal_error(f"Failed to get sync status: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/canvas/list", response_model=MobileCanvasListResponse)
@@ -492,7 +492,7 @@ async def list_mobile_canvases(
 
     except Exception as e:
         logger.error(f"Failed to list canvases: {e}")
-        raise router.internal_error(f"Failed to list canvases: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.delete("/notifications/unregister")
@@ -536,7 +536,7 @@ async def unregister_device(
 
     except Exception as e:
         logger.error(f"Failed to unregister device: {e}")
-        raise router.internal_error(f"Failed to unregister device: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/notifications/devices")
@@ -576,4 +576,4 @@ async def list_user_devices(
 
     except Exception as e:
         logger.error(f"Failed to list devices: {e}")
-        raise router.internal_error(f"Failed to list devices: {str(e)}")
+        raise router.internal_error("Internal error")

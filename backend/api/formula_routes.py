@@ -72,7 +72,7 @@ async def create_formula(request: FormulaCreateRequest):
         return FormulaResponse(**formula)
     except Exception as e:
         logger.error(f"Failed to create formula: {e}")
-        raise router.internal_error(message="Failed to create formula", details={"error": str(e)})
+        raise router.internal_error(message="Failed to create formula", details={"error": "Internal error"})
 
 @router.get("", response_model=List[FormulaResponse])
 async def list_formulas(category: Optional[str] = None, tag: Optional[str] = None):
@@ -146,7 +146,7 @@ async def execute_formula(formula_id: str, context: Optional[Dict[str, Any]] = N
         )
     except Exception as e:
         logger.error(f"Formula execution failed: {e}")
-        raise router.internal_error(message="Formula execution failed", details={"error": str(e)})
+        raise router.internal_error(message="Formula execution failed", details={"error": "Internal error"})
 
 @router.get("/categories")
 async def list_categories():

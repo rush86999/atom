@@ -46,7 +46,7 @@ async def get_sales_pipeline(
             
     except Exception as e:
         logger.error(f"Error fetching sales pipeline: {e}")
-        raise router.internal_error(message="Error fetching sales pipeline", details={"error": str(e)})
+        raise router.internal_error(message="Error fetching sales pipeline", details={"error": "Internal error"})
 
 
 @router.get("/dashboard/summary")

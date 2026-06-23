@@ -63,7 +63,7 @@ async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = 
         }
     except Exception as e:
         logger.error(f"Shopify callback error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/shop")
 async def get_shop_info(

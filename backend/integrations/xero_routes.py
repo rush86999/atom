@@ -42,7 +42,7 @@ async def xero_auth_callback(auth_request: XeroAuthRequest):
             "service": "xero"
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/tenants")
 async def get_tenants(access_token: str = Query(..., description="Access Token")):

@@ -85,7 +85,7 @@ async def get_tickets(
         raise
     except Exception as e:
         logger.error(f"Failed to get tickets: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/tickets")
@@ -107,7 +107,7 @@ async def create_ticket(request: TicketCreateRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to create ticket: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/tickets/{ticket_id}")
@@ -123,7 +123,7 @@ async def get_ticket(ticket_id: int):
         raise
     except Exception as e:
         logger.error(f"Failed to get ticket {ticket_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.put("/tickets/{ticket_id}")
@@ -140,7 +140,7 @@ async def update_ticket(ticket_id: int, request: TicketUpdateRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to update ticket {ticket_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/contacts")
@@ -156,7 +156,7 @@ async def get_contacts(page: int = Query(1, ge=1), per_page: int = Query(30, ge=
         raise
     except Exception as e:
         logger.error(f"Failed to get contacts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/agents")
@@ -172,7 +172,7 @@ async def get_agents():
         raise
     except Exception as e:
         logger.error(f"Failed to get agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search/tickets")
@@ -188,4 +188,4 @@ async def search_tickets(request: SearchRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to search tickets: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

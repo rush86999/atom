@@ -152,7 +152,7 @@ async def create_review(
         raise router.validation_error("review", str(e))
     except Exception as e:
         logger.error(f"Failed to create review: {e}")
-        raise router.internal_error(detail=f"Failed to create review: {str(e)}")
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/{review_id}", response_model=ReviewResponse)
@@ -218,7 +218,7 @@ async def get_review(
 
     except Exception as e:
         logger.error(f"Failed to get review: {e}")
-        raise router.internal_error(detail=f"Failed to get review: {str(e)}")
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/recording/{recording_id}", response_model=list[ReviewResponse])
@@ -282,7 +282,7 @@ async def get_recording_reviews(
 
     except Exception as e:
         logger.error(f"Failed to get recording reviews: {e}")
-        raise router.internal_error(detail=f"Failed to get recording reviews: {str(e)}")
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/agent/{agent_id}/metrics", response_model=ReviewMetricsResponse)
@@ -316,7 +316,7 @@ async def get_agent_review_metrics(
 
     except Exception as e:
         logger.error(f"Failed to get agent metrics: {e}")
-        raise router.internal_error(detail=f"Failed to get agent metrics: {str(e)}")
+        raise router.internal_error(detail="Internal error")
 
 
 @router.post("/recording/{recording_id}/auto-review")
@@ -362,7 +362,7 @@ async def trigger_auto_review(
 
     except Exception as e:
         logger.error(f"Failed to trigger auto-review: {e}")
-        raise router.internal_error(detail=f"Failed to trigger auto-review: {str(e)}")
+        raise router.internal_error(detail="Internal error")
 
 
 @router.get("/health")

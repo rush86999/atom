@@ -91,7 +91,7 @@ class AirtableService(IntegrationService):
             logger.error(f"Failed to list records: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to list records: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_record(
@@ -118,7 +118,7 @@ class AirtableService(IntegrationService):
             logger.error(f"Failed to get record: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get record: {str(e)}"
+                detail="Internal error"
             )
 
     async def create_record(
@@ -147,7 +147,7 @@ class AirtableService(IntegrationService):
             logger.error(f"Failed to create record: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to create record: {str(e)}"
+                detail="Internal error"
             )
 
     async def update_record(
@@ -177,7 +177,7 @@ class AirtableService(IntegrationService):
             logger.error(f"Failed to update record: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to update record: {str(e)}"
+                detail="Internal error"
             )
 
     async def delete_record(
@@ -204,7 +204,7 @@ class AirtableService(IntegrationService):
             logger.error(f"Failed to delete record: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to delete record: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

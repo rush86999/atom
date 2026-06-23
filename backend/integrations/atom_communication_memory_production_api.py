@@ -130,7 +130,7 @@ class AtomCommunicationMemoryProductionAPI:
                 }
             except Exception as e:
                 logger.error(f"Error getting production status: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest/single")
         async def ingest_single_message_production(
@@ -170,7 +170,7 @@ class AtomCommunicationMemoryProductionAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting message: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest/batch")
         async def ingest_batch_production(
@@ -216,7 +216,7 @@ class AtomCommunicationMemoryProductionAPI:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting batch: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/search/production")
         async def search_memory_production(
@@ -283,10 +283,10 @@ class AtomCommunicationMemoryProductionAPI:
                 }
                 
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error searching memory: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/analytics/production")
         async def get_production_analytics(
@@ -454,10 +454,10 @@ class AtomCommunicationMemoryProductionAPI:
                 }
                 
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error getting production analytics: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
     
     def get_router(self):
         """Get the configured router"""

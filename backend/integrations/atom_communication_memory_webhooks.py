@@ -118,7 +118,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing WhatsApp webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.post("/slack")
         async def slack_webhook(
@@ -156,7 +156,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing Slack webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.post("/discord")
         async def discord_webhook(
@@ -194,7 +194,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing Discord webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.post("/telegram")
         async def telegram_webhook(
@@ -221,7 +221,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing Telegram webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.post("/gmail")
         async def gmail_webhook(
@@ -249,7 +249,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing Gmail webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.post("/outlook")
         async def outlook_webhook(
@@ -277,7 +277,7 @@ class AtomCommunicationMemoryWebhooks:
 
             except Exception as e:
                 logger.error(f"Error processing Outlook webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
         @self.router.get("/health")
         async def webhook_health():

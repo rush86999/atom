@@ -61,7 +61,7 @@ async def list_tools(
 
     except Exception as e:
         logger.error(f"Error listing tools: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/{name}")
@@ -91,7 +91,7 @@ async def get_tool(
 
     except Exception as e:
         logger.error(f"Error getting tool {name}: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/category/{category}")
@@ -130,7 +130,7 @@ async def list_tools_by_category(
 
     except Exception as e:
         logger.error(f"Error listing tools by category {category}: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/search")
@@ -166,7 +166,7 @@ async def search_tools(
 
     except Exception as e:
         logger.error(f"Error searching tools: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/stats")
@@ -190,7 +190,7 @@ async def get_tool_stats(
 
     except Exception as e:
         logger.error(f"Error getting tool stats: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/categories")
@@ -224,4 +224,4 @@ async def list_categories(
 
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
-        raise router.internal_error(message=str(e))
+        raise router.internal_error(message="Internal error")

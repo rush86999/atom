@@ -57,7 +57,7 @@ async def handle_oauth_callback(auth_request: LinkedInAuthRequest):
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/profile")
 async def get_profile(access_token: str):
@@ -92,7 +92,7 @@ async def get_profile(access_token: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get LinkedIn profile: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.post("/share")
 async def share_update(access_token: str, text: str, visibility: str = "PUBLIC"):
@@ -140,7 +140,7 @@ async def share_update(access_token: str, text: str, visibility: str = "PUBLIC")
         raise
     except Exception as e:
         logger.error(f"Failed to share LinkedIn update: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/status")
 async def linkedin_status():

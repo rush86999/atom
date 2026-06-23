@@ -94,7 +94,7 @@ async def handle_oauth_callback(
         logger.error(f"Notion OAuth error: {error} - {error_description}")
         raise HTTPException(
             status_code=400,
-            detail=f"Notion authorization failed: {error_description or error}"
+            detail="Internal error"
         )
 
     notion_client_id = os.getenv("NOTION_CLIENT_ID")
@@ -205,7 +205,7 @@ async def handle_oauth_callback(
         logger.error(f"Notion OAuth callback error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Notion authentication failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -397,7 +397,7 @@ async def notion_search(
         logger.error(f"Notion search error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Notion search failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -458,7 +458,7 @@ async def get_notion_page(
         logger.error(f"Notion page fetch error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch Notion page: {str(e)}"
+            detail="Internal error"
         )
 
 

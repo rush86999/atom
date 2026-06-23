@@ -44,7 +44,7 @@ class OktaService(IntegrationService):
             return response.json()
         except Exception as e:
             logger.error(f"Okta list_users failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def check_health(self) -> Dict[str, Any]:
         """Check Okta connectivity"""

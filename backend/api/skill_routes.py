@@ -144,13 +144,13 @@ async def import_skill(
         logger.error(f"Import validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error(f"Import failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to import skill: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -202,7 +202,7 @@ async def list_skills(
         logger.error(f"Failed to list skills: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list skills: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -253,7 +253,7 @@ async def get_skill(
         logger.error(f"Failed to get skill: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get skill: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -313,13 +313,13 @@ async def execute_skill(
         logger.error(f"Execution validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error(f"Execution failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute skill: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -360,13 +360,13 @@ async def promote_skill(
         logger.error(f"Promote validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Internal error"
         )
     except Exception as e:
         logger.error(f"Promote failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to promote skill: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -402,7 +402,7 @@ async def delete_skill(
         logger.error(f"Delete failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete skill: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -462,7 +462,7 @@ async def get_skill_execution_episodes(
         logger.error(f"Failed to get skill episodes: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get skill episodes: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -553,5 +553,5 @@ async def get_skill_learning_progress(
         logger.error(f"Failed to get learning progress: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get learning progress: {str(e)}"
+            detail="Internal error"
         )

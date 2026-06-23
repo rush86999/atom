@@ -167,7 +167,7 @@ async def asana_health(access_token: str = Depends(get_access_token)):
         logger.error(f"Asana health check failed: {e}")
         raise HTTPException(
             status_code=503,
-            detail=f"Asana health check failed: {str(e)}"
+            detail="Internal error"
         )
 
 

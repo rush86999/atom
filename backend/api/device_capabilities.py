@@ -266,7 +266,7 @@ async def camera_snap(
         logger.error(f"Camera snap error: {e}")
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("camera_snap", "Device", details={"error": str(e)})
-        raise router.internal_error(f"Camera snap error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/screen/record/start", response_model=ScreenRecordStartResponse)
@@ -317,7 +317,7 @@ async def screen_record_start(
         logger.error(f"Screen record start error: {e}")
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("screen_record_start", "Device", details={"error": str(e)})
-        raise router.internal_error(f"Screen record start error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/screen/record/stop", response_model=ScreenRecordStopResponse)
@@ -354,7 +354,7 @@ async def screen_record_stop(
 
     except Exception as e:
         logger.error(f"Screen record stop error: {e}")
-        raise router.internal_error(f"Screen record stop error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/location", response_model=ScreenRecordStopResponse)
@@ -402,7 +402,7 @@ async def get_location(
         logger.error(f"Get location error: {e}")
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("get_location", "Device", details={"error": str(e)})
-        raise router.internal_error(f"Get location error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/notification", response_model=ScreenRecordStopResponse)
@@ -453,7 +453,7 @@ async def send_notification(
         logger.error(f"Send notification error: {e}")
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("send_notification", "Device", details={"error": str(e)})
-        raise router.internal_error(f"Send notification error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/execute", response_model=ScreenRecordStopResponse)
@@ -533,7 +533,7 @@ async def execute_command(
         logger.error(f"Execute command error: {e}")
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("execute_command", "Device", details={"error": str(e)})
-        raise router.internal_error(f"Execute command error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{device_node_id}", response_model=DeviceInfoResponse)
@@ -577,7 +577,7 @@ async def get_device_info_endpoint(
         logger.error(f"Get device info error: {e}")
         if "not found" in str(e).lower():
             raise router.not_found_error("Device", device_node_id)
-        raise router.internal_error(f"Get device info error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("", response_model=List[DeviceInfoResponse])
@@ -603,7 +603,7 @@ async def list_devices_endpoint(
 
     except Exception as e:
         logger.error(f"List devices error: {e}")
-        raise router.internal_error(f"List devices error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{device_node_id}/audit", response_model=List[Dict[str, Any]])
@@ -668,7 +668,7 @@ async def get_device_audit(
         logger.error(f"Get device audit error: {e}")
         if "not found" in str(e).lower():
             raise router.not_found_error("Device", device_node_id)
-        raise router.internal_error(f"Get device audit error: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/sessions/active", response_model=List[Dict[str, Any]])
@@ -707,4 +707,4 @@ async def get_active_sessions(
 
     except Exception as e:
         logger.error(f"Get active sessions error: {e}")
-        raise router.internal_error(f"Get active sessions error: {str(e)}")
+        raise router.internal_error("Internal error")

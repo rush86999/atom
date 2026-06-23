@@ -54,7 +54,7 @@ async def get_viewer(access_token: Optional[str] = None):
         viewer = await linear_service.get_viewer(access_token)
         return {"ok": True, "viewer": viewer, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/issues")
@@ -68,7 +68,7 @@ async def get_issues(
         issues = await linear_service.get_issues(access_token, first, team_id)
         return {"ok": True, "issues": issues, "count": len(issues), "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/issues")
@@ -85,7 +85,7 @@ async def create_issue(request: CreateIssueRequest, access_token: Optional[str] 
         )
         return {"ok": True, "issue": issue, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/teams")
@@ -95,7 +95,7 @@ async def get_teams(access_token: Optional[str] = None, first: int = 50):
         teams = await linear_service.get_teams(access_token, first)
         return {"ok": True, "teams": teams, "count": len(teams), "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/projects")
@@ -105,7 +105,7 @@ async def get_projects(access_token: Optional[str] = None, first: int = 50):
         projects = await linear_service.get_projects(access_token, first)
         return {"ok": True, "projects": projects, "count": len(projects), "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")

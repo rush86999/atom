@@ -83,7 +83,7 @@ class FigmaService(IntegrationService):
             return token_data
         except httpx.HTTPError as e:
             logger.error(f"Figma token exchange failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def refresh_access_token(self) -> Dict[str, Any]:
         """Refresh access token"""
@@ -112,7 +112,7 @@ class FigmaService(IntegrationService):
             return token_data
         except httpx.HTTPError as e:
             logger.error(f"Figma token refresh failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Token refresh failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_user_info(self) -> Dict[str, Any]:
         """Get current user info"""
@@ -128,7 +128,7 @@ class FigmaService(IntegrationService):
             return self.user_info
         except httpx.HTTPError as e:
             logger.error(f"Failed to get user info: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get user info: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     def is_token_valid(self) -> bool:
         """Check if token is valid"""
@@ -172,7 +172,7 @@ class FigmaService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to get file: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get file: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_file_nodes(self, file_key: str, node_ids: List[str], access_token: str = None) -> Dict[str, Any]:
         """Get specific nodes from a file"""
@@ -191,7 +191,7 @@ class FigmaService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to get file nodes: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get file nodes: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_team_projects(self, team_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get projects from a team"""
@@ -206,7 +206,7 @@ class FigmaService(IntegrationService):
             return data.get("projects", [])
         except httpx.HTTPError as e:
             logger.error(f"Failed to get team projects: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get team projects: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_project_files(self, project_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get files from a project"""
@@ -221,7 +221,7 @@ class FigmaService(IntegrationService):
             return data.get("files", [])
         except httpx.HTTPError as e:
             logger.error(f"Failed to get project files: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get project files: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_comments(self, file_key: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get comments from a file"""
@@ -236,7 +236,7 @@ class FigmaService(IntegrationService):
             return data.get("comments", [])
         except httpx.HTTPError as e:
             logger.error(f"Failed to get comments: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to get comments: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Figma service"""

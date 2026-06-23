@@ -61,7 +61,7 @@ async def get_current_user(access_token: Optional[str] = None):
         user = await discord_service.get_current_user(access_token)
         return {"ok": True, "user": user, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/guilds")
@@ -71,7 +71,7 @@ async def get_user_guilds(access_token: Optional[str] = None, limit: int = 100):
         guilds = await discord_service.get_user_guilds(access_token, limit)
         return {"ok": True, "guilds": guilds, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/guilds/{guild_id}/channels")
@@ -81,7 +81,7 @@ async def get_guild_channels(guild_id: str):
         channels = await discord_service.get_guild_channels(guild_id)
         return {"ok": True, "channels": channels, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/channels/{channel_id}/messages")
@@ -95,7 +95,7 @@ async def send_message(channel_id: str, request: SendMessageRequest):
         )
         return {"ok": True, "message": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/channels/{channel_id}/messages")
@@ -105,7 +105,7 @@ async def get_channel_messages(channel_id: str, limit: int = 50):
         messages = await discord_service.get_channel_messages(channel_id, limit)
         return {"ok": True, "messages": messages, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")

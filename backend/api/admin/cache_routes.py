@@ -225,7 +225,7 @@ async def preseed_byok_caches(
         logger.error(f"Cache pre-seeding failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Cache pre-seeding failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -290,7 +290,7 @@ async def get_cache_stats(
         logger.error(f"Failed to get cache stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get cache stats: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -334,7 +334,7 @@ async def refresh_pricing(
         logger.error(f"Pricing cache refresh failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pricing cache refresh failed: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -372,7 +372,7 @@ async def clear_governance_cache(
         logger.error(f"Failed to clear governance cache: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear governance cache: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -450,5 +450,5 @@ async def cache_health_check(
         logger.error(f"Cache health check failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Cache health check failed: {str(e)}"
+            detail="Internal error"
         )

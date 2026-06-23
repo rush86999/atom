@@ -52,7 +52,7 @@ async def auth_callback(request: BitbucketAuthRequest):
         }
     except Exception as e:
         logger.error(f"Bitbucket auth callback failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 
 @router.get("/status")
@@ -90,7 +90,7 @@ async def list_workspaces(access_token: str):
         return {"ok": True, "data": workspaces, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to list workspaces: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/repositories")
@@ -101,7 +101,7 @@ async def list_repositories(access_token: str, workspace: Optional[str] = None):
         return {"ok": True, "data": repos, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Failed to list repositories: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/search")
@@ -121,4 +121,4 @@ async def bitbucket_search(
         }
     except Exception as e:
         logger.error(f"Bitbucket search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

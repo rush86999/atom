@@ -113,7 +113,7 @@ async def add_bank_entry(
         if e.__class__.__name__ == 'HTTPException':
             raise
         logger.error(f"Failed to add bank entry: {e}")
-        raise router.internal_error(message="Failed to add bank entry", details={"error": str(e)})
+        raise router.internal_error(message="Failed to add bank entry", details={"error": "Internal error"})
 
 
 @router.post("/ledger-entries", response_model=ReconciliationEntryResponse)
@@ -177,7 +177,7 @@ async def add_ledger_entry(
         if e.__class__.__name__ == 'HTTPException':
             raise
         logger.error(f"Failed to add ledger entry: {e}")
-        raise router.internal_error(message="Failed to add ledger entry", details={"error": str(e)})
+        raise router.internal_error(message="Failed to add ledger entry", details={"error": "Internal error"})
 
 
 @router.post("/reconcile")
@@ -196,7 +196,7 @@ async def run_reconciliation(
         return result
     except Exception as e:
         logger.error(f"Reconciliation failed: {e}")
-        raise router.internal_error(message="Reconciliation failed", details={"error": str(e)})
+        raise router.internal_error(message="Reconciliation failed", details={"error": "Internal error"})
 
 
 @router.get("/anomalies")
@@ -230,7 +230,7 @@ async def get_anomalies(
         }
     except Exception as e:
         logger.error(f"Failed to get anomalies: {e}")
-        raise router.internal_error(message="Failed to get anomalies", details={"error": str(e)})
+        raise router.internal_error(message="Failed to get anomalies", details={"error": "Internal error"})
 
 
 @router.post("/detect-anomalies")
@@ -250,7 +250,7 @@ async def detect_anomalies(
         return {"detected": len(new_anomalies)}
     except Exception as e:
         logger.error(f"Anomaly detection failed: {e}")
-        raise router.internal_error(message="Anomaly detection failed", details={"error": str(e)})
+        raise router.internal_error(message="Anomaly detection failed", details={"error": "Internal error"})
 
 
 @router.post("/anomalies/{anomaly_id}/resolve")
@@ -271,4 +271,4 @@ async def resolve_anomaly(
         return {"status": "resolved", "id": anomaly_id}
     except Exception as e:
         logger.error(f"Failed to resolve anomaly: {e}")
-        raise router.internal_error(message="Failed to resolve anomaly", details={"error": str(e)})
+        raise router.internal_error(message="Failed to resolve anomaly", details={"error": "Internal error"})

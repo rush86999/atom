@@ -121,7 +121,7 @@ def get_ffmpeg_service() -> FFmpegService:
     except RuntimeError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"FFmpeg service not available: {str(e)}"
+            detail="Internal error"
         )
 
 
@@ -165,7 +165,7 @@ async def trim_video(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path validation failed: {str(e)}"
+            detail="Internal error"
         )
 
     # Submit job
@@ -211,7 +211,7 @@ async def convert_format(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path validation failed: {str(e)}"
+            detail="Internal error"
         )
 
     result = await service.convert_format(
@@ -255,7 +255,7 @@ async def generate_thumbnail(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path validation failed: {str(e)}"
+            detail="Internal error"
         )
 
     result = await service.generate_thumbnail(
@@ -301,7 +301,7 @@ async def extract_audio(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path validation failed: {str(e)}"
+            detail="Internal error"
         )
 
     result = await service.extract_audio(
@@ -343,7 +343,7 @@ async def normalize_audio(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path validation failed: {str(e)}"
+            detail="Internal error"
         )
 
     result = await service.normalize_audio(

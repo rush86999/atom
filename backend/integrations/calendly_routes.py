@@ -58,7 +58,7 @@ async def handle_oauth_callback(auth_request: CalendlyAuthRequest):
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/user/me")
 async def get_current_user(access_token: str):
@@ -71,7 +71,7 @@ async def get_current_user(access_token: str):
         user = await service.get_current_user(access_token)
         return user
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/event-types")
 async def get_event_types(user_uri: str, access_token: str, count: int = 20):
@@ -84,7 +84,7 @@ async def get_event_types(user_uri: str, access_token: str, count: int = 20):
         events = await service.get_event_types(user_uri, access_token, count)
         return events
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/scheduled-events")
 async def get_scheduled_events(
@@ -102,7 +102,7 @@ async def get_scheduled_events(
         events = await service.get_scheduled_events(user_uri, access_token, count, status)
         return events
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/status")
 async def calendly_status():

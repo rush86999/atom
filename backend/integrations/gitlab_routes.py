@@ -41,7 +41,7 @@ async def gitlab_auth_callback(auth_request: GitlabAuthRequest):
             "service": "gitlab"
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/user")
 async def get_user(access_token: str = Query(..., description="Access Token")):

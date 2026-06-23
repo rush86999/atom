@@ -348,7 +348,7 @@ async def perform_governance_check(
         logger.error(f"Governance check failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Governance check error: {str(e)}"
+            detail="Internal error"
         )
 
 

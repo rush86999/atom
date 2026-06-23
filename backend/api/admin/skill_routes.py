@@ -97,4 +97,4 @@ async def create_new_skill(
     except HTTPException:
         raise
     except Exception as e:
-        raise router.internal_error(str(e))
+        raise router.internal_error("Internal error")

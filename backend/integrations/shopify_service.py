@@ -51,7 +51,7 @@ class ShopifyService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Shopify token exchange failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     async def get_products(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of products"""
@@ -67,7 +67,7 @@ class ShopifyService(IntegrationService):
             return data.get("products", [])
         except Exception as e:
             logger.error(f"Failed to get products: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch products: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of orders"""
@@ -83,7 +83,7 @@ class ShopifyService(IntegrationService):
             return data.get("orders", [])
         except Exception as e:
             logger.error(f"Failed to get orders: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch orders: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_shop_info(self, access_token: str, shop: str) -> Dict[str, Any]:
         """Get shop information"""
@@ -98,7 +98,7 @@ class ShopifyService(IntegrationService):
             return data.get("shop", {})
         except Exception as e:
             logger.error(f"Failed to get shop info: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch shop info: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def register_webhooks(self, access_token: str, shop: str, webhook_url: str) -> List[Dict[str, Any]]:
         """Register required webhooks for Phase 13 automation"""
@@ -148,7 +148,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("inventory_levels", [])
         except Exception as e:
             logger.error(f"Failed to get inventory levels: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch inventory: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_locations(self, access_token: str, shop: str) -> List[Dict[str, Any]]:
         """Get shop locations"""
@@ -162,7 +162,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("locations", [])
         except Exception as e:
             logger.error(f"Failed to get locations: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch locations: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # ==================== FULL BUSINESS LIFECYCLE ====================
 
@@ -180,7 +180,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("customers", [])
         except Exception as e:
             logger.error(f"Failed to get customers: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch customers: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_customer(self, access_token: str, shop: str, customer_id: str) -> Dict[str, Any]:
         """Get a specific customer by ID"""
@@ -194,7 +194,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("customer", {})
         except Exception as e:
             logger.error(f"Failed to get customer {customer_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch customer: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def search_customers(self, access_token: str, shop: str, query: str) -> List[Dict[str, Any]]:
         """Search customers by email, name, etc."""
@@ -209,7 +209,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("customers", [])
         except Exception as e:
             logger.error(f"Failed to search customers: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to search customers: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # --- FULFILLMENTS ---
     async def get_fulfillments(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
@@ -224,7 +224,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("fulfillments", [])
         except Exception as e:
             logger.error(f"Failed to get fulfillments: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch fulfillments: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def create_fulfillment(self, access_token: str, shop: str, order_id: str, 
                                   location_id: str, tracking_number: Optional[str] = None,
@@ -252,7 +252,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("fulfillment", {})
         except Exception as e:
             logger.error(f"Failed to create fulfillment: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create fulfillment: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # --- REFUNDS ---
     async def get_refunds(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
@@ -267,7 +267,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("refunds", [])
         except Exception as e:
             logger.error(f"Failed to get refunds: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch refunds: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def calculate_refund(self, access_token: str, shop: str, order_id: str, 
                                 line_items: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -288,7 +288,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("refund", {})
         except Exception as e:
             logger.error(f"Failed to calculate refund: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to calculate refund: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # --- DRAFT ORDERS ---
     async def get_draft_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
@@ -304,7 +304,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("draft_orders", [])
         except Exception as e:
             logger.error(f"Failed to get draft orders: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch draft orders: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def create_draft_order(self, access_token: str, shop: str, 
                                   line_items: List[Dict[str, Any]], 
@@ -329,7 +329,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("draft_order", {})
         except Exception as e:
             logger.error(f"Failed to create draft order: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create draft order: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def complete_draft_order(self, access_token: str, shop: str, draft_order_id: str) -> Dict[str, Any]:
         """Convert draft order to a real order"""
@@ -343,7 +343,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("draft_order", {})
         except Exception as e:
             logger.error(f"Failed to complete draft order: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to complete draft order: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # --- TRANSACTIONS ---
     async def get_transactions(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
@@ -358,7 +358,7 @@ class ShopifyService(IntegrationService):
             return response.json().get("transactions", [])
         except Exception as e:
             logger.error(f"Failed to get transactions: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch transactions: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # --- ANALYTICS & REPORTS ---
     async def get_order_count(self, access_token: str, shop: str, status: str = "any") -> int:
@@ -426,7 +426,7 @@ class ShopifyService(IntegrationService):
             }
         except Exception as e:
             logger.error(f"Failed to get shop analytics: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch analytics: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def get_capabilities(self) -> Dict[str, Any]:
         return {

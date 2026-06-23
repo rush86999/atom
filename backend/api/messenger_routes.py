@@ -70,7 +70,7 @@ async def verify_messenger_webhook(
         raise
     except Exception as e:
         logger.error(f"Error verifying Messenger webhook: {e}")
-        raise router.internal_error(message="Error verifying Messenger webhook", details={"error": str(e)})
+        raise router.internal_error(message="Error verifying Messenger webhook", details={"error": "Internal error"})
 
 
 @router.post("/webhook")
@@ -107,7 +107,7 @@ async def handle_messenger_webhook(
         raise
     except Exception as e:
         logger.error(f"Error handling Messenger webhook: {e}")
-        raise router.internal_error(message="Error handling Messenger webhook", details={"error": str(e)})
+        raise router.internal_error(message="Error handling Messenger webhook", details={"error": "Internal error"})
 
 
 @router.post("/send-message")
@@ -140,7 +140,7 @@ async def send_messenger_message(
         raise
     except Exception as e:
         logger.error(f"Error sending Messenger message: {e}")
-        raise router.internal_error(message="Error sending Messenger message", details={"error": str(e)})
+        raise router.internal_error(message="Error sending Messenger message", details={"error": "Internal error"})
 
 
 @router.post("/send-attachment")
@@ -173,7 +173,7 @@ async def send_messenger_attachment(
         raise
     except Exception as e:
         logger.error(f"Error sending Messenger attachment: {e}")
-        raise router.internal_error(message="Error sending Messenger attachment", details={"error": str(e)})
+        raise router.internal_error(message="Error sending Messenger attachment", details={"error": "Internal error"})
 
 
 @router.get("/user/{user_id}")
@@ -194,7 +194,7 @@ async def get_messenger_user_info(
         raise
     except Exception as e:
         logger.error(f"Error getting Messenger user info: {e}")
-        raise router.internal_error(message="Error getting Messenger user info", details={"error": str(e)})
+        raise router.internal_error(message="Error getting Messenger user info", details={"error": "Internal error"})
 
 
 @router.get("/health")

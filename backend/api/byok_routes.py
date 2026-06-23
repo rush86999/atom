@@ -847,7 +847,7 @@ async def get_ai_provider(
         status = byok_manager.get_tenant_provider_status(tenant.id, provider_id, db=db)
         return ApiResponse(success=True, data=status)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
 
 
 @router.post("/api/ai/providers/{provider_id}/keys")
@@ -871,11 +871,11 @@ async def store_api_key(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Failed to store API key: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to store API key: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -980,9 +980,9 @@ async def optimize_cost_usage(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/api/ai/usage/track")
@@ -1009,7 +1009,7 @@ async def track_ai_usage(
         return ApiResponse(success=True, message=f"Usage tracked for {provider_id}", data={"tokens_used": tokens_used})
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to track usage: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/api/ai/usage/stats")
@@ -1042,7 +1042,7 @@ async def get_usage_stats(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get usage stats: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -1179,12 +1179,12 @@ async def optimize_pdf_processing(
         })
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"PDF optimization failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -1233,7 +1233,7 @@ async def byok_health_check(byok_manager: BYOKManager = Depends(get_byok_manager
         })
 
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"BYOK system unhealthy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Internal error")
 
 
 # Backward compatibility endpoints for /api/v1/byok/*

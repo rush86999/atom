@@ -184,7 +184,7 @@ async def list_mobile_agents(
 
     except Exception as e:
         logger.error(f"Failed to list mobile agents: {e}")
-        raise router.internal_error(f"Failed to list agents: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/{agent_id}/chat", response_model=MobileChatResponse)
@@ -450,7 +450,7 @@ Provide helpful, concise responses. You are communicating via a mobile interface
             except Exception as db_error:
                 logger.error(f"Failed to update execution record: {db_error}")
 
-        raise router.internal_error(f"Chat failed: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/{agent_id}/episodes")
@@ -515,7 +515,7 @@ async def get_agent_episodes(
         raise
     except Exception as e:
         logger.error(f"Failed to get agent episodes: {e}")
-        raise router.internal_error(f"Failed to retrieve episodes: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/categories")
@@ -553,7 +553,7 @@ async def list_agent_categories(
 
     except Exception as e:
         logger.error(f"Failed to list categories: {e}")
-        raise router.internal_error(f"Failed to list categories: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/capabilities")
@@ -591,7 +591,7 @@ async def list_agent_capabilities(
 
     except Exception as e:
         logger.error(f"Failed to list capabilities: {e}")
-        raise router.internal_error(f"Failed to list capabilities: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.post("/{agent_id}/feedback")
@@ -644,4 +644,4 @@ async def submit_agent_feedback(
         raise
     except Exception as e:
         logger.error(f"Failed to submit feedback: {e}")
-        raise router.internal_error(f"Failed to submit feedback: {str(e)}")
+        raise router.internal_error("Internal error")

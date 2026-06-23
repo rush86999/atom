@@ -131,7 +131,7 @@ async def salesforce_auth_callback(code: str, state: Optional[str] = None):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/auth/revoke")
 async def revoke_salesforce_token():
@@ -208,7 +208,7 @@ async def salesforce_health_check():
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Salesforce health check failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 

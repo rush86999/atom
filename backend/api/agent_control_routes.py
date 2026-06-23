@@ -168,9 +168,9 @@ async def start_atom(
         )
 
     except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
     except IOError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/stop", response_model=StopAgentResponse)
@@ -217,7 +217,7 @@ async def stop_atom(current_user: User = Depends(get_super_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/restart", response_model=RestartAgentResponse)
@@ -282,7 +282,7 @@ async def restart_atom(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status", response_model=AgentStatusResponse)
@@ -327,7 +327,7 @@ async def get_status():
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/execute", response_model=ExecuteCommandResponse)

@@ -98,7 +98,7 @@ class ZoomAuthHandler:
                         logger.error(f"Zoom token exchange failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Token exchange failed: {error_text}",
+                            detail="Internal error",
                         )
 
                     token_data = await response.json()
@@ -119,7 +119,7 @@ class ZoomAuthHandler:
         except Exception as e:
             logger.error(f"Error exchanging Zoom code for token: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Token exchange error: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def refresh_access_token(self) -> Dict[str, Any]:
@@ -149,7 +149,7 @@ class ZoomAuthHandler:
                         logger.error(f"Zoom token refresh failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Token refresh failed: {error_text}",
+                            detail="Internal error",
                         )
 
                     token_data = await response.json()
@@ -168,7 +168,7 @@ class ZoomAuthHandler:
         except Exception as e:
             logger.error(f"Error refreshing Zoom token: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Token refresh error: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_user_info(self) -> Dict[str, Any]:
@@ -196,7 +196,7 @@ class ZoomAuthHandler:
                         logger.error(f"Failed to get Zoom user info: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Failed to get user info: {error_text}",
+                            detail="Internal error",
                         )
 
                     user_data = await response.json()
@@ -205,7 +205,7 @@ class ZoomAuthHandler:
 
         except Exception as e:
             logger.error(f"Error getting Zoom user info: {e}")
-            raise HTTPException(status_code=500, detail=f"User info error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def revoke_token(self) -> bool:
         """
@@ -316,7 +316,7 @@ class ZoomAuthHandler:
                         logger.error(f"Zoom API request failed: {error_text}")
                         raise HTTPException(
                             status_code=response.status,
-                            detail=f"Zoom API error: {error_text}",
+                            detail="Internal error",
                         )
 
                     if response.status == 204:
@@ -327,7 +327,7 @@ class ZoomAuthHandler:
         except Exception as e:
             logger.error(f"Error making Zoom API request: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Zoom API request error: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     def _get_basic_auth_header(self) -> str:

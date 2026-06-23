@@ -106,7 +106,7 @@ async def track_workflow_start(workflow_id: str, execution_id: str,
 
     except Exception as e:
         logger.error(f"Failed to track workflow start: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/track/complete")
 async def track_workflow_completion(workflow_id: str, execution_id: str,
@@ -131,7 +131,7 @@ async def track_workflow_completion(workflow_id: str, execution_id: str,
 
     except Exception as e:
         logger.error(f"Failed to track workflow completion: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/track/step")
 async def track_step_execution(workflow_id: str, execution_id: str, step_id: str,
@@ -159,7 +159,7 @@ async def track_step_execution(workflow_id: str, execution_id: str, step_id: str
 
     except Exception as e:
         logger.error(f"Failed to track step execution: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/workflows/{workflow_id}/track/resources")
 async def track_resource_usage(workflow_id: str, step_id: Optional[str] = None,
@@ -184,7 +184,7 @@ async def track_resource_usage(workflow_id: str, step_id: Optional[str] = None,
 
     except Exception as e:
         logger.error(f"Failed to track resource usage: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Analytics and Metrics Endpoints
 @router.get("/workflows/{workflow_id}/performance")
@@ -204,7 +204,7 @@ async def get_workflow_performance(workflow_id: str,
 
     except Exception as e:
         logger.error(f"Failed to get workflow performance metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/system/overview")
 async def get_system_overview(time_window: str = Query("24h")):
@@ -219,7 +219,7 @@ async def get_system_overview(time_window: str = Query("24h")):
 
     except Exception as e:
         logger.error(f"Failed to get system overview: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}/metrics")
 async def get_workflow_metrics(workflow_id: str,
@@ -314,7 +314,7 @@ async def get_workflow_metrics(workflow_id: str,
 
     except Exception as e:
         logger.error(f"Failed to get workflow metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/{workflow_id}/timeline")
 async def get_workflow_timeline(workflow_id: str,
@@ -334,7 +334,7 @@ async def get_workflow_timeline(workflow_id: str,
 
     except Exception as e:
         logger.error(f"Failed to get workflow timeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/workflows/top-performing")
 async def get_top_performing_workflows(limit: int = Query(10),
@@ -354,7 +354,7 @@ async def get_top_performing_workflows(limit: int = Query(10),
 
     except Exception as e:
         logger.error(f"Failed to get top performing workflows: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Alert Management Endpoints
 @router.post("/alerts", response_model=Dict[str, Any])
@@ -381,7 +381,7 @@ async def create_alert(alert_request: AlertRequest):
 
     except Exception as e:
         logger.error(f"Failed to create alert: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/alerts", response_model=List[Dict[str, Any]])
 async def list_alerts(workflow_id: Optional[str] = None,
@@ -397,7 +397,7 @@ async def list_alerts(workflow_id: Optional[str] = None,
 
     except Exception as e:
         logger.error(f"Failed to list alerts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/alerts/{alert_id}", response_model=Dict[str, Any])
 async def get_alert(alert_id: str):
@@ -415,7 +415,7 @@ async def get_alert(alert_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get alert {alert_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.put("/alerts/{alert_id}/toggle")
 async def toggle_alert(alert_id: str):
@@ -438,7 +438,7 @@ async def toggle_alert(alert_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to toggle alert {alert_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.delete("/alerts/{alert_id}")
 async def delete_alert(alert_id: str):
@@ -464,7 +464,7 @@ async def delete_alert(alert_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to delete alert {alert_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Dashboard Endpoints
 @router.get("/dashboards")
@@ -506,7 +506,7 @@ async def list_dashboards(
 
     except Exception as e:
         logger.error(f"Failed to list dashboards: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/dashboards")
@@ -553,7 +553,7 @@ async def create_dashboard(
     except Exception as e:
         logger.error(f"Failed to create dashboard: {e}", exc_info=True)
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/dashboards/{dashboard_id}")
@@ -607,7 +607,7 @@ async def get_dashboard(
         raise
     except Exception as e:
         logger.error(f"Failed to get dashboard {dashboard_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 async def _fetch_widget_data(widget: DashboardWidget, db: Session) -> Dict[str, Any]:
@@ -771,7 +771,7 @@ async def get_workflow_live_status(
 
     except Exception as e:
         logger.error(f"Failed to get live status for {workflow_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/system/health")
@@ -833,7 +833,7 @@ async def get_system_health(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"Failed to get system health: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 # Export and Reporting Endpoints
 @router.get("/workflows/{workflow_id}/export/analytics")
@@ -856,7 +856,7 @@ async def export_workflow_analytics(workflow_id: str,
 
     except Exception as e:
         logger.error(f"Failed to export analytics for {workflow_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/reports/generate")
 async def generate_analytics_report(report_config: Dict[str, Any]):
@@ -872,4 +872,4 @@ async def generate_analytics_report(report_config: Dict[str, Any]):
 
     except Exception as e:
         logger.error(f"Failed to generate analytics report: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")

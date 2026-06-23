@@ -34,7 +34,7 @@ async def get_auth_url(state: Optional[str] = None):
         logger.error(f"Failed to generate auth URL: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate authorization URL: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/callback")
@@ -93,7 +93,7 @@ async def handle_oauth_callback(
         logger.error(f"Google Calendar OAuth failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"OAuth authentication failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/status")

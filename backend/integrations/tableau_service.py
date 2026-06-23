@@ -105,7 +105,7 @@ class TableauService(IntegrationService):
             logger.error(f"Tableau sign in failed: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Sign in failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_workbooks(self, auth_token: str = None) -> List[Dict[str, Any]]:
@@ -130,7 +130,7 @@ class TableauService(IntegrationService):
             logger.error(f"Failed to get workbooks: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get workbooks: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_views(self, auth_token: str = None) -> List[Dict[str, Any]]:
@@ -155,7 +155,7 @@ class TableauService(IntegrationService):
             logger.error(f"Failed to get views: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get views: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_datasources(self, auth_token: str = None) -> List[Dict[str, Any]]:
@@ -180,7 +180,7 @@ class TableauService(IntegrationService):
             logger.error(f"Failed to get datasources: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get datasources: {str(e)}"
+                detail="Internal error"
             )
 
     def health_check(self) -> Dict[str, Any]:

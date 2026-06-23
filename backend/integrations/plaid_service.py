@@ -223,7 +223,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to create link token: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to create link token: {str(e)}"
+                detail="Internal error"
             )
 
     async def exchange_public_token(self, public_token: str) -> Dict[str, Any]:
@@ -250,7 +250,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to exchange public token: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to exchange public token: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
@@ -278,7 +278,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to get accounts: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get accounts: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_balance(self, access_token: str) -> Dict[str, Any]:
@@ -305,7 +305,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to get balance: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get balance: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_transactions(
@@ -345,7 +345,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to get transactions: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get transactions: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_identity(self, access_token: str) -> Dict[str, Any]:
@@ -372,7 +372,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to get identity: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get identity: {str(e)}"
+                detail="Internal error"
             )
 
     async def remove_item(self, access_token: str) -> Dict[str, Any]:
@@ -399,7 +399,7 @@ class PlaidService(IntegrationService):
             logger.error(f"Failed to remove item: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to remove item: {str(e)}"
+                detail="Internal error"
             )
 
     def health_check(self) -> Dict[str, Any]:

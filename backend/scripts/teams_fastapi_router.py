@@ -166,7 +166,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Authentication initiation failed: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Authentication failed: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def handle_auth_callback(self, code: str, state: Optional[str] = None):
@@ -188,7 +188,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Authentication callback failed: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Authentication callback failed: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_channels(self, team_id: Optional[str] = None):
@@ -223,7 +223,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to get channels: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to retrieve channels: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_channel_messages(
@@ -255,7 +255,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to get channel messages: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to retrieve messages: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def send_message(
@@ -277,7 +277,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to send message: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to send message: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_calls(self, user_id: Optional[str] = None):
@@ -305,7 +305,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to get calls: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to retrieve calls: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def create_call(self, call: TeamsCall):
@@ -325,7 +325,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to create call: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to create call: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def handle_webhook(self, payload: Dict[str, Any]):
@@ -350,7 +350,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to process webhook: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Webhook processing failed: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def health_check(self):
@@ -378,7 +378,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Health check failed: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_status(self):
@@ -414,7 +414,7 @@ class TeamsIntegrationService:
         except Exception as e:
             logger.error(f"Failed to get status: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to retrieve status: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
 

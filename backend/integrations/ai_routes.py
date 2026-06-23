@@ -128,7 +128,7 @@ async def parse_natural_language_command(
 
     except Exception as e:
         logger.error(f"NLP parsing failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"NLP parsing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/data/ingest")
@@ -166,7 +166,7 @@ async def ingest_platform_data(request: DataIngestRequest) -> DataIngestResponse
 
     except Exception as e:
         logger.error(f"Data ingestion failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Data ingestion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/data/search")
@@ -184,7 +184,7 @@ async def search_unified_data(request: DataSearchRequest) -> DataSearchResponse:
                 entity_types = [EntityType(et.lower()) for et in request.entity_types]
             except ValueError as e:
                 raise HTTPException(
-                    status_code=400, detail=f"Invalid entity type: {str(e)}"
+                    status_code=400, detail="Internal error"
                 )
 
         # Perform search
@@ -210,7 +210,7 @@ async def search_unified_data(request: DataSearchRequest) -> DataSearchResponse:
 
     except Exception as e:
         logger.error(f"Data search failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Data search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/data/entities/{entity_id}")
@@ -221,7 +221,7 @@ async def get_entity_details(entity_id: str):
     try:
         entity = data_engine.entity_registry.get(entity_id)
         if not entity:
-            raise HTTPException(status_code=404, detail=f"Entity {entity_id} not found")
+            raise HTTPException(status_code=404, detail="Internal error")
 
         # Get relationships
         relationships = data_engine.get_entity_relationships(entity_id)
@@ -262,7 +262,7 @@ async def get_entity_details(entity_id: str):
     except Exception as e:
         logger.error(f"Failed to get entity details: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get entity details: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -310,7 +310,7 @@ async def create_automation_workflow(request: WorkflowCreateRequest) -> Dict[str
     except Exception as e:
         logger.error(f"Workflow creation failed: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Workflow creation failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -339,11 +339,11 @@ async def execute_automation_workflow(
         )
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:
         logger.error(f"Workflow execution failed: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Workflow execution failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -378,7 +378,7 @@ async def list_automation_workflows(active_only: bool = True) -> List[Dict[str, 
     except Exception as e:
         logger.error(f"Failed to list workflows: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to list workflows: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -409,7 +409,7 @@ async def get_workflow_execution_history(
     except Exception as e:
         logger.error(f"Failed to get execution history: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get execution history: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 

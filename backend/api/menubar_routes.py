@@ -388,7 +388,7 @@ async def get_recent_agents(
         logger.error(f"Recent agents error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Internal error"
         )
 
 
@@ -433,7 +433,7 @@ async def get_recent_canvases(
         logger.error(f"Recent canvases error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Internal error"
         )
 
 

@@ -447,7 +447,7 @@ class EnhancedWorkflowAPI:
             return result
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def generate_workflow_structure(self, request: IntelligenceAnalyzeRequest):
         """Generate workflow structure from text"""
@@ -466,7 +466,7 @@ class EnhancedWorkflowAPI:
             }
         except Exception as e:
             logger.error(f"Generation failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_service_dependency_map(self):
         """Returns the service discovery graph"""

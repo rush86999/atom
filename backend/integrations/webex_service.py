@@ -50,7 +50,7 @@ class WebexService(IntegrationService):
             return response.json().get("items", [])
         except Exception as e:
             logger.error(f"Webex list_rooms failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal error")
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Return Webex integration capabilities"""

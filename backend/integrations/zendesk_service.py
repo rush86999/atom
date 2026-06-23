@@ -75,7 +75,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Zendesk token exchange failed: {e}")
             raise HTTPException(
                 status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_tickets(
@@ -111,7 +111,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Failed to get tickets: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get tickets: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_ticket(self, ticket_id: int, access_token: str = None) -> Dict[str, Any]:
@@ -135,7 +135,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Failed to get ticket: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get ticket: {str(e)}"
+                detail="Internal error"
             )
 
     async def create_ticket(
@@ -183,7 +183,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Failed to create ticket: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to create ticket: {str(e)}"
+                detail="Internal error"
             )
 
     async def search_tickets(
@@ -217,7 +217,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Failed to search tickets: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to search tickets: {str(e)}"
+                detail="Internal error"
             )
 
     async def get_users(
@@ -247,7 +247,7 @@ class ZendeskService(IntegrationService):
             logger.error(f"Failed to get users: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to get users: {str(e)}"
+                detail="Internal error"
             )
 
     async def health_check(self) -> Dict[str, Any]:

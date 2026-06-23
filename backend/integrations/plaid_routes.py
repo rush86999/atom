@@ -61,7 +61,7 @@ async def create_link_token(request: LinkTokenRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to create link token: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/item/public_token/exchange")
@@ -78,7 +78,7 @@ async def exchange_public_token(request: PublicTokenExchangeRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to exchange public token: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/accounts/get")
@@ -95,7 +95,7 @@ async def get_accounts(request: AccessTokenRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to get accounts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/accounts/balance/get")
@@ -112,7 +112,7 @@ async def get_balance(request: AccessTokenRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to get balance: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/transactions/get")
@@ -135,7 +135,7 @@ async def get_transactions(request: TransactionsRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to get transactions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/identity/get")
@@ -152,7 +152,7 @@ async def get_identity(request: AccessTokenRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to get identity: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/item/remove")
@@ -169,7 +169,7 @@ async def remove_item(request: AccessTokenRequest):
         raise
     except Exception as e:
         logger.error(f"Failed to remove item: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status")

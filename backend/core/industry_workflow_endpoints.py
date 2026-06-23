@@ -93,7 +93,7 @@ async def get_industry_templates(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get industry templates: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/templates/industry/{template_id}")
@@ -171,11 +171,11 @@ async def search_industry_templates(
             "result_count": len(template_data)
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Search failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.post("/api/v1/templates/{template_id}/roi")
@@ -217,7 +217,7 @@ async def calculate_template_roi(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"ROI calculation failed: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/templates/recommendations")
@@ -316,7 +316,7 @@ async def get_template_recommendations(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get recommendations: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/templates/industry-analytics")
@@ -383,7 +383,7 @@ async def get_industry_analytics(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate analytics: {str(e)}"
+            detail="Internal error"
         )
 
 @router.get("/api/v1/templates/implementation-guide/{template_id}")

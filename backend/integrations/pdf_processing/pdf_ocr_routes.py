@@ -74,7 +74,7 @@ async def get_pdf_service_status(byok_manager=Depends(get_byok_manager_dependenc
     except Exception as e:
         logger.error(f"Failed to get PDF service status: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Service status check failed: {str(e)}"
+            status_code=500, detail="Internal error"
         )
 
 
@@ -147,7 +147,7 @@ async def process_pdf_file(
         raise
     except Exception as e:
         logger.error(f"PDF processing failed: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/process-url")
@@ -217,13 +217,13 @@ async def process_pdf_from_url(
     except httpx.HTTPError as e:
         logger.error(f"Failed to download PDF from URL: {e}")
         raise HTTPException(
-            status_code=400, detail=f"Failed to download PDF from URL: {str(e)}"
+            status_code=400, detail="Internal error"
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"PDF processing from URL failed: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/extract-text-only")
@@ -272,7 +272,7 @@ async def extract_text_only(
         raise
     except Exception as e:
         logger.error(f"Text extraction failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/analyze-pdf-type")
@@ -330,7 +330,7 @@ async def analyze_pdf_type(
         raise
     except Exception as e:
         logger.error(f"PDF analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/health")
@@ -371,7 +371,7 @@ async def health_check(byok_manager=Depends(get_byok_manager_dependency)):
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Internal error")
 
 
 # BYOK Integration Helper Functions

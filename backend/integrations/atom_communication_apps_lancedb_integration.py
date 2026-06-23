@@ -270,7 +270,7 @@ class CommunicationAppIngestionIntegration:
                 }
             except Exception as e:
                 logger.error(f"Error getting ingestion status: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/apps")
         async def get_configured_apps():
@@ -294,7 +294,7 @@ class CommunicationAppIngestionIntegration:
                 }
             except Exception as e:
                 logger.error(f"Error getting configured apps: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/apps/{app_id}")
         async def get_app_ingestion_config(app_id: str):
@@ -316,7 +316,7 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error getting app config: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest/{app_id}")
         async def ingest_message(app_id: str, message_data: Dict[str, Any]):
@@ -346,7 +346,7 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting message: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/ingest/{app_id}/batch")
         async def ingest_messages_batch(app_id: str, messages: List[Dict[str, Any]]):
@@ -379,7 +379,7 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error ingesting batch: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.post("/stream/start/{app_id}")
         async def start_real_time_stream(app_id: str):
@@ -409,7 +409,7 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error starting stream: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/search")
         async def search_memory(query: str, app_id: Optional[str] = None, limit: int = 10):
@@ -434,7 +434,7 @@ class CommunicationAppIngestionIntegration:
                 
             except Exception as e:
                 logger.error(f"Error searching memory: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/communications/{app_id}")
         async def get_app_communications(app_id: str, limit: int = 100):
@@ -463,7 +463,7 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
             except Exception as e:
                 logger.error(f"Error getting communications: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/communications/timeline")
         async def get_communications_timeline(
@@ -499,10 +499,10 @@ class CommunicationAppIngestionIntegration:
                 }
                 
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error getting timeline: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/memory/stats")
         async def get_memory_stats():
@@ -536,7 +536,7 @@ class CommunicationAppIngestionIntegration:
                 
             except Exception as e:
                 logger.error(f"Error getting memory stats: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Internal error")
 
 # Create global instance
 communication_ingestion_integration = CommunicationAppIngestionIntegration()

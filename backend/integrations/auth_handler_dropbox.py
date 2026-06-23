@@ -90,7 +90,7 @@ class DropboxAuthHandler:
                         logger.error(f"Dropbox token exchange failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Token exchange failed: {error_text}",
+                            detail="Internal error",
                         )
 
                     token_data = await response.json()
@@ -114,7 +114,7 @@ class DropboxAuthHandler:
         except Exception as e:
             logger.error(f"Error exchanging Dropbox code for token: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Token exchange error: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def refresh_access_token(self) -> Dict[str, Any]:
@@ -148,7 +148,7 @@ class DropboxAuthHandler:
                         logger.error(f"Dropbox token refresh failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Token refresh failed: {error_text}",
+                            detail="Internal error",
                         )
 
                     token_data = await response.json()
@@ -170,7 +170,7 @@ class DropboxAuthHandler:
         except Exception as e:
             logger.error(f"Error refreshing Dropbox token: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Token refresh error: {str(e)}"
+                status_code=500, detail="Internal error"
             )
 
     async def get_user_info(self) -> Dict[str, Any]:
@@ -199,7 +199,7 @@ class DropboxAuthHandler:
                         logger.error(f"Failed to get Dropbox user info: {error_text}")
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Failed to get user info: {error_text}",
+                            detail="Internal error",
                         )
 
                     user_data = await response.json()
@@ -208,7 +208,7 @@ class DropboxAuthHandler:
 
         except Exception as e:
             logger.error(f"Error getting Dropbox user info: {e}")
-            raise HTTPException(status_code=500, detail=f"User info error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal error")
 
     async def revoke_token(self) -> bool:
         """

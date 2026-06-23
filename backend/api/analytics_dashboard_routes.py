@@ -80,7 +80,7 @@ async def get_analytics_summary(
         return summary
 
     except Exception as e:
-        raise router.internal_error(message=f"Error generating analytics: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/sentiment")
@@ -115,7 +115,7 @@ async def get_sentiment_analysis(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error analyzing sentiment: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/response-times")
@@ -149,7 +149,7 @@ async def get_response_time_metrics(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error calculating response times: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/activity")
@@ -182,7 +182,7 @@ async def get_activity_metrics(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error analyzing activity: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/cross-platform")
@@ -225,7 +225,7 @@ async def get_cross_platform_analytics(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error analyzing cross-platform: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.post("/correlations")
@@ -263,7 +263,7 @@ async def analyze_cross_platform_correlations(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error analyzing correlations: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/correlations/{conversation_id}/timeline")
@@ -307,7 +307,7 @@ async def get_unified_timeline(
         )
 
     except Exception as e:
-        raise router.internal_error(message=f"Error getting timeline: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/predictions/response-time")
@@ -350,7 +350,7 @@ async def predict_response_time(
     except ValueError:
         raise router.validation_error("urgency", f"Invalid urgency level: {urgency}")
     except Exception as e:
-        raise router.internal_error(message=f"Error predicting response time: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/recommendations/channel")
@@ -392,7 +392,7 @@ async def recommend_channel(
     except ValueError:
         raise router.validation_error("urgency", f"Invalid urgency level: {urgency}")
     except Exception as e:
-        raise router.internal_error(message=f"Error generating recommendation: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/bottlenecks")
@@ -431,7 +431,7 @@ async def detect_bottlenecks(
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error detecting bottlenecks: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/patterns/{user_id}")
@@ -468,7 +468,7 @@ async def get_user_patterns(
         )
 
     except Exception as e:
-        raise router.internal_error(message=f"Error getting patterns: {str(e)}")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/overview")
@@ -506,4 +506,4 @@ async def get_analytics_overview() -> Dict[str, Any]:
         }
 
     except Exception as e:
-        raise router.internal_error(message=f"Error generating overview: {str(e)}")
+        raise router.internal_error(message="Internal error")

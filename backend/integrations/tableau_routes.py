@@ -51,7 +51,7 @@ async def sign_in(request: TableauSignInRequest):
         return {"ok": True, "data": result, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"Tableau sign in failed: {e}")
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail="Internal error")
 
 
 @router.get("/workbooks")
@@ -68,7 +68,7 @@ async def get_workbooks(auth_token: Optional[str] = None):
         }
     except Exception as e:
         logger.error(f"Failed to get workbooks: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/views")
@@ -85,7 +85,7 @@ async def get_views(auth_token: Optional[str] = None):
         }
     except Exception as e:
         logger.error(f"Failed to get views: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/datasources")
@@ -102,7 +102,7 @@ async def get_datasources(auth_token: Optional[str] = None):
         }
     except Exception as e:
         logger.error(f"Failed to get datasources: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.get("/status")

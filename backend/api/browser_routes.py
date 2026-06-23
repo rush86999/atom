@@ -745,7 +745,7 @@ async def list_sessions(
         )
     except Exception as e:
         logger.error(f"Failed to list sessions: {e}")
-        raise router.internal_error(f"Failed to list sessions: {str(e)}")
+        raise router.internal_error("Internal error")
 
 
 @router.get("/audit")
@@ -785,4 +785,4 @@ async def get_browser_audit(
         )
     except Exception as e:
         logger.error(f"Failed to fetch audit log: {e}")
-        raise router.internal_error(f"Failed to fetch audit log: {str(e)}")
+        raise router.internal_error("Internal error")
