@@ -40,6 +40,14 @@ class JiraService(IntegrationService):
             logger.info(f"JiraService using OAuth cloud_id: {self.cloud_id[:8]}...")
         else:
             self.base_url = config.get("base_url") or os.getenv('JIRA_BASE_URL')
+            # SSRF guard: validate user-provided base_url
+            if self.base_url:
+                from core.ssrf_guard import validate_url, SSRFError
+                try:
+                    validate_url(self.base_url)
+                except SSRFError as e:
+                    logger.warning(f"Jira base_url blocked by SSRF guard: {e}")
+                    raise ValueError(f"Invalid base_url: {e}")
 
         self.username = config.get("username") or os.getenv('JIRA_USERNAME')
         self.api_token = config.get("api_token") or os.getenv('JIRA_API_TOKEN')

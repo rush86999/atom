@@ -38,6 +38,13 @@ class ObsidianService(IntegrationService):
 
         self.api_token = config.get("api_token")
         self.plugin_url = config.get("plugin_url", "http://localhost:27123").rstrip('/')
+        # SSRF guard: validate the plugin_url doesn't point to internal/private IPs
+        from core.ssrf_guard import validate_url, SSRFError
+        try:
+            validate_url(self.plugin_url)
+        except SSRFError as e:
+            logger.warning(f"Obsidian plugin_url blocked by SSRF guard: {e}")
+            raise ValueError(f"Invalid plugin_url: {e}")
         self.session = requests.Session()
 
         if self.api_token:

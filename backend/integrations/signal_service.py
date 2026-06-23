@@ -33,6 +33,13 @@ class SignalService(IntegrationService):
         """
         super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = config.get("api_url", os.getenv("SIGNAL_API_URL", "http://localhost:8080"))
+        # SSRF guard: validate api_url doesn't point to internal/private IPs
+        from core.ssrf_guard import validate_url, SSRFError
+        try:
+            validate_url(self.base_url)
+        except SSRFError as e:
+            logger.warning(f"Signal api_url blocked by SSRF guard: {e}")
+            raise ValueError(f"Invalid api_url: {e}")
         self.sender_number = config.get("sender_number", os.getenv("SIGNAL_SENDER_NUMBER"))
         self.client = httpx.AsyncClient(timeout=30.0)
 

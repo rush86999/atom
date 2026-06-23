@@ -1,3 +1,4 @@
+import logging
 from ecommerce.models import EcommerceStore
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -112,6 +113,12 @@ async def setup_shopify_webhooks(
     webhook_base_url: str = Query(..., description="Base URL for webhooks (e.g. https://your-domain.com/api/webhooks/shopify)")
 ):
     """Register all required webhooks for this shop"""
+    # SSRF guard: validate webhook_base_url doesn't point to internal/private IPs
+    from core.ssrf_guard import validate_url, SSRFError
+    try:
+        validate_url(webhook_base_url)
+    except SSRFError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid webhook_base_url: {e}")
     results = await shopify_service.register_webhooks(access_token, shop, webhook_base_url)
     return {"ok": True, "results": results}
 

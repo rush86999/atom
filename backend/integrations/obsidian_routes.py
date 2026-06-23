@@ -5,6 +5,7 @@ Obsidian Integration Routes
 from fastapi import APIRouter, Depends, HTTPException, Header
 from typing import Optional, Dict, Any
 from .obsidian_service import ObsidianService
+from core.ssrf_guard import validate_url, SSRFError
 
 router = APIRouter(prefix="/obsidian", tags=["integrations"])
 
@@ -14,6 +15,10 @@ async def get_obsidian_status(
     plugin_url: str = Header("http://localhost:27123")
 ):
     """Check Obsidian connection status"""
+    try:
+        validate_url(plugin_url)
+    except SSRFError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid plugin_url: {e}")
     service = ObsidianService(api_token=api_token, plugin_url=plugin_url)
     return service.test_connection()
 
