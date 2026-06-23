@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import OAuthToken, User
+from core.security.auth_rate_limit import AuthRateLimiter
 from core.oauth_handler import (
     ASANA_OAUTH_CONFIG,
     DROPBOX_OAUTH_CONFIG,
@@ -36,6 +37,16 @@ from core.oauth_handler import (
 
 router = BaseAPIRouter(prefix="/api/v1/auth/oauth", tags=["OAuth"])
 logger = logging.getLogger(__name__)
+
+# Rate limit OAuth callbacks to prevent code brute-force / DoS
+_oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
+
+def oauth_rate_limit(request: Request) -> None:
+    """Rate limit OAuth callback attempts (20/min per IP)."""
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, reason = _oauth_limiter.check(client_ip)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Too many OAuth attempts. Try again later.")
 
 # ============================================================================
 # Helpers
@@ -143,7 +154,8 @@ async def oauth_callback(
     state: str = Query(None),
     request: Request = None,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl: None = Depends(oauth_rate_limit),
 ):
     """Handle OAuth callback for all providers."""
     configs = {
