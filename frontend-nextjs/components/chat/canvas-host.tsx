@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText } from "lucide-react";
 import { marked } from "marked";
+import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 
 interface CanvasState {
@@ -338,10 +339,10 @@ function CanvasContent({
         case "document":
         case "code":
             if (showPreview && (component === "markdown" || component === "document")) {
-                const htmlContent = marked.parse(content);
+                const htmlContent = renderMarkdownSafe(content);
                 return (
                     <div className="p-8 prose dark:prose-invert max-w-none text-sm leading-relaxed overflow-auto h-full custom-scrollbar bg-zinc-50/10 dark:bg-white/[0.02]">
-                        <div dangerouslySetInnerHTML={{ __html: htmlContent as string }} />
+                        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
                     </div>
                 );
             }

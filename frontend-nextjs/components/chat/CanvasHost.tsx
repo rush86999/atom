@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink, RefreshCw, Check, AlertCircle, Code, Camera, Globe, Play, Layers } from "lucide-react";
 import { marked } from "marked";
+import { renderMarkdownSafe } from "@/lib/sanitize";
 import { LineChartCanvas } from "../canvas/LineChart";
 import { BarChartCanvas } from "../canvas/BarChart";
 import { PieChartCanvas } from "../canvas/PieChart";
@@ -89,7 +90,7 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
             return (
                 <div
                     className="prose dark:prose-invert max-w-none text-sm prose-p:leading-relaxed prose-pre:bg-muted"
-                    dangerouslySetInnerHTML={{ __html: marked.parse(typeof data === 'string' ? data : data.content || '') }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(typeof data === 'string' ? data : data.content || '') }}
                 />
             );
 
