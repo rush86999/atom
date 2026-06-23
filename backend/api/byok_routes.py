@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
+from core.auth import get_current_user, User
 from core.models import Tenant, TenantSetting
 from core.database import get_db
 
@@ -807,6 +808,7 @@ async def add_api_key(key_data: Dict[str, str]):
 
 @router.get("/api/ai/providers")
 async def get_ai_providers(
+    current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)
@@ -854,6 +856,7 @@ async def store_api_key(
     api_key: str,
     key_name: str = "default",
     environment: str = "production",
+    current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)

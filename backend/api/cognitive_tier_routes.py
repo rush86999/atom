@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import CognitiveTierPreference
@@ -312,6 +313,7 @@ def create_or_update_preferences(
 def update_budget(
     workspace_id: str,
     request: BudgetUpdateRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> TierPreferenceResponse:
     """
@@ -564,6 +566,7 @@ def compare_tiers(
 )
 def delete_preferences(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """

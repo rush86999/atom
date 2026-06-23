@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.llm_credential_service import LLMCredentialService
 from core.llm_oauth_config import (
@@ -253,7 +254,8 @@ async def oauth_callback(
 
 @router.get("/credentials", response_model=CredentialListResponse)
 async def list_credentials(
-    request: Request
+    request: Request,
+    current_user: User = Depends(get_current_user)
 ):
     """
     List OAuth credentials for the current user.
@@ -273,7 +275,8 @@ async def list_credentials(
 @router.delete("/credentials/{credential_id}", response_model=RevokeResponse)
 async def revoke_credential(
     credential_id: str,
-    request: Request
+    request: Request,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Revoke an OAuth credential.
@@ -302,7 +305,8 @@ async def revoke_credential(
 @router.post("/credentials/{credential_id}/refresh", response_model=RefreshResponse)
 async def refresh_credential(
     credential_id: str,
-    request: Request
+    request: Request,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Refresh an OAuth credential.
