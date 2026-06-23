@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.decimal_utils import to_decimal
 
@@ -37,7 +38,7 @@ class CategorizeRequest(BaseModel):
 # ==================== TRANSACTION INGESTION ====================
 
 @router.post("/transactions")
-async def ingest_transaction(request: TransactionRequest):
+async def ingest_transaction(request: TransactionRequest, current_user: User = Depends(get_current_user)):
     """Ingest a single transaction"""
     from core.ai_accounting_engine import Transaction, TransactionSource, ai_accounting
 

@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.ab_testing_service import ABTestingService
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -72,6 +73,7 @@ class RecordMetricRequest(BaseModel):
 @router.post("/create")
 async def create_test(
     request: CreateTestRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

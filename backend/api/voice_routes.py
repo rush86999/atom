@@ -8,6 +8,7 @@ from fastapi import File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,8 @@ async def voice_status():
 @router.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe_audio(
     audio: Optional[UploadFile] = File(None),
-    request: Optional[TranscriptionRequest] = None
+    request: Optional[TranscriptionRequest] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Transcribe audio to text"""
     try:

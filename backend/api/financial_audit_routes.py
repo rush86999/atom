@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from core.models import FinancialAudit
+from core.auth import get_current_user, User
 from core.financial_audit_orchestrator import FinancialAuditOrchestrator
 from core.hash_chain_integrity import HashChainIntegrity
 from core.chronological_integrity import ChronologicalIntegrityValidator
@@ -44,6 +45,7 @@ async def validate_audit_compliance(
     account_id: Optional[str] = Query(None, description="Filter to specific account"),
     start_time: Optional[datetime] = Query(None, description="Start of validation window"),
     end_time: Optional[datetime] = Query(None, description="End of validation window"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -101,6 +103,7 @@ async def validate_audit_compliance(
 @router.get("/compliance")
 async def get_compliance_report(
     format: str = Query("json", description="Report format: json, summary, detailed"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -149,6 +152,7 @@ async def get_audit_trail(
     start_time: Optional[datetime] = Query(None, description="Start of export range"),
     end_time: Optional[datetime] = Query(None, description="End of export range"),
     include_hash_chains: bool = Query(True, description="Include hash verification data"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -219,6 +223,7 @@ async def get_audit_trail(
 @router.get("/health")
 async def get_audit_health(
     days: int = Query(30, description="Number of days to analyze", ge=1, le=365),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -261,6 +266,7 @@ async def verify_hash_chain(
     account_id: str,
     start_sequence: Optional[int] = Query(None, description="Starting sequence number"),
     end_sequence: Optional[int] = Query(None, description="Ending sequence number"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -319,6 +325,7 @@ async def detect_audit_gaps(
     account_id: Optional[str] = Query(None, description="Filter to specific account"),
     start_time: Optional[datetime] = Query(None, description="Start of check window"),
     end_time: Optional[datetime] = Query(None, description="End of check window"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

@@ -16,6 +16,7 @@ from fastapi import Depends, Query
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.feedback_analytics import FeedbackAnalytics
 
@@ -28,6 +29,7 @@ router = BaseAPIRouter(tags=["feedback-analytics"])
 async def get_feedback_analytics_dashboard(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     limit: int = Query(10, ge=1, le=100, description="Limit for top/bottom agents"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -84,6 +86,7 @@ async def get_feedback_analytics_dashboard(
 async def get_agent_feedback_dashboard(
     agent_id: str,
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -132,6 +135,7 @@ async def get_agent_feedback_dashboard(
 @router.get("/trends")
 async def get_feedback_trends_endpoint(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

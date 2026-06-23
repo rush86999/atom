@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.condition_monitoring_service import ConditionMonitoringService
 from core.database import get_db_session
 from core.models import ConditionAlert, ConditionMonitor
@@ -116,6 +117,7 @@ class MetricsResponse(BaseModel):
 @router.post("/condition/create", response_model=MonitorResponse)
 async def create_condition_monitor(
     request: CreateMonitorRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -274,6 +276,7 @@ async def resume_condition_monitor(
 @router.delete("/condition/{monitor_id}", response_model=MonitorResponse)
 async def delete_condition_monitor(
     monitor_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """

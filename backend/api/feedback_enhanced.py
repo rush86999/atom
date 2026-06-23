@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentExecution, AgentFeedback, AgentRegistry
@@ -106,6 +107,7 @@ class FeedbackTrend(BaseModel):
 @router.post("/submit", response_model=FeedbackSubmitResponse)
 async def submit_enhanced_feedback(
     request: FeedbackSubmitRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

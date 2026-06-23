@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
+from core.auth import get_current_user, User
 from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
@@ -405,6 +406,7 @@ async def create_social_post(
     request: Request,
     payload: SocialPostRequest,
     current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -697,6 +699,7 @@ async def list_platforms():
 async def list_connected_accounts(
     request: Request,
     current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -751,6 +754,7 @@ async def list_connected_accounts(
 @router.get("/rate-limit")
 async def get_rate_limit_status(
     request: Request,
+    current_user: User = Depends(get_current_user),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

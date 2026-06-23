@@ -176,6 +176,7 @@ async def oauth_callback(
 async def list_oauth_tokens(
     request: Request,
     provider: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List all connected OAuth integrations for the current user."""
@@ -201,6 +202,7 @@ async def list_oauth_tokens(
 async def revoke_oauth_token(
     provider: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Revoke an OAuth integration."""

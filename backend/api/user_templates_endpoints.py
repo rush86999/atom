@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import TemplateExecution, TemplateVersion, User, UserRole, WorkflowTemplate
 
@@ -150,6 +151,7 @@ class DuplicateTemplateRequest(BaseModel):
 async def create_user_template(
     request: CreateTemplateRequest,
     user_id: str = Query(..., description="User ID creating the template"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -222,6 +224,7 @@ async def list_user_templates(
     search: Optional[str] = Query(None, description="Search in name/description"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -278,6 +281,7 @@ async def list_user_templates(
 @router.get("/stats", response_model=TemplateStatisticsResponse)
 async def get_user_template_statistics(
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -340,6 +344,7 @@ async def get_user_template_statistics(
 @router.get("/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -367,6 +372,7 @@ async def update_template(
     template_id: str,
     request: UpdateTemplateRequest,
     user_id: str = Query(..., description="User ID making the update"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -452,6 +458,7 @@ async def update_template(
 async def delete_template(
     template_id: str,
     user_id: str = Query(..., description="User ID requesting deletion"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -502,6 +509,7 @@ async def publish_template(
     template_id: str,
     request: PublishTemplateRequest,
     user_id: str = Query(..., description="User ID publishing the template"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -561,6 +569,7 @@ async def duplicate_template(
     template_id: str,
     request: DuplicateTemplateRequest,
     user_id: str = Query(..., description="User ID creating the duplicate"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -628,6 +637,7 @@ async def duplicate_template(
 @router.get("/{template_id}/versions", response_model=List[Dict[str, Any]])
 async def get_template_versions(
     template_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -669,6 +679,7 @@ async def get_template_versions(
 async def rate_template(
     template_id: str,
     rating: int = Query(..., ge=1, le=5, description="Rating from 1-5"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

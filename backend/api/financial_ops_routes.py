@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -149,6 +150,7 @@ class ContractRequest(BaseModel):
 async def add_invoice(
     request: InvoiceRequest,
     http_request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
