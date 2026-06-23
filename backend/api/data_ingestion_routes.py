@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -51,7 +52,7 @@ def get_workspace_id() -> str:
 
 
 @router.get("/usage", response_model=UsageSummaryResponse)
-async def get_integration_usage():
+async def get_integration_usage(current_user: User = Depends(get_current_user)):
     """
     Get usage summary for all integrations in workspace.
     Shows which integrations have auto-sync enabled and their sync status.
@@ -190,7 +191,8 @@ async def trigger_sync(
 
 @router.get("/sync-status/{integration_id}")
 async def get_sync_status(
-    integration_id: str
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get sync status for a specific integration.

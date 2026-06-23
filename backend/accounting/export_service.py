@@ -10,6 +10,26 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
+# CSV injection protection. Spreadsheet applications (Excel, LibreOffice, GSheets)
+# interpret cell values beginning with = + - @ or containing tab/newline as formulas
+# or actions. Prefixing with a single quote (') forces text interpretation and the
+# quote is stripped on display by spreadsheet apps. See CWE-1236.
+_CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_csv_cell(value: object) -> object:
+    """Neutralize CSV-injection payloads in a cell value.
+
+    - Strings beginning with = + - @ or containing tab/CR are prefixed with a single quote.
+    - Non-string values (numbers, None) are returned unchanged.
+    """
+    if not isinstance(value, str):
+        return value
+    if value.startswith(_CSV_INJECTION_PREFIXES):
+        return "'" + value
+    return value
+
 class AccountExporter:
     """
     Service for exporting financial data in formats suitable for CPAs and external accountants.
@@ -43,16 +63,16 @@ class AccountExporter:
             standards = acc.standards_mapping or {}
             
             writer.writerow([
-                tx.transaction_date.strftime("%Y-%m-%d"),
-                tx.id,
-                acc.code,
-                acc.name,
-                standards.get("gaap", ""),
-                standards.get("ifrs", ""),
+                _sanitize_csv_cell(tx.transaction_date.strftime("%Y-%m-%d")),
+                _sanitize_csv_cell(tx.id),
+                _sanitize_csv_cell(acc.code),
+                _sanitize_csv_cell(acc.name),
+                _sanitize_csv_cell(standards.get("gaap", "")),
+                _sanitize_csv_cell(standards.get("ifrs", "")),
                 debit,
                 credit,
-                entry.description or tx.description,
-                entry.currency
+                _sanitize_csv_cell(entry.description or tx.description),
+                _sanitize_csv_cell(entry.currency)
             ])
 
         return output.getvalue()

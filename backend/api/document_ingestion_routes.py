@@ -5,6 +5,7 @@ Manage per-integration document ingestion settings and memory removal.
 
 import io
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, File, Query, UploadFile
 from pydantic import BaseModel
@@ -221,7 +222,8 @@ async def remove_integration_memory(
 @router.get("/documents")
 async def list_ingested_documents(
     integration_id: Optional[str] = Query(None, description="Filter by integration"),
-    file_type: Optional[str] = Query(None, description="Filter by file type")
+    file_type: Optional[str] = Query(None, description="Filter by file type"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     List all ingested documents.
@@ -388,14 +390,29 @@ async def get_ocr_status():
 @router.post("/parse", response_model=ParseResultResponse)
 async def parse_document_file(
     file: UploadFile = File(...),
-    export_format: str = Query("markdown", description="Output format: markdown, text, json, html")
+    export_format: str = Query("markdown", description="Output format: markdown, text, json, html"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Directly parse a document file and return its content.
     Uses docling for high-fidelity extraction if available.
     """
     try:
+        # Enforce upload size cap BEFORE reading into memory (OOM DoS protection).
+        # MAX_FILE_SIZE is in bytes; default 50 MiB.
+        MAX_FILE_SIZE = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
+        if file.size is not None and file.size > MAX_FILE_SIZE:
+            raise router.validation_error(
+                "file",
+                f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB"
+            )
         content = await file.read()
+        content_size = len(content)
+        if content_size > MAX_FILE_SIZE:
+            raise router.validation_error(
+                "file",
+                f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB"
+            )
         file_name = file.filename
         file_ext = file_name.split(".")[-1].lower() if "." in file_name else "pdf"
         
