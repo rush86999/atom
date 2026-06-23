@@ -34,8 +34,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required. Generate with: openssl rand -base64 32}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required. Generate with: openssl rand -base64 32}
+      - "SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}"
+      - "JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}"
       - ENVIRONMENT=development
       - LOG_LEVEL=INFO
       - NODE_ENGINE_URL=http://atom-piece-engine:3003

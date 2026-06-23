@@ -49,6 +49,8 @@ services:
       # Database (SQLite for Personal Edition)
       - DATABASE_URL=sqlite:///./data/atom.db
       - SQLITE_PATH=./data/atom.db
+      # Ensure both bare and backend.* imports resolve inside the container
+      - PYTHONPATH=/app:/app/backend
 
       # Basic configuration
       - ENVIRONMENT=development
@@ -62,8 +64,8 @@ services:
 
       # Encryption keys — REQUIRED. No insecure defaults.
       # Generate with: openssl rand -base64 32
-      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:?BYOK_ENCRYPTION_KEY is required. Generate with: openssl rand -base64 32}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required. Generate with: openssl rand -base64 32}
+      - "BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:?BYOK_ENCRYPTION_KEY is required}"
+      - "JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}"
 
       # Vector embeddings (local, fast, free)
       - LANCEDB_PATH=./data/lancedb
@@ -117,10 +119,6 @@ services:
       # `from backend.api.agent_routes import ...`). Hot reload for dev.
       - ./:/app
     working_dir: /app/backend
-    environment:
-      # Ensure both bare (advanced_workflow_orchestrator) and backend.*
-      # (backend.api.agent_routes) imports resolve inside the container.
-      - PYTHONPATH=/app:/app/backend
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     depends_on:

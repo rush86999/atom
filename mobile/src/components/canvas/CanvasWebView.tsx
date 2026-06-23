@@ -832,7 +832,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
