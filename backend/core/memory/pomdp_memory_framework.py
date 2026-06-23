@@ -520,7 +520,7 @@ class MemoryManager:
         """Generate embedding for text content"""
         # This would use the LLM service for semantic embeddings
         # For now, return a hash-based mock embedding
-        text_hash = hashlib.md5(text.encode()).hexdigest()
+        text_hash = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
         vector = np.array([ord(c) / 256.0 for c in text_hash[:128]], dtype=np.float32)
         return vector
 

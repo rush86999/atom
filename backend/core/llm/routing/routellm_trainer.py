@@ -430,7 +430,7 @@ class RouteLLMTrainer:
     def _generate_model_id(self) -> str:
         """Generate unique model identifier"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        hash_val = hashlib.md5(timestamp.encode()).hexdigest()[:8]
+        hash_val = hashlib.md5(timestamp.encode(), usedforsecurity=False).hexdigest()[:8]
         return f"model_{timestamp}_{hash_val}"
 
     def _get_feature_importance(self) -> Dict[str, float]:

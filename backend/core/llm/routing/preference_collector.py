@@ -114,7 +114,7 @@ class RoutingDecision:
     def __post_init__(self):
         if not self.decision_id:
             self.decision_id = hashlib.md5(
-                f"{self.timestamp}:{self.workspace_id}:{self.prompt_hash}".encode()
+                f"{self.timestamp}:{self.workspace_id}:{self.prompt_hash}".encode(), usedforsecurity=False
             ).hexdigest()[:16]
 
 
@@ -147,7 +147,7 @@ class RoutingFeedback:
     def __post_init__(self):
         if not self.feedback_id:
             self.feedback_id = hashlib.md5(
-                f"{self.decision_id}:{self.timestamp}".encode()
+                f"{self.decision_id}:{self.timestamp}".encode(), usedforsecurity=False
             ).hexdigest()[:16]
 
 
@@ -182,7 +182,7 @@ class TrainingExample:
     def __post_init__(self):
         if not self.example_id:
             self.example_id = hashlib.md5(
-                f"{self.created_at}:{self.estimated_tokens}:{self.task_type}".encode()
+                f"{self.created_at}:{self.estimated_tokens}:{self.task_type}".encode(), usedforsecurity=False
             ).hexdigest()[:16]
 
 
@@ -250,7 +250,7 @@ class PreferenceDataCollector:
             Decision ID for feedback tracking
         """
         # Generate prompt hash and prefix
-        prompt_hash = hashlib.md5(prompt.encode()).hexdigest()
+        prompt_hash = hashlib.md5(prompt.encode(), usedforsecurity=False).hexdigest()
         prompt_prefix = prompt[:1024]  # First 1k characters
 
         decision = RoutingDecision(
@@ -350,7 +350,7 @@ class PreferenceDataCollector:
         """
         if workspace_id not in self.ab_test_group:
             # Hash-based deterministic assignment
-            hash_val = int(hashlib.md5(workspace_id.encode()).hexdigest()[:8], 16)
+            hash_val = int(hashlib.md5(workspace_id.encode(), usedforsecurity=False).hexdigest()[:8], 16)
             self.ab_test_group[workspace_id] = "learning" if hash_val % 2 else "control"
 
         return self.ab_test_group[workspace_id]

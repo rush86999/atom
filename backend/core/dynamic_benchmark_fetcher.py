@@ -119,10 +119,17 @@ class DynamicBenchmarkFetcher:
         return self._client
 
     async def _get_client_no_ssl(self) -> httpx.AsyncClient:
-        """Get or create HTTP client with SSL verification disabled for problematic APIs."""
+        """Get or create HTTP client.
+
+        SSL verification defaults to ON. Set BENCHMARK_FETCHER_INSECURE=true
+        to disable verification if the upstream API has a broken certificate
+        (MITM risk — only use in trusted network environments).
+        """
+        import os
+        insecure = os.getenv("BENCHMARK_FETCHER_INSECURE", "false").lower() == "true"
         return httpx.AsyncClient(
             timeout=30.0,
-            verify=False,  # Disable SSL verification for benchmark.moe
+            verify=not insecure,
             headers={
                 'User-Agent': 'ATOM-Benchmark-Fetcher/1.0',
                 'Accept': 'application/json'

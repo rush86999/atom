@@ -212,7 +212,7 @@ class GraphVersionManager:
     def _generate_version_id(self) -> str:
         """Generate unique version ID"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        random_str = hashlib.md5(timestamp.encode()).hexdigest()[:8]
+        random_str = hashlib.md5(timestamp.encode(), usedforsecurity=False).hexdigest()[:8]
         return f"v_{timestamp}_{random_str}"
 
     def _generate_graph_hash(self, workspace_id: str, session: Session) -> str:
