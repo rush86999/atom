@@ -83,7 +83,13 @@ class WhatsAppDatabaseManager:
                 exists = cursor.fetchone()
                 
                 if not exists:
-                    cursor.execute(f"CREATE DATABASE {self.config['database']}")
+                    # CREATE DATABASE doesn't support parameterized queries (DDL).
+                    # Validate the identifier to prevent SQL injection.
+                    import re
+                    db_name = self.config['database']
+                    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', db_name):
+                        raise ValueError(f"Invalid database name: {db_name}")
+                    cursor.execute(f'CREATE DATABASE "{db_name}"')
                     created = True
                     message = f"Database '{self.config['database']}' created successfully"
                 else:
