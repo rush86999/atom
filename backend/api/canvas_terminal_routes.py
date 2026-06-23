@@ -5,6 +5,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_terminal_service import TerminalCanvasService
 from core.database import get_db
@@ -29,7 +30,7 @@ class AddOutputRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_terminal_canvas(request: CreateTerminalRequest, db: Session = Depends(get_db)):
+async def create_terminal_canvas(request: CreateTerminalRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Create a new terminal canvas."""
     service = TerminalCanvasService(db)
     result = service.create_terminal_canvas(
@@ -53,7 +54,7 @@ async def create_terminal_canvas(request: CreateTerminalRequest, db: Session = D
 
 
 @router.post("/{canvas_id}/output")
-async def add_output(canvas_id: str, request: AddOutputRequest, db: Session = Depends(get_db)):
+async def add_output(canvas_id: str, request: AddOutputRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add command output to the terminal."""
     service = TerminalCanvasService(db)
     result = service.add_output(

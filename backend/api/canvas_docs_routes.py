@@ -10,6 +10,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_docs_service import DocumentationCanvasService
 from core.database import get_db
@@ -62,7 +63,7 @@ class RestoreVersionRequest(BaseModel):
 # Endpoints
 
 @router.post("/create")
-async def create_document_canvas(request: CreateDocumentRequest, db: Session = Depends(get_db)):
+async def create_document_canvas(request: CreateDocumentRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Create a new documentation canvas.
 
@@ -94,7 +95,7 @@ async def create_document_canvas(request: CreateDocumentRequest, db: Session = D
 
 
 @router.get("/{canvas_id}")
-async def get_document_canvas(canvas_id: str, db: Session = Depends(get_db)):
+async def get_document_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Get a documentation canvas by ID.
 
@@ -134,7 +135,7 @@ async def get_document_canvas(canvas_id: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{canvas_id}")
-async def update_document_content(canvas_id: str, request: UpdateDocumentRequest, db: Session = Depends(get_db)):
+async def update_document_content(canvas_id: str, request: UpdateDocumentRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Update document content.
 
@@ -241,7 +242,7 @@ async def get_document_versions(canvas_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{canvas_id}/restore")
-async def restore_version(canvas_id: str, request: RestoreVersionRequest, db: Session = Depends(get_db)):
+async def restore_version(canvas_id: str, request: RestoreVersionRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Restore a document to a previous version.
 

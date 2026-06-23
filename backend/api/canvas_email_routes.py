@@ -5,6 +5,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_email_service import EmailCanvasService
 from core.database import get_db
@@ -47,7 +48,7 @@ class CategorizeRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_email_canvas(request: CreateEmailRequest, db: Session = Depends(get_db)):
+async def create_email_canvas(request: CreateEmailRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Create a new email canvas."""
     service = EmailCanvasService(db)
     result = service.create_email_canvas(
@@ -91,7 +92,7 @@ async def add_message(canvas_id: str, request: AddMessageRequest, db: Session = 
 
 
 @router.post("/{canvas_id}/draft")
-async def save_draft(canvas_id: str, request: SaveDraftRequest, db: Session = Depends(get_db)):
+async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Save an email draft."""
     service = EmailCanvasService(db)
     result = service.save_draft(
