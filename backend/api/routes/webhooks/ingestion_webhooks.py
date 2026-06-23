@@ -630,7 +630,6 @@ async def outlook_webhook_handler(
     # EXPLICIT DEBUG LOGGING
     import sys
 
-    print("[OUTLOOK_WEBHOOK_START] Handler called", file=sys.stderr, flush=True)
     logger.info("[OUTLOOK_WEBHOOK_START] Handler called at /api/webhooks/communication/outlook")
     logger.info(f"[OUTLOOK_WEBHOOK] Host: {request.headers.get('host')}")
     logger.info(f"[OUTLOOK_WEBHOOK] URL: {request.url.path}")
@@ -684,7 +683,6 @@ async def outlook_webhook_handler(
         )
         processed_jobs = []
 
-        print(f"[OUTLOOK_WEBHOOK] DEBUG: About to enter loop", file=sys.stderr, flush=True)
         for idx, notification in enumerate(notifications):
             print(
                 f"[OUTLOOK_WEBHOOK] DEBUG: Loop iteration {idx + 1}/{len(notifications)}",
@@ -758,7 +756,6 @@ async def outlook_webhook_handler(
                 )
 
                 # 4. Parse clientState JSON
-                print(f"[OUTLOOK_WEBHOOK] DEBUG: About to parse JSON", file=sys.stderr, flush=True)
                 import json
 
                 state_data = json.loads(client_state_raw)
@@ -776,7 +773,6 @@ async def outlook_webhook_handler(
                 )
                 # Check X-Forwarded-Host first (set by Fly.io/Next.js proxy) before falling back to Host
                 host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
-                print(f"[OUTLOOK_WEBHOOK] DEBUG: Host header: {host}", file=sys.stderr, flush=True)
 
                 subdomain = host.split(".")[0] if host else None
                 print(
@@ -980,7 +976,6 @@ async def outlook_webhook_handler(
                 )
 
             except Exception as e:
-                print(f"[OUTLOOK_WEBHOOK] CRASH in loop: {e}", file=sys.stderr, flush=True)
                 logger.error(
                     f"[OUTLOOK_WEBHOOK] CRASH in loop iteration {idx + 1}: {e}", exc_info=True
                 )
