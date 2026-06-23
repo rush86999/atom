@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
 

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.models import AgentExecution, SupervisionSession
 from core.supervision_service import SupervisionService, SupervisionEvent
 
@@ -70,6 +71,7 @@ class LogEntry(BaseModel):
 @router.get("/{execution_id}/stream")
 async def stream_supervision_logs(
     execution_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -160,6 +162,7 @@ def _format_sse(event: str, data: dict) -> str:
 async def intervene_in_session(
     session_id: str,
     request: InterventionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -199,6 +202,7 @@ async def complete_supervision_session(
     session_id: str,
     supervisor_rating: int = Query(..., ge=1, le=5, description="Rating 1-5"),
     feedback: str = Query(..., description="Feedback text"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -243,6 +247,7 @@ async def complete_supervision_session(
 async def get_active_sessions(
     workspace_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get currently active supervision sessions."""
@@ -281,6 +286,7 @@ async def get_active_sessions(
 async def get_agent_supervision_history(
     agent_id: str,
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get agent's supervision history."""
@@ -318,6 +324,7 @@ async def get_agent_supervision_history(
 @router.get("/sessions/{session_id}", response_model=SupervisionSessionResponse)
 async def get_supervision_session(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get details of a specific supervision session."""
@@ -352,6 +359,7 @@ async def get_supervision_session(
 @router.post("/proposals/{proposal_id}/autonomous-approve")
 async def autonomous_approve_proposal(
     proposal_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

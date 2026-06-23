@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from integrations.workspace_sync_service import (
     ChangeType,

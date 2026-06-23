@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.models import QueueStatus
 from core.supervised_queue_service import SupervisedQueueService
 from sqlalchemy.orm import Session
@@ -76,6 +77,7 @@ class QueueProcessResponse(BaseModel):
 async def get_user_queue(
     user_id: str,
     status: Optional[str] = Query(None, description="Filter by status"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -144,6 +146,7 @@ async def get_user_queue(
 async def cancel_queue_entry(
     queue_id: str,
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -180,6 +183,7 @@ async def cancel_queue_entry(
 @router.post("/process", response_model=QueueProcessResponse)
 async def process_queue_manually(
     limit: int = Query(10, ge=1, le=100, description="Max entries to process"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -227,6 +231,7 @@ async def process_queue_manually(
 @router.get("/stats", response_model=QueueStatsResponse)
 async def get_queue_stats(
     user_id: Optional[str] = Query(None, description="Filter by user"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -250,6 +255,7 @@ async def get_queue_stats(
 
 @router.post("/mark-expired", response_model=SuccessResponse)
 async def mark_expired_entries(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -277,6 +283,7 @@ async def mark_expired_entries(
 @router.get("/{queue_id}", response_model=QueueEntryResponse)
 async def get_queue_entry(
     queue_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get details of a specific queue entry."""

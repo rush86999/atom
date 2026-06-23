@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_promotion_service import AgentPromotionService
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.feedback_advanced_analytics import AdvancedFeedbackAnalytics
@@ -40,6 +41,7 @@ router = BaseAPIRouter(prefix="/api/feedback/phase2", tags=["Feedback Phase 2"])
 @router.get("/promotion-suggestions")
 async def get_promotion_suggestions(
     limit: int = Query(10, ge=1, le=50, description="Maximum number of suggestions"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -70,6 +72,7 @@ async def get_promotion_suggestions(
 @router.get("/promotion-path/{agent_id}")
 async def get_promotion_path(
     agent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -106,6 +109,7 @@ async def get_promotion_path(
 async def check_agent_promotion_readiness(
     agent_id: str,
     target_status: Optional[str] = Query(None, description="Target status (auto-detected if not provided)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -153,6 +157,7 @@ async def export_feedback(
     feedback_type: Optional[str] = Query(None, description="Filter by feedback type"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(1000, ge=1, le=10000, description="Maximum records"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -215,6 +220,7 @@ async def export_feedback(
 async def export_feedback_summary(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -242,6 +248,7 @@ async def export_feedback_summary(
 
 @router.get("/export/filters")
 async def get_export_filters(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -270,6 +277,7 @@ async def get_export_filters(
 async def analyze_feedback_performance_correlation(
     agent_id: str,
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -299,6 +307,7 @@ async def analyze_feedback_performance_correlation(
 @router.get("/analytics/advanced/cohorts")
 async def analyze_feedback_by_cohorts(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -327,6 +336,7 @@ async def analyze_feedback_by_cohorts(
 async def predict_agent_performance(
     agent_id: str,
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -357,6 +367,7 @@ async def predict_agent_performance(
 async def analyze_feedback_velocity(
     agent_id: str,
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

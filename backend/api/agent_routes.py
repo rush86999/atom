@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
+from core.auth import get_current_user, User
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal, get_db, get_db_session
@@ -66,6 +67,7 @@ class HITLApprovalRequest(BaseModel):
 async def list_agents(
     category: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List all available Computer Use Agents from Registry"""
@@ -102,6 +104,7 @@ async def list_agents(
 async def get_agent(
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get a specific agent by ID"""
@@ -138,6 +141,7 @@ async def get_agent(
 async def get_agent_status(
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get the current status of an agent"""
@@ -169,6 +173,7 @@ async def get_agent_status(
 async def delete_agent(
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Delete an agent"""
@@ -208,6 +213,7 @@ async def run_agent(
     run_req: AgentRunRequest, 
     background_tasks: BackgroundTasks,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Trigger an agent execution in the background.
@@ -275,6 +281,7 @@ async def update_agent(
     agent_id: str,
     update_data: AgentUpdateRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update agent details"""
@@ -304,6 +311,7 @@ async def submit_agent_feedback(
     agent_id: str,
     feedback: AgentFeedbackRequest,
     user: User = Depends(require_permission(Permission.AGENT_RUN)), # Members can submit feedback
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Submit feedback/corrections for an agent"""
@@ -328,6 +336,7 @@ async def submit_agent_feedback(
 async def promote_agent(
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Promote agent to Autonomous mode.
@@ -351,6 +360,7 @@ async def promote_agent(
 async def list_pending_approvals(
     limit: int = 100,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List actions waiting for human approval.
@@ -378,6 +388,7 @@ async def decide_hitl_action(
     action_id: str,
     req: HITLApprovalRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Approve or Reject a paused agent action.
@@ -783,6 +794,7 @@ class AgentReplaceRequest(BaseModel):
 async def create_custom_agent(
     req: CustomAgentRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a fully custom agent with configuration and schedule.
@@ -820,6 +832,7 @@ async def replace_agent(
     agent_id: str,
     req: AgentReplaceRequest,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Replace an entire agent resource (RESTful PUT semantics per RFC 9110).
@@ -861,6 +874,7 @@ async def replace_agent(
 async def stop_agent(
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

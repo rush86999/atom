@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from api.auth_routes import get_current_user
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import User, AgentRegistry, Canvas
 from core.agent_coordination import AgentHandoffProtocol, MultiAgentCanvasService
@@ -32,6 +33,7 @@ async def add_agent_to_canvas(
     agent_id: str,
     role: str = Query("collaborator", description="Agent role on canvas"),
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -64,6 +66,7 @@ async def remove_agent_from_canvas(
     canvas_id: str,
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Remove an agent from a canvas collaboration session."""
@@ -84,6 +87,7 @@ async def remove_agent_from_canvas(
 async def get_canvas_agents(
     canvas_id: str,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all agents currently active on a canvas."""
@@ -126,6 +130,7 @@ async def initiate_agent_handoff(
     reason: str,
     context: Optional[Dict[str, Any]] = None,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -153,6 +158,7 @@ async def accept_agent_handoff(
     handoff_id: str,
     agent_id: str,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Accept an agent handoff request."""
@@ -176,6 +182,7 @@ async def reject_agent_handoff(
     agent_id: str,
     reason: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Reject an agent handoff request."""
@@ -198,6 +205,7 @@ async def complete_agent_handoff(
     handoff_id: str,
     result_data: Dict[str, Any],
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """ Mark an agent handoff as completed with result. """
@@ -219,6 +227,7 @@ async def get_canvas_handoffs(
     canvas_id: str,
     status: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all handoffs for a canvas."""
@@ -260,6 +269,7 @@ async def coordinate_agents(
     required_agents: List[str],
     coordination_strategy: str = Query("sequential", description="Strategy: sequential, coordinated_strategy"),
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

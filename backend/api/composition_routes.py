@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.skill_composition_engine import SkillCompositionEngine, SkillStep
 
 router = APIRouter(prefix="/composition", tags=["composition"])
@@ -47,6 +48,7 @@ class WorkflowResponse(BaseModel):
 @router.post("/execute", response_model=WorkflowResponse)
 async def execute_workflow(
     request: WorkflowRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Execute a skill composition workflow."""
@@ -77,6 +79,7 @@ async def execute_workflow(
 @router.post("/validate")
 def validate_workflow(
     request: WorkflowRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Validate workflow DAG without executing."""
@@ -99,6 +102,7 @@ def validate_workflow(
 @router.get("/status/{execution_id}")
 def get_workflow_status(
     execution_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get workflow execution status."""

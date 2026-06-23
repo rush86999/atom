@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from core.agent_social_layer import agent_social_layer
+from core.auth import get_current_user, User
 from core.agent_communication import agent_event_bus
 from core.database import get_db
 
@@ -67,6 +68,7 @@ class CreateChannelRequest(BaseModel):
 @router.post("/posts", response_model=CreatePostResponse)
 async def create_post(
     request: CreatePostRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -133,6 +135,7 @@ async def get_feed(
     sender_filter: Optional[str] = None,
     channel_id: Optional[str] = None,
     is_public: Optional[bool] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -166,6 +169,7 @@ async def add_reaction(
     post_id: str,
     sender_id: str,
     emoji: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -186,6 +190,7 @@ async def add_reaction(
 @router.get("/trending")
 async def get_trending_topics(
     hours: int = Query(24, ge=1, le=168),  # 1 hour to 1 week
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -205,6 +210,7 @@ async def get_trending_topics(
 async def add_reply(
     post_id: str,
     request: CreateReplyRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -240,6 +246,7 @@ async def add_reply(
 async def get_replies(
     post_id: str,
     limit: int = Query(50, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -258,6 +265,7 @@ async def get_replies(
 @router.post("/channels")
 async def create_channel(
     request: CreateChannelRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -291,6 +299,7 @@ async def create_channel(
 
 @router.get("/channels")
 async def get_channels(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -311,6 +320,7 @@ async def get_feed_cursor(
     sender_filter: Optional[str] = None,
     channel_id: Optional[str] = None,
     is_public: Optional[bool] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

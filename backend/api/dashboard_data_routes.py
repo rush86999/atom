@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import (
     WorkflowExecution,
@@ -336,6 +337,7 @@ def calculate_dashboard_stats(db: Session, user_id: Optional[str]) -> Dict[str, 
 async def get_dashboard_data(
     user_id: Optional[str] = Query(None, description="User ID to filter data"),
     limit: int = Query(20, description="Maximum number of items per category", ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -375,6 +377,7 @@ async def get_dashboard_data(
 @router.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
     user_id: Optional[str] = Query(None, description="User ID to filter stats"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -400,6 +403,7 @@ async def get_dashboard_stats(
 async def get_calendar_events(
     user_id: Optional[str] = Query(None, description="User ID to filter events"),
     limit: int = Query(10, description="Maximum number of events", ge=1, le=50),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get calendar events for the user."""
@@ -419,6 +423,7 @@ async def get_tasks(
     user_id: Optional[str] = Query(None, description="User ID to filter tasks"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(20, description="Maximum number of tasks", ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get tasks for the user with optional status filter."""
@@ -443,6 +448,7 @@ async def get_messages(
     user_id: Optional[str] = Query(None, description="User ID to filter messages"),
     unread_only: bool = Query(False, description="Only return unread messages"),
     limit: int = Query(20, description="Maximum number of messages", ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get messages for the user."""

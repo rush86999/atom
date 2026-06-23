@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.custom_components_service import ComponentSecurityError, CustomComponentsService
 from core.database import get_db
 
@@ -93,6 +94,7 @@ class RecordUsageRequest(BaseModel):
 async def create_component(
     request: CreateComponentRequest,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -167,6 +169,7 @@ async def list_components(
     category: Optional[str] = Query(None, description="Filter by category"),
     is_public: Optional[bool] = Query(None, description="Filter by public/private"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -201,6 +204,7 @@ async def list_components(
 async def get_component(
     component_id: str,
     user_id: Optional[str] = Query(None, description="User ID for permission check"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -241,6 +245,7 @@ async def get_component(
 async def get_component_by_slug(
     slug: str,
     user_id: Optional[str] = Query(None, description="User ID for permission check"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -281,6 +286,7 @@ async def update_component(
     component_id: str,
     request: UpdateComponentRequest,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -343,6 +349,7 @@ async def update_component(
 async def delete_component(
     component_id: str,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -382,6 +389,7 @@ async def delete_component(
 async def get_component_versions(
     component_id: str,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -419,6 +427,7 @@ async def rollback_component(
     component_id: str,
     request: RollbackComponentRequest,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -464,6 +473,7 @@ async def record_component_usage(
     component_id: str,
     request: RecordUsageRequest,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -517,6 +527,7 @@ async def record_component_usage(
 async def get_component_stats(
     component_id: str,
     user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

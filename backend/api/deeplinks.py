@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.deeplinks import (
     DeepLinkParseException,
@@ -107,6 +108,7 @@ class DeepLinkStatsResponse(BaseModel):
 @router.post("/execute", response_model=DeepLinkExecuteResponse)
 async def execute_deeplink_endpoint(
     request: DeepLinkExecuteRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -178,6 +180,7 @@ async def get_deeplink_audit(
     resource_type: Optional[str] = Query(None, description="Filter by resource type"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of entries"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -302,6 +305,7 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest):
 
 @router.get("/stats", response_model=DeepLinkStatsResponse)
 async def get_deeplink_stats(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

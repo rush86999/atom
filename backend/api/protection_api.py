@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.risk_prevention import get_risk_services
 
@@ -21,6 +22,7 @@ class ScanRequest(BaseModel):
 
 @router.get("/churn")
 async def get_churn_risk(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Predict customer churn risks"""
@@ -39,6 +41,7 @@ async def get_churn_risk(
 
 @router.get("/financial")
 async def get_financial_risk(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get AR delays and Fraud alerts"""
@@ -64,6 +67,7 @@ async def get_financial_risk(
 
 @router.get("/growth")
 async def get_growth_readiness(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Check scaling readiness"""

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import WorkflowExecution, WorkflowExecutionLog
 
@@ -74,6 +75,7 @@ async def get_mobile_workflows(
     sort_order: str = "desc",
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -163,6 +165,7 @@ async def get_mobile_workflows(
 @router.get("/{workflow_id}")
 async def get_mobile_workflow_details(
     workflow_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -217,6 +220,7 @@ async def trigger_workflow_mobile(
     request: TriggerRequest,
     background_tasks: BackgroundTasks,
     user_id: str = Query(..., description="User ID triggering the workflow"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -328,6 +332,7 @@ async def trigger_workflow_mobile(
 @router.get("/executions/{execution_id}")
 async def get_mobile_execution_details(
     execution_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -392,6 +397,7 @@ async def get_mobile_execution_details(
 async def get_workflow_executions_mobile(
     workflow_id: str,
     limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -438,6 +444,7 @@ async def get_execution_logs_mobile(
     execution_id: str,
     level: Optional[str] = None,
     limit: int = Query(100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -480,6 +487,7 @@ async def get_execution_logs_mobile(
 async def get_execution_steps_mobile(
     workflow_id: str,
     execution_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -534,6 +542,7 @@ async def get_execution_steps_mobile(
 async def cancel_execution_mobile(
     execution_id: str,
     user_id: str = Query(..., description="User ID cancelling the execution"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -599,6 +608,7 @@ async def cancel_execution_mobile(
 async def search_workflows_mobile(
     query: str,
     limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

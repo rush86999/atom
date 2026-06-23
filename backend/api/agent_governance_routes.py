@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.database import get_db, get_db_session
 
 # Import newly created intervention service
@@ -418,6 +419,7 @@ async def list_pending_approvals(
 async def approve_workflow(
     approval_id: str,
     approver_id: str = Query(..., description="ID of the approving user"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

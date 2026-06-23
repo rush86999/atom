@@ -34,6 +34,7 @@ from cli.daemon import DaemonManager
 
 # Import authentication and authorization
 from core.admin_endpoints import get_super_admin
+from core.auth import get_current_user, User
 from core.models import User, DelegationChain
 from core.database import get_db
 

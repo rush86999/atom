@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from core.database import get_db
+from core.auth import get_current_user, User
 from core.models import UserState
 from core.user_activity_service import UserActivityService
 from sqlalchemy.orm import Session
@@ -88,6 +89,7 @@ class ActiveSessionsResponse(BaseModel):
 async def send_heartbeat(
     user_id: str,
     heartbeat: HeartbeatRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -126,6 +128,7 @@ async def send_heartbeat(
 @router.get("/{user_id}/activity/state", response_model=UserStateResponse)
 async def get_user_state(
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get current user state (online/away/offline)."""
@@ -170,6 +173,7 @@ async def get_user_state(
 async def set_manual_override(
     user_id: str,
     override: ManualOverrideRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -227,6 +231,7 @@ async def set_manual_override(
 @router.delete("/{user_id}/activity/override", response_model=UserStateResponse)
 async def clear_manual_override(
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -261,6 +266,7 @@ async def clear_manual_override(
 @router.get("/available-supervisors", response_model=AvailableSupervisorsResponse)
 async def get_available_supervisors(
     category: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -295,6 +301,7 @@ async def get_available_supervisors(
 @router.get("/{user_id}/activity/sessions", response_model=ActiveSessionsResponse)
 async def get_active_sessions(
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all active sessions for a user."""
@@ -331,6 +338,7 @@ async def get_active_sessions(
 @router.delete("/activity/sessions/{session_token}")
 async def terminate_session(
     session_token: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

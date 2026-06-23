@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 from core.agent_context_resolver import AgentContextResolver
+from core.auth import get_current_user, User
 from core.agent_governance_service import AgentGovernanceService
 from core.database import get_db
 from core.models import (
@@ -174,6 +175,7 @@ def get_device_by_token(device_id: str, db: Session) -> Optional[DeviceNode]:
 async def menubar_login(
     request: MenuBarLoginRequest,
     x_platform: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
