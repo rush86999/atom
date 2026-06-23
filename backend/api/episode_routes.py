@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
+from core.auth import get_current_user, User
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_graduation_service import AgentGraduationService
 from core.base_routes import BaseAPIRouter
@@ -190,7 +191,7 @@ async def retrieve_contextual(
 async def list_episodes(
     agent_id: str,
     skip: int = 0,
-    limit: int = 50,
+    limit: int = 50,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List episodes with pagination"""
@@ -591,7 +592,7 @@ async def run_exam(
 async def promote_agent(
     agent_id: str,
     new_maturity: str,
-    validated_by: str,
+    validated_by: str,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Promote agent after validation"""
@@ -631,7 +632,7 @@ async def trigger_decay(
 
 @router.post("/lifecycle/consolidate")
 async def consolidate_episodes(
-    agent_id: str,
+    agent_id: str,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Consolidate similar episodes"""

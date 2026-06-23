@@ -5,9 +5,11 @@ Endpoints for managing dynamic entity type definitions.
 """
 import logging
 from typing import Dict, List, Any, Optional
+from fastapi import Depends
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 from core.entity_type_service import get_entity_type_service
 from core.entity_schema_suggestion_service import get_entity_schema_suggestion_service
 
@@ -35,7 +37,7 @@ class EntityTypeSuggestRequest(BaseModel):
 # --- Route Handlers ---
 
 @router.post("")
-async def create_entity_type(workspace_id: str, request: EntityTypeCreate):
+async def create_entity_type(workspace_id: str, request: EntityTypeCreate, current_user: User = Depends(get_current_user)):
     """Create a new entity type."""
     service = get_entity_type_service()
     try:

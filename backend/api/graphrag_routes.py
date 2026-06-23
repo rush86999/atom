@@ -5,9 +5,11 @@ Endpoints for GraphRAG queries.
 
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
+from core.auth import get_current_user, User
 
 router = BaseAPIRouter(prefix="/api/graphrag", tags=["GraphRAG"])
 
@@ -36,7 +38,7 @@ class AddRelationshipRequest(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)
 
 @router.post("/ingest")
-async def ingest_document(request: IngestRequest):
+async def ingest_document(request: IngestRequest, current_user: User = Depends(get_current_user)):
     """Ingest a document into GraphRAG"""
     from core.graphrag_engine import graphrag_engine
 
@@ -66,7 +68,7 @@ async def list_entities(workspace_id: str, limit: int = 100):
         )
 
 @router.post("/entities")
-async def add_entity(workspace_id: str, request: AddEntityRequest):
+async def add_entity(workspace_id: str, request: AddEntityRequest, current_user: User = Depends(get_current_user)):
     """Add or update an entity"""
     from core.graphrag_engine import graphrag_engine, Entity
     import uuid

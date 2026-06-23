@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
@@ -150,7 +151,7 @@ async def get_context(session_id: str):
 async def update_context(
     session_id: str,
     context: Dict[str, Any],
-    request: Request,
+    request: Request,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
@@ -180,7 +181,7 @@ async def update_context(
 )
 async def store_memory(
     request: MemoryStoreRequest,
-    http_request: Request,
+    http_request: Request,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
@@ -221,7 +222,7 @@ async def retrieve_memory(key: str):
 )
 async def delete_memory(
     key: str,
-    request: Request,
+    request: Request,    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
