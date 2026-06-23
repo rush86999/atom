@@ -83,12 +83,68 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 24. **E2E Tests** (`backend/tests/e2e_ui/`): 486 test functions, API-first auth, worker isolation, Page Object Model
 25. **Advanced Skills** (Phase 60): Marketplace, dynamic loading, DAG composition, supply-chain security
 26. **GraphRAG & Entity Types** (`core/graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`): PostgreSQL recursive CTEs, 6 canonical types, dynamic custom types
+27. **Frontend XSS Protection** (`frontend-nextjs/lib/sanitize.ts`): DOMPurify-based `sanitizeHtml()` + `renderMarkdownSafe()`, applied to all `dangerouslySetInnerHTML` sites
+28. **Mobile Secure Storage** (`mobile/src/storage/secureTokenStorage.ts`): expo-secure-store wrapper for auth tokens (iOS Keychain / Android EncryptedSharedPreferences), transparent AsyncStorage migration
+29. **Safe Expression Evaluator** (`core/safe_evaluator.py`): AST-validated `safe_eval()` replacing raw `eval()` in workflow conditions, event bus, and conductor
+30. **CSV Injection Guard** (`accounting/export_service.py:_sanitize_csv_cell`): Prefixes `= + - @` cells with single quote in financial exports (CWE-1236)
+31. **Workflow ReDoS Guard** (`core/workflow_parameter_validator.py`): `MAX_REGEX_LENGTH=200` + `_has_redos_risk()` heuristic on user-supplied regex patterns
 
 ---
 
 ## Recent Bug Hunt History (TDD)
 
-All fixes use Red-Green-Refactor: failing test first, minimal fix, regression tests committed. Test files: `tests/test_roundN_fixes.py`, `tests/test_security_bug_hunt.py`, `tests/test_auth_fixes.py`, etc.
+All fixes use Red-Green-Refactor: failing test first, minimal fix, regression tests committed. Test files: `tests/test_roundN_fixes.py`, `tests/test_roundN_security.py`, `tests/test_security_bug_hunt.py`, `tests/test_auth_fixes.py`, etc.
+
+### Rounds 18-40 — Full-Codebase Security Sweep (June 23, 2026) ✨
+
+**~1,100 bugs fixed across 150+ files. 199 regression tests (all green).**
+
+#### Bulk Cleanup Passes
+- **str(e) leak sweep**: 992 `str(e)` leaks in `HTTPException detail`/`internal_error` across 133 backend files → generic `"Internal error"`. Logger calls retain `{e}` for server-side debugging only.
+- **Auth sweep**: ~250 previously-unauthenticated API routes hardened with `Depends(get_current_user)` across 40+ modules.
+- **Naive datetime sweep**: 12 remaining `datetime.utcnow` defaults in `models.py` → timezone-aware `datetime.now(timezone.utc)` (PostgreSQL TypeError fix; Round 13 only fixed 5).
+
+#### Round 18 — Integrations (SSRF, OAuth, Webhooks)
+9 bugs: `channel_routes` zero auth on 7 endpoints (IDOR) + broken `Channel`/`get_db` imports; `shopify_webhooks` signature header accepted but never verified; `atom_communication_memory_webhooks` 6 hardcoded webhook secrets + fail-open on missing signature; `ingestion_webhooks` fail-open on missing `slack_signing_secret` + `tenant_id` from query params (cross-tenant injection); `github_routes` 9 `str(e)` leaks; `admin_bootstrap` plaintext password logged → 0600 file; `auth_endpoints` reset link logged. 16 tests.
+
+#### Round 19 — Workflow Engine (Auth + RCE + ReDoS)
+6 bug classes: `advanced_workflow_endpoints` 17 routes zero auth + 17 `str(e)` leaks; `workflow_debugging_advanced` 5 routes zero auth; `workflow_analytics_routes` 3 routes zero auth; `workflow_template_routes` IDOR (get/update/instantiate); `scripts/workflow_engine.py` raw `eval(condition, ...)` → `safe_eval` (CWE-94 RCE); `workflow_parameter_validator` ReDoS via user regex (`MAX_REGEX_LENGTH=200` + nested-quantifier heuristic). 21 tests.
+
+#### Round 20 — Agent Fleet Authorization
+4 bugs: `maturity_routes` `user_id` from `Query(...)` on 4 approval endpoints (privilege escalation) → `Depends(get_current_user)`; `supervision_websocket` no auth (token check via `websocket.query_params`); `background_agent_routes.list_background_tasks` no auth; `fault_tolerance_service.py:104` broken SQL (`AgentRegistry.AgentRegistry.status`). 5 tests.
+
+#### Round 21 — Data Ingestion & Compliance
+4 bugs: `export_service` CSV injection (CWE-1236 — `=cmd|...` formula execution on accountant's workstation) → `_sanitize_csv_cell()`; `document_ingestion_routes` `/parse` and `/documents` no auth; `/parse` no file size limit (OOM DoS) → `MAX_UPLOAD_BYTES`; `data_ingestion_routes` `/usage` + `/sync-status` no auth. 7 tests.
+
+#### Round 22 — Marketplace & Supply Chain
+5 bugs: `package_routes` `/approve` + `/install` no auth (supply-chain takeover) + 14 `str(e)` leaks; `marketplace_routes` `/install` no auth; `skill_routes` `/import` + `/execute` + `/promote` no auth; `skill_dynamic_loader` accepts arbitrary `skill_path` (zip-slip/path-traversal → arbitrary `.py` execution) → `Path.resolve().relative_to(base)` containment. 8 tests.
+
+#### Round 23 — Real-time Messaging
+3 bug classes: `messaging_routes` 4 proactive-message routes no auth; `scheduled_messaging_routes.execute_due_messages` no auth; `notification_settings_routes` 3 routes no auth + `str(e)` leak; added missing `ProactiveMessageStatus` enum to `models.py` (broken import cascading through `proactive_messaging_service`). 10 tests.
+
+#### Round 24 — Canvas Services
+3 bug classes: `canvas_docs_routes` 4 routes no auth (document IDOR); `canvas_email_routes` 2 routes no auth; `canvas_terminal_routes` 2 routes no auth (terminal output injection). 8 tests.
+
+#### Round 25 — LLM & Cognitive Systems
+3 bug classes: `byok_routes` `store_api_key` + `get_ai_providers` — used `Depends(get_current_tenant)` but `get_current_tenant` is silently `None` (import fails), making the dependency a no-op; `llm_oauth_routes` `list_credentials` + `revoke_credential` + `refresh_credential` no auth; `cognitive_tier_routes` `update_budget` + `delete_preferences` no auth. 7 tests.
+
+#### Round 26 — Memory / GraphRAG
+4 bug classes: `memory_routes` `store_memory` + `delete_memory` no auth; `episode_routes` `promote_agent` (privilege escalation!) + 20 retrieval routes no auth; `graphrag_routes` `add_entity` + `ingest_document` no auth (graph poisoning); `entity_type_routes` `create_entity_type` no auth (schema injection). 7 tests.
+
+#### Rounds 27-34 — Consolidated Finance/Analytics/Identity/Tools/Monitoring
+13 handlers: `ai_accounting_routes.ingest_transaction`, `financial_ops_routes.add_invoice`, `financial_audit_routes` (6 handlers), `ab_testing.create_test`, `feedback_enhanced.submit_enhanced_feedback`, `feedback_analytics` (3 handlers), `oauth_routes.list_oauth_tokens` + `revoke_oauth_token`, `user_templates_endpoints` (10 handlers), `voice_routes.transcribe_audio`, `social_media_routes` (3 handlers), `monitoring_routes.create/delete_condition_monitor`. 13 tests.
+
+#### Round 31 — Database Integrity
+12 remaining naive `datetime.utcnow` column defaults in `models.py` → `lambda: datetime.now(timezone.utc)` (Round 13 fixed only 5). Plus naive `expires_at` comparison and `used_at` assignment. 2 tests.
+
+#### Rounds 38-39 — Frontend & Mobile (Audit Reports)
+- **Frontend** (`docs/FRONTEND_SECURITY_AUDIT.md`): 3 XSS sites via `dangerouslySetInnerHTML` + `marked.parse()` → **fixed with DOMPurify** (`lib/sanitize.ts`, `renderMarkdownSafe()`, 12 tests). Tokens in `localStorage` (documented for httpOnly cookie migration).
+- **Mobile** (`docs/MOBILE_SECURITY_AUDIT.md`): auth tokens in unencrypted `AsyncStorage` (10 sites) → **fixed with `expo-secure-store`** (`storage/secureTokenStorage.ts`, transparent migration). No jailbreak detection (documented).
+
+#### Round 40 — Final Regression
+199 tests across rounds 4-31 + auth + security + TOCTOU — all green. Pushed to `rush86999/atom` main.
+
+---
 
 ### Rounds 15+16 — Email Verification + 2FA (June 22, 2026) ✨
 8 bugs: email enumeration in `/verify`, missing rate limits on verify/TOTP, weak entropy (`token_hex(3)`→`(4)`), `utcnow()` in comparisons, **hardcoded backup codes** (`UP-BACKUP-1234-5678` for all users), TOTP brute-force, `str(e)` leak. 7 tests.
@@ -246,6 +302,12 @@ Test files: `backend/tests/e2e_ui/conftest.py`, `fixtures/auth_fixtures.py` (API
 
 **BYOK**: `docs/architecture/BYOK_V6_MIGRATION_GUIDE.md`, `.planning/REQUIREMENTS-v6.0-BYOK.md`, `core/llm/llm_service.py`
 
+**Security**: `core/safe_evaluator.py` (AST eval), `core/auth.py` (`get_current_user`), `frontend-nextjs/lib/sanitize.ts` (DOMPurify XSS guard), `mobile/src/storage/secureTokenStorage.ts` (SecureStore), `accounting/export_service.py` (`_sanitize_csv_cell`)
+
+**Bug Hunt Tests**: `tests/test_round{4..17}_fixes.py`, `tests/test_round{18..31}_*.py`, `tests/test_rounds27_30_consolidated.py`, `tests/test_auth_fixes.py`, `tests/test_security_bug_hunt.py`, `tests/test_toctou_fixes.py`, `frontend-nextjs/lib/__tests__/sanitize.test.ts`
+
+**Audit Docs**: `docs/FRONTEND_SECURITY_AUDIT.md`, `docs/MOBILE_SECURITY_AUDIT.md`
+
 ---
 
 ## Environment Variables
@@ -279,6 +341,15 @@ ATOM_HOST_MOUNT_ENABLED=false    # AUTONOMOUS gate
 EMBEDDING_PROVIDER=fastembed
 FASTEMBED_MODEL=BAAI/bge-small-en-v1.5
 LANCEDB_PATH=./data/lancedb
+
+# Security (Rounds 18-40)
+MAX_UPLOAD_BYTES=52428800              # Document upload size cap (50 MiB default)
+ATOM_BOOTSTRAP_PASSWORD_FILE=          # Where generated admin password is written (0600)
+SHOPIFY_WEBHOOK_SECRET=                # Shopify HMAC verification (fail-closed if missing)
+ATOM_WHATSAPP_WEBHOOK_SECRET=          # Communication webhook secrets (env, never hardcode)
+ATOM_SLACK_WEBHOOK_SECRET=
+ATOM_DISCORD_WEBHOOK_SECRET=
+ATOM_TELEGRAM_WEBHOOK_SECRET=
 ```
 
 ---
