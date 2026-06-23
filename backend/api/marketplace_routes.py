@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
+from core.auth import get_current_user, User
 from core.database import get_db
 from core.skill_marketplace_service import SkillMarketplaceService
 from core.domain_marketplace_service import DomainMarketplaceService
@@ -150,6 +151,7 @@ def rate_marketplace_skill(
 def install_marketplace_skill(
     skill_id: str,
     request: InstallRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

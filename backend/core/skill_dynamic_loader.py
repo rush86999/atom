@@ -83,6 +83,22 @@ class SkillDynamicLoader:
             logger.error(f"Skill file not found: {skill_path}")
             return None
 
+        # Path-traversal containment: resolved path must live under the configured
+        # skills_dir (or a sibling subdirectory of it). This prevents an untrusted
+        # caller from pointing skill_path at arbitrary system files (e.g.
+        # /etc/passwd or ../../tmp/malicious.py) and having them executed.
+        if self.skills_dir is not None:
+            resolved = path.resolve()
+            base = self.skills_dir.resolve()
+            try:
+                resolved.relative_to(base)
+            except ValueError:
+                logger.error(
+                    f"Refusing to load skill {skill_name}: path {resolved} is outside "
+                    f"allowed skills directory {base}"
+                )
+                return None
+
         # Calculate file hash for version tracking
         file_hash = self._calculate_file_hash(path)
 

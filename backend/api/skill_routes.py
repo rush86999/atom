@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import EpisodeSegment, SkillExecution
@@ -101,6 +102,7 @@ def get_skill_service(db: Session = Depends(get_db)) -> SkillRegistryService:
 @router.post("/import")
 async def import_skill(
     request: ImportSkillRequest,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """
@@ -258,6 +260,7 @@ async def get_skill(
 @router.post("/execute")
 async def execute_skill(
     request: ExecuteSkillRequest,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """
@@ -323,6 +326,7 @@ async def execute_skill(
 @router.post("/promote")
 async def promote_skill(
     request: PromoteSkillRequest,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """

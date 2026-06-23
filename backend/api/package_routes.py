@@ -34,6 +34,7 @@ from core.package_installer import PackageInstaller
 from core.npm_package_installer import NpmPackageInstaller
 from core.npm_script_analyzer import NpmScriptAnalyzer
 from core.audit_service import audit_service
+from core.auth import get_current_user, User
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -248,7 +249,7 @@ def check_package_permission(
 
     except Exception as e:
         logger.error(f"Error checking package permission: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.post("/request")
@@ -284,12 +285,13 @@ def request_package_approval(
 
     except Exception as e:
         logger.error(f"Error requesting package approval: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.post("/approve")
 def approve_package(
     request: PackageApprovalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -325,10 +327,10 @@ def approve_package(
 
     except ValueError as e:
         logger.error(f"Invalid maturity level: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Package operation failed")
     except Exception as e:
         logger.error(f"Error approving package: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.post("/ban")
@@ -367,7 +369,7 @@ def ban_package(
 
     except Exception as e:
         logger.error(f"Error banning package: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.get("/", response_model=PackageListResponse)
@@ -407,7 +409,7 @@ def list_packages(
 
     except Exception as e:
         logger.error(f"Error listing packages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.get("/stats")
@@ -427,7 +429,7 @@ def get_cache_stats():
 
     except Exception as e:
         logger.error(f"Error getting cache stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 # ============================================================================
@@ -469,7 +471,7 @@ def request_npm_package_approval(
 
     except Exception as e:
         logger.error(f"Error requesting npm package approval: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.get("/npm/check", response_model=PackagePermissionResponse)
@@ -520,7 +522,7 @@ def check_npm_package_permission(
 
     except Exception as e:
         logger.error(f"Error checking npm package permission: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.post("/npm/approve")
@@ -563,10 +565,10 @@ def approve_npm_package(
 
     except ValueError as e:
         logger.error(f"Invalid maturity level: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Package operation failed")
     except Exception as e:
         logger.error(f"Error approving npm package: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.post("/npm/ban")
@@ -607,7 +609,7 @@ def ban_npm_package(
 
     except Exception as e:
         logger.error(f"Error banning npm package: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 # ============================================================================
@@ -840,6 +842,7 @@ def execute_npm_code(
 @router.post("/install", response_model=PackageInstallResponse)
 def install_packages(
     request: PackageInstallRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1107,7 +1110,7 @@ def list_npm_packages(
 
     except Exception as e:
         logger.error(f"Error listing npm packages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Package operation failed")
 
 
 @router.delete("/npm/{skill_id}")
