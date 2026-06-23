@@ -5,8 +5,10 @@ Allows users to configure workflow notification preferences.
 
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from pydantic import BaseModel
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ class NotificationSettingsRequest(BaseModel):
     custom_failure_message: Optional[str] = None
 
 @router.get("/{workflow_id}")
-async def get_notification_settings(workflow_id: str):
+async def get_notification_settings(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Get notification settings for a workflow"""
     from core.workflow_notifier import get_notification_settings
 
@@ -37,7 +39,7 @@ async def get_notification_settings(workflow_id: str):
     )
 
 @router.put("/{workflow_id}")
-async def update_notification_settings(workflow_id: str, request: NotificationSettingsRequest):
+async def update_notification_settings(workflow_id: str, request: NotificationSettingsRequest, current_user: User = Depends(get_current_user)):
     """Update notification settings for a workflow"""
     from core.workflow_notifier import NotificationSettings, set_notification_settings
 
@@ -62,7 +64,7 @@ async def update_notification_settings(workflow_id: str, request: NotificationSe
     )
 
 @router.post("/{workflow_id}/test")
-async def test_notification(workflow_id: str):
+async def test_notification(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Send a test notification for a workflow"""
     from core.workflow_notifier import get_notification_settings, notifier
 
@@ -90,4 +92,4 @@ async def test_notification(workflow_id: str):
 
     except Exception as e:
         logger.error(f"Test notification failed: {e}")
-        raise router.internal_error(str(e))
+        raise router.internal_error("Test notification failed")

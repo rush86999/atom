@@ -347,6 +347,7 @@ async def parse_natural_language_schedule(
 @router.post("/_execute-due")
 async def execute_due_messages(
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """

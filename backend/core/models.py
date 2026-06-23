@@ -9640,6 +9640,15 @@ class ScheduledMessageStatus(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class ProactiveMessageStatus(str, enum.Enum):
+    """Lifecycle status of a proactive message."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    CANCELLED = "cancelled"
+    SENT = "sent"
+    FAILED = "failed"
+
+
 class ProactiveMessage(Base):
     """
     Proactive messaging for user engagement.

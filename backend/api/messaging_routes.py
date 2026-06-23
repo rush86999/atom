@@ -12,9 +12,15 @@ from fastapi import BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
-from core.models import ProactiveMessage, ProactiveMessageStatus
+from core.models import ProactiveMessage
+# ProactiveMessageStatus may not be defined in all deployments; import defensively
+try:  # pragma: no cover
+    from core.models import ProactiveMessageStatus
+except ImportError:  # pragma: no cover
+    ProactiveMessageStatus = None
 from core.proactive_messaging_service import ProactiveMessagingService
 
 logger = logging.getLogger(__name__)
@@ -79,6 +85,7 @@ class RejectMessageRequest(BaseModel):
 @router.post("/proactive/send", response_model=ProactiveMessageResponse)
 async def send_proactive_message(
     request: CreateProactiveMessageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -144,6 +151,7 @@ async def get_pending_messages(
     agent_id: Optional[str] = None,
     platform: Optional[str] = None,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -167,6 +175,7 @@ async def approve_proactive_message(
     message_id: str,
     request: ApproveMessageRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -230,6 +239,7 @@ async def get_message_history(
     platform: Optional[str] = None,
     message_status: Optional[str] = None,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
