@@ -98,6 +98,7 @@ async def list_training_proposals(
     agent_id: Optional[str] = Query(None, description="Filter by agent"),
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List training proposals for STUDENT agents"""
@@ -139,6 +140,7 @@ async def list_training_proposals(
 @router.get("/training/proposals/{proposal_id}")
 async def get_training_proposal(
     proposal_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get training proposal details"""
@@ -266,6 +268,7 @@ async def reject_training_proposal(
 async def complete_training_session(
     session_id: str,
     request: CompleteTrainingRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Complete training session and update agent maturity"""
@@ -304,6 +307,7 @@ async def complete_training_session(
 async def get_agent_training_history(
     agent_id: str,
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get agent's training history"""
@@ -332,6 +336,7 @@ async def list_action_proposals(
     tenant_id: Optional[str] = Query(None, description="Filter by tenant"),
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List action proposals from INTERN agents"""
@@ -382,6 +387,7 @@ async def list_action_proposals(
 @router.get("/proposals/{proposal_id}")
 async def get_action_proposal(
     proposal_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get action proposal details"""
@@ -506,6 +512,7 @@ async def reject_action_proposal(
 async def get_agent_proposal_history(
     agent_id: str,
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get agent's proposal history"""
@@ -532,6 +539,7 @@ async def list_supervision_sessions(
     agent_id: Optional[str] = Query(None, description="Filter by agent"),
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List supervision sessions for SUPERVISED agents"""
@@ -570,6 +578,7 @@ async def list_supervision_sessions(
 @router.get("/supervision/sessions/{session_id}")
 async def get_supervision_session(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get supervision session details"""
@@ -604,6 +613,7 @@ async def get_supervision_session(
 async def intervene_in_session(
     session_id: str,
     request: SupervisionInterventionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Intervene in supervision session"""
@@ -637,6 +647,7 @@ async def intervene_in_session(
 async def complete_supervision(
     session_id: str,
     request: CompleteSupervisionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Complete supervision session and record outcomes"""
@@ -682,6 +693,7 @@ async def complete_supervision(
 async def supervision_websocket(
     websocket: WebSocket,
     session_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
