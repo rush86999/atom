@@ -240,7 +240,7 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
     body = f"Hello {user.first_name or 'User'},\n\nYou requested a password reset. Please use the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour."
     html_body = f"<p>Hello {user.first_name or 'User'},</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>This link will expire in 1 hour.</p>"
 
-    logger.info(f"Password reset link generated for user {user.id}: {reset_link}")
+    logger.info("Password reset link generated for user %s", user.id)
     
     background_tasks.add_task(send_smtp_email, user.email, subject, body, html_body)
     

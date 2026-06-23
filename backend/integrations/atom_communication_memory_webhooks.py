@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -47,13 +48,15 @@ class AtomCommunicationMemoryWebhooks:
             prefix="/api/webhooks/communication", tags=["Communication Webhooks"]
         )
         self.setup_routes()
+        # Webhook secrets MUST come from environment — never hardcoded.
+        # Each provider's secret is read from ATOM_<PROVIDER>_WEBHOOK_SECRET.
         self.webhook_secrets = {
-            "whatsapp": "atom_whatsapp_webhook_secret_2024",
-            "slack": "atom_slack_webhook_secret_2024",
-            "discord": "atom_discord_webhook_secret_2024",
-            "telegram": "atom_telegram_webhook_secret_2024",
-            "gmail": "atom_gmail_webhook_secret_2024",
-            "outlook": "atom_outlook_webhook_secret_2024",
+            "whatsapp": os.getenv("ATOM_WHATSAPP_WEBHOOK_SECRET", ""),
+            "slack": os.getenv("ATOM_SLACK_WEBHOOK_SECRET", ""),
+            "discord": os.getenv("ATOM_DISCORD_WEBHOOK_SECRET", ""),
+            "telegram": os.getenv("ATOM_TELEGRAM_WEBHOOK_SECRET", ""),
+            "gmail": os.getenv("ATOM_GMAIL_WEBHOOK_SECRET", ""),
+            "outlook": os.getenv("ATOM_OUTLOOK_WEBHOOK_SECRET", ""),
         }
 
     def verify_webhook_signature(
@@ -89,14 +92,17 @@ class AtomCommunicationMemoryWebhooks:
                 # Get request body
                 body = await request.body()
 
-                # Verify signature
-                if x_hub_signature_256:
-                    if not self.verify_webhook_signature(
-                        "whatsapp", request, x_hub_signature_256, body
-                    ):
-                        raise HTTPException(
-                            status_code=401, detail="Invalid webhook signature"
-                        )
+                # Verify signature — fail CLOSED when header missing or secret unconfigured
+                if not x_hub_signature_256:
+                    raise HTTPException(
+                        status_code=401, detail="Missing webhook signature header"
+                    )
+                if not self.verify_webhook_signature(
+                    "whatsapp", request, x_hub_signature_256, body
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid webhook signature"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())

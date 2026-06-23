@@ -149,7 +149,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
         if OAUTH_STRICT_MODE:
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to retrieve GitHub token: {str(e)}"
+                detail="Failed to retrieve GitHub token"
             )
         return None
 
@@ -323,7 +323,7 @@ async def list_repositories(request: RepoRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing repositories: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error listing repositories")
 
 @router.post("/repositories/create")
 async def create_repository(request: CreateRepoRequest):
@@ -394,7 +394,7 @@ async def create_repository(request: CreateRepoRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating repository: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating repository")
 
 @router.post("/issues")
 async def list_issues(request: IssueRequest):
@@ -469,7 +469,7 @@ async def list_issues(request: IssueRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing issues: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error listing issues")
 
 @router.post("/issues/create")
 async def create_issue(request: CreateIssueRequest):
@@ -532,7 +532,7 @@ async def create_issue(request: CreateIssueRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating issue: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating issue")
 
 @router.post("/pulls")
 async def list_pull_requests(request: PullRequestRequest):
@@ -608,7 +608,7 @@ async def list_pull_requests(request: PullRequestRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing pull requests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error listing pull requests")
 
 @router.post("/pulls/create")
 async def create_pull_request(request: CreatePullRequestRequest):
@@ -679,7 +679,7 @@ async def create_pull_request(request: CreatePullRequestRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating pull request: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating pull request")
 
 @router.post("/search")
 async def search_github(request: SearchRequest):
@@ -707,7 +707,7 @@ async def search_github(request: SearchRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching GitHub: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error searching GitHub")
 
 @router.post("/user/profile")
 async def get_user_profile(request: UserRequest):
@@ -733,4 +733,4 @@ async def get_user_profile(request: UserRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting user profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error getting user profile")

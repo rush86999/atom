@@ -101,12 +101,18 @@ async def slack_webhook_handler(
             if db.bind and db.bind.dialect.name == "postgresql":
                 db.execute(text("SET LOCAL row_security = on"))
 
-        if integration and integration.config:
-            signing_secret = integration.config.get("slack_signing_secret")
-            if signing_secret:
-                if not verify_hmac_signature(payload, x_slack_signature, signing_secret):
-                    logger.error(f"Unauthorized Slack webhook for tenant {tenant_id}")
-                    raise HTTPException(status_code=401, detail="Invalid signature")
+        if not integration or not integration.config:
+            logger.error(f"Slack integration not configured for tenant {tenant_id}")
+            raise HTTPException(status_code=401, detail="Slack integration not configured")
+
+        signing_secret = integration.config.get("slack_signing_secret")
+        if not signing_secret:
+            logger.error(f"Slack signing secret not configured for tenant {tenant_id}")
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+
+        if not verify_hmac_signature(payload, x_slack_signature, signing_secret):
+            logger.error(f"Unauthorized Slack webhook for tenant {tenant_id}")
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
         # 4.5. Resolve source_connection_id for BYOK credential lookup
         # This is critical for transformers that need to fetch provider resources
@@ -1217,7 +1223,6 @@ async def pm_crm_webhook_handler(
         external_id = (
             query_params.get("org_id")
             or query_params.get("workspace_id")
-            or query_params.get("tenant_id")
             or query_params.get("accountId")
             or query_params.get("clientKey")
         )
@@ -1232,9 +1237,9 @@ async def pm_crm_webhook_handler(
             # Fallback: check if we can resolve using the generic "pm_crm" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("pm_crm", str(external_id))
 
-    # Query param tenant fallback
-    if not tenant_id and query_params.get("tenant_id"):
-        tenant_id = query_params.get("tenant_id")
+    # Security: do NOT fall back to tenant_id from query params — that would
+    # allow an attacker to inject webhooks into any tenant (cross-tenant
+    # injection). If tenant resolution failed above, the request is rejected below.
 
     if not tenant_id:
         logger.warning(
@@ -1373,7 +1378,6 @@ async def communication_webhook_handler(
             or query_params.get("app_id")
             or query_params.get("chat_id")
             or query_params.get("guild_id")
-            or query_params.get("tenant_id")
         )
 
     # 4. Resolve tenant using Discovery Service
@@ -1386,9 +1390,9 @@ async def communication_webhook_handler(
             # Fallback: check if we can resolve using the generic "communication" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("communication", str(external_id))
 
-    # Query param tenant fallback
-    if not tenant_id and query_params.get("tenant_id"):
-        tenant_id = query_params.get("tenant_id")
+    # Security: do NOT fall back to tenant_id from query params — that would
+    # allow an attacker to inject webhooks into any tenant (cross-tenant
+    # injection). If tenant resolution failed above, the request is rejected below.
 
     if not tenant_id:
         logger.warning(
@@ -1545,7 +1549,6 @@ async def dev_prod_webhook_handler(
         external_id = (
             query_params.get("org_id")
             or query_params.get("workspace_id")
-            or query_params.get("tenant_id")
             or query_params.get("clientState")
         )
 
@@ -1559,9 +1562,9 @@ async def dev_prod_webhook_handler(
             # Fallback: check if we can resolve using the generic "dev_prod" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("dev_prod", str(external_id))
 
-    # Query param tenant fallback
-    if not tenant_id and query_params.get("tenant_id"):
-        tenant_id = query_params.get("tenant_id")
+    # Security: do NOT fall back to tenant_id from query params — that would
+    # allow an attacker to inject webhooks into any tenant (cross-tenant
+    # injection). If tenant resolution failed above, the request is rejected below.
 
     if not tenant_id:
         logger.warning(
@@ -1741,7 +1744,6 @@ async def ecommerce_marketing_webhook_handler(
         external_id = (
             query_params.get("store_id")
             or query_params.get("account_id")
-            or query_params.get("tenant_id")
             or query_params.get("list_id")
         )
 
@@ -1757,9 +1759,9 @@ async def ecommerce_marketing_webhook_handler(
                 "ecommerce_marketing", str(external_id)
             )
 
-    # Query param tenant fallback
-    if not tenant_id and query_params.get("tenant_id"):
-        tenant_id = query_params.get("tenant_id")
+    # Security: do NOT fall back to tenant_id from query params — that would
+    # allow an attacker to inject webhooks into any tenant (cross-tenant
+    # injection). If tenant resolution failed above, the request is rejected below.
 
     if not tenant_id:
         logger.warning(

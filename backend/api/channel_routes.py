@@ -2,6 +2,8 @@
 Channel Routes - REST API for channel management.
 
 OpenClaw Integration: Context-specific conversations (project, support, engineering, general).
+
+Security: every endpoint requires an authenticated user via ``Depends(get_current_user)``.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,9 +11,27 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from core.models import Channel, get_db
+from core.database import get_db
+from core.auth import get_current_user, User
+
+# Channel model may not be defined in all deployments (feature-gated). Import
+# defensively so the module can still be loaded for route registration; handlers
+# will raise 503 when the model is unavailable.
+try:  # pragma: no cover - import guard
+    from core.models import Channel
+except ImportError:  # pragma: no cover
+    Channel = None
 
 router = APIRouter(prefix="/api/channels", tags=["Channels"])
+
+
+def _require_channel_model():
+    """Raise 503 if the Channel model isn't available in this deployment."""
+    if Channel is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Channel feature is not enabled in this deployment",
+        )
 
 
 class CreateChannelRequest(BaseModel):
@@ -49,6 +69,7 @@ class ChannelResponse(BaseModel):
 @router.post("/", response_model=ChannelResponse)
 async def create_channel(
     request: CreateChannelRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -65,6 +86,7 @@ async def create_channel(
     - is_public=false for private channels
     - agent_members and user_members control access
     """
+    _require_channel_model()
     # Check if channel name already exists
     existing = db.query(Channel).filter(Channel.name == request.name).first()
     if existing:
@@ -113,6 +135,7 @@ async def list_channels(
     is_public: Optional[bool] = None,
     limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -123,6 +146,7 @@ async def list_channels(
     - is_public: Filter by public/private
     - Pagination: limit + offset
     """
+    _require_channel_model()
     query = db.query(Channel)
 
     if channel_type:
@@ -153,11 +177,13 @@ async def list_channels(
 @router.get("/{channel_id}", response_model=ChannelResponse)
 async def get_channel(
     channel_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get channel by ID.
     """
+    _require_channel_model()
     channel = db.query(Channel).filter(Channel.id == channel_id).first()
 
     if not channel:
@@ -181,6 +207,7 @@ async def get_channel(
 async def update_channel(
     channel_id: str,
     request: UpdateChannelRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -188,6 +215,7 @@ async def update_channel(
 
     Only update fields that are provided.
     """
+    _require_channel_model()
     channel = db.query(Channel).filter(Channel.id == channel_id).first()
 
     if not channel:
@@ -228,6 +256,7 @@ async def update_channel(
 @router.delete("/{channel_id}")
 async def delete_channel(
     channel_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -235,6 +264,7 @@ async def delete_channel(
 
     **Warning:** This will also delete all posts in this channel.
     """
+    _require_channel_model()
     channel = db.query(Channel).filter(Channel.id == channel_id).first()
 
     if not channel:
@@ -251,6 +281,7 @@ async def add_channel_member(
     channel_id: str,
     member_type: str,  # "agent" or "user"
     member_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -259,6 +290,7 @@ async def add_channel_member(
     ** member_type: "agent" or "user"
     ** member_id: agent_id or user_id
     """
+    _require_channel_model()
     channel = db.query(Channel).filter(Channel.id == channel_id).first()
 
     if not channel:
@@ -288,6 +320,7 @@ async def remove_channel_member(
     channel_id: str,
     member_type: str,  # "agent" or "user"
     member_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -296,6 +329,7 @@ async def remove_channel_member(
     ** member_type: "agent" or "user"
     ** member_id: agent_id or user_id
     """
+    _require_channel_model()
     channel = db.query(Channel).filter(Channel.id == channel_id).first()
 
     if not channel:
