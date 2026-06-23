@@ -276,7 +276,7 @@ async def get_agent_maturity(agent_id: str):
 
 
 @router.post("/check-deployment", response_model=WorkflowApprovalResponse)
-async def check_workflow_deployment(request: WorkflowApprovalRequest):
+async def check_workflow_deployment(request: WorkflowApprovalRequest, current_user: User = Depends(get_current_user)):
     """
     Check if a workflow can be deployed directly or requires approval.
     Called before deploying a generated workflow.
@@ -322,7 +322,7 @@ async def check_workflow_deployment(request: WorkflowApprovalRequest):
 
 
 @router.post("/submit-for-approval")
-async def submit_workflow_for_approval(request: WorkflowApprovalRequest):
+async def submit_workflow_for_approval(request: WorkflowApprovalRequest, current_user: User = Depends(get_current_user)):
     """
     Submit a workflow for human approval.
     Creates an approval request in the system.
@@ -366,7 +366,7 @@ async def submit_workflow_for_approval(request: WorkflowApprovalRequest):
 
 
 @router.post("/feedback")
-async def submit_agent_feedback(request: AgentFeedbackRequest):
+async def submit_agent_feedback(request: AgentFeedbackRequest, current_user: User = Depends(get_current_user)):
     """
     Submit feedback on agent output.
     Used to improve agent confidence scores over time.
@@ -563,7 +563,7 @@ async def get_agent_capabilities(agent_id: str):
 
 
 @router.post("/enforce-action")
-async def enforce_action(request: ActionEnforceRequest):
+async def enforce_action(request: ActionEnforceRequest, current_user: User = Depends(get_current_user)):
     """
     Enforce governance before allowing an action.
     Main entry point for workflow execution to check if action is permitted.

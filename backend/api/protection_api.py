@@ -85,7 +85,7 @@ async def get_growth_readiness(
         )
 
 @router.post("/scan")
-async def perform_security_scan(request: ScanRequest):
+async def perform_security_scan(request: ScanRequest, current_user: User = Depends(get_current_user)):
     """
     Perform a multi-layer security scan on a skill.
     Combines static analysis and semantic LLM analysis.

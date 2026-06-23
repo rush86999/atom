@@ -33,7 +33,7 @@ async def get_team_utilization(team_id: str):
     return router.success_response(data=result)
 
 @router.post("/recommend-staff")
-async def recommend_staff(request: StaffingRequest):
+async def recommend_staff(request: StaffingRequest, current_user: User = Depends(get_current_user)):
     """AI-powered staffing recommendation for a project description."""
     recommendations = await staffing_advisor.recommend_staff(request.description, request.workspace_id, request.limit)
     return router.success_response(
@@ -42,7 +42,7 @@ async def recommend_staff(request: StaffingRequest):
     )
 
 @router.get("/summary")
-async def get_workspace_resource_summary(workspace_id: str, db: Session = Depends(get_db)):
+async def get_workspace_resource_summary(workspace_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Summary of utilization across the workspace."""
     from core.models import User
     users = db.query(User).filter(User.workspace_id == workspace_id, User.status == "active").all()

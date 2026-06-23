@@ -92,6 +92,7 @@ router = BaseAPIRouter(
 @router.post("/unified", summary="Create unified workspace")
 async def create_unified_workspace(
     request: CreateWorkspaceRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -149,6 +150,7 @@ async def create_unified_workspace(
 async def add_platform_to_workspace(
     workspace_id: str,
     request: AddPlatformRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -186,6 +188,7 @@ async def add_platform_to_workspace(
 async def propagate_changes(
     workspace_id: str,
     request: PropagateChangeRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -225,6 +228,7 @@ async def propagate_changes(
 @router.get("/unified/{workspace_id}", summary="Get workspace sync status")
 async def get_workspace_status(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -258,6 +262,7 @@ async def get_workspace_status(
 @router.get("/unified", summary="List all unified workspaces")
 async def list_unified_workspaces(
     user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -292,6 +297,7 @@ async def list_unified_workspaces(
 @router.delete("/unified/{workspace_id}", summary="Delete unified workspace")
 async def delete_unified_workspace(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """

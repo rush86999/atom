@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
@@ -51,7 +51,7 @@ class FormulaExecuteResponse(BaseModel):
     timestamp: str
 
 @router.post("", response_model=FormulaResponse)
-async def create_formula(request: FormulaCreateRequest):
+async def create_formula(request: FormulaCreateRequest, current_user: User = Depends(get_current_user)):
     """Create a new formula"""
     try:
         formula_id = str(uuid.uuid4())
@@ -95,7 +95,7 @@ async def get_formula(formula_id: str):
     return FormulaResponse(**_formula_store[formula_id])
 
 @router.put("/{formula_id}", response_model=FormulaResponse)
-async def update_formula(formula_id: str, request: FormulaCreateRequest):
+async def update_formula(formula_id: str, request: FormulaCreateRequest, current_user: User = Depends(get_current_user)):
     """Update a formula"""
     if formula_id not in _formula_store:
         raise router.not_found_error("Formula", formula_id)

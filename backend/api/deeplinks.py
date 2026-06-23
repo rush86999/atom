@@ -243,7 +243,7 @@ async def get_deeplink_audit(
 
 
 @router.post("/generate", response_model=DeepLinkGenerateResponse)
-async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest):
+async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest, current_user: User = Depends(get_current_user)):
     """
     Generate an atom:// deep link URL.
 
