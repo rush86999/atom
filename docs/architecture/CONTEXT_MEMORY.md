@@ -1,0 +1,215 @@
+# Context Memory: Per-Turn Fact Extraction
+
+> **Status:** Implemented (Phase 1-7). Default OFF except pre-compress queue.
+> **Evidence base:** Mem0 / Hermes deep-dive on production context-compression failures.
+> **Related code:** `backend/core/turn_fact_extractor.py`, `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py`
+
+---
+
+## TL;DR
+
+Two architecture gaps from the Discord critique, closed with an **extraction-first** strategy (not compression-first):
+
+1. **Context poisoning** — Atom now has a Hermes-style memory-provider layer: per-turn fact extraction + pre-compression extraction + two-tier recall.
+2. **Stack simplification** — LanceDB is *already* embedded in Personal Edition (file-based `./data/lancedb`). The remaining work was gating dead S3/R2 remote paths behind `LANCEDB_CLOUD_ENABLED` and documenting honestly.
+
+We **deliberately do not** build a custom context compressor. Hermes' own compressor has 3 documented production bugs (see below). Provider compaction APIs exist. We build the extraction layer that makes compression less necessary.
+
+---
+
+## Why Extraction-First Beats Compression-First
+
+The naive fix for context poisoning is "build a better compressor." The evidence says don't.
+
+### Hermes Compressor Failure Modes (production)
+
+| Bug | What happens | Why we avoid it |
+|---|---|---|
+| JSON silent drop | Compressor emits malformed JSON → entire memory batch silently discarded, no log | Our parser returns `None` on hard failure → caller increments a Prometheus-style counter (`turn_fact_extraction_failure{kind="parse_error"}`) and logs the raw output. Never silent. |
+| Anti-thrashing permanent lock | A hash seen once is blocked forever, even after the underlying issue resolves | Our `_TTLSet(ttl=300)` self-heals after 5 minutes. Never a permanent lock. |
+| Tool-pair crash | Certain tool-call sequences crash the compressor mid-turn, aborting the user response | Extraction runs `asyncio.create_task` (post-turn) or via a queue (pre-compress). User-visible response is already returned. Extraction failure cannot abort the turn. |
+
+### The math
+
+Compression operates on the **already-bloated** context. Extraction operates on a **single turn** (a few KB). Per-turn extraction is cheaper, more reliable, and the extracted facts are reusable across sessions. Compression is lossy and one-shot.
+
+---
+
+## The 5 Durable-Fact Categories (Mem0)
+
+We use Mem0's production taxonomy verbatim — see `backend/core/turn_fact_categories.py`:
+
+| Category | Extracts | Example |
+|---|---|---|
+| `exact_value` | Numbers, amounts, dates, SLAs, thresholds | "$50K MRR", "7-day SLA", "launch on Mar 14" |
+| `hard_constraint` | Non-negotiable rules / prohibitions | "must use Stripe", "no PII to OpenAI" |
+| `decision_reason` | WHY a choice was made, with rationale | "chose Postgres for X", "rejected Option B because ..." |
+| `cross_task_dep` | Dependencies / blockers between work items | "blocks onboarding v2", "depends on auth service" |
+| `implicit_pref` | Revealed user/agent preferences or habits | "prefers terse responses", "wants bullet points" |
+
+The extraction prompt forbids generic paraphrases ("the user said X") and transient state ("currently running"). Each fact must fit exactly one category.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Agent Turn Loop                           │
+│                                                                  │
+│   execute() entry ──► prefetch_relevant_facts()  [Tier-2, OPT-IN]│
+│                          │                                       │
+│                          │   FastEmbed embed (10-20ms)           │
+│                          │   LanceDB search → hydrate from SQL   │
+│                          ▼                                       │
+│   ┌──────────────────────────────────────────────────┐           │
+│   │  _react_step()                                   │           │
+│   │    prompt assembly:                              │           │
+│   │      ┌─ TRUSTED BUSINESS FACTS (world model) ─┐  │           │
+│   │      ├─ DURABLE FACTS (Tier-1, pure SQL)    ─┤  │           │
+│   │      └─ ...                                  ┘  │           │
+│   │    LLM call (structured ReAct)                  │           │
+│   └──────────────┬─────────────────────────────────┘           │
+│                  │                                               │
+│   step persisted │                                               │
+│                  ▼                                               │
+│   ┌──────────────────────────────────────────────────┐           │
+│   │  asyncio.create_task(extract_from_turn())        │  ◄── FIRE │
+│   │    │  [Phase 3 hook, flag default OFF]           │   AND     │
+│   │    │                                             │   FORGET  │
+│   │    ├─ regex pre-filter (skip ~40% of turns)      │           │
+│   │    ├─ LLM call model="fast", 2s timeout          │           │
+│   │    ├─ parse JSON array (5 cats, never silent)    │           │
+│   │    ├─ dedup via content_hash (EWMA / supersede)  │           │
+│   │    ├─ SQL INSERT (source of truth)               │           │
+│   │    └─ LanceDB write (best-effort, never blocks)  │           │
+│   └──────────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+
+                    ─────────  separate path  ─────────
+
+┌─────────────────────────────────────────────────────────────────┐
+│               byok_handler (structured gen)                      │
+│                                                                  │
+│   if len(prompt) > context_window * 3:                           │
+│     extraction_queue.enqueue(prompt)   ◄── [Phase 5, default ON] │
+│     prompt = truncate_to_context(prompt)                         │
+│                                                                  │
+│   ExtractionQueue worker (background):                           │
+│     extract_from_prompt_before_truncation()                      │
+│       → same _extract core as extract_from_turn                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Two-Tier Retrieval
+
+### Tier 1 — Pure SQL (default ON, always)
+
+`get_active_facts_for_prompt()` runs a single indexed query on `(workspace_id, status, created_at)`. Latency budget:
+
+| Store | P50 | P99 |
+|---|---|---|
+| SQLite (Personal) | ~1ms | ~3ms |
+| PostgreSQL (prod) | <1ms | ~2ms |
+
+Injects a `DURABLE FACTS (survive compression):` block into the assembled prompt. Up to 5 facts, most-recent-first. Fits the `<50ms agent resolution` target.
+
+### Tier 2 — LanceDB semantic recall (opt-in)
+
+`prefetch_relevant_facts()` is called **once** at `execute()` entry (not per `_react_step` — avoids N× embedding cost). Embeds the query, searches the LanceDB `turn_facts` table, hydrates from SQL via `vector_id`. Skipped for trivial queries ("hi", "thanks"). Gated by `TURN_FACT_VECTOR_RECALL_ENABLED`.
+
+---
+
+## Cost & Latency Budget
+
+| Operation | When | Cost | Latency |
+|---|---|---|---|
+| Regex pre-filter | Every turn (extraction path) | Free | <0.1ms |
+| LLM extraction call | Post-turn, flag ON | 1× `fast` model call (~$0.0001) | 500ms-2s (async, non-blocking) |
+| Pre-compress enqueue | On truncation only | Free (queue + worker) | <1ms |
+| Tier-1 SQL recall | Every prompt assembly | Free | 1-3ms |
+| Tier-2 vector recall | Once per execute(), opt-in | 1× FastEmbed embed | 10-20ms |
+
+**Cost controls:**
+- `TURN_FACT_EXTRACTION_SAMPLE_RATE` (0.0–1.0) — dial down under cost pressure
+- `TURN_FACT_MAX_PER_TURN=5` — hard cap per turn
+- `model="fast"` always (haiku/4o-mini/flash) — extraction is classification, not reasoning
+- Pre-filter skips ~40% of turns before any LLM call
+
+---
+
+## Dedup Contract
+
+`content_hash = sha256(workspace_id + "::" + normalize(fact_text))`
+
+Normalization: lowercase, strip, collapse whitespace, drop punctuation. So "Must use Stripe!" and "must use stripe" collide.
+
+On hash collision (existing active row):
+- **New confidence beats existing by >0.1** → mark existing `superseded` (keep for audit), insert new active row
+- **Otherwise** → EWMA-blend confidence (`alpha=0.3`), touch `created_at` so it stays fresh for recency-based retrieval
+
+**Never silently drop.** Anti-thrashing via `_TTLSet(ttl=300)` — self-heals after 5 min, never a permanent lock (the Hermes bug).
+
+Postgres enforces "at most one active row per (workspace, hash)" via a **partial unique index**. SQLite enforces this in the application layer.
+
+---
+
+## Failure Modes → Mitigations
+
+| Failure | Mitigation |
+|---|---|
+| JSON parse failure | Returns `None` → caller increments `parse_error` counter + logs raw output (truncated to 400 chars) |
+| LLM call raises | `except Exception` → returns `[]`, increments `llm_error` counter |
+| LLM call >2s | `asyncio.wait_for` → `TimeoutError` caught, increments `timeout` counter |
+| LanceDB corruption | SQL row written first; LanceDB write is best-effort + swallowed |
+| Queue full | Drop + increment `dropped` counter, never blocks the response |
+| STUDENT agent | Maturity gate: skip extraction entirely (read-only) |
+| Cost runaway | Regex pre-filter + sample rate + `MAX_PER_TURN=5` + `model="fast"` |
+
+Every public method catches all exceptions and returns `[]`. Failures are best-effort, never user-visible. This is **graceful degradation** per CLAUDE.md concept #4.
+
+---
+
+## Embedded Stack (Personal Edition)
+
+LanceDB runs **embedded** — file-based `./data/lancedb` (or `./data/atom_memory` for the memory handler). No server container. This was already true; Phase 7 just gates the dead S3/R2 codepaths behind `LANCEDB_CLOUD_ENABLED=false` so Personal Edition stops evaluating them.
+
+| Edition | Relational | Vector | Cache |
+|---|---|---|---|
+| Personal | SQLite (file) | LanceDB (embedded file) | Optional (single-process) |
+| SaaS | PostgreSQL | LanceDB on S3/R2 (`LANCEDB_CLOUD_ENABLED=true`) | Redis/Valkey |
+
+Postgres and Redis/Valkey support is retained for production parity and WebSocket pub-sub respectively — **not** removed (evidence ambiguous; separate decision).
+
+---
+
+## Feature Flags
+
+| Flag | Default | Rationale |
+|---|---|---|
+| `TURN_FACT_EXTRACTION_ENABLED` | `false` | Costs 1 LLM call/turn; opt-in until telemetry validates |
+| `TURN_FACT_PRE_COMPRESS_ENABLED` | `true` | Free (queue + worker); strictly additive |
+| `TURN_FACT_VECTOR_RECALL_ENABLED` | `false` | Adds embedding latency; opt-in |
+| `LANCEDB_CLOUD_ENABLED` | `false` | Personal = embedded; SaaS flips to true |
+| `TURN_FACT_MAX_PER_TURN` | `5` | Hard cap per turn |
+| `TURN_FACT_EXTRACTION_SAMPLE_RATE` | `1.0` | Dial down in cost crunch |
+| `TURN_FACT_QUEUE_MAXSIZE` | `100` | Queue capacity (overflow drops, never blocks) |
+
+---
+
+## Verification
+
+See `backend/tests/test_turn_fact_extraction.py` (55 tests) and `backend/tests/test_turn_fact_queue.py` (8 tests). All green.
+
+Covers: schema + unique constraint, regex pre-filter (positive + negative), hash normalization, JSON parse robustness (clean/wrapped/dirty/garbage), extract core (happy path / pre-filter skip / invalid category / cap / empty / parse failure), all dedup branches (EWMA bump / supersede), maturity gate, sample rate, every failure mode (LLM raises / timeout / LanceDB failure / pre-compress entrypoint), TTLSet eviction, Tier-1 retrieval (ordering / category filter / empty / failure), Tier-2 recall (flag off / trivial / short / happy / LanceDB failure), cloud-gate flag default.
+
+---
+
+## Out of Scope (deferred)
+
+- Building a custom context compressor (evidence says don't)
+- Removing Postgres or Redis/Valkey (evidence ambiguous)
+- Backfilling facts from historical `EpisodeSegment` rows (expensive, low-value)
+- `MemoryProvider` ABC abstraction (premature until a second backend like Mem0 cloud is added)

@@ -446,6 +446,10 @@ def test_new_function_is_covered():
 - **Quality Gates:** `.github/workflows/quality-gate.yml`
 - **Quality Dashboard:** `docs/QUALITY_DASHBOARD.md`
 
+### New feature tests follow the same pattern
+
+The Turn Fact Extraction layer (`backend/tests/test_turn_fact_extraction.py`, `test_turn_fact_queue.py`) follows the same red-green-refactor discipline as the Round 18-40 bug-hunt tests — even though it's a new feature, not a bug fix. Every dedup branch, parse failure mode, timeout, maturity gate, and sample-rate path has a dedicated test written **before** the implementation was considered complete. See `docs/architecture/CONTEXT_MEMORY.md` for the design rationale.
+
 ---
 
 **Bug Fix Process Version:** 1.0

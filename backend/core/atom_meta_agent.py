@@ -31,6 +31,18 @@ from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
 from core.react_models import ReActStep
 
+# Per-turn durable-fact extraction (Hermes-style memory layer).
+# Fire-and-forget — never blocks the ReAct loop. Feature-flag default OFF.
+# See docs/architecture/CONTEXT_MEMORY.md.
+from core.turn_fact_extractor import (
+    TURN_FACT_EXTRACTION_ENABLED as _TURN_FACT_EXTRACTION_ENABLED,
+    TURN_FACT_VECTOR_RECALL_ENABLED as _TURN_FACT_VECTOR_RECALL_ENABLED,
+    get_active_facts_for_prompt as _get_active_facts_for_prompt,
+    get_turn_fact_extractor,
+    prefetch_relevant_facts as _prefetch_relevant_facts,
+)
+_pending_extraction_tasks: set = set()  # module-level — prevents GC of in-flight tasks
+
 
 # LLM Integration:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
@@ -249,8 +261,21 @@ class AtomMetaAgent:
         context = context or {}
         if "original_request" not in context:
             context["original_request"] = request
-            
+
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
+
+        # Tier-2 semantic recall — called ONCE per execute(), not per ReAct step.
+        # Embeds the query (10-20ms), searches LanceDB, hydrates from SQL.
+        # Gated by TURN_FACT_VECTOR_RECALL_ENABLED (default OFF). Never raises.
+        if _TURN_FACT_VECTOR_RECALL_ENABLED:
+            try:
+                prefetched = _prefetch_relevant_facts(
+                    workspace_id=self.workspace_id, query=request, limit=5
+                )
+                if prefetched:
+                    context.setdefault("prefetched_facts", []).extend(prefetched)
+            except Exception as e:
+                logger.debug(f"vector recall prefetch failed: {e}")
         
         start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
@@ -578,7 +603,54 @@ class AtomMetaAgent:
                     db.add(db_step)
                     db.commit()
                     # Add DB ID to record for UI feedback binding
-                    step_record["id"] = db_step.id 
+                    step_record["id"] = db_step.id
+
+                    # ── Per-turn fact extraction (sync_turn hook) ──────────────
+                    # Fire-and-forget: a slow extraction must never block the
+                    # ReAct loop. STUDENT maturity is gated inside the extractor.
+                    if _TURN_FACT_EXTRACTION_ENABLED:
+                        try:
+                            extractor = get_turn_fact_extractor(
+                                workspace_id=self.workspace_id,
+                                tenant_id=self.tenant_id,
+                            )
+                            maturity = None
+                            if getattr(self, "graduation_service", None):
+                                try:
+                                    maturity = self.graduation_service.get_maturity(
+                                        self.tenant_id, "atom_main", "fact_extraction"
+                                    )
+                                except Exception:
+                                    maturity = None
+
+                            task = asyncio.create_task(
+                                extractor.extract_from_turn(
+                                    user_request=request,
+                                    thought=react_step.thought,
+                                    action=(
+                                        react_step.action.model_dump()
+                                        if react_step.action
+                                        else None
+                                    ),
+                                    observation=step_record.get("output"),
+                                    final_answer=final_answer,
+                                    execution_id=execution_id,
+                                    reasoning_step_id=db_step.id,
+                                    session_id=context.get("session_id")
+                                    if context
+                                    else None,
+                                    user_id=context.get("user_id") if context else None,
+                                    maturity=maturity,
+                                )
+                            )
+                            _pending_extraction_tasks.add(task)
+
+                            def _discard_extraction_task(t, _set=_pending_extraction_tasks):
+                                _set.discard(t)
+
+                            task.add_done_callback(_discard_extraction_task)
+                        except Exception as e:
+                            logger.debug(f"turn_fact extraction dispatch failed: {e}")
             except Exception as e:
                 logger.error(f"Failed to persist reasoning step: {e}")
                 # traceback.print_exc()
@@ -739,6 +811,23 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
         if facts:
             fact_summaries = [f"- [Status: {f.verification_status}] {f.fact} (Source: {f.metadata.get('source', 'unknown')})" for f in facts[:3]]
             memory_sections.append(f"TRUSTED BUSINESS FACTS:\n" + "\n".join(fact_summaries))
+
+        # Tier-1 durable facts — pure SQL recall (sub-ms to ~3ms).
+        # These survive context compression because they're fetched fresh each turn.
+        try:
+            with SessionLocal() as facts_db:
+                durable = _get_active_facts_for_prompt(
+                    facts_db, self.workspace_id, limit=5
+                )
+            if durable:
+                memory_sections.append(
+                    "DURABLE FACTS (survive compression):\n"
+                    + "\n".join(
+                        f"- [{d.category}] {d.fact_text}" for d in durable
+                    )
+                )
+        except Exception as e:
+            logger.debug(f"durable-facts recall failed: {e}")
         
         memory_display = "\n\n".join(memory_sections) if memory_sections else "(No prior context)"
         

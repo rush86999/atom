@@ -1032,9 +1032,75 @@ class AgentReasoningStep(Base):
     feedback_text = Column(Text, nullable=True)     # Optional user comment
     
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships
     execution = relationship("AgentExecution", backref="reasoning_steps")
+
+
+class TurnFact(Base):
+    """
+    Durable facts extracted from agent turns (Hermes-style memory-provider layer).
+
+    Vectors live in LanceDB (embedded, file-based) keyed by `vector_id`;
+    this SQL row is the source of truth for prompt injection (Tier-1).
+    The `(workspace_id, content_hash)` unique constraint enforces dedup —
+    extraction may bump confidence or supersede, but never silently drop.
+
+    See: docs/architecture/CONTEXT_MEMORY.md for the full design rationale.
+    """
+    __tablename__ = "turn_facts"
+    __table_args__ = (
+        # Partial uniqueness: at most ONE active row per (workspace, hash).
+        # Superseded / invalidated rows keep their hash for audit history.
+        # sqlite has no native partial-index DDL in older versions; we enforce
+        # uniqueness at the application layer (TurnFactExtractor._persist_one)
+        # via a SELECT-then-UPDATE + IntegrityError fallback.
+        Index(
+            "ix_turn_facts_workspace_status_created",
+            "workspace_id", "status", "created_at",
+        ),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Tenancy — workspace-scoped (single-tenant deployment, per CLAUDE.md concept #5)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=True, index=True)
+
+    # Provenance — what produced this fact
+    execution_id = Column(
+        String,
+        ForeignKey("agent_executions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    reasoning_step_id = Column(
+        String,
+        ForeignKey("agent_reasoning_steps.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    episode_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)
+    extraction_source = Column(String(32), nullable=False)  # turn | pre_compress | document
+
+    # The fact itself
+    fact_text = Column(Text, nullable=False)
+    category = Column(String(32), nullable=False)  # one of FactCategory values
+    domain = Column(String(64), nullable=True)      # finance, hr, ops, ...
+    tags = Column(JSON, nullable=True)              # free-form list
+    confidence = Column(Float, default=0.8, nullable=False)
+
+    # Dedup key — sha256(workspace_id + "::" + normalize(fact_text))
+    content_hash = Column(String(64), nullable=False, index=True)
+
+    # Lifecycle
+    status = Column(String(16), default="active", nullable=False)  # active|superseded|invalidated
+    superseded_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Vector join key into LanceDB `turn_facts` table (None if LanceDB write failed)
+    vector_id = Column(String, nullable=True)
+
 
 class AgentFailureTracking(Base):
     """

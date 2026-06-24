@@ -61,9 +61,10 @@ except (ImportError, BaseException) as e:
 Table = Any
 LanceDBConnection = Any
 
-# Define Table type alias if not available to prevent NameError in type hints
-if "Table" not in locals():
-    Table = Any
+# Embedded fallback path — used when an S3 URI is supplied but
+# LANCEDB_CLOUD_ENABLED=false (Personal Edition). Keeps the two storage modes
+# isolated without touching the rest of the handler.
+LOCAL_DB_PATH_FALLBACK = os.getenv("LANCEDB_URI", "./data/atom_memory")
 
 # Import sentence transformers for embeddings (Lazy load to prevent Windows hang)
 try:
@@ -208,8 +209,11 @@ class LanceDBHandler:
                 os.makedirs(self.db_path, exist_ok=True)
 
             # Connect to database with storage options (required for R2/S3 endpoints)
+            # Gated by LANCEDB_CLOUD_ENABLED — Personal Edition (embedded file-based)
+            # never evaluates the S3/R2 codepath. SaaS edition flips the flag to true.
+            from core.lancedb_config import LANCEDB_CLOUD_ENABLED
             storage_options = {}
-            if self.db_path.startswith("s3://"):
+            if self.db_path.startswith("s3://") and LANCEDB_CLOUD_ENABLED:
                 endpoint = (
                     os.getenv("S3_ENDPOINT")  # R2 endpoint - check FIRST
                     or os.getenv("R2_ENDPOINT")
@@ -251,6 +255,16 @@ class LanceDBHandler:
 
             # Lazy import LanceDB to avoid module-level hang
             import lancedb
+
+            # If db_path looks like S3 but cloud is disabled, downgrade to local
+            # embedded storage so Personal Edition never attempts a cloud connect.
+            if self.db_path.startswith("s3://") and not LANCEDB_CLOUD_ENABLED:
+                logger.warning(
+                    "LANCEDB_CLOUD_ENABLED=false — downgrading S3 URI to embedded "
+                    "local path %s", LOCAL_DB_PATH_FALLBACK
+                )
+                self.db_path = os.path.abspath(LOCAL_DB_PATH_FALLBACK)
+                os.makedirs(self.db_path, exist_ok=True)
 
             # For S3-compatible storage (R2), empty dict causes issues
             opts = storage_options if storage_options else None

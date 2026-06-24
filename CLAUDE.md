@@ -37,6 +37,8 @@
 
 ## Architecture Overview
 
+**Storage topology (Personal Edition):** LanceDB is **embedded** (file-based `./data/lancedb` / `./data/atom_memory`) — no separate vector server container. SQLite is the default relational store. Redis/Valkey is only used for WebSocket pub-sub and can be omitted for single-process Personal deployments. SaaS edition flips `LANCEDB_CLOUD_ENABLED=true` for S3/R2 remote storage.
+
 ### Multi-Agent Governance Flow
 ```
 User Request → AgentContextResolver → GovernanceCache → AgentGovernanceService → Agent Execution → Response
@@ -89,6 +91,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 30. **CSV Injection Guard** (`accounting/export_service.py:_sanitize_csv_cell`): Prefixes `= + - @` cells with single quote in financial exports (CWE-1236)
 31. **Workflow ReDoS Guard** (`core/workflow_parameter_validator.py`): `MAX_REGEX_LENGTH=200` + `_has_redos_risk()` heuristic on user-supplied regex patterns
 32. **Ollama Local LLM** (`core/llm/byok_handler.py`, `core/byok_endpoints.py`): First-class provider for fully local inference via Ollama's OpenAI-compatible API (`OLLAMA_BASE_URL`); no API key required, registered in `PROVIDER_TIERS["budget"]` with zero cost
+33. **Per-Turn Fact Extraction** (`core/turn_fact_extractor.py`, `core/turn_fact_queue.py`, `core/turn_fact_vector_store.py`, `core/turn_fact_categories.py`): Hermes-style memory-provider layer. Two entrypoints — `extract_from_turn()` (`sync_turn` hook, fires fire-and-forget after each ReAct step) and `extract_from_prompt_before_truncation()` (`on_pre_compress` hook, drained by `ExtractionQueue` worker). Extracts Mem0's 5 durable-fact categories (exact_value, hard_constraint, decision_reason, cross_task_dep, implicit_pref) using `model="fast"` + 2s timeout. Two-tier recall: Tier-1 pure-SQL `DURABLE FACTS` prompt block (sub-ms), Tier-2 LanceDB semantic `prefetch_relevant_facts()` (opt-in). SQL row is source of truth; LanceDB write is best-effort. Maturity-gated (STUDENT agents read-only). Never raises, never silently drops. See `docs/architecture/CONTEXT_MEMORY.md`
 
 ---
 
@@ -346,6 +349,15 @@ ATOM_HOST_MOUNT_ENABLED=false    # AUTONOMOUS gate
 EMBEDDING_PROVIDER=fastembed
 FASTEMBED_MODEL=BAAI/bge-small-en-v1.5
 LANCEDB_PATH=./data/lancedb
+LANCEDB_CLOUD_ENABLED=false              # Gate S3/R2 remote paths (Personal = embedded; SaaS = true)
+
+# Per-Turn Fact Extraction (Hermes-style memory layer; see docs/architecture/CONTEXT_MEMORY.md)
+TURN_FACT_EXTRACTION_ENABLED=false       # Per-turn LLM extraction (costs 1 fast-model call/turn)
+TURN_FACT_PRE_COMPRESS_ENABLED=true      # Pre-truncation queue (free, additive — default ON)
+TURN_FACT_VECTOR_RECALL_ENABLED=false    # LanceDB-backed semantic recall (adds embedding latency)
+TURN_FACT_MAX_PER_TURN=5                 # Cap facts persisted per turn
+TURN_FACT_EXTRACTION_SAMPLE_RATE=1.0     # Dial down in cost crunch (0.0=off, 1.0=always)
+TURN_FACT_QUEUE_MAXSIZE=100              # ExtractionQueue capacity (overflow drops, never blocks)
 
 # Security (Rounds 18-40)
 MAX_UPLOAD_BYTES=52428800              # Document upload size cap (50 MiB default)

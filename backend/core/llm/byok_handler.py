@@ -1478,6 +1478,20 @@ class BYOKHandler:
                     # Truncate prompts to fit context window
                     context_window = self.get_context_window(model)
                     if len(prompt) > context_window * 3:  # ~3 chars per token estimate
+                        # Pre-compress hook: drain durable facts before truncation
+                        # drops them. Strictly additive (queue + worker), never
+                        # blocks the user-visible response. Default ON.
+                        try:
+                            from core.turn_fact_queue import get_extraction_queue
+                            get_extraction_queue().enqueue(
+                                prompt=prompt,
+                                workspace_id=self.workspace_id or "default",
+                                model=model,
+                            )
+                            get_extraction_queue().ensure_worker()
+                        except Exception as _qe:
+                            logger.debug(f"turn_fact pre-compress enqueue skipped: {_qe}")
+
                         prompt = self.truncate_to_context(prompt, model, reserve_tokens=1500)
                         logger.info(f"Truncated prompt for model {model} (context: {context_window} tokens)")
                     
