@@ -29,6 +29,7 @@ tiktoken>=0.5.0
 transformers>=4.30.0,<5.0.0
 torch>=2.0.0,<3.0.0
 sentence-transformers>=2.2.0,<3.0.0
+ollama>=0.3.0  # Optional: Native Ollama client for model listing (OpenAI-compat path is primary)
 
 # PII Redaction with Presidio (NER-based, 99% accuracy)
 presidio-analyzer>=2.2.0

@@ -88,6 +88,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 29. **Safe Expression Evaluator** (`core/safe_evaluator.py`): AST-validated `safe_eval()` replacing raw `eval()` in workflow conditions, event bus, and conductor
 30. **CSV Injection Guard** (`accounting/export_service.py:_sanitize_csv_cell`): Prefixes `= + - @` cells with single quote in financial exports (CWE-1236)
 31. **Workflow ReDoS Guard** (`core/workflow_parameter_validator.py`): `MAX_REGEX_LENGTH=200` + `_has_redos_risk()` heuristic on user-supplied regex patterns
+32. **Ollama Local LLM** (`core/llm/byok_handler.py`, `core/byok_endpoints.py`): First-class provider for fully local inference via Ollama's OpenAI-compatible API (`OLLAMA_BASE_URL`); no API key required, registered in `PROVIDER_TIERS["budget"]` with zero cost
 
 ---
 
@@ -328,6 +329,10 @@ BROWSER_HEADLESS=true
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-...
 MINIMAX_API_KEY=...        # Optional: M2.7 204K context
+
+# Local LLM (Ollama) — free, on-device inference. No API key required.
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=llama3:8b
 PORT=8000
 LOG_LEVEL=INFO
 

@@ -429,7 +429,20 @@ class BYOKManager:
                 model="xiaomi/mimo-v2.5-pro",
                 reasoning_level=4,
                 supports_structured_output=True
-            )
+            ),
+            AIProviderConfig(
+                id="ollama",
+                name="Ollama (Local)",
+                description="Local LLM inference via Ollama (OpenAI-compatible). No API key required.",
+                api_key_env_var="OLLAMA_API_KEY",  # Optional, not required
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+                supported_tasks=["general", "chat", "code", "analysis", "reasoning"],
+                cost_per_token=0.0,  # Free — runs locally
+                model=os.getenv("OLLAMA_MODEL", "llama3:8b"),
+                reasoning_level=3,
+                supports_structured_output=True,
+                requires_encryption=False,
+            ),
         ]
         
         for provider in defaults:

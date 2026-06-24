@@ -34,6 +34,7 @@ class LLMProvider(str, Enum):
     QWEN = "qwen"
     COHERE = "cohere"
     XIAOMI = "xiaomi"
+    OLLAMA = "ollama"
 
 
 class LLMModel(str, Enum):
@@ -140,6 +141,14 @@ class LLMService:
     def get_provider(self, model: str) -> LLMProvider:
         """Get the provider for a given model."""
         model_l = model.lower()
+        # Ollama check first: explicit "ollama/" prefix or canonical local model
+        # tags (llama3, mistral:7b, mixtral, etc.) that are served by Ollama.
+        if model_l.startswith("ollama/") or model_l in {
+            "llama3", "llama3:8b", "llama3:70b",
+            "mistral:7b", "mixtral:8x7b",
+            "phi3", "gemma:7b", "codellama",
+        }:
+            return LLMProvider.OLLAMA
         if "gpt" in model_l:
             return LLMProvider.OPENAI
         elif "claude" in model_l:

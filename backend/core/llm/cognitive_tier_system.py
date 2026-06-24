@@ -210,6 +210,7 @@ class CognitiveClassifier:
                 "gemini-3-flash",
                 "gemini-3.5-flash",
                 "gpt-4o-mini",
+                "ollama/llama3:8b",
             ],
             CognitiveTier.STANDARD: [
                 "gemini-3-flash",
@@ -217,6 +218,7 @@ class CognitiveClassifier:
                 "deepseek-chat",
                 "gpt-4o-mini",
                 "claude-3-haiku-20240307",
+                "ollama/llama3:8b",
             ],
             CognitiveTier.VERSATILE: [
                 "gemini-3-flash",
@@ -230,6 +232,7 @@ class CognitiveClassifier:
                 "claude-3-5-sonnet",
                 "gemini-3-pro",
                 "deepseek-v3.2",
+                "ollama/mixtral:8x7b",
             ],
             CognitiveTier.COMPLEX: [
                 "gpt-5",
@@ -237,6 +240,7 @@ class CognitiveClassifier:
                 "claude-4-opus",
                 "deepseek-v3.2-speciale",
                 "gemini-3-pro",
+                "ollama/mixtral:8x7b",
             ],
         }
 

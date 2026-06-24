@@ -62,6 +62,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
 
+      # Local LLM inference (Ollama) — no API key required
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
+
       # Encryption keys — REQUIRED. No insecure defaults.
       # Generate with: openssl rand -base64 32
       - "BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:?BYOK_ENCRYPTION_KEY is required}"

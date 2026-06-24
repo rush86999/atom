@@ -59,7 +59,7 @@ class QueryComplexity(Enum):
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
     # Budget tier - cheapest, good for simple tasks
-    "budget": ["deepseek", "moonshot", "glm"],
+    "budget": ["deepseek", "moonshot", "glm", "ollama"],
     # Mid tier - balanced cost/quality
     "mid": ["anthropic", "gemini", "mistral"],
     # Premium tier - best quality, higher cost
@@ -125,6 +125,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "xiaomi/mimo-v2.5-pro",
         QueryComplexity.COMPLEX: "xiaomi/mimo-v2.5-pro",
         QueryComplexity.ADVANCED: "xiaomi/mimo-v2.5-pro",
+    },
+    "ollama": {
+        QueryComplexity.SIMPLE: "llama3:8b",
+        QueryComplexity.MODERATE: "llama3:8b",
+        QueryComplexity.COMPLEX: "mistral:7b",
+        QueryComplexity.ADVANCED: "mixtral:8x7b",
     },
 }
 
@@ -260,7 +266,7 @@ class BYOKHandler:
             return []
 
         # Fallback priority order (most reliable first)
-        priority_order = ["deepseek", "openai", "moonshot", "minimax", "xiaomi", "deepinfra"]
+        priority_order = ["deepseek", "openai", "moonshot", "minimax", "xiaomi", "deepinfra", "ollama"]
 
         # Build fallback list: primary first, then others in priority order
         fallback_order = []
@@ -393,6 +399,7 @@ class BYOKHandler:
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
             "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
             "xiaomi": {"base_url": "https://api.xiaomi.com/v1"},
+            "ollama": {"base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")},
         }
 
         # Separate sync and async clients
@@ -412,6 +419,26 @@ class BYOKHandler:
                     logger.error(f"Failed to initialize LUX client: {e}")
             # Remove lux from providers_config so it doesn't get processed in the loop below
             del providers_config["lux"]
+
+        # Ollama: Local LLM server (OpenAI-compatible). No API key required —
+        # always initialize against the configured base_url (default localhost:11434).
+        if "ollama" in providers_config:
+            ollama_base_url = providers_config["ollama"]["base_url"]
+            try:
+                self.clients["ollama"] = OpenAI(
+                    api_key="ollama",  # Dummy key — server ignores it
+                    base_url=ollama_base_url,
+                )
+                if AsyncOpenAI:
+                    self.async_clients["ollama"] = AsyncOpenAI(
+                        api_key="ollama",
+                        base_url=ollama_base_url,
+                    )
+                logger.info(f"Initialized Ollama (local) client at {ollama_base_url}")
+            except Exception as e:
+                logger.error(f"Failed to initialize Ollama client: {e}")
+            # Remove so the API-key-based loop doesn't re-process it
+            del providers_config["ollama"]
 
         for provider_id, config in providers_config.items():
             # OAuth + BYOK: Try credential service first (OAuth → BYOK → ENV)
