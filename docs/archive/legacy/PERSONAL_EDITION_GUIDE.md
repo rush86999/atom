@@ -2,7 +2,9 @@
 
 > **Complete guide to running Atom on your local computer for personal automation**
 
-The Atom Personal Edition brings AI-powered automation to your home computer with privacy-first design, local-only operation, and comprehensive integrations for music, smart home, productivity, and creative workflows.
+The Atom Personal Edition brings AI-powered automation to your home computer with local embeddings, local vector storage, and comprehensive integrations for music, smart home, productivity, and creative workflows.
+
+> **Note on privacy**: Agent state, memory, and file data stay local. LLM inference uses your API keys (BYOK) with cloud providers (OpenAI, Anthropic, DeepSeek) — prompts are sent to the provider you configure. For fully local LLM inference, use [Ollama](https://ollama.ai) or [Llama.cpp](https://github.com/ggerganov/llama.cpp). Set `ATOM_LOCAL_ONLY=true` to block all cloud integrations.
 
 ---
 

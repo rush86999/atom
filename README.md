@@ -20,7 +20,7 @@ Atom is an **open-source, self-hosted AI agent platform** that combines visual w
 
 Just **speak** or **type** your request, and Atom's specialty agents will plan, verify, and execute complex workflows across your entire tech stack.
 
-**Key Difference**: Atom runs entirely on your infrastructure. Your data never leaves your environment.
+**Key Difference**: Atom is self-hosted — your workflow data, agent state, and memory stay on your infrastructure. LLM inference uses your own API keys (BYOK) with cloud providers (OpenAI, Anthropic, DeepSeek); local model support (Ollama, Llama.cpp) is available for fully private deployments.
 
 > **Comparing alternatives?** See [Atom vs OpenClaw](docs/features/atom-vs-openclaw.md) for a detailed feature comparison.
 
@@ -53,7 +53,7 @@ Atom is designed for **self-hosted deployment**:
 
 - **Simpler Setup**: No tenant isolation, no subdomain routing
 - **Better Performance**: Direct database access without overhead
-- **Self-Hosted**: Your data never leaves your infrastructure
+- **Self-Hosted**: Agent state, memory, and workflow data stay on your infrastructure. LLM prompts are sent to your configured API provider (BYOK). Use local models (Ollama/Llama.cpp) for fully private setups.
 - **Unlimited Usage**: No subscription fees or quota limits
 
 **Key Features:**
@@ -63,6 +63,21 @@ Atom is designed for **self-hosted deployment**:
 - All governance, routing, and graduation features work identically
 
 [Full Architecture Guide →](docs/SINGLE_TENANT.md)
+
+### Data Flow & Privacy
+
+Understanding where your data goes:
+
+| Component | Where Data Goes | Configurable? |
+|-----------|----------------|---------------|
+| **LLM inference** (chat, reasoning, agent decisions) | Cloud API provider via your BYOK keys (OpenAI, Anthropic, DeepSeek) | ✅ Use local models (Ollama, Llama.cpp) for fully private |
+| **Embeddings** (document vectors) | Local (FastEmbed, ONNX runtime) | Always local |
+| **Vector storage** (episodic memory) | Local (LanceDB on disk) | Always local |
+| **Database** (agents, users, workflows) | Local (SQLite) or your PostgreSQL server | Always your infra |
+| **File uploads** | Local filesystem (`./data/`) | Always your infra |
+| **Integration data** (Slack, Gmail, etc.) | Third-party APIs per integration | Per-integration |
+
+> **For maximum privacy**: Set `ATOM_LOCAL_ONLY=true` (blocks cloud integrations) AND configure local LLM models (Ollama/Llama.cpp) instead of cloud API keys.
 
 ### Meta-Agent Routing ✨
 Intelligent CHAT/WORKFLOW/TASK routing with governance checks and dynamic fleet recruitment
