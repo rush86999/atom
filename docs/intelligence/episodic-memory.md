@@ -51,6 +51,10 @@ The Episodic Memory system provides AI agents with the ability to remember, retr
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+> **Personal Edition:** LanceDB runs **embedded** (file-based `./data/lancedb`) — no S3, no server container. The S3 cold-storage path above is SaaS-only (`LANCEDB_CLOUD_ENABLED=true`).
+
+> **Related:** [Context Memory (Per-Turn Fact Extraction)](../architecture/CONTEXT_MEMORY.md) — a complementary Hermes-style layer that extracts durable facts *during* the turn (before context compression drops them). Where episodic memory records whole interactions, Context Memory extracts the 5 durable-fact categories (exact values, hard constraints, decision reasoning, cross-task deps, implicit preferences) that should survive across sessions.
+
 ### Data Lifecycle
 
 1. **Episode Created** (ChatSession completes)

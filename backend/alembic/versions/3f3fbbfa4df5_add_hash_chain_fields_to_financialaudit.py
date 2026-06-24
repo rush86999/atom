@@ -18,15 +18,39 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _table_exists(table_name: str) -> bool:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    return table_name in inspector.get_table_names()
+
+
+def _column_exists(table_name: str, column_name: str) -> bool:
+    if not _table_exists(table_name):
+        return False
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    cols = [c["name"] for c in inspector.get_columns(table_name)]
+    return column_name in cols
+
+
 def upgrade() -> None:
     """Upgrade schema."""
+    # Guard: no-op if financial_audit doesn't exist (fresh Personal Edition DB
+    # where the table is created lazily by Base.metadata.create_all at app start).
+    if not _table_exists('financial_audit'):
+        print("    [skip] financial_audit table not found — migration is a no-op")
+        return
+
     # Add hash chain fields to financial_audit table
     # Note: SQLite requires a multi-step approach for adding NOT NULL columns with defaults
 
-    # Step 1: Add columns as nullable
-    op.add_column('financial_audit', sa.Column('sequence_number', sa.Integer(), nullable=True))
-    op.add_column('financial_audit', sa.Column('entry_hash', sa.String(64), nullable=True))
-    op.add_column('financial_audit', sa.Column('prev_hash', sa.String(64), nullable=True))
+    # Step 1: Add columns as nullable (guard each — may already exist)
+    if not _column_exists('financial_audit', 'sequence_number'):
+        op.add_column('financial_audit', sa.Column('sequence_number', sa.Integer(), nullable=True))
+    if not _column_exists('financial_audit', 'entry_hash'):
+        op.add_column('financial_audit', sa.Column('entry_hash', sa.String(64), nullable=True))
+    if not _column_exists('financial_audit', 'prev_hash'):
+        op.add_column('financial_audit', sa.Column('prev_hash', sa.String(64), nullable=True))
 
     # Step 2: Populate sequence_number for existing records
     op.execute("""
@@ -51,18 +75,34 @@ def upgrade() -> None:
     # For simplicity, we'll rely on application-level validation
     # Production databases (PostgreSQL) would use ALTER COLUMN ... SET NOT NULL
 
-    # Step 5: Create indexes
-    op.create_index('ix_financial_audit_sequence', 'financial_audit', ['account_id', 'sequence_number'])
-    op.create_index('ix_financial_audit_hash_chain', 'financial_audit', ['account_id', 'prev_hash'])
+    # Step 5: Create indexes (guard — may already exist)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_indexes = {ix["name"] for ix in inspector.get_indexes('financial_audit')}
+    if 'ix_financial_audit_sequence' not in existing_indexes:
+        op.create_index('ix_financial_audit_sequence', 'financial_audit', ['account_id', 'sequence_number'])
+    if 'ix_financial_audit_hash_chain' not in existing_indexes:
+        op.create_index('ix_financial_audit_hash_chain', 'financial_audit', ['account_id', 'prev_hash'])
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # Drop indexes
-    op.drop_index('ix_financial_audit_hash_chain', table_name='financial_audit')
-    op.drop_index('ix_financial_audit_sequence', table_name='financial_audit')
+    if not _table_exists('financial_audit'):
+        return
 
-    # Drop columns
-    op.drop_column('financial_audit', 'prev_hash')
-    op.drop_column('financial_audit', 'entry_hash')
-    op.drop_column('financial_audit', 'sequence_number')
+    # Drop indexes (guard existence)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_indexes = {ix["name"] for ix in inspector.get_indexes('financial_audit')}
+    if 'ix_financial_audit_hash_chain' in existing_indexes:
+        op.drop_index('ix_financial_audit_hash_chain', table_name='financial_audit')
+    if 'ix_financial_audit_sequence' in existing_indexes:
+        op.drop_index('ix_financial_audit_sequence', table_name='financial_audit')
+
+    # Drop columns (guard existence)
+    if _column_exists('financial_audit', 'prev_hash'):
+        op.drop_column('financial_audit', 'prev_hash')
+    if _column_exists('financial_audit', 'entry_hash'):
+        op.drop_column('financial_audit', 'entry_hash')
+    if _column_exists('financial_audit', 'sequence_number'):
+        op.drop_column('financial_audit', 'sequence_number')

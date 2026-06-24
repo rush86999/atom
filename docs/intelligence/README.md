@@ -12,6 +12,7 @@ AI capabilities, knowledge management, and cognitive systems for Atom agents wit
 - **[Episodic Memory](episodic-memory.md)** - Agent learning framework with POMDP (2026 enhanced) ✨
 - **[Episodic Memory Quick Start](episodic-quickstart.md)** - Get started with episodic memory
 - **[Memory Integration](memory-integration.md)** - Memory system integration guide
+- **[Context Memory (Per-Turn Fact Extraction)](../architecture/CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction; two-tier recall; extraction-first over compression-first ✨
 
 #### ✨ Self-Evolution (Enhanced 2026)
 - **[Self-Evolution & Reflection Pool](self-evolution.md)** - Agents learn from mistakes and improve

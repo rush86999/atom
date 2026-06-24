@@ -292,7 +292,7 @@ Test files: `backend/tests/e2e_ui/conftest.py`, `fixtures/auth_fixtures.py` (API
 
 ## Important File Locations
 
-**Core**: `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`, `llm/byok_handler.py`, `models.py`, `agent_world_model.py`, `graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`
+**Core**: `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`, `llm/byok_handler.py`, `models.py`, `agent_world_model.py`, `graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`, `turn_fact_extractor.py` (+ `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py` — see `docs/architecture/CONTEXT_MEMORY.md`)
 
 **API**: `atom_agent_endpoints.py`, `api/canvas_routes.py`, `api/browser_routes.py`, `api/device_capabilities.py`, `api/deeplinks.py`, `api/admin/business_facts_routes.py`, `api/entity_type_routes.py`, `api/graphrag_routes.py`, `api/health_routes.py`
 
@@ -308,7 +308,7 @@ Test files: `backend/tests/e2e_ui/conftest.py`, `fixtures/auth_fixtures.py` (API
 
 **Security**: `core/safe_evaluator.py` (AST eval), `core/auth.py` (`get_current_user`), `frontend-nextjs/lib/sanitize.ts` (DOMPurify XSS guard), `mobile/src/storage/secureTokenStorage.ts` (SecureStore), `accounting/export_service.py` (`_sanitize_csv_cell`)
 
-**Bug Hunt Tests**: `tests/test_round{4..17}_fixes.py`, `tests/test_round{18..31}_*.py`, `tests/test_rounds27_30_consolidated.py`, `tests/test_auth_fixes.py`, `tests/test_security_bug_hunt.py`, `tests/test_toctou_fixes.py`, `frontend-nextjs/lib/__tests__/sanitize.test.ts`
+**Bug Hunt Tests**: `tests/test_round{4..17}_fixes.py`, `tests/test_round{18..31}_*.py`, `tests/test_rounds27_30_consolidated.py`, `tests/test_auth_fixes.py`, `tests/test_security_bug_hunt.py`, `tests/test_toctou_fixes.py`, `tests/test_turn_fact_extraction.py`, `tests/test_turn_fact_queue.py`, `frontend-nextjs/lib/__tests__/sanitize.test.ts`
 
 **Audit Docs**: `docs/FRONTEND_SECURITY_AUDIT.md`, `docs/MOBILE_SECURITY_AUDIT.md`
 
@@ -380,6 +380,10 @@ alembic downgrade -1
 alembic current
 alembic history
 ```
+
+**SQLite compatibility (Personal Edition):** Migrations that change column types or add columns must use `op.batch_alter_table()` (SQLite has no native `ALTER COLUMN`) and guard with `_table_exists()` / `_column_exists()` so they no-op when the table is missing or the column already exists. The dev DB is a hybrid (schema advanced via `Base.metadata.create_all`, alembic bookkeeping lags), so unguarded migrations fail with "duplicate column" / "no such table". See `alembic/versions/20260624_add_turn_facts.py` for the canonical guarded pattern.
+
+**Reconciling a hybrid DB:** if `alembic current` shows multiple divergent heads on a DB whose schema is already complete, stamp to the nearest mergepoint (`alembic stamp <merge_rev> --purge`) to collapse heads truthfully, then `alembic upgrade head` runs only the genuinely-pending migrations.
 
 ---
 

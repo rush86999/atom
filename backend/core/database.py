@@ -397,16 +397,23 @@ try:
         async_db_url = async_db_url.replace("postgres://", "postgresql+asyncpg://")
 
     # Create async engine
+    # NOTE: pool_* kwargs are QueuePool options and are REJECTED by NullPool,
+    # which async SQLite (aiosqlite) uses by default. Applying them unconditionally
+    # raises TypeError at import time — breaking alembic and any SQLite deploy.
+    # Gate them on the Postgres dialect (asyncpg), where pooling is meaningful.
+    _is_async_postgres = async_db_url.startswith(("postgresql+asyncpg://", "postgres+asyncpg://"))
     async_engine_kwargs = {
         "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
-        # Match sync engine's pool settings for consistency
-        "pool_pre_ping": True,
-        "pool_recycle": 3600,
-        "pool_timeout": 30,
     }
+    if _is_async_postgres:
+        async_engine_kwargs.update({
+            "pool_pre_ping": True,
+            "pool_recycle": 3600,
+            "pool_timeout": 30,
+        })
 
-    # Add pool configuration for async engine
-    if pool_size:
+    # Add pool configuration for async engine (Postgres only)
+    if _is_async_postgres and pool_size:
         async_engine_kwargs.update({
             "pool_size": pool_size,
             "max_overflow": max_overflow,

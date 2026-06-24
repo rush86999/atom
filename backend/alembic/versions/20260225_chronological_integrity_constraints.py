@@ -37,6 +37,11 @@ def upgrade():
     # This makes the migration defensive against incomplete schema states
     conn = op.get_bind()
     inspector = sa.inspect(conn)
+    if 'financial_audit' not in inspector.get_table_names():
+        # No-op on fresh Personal Edition DBs where the table is created
+        # lazily by Base.metadata.create_all at app start.
+        print("    [skip] financial_audit table not found — migration is a no-op")
+        return
     columns = [col['name'] for col in inspector.get_columns('financial_audit')]
 
     # Only add constraints if columns exist (Plan 01 must have run)

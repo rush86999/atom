@@ -17,6 +17,9 @@ System architecture, design patterns, and technical specifications.
 ### Cognitive Systems
 - **[Cognitive Tier System](COGNITIVE_TIER_SYSTEM.md)** - 5-tier LLM routing
 
+### Memory & Context
+- **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨
+
 ### Application Design
 - **[Decorator Application Complete](DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns
 - **[API Reference](API_REFERENCE.md)** - Architecture API reference
@@ -43,6 +46,8 @@ System architecture, design patterns, and technical specifications.
 ├─────────────────────────────────────────┤
 │         Data Storage Layer               │
 │  PostgreSQL | Redis | LanceDB | Files    │
+│  (Personal Edition: SQLite + embedded    │
+│   file-based LanceDB — no servers)       │
 └─────────────────────────────────────────┘
 ```
 
@@ -100,6 +105,8 @@ def get_agent(agent_id: str, db: Session = Depends(get_db)):
 - **workspaces**: Tenant/workspace isolation
 - **agent_registry**: Agent definitions
 - **agent_executions**: Execution history
+- **agent_reasoning_steps**: Persisted ReAct steps (thought/action/observation)
+- **turn_facts**: Durable facts extracted per-turn (see [Context Memory](CONTEXT_MEMORY.md))
 - **episodes**: Episodic memory
 - **canvases**: Canvas presentations
 
