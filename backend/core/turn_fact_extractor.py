@@ -37,6 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy import text as sa_text
 
 from core.database import SessionLocal
 from core.llm_service import get_llm_service
@@ -343,6 +344,10 @@ class TurnFactExtractor:
         if not text:
             return []
 
+        # 0) Circuit breaker — skip extraction during provider outages
+        if _circuit_breaker.is_tripped():
+            return []
+
         # 1) Regex pre-filter — bail before any LLM call
         if not _likely_contains_fact(text):
             return []
@@ -384,6 +389,8 @@ class TurnFactExtractor:
             return []
 
         # 4) Validate + cap
+        # Parse succeeded → the provider is healthy. Close the breaker.
+        _circuit_breaker.record_success()
         facts: List[Dict[str, Any]] = []
         for item in parsed:
             if not isinstance(item, dict):
@@ -452,12 +459,15 @@ class TurnFactExtractor:
         episode_id: Optional[str],
         session_id: Optional[str],
         user_id: Optional[str],
+        _skip_antithrash: bool = False,
     ) -> Optional[TurnFact]:
         """Insert with dedup. Returns the canonical row (newly inserted or updated existing)."""
         content_hash = compute_content_hash(self.workspace_id, fact_text)
 
-        # Anti-thrashing — a recent write is already in flight for this hash
-        if content_hash in self._recent_hashes:
+        # Anti-thrashing — a recent write is already in flight for this hash.
+        # Skipped for explicit agent-initiated writes (memory_remember tool),
+        # which are deliberate single writes, not extraction-loop re-inserts.
+        if not _skip_antithrash and content_hash in self._recent_hashes:
             return None
 
         try:
@@ -660,11 +670,92 @@ def _increment_failure_counter(kind: str) -> None:
     _FAILURE_COUNTS[kind] = _FAILURE_COUNTS.get(kind, 0) + 1
     # Structured log — operators can wire Prometheus from this
     logger.warning("turn_fact_extraction_failure total=%s", _FAILURE_COUNTS)
+    # Trip the circuit breaker when a provider looks dead.
+    _circuit_breaker.record_failure()
 
 
 def get_failure_counts() -> Dict[str, int]:
     """Read-only snapshot for /health/metrics or admin dashboards."""
     return dict(_FAILURE_COUNTS)
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker — prevents extraction storms during provider outages.
+# After _THRESHOLD consecutive failures, extraction is skipped for _COOLDOWN_S
+# seconds. Self-heals (half-open: one probe attempt after cooldown). This is
+# the Hermes Mem0-provider pattern (2 min / 5 failures), tuned for Atom.
+# ---------------------------------------------------------------------------
+_CB_THRESHOLD = int(os.getenv("TURN_FACT_CB_THRESHOLD", "5"))
+_CB_COOLDOWN_S = float(os.getenv("TURN_FACT_CB_COOLDOWN_S", "120"))
+
+
+class _CircuitBreaker:
+    """Closed → Open (after N consecutive failures) → Half-open (after cooldown)."""
+
+    __slots__ = ("failures", "opened_at", "state")
+
+    def __init__(self):
+        self.failures = 0
+        self.opened_at = 0.0
+        self.state = "closed"  # closed | open | half_open
+
+    def record_failure(self) -> None:
+        self.failures += 1
+        if self.failures >= _CB_THRESHOLD and self.state != "open":
+            self.state = "open"
+            self.opened_at = time.time()
+            logger.warning(
+                "turn_fact circuit breaker OPENED after %d consecutive failures "
+                "(cooldown=%.0fs) — extraction skipped",
+                self.failures, _CB_COOLDOWN_S,
+            )
+
+    def record_success(self) -> None:
+        if self.state != "closed":
+            logger.info(
+                "turn_fact circuit breaker CLOSED (recovered after %d failures)",
+                self.failures,
+            )
+        self.failures = 0
+        self.state = "closed"
+        self.opened_at = 0.0
+
+    def is_tripped(self) -> bool:
+        """Returns True iff extraction should be skipped right now."""
+        if self.state == "closed":
+            return False
+        # Open or half_open — check if cooldown has elapsed
+        if (time.time() - self.opened_at) >= _CB_COOLDOWN_S:
+            # Transition to half-open: allow ONE probe to test recovery.
+            # The probe runs; if it succeeds, record_success closes the breaker.
+            if self.state == "open":
+                self.state = "half_open"
+                logger.info("turn_fact circuit breaker HALF-OPEN — probing")
+            return False  # let the probe through
+        return True  # still in cooldown — skip
+
+    def snapshot(self) -> Dict[str, Any]:
+        return {
+            "state": self.state,
+            "consecutive_failures": self.failures,
+            "threshold": _CB_THRESHOLD,
+            "cooldown_s": _CB_COOLDOWN_S,
+            "opened_at": self.opened_at,
+        }
+
+    def reset(self) -> None:
+        """Test hook — reset to closed."""
+        self.failures = 0
+        self.state = "closed"
+        self.opened_at = 0.0
+
+
+_circuit_breaker = _CircuitBreaker()
+
+
+def get_circuit_breaker_snapshot() -> Dict[str, Any]:
+    """Read-only snapshot for /health/ready or admin dashboards."""
+    return _circuit_breaker.snapshot()
 
 
 # ---------------------------------------------------------------------------
@@ -767,3 +858,180 @@ def prefetch_relevant_facts(
     except Exception as e:
         logger.debug("prefetch_relevant_facts failed: %s", e)
         return []
+
+
+# ---------------------------------------------------------------------------
+# Tier-1b — FTS5 lexical session search
+# Fast exact-match fallback for error strings, IDs, function names — the
+# queries where semantic recall misses because the relevant signal is a
+# literal token, not a concept. Complements Tier-2 vector recall.
+# ---------------------------------------------------------------------------
+def search_reasoning_steps_lexical(
+    workspace_id: str,
+    query: str,
+    limit: int = 5,
+    execution_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Lexical (FTS5 / tsvector) search over agent_reasoning_steps.
+
+    Returns a list of dicts: {step_id, execution_id, thought, observation,
+    rank}. Skips trivial queries (<3 chars). Never raises — returns [] on
+    any failure (incl. FTS table missing).
+    """
+    if not query or len(query.strip()) < 3:
+        return []
+    try:
+        with SessionLocal() as db:
+            from core.models import AgentReasoningStep, AgentExecution
+
+            # Sanitize the query for FTS5: wrap each token as a prefix term.
+            # This prevents FTS5 syntax errors on special chars like ( ) * ".
+            tokens = [t for t in _query_safe_tokens(query) if t]
+            if not tokens:
+                return []
+            fts_query = " ".join(f"{t}*" for t in tokens)
+
+            bind_dialect = db.bind.dialect.name
+            if bind_dialect == "sqlite":
+                sql = (
+                    "SELECT s.id, s.execution_id, s.thought, s.observation, "
+                    "bm25(agent_reasoning_steps_fts) AS rank "
+                    "FROM agent_reasoning_steps_fts f "
+                    "JOIN agent_reasoning_steps s ON s.rowid = f.rowid "
+                    "WHERE agent_reasoning_steps_fts MATCH :q "
+                )
+                params: Dict[str, Any] = {"q": fts_query}
+            elif bind_dialect == "postgresql":
+                sql = (
+                    "SELECT s.id, s.execution_id, s.thought, s.observation, "
+                    "ts_rank(search_vector, plainto_tsquery('english', :q)) AS rank "
+                    "FROM agent_reasoning_steps s "
+                    "WHERE search_vector @@ plainto_tsquery('english', :q) "
+                )
+                params = {"q": query.strip()}
+            else:
+                return []
+
+            if execution_id:
+                sql += " AND s.execution_id = :exec_id"
+                params["exec_id"] = execution_id
+
+            sql += " ORDER BY rank LIMIT :lim"
+            params["lim"] = limit
+
+            rows = db.execute(sa_text(sql), params).fetchall()
+            return [
+                {
+                    "step_id": r.id,
+                    "execution_id": r.execution_id,
+                    "thought": (r.thought or "")[:300],
+                    "observation": (r.observation or "")[:300],
+                    "rank": float(r.rank) if r.rank is not None else 0.0,
+                }
+                for r in rows
+            ]
+    except Exception as e:
+        logger.debug("search_reasoning_steps_lexical failed: %s", e)
+        return []
+
+
+_FTS_TOKEN_CLEAN = re.compile(r"[A-Za-z0-9_]+")
+
+
+def _query_safe_tokens(query: str) -> List[str]:
+    """Split a user query into FTS-safe alphanumeric tokens."""
+    return [t for t in _FTS_TOKEN_CLEAN.findall(query.lower()) if len(t) >= 2]
+
+
+# ---------------------------------------------------------------------------
+# Agent-callable memory operations
+# Backing for the memory_remember / memory_forget tools. These are explicit
+# (agent-initiated) writes/deletes, as opposed to the passive per-turn
+# extraction. Both never raise — failures return None / False.
+# ---------------------------------------------------------------------------
+def remember_fact_explicit(
+    *,
+    workspace_id: str,
+    fact_text: str,
+    category: str,
+    domain: str = "general",
+    confidence: float = 0.95,
+    user_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    tenant_id: str = "default",
+) -> Optional[TurnFact]:
+    """
+    Explicit agent-initiated persist. Higher default confidence (0.95) than
+    passive extraction (0.8) because the agent deliberately chose to remember.
+    Reuses the same dedup/hash logic as _persist_one. Returns the row or None.
+    Never raises.
+    """
+    try:
+        if not fact_text or not workspace_id:
+            return None
+        if category not in ALL_FACT_CATEGORIES:
+            return None
+        extractor = get_turn_fact_extractor(workspace_id=workspace_id, tenant_id=tenant_id)
+        # Bypass the regex pre-filter + LLM — the agent already decided this is a fact.
+        return extractor._persist_one(
+            fact_text=fact_text.strip(),
+            category=category,
+            domain=domain,
+            confidence=_clamp(confidence, 0.0, 1.0),
+            tags=None,
+            extraction_source="agent_explicit",
+            execution_id=execution_id,
+            reasoning_step_id=None,
+            episode_id=None,
+            session_id=session_id,
+            user_id=user_id,
+            _skip_antithrash=True,
+        )
+    except Exception as e:
+        logger.warning("remember_fact_explicit failed: %s", e)
+        return None
+
+
+def forget_fact_explicit(
+    *,
+    workspace_id: str,
+    fact_id: Optional[str] = None,
+    fact_text_contains: Optional[str] = None,
+    tenant_id: str = "default",
+) -> int:
+    """
+    Agent-initiated invalidation. Marks matching active facts as `invalidated`
+    (soft delete — audit history preserved). Deletion is by exact ID when
+    `fact_id` is given; else by substring match on `fact_text_contains`
+    scoped to the workspace. Returns count invalidated. Never raises.
+
+    Deletion safety (mirroring Hermes' `lancedb_forget`): if neither filter
+    is given, returns 0 — the agent cannot wipe the whole workspace on a
+    vague request.
+    """
+    try:
+        if not workspace_id:
+            return 0
+        if not fact_id and not fact_text_contains:
+            return 0
+        with SessionLocal() as db:
+            q = db.query(TurnFact).filter(
+                TurnFact.workspace_id == workspace_id,
+                TurnFact.status == "active",
+            )
+            if fact_id:
+                q = q.filter(TurnFact.id == fact_id)
+            elif fact_text_contains:
+                q = q.filter(TurnFact.fact_text.ilike(f"%{fact_text_contains}%"))
+            rows = q.all()
+            now = func_now()
+            for r in rows:
+                r.status = "invalidated"
+                r.superseded_at = now
+            db.commit()
+            return len(rows)
+    except Exception as e:
+        logger.warning("forget_fact_explicit failed: %s", e)
+        return 0

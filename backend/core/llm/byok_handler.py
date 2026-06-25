@@ -540,23 +540,116 @@ class BYOKHandler:
 
     def truncate_to_context(self, text: str, model_name: str, reserve_tokens: int = 1000) -> str:
         """
-        Truncate text to fit within the model's context window.
-        Reserves tokens for the response.
+        Truncate text to fit within the model's context window, preserving the
+        HEAD (initial context, system setup, first request) and TAIL (most
+        recent turns — the active task) verbatim. Only the stale MIDDLE is
+        dropped.
+
+        This is the boundary-protection principle from Hermes' 4-phase
+        compressor, applied to a flat prompt string. We deliberately do NOT
+        build an LLM-summarization phase here — Hermes' own summary compressor
+        has 3 documented production bugs (JSON silent drop, tool-pair 400,
+        anti-thrashing permanent lock). Provider compaction APIs are the
+        correct place for lossy summarization; this method is the
+        deterministic safety net beneath them.
+
+        Tool-pair sanitization (keeping tool_call/tool_result pairs together)
+        applies to message-ARRAY truncation, not flat-string; see
+        sanitize_tool_pairs() for that path.
         """
         context_window = self.get_context_window(model_name)
         max_input_tokens = context_window - reserve_tokens
-        
+
         # Approximate: 1 token ≈ 4 characters
         max_chars = max_input_tokens * 4
-        
+
         if len(text) <= max_chars:
             return text
-        
-        # Truncate and add indicator
-        truncated = text[:max_chars - 100]
-        truncated += "\n\n[... Content truncated to fit context window ...]"
-        logger.warning(f"Truncated prompt from {len(text)} to {len(truncated)} chars for {model_name}")
+
+        # Boundary protection: preserve head + tail, drop the middle.
+        # Tail gets a larger share (60%) — it contains the active task and
+        # most recent observations, which matter most for the next step.
+        marker = "\n\n[... %d chars of middle context elided (head + tail preserved) ...]\n\n"
+        marker_overhead = len(marker % 0)
+        budget = max_chars - marker_overhead - 100  # 100-char safety margin
+
+        head_share = int(budget * 0.4)
+        tail_share = budget - head_share
+
+        head = text[:head_share]
+        tail = text[-tail_share:]
+        elided = len(text) - head_share - tail_share
+
+        truncated = head + (marker % elided) + tail
+        logger.warning(
+            f"Truncated prompt from {len(text)} to {len(truncated)} chars for {model_name} "
+            f"(head={head_share}, tail={tail_share}, elided={elided})"
+        )
         return truncated
+
+    @staticmethod
+    def sanitize_tool_pairs(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Ensure every ``tool`` role message is preceded by a matching
+        ``assistant`` message carrying ``tool_calls``.
+
+        OpenAI-compatible providers return HTTP 400 if a ``tool`` result
+        appears without a preceding ``assistant.tool_calls`` — this happens
+        when context-window truncation or compression cuts between a tool
+        call and its result. This function:
+          - injects a stub ``assistant`` message before any orphaned ``tool``
+            result (Hermes' Phase-4 mitigation, minus the bug)
+          - drops trailing ``assistant`` messages that have ``tool_calls``
+            but whose ``tool`` results were truncated away
+
+        This is the deterministic companion to ``truncate_to_context``'s
+        boundary protection. Operates on message arrays only.
+        """
+        if not messages:
+            return messages
+
+        sanitized: List[Dict[str, Any]] = []
+        for i, msg in enumerate(messages):
+            role = msg.get("role")
+            if role == "tool":
+                # Check: is there a preceding assistant.tool_calls?
+                prev = sanitized[-1] if sanitized else None
+                prev_is_tool_call = (
+                    prev
+                    and prev.get("role") == "assistant"
+                    and prev.get("tool_calls")
+                )
+                if not prev_is_tool_call:
+                    # Inject a stub so the provider doesn't 400.
+                    sanitized.append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [{
+                            "id": msg.get("tool_call_id", "stub"),
+                            "type": "function",
+                            "function": {
+                                "name": "_truncated_tool_call",
+                                "arguments": "{}",
+                            },
+                        }],
+                    })
+                sanitized.append(msg)
+            else:
+                sanitized.append(msg)
+
+        # Drop a trailing assistant.tool_calls whose tool result was truncated
+        if (
+            sanitized
+            and sanitized[-1].get("role") == "assistant"
+            and sanitized[-1].get("tool_calls")
+            and not any(m.get("role") == "tool" for m in sanitized[-1:])
+        ):
+            # Actually: only drop if it's the very last AND has no content
+            last = sanitized[-1]
+            if last.get("tool_calls") and not last.get("content"):
+                sanitized.pop()
+
+        return sanitized
 
     def analyze_query_complexity(self, prompt: str, task_type: Optional[str] = None) -> QueryComplexity:
         """

@@ -334,6 +334,7 @@ class ToolRegistry:
         self._register_browser_tools()
         self._register_device_tools()
         self._register_productivity_tools()
+        self._register_memory_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
 
@@ -530,6 +531,14 @@ class ToolRegistry:
             register_notion_tool(self)
         except Exception as e:
             logger.warning(f"Could not register notion tool: {e}")
+
+    def _register_memory_tools(self):
+        """Register agent-callable memory tools (remember / forget)."""
+        try:
+            from tools.memory_tool import register_memory_tool
+            register_memory_tool(self)
+        except Exception as e:
+            logger.warning(f"Could not register memory tools: {e}")
 
     def _get_function(self, module_name: str, function_name: str) -> Optional[Callable]:
         """Get function from module."""

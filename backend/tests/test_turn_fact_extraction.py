@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -43,9 +44,11 @@ from core.turn_fact_extractor import (
     _TTLSet,
     compute_content_hash,
     get_active_facts_for_prompt,
+    get_circuit_breaker_snapshot,
     get_failure_counts,
     prefetch_relevant_facts,
 )
+from core import turn_fact_extractor as tfe_mod_cb
 from core.turn_fact_categories import ALL_FACT_CATEGORIES, FactCategory
 
 
@@ -685,3 +688,58 @@ class TestTier2VectorRecall:
              patch("core.turn_fact_vector_store.search_relevant_fact_ids",
                    side_effect=RuntimeError("lancedb down")):
             assert prefetch_relevant_facts("ws", "setup payments") == []
+
+
+# ===========================================================================
+# Phase 2j — Circuit breaker
+# ===========================================================================
+class TestCircuitBreaker:
+    def setup_method(self):
+        tfe_mod_cb._circuit_breaker.reset()
+
+    def teardown_method(self):
+        tfe_mod_cb._circuit_breaker.reset()
+
+    def test_starts_closed(self):
+        assert get_circuit_breaker_snapshot()["state"] == "closed"
+
+    @pytest.mark.asyncio
+    async def test_trips_after_threshold_failures(self, extractor):
+        extractor.llm.generate = AsyncMock(side_effect=RuntimeError("down"))
+        with patch.object(tfe_mod_cb, "_CB_THRESHOLD", 3):
+            for _ in range(3):
+                await extractor.extract_from_turn(
+                    user_request="x", thought="must use Stripe", maturity="INTERN"
+                )
+        assert get_circuit_breaker_snapshot()["state"] == "open"
+
+    @pytest.mark.asyncio
+    async def test_tripped_breaker_skips_extraction(self, extractor, memory_db):
+        # Force-open the breaker
+        tfe_mod_cb._circuit_breaker.state = "open"
+        tfe_mod_cb._circuit_breaker.opened_at = time.time()  # just opened
+        extractor.llm.generate = AsyncMock(return_value='[{"fact":"x","category":"exact_value"}]')
+        rows = await extractor.extract_from_turn(
+            user_request="x", thought="must use Stripe 5", maturity="INTERN"
+        )
+        assert rows == []  # skipped — breaker open
+        extractor.llm.generate.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_success_closes_breaker(self, extractor, memory_db):
+        # Open the breaker first
+        tfe_mod_cb._circuit_breaker.state = "half_open"  # allow probe
+        extractor.llm.generate = AsyncMock(
+            return_value='[{"fact":"must use Stripe","category":"hard_constraint"}]'
+        )
+        await extractor.extract_from_turn(
+            user_request="x", thought="must use Stripe", maturity="INTERN"
+        )
+        assert get_circuit_breaker_snapshot()["state"] == "closed"
+
+    def test_snapshot_structure(self):
+        snap = get_circuit_breaker_snapshot()
+        assert "state" in snap
+        assert "consecutive_failures" in snap
+        assert "threshold" in snap
+        assert "cooldown_s" in snap

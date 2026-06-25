@@ -661,7 +661,43 @@ class AtomMetaAgent:
         if not final_answer:
             final_answer = "Maximum reasoning steps reached. Please refine your request."
             status = "max_steps_exceeded"
-        
+
+        # on_session_end hook — final extraction pass over the whole turn.
+        # Catches durable facts the per-turn hook missed (e.g. facts that only
+        # became visible once the final answer was composed). Fire-and-forget.
+        if _TURN_FACT_EXTRACTION_ENABLED:
+            try:
+                extractor = get_turn_fact_extractor(
+                    workspace_id=self.workspace_id, tenant_id=self.tenant_id
+                )
+                # Compose a compact session digest for the final pass.
+                digest_parts = [f"REQUEST: {request}"]
+                for s in steps[-6:]:  # last 6 steps keep it bounded
+                    t = (s.get("thought") or "")[:200]
+                    o = (s.get("output") or "")[:200]
+                    if t:
+                        digest_parts.append(f"THOUGHT: {t}")
+                    if o:
+                        digest_parts.append(f"OBSERVATION: {o}")
+                digest_parts.append(f"FINAL ANSWER: {final_answer}")
+                task = asyncio.create_task(
+                    extractor.extract_from_turn(
+                        user_request=request,
+                        thought="\n".join(digest_parts),
+                        final_answer=final_answer,
+                        execution_id=execution_id,
+                        session_id=context.get("session_id") if context else None,
+                        user_id=context.get("user_id") if context else None,
+                        maturity=None,
+                    )
+                )
+                _pending_extraction_tasks.add(task)
+                task.add_done_callback(
+                    lambda t, _s=_pending_extraction_tasks: _s.discard(t)
+                )
+            except Exception as e:
+                logger.debug(f"on_session_end extraction dispatch failed: {e}")
+
         # 4. Record Execution
         result_payload = {
             "final_output": final_answer,

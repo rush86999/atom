@@ -1,8 +1,8 @@
 # Context Memory: Per-Turn Fact Extraction
 
-> **Status:** Implemented (Phase 1-7). Default OFF except pre-compress queue.
+> **Status:** Implemented (Phase 1-7 + gap-analysis follow-on). Extraction + vector recall default OFF; pre-compress queue ON.
 > **Evidence base:** Mem0 / Hermes deep-dive on production context-compression failures.
-> **Related code:** `backend/core/turn_fact_extractor.py`, `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py`
+> **Related code:** `backend/core/turn_fact_extractor.py`, `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py`, `backend/tools/memory_tool.py`
 
 ---
 
@@ -201,9 +201,23 @@ Postgres and Redis/Valkey support is retained for production parity and WebSocke
 
 ## Verification
 
-See `backend/tests/test_turn_fact_extraction.py` (55 tests) and `backend/tests/test_turn_fact_queue.py` (8 tests). All green.
+See `backend/tests/test_turn_fact_extraction.py` (60 tests incl. circuit breaker), `test_turn_fact_queue.py` (8 tests), `test_memory_tools.py` (15 tests), `test_reasoning_fts.py` (11 tests), `test_context_compression.py` (13 tests). All green.
 
-Covers: schema + unique constraint, regex pre-filter (positive + negative), hash normalization, JSON parse robustness (clean/wrapped/dirty/garbage), extract core (happy path / pre-filter skip / invalid category / cap / empty / parse failure), all dedup branches (EWMA bump / supersede), maturity gate, sample rate, every failure mode (LLM raises / timeout / LanceDB failure / pre-compress entrypoint), TTLSet eviction, Tier-1 retrieval (ordering / category filter / empty / failure), Tier-2 recall (flag off / trivial / short / happy / LanceDB failure), cloud-gate flag default.
+Covers: schema + unique constraint, regex pre-filter (positive + negative), hash normalization, JSON parse robustness (clean/wrapped/dirty/garbage), extract core (happy path / pre-filter skip / invalid category / cap / empty / parse failure), all dedup branches (EWMA bump / supersede), maturity gate, sample rate, every failure mode (LLM raises / timeout / LanceDB failure / pre-compress entrypoint), TTLSet eviction, Tier-1 retrieval (ordering / category filter / empty / failure), Tier-2 recall (flag off / trivial / short / happy / LanceDB failure), cloud-gate flag default, circuit breaker (trip / skip / half-open probe / close-on-success), agent memory tools (remember / forget / deletion safety), FTS5 lexical search (happy path / exact-match / special chars / graceful degradation), boundary-protection truncation (head + tail preserved), tool-pair sanitization (orphan stub injection / trailing-call drop).
+
+---
+
+## Gap-Analysis Follow-On (Hermes comparison)
+
+After the initial extraction layer, a structured gap analysis against the Hermes agent surfaced 5 follow-on improvements. All 5 are now implemented:
+
+| # | Feature | What it does | File |
+|---|---|---|---|
+| 1 | **Agent-callable memory tools** | `memory_remember` (INTERN+) and `memory_forget` (SUPERVISED+) let the agent explicitly persist or invalidate a durable fact mid-turn. Backed by `remember_fact_explicit` / `forget_fact_explicit`. Deletion safety: refuses to forget without a specific target. | `tools/memory_tool.py` |
+| 2 | **`on_session_end` hook** | Final extraction pass over the full turn digest when the ReAct loop completes — catches facts only visible once the final answer is composed. Fire-and-forget. | `atom_meta_agent.py` (post-loop) |
+| 3 | **Circuit breaker** | After N consecutive failures (default 5), extraction is skipped for a cooldown (default 120s). Closed → Open → Half-open (one probe) → Closed. Prevents extraction storms during provider outages. Mirrors Hermes' Mem0-provider 2-min/5-failure pattern. | `turn_fact_extractor.py:_CircuitBreaker` |
+| 4 | **FTS5 lexical session search** | SQLite FTS5 virtual table over `agent_reasoning_steps` (thought + observation) with auto-sync triggers. Fast exact-match fallback for error strings / IDs / function names — the queries where semantic recall misses. Postgres equivalent: tsvector + GIN index. | `search_reasoning_steps_lexical()`, migration `20260624_reasoning_fts` |
+| 5 | **Context compression (deterministic only)** | `truncate_to_context` rewritten from naive head-chop to **boundary protection** (preserve head + tail, drop stale middle — tail gets 60% share). Plus `sanitize_tool_pairs()` for the message-array path (inject stub `assistant.tool_calls` before orphaned `tool` results → prevents OpenAI 400). **No LLM-summary phase** — Hermes' own has 3 documented production bugs; provider compaction APIs are the right place for lossy summarization. | `byok_handler.py` |
 
 ---
 
