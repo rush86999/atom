@@ -166,6 +166,7 @@
 | [intelligence/overview.md](intelligence/overview.md) | **Intelligence systems overview** - Memory, knowledge, and reasoning | Apr 7, 2026 |
 | [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory - Agent learning framework** | Feb 3, 2026 |
 | [architecture/CONTEXT_MEMORY.md](architecture/CONTEXT_MEMORY.md) | **Context Memory - Per-turn fact extraction** - Hermes-style durable-fact layer, two-tier recall, embedded LanceDB | Jun 24, 2026 |
+| [architecture/HERMES_COMPARISON.md](architecture/HERMES_COMPARISON.md) | **Atom vs. Hermes Agent** - Capability matrix, decision log, what was deliberately deferred | Jun 24, 2026 |
 | [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ Self-Evolution & Reflection Pool** - Critique-based learning and Auto-Dev | Apr 12, 2026 |
 | [intelligence/graphrag.md](intelligence/graphrag.md) | **GraphRAG & Entity Types** - Knowledge graph and entity extraction | Mar 24, 2026 |
 | [intelligence/world-model-guide.md](intelligence/world-model-guide.md) | **World Model & Business Facts** - Knowledge management and JIT provision | Apr 7, 2026 |

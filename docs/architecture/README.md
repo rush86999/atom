@@ -19,6 +19,7 @@ System architecture, design patterns, and technical specifications.
 
 ### Memory & Context
 - **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨
+- **[Atom vs. Hermes Comparison](HERMES_COMPARISON.md)** - Evidence-based capability matrix, decision log, and what Atom deliberately didn't build (and why)
 
 ### Application Design
 - **[Decorator Application Complete](DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns

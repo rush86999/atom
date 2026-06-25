@@ -33,12 +33,35 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 | **Best For** | Business automation, multi-agent workflows | Personal productivity, messaging workflows |
 | **Agent Model** | Multi-agent system with specialty agents | Single-agent runtime |
 | **Governance** | ✅ 4-tier maturity (Student → Autonomous) | ❌ No maturity levels |
-| **Memory** | ✅ Episodic memory with graduation validation | ✅ Persistent Markdown files |
+| **Memory** | ✅ Episodic memory + per-turn fact extraction + agent memory tools | ✅ Persistent Markdown files |
 | **Integrations** | 46+ business (CRM, support, dev tools) | 50+ personal (smart home, media, messaging) |
 | **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
 | **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
 
 [Full Comparison →](docs/features/atom-vs-openclaw.md)
+
+---
+
+## Atom vs Hermes Agent: Quick Comparison
+
+Hermes (Nous Research) is an open-source personal agent known for its memory-provider architecture. Atom adopted its strongest ideas (per-turn fact extraction, pre-compression hooks, circuit breaker, FTS5 search) and deliberately avoided its weakest (custom LLM-summarizing compressor — Hermes' own has 3 documented production bugs).
+
+| Aspect | Atom | Hermes Agent |
+|--------|------|--------------|
+| **Best For** | Business automation, governed multi-agent workflows | Personal coding/productivity assistant |
+| **Memory extraction** | ✅ Per-turn durable-fact extraction (5 categories, Mem0 taxonomy) | ✅ Memory-provider ABC with 7 hooks (reference design) |
+| **Context compression** | ✅ Boundary protection + tool-pair sanitization (deterministic only) | ◐ 4-phase compressor incl. LLM summary (3 documented bugs) |
+| **Agent memory tools** | ✅ `memory_remember` / `memory_forget` (maturity-gated) | ✅ `lancedb_remember` / `mem0_*` tool family |
+| **Governance** | ✅ 4-tier maturity (Student → Autonomous) + HITL supervision | ❌ None |
+| **Multi-agent** | ✅ Queen + Fleet Admiral + specialty agents | ❌ Single agent loop |
+| **Canvas / rich UI** | ✅ 7 canvas types, WebSocket, a11y | ❌ Terminal + messaging |
+| **Cost routing** | ✅ 5-tier cognitive classification | ◐ Aux-model only |
+| **Observability** | ✅ Prometheus + `/health/*` + structlog | ❌ WARNING logs |
+| **Retrieval** | Tier-1 SQL + Tier-2 vector + FTS5 lexical | Vector + BM25 hybrid + cross-encoder reranker |
+| **Circuit breaker** | ✅ 5 failures → 120s cooldown → half-open probe | ✅ 2-min/5-failure (fixed window) |
+| **Deployment** | Python + FastAPI + SQLite/PostgreSQL + embedded LanceDB | Python self-hosted + embedded LanceDB |
+
+[Full Comparison →](docs/architecture/HERMES_COMPARISON.md) · [Context Memory Design →](docs/architecture/CONTEXT_MEMORY.md)
 
 ---
 
@@ -148,6 +171,17 @@ Rich interactive presentations (charts, forms, markdown) with live operation vis
 Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
 
 [Agent Graduation Guide →](docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md)
+
+### 💾 Memory & Context (Hermes-style) ✨ New 2026
+Durable-fact extraction layer that survives context compression — the agent remembers what matters across sessions:
+- **Per-turn extraction**: 5 durable-fact categories (exact values, hard constraints, decision reasoning, cross-task deps, implicit preferences) extracted fire-and-forget after each ReAct step
+- **Two-tier recall**: Tier-1 pure-SQL `DURABLE FACTS` prompt block (sub-ms) + Tier-2 LanceDB semantic recall (opt-in) + FTS5 lexical fallback for exact-match queries
+- **Agent memory tools**: `memory_remember` / `memory_forget` let the agent explicitly persist or invalidate facts mid-turn (maturity-gated, deletion-safe)
+- **Pre-compression queue**: drains prompts before truncation drops facts (strictly additive, default ON)
+- **Circuit breaker**: 5 failures → 120s cooldown → half-open probe (prevents extraction storms)
+- **Boundary-protection compression**: head + tail preserved, stale middle elided (deterministic; no buggy LLM-summary phase)
+
+[Context Memory Design →](docs/architecture/CONTEXT_MEMORY.md) · [Atom vs. Hermes →](docs/architecture/HERMES_COMPARISON.md)
 
 ### 🛡️ Agent Governance System ✨ Enhanced 2026
 - **4-tier maturity**: Student → Intern → Supervised → Autonomous

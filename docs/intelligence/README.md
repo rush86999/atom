@@ -13,6 +13,8 @@ AI capabilities, knowledge management, and cognitive systems for Atom agents wit
 - **[Episodic Memory Quick Start](episodic-quickstart.md)** - Get started with episodic memory
 - **[Memory Integration](memory-integration.md)** - Memory system integration guide
 - **[Context Memory (Per-Turn Fact Extraction)](../architecture/CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction; two-tier recall; extraction-first over compression-first ✨
+- **[Atom vs. Hermes Comparison](../architecture/HERMES_COMPARISON.md)** - Capability matrix + decision log vs. the Hermes agent
+- **[Agent Memory Tools](../../backend/tools/memory_tool.py)** - `memory_remember` (INTERN+) / `memory_forget` (SUPERVISED+) — explicit agent-initiated persist/invalidate
 
 #### ✨ Self-Evolution (Enhanced 2026)
 - **[Self-Evolution & Reflection Pool](self-evolution.md)** - Agents learn from mistakes and improve

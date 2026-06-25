@@ -92,6 +92,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 31. **Workflow ReDoS Guard** (`core/workflow_parameter_validator.py`): `MAX_REGEX_LENGTH=200` + `_has_redos_risk()` heuristic on user-supplied regex patterns
 32. **Ollama Local LLM** (`core/llm/byok_handler.py`, `core/byok_endpoints.py`): First-class provider for fully local inference via Ollama's OpenAI-compatible API (`OLLAMA_BASE_URL`); no API key required, registered in `PROVIDER_TIERS["budget"]` with zero cost
 33. **Per-Turn Fact Extraction** (`core/turn_fact_extractor.py`, `core/turn_fact_queue.py`, `core/turn_fact_vector_store.py`, `core/turn_fact_categories.py`): Hermes-style memory-provider layer. Two entrypoints — `extract_from_turn()` (`sync_turn` hook, fires fire-and-forget after each ReAct step) and `extract_from_prompt_before_truncation()` (`on_pre_compress` hook, drained by `ExtractionQueue` worker). Extracts Mem0's 5 durable-fact categories (exact_value, hard_constraint, decision_reason, cross_task_dep, implicit_pref) using `model="fast"` + 2s timeout. Two-tier recall: Tier-1 pure-SQL `DURABLE FACTS` prompt block (sub-ms), Tier-2 LanceDB semantic `prefetch_relevant_facts()` (opt-in). SQL row is source of truth; LanceDB write is best-effort. Maturity-gated (STUDENT agents read-only). Never raises, never silently drops. See `docs/architecture/CONTEXT_MEMORY.md`
+34. **Agent Memory Tools + Gap-Analysis Layer** (`tools/memory_tool.py`, `core/turn_fact_extractor.py`, `core/llm/byok_handler.py`): (a) `memory_remember` (INTERN+, complexity 2) / `memory_forget` (SUPERVISED+, complexity 3) — agent-callable tools for explicit persist/invalidate; deletion safety refuses blank targets. (b) Circuit breaker (`_CircuitBreaker`: 5 failures → 120s cooldown → half-open probe → close-on-success) prevents extraction storms during provider outages. (c) FTS5 lexical search (`search_reasoning_steps_lexical()` + migration `20260624_reasoning_fts`) — exact-match fallback for error strings/IDs. (d) `on_session_end` extraction hook (final pass over turn digest). (e) Context compression — `truncate_to_context` boundary protection (head+tail preserved, middle elided) + `sanitize_tool_pairs()` (stub injection prevents OpenAI 400). No LLM-summary phase (Hermes' own has 3 documented bugs). See `docs/architecture/HERMES_COMPARISON.md`
 
 ---
 
@@ -293,6 +294,8 @@ Test files: `backend/tests/e2e_ui/conftest.py`, `fixtures/auth_fixtures.py` (API
 ## Important File Locations
 
 **Core**: `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`, `llm/byok_handler.py`, `models.py`, `agent_world_model.py`, `graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`, `turn_fact_extractor.py` (+ `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py` — see `docs/architecture/CONTEXT_MEMORY.md`)
+
+**Memory Tools**: `tools/memory_tool.py` (`memory_remember` / `memory_forget` — agent-callable), `core/turn_fact_extractor.py` (extraction, circuit breaker, FTS5 search, recall). Comparison: `docs/architecture/HERMES_COMPARISON.md`
 
 **API**: `atom_agent_endpoints.py`, `api/canvas_routes.py`, `api/browser_routes.py`, `api/device_capabilities.py`, `api/deeplinks.py`, `api/admin/business_facts_routes.py`, `api/entity_type_routes.py`, `api/graphrag_routes.py`, `api/health_routes.py`
 
