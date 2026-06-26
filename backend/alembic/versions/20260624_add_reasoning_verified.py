@@ -37,25 +37,36 @@ def _column_exists(table_name: str, column_name: str) -> bool:
     return column_name in cols
 
 
+def _table_exists(table_name: str) -> bool:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    return table_name in inspector.get_table_names()
+
+
 def upgrade() -> None:
-    if not _column_exists("agent_reasoning_steps", "agent_reasoning_steps"):
-        # table itself missing — no-op (fresh DBs create via Base.metadata)
+    if not _table_exists("agent_reasoning_steps"):
+        # base table missing — fresh DBs create it (with our column) via
+        # Base.metadata.create_all at app start. No-op here.
         return
-    if not _column_exists("agent_reasoning_steps", "verified"):
+    # SQLite batch_alter_table recreates the whole table per call, so add
+    # both columns in ONE batch to avoid the second batch clobbering the first.
+    need_verified = not _column_exists("agent_reasoning_steps", "verified")
+    need_evidence = not _column_exists("agent_reasoning_steps", "verification_evidence")
+    if need_verified or need_evidence:
         with op.batch_alter_table("agent_reasoning_steps") as batch_op:
-            batch_op.add_column(
-                sa.Column(
-                    "verified",
-                    sa.String(length=24),
-                    server_default="unverified",
-                    nullable=False,
+            if need_verified:
+                batch_op.add_column(
+                    sa.Column(
+                        "verified",
+                        sa.String(length=24),
+                        server_default="unverified",
+                        nullable=False,
+                    )
                 )
-            )
-    if not _column_exists("agent_reasoning_steps", "verification_evidence"):
-        with op.batch_alter_table("agent_reasoning_steps") as batch_op:
-            batch_op.add_column(
-                sa.Column("verification_evidence", sa.Text(), nullable=True)
-            )
+            if need_evidence:
+                batch_op.add_column(
+                    sa.Column("verification_evidence", sa.Text(), nullable=True)
+                )
 
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
