@@ -221,6 +221,39 @@ After the initial extraction layer, a structured gap analysis against the Hermes
 
 ---
 
+## Reddit-Critique Follow-On (outcome prefilter + verified contract)
+
+Two further gaps surfaced from a Reddit review of the extraction layer:
+
+### Outcome prefilter (cosine can't separate pass from fail)
+
+**Problem:** Episodes were embedded as title + description + summary + topics — no outcome. A snapshot that succeeded and one that failed are near-identical text, so they land almost on top of each other in vector space. The exact signal self-correction depends on ("did this state fail before?") is what cosine similarity is worst at separating.
+
+**Fix:** Push `outcome` into LanceDB metadata and prefilter on it BEFORE the vector search (LanceDB does this natively). Specifically:
+- `EpisodeSegmentationService._derive_outcome()` computes `success` | `failure` | `partial` | `unknown` from execution statuses
+- The outcome is stored in the LanceDB metadata dict at index time
+- `EpisodeRetrievalService.retrieve_semantic(outcome=...)` builds a native `WHERE outcome == '...'` prefilter (zero added latency)
+- `retrieve_failed_similar()` is the self-correction entrypoint — prefilters failures, then ranks within them by similarity
+
+This is the standard hybrid-retrieval pattern: structured discriminator as prefilter, similarity as ranker.
+
+### Verified-outcome contract (silent no-op defense)
+
+**Problem:** Tool returns were stringified and recorded as observations with no verification. Tools self-report `{"success": True}` when they don't throw. Graduation incremented success counters on the self-reported bool — and one call site even hardcoded `success=True` regardless of the return. A silent no-op (tool does nothing, returns success) would propagate as a learned success and inflate capability stats. "State blindness one layer up."
+
+**Fix — tri-state verified flag:**
+- `core/tool_outcome_verifier.py` parses tool returns into a `VerifiedOutcome(kind, success, evidence)`:
+  - `verified` — tool actively confirmed the world changed (returned evidence)
+  - `unverified` (default) — tool self-reported success without evidence
+  - `failed_verification` — an explicit verify() step rejected the result
+- Parsed at the ReAct loop observation site and persisted on `AgentReasoningStep.verified` + `verification_evidence`
+- `CapabilityGraduationService.record_usage` now gates on `verified='verified'` — only verified successes increment the graduation counter. Unverified successes still count in the denominator (they *lower* the success ratio), so silent no-ops cannot inflate capability stats.
+- Backward-compatible: existing tools returning a plain string or `{success: true}` without a `verified` key default to `unverified` — no contract break, they just stop being able to graduate capabilities alone.
+
+Also fixed a pre-existing bug surfaced by this work: `CapabilityGraduationService` referenced `agent.properties` which doesn't exist on `AgentRegistry` — it now uses the real `configuration` JSON column with `flag_modified`.
+
+---
+
 ## Out of Scope (deferred)
 
 - Building a custom context compressor (evidence says don't)

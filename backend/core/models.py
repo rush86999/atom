@@ -1026,6 +1026,15 @@ class AgentReasoningStep(Base):
     
     confidence = Column(Float, default=1.0)
     duration_ms = Column(Float, default=0.0)
+
+    # Outcome verification (silent no-op defense).
+    # Tri-state: 'verified' | 'unverified' | 'failed_verification'
+    # - 'verified': tool returned a verifiable success signal + evidence
+    # - 'unverified' (default): tool self-reported success without evidence
+    # - 'failed_verification': a verify() hook explicitly rejected the result
+    # Graduation gates on 'verified' so silent no-ops can't inflate capability stats.
+    verified = Column(String(24), default="unverified", nullable=False, index=True)
+    verification_evidence = Column(Text, nullable=True)
     
     # RLHF Feedback (Phase 6)
     feedback_score = Column(Integer, nullable=True) # 1 (like) or -1 (dislike)

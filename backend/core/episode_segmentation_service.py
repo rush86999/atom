@@ -302,6 +302,7 @@ class EpisodeSegmentationService:
             "workspace_id": "default",
             "session_id": session_id,
             "status": "completed",
+            "outcome": self._derive_outcome(executions),
             "topics": self._extract_topics(messages, executions),
             "maturity_at_time": self._get_agent_maturity(agent_id),
             "human_intervention_count": self._count_interventions(executions),
@@ -492,6 +493,32 @@ class EpisodeSegmentationService:
                 count += 1
         return count
 
+    def _derive_outcome(self, executions: List[AgentExecution]) -> str:
+        """
+        Derive episode outcome from constituent execution statuses.
+
+        Returns one of: 'success' | 'failure' | 'partial' | 'unknown'.
+        - failure: any execution failed
+        - success: all executions completed successfully
+        - partial: mix without explicit failure (e.g. max_steps_exceeded)
+        - unknown: no executions to derive from
+
+        This is stored in LanceDB metadata so retrieval can prefilter on it
+        BEFORE vector search — cosine similarity cannot reliably separate
+        near-identical success/failure snapshots (general critique, fixed).
+        """
+        if not executions:
+            return "unknown"
+        statuses = []
+        for exec in executions:
+            s = getattr(exec, "status", None)
+            statuses.append(str(s).lower() if s else "")
+        if any("fail" in s or "error" in s for s in statuses):
+            return "failure"
+        if all("complete" in s or "success" in s for s in statuses) and statuses:
+            return "success"
+        return "partial"
+
     def _extract_human_edits(self, executions: List[AgentExecution]) -> List[Dict[str, Any]]:
         """Extract human corrections during episode"""
         edits = []
@@ -630,6 +657,7 @@ Topics: {', '.join(episode.get('topics', []))}
                 "workspace_id": episode["workspace_id"],
                 "session_id": episode["session_id"],
                 "status": episode["status"],
+                "outcome": episode.get("outcome", "unknown"),
                 "topics": episode.get("topics", []),
                 "maturity_at_time": episode.get("maturity_at_time"),
                 "human_intervention_count": episode.get("human_intervention_count", 0),

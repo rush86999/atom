@@ -33,7 +33,9 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Agent-callable memory tools** | ✅ | ✅ | `memory_remember` / `memory_forget` (Atom) vs `lancedb_remember` / `mem0_*` (Hermes). |
 | **Context compression** | ◐ | ◐ | Both partial. Hermes has an LLM-summary phase (3 documented bugs); Atom has boundary-protection + tool-pair sanitization only (no LLM summary, deliberately). |
 | **FTS5 lexical search** | ✅ | ✅ | Both have SQLite FTS5 session search. |
-| **Hybrid retrieval + reranker** | ❌ | ✅ | Hermes has BM25+vector fusion + cross-encoder reranker. Atom is pure vector. |
+| **Hybrid retrieval + reranker** | ❌ | ✅ | Hermes has BM25+vector fusion + cross-encoder reranker. Atom is pure vector (deferred — modest benchmark gain). |
+| **Outcome prefilter (pass/fail)** | ✅ | ❌ | Atom prefilters `WHERE outcome='failure'` BEFORE vector search (native LanceDB). Hermes relies on cosine, which can't separate near-identical success/fail snapshots. |
+| **Outcome verification** | ✅ | ❌ | Atom: tri-state `verified` flag; graduation gates on evidence. Hermes trusts tool self-report. |
 | **Tier-1 SQL recall** | ✅ | ➖ | Atom injects `DURABLE FACTS` prompt block. Hermes uses curated markdown instead. |
 | **Circuit breaker (memory)** | ✅ | ✅ | Both: trip after N failures, cooldown. Atom half-open probes; Hermes fixed window. |
 | **Maturity / governance** | ✅ | ❌ | Atom: STUDENT→INTERN→SUPERVISED→AUTONOMOUS with action gating. Hermes has none. |
@@ -150,11 +152,12 @@ These are capabilities Hermes lacks or doesn't document — **not gaps to close,
 
 Opportunities — but not Hermes-derived, so not tracked as gaps:
 
-- **Reflection / self-correction** — neither documents a critique/backtracking phase in the reasoning loop
+- **Reflection / self-correction** — neither documents a critique/backtracking phase in the reasoning loop. Atom's episodic outcome-prefilter (retrieve past failures similar to the current state) is a building block, not a full self-correction loop.
 - **Parallel tool calls** — both are sequential
 - **Tool-result caching** — neither has it
 - **Sleep-like offline consolidation** — both have approximate versions (episode decay / LanceDB compaction); neither has a true forgetting curve
 - **Distributed tracing** — Atom has structured logs + Prometheus; no OpenTelemetry. Hermes has neither.
+- **Full state-diff verification** — Atom's verified-outcome contract distinguishes "tool said success" from "tool proved success via evidence" and gates graduation on the latter, but it does not yet snapshot world state before/after an action to compute a real diff. That's the "full" tier described in [Context Memory](CONTEXT_MEMORY.md) — deferred until the minimum-viable contract proves its value.
 
 ---
 

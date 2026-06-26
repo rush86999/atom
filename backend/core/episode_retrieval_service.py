@@ -149,9 +149,21 @@ class EpisodeRetrievalService:
         self,
         agent_id: str,
         query: str,
-        limit: int = 10
+        limit: int = 10,
+        outcome: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Semantic similarity search via LanceDB"""
+        """
+        Semantic similarity search via LanceDB.
+
+        Args:
+            outcome: Optional prefilter — one of 'success' | 'failure' |
+                'partial' | 'unknown'. When set, LanceDB natively prefilters
+                ``WHERE outcome == '<value>'`` BEFORE the vector search.
+                This is essential for self-correction: cosine similarity on
+                near-identical success/failure snapshots cannot reliably
+                separate them, so 'did this state fail before' must be a
+                metadata prefilter, not a similarity decision.
+        """
         # Governance check (Level 2, INTERN+)
         governance_check = self.governance.can_perform_action(
             agent_id=agent_id,
@@ -165,12 +177,20 @@ class EpisodeRetrievalService:
                 "governance_check": governance_check
             }
 
+        # Build native prefilter — agent_id always, outcome when requested.
+        # LanceDB applies this BEFORE the vector search (zero added latency),
+        # which is the correct place for a structured discriminator.
+        filters = [f"agent_id == '{agent_id}'"]
+        if outcome:
+            filters.append(f"outcome == '{outcome}'")
+        filter_str = " AND ".join(filters)
+
         # Search LanceDB
         try:
             results = self.lancedb.search(
                 table_name="episodes",
                 query=query,
-                filter_str=f"agent_id == '{agent_id}'",
+                filter_str=filter_str,
                 limit=limit
             )
 
@@ -215,6 +235,29 @@ class EpisodeRetrievalService:
                 "error": str(e),
                 "governance_check": governance_check
             }
+
+    async def retrieve_failed_similar(
+        self,
+        agent_id: str,
+        query: str,
+        limit: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Self-correction helper: retrieve past FAILED episodes similar to the
+        current state. Prefilters ``outcome == 'failure'`` BEFORE vector search
+        so cosine similarity ranks within failures, rather than being trusted
+        to separate pass from fail (which it cannot do reliably for
+        near-identical snapshots).
+
+        This is the entry point an agent should call when it suspects it has
+        been in a failing state before.
+        """
+        return await self.retrieve_semantic(
+            agent_id=agent_id,
+            query=query,
+            limit=limit,
+            outcome="failure",
+        )
 
     async def retrieve_sequential(
         self,

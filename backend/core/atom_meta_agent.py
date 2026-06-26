@@ -30,6 +30,7 @@ from typing import Literal
 from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
 from core.react_models import ReActStep
+from core.tool_outcome_verifier import parse_tool_outcome
 
 # Per-turn durable-fact extraction (Hermes-style memory layer).
 # Fire-and-forget — never blocks the ReAct loop. Feature-flag default OFF.
@@ -578,9 +579,21 @@ class AtomMetaAgent:
                     observation = await self._execute_tool_with_governance(
                         tool_name, tool_args, context, step_callback
                     )
-                    
+
                     step_record["output"] = str(observation)[:500]
                     execution_history += f"Observation: {observation}\n"
+
+                    # Parse the tool return for a verification envelope
+                    # {success, verified, evidence}. Silent no-ops that return
+                    # success without evidence land as 'unverified' and cannot
+                    # inflate graduation counters (general critique, fixed).
+                    try:
+                        _vo = parse_tool_outcome(observation)
+                        step_record["_verified_kind"] = _vo.kind
+                        step_record["_verified_evidence"] = _vo.evidence
+                    except Exception:
+                        step_record["_verified_kind"] = "unverified"
+                        step_record["_verified_evidence"] = None
 
                 # Update duration after tool execution
                 step_record["duration_ms"] = (datetime.now(timezone.utc) - step_start).total_seconds() * 1000
@@ -598,6 +611,8 @@ class AtomMetaAgent:
                         action=react_step.action.model_dump() if react_step.action else None,
                         observation=step_record.get("output"),
                         confidence=step_record["confidence"],
+                        verified=step_record.get("_verified_kind", "unverified"),
+                        verification_evidence=step_record.get("_verified_evidence"),
                         duration_ms=step_record["duration_ms"]
                     )
                     db.add(db_step)
@@ -992,8 +1007,25 @@ What is your next step?"""
                 # Execute logic...
                 result = await self.mcp.call_tool(capability_name, args.get("params", {}), context=context)
 
-                # Record usage for graduation
-                self.graduation_service.record_usage(self.tenant_id, "atom_main", capability_name, success=True)
+                # Record usage for graduation — parse the result envelope so
+                # only VERIFIED successes can promote the capability. A silent
+                # no-op returning {success: true} without evidence lands as
+                # 'unverified' and cannot inflate the success ratio.
+                try:
+                    _cap_outcome = parse_tool_outcome(result)
+                    self.graduation_service.record_usage(
+                        self.tenant_id,
+                        "atom_main",
+                        capability_name,
+                        success=_cap_outcome.success,
+                        verified=_cap_outcome.kind,
+                    )
+                except Exception:
+                    # Never let graduation bookkeeping break the turn
+                    self.graduation_service.record_usage(
+                        self.tenant_id, "atom_main", capability_name,
+                        success=True, verified="unverified",
+                    )
                 return str(result)
 
             # 2. Execute via MCP with governance check
