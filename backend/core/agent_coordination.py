@@ -408,6 +408,8 @@ class MultiAgentCanvasService:
             return await self._coordinate_sequential(canvas_id, tenant_id, task, required_agents)
         elif coordination_strategy == "coordinated_strategy":
             return await self._coordinate_diverse_strategy(canvas_id, tenant_id, task, required_agents)
+        elif coordination_strategy == "dynamic":
+            return await self._coordinate_dynamic(canvas_id, tenant_id, task, required_agents)
         else:
             raise ValueError(f"Coordination strategy {coordination_strategy} not supported yet in upstream.")
 
@@ -466,6 +468,56 @@ class MultiAgentCanvasService:
             "status": "negotiation_active",
             "recruited_partners": recruited
         }
+
+    async def _coordinate_dynamic(
+        self,
+        canvas_id: str,
+        tenant_id: str,
+        task: str,
+        required_agents: List[str],
+    ) -> Dict:
+        """DyTopo-guided coordination (single-tenant port).
+
+        Flag-gated via ``DYTOPO_ROUTING_ENABLED``. Falls back to sequential on
+        any error or when the flag is off.
+        """
+        try:
+            from core.dytopo_router import DYTOPO_ROUTING_ENABLED, DyTopoRouter
+            from core.llm_service import LLMService
+        except Exception as exc:
+            logger.debug("dytopo imports failed; falling back to sequential: %s", exc)
+            return await self._coordinate_sequential(canvas_id, tenant_id, task, required_agents)
+
+        if not DYTOPO_ROUTING_ENABLED:
+            return await self._coordinate_sequential(canvas_id, tenant_id, task, required_agents)
+
+        try:
+            specialists = (
+                self.db.query(AgentRegistry).filter(
+                    AgentRegistry.id.in_(required_agents)
+                ).all()
+                if required_agents
+                else []
+            )
+
+            llm = LLMService()
+            router = DyTopoRouter(db=self.db, llm=llm)
+            topology = await router.compute_round_topology(
+                execution_id=f"canvas:{canvas_id}",
+                specialists=specialists,
+                prior_state=None,
+            )
+
+            return {
+                "coordination_type": "dynamic",
+                "task": task,
+                "status": "initiated",
+                "topology": topology,
+                "required_agents": required_agents,
+            }
+        except Exception as exc:
+            logger.debug("dytopo _coordinate_dynamic failed; falling back: %s", exc)
+            return await self._coordinate_sequential(canvas_id, tenant_id, task, required_agents)
 
 
 # WebSocket handler function for agent handoffs
