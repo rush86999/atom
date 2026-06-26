@@ -635,6 +635,24 @@ class EpisodeSegmentationService:
 
         return "\n".join(parts)
 
+    def _ensure_episode_columns(self, table_name: str):
+        """
+        Best-effort schema evolution: add `outcome` and `agent_id` columns
+        to an existing episodes table that predates the outcome-prefilter.
+        LanceDB supports add_columns via the arrow Table API.
+        """
+        try:
+            table = self.lancedb.get_table(table_name)
+            if table is None:
+                return
+            existing = {f.name for f in table.schema}
+            if "outcome" not in existing:
+                table.add_columns({"outcome": "string"})
+            if "agent_id" not in existing:
+                table.add_columns({"agent_id": "string"})
+        except Exception as e:
+            logger.debug(f"_ensure_episode_columns skipped: {e}")
+
     async def _archive_to_lancedb(self, episode: dict):
         """Archive episode to LanceDB for semantic search"""
         if not self.lancedb.db:
@@ -665,19 +683,32 @@ Topics: {', '.join(episode.get('topics', []))}
                 "type": "episode"
             }
 
-            # Create episodes table if it doesn't exist
+            # Create episodes table if it doesn't exist — but DON'T pre-create
+            # with the default schema. add_document will infer the schema from
+            # the first record, so outcome + agent_id become native top-level
+            # filterable columns (required for the outcome prefilter). For
+            # existing tables missing those columns, add them best-effort.
             table_name = "episodes"
-            if table_name not in self.lancedb.db.table_names():
-                self.lancedb.create_table(table_name)
+            if table_name in self.lancedb.db.table_names():
+                self._ensure_episode_columns(table_name)
+            # If the table doesn't exist, add_document creates it from this record.
 
-            # Add to LanceDB
+            # Add to LanceDB. outcome + agent_id are passed as top-level
+            # columns (extra_columns) so LanceDB can prefilter on them
+            # natively BEFORE vector search. Storing them only inside the
+            # serialized metadata JSON would make the WHERE outcome='...'
+            # prefilter impossible (cosine cannot separate pass/fail).
             self.lancedb.add_document(
                 table_name=table_name,
                 text=content,
                 source=f"episode:{episode['id']}",
                 metadata=metadata,
                 user_id=episode["user_id"] or "system",
-                extract_knowledge=False
+                extract_knowledge=False,
+                extra_columns={
+                    "outcome": episode.get("outcome", "unknown"),
+                    "agent_id": episode.get("agent_id", ""),
+                },
             )
 
             logger.info(f"Archived episode {episode['id']} to LanceDB")
@@ -1435,10 +1466,15 @@ Topics: {', '.join(episode.topics)}
                 "type": "supervision_episode"
             }
 
-            # Create episodes table if it doesn't exist
+            # Create episodes table if it doesn't exist — but DON'T pre-create
+            # with the default schema. add_document will infer the schema from
+            # the first record, so outcome + agent_id become native top-level
+            # filterable columns (required for the outcome prefilter). For
+            # existing tables missing those columns, add them best-effort.
             table_name = "episodes"
-            if table_name not in self.lancedb.db.table_names():
-                self.lancedb.create_table(table_name)
+            if table_name in self.lancedb.db.table_names():
+                self._ensure_episode_columns(table_name)
+            # If the table doesn't exist, add_document creates it from this record.
 
             # Add to LanceDB
             self.lancedb.add_document(

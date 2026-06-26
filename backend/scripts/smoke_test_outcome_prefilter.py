@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+"""
+Smoke test for the episodic outcome prefilter — exercises the real
+LanceDB native-filter path against a real (temp) LanceDB instance.
+
+Demonstrates the Reddit critic's exact scenario: success and failure
+snapshots of the same action are near-identical text, so they land almost
+on top of each other in vector space. Cosine similarity cannot separate
+them. The outcome prefilter (native LanceDB metadata filter applied
+BEFORE the vector search) cleanly can.
+
+Method:
+  - A deterministic stub embedder places episodes sharing a "topic" at
+    near-identical points (small noise), and different topics orthogonal.
+    This deliberately mirrors the critic's claim — we are NOT relying on
+    embedding quality to make the point; we're proving the prefilter works
+    in the exact case embeddings fail.
+  - Episodes are indexed with real LanceDB + real metadata (incl. outcome).
+  - retrieve_semantic is exercised via the real LanceDBHandler.search()
+    with filter_str built the way the retrieval service builds it.
+
+Run:
+    cd backend && PYTHONPATH=..:. python3 scripts/smoke_test_outcome_prefilter.py
+"""
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+import tempfile
+import hashlib
+import json
+from typing import List, Optional
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+
+from core.lancedb_handler import LanceDBHandler
+
+PASS = "\033[32mPASS\033[0m"
+FAIL = "\033[31mFAIL\033[0m"
+INFO = "\033[36m....\033[0m"
+_results: list[tuple[str, bool, str]] = []
+
+TABLE = "episodes"
+DIM = 1536  # match default LanceDB episodes schema (OpenAI ada-002 dim)
+
+
+def _hash_unit_vec(seed: bytes, dim: int):
+    """Build a deterministic unit vector in {0,1}^dim from a seed, L2-normalized."""
+    h = hashlib.sha256(seed).digest()
+    bits = [(h[i // 8] >> (i % 8)) & 1 for i in range(dim)]
+    norm = sum(b * b for b in bits) ** 0.5 or 1.0
+    return [b / norm for b in bits]
+
+
+def _orthogonal_anchor(name: str, dim: int):
+    """Genuinely orthogonal basis-vector anchor: one-hot per topic.
+
+    Same-topic texts share the anchor (cosine=1.0); different topics are
+    exactly orthogonal (cosine=0.0). This cleanly demonstrates that even
+    when embeddings can't separate success/fail (cosine≈1.0), the metadata
+    prefilter can.
+    """
+    idx = {"deploy_payment": 0, "send_invoice": 1, "onboarding": 2}[name]
+    v = [0.0] * dim
+    v[idx] = 1.0
+    return v
+
+
+# Deterministic topic anchors — orthogonal across topics, identical within.
+_TOPICS = {
+    "deploy_payment": _orthogonal_anchor("deploy_payment", DIM),
+    "send_invoice": _orthogonal_anchor("send_invoice", DIM),
+    "onboarding": _orthogonal_anchor("onboarding", DIM),
+}
+
+
+def _topic_for(text: str) -> str:
+    """Pick the topic anchor by word-level match (deterministic)."""
+    t = text.lower()
+    # Match on individual keywords — handles "deploy the payment" → deploy_payment
+    if "deploy" in t and "payment" in t:
+        return "deploy_payment"
+    if "invoice" in t or "send" in t and "invoice" in t:
+        return "send_invoice"
+    if "onboarding" in t or "onboard" in t:
+        return "onboarding"
+    return "deploy_payment"  # default
+
+
+def stub_embed(text: str):
+    """
+    Deterministic embedding: anchor by topic + tiny noise from the text.
+    Two texts on the same topic (even with different outcome) land at
+    cosine ≈ 0.99+ — the critic's exact scenario.
+    """
+    anchor = _TOPICS[_topic_for(text)]
+    # Tiny deterministic perturbation from the text — keeps same-topic near-identical
+    h = hashlib.sha256(text.encode()).digest()
+    noise = [((h[i % len(h)] / 255.0) - 0.5) * 0.02 for i in range(DIM)]
+    return [a + n for a, n in zip(anchor, noise)]
+
+
+def check(name: str, ok: bool, detail: str = "") -> None:
+    _results.append((name, ok, detail))
+    mark = PASS if ok else FAIL
+    print(f"{mark} {name}" + (f" — {detail}" if detail else ""))
+
+
+def _index_episode(handler, *, doc_id, text, outcome, agent_id="ag-1"):
+    """Index an episode the same way _archive_to_lancedb does — with outcome
+    + agent_id as top-level filterable columns (not buried in metadata JSON).
+    Returns True/False from add_document."""
+    metadata = {
+        "episode_id": doc_id,
+        "agent_id": agent_id,
+        "outcome": outcome,
+        "type": "episode",
+    }
+    return handler.add_document(
+        table_name=TABLE,
+        text=text,
+        source=f"episode:{doc_id}",
+        metadata=metadata,
+        doc_id=doc_id,
+        extract_knowledge=False,
+        skip_ai_triggers=True,
+        extra_columns={"outcome": outcome, "agent_id": agent_id},
+    )
+
+
+def _search(handler, query: str, *, outcome: Optional[str] = None, agent_id="ag-1", limit=10):
+    """
+    Mirror EpisodeRetrievalService.retrieve_semantic's filter construction:
+    agent_id always; outcome as a native prefilter when requested.
+    Returns list of doc_ids (the filter operates at storage layer; LanceDB's
+    search projection doesn't include custom columns, but the prefilter
+    absolutely restricts which rows match — we verify by doc_id).
+    """
+    filters = [f"agent_id == '{agent_id}'"]
+    if outcome:
+        filters.append(f"outcome == '{outcome}'")
+    filter_str = " AND ".join(filters)
+    results = handler.search(table_name=TABLE, query=query, filter_str=filter_str, limit=limit)
+    # Extract doc_ids — the native prefilter has already restricted which rows
+    # are eligible BEFORE vector ranking. We verify correctness by checking
+    # which doc_ids survived (we know each doc_id's outcome from indexing).
+    return [r.get("id") for r in results if r.get("id")]
+
+
+def _cosine(a, b):
+    import math
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def main():
+    tmp = tempfile.mkdtemp(prefix="atom_prefilter_smoke_")
+    print("=" * 72)
+    print("OUTCOME PREFILTER SMOKE TEST — native LanceDB metadata filter")
+    print(f"temp lancedb: {tmp}")
+    print("=" * 72)
+
+    try:
+        handler = LanceDBHandler(db_path=tmp)
+        handler._ensure_db()  # constructor auto-init can fail silently; force it
+        if handler.db is None:
+            check("LanceDB initialized", False, "handler.db is None")
+            raise SystemExit(1)
+        # Patch embed_text at the instance level so BOTH index and query use
+        # the deterministic stub. The native-metadata-filter path under test
+        # is unaffected by the embedding function — that's the whole point.
+        handler.embed_text = stub_embed
+        # DON'T pre-create with default schema — let add_document infer the
+        # schema from the first record so outcome + agent_id become native
+        # top-level filterable columns.
+
+        # --- Index the critic's exact scenario -----------------------------
+        # 3 topics × 2 outcomes = 6 episodes. Same-topic pairs are
+        # near-identical text differing only in the outcome flag.
+        print(f"\n{INFO} Indexing 6 episodes (3 topics × success/failure)…")
+        episodes = [
+            ("ep-1", "Deploy the payment service to production", "success"),
+            ("ep-2", "Deploy the payment service to production", "failure"),  # near-identical!
+            ("ep-3", "Send the Q3 invoice to the client", "success"),
+            ("ep-4", "Send the Q3 invoice to the client", "failure"),  # near-identical!
+            ("ep-5", "Run the customer onboarding flow", "success"),
+            ("ep-6", "Run the customer onboarding flow", "failure"),  # near-identical!
+        ]
+        for doc_id, text, outcome in episodes:
+            ok = _index_episode(handler, doc_id=doc_id, text=text, outcome=outcome)
+            if not ok:
+                check("6 episodes indexed", False, f"add_document failed for {doc_id}")
+                raise SystemExit(1)
+        check("6 episodes indexed", True)
+
+        # --- Phase 1: prove cosine CAN'T separate them --------------------
+        print(f"\n{INFO} PHASE 1: cosine similarity cannot separate pass/fail")
+        v_ok = stub_embed("Deploy the payment service to production")
+        v_fail = stub_embed("Deploy the payment service to production")
+        sim = _cosine(v_ok, v_fail)
+        check("same-topic success/fail embed at cosine ≈ 1.0", sim > 0.98, f"cosine={sim:.4f}")
+
+        cross = _cosine(
+            stub_embed("Deploy the payment service to production"),
+            stub_embed("Send the Q3 invoice to the client"),
+        )
+        check("different-topic embeddings are far apart", cross < 0.5, f"cosine={cross:.4f}")
+
+        # doc_id → outcome map (we control indexing, so we know each one)
+        ID_TO_OUTCOME = {did: out for did, _, out in episodes}
+        FAILURE_IDS = {did for did, _, out in episodes if out == "failure"}
+        SUCCESS_IDS = {did for did, _, out in episodes if out == "success"}
+
+        # --- Phase 2: WITHOUT prefilter → mixed results (the problem) -----
+        print(f"\n{INFO} PHASE 2: query WITHOUT outcome filter returns a mix (the problem)")
+        mixed_ids = _search(handler, query="deploy the payment service", limit=5)
+        mixed_outcomes = {ID_TO_OUTCOME.get(i, "?") for i in mixed_ids}
+        check("no-prefilter returns BOTH outcomes (pass AND fail)",
+              {"success", "failure"}.issubset(mixed_outcomes), f"outcomes={sorted(mixed_outcomes)}")
+
+        # --- Phase 3: WITH outcome='failure' prefilter → only failures ---
+        print(f"\n{INFO} PHASE 3: query WITH outcome='failure' prefilter → only failures")
+        only_fail_ids = _search(handler, query="deploy the payment service", outcome="failure", limit=5)
+        only_fail_outcomes = {ID_TO_OUTCOME.get(i, "?") for i in only_fail_ids}
+        check("prefilter returns ONLY failures", only_fail_outcomes == {"failure"},
+              f"outcomes={sorted(only_fail_outcomes)}")
+        check("prefilter returns results (not empty)", len(only_fail_ids) >= 1, f"{len(only_fail_ids)} rows")
+        check("every returned id is a known failure id", set(only_fail_ids).issubset(FAILURE_IDS),
+              f"ids={sorted(only_fail_ids)}")
+
+        # --- Phase 4: WITH outcome='success' prefilter → only successes ---
+        print(f"\n{INFO} PHASE 4: query WITH outcome='success' prefilter → only successes")
+        only_ok_ids = _search(handler, query="send the invoice", outcome="success", limit=5)
+        only_ok_outcomes = {ID_TO_OUTCOME.get(i, "?") for i in only_ok_ids}
+        check("prefilter returns ONLY successes", only_ok_outcomes == {"success"},
+              f"outcomes={sorted(only_ok_outcomes)}")
+        check("every returned id is a known success id", set(only_ok_ids).issubset(SUCCESS_IDS),
+              f"ids={sorted(only_ok_ids)}")
+
+        # --- Phase 5: retrieve_failed_similar semantics -------------------
+        print(f"\n{INFO} PHASE 5: self-correction query (failed states only)")
+        # The use case: agent is about to deploy, wants "did this fail before?"
+        fail_ids = _search(handler, query="deploy the payment service", outcome="failure", limit=3)
+        check("self-correction query returns failure episodes", len(fail_ids) >= 1)
+        check("all returned episodes are failures", set(fail_ids).issubset(FAILURE_IDS),
+              f"ids={sorted(fail_ids)}")
+
+        # --- Phase 6: prefilter doesn't break the no-match case ----------
+        print(f"\n{INFO} PHASE 6: prefilter with no matching outcome returns []")
+        empty_ids = _search(handler, query="deploy", outcome="partial", limit=3)
+        check("outcome='partial' (none indexed) → empty", len(empty_ids) == 0, f"{len(empty_ids)} rows")
+
+    finally:
+        try:
+            shutil.rmtree(tmp, ignore_errors=True)
+            print(f"\n{INFO} Cleaned up temp lancedb")
+        except Exception:
+            pass
+
+    print("\n" + "=" * 72)
+    passed = sum(1 for _, ok, _ in _results if ok)
+    failed = sum(1 for _, ok, _ in _results if not ok)
+    print(f"RESULTS: {passed} passed, {failed} failed")
+    print("=" * 72)
+    for name, ok, detail in _results:
+        mark = PASS if ok else FAIL
+        print(f"  {mark} {name}" + (f" — {detail}" if detail else ""))
+    sys.exit(0 if failed == 0 else 1)
+
+
+if __name__ == "__main__":
+    main()

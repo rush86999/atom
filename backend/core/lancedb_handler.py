@@ -28,7 +28,7 @@ except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
     logger.warning(f"Numpy check failed: {e}")
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Union
 
 # Lazy load Pandas to prevent Windows hang
@@ -545,6 +545,7 @@ class LanceDBHandler:
         workspace_id: Union[str, None] = None,
         doc_id: Union[str, None] = None,
         skip_ai_triggers: bool = False,
+        extra_columns: Union[dict[str, Any], None] = None,
     ) -> bool:
         """
         Add a single document to memory
@@ -553,13 +554,20 @@ class LanceDBHandler:
             table_name: Name of the table to add document to
             text: Document text content
             source: Source of the document
-            metadata: Optional metadata dictionary
+            metadata: Optional metadata dictionary (serialized to JSON — NOT
+                natively filterable; use ``extra_columns`` for fields you need
+                to prefilter on, like ``outcome`` or ``agent_id``).
             user_id: User ID who owns the document
             extract_knowledge: Whether to extract knowledge (triggers AI)
             workspace_id: Workspace ID
             doc_id: Optional document ID (will generate if not provided)
             skip_ai_triggers: If True, skip AI trigger coordinator and workflow triggers
                              (Use for system-generated updates to prevent loops)
+            extra_columns: Optional dict of top-level columns merged into the
+                record. These ARE natively filterable via ``filter_str`` (e.g.
+                ``outcome``, ``agent_id``) — the discriminator fields that
+                LanceDB prefilters on before vector search. Required for the
+                outcome-prefilter pattern (cosine cannot separate pass/fail).
         """
         if self.db is None:
             self._ensure_db()
@@ -619,8 +627,14 @@ class LanceDBHandler:
                 "source": source,
                 "metadata": serialized_metadata,
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "vector": embedding.tolist(),
+                "vector": embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
             }
+            # Top-level filterable columns (outcome, agent_id, …). These must
+            # be real columns — NOT inside the serialized metadata JSON — so
+            # LanceDB can prefilter on them natively before vector search.
+            if extra_columns:
+                for k, v in extra_columns.items():
+                    record[k] = v
 
             # Add to table
             try:
@@ -772,8 +786,9 @@ class LanceDBHandler:
             if query_vector is None:
                 return []
 
-            # Build search query
-            search_query = table.search(query_vector.tolist()).limit(limit)
+            # Build search query (embed_text may return a list or numpy array)
+            qv = query_vector.tolist() if hasattr(query_vector, "tolist") else list(query_vector)
+            search_query = table.search(qv).limit(limit)
 
             # Apply workspace_id and user_id filter.
             # SECURITY: escape single quotes to prevent filter injection.
