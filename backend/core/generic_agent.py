@@ -24,6 +24,23 @@ INSTRUCTOR_AVAILABLE = False  # LLMService handles instructor internally
 
 logger = logging.getLogger(__name__)
 
+# SupervisorAgent-style observation filter (additive, flag-gated, default OFF).
+# See core/observation_filter_service.py.
+try:
+    from core.observation_filter_service import (
+        OBSERVATION_FILTER_ENABLED,
+        ObservationFilterService,
+    )
+
+    _OBS_FILTER_AVAILABLE = True
+except Exception:  # pragma: no cover - defensive
+    _OBS_FILTER_AVAILABLE = False
+    OBSERVATION_FILTER_ENABLED = False
+
+    class ObservationFilterService:  # type: ignore[no-redef]
+        async def filter_history(self, *a, **kw):
+            return "", {}
+
 class GenericAgent:
     """
     A runtime wrapper for dynamically configured agents.
@@ -180,7 +197,22 @@ class GenericAgent:
                         
                         step_record["output"] = observation
                         execution_history += f"Observation: {str(observation)}\n"
-                        
+
+                        # ── SupervisorAgent-style observation filter ─────────
+                        # Additive + flag-gated + default OFF. Wrapped in
+                        # try/except; failures only logged at debug level. See
+                        # core/observation_filter_service.py.
+                        try:
+                            if _OBS_FILTER_AVAILABLE and OBSERVATION_FILTER_ENABLED:
+                                _obs_filter = ObservationFilterService(llm=self.llm)
+                                _new_hist, _obs_metrics = await _obs_filter.filter_history(
+                                    execution_history, current_step, task_input
+                                )
+                                if _obs_metrics.get("savings_tokens", 0) > 0:
+                                    execution_history = _new_hist
+                        except Exception as _of_err:
+                            logger.debug("observation filter skipped: %s", _of_err)
+
                         # Special handling for Tool Search
                         if tool_name == "mcp_tool_search" and "Found" in str(observation):
                             # The tool execution itself returns the text, but we need to fetch the objects 
