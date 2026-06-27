@@ -1747,3 +1747,127 @@ class TestEpisodeSegmentationServiceCoverageExtend:
                 # Should not raise, just log error
                 import asyncio
                 asyncio.run(service._archive_to_lancedb(episode))
+
+
+# ============================================================================
+# Canvas summary verification wiring (Gap A — hallucination + richness)
+# ============================================================================
+
+def _make_canvas_audit(canvas_type, action, audit_metadata):
+    """Lightweight stand-in for CanvasAudit that matches the attribute
+    contract _extract_canvas_context_llm reads (.canvas_type, .action,
+    .audit_metadata). Using SimpleNamespace isolates these wiring tests
+    from the separate pre-existing schema mismatch (code reads
+    `audit_metadata` but the DB column is `details_json`)."""
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        id="test-audit",
+        canvas_type=canvas_type,
+        action=action,
+        audit_metadata=audit_metadata,
+        component_name="TestComponent",
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+class TestCanvasSummaryVerification:
+    """Verify _detect_hallucination + _calculate_semantic_richness are wired
+    into _extract_canvas_context_llm so summaries carry a verification flag."""
+
+    @pytest.mark.asyncio
+    async def test_clean_summary_marked_verified(self, db_session):
+        """LLM summary with no hallucinated workflow IDs and decent richness
+        should be tagged summary_verification='verified'."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "sheets", "present",
+                {"components": [{"type": "table"}],
+                 "revenue": 5000,
+                 "workflow_id": "wf-123"},
+            )
+            # Rich summary referencing state-present facts only
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="Agent presented revenue sheet showing $5000 revenue "
+                             "for workflow wf-123 requiring approval decision."
+            )
+
+            ctx = await service._extract_canvas_context_llm(canvas_audit, "Show revenue")
+
+            assert ctx["summary_verification"] == "verified"
+            assert ctx["summary_source"] == "llm"
+
+    @pytest.mark.asyncio
+    async def test_hallucinated_workflow_id_flagged(self, db_session):
+        """LLM summary referencing a workflow ID not present in canvas_state
+        should be flagged via summary_verification='flagged'."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "orchestration", "present",
+                {"components": [{"type": "form"}],
+                 "workflow_id": "wf-100"},
+            )
+            # Summary hallucitates wf-999 — not in canvas_state
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="Agent presented approval workflow wf-999 requiring "
+                             "stakeholder decision with budget context."
+            )
+
+            ctx = await service._extract_canvas_context_llm(canvas_audit, None)
+
+            assert ctx["summary_verification"] == "flagged"
+            assert ctx["presentation_summary"]  # raw summary preserved
+
+    @pytest.mark.asyncio
+    async def test_low_richness_summary_flagged(self, db_session):
+        """LLM summary too sparse to be useful should be tagged 'low_quality'."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "generic", "present",
+                {"components": [{"type": "panel"}]},
+            )
+            # Minimal summary — no business context, no metrics, no intent words
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="A canvas was shown."
+            )
+
+            ctx = await service._extract_canvas_context_llm(canvas_audit, None)
+
+            assert ctx["summary_verification"] == "low_quality"
+
+    @pytest.mark.asyncio
+    async def test_metadata_fallback_path_marks_unverified(self, db_session):
+        """When LLM fails and we fall back to metadata extraction, the
+        verification field should be 'unverified' (we never ran the check)."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "form", "submit",
+                {"approval_status": "approved"},
+            )
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                side_effect=Exception("LLM unavailable")
+            )
+
+            ctx = await service._extract_canvas_context_llm(canvas_audit, None)
+
+            assert ctx["summary_source"] == "metadata"
+            assert ctx["summary_verification"] == "unverified"

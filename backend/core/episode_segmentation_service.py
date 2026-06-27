@@ -918,20 +918,20 @@ Topics: {', '.join(episode.get('topics', []))}
         Uses CanvasSummaryService to generate rich semantic summaries
         that capture business context, intent, and decision reasoning.
 
+        Wires the previously-unused `_detect_hallucination` and
+        `_calculate_semantic_richness` checks so every summary carries a
+        `summary_verification` flag:
+          - "verified"     — passed hallucination check, acceptable richness
+          - "flagged"      — summary references facts not in canvas_state
+          - "low_quality"  — too sparse to be useful (may warrant fallback)
+          - "unverified"   — LLM path didn't run (metadata fallback)
+
         Args:
             canvas_audit: CanvasAudit record with canvas metadata
             agent_task: Optional agent task description for context
 
         Returns:
-            Canvas context dict with LLM-generated presentation_summary:
-            {
-                "canvas_type": str,
-                "presentation_summary": str,  # LLM-generated
-                "visual_elements": List[str],
-                "user_interaction": str,
-                "critical_data_points": dict,
-                "summary_source": "llm" or "metadata"  # Track source
-            }
+            Canvas context dict with LLM-generated presentation_summary.
         """
         try:
             # Build canvas state from audit metadata
@@ -945,6 +945,41 @@ Topics: {', '.join(episode.get('topics', []))}
                 user_interaction=canvas_audit.action,
                 timeout_seconds=2
             )
+
+            # === Gap A wiring: verify the summary before trusting it ===
+            # The hallucination check is heuristic (workflow-ID presence);
+            # it never rejects — only flags. The raw summary is always
+            # preserved so downstream consumers can apply their own policy.
+            try:
+                hallucinated = self.canvas_summary_service._detect_hallucination(
+                    presentation_summary, canvas_state
+                )
+                richness = self.canvas_summary_service._calculate_semantic_richness(
+                    presentation_summary
+                )
+            except Exception as e_check:
+                # If a checker itself blows up, fall back to "unverified"
+                # rather than dropping the summary on the floor.
+                logger.warning(f"Canvas summary checkers failed: {e_check}")
+                hallucinated = False
+                richness = 0.0
+
+            if hallucinated:
+                summary_verification = "flagged"
+                logger.warning(
+                    f"Canvas summary flagged as hallucinated "
+                    f"(canvas_type={canvas_audit.canvas_type}); "
+                    f"summary preserved but tagged."
+                )
+            elif richness < 0.2:
+                # 0.2 floor = ~2 richness indicators. Tunable.
+                summary_verification = "low_quality"
+                logger.info(
+                    f"Canvas summary low richness ({richness:.2f}); "
+                    f"may warrant metadata fallback."
+                )
+            else:
+                summary_verification = "verified"
 
             # Extract visual elements from canvas state
             visual_elements = []
@@ -980,6 +1015,8 @@ Topics: {', '.join(episode.get('topics', []))}
             return {
                 "canvas_type": canvas_audit.canvas_type or "generic",
                 "presentation_summary": presentation_summary,
+                "summary_verification": summary_verification,
+                "summary_richness": round(richness, 3),
                 "visual_elements": visual_elements,
                 "user_interaction": user_interaction,
                 "critical_data_points": critical_data,
@@ -988,8 +1025,11 @@ Topics: {', '.join(episode.get('topics', []))}
 
         except Exception as e:
             logger.error(f"LLM canvas context extraction failed: {e}")
-            # Fallback to metadata extraction
-            return self._extract_canvas_context_metadata(canvas_audit, agent_task)
+            # Fallback to metadata extraction. Mark verification as
+            # "unverified" — we never ran the LLM, so no check applies.
+            ctx = self._extract_canvas_context_metadata(canvas_audit, agent_task)
+            ctx["summary_verification"] = "unverified"
+            return ctx
 
     def _extract_canvas_context_metadata(
         self,
