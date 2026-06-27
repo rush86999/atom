@@ -93,6 +93,18 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 | **SUPERVISED** | 0.7-0.9 | **RUN UNDER SUPERVISION** → Real-time Monitoring | Form submissions, state changes |
 | **AUTONOMOUS** | >0.9 | **FULL EXECUTION** → No Oversight | Full autonomy, all actions |
 
+> ⚠️ **Scope warning — tier is routing, not security.**
+> The maturity system decides what an agent is *normally allowed* to do based
+> on its past clean-execution history. It is **not** a security boundary: it
+> does not bound the blast radius of a compromised run, and a prompt-injected
+> agent at any tier will use the full scope that tier permits on the very next
+> call. For blast-radius defense (filesystem scope, tool whitelist, egress
+> allowlist, resource caps, tripwires) see
+> [`docs/security/TRUST_VS_SANDBOX.md`](../security/TRUST_VS_SANDBOX.md) and
+> the implementation plan at
+> [`docs/security/PROMPT_INJECTION_DEFENSE_PLAN.md`](../security/PROMPT_INJECTION_DEFENSE_PLAN.md).
+> **Tier gates permission; sandbox gates capability. Both are required.**
+
 ### Maturity Progression
 
 ```
@@ -111,6 +123,12 @@ SUPERVISED → (50 episodes, 0% intervention rate, 0.95 constitutional score) �
 | **2 (MODERATE)** | Streaming, moderate actions | INTERN+ |
 | **3 (HIGH)** | State changes, submissions | SUPERVISED+ |
 | **4 (CRITICAL)** | Deletions, payments | AUTONOMOUS only |
+
+Note: "Required Maturity" gates **which agents may attempt** the action — it
+does not bound **what an agent attempting it can reach**. A hijacked
+AUTONOMOUS agent has every Level-4 action available to it on every call.
+Bounding blast radius is the job of the sandbox layer, not the complexity
+table.
 
 ---
 

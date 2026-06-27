@@ -55,6 +55,15 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 **Action Complexity**: 1 LOW (presentations STUDENT+) | 2 MODERATE (streaming INTERN+) | 3 HIGH (state changes SUPERVISED+) | 4 CRITICAL (deletions AUTONOMOUS only)
 
+> ⚠️ **Tier is routing, not security.** The maturity system uses past clean
+> executions to decide what an agent is *normally* allowed to do. It does
+> **not** bound blast radius — a prompt-injected agent at any tier uses the
+> full scope that tier permits on the next call. Bounding blast radius
+> requires a deterministic sandbox layer (filesystem scope, tool whitelist,
+> egress allowlist, resource caps, tripwires) that runs alongside the tier.
+> See `docs/security/TRUST_VS_SANDBOX.md` and
+> `docs/security/PROMPT_INJECTION_DEFENSE_PLAN.md`.
+
 ---
 
 ## Core Components

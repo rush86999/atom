@@ -10,6 +10,15 @@ Security best practices, compliance, and package security.
 - **[Data Protection](DATA_PROTECTION.md)** - Encryption and secrets management
 - **[Compliance](COMPLIANCE.md)** - GDPR, SOC2, HIPAA considerations
 
+### Agent Runtime Security
+- **[Trust Tier ≠ Security Boundary](TRUST_VS_SANDBOX.md)** ⚠️ — Why the
+  maturity graduation system is a *routing* decision, not a *security*
+  decision. Read this before treating `AUTONOMOUS` as a safety claim.
+- **[Prompt Injection Defense Plan](PROMPT_INJECTION_DEFENSE_PLAN.md)** —
+  Engineering plan for the deterministic sandbox layer (filesystem scope,
+  tool whitelist, egress allowlist, resource caps, tripwires) required to
+  bound agent blast radius.
+
 ### Package Security
 - **[Packages](packages.md)** - Package security overview
 - **[Python Packages](python-packages-guide.md)** - Python package support (350K+ packages)
@@ -27,7 +36,9 @@ Security best practices, compliance, and package security.
 ### Authentication & Authorization
 - **OAuth 2.0**: Secure third-party authentication
 - **Session Management**: Secure session handling
-- **Maturity-Based Access**: 4-tier agent governance (STUDENT → AUTONOMOUS)
+- **Agent Maturity Routing**: 4-tier graduation (STUDENT → AUTONOMOUS) routes
+  work to appropriate approval workflows. **Routing only — not a security
+  boundary.** See [TRUST_VS_SANDBOX.md](TRUST_VS_SANDBOX.md).
 - **API Security**: Bearer token authentication
 
 ### Data Protection
