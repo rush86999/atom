@@ -1871,3 +1871,150 @@ class TestCanvasSummaryVerification:
 
             assert ctx["summary_source"] == "metadata"
             assert ctx["summary_verification"] == "unverified"
+
+
+# ============================================================================
+# Canvas summary outcome tag (Gap B — link summary to run outcome)
+# ============================================================================
+
+class TestCanvasSummaryOutcomeTag:
+    """Verify _extract_canvas_context_llm accepts an outcome and threads it
+    into the returned dict. Previously the canvas summary and the episode
+    outcome lived in the same row but in different fields, never joined."""
+
+    @pytest.mark.asyncio
+    async def test_outcome_failure_propagated(self, db_session):
+        """When outcome='failure' is passed, the canvas context records it."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "terminal", "execute",
+                {"components": [{"type": "output"}],
+                 "command": "pytest",
+                 "exit_code": 1},
+            )
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="Agent ran pytest command with exit code 1 "
+                             "highlighting test failures requiring fixes."
+            )
+
+            ctx = await service._extract_canvas_context_llm(
+                canvas_audit, None, outcome="failure"
+            )
+
+            assert ctx["outcome"] == "failure"
+
+    @pytest.mark.asyncio
+    async def test_outcome_success_propagated(self, db_session):
+        """When outcome='success' is passed, the canvas context records it."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "sheets", "present",
+                {"components": [{"type": "table"}],
+                 "revenue": 10000},
+            )
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="Agent presented revenue sheet showing $10000 "
+                             "growth trend requiring budget approval decision."
+            )
+
+            ctx = await service._extract_canvas_context_llm(
+                canvas_audit, "Show revenue", outcome="success"
+            )
+
+            assert ctx["outcome"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_outcome_omitted_for_backward_compat(self, db_session):
+        """outcome param is optional. Existing callers that don't pass it
+        still work and get outcome=None in the returned dict."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            canvas_audit = _make_canvas_audit(
+                "generic", "present",
+                {"components": [{"type": "panel"}]},
+            )
+            service.canvas_summary_service.generate_summary = AsyncMock(
+                return_value="Agent presented a generic canvas panel with "
+                             "stakeholder context for review decision."
+            )
+
+            ctx = await service._extract_canvas_context_llm(canvas_audit, None)
+
+            # outcome key exists but is None when caller didn't pass it
+            assert "outcome" in ctx
+            assert ctx["outcome"] is None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_threads_outcome_into_canvas_context(self, db_session):
+        """The end-to-end episode creation flow should derive outcome from
+        executions and inject it into the canvas_context dict before
+        passing it to segments. This is the integration assertion."""
+        from core.episode_segmentation_service import EpisodeSegmentationService
+        from core.models import ChatSession, AgentExecution
+
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_lancedb.return_value = Mock()
+            mock_llm.return_value = Mock()
+            service = EpisodeSegmentationService(db_session)
+
+            # Force the LLM canvas path to be exercised with a verifiable outcome
+            service._extract_canvas_context_llm = AsyncMock(return_value={
+                "canvas_type": "sheets",
+                "presentation_summary": "test",
+                "outcome": "failure",  # caller-injected
+            })
+            service._archive_to_lancedb = AsyncMock()
+
+            # Build minimal session + execution with status that _derive_outcome
+            # classifies as failure.
+            session = ChatSession(
+                id="sess-test-outcome",
+                user_id="u1",
+            )
+            db_session.add(session)
+
+            failed_exec = AgentExecution(
+                id="exec-fail-1",
+                agent_id="agent-1",
+                status="failed",
+                input_summary="pytest run",
+                started_at=datetime.now(timezone.utc),
+            )
+            db_session.add(failed_exec)
+            db_session.commit()
+
+            # No canvas_audits → no canvas_context call. Patch _fetch to
+            # return a sentinel so the LLM path fires.
+            service._fetch_canvas_context = Mock(return_value=[
+                _make_canvas_audit("terminal", "execute", {"command": "pytest"}),
+            ])
+
+            episode = await service.create_episode_from_session(
+                session_id="sess-test-outcome",
+                agent_id="agent-1",
+                force_create=True,
+            )
+
+            # The injected outcome should be "failure" (from the failed exec)
+            assert episode is not None
+            assert episode["outcome"] == "failure"
+
+            # The canvas_context call should have received outcome="failure"
+            service._extract_canvas_context_llm.assert_awaited_once()
+            called_kwargs = service._extract_canvas_context_llm.call_args.kwargs
+            assert called_kwargs.get("outcome") == "failure"

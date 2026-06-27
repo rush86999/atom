@@ -266,11 +266,19 @@ class EpisodeSegmentationService:
         if messages and len(messages) > 0:
             agent_task = messages[0].content if messages[0].role == "user" else None
 
+        # Derive outcome early so the canvas summary record carries it
+        # (Gap B). Previously the canvas summary and the episode outcome
+        # were computed in parallel and never joined — summary was
+        # outcome-agnostic, which made "show me successful episodes where
+        # the canvas showed X" unanswerable.
+        episode_outcome = self._derive_outcome(executions)
+
         # Generate LLM summary for most recent canvas
         if canvas_audits:
             canvas_context = await self._extract_canvas_context_llm(
                 canvas_audit=canvas_audits[0],
-                agent_task=agent_task
+                agent_task=agent_task,
+                outcome=episode_outcome,
             )
         else:
             canvas_context = {}
@@ -302,7 +310,7 @@ class EpisodeSegmentationService:
             "workspace_id": "default",
             "session_id": session_id,
             "status": "completed",
-            "outcome": self._derive_outcome(executions),
+            "outcome": episode_outcome,  # derived once at line 274
             "topics": self._extract_topics(messages, executions),
             "maturity_at_time": self._get_agent_maturity(agent_id),
             "human_intervention_count": self._count_interventions(executions),
@@ -910,7 +918,8 @@ Topics: {', '.join(episode.get('topics', []))}
     async def _extract_canvas_context_llm(
         self,
         canvas_audit: CanvasAudit,
-        agent_task: Optional[str] = None
+        agent_task: Optional[str] = None,
+        outcome: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Extract canvas context with LLM-generated semantic summary.
@@ -929,6 +938,13 @@ Topics: {', '.join(episode.get('topics', []))}
         Args:
             canvas_audit: CanvasAudit record with canvas metadata
             agent_task: Optional agent task description for context
+            outcome: Optional episode outcome ('success'/'failure'/'partial'
+                    /'unknown'). When passed, recorded on the canvas_context
+                     dict so retrieval can answer "show me canvas summaries
+                     that landed during failed runs" — previously the canvas
+                     summary and the episode outcome lived in the same row
+                     but were never joined. Default None preserves backward
+                     compatibility for any caller not yet passing it.
 
         Returns:
             Canvas context dict with LLM-generated presentation_summary.
@@ -1017,6 +1033,7 @@ Topics: {', '.join(episode.get('topics', []))}
                 "presentation_summary": presentation_summary,
                 "summary_verification": summary_verification,
                 "summary_richness": round(richness, 3),
+                "outcome": outcome,
                 "visual_elements": visual_elements,
                 "user_interaction": user_interaction,
                 "critical_data_points": critical_data,
@@ -1027,8 +1044,11 @@ Topics: {', '.join(episode.get('topics', []))}
             logger.error(f"LLM canvas context extraction failed: {e}")
             # Fallback to metadata extraction. Mark verification as
             # "unverified" — we never ran the LLM, so no check applies.
+            # outcome is still threaded through so downstream retrieval
+            # works regardless of which summary path fired.
             ctx = self._extract_canvas_context_metadata(canvas_audit, agent_task)
             ctx["summary_verification"] = "unverified"
+            ctx["outcome"] = outcome
             return ctx
 
     def _extract_canvas_context_metadata(
