@@ -10,8 +10,8 @@ System architecture, design patterns, and technical specifications.
 - **[Database Standardization](DATABASE_STANDARDIZATION.md)** - Database standards
 
 ### BYOK LLM Integration
-- **[BYOK Implementation Summary](BYOK_IMPLEMENTATION_SUMMARY.md)** - BYOK overview
-- **[BYOK LLM Integration Complete](BYOK_LLM_INTEGRATION_COMPLETE.md)** - Complete LLM integration
+- **[BYOK Implementation Summary](../archive/implementation/BYOK_IMPLEMENTATION_SUMMARY.md)** - BYOK overview
+- **[BYOK LLM Integration Complete](../archive/implementation/BYOK_LLM_INTEGRATION_COMPLETE.md)** - Complete LLM integration
 - **[BYOK V6 Migration Guide](BYOK_V6_MIGRATION_GUIDE.md)** - Migration to v6.0
 
 ### Cognitive Systems
@@ -22,7 +22,7 @@ System architecture, design patterns, and technical specifications.
 - **[Atom vs. Hermes Comparison](HERMES_COMPARISON.md)** - Evidence-based capability matrix, decision log, and what Atom deliberately didn't build (and why)
 
 ### Application Design
-- **[Decorator Application Complete](DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns
+- **[Decorator Application Complete](../archive/implementation/DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns
 - **[API Reference](API_REFERENCE.md)** - Architecture API reference
 
 ### Database Sessions

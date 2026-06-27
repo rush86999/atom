@@ -12,7 +12,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 - **[Agent Graduation Guide](graduation.md)** - How agents learn and get promoted
 - **Capability Graduation** ⚡ **Individual capability progression (5/20/50 rule)**
 - **Student Agent Training** - Training workflow for student agents
-- **[Supervision & Learning](../archive/SUPERVISION_LEARNING_INTEGRATION_COMPLETE.md)** - Real-time supervision system
+- **[Supervision & Learning](../archive/implementation/SUPERVISION_LEARNING_INTEGRATION_COMPLETE.md)** - Real-time supervision system
 
 ### Guidance & Orchestration
 - **[Agent Guidance Implementation](guidance-system.md)** - Real-time agent operation tracking

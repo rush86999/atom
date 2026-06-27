@@ -565,7 +565,7 @@ SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 ### Related Documentation
 
 - [Agent Governance System](../agents/governance.md)
-- [Canvas Implementation Guide](../archive/CANVAS_IMPLEMENTATION_COMPLETE.md)
+- [Canvas Implementation Guide](../archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md)
 - [Agent Guidance System](../agents/guidance-system.md)
 - [Database Models](../backend/core/models.py)
 

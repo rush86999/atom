@@ -183,9 +183,9 @@
 ### Core Canvas
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
+| [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
 | CANVAS_QUICK_REFERENCE.md | Canvas types and usage | Feb 1, 2026 |
-| [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](archive/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
+| [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](archive/implementation/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
 
 ### Canvas AI & State
 | Document | Description | Last Updated |
@@ -197,7 +197,7 @@
 ### Canvas Collaboration
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [archive/COLLABORATION_PHASE_4_COMPLETE.md](archive/COLLABORATION_PHASE_4_COMPLETE.md) | Multi-agent canvas coordination | Feb 1, 2026 |
+| [archive/COLLABORATION_PHASE_4_COMPLETE.md](archive/implementation/COLLABORATION_PHASE_4_COMPLETE.md) | Multi-agent canvas coordination | Feb 1, 2026 |
 | [CANVAS_RECORDING_IMPLEMENTATION.md](canvas/recording.md) | Canvas recording and replay | Feb 2, 2026 |
 | CANVAS_AGENT_LEARNING_INTEGRATION.md | Canvas and agent learning | Feb 2, 2026 |
 
@@ -229,7 +229,7 @@
 | [REACT_NATIVE_ARCHITECTURE.md](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
 | [MOBILE_QUICK_START.md](archive/mobile/MOBILE_QUICK_START.md) | Mobile development quick start | Feb 1, 2026 |
 | [MOBILE_DEPLOYMENT.md](archive/mobile/MOBILE_DEPLOYMENT.md) | Mobile deployment guide | Feb 1, 2026 |
-| [archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md](archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md) | Mobile screens implementation | Feb 5, 2026 |
+| [archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md](archive/implementation/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md) | Mobile screens implementation | Feb 5, 2026 |
 
 ---
 
@@ -357,7 +357,7 @@
 |----------|-------------|--------------|
 | [CODE_QUALITY_GUIDE.md](development/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](archive/legacy/CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
-| [TEST_RESULTS_FEB2026.md](archive/TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
+| [TEST_RESULTS_FEB2026.md](archive/reports/TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
 **Test Suite Summary**:
@@ -462,7 +462,7 @@
 - [agents/guidance-system.md](agents/guidance-system.md) - Real-time guidance
 
 **Canvas**:
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
+- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
 - CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas in episodes
 
 **Integrations**:
@@ -507,7 +507,7 @@
 **January 2026**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
 - [agents/guidance-system.md](agents/guidance-system.md) - Agent guidance (Feb 2)
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
+- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
 - [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
 - BROWSER_AUTOMATION.md - Browser automation (Jan 31)
 

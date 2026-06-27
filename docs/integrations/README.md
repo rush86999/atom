@@ -9,8 +9,8 @@ Integration guides for connecting Atom with external platforms and services.
 ### Core Integrations
 - **[Overview](OVERVIEW.md)** - Integration architecture and patterns
 - **[Advanced Skills](advanced-skills.md)** - Advanced skill execution (Phase 60)
-- **[Python Skill Execution](PYTHON_SKILL_EXECUTION_COMPLETE.md)** - Python skill system
-- **[PDF OCR Vision](PDF_OCR_VISION_IMPLEMENTATION.md)** - Document processing
+- **[Python Skill Execution](../archive/implementation/PYTHON_SKILL_EXECUTION_COMPLETE.md)** - Python skill system
+- **[PDF OCR Vision](../archive/legacy/PDF_OCR_VISION_IMPLEMENTATION.md)** - Document processing
 - **[PII Redaction](PII_REDACTION_SETUP.md)** - Privacy and data redaction
 
 ### IM Adapter

@@ -9,7 +9,7 @@ Production deployment, monitoring, and operations guides.
 - **[Cloud Deployment](CLOUD_DEPLOYMENT.md)** - AWS, GCP, Azure deployment
 - **[Docker Deployment](DOCKER_DEPLOYMENT.md)** - Container deployment
 - **[Production Deployment](PRODUCTION_DEPLOYMENT.md)** - Production setup
-- **[Production Deployment Summary](PRODUCTION_DEPLOYMENT_SUMMARY.md)** - Deployment overview
+- **[Production Deployment Summary](../archive/implementation/PRODUCTION_DEPLOYMENT_SUMMARY.md)** - Deployment overview
 
 ### CI/CD
 - **[CI/CD Runbook](CI_CD_RUNBOOK.md)** - CI/CD pipeline operations

@@ -29,7 +29,7 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[OAuth Integration Guide](../archive/oauth/OAUTH_INTEGRATION_GUIDE.md)** - Integration patterns
 - **[OAuth Setup](../archive/oauth/OAUTH_SETUP.md)** - Quick setup instructions
 - **[OAuth Checklist](../archive/oauth/OAUTH_CHECKLIST.md)** - Implementation checklist
-- **[OAuth Test Summary](../archive/OAUTH_TEST_SUMMARY.md)** - Test results
+- **[OAuth Test Summary](../archive/reports/OAUTH_TEST_SUMMARY.md)** - Test results
 - **[OAuth Token Encryption Migration](../archive/oauth/OAUTH_TOKEN_ENCRYPTION_MIGRATION.md)** - Security upgrade
 
 ### Security

@@ -71,7 +71,7 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Marketplace Quick Start](guides/MARKETPLACE_QUICKSTART.md) - **5-minute marketplace setup** ✨ NEW
 - [Skill Marketplace](marketplace/skills.md) - Browse and install skills
 - [Marketplace Analytics](marketplace/analytics.md) - Analytics and synchronization
-- [Update Summary](marketplace/update-summary.md) - Recent marketplace updates
+- [Update Summary](archive/reports/update-summary.md) - Recent marketplace updates
 
 ### Federation & Multi-Instance 🌐
 - [Federation & Instance Identity](guides/FEDERATION_INSTANCE_IDENTITY.md) - **Multi-instance communication** ✨ NEW
@@ -239,7 +239,7 @@ Legacy documentation has been moved to [`archive/`](archive/). These files are k
 - Added Meta-Agent routing documentation
 - Updated all cross-references
 
-**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](reference/DOCUMENTATION_REORGANIZATION_PLAN.md)
+**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](archive/plans/DOCUMENTATION_REORGANIZATION_PLAN.md)
 
 ---
 

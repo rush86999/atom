@@ -43,7 +43,7 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 | Document | Description |
 |----------|-------------|
 | [guidance-system.md](guidance-system.md) | Real-time agent operation tracking |
-| [supervision-implementation.md](supervision-implementation.md) | Supervision system implementation |
+| [supervision-implementation.md](../archive/legacy/supervision-implementation.md) | Supervision system implementation |
 | [fleet-admiral.md](fleet-admiral.md) | Fleet Admiral orchestration (also see root docs) |
 
 ### Training & Learning

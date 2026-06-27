@@ -61,7 +61,7 @@ AI capabilities, knowledge management, and cognitive systems.
 - **Canvas State API** - State API
 - **Canvas Quick Reference** - Quick reference
 - **Canvas Recording Implementation** - Recording system
-- **[Specialized Canvas Types](../archive/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md)** - Custom components (archived)
+- **[Specialized Canvas Types](../archive/implementation/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md)** - Custom components (archived)
 - **Recording Review Integration** - Review workflow
 
 ## Error Handling & Debugging
@@ -77,7 +77,7 @@ AI capabilities, knowledge management, and cognitive systems.
 ## Supervision & Multi-Level Learning
 
 ### Supervision
-- **[Supervision Implementation](../agents/supervision-implementation.md)** - Supervision levels and real-time monitoring
+- **[Supervision Implementation](../archive/legacy/supervision-implementation.md)** - Supervision levels and real-time monitoring
 
 ## Key Concepts
 

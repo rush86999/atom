@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Sample pre-commit hook — verify internal markdown links.
+#
+# To enable (one-time):
+#   git config core.hooksPath .githooks
+#
+# Or use the pre-commit framework config in .pre-commit-config.yaml instead,
+# which is the recommended path. This file is provided as a no-dependency
+# fallback.
+
+set -euo pipefail
+
+# Only run if markdown files are staged.
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(docs|backend/docs)/.*\.md$'; then
+  echo "› doc-links: checking internal markdown links…"
+  python3 scripts/check_doc_links.py --root docs/ backend/docs/
+else
+  echo "› doc-links: no markdown changes, skipping"
+fi

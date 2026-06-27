@@ -26,7 +26,7 @@
   - **Time investment:** 15 min to read, saves hours debugging
 
 ### Phase Summaries
-- **[Phase 299: Frontend Coverage Acceleration](PHASE_299_GAP_CLOSURE_SUMMARY.md)** ⭐ NEW
+- **[Phase 299: Frontend Coverage Acceleration](../archive/reports/PHASE_299_GAP_CLOSURE_SUMMARY.md)** ⭐ NEW
   - **When to use:** Understanding current test failures, planning fixes
   - **What you'll learn:**
     - Why pass rate is 73.8% (not 95%)
@@ -36,7 +36,7 @@
   - **Time investment:** 10 min read, saves hours of trial-and-error
 
 ### E2E Testing
-- **[E2E Testing Guide](E2E_TESTING_PHASE_234.md)** - Complete E2E test infrastructure
+- **[E2E Testing Guide](../archive/reports/E2E_TESTING_PHASE_234.md)** - Complete E2E test infrastructure
   - **486 E2E test functions** across auth and agent workflows
   - **API-first authentication** (10-100x faster than UI login)
   - **Worker-based DB isolation** for parallel execution

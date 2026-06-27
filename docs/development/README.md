@@ -16,7 +16,7 @@ Development setup, coding standards, and contribution guidelines.
 - **[Contributing Integrations](CONTRIBUTING_INTEGRATIONS.md)** - Integration contribution guide
 
 ### Episodic Memory
-- **[Episodic Memory Implementation](EPISODIC_MEMORY_IMPLEMENTATION.md)** - Memory system implementation
+- **[Episodic Memory Implementation](../archive/legacy/EPISODIC_MEMORY_IMPLEMENTATION.md)** - Memory system implementation
 - **[Episodic Memory Quick Start](EPISODIC_MEMORY_QUICK_START.md)** - Quick start guide
 
 ## 🛠️ Development Setup

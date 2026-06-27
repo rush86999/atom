@@ -66,7 +66,7 @@ The marketplace offers four types of resources:
 
 | Document | Description |
 |----------|-------------|
-| [**Update Summary**](update-summary.md) | Recent updates and changelog |
+| [**Update Summary**](../archive/reports/update-summary.md) | Recent updates and changelog |
 
 ---
 
