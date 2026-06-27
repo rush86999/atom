@@ -76,7 +76,7 @@ Security best practices, compliance, and package security.
 ## 🔗 Security Resources
 
 - **Report Vulnerabilities**: [GitHub Security Advisories](https://github.com/rush86999/atom/security/advisories)
-- **Security Policy**: See [SECURITY.md](../../SECURITY.md)
+- **Security Policy**: See SECURITY.md
 
 ---
 

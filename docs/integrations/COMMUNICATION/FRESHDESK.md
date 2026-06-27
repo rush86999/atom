@@ -297,7 +297,7 @@ List contacts with pagination
 ### Documentation
 - [Freshdesk API Documentation](https://developers.freshdesk.com/api/)
 - [API Authentication Guide](https://support.freshdesk.com/support/solutions/articles/215517)
-- [ATOM Integration Standards](../docs/integration-standards.md)
+- ATOM Integration Standards
 
 ### Support
 - **Technical Support**: ATOM Platform Team

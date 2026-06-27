@@ -25,7 +25,7 @@ AI capabilities, knowledge management, and cognitive systems for Atom agents wit
 
 #### 🌐 Knowledge & Reasoning (Enhanced 2026)
 - **[GraphRAG & Entity Types](graphrag.md)** - Knowledge graph with multi-hop expansion ✨
-- **[World Model & JIT Facts](../world-model-guide.md)** - Knowledge management
+- **World Model & JIT Facts** - Knowledge management
 - **[JIT Fact Provision](jit-facts.md)** - Real-time fact verification with citations
 - **[Vector Embeddings](vector-embeddings.md)** - Semantic search infrastructure
 
@@ -110,8 +110,8 @@ All intelligence systems have been enhanced through the 2026 Enhancement Plan:
 
 ### 2026 Enhancements
 - **[ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md)** - Arbor Framework complete guide ✨ NEW
-- **[ATOM_ENHANCEMENT_PLAN.md](../ATOM_ENHANCEMENT_PLAN.md)** - 2026 Enhancement Plan
-- **[VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md)** - Performance metrics
+- **ATOM_ENHANCEMENT_PLAN.md** - 2026 Enhancement Plan
+- **VALIDATION_METRICS.md** - Performance metrics
 
 ### Agent Integration
 - **[Agent Graduation](../agents/graduation.md)** - Promotion framework

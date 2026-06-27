@@ -756,11 +756,11 @@ return { valid: true, data: value };
 
 ## See Also
 
-- [SKILL Format Documentation](docs/SKILL_FORMAT.md) - Creating skills with npm dependencies
-- [Python Package Support](docs/PYTHON_PACKAGES.md) - Python package governance and installation
-- [Community Skills](docs/COMMUNITY_SKILLS.md) - Importing and using community skills
-- [Package Security](docs/PACKAGE_SECURITY.md) - Security best practices for packages
-- [npm Security Test Documentation](backend/tests/README_NPM_TESTS.md) - Security test scenarios
+- SKILL Format Documentation - Creating skills with npm dependencies
+- Python Package Support - Python package governance and installation
+- Community Skills - Importing and using community skills
+- Package Security - Security best practices for packages
+- npm Security Test Documentation - Security test scenarios
 
 **Phase 36 Status:** ✅ **COMPLETE** (February 19, 2026)
 - All 7 plans executed successfully

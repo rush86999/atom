@@ -129,7 +129,7 @@ for variant_code in variants:
     # Winning path = best performing variant
 ```
 
-**See Also**: [Auto-Dev User Guide](docs/guides/AUTO_DEV_USER_GUIDE.md) - Skill evolution with Arbor integration
+**See Also**: Auto-Dev User Guide - Skill evolution with Arbor integration
 
 #### 2. WorkflowHypothesisNode
 ```python
@@ -273,7 +273,7 @@ if not tree.add_node(node):
 - **Observations**: Validation results (lint, tests, performance) form observations
 - **Rewards**: Successful paths feed into memory quality assessment
 
-**See Also**: [Episodic Memory](docs/intelligence/episodic-memory.md) - Complete POMDP integration guide
+**See Also**: Episodic Memory - Complete POMDP integration guide
 - **Hypothesis as Actions**: Each hypothesis is an action in the POMDP action space
 - **Observations**: Validation results (lint, tests, performance) form observations
 - **Rewards**: Successful paths feed into memory quality assessment
@@ -286,13 +286,13 @@ if not tree.add_node(node):
 - **Model Selection**: RouteLLM selects optimal LLM for hypothesis generation
 - **Cost Optimization**: Tree search respects LLM routing cost tiers
 
-**See Also**: [Cognitive Tier System](docs/architecture/COGNITIVE_TIER_SYSTEM.md) - Routing optimization with RoutingHypothesisNode
+**See Also**: Cognitive Tier System - Routing optimization with RoutingHypothesisNode
 
 ### Phase 5: Enhanced Orchestration
 - **Conductor Agent**: Uses workflow hypothesis nodes for optimization
 - **WorkflowHypothesisNode**: Domain-specific node for workflow refinement
 
-**See Also**: [Atom Enhancement Plan](ATOM_ENHANCEMENT_PLAN.md) - Phase 5 orchestration patterns with Arbor integration
+**See Also**: Atom Enhancement Plan - Phase 5 orchestration patterns with Arbor integration
 
 ## API Endpoints
 
@@ -357,12 +357,12 @@ PYTHONPATH=. pytest tests/test_hypothesis_tree.py -v
 ## Documentation References
 
 - **Implementation**: `backend/core/hypothesis_tree.py`
-- **Agent Governance**: [docs/agents/governance.md](docs/agents/governance.md) - Enhanced Orchestration with Arbor optimization learning
-- **Cognitive Tier System**: [docs/architecture/COGNITIVE_TIER_SYSTEM.md](docs/architecture/COGNITIVE_TIER_SYSTEM.md) - Routing optimization with RoutingHypothesisNode
-- **Auto-Dev Guide**: [docs/guides/AUTO_DEV_USER_GUIDE.md](docs/guides/AUTO_DEV_USER_GUIDE.md) - Code generation and skill evolution with Arbor
-- **Episodic Memory**: [docs/intelligence/episodic-memory.md](docs/intelligence/episodic-memory.md) - POMDP action space integration
-- **Canvas Learning**: [docs/canvas/agent-learning.md](docs/canvas/agent-learning.md) - Optimization node learning from feedback
-- **Enhancement Plan**: [ATOM_ENHANCEMENT_PLAN.md](ATOM_ENHANCEMENT_PLAN.md) - Phase 5 orchestration with Arbor
+- **Agent Governance**: docs/agents/governance.md - Enhanced Orchestration with Arbor optimization learning
+- **Cognitive Tier System**: docs/architecture/COGNITIVE_TIER_SYSTEM.md - Routing optimization with RoutingHypothesisNode
+- **Auto-Dev Guide**: docs/guides/AUTO_DEV_USER_GUIDE.md - Code generation and skill evolution with Arbor
+- **Episodic Memory**: docs/intelligence/episodic-memory.md - POMDP action space integration
+- **Canvas Learning**: docs/canvas/agent-learning.md - Optimization node learning from feedback
+- **Enhancement Plan**: ATOM_ENHANCEMENT_PLAN.md - Phase 5 orchestration with Arbor
 
 ---
 

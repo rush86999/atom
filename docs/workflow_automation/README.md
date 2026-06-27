@@ -19,7 +19,7 @@ Workflow engines, optimization, and automation systems.
 - **Event Bus**: Event-driven workflow triggering with pub/sub
 - **Workflow Templates**: Pre-built enterprise patterns
 - **Use Cases**: Daily reports, data pipelines, CRM workflows
-- **Guide**: [Queen Agent User Guide](../GUIDES/QUEEN_AGENT_USER_GUIDE.md)
+- **Guide**: Queen Agent User Guide
 
 ### Unstructured Tasks (Fleet Admiral) ✨ Enhanced 2026
 - **Dynamic**: Agent recruitment for complex tasks
@@ -33,7 +33,7 @@ Workflow engines, optimization, and automation systems.
 - **DAG Workflows**: Directed acyclic graph execution
 - **Skill Chaining**: Connect multiple skills
 - **Error Handling**: Automatic retry and fallback
-- **Guide**: [Skill Composition Patterns](../SKILL_COMPOSITION_PATTERNS.md)
+- **Guide**: Skill Composition Patterns
 
 ## 🎯 Key Features
 
@@ -87,7 +87,7 @@ fleet_admiral.execute_task(task)
 
 - **[Queen Agent](../QUEEN_AGENT.md)** - Structured workflow automation
 - **[Fleet Admiral](../agents/fleet-admiral.md)** - Dynamic agent coordination
-- **[Integrations](../INTEGRATIONS/README.md)** - Platform integrations
+- **Integrations** - Platform integrations
 
 ---
 

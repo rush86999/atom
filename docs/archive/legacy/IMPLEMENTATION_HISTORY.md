@@ -226,20 +226,20 @@ Chronological summary of major implementation milestones and fixes.
 ## Related Documentation
 
 ### Quick Reference
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup guide
+- DEVELOPMENT.md - Developer setup guide
 - [docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md -->] - Recent fixes status
 - [docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] - Deployment checklist
 
 ### Feature Documentation
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
-- [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
-- [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) - Real-time guidance
-- [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration
+- STUDENT_AGENT_TRAINING_IMPLEMENTATION.md - Agent maturity system
+- EPISODIC_MEMORY_IMPLEMENTATION.md - Agent learning framework
+- AGENT_GUIDANCE_IMPLEMENTATION.md - Real-time guidance
+- CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas integration
 
 ### Security Documentation
 - [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication system
 - [SECURITY/DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets
-- [SECURITY/COMPLIANCE.md](security/COMPLIANCE.md) - Compliance requirements
+- SECURITY/COMPLIANCE.md - Compliance requirements
 
 ---
 

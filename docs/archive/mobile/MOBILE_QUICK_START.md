@@ -59,7 +59,7 @@ ANALYTICS_KEY=your-analytics-key
 
 - Stream real-time responses from AI agents
 - View episode context from past conversations
-- See governance badges (maturity, confidence)
+- governance badges (maturity, confidence)
 - Reference canvases and past episodes
 
 ### 2. Agent List
@@ -197,7 +197,7 @@ npm run android
 
 - Read [Mobile Deployment Guide](./MOBILE_DEPLOYMENT.md)
 - Check [Architecture Overview](./REACT_NATIVE_ARCHITECTURE.md)
-- Review [API Documentation](../backend/docs/API_STANDARDS.md)
+- Review API Documentation
 
 ## Support
 

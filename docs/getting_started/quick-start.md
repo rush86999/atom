@@ -207,10 +207,10 @@ Then access at: **http://localhost:3000**
 
 ## 📚 Documentation
 
-- [PERSONAL_EDITION.md](docs/PERSONAL_EDITION.md) - Full Docker guide
-- [NATIVE_SETUP.md](docs/NATIVE_SETUP.md) - Detailed native setup
-- [VECTOR_EMBEDDINGS.md](docs/VECTOR_EMBEDDINGS.md) - Embeddings guide
-- [INSTALLATION_OPTIONS.md](docs/INSTALLATION_OPTIONS.md) - Method comparison
+- PERSONAL_EDITION.md - Full Docker guide
+- [NATIVE_SETUP.md](../archive/legacy/NATIVE_SETUP.md) - Detailed native setup
+- VECTOR_EMBEDDINGS.md - Embeddings guide
+- INSTALLATION_OPTIONS.md - Method comparison
 
 ---
 

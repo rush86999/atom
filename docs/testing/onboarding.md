@@ -16,7 +16,7 @@ Before starting, ensure you have:
   cd atom
   ```
 
-- **Installed dependencies:** See [INSTALLATION.md](../INSTALLATION.md) for platform-specific setup instructions
+- **Installed dependencies:** See INSTALLATION.md for platform-specific setup instructions
 
 ---
 
@@ -243,7 +243,7 @@ rustc --version
 cargo --version
 ```
 
-If not installed, see [INSTALLATION.md](../INSTALLATION.md) for Rust setup instructions.
+If not installed, see INSTALLATION.md for Rust setup instructions.
 
 ### "Jest fails to run" error
 
@@ -279,58 +279,58 @@ You've successfully run your first test and written your own test. Continue your
 
 ### Platform-Specific Guides
 
-- **Backend Testing Guide** → [backend/tests/docs/COVERAGE_GUIDE.md](TESTING_INDEX.md)
+- **Backend Testing Guide** → backend/tests/docs/COVERAGE_GUIDE.md
   - pytest patterns, fixtures, coverage measurement
   - Target: 70%+ coverage
 
-- **Frontend Testing Guide** → [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+- **Frontend Testing Guide** → FRONTEND_TESTING_GUIDE.md *(coming soon in Phase 152)*
   - Jest, React Testing Library, MSW, jest-axe
   - Target: 80%+ coverage
 
-- **Mobile Testing Guide** → [MOBILE_TESTING_GUIDE.md](testing/mobile-archive.md) *(coming soon in Phase 152)*
+- **Mobile Testing Guide** → MOBILE_TESTING_GUIDE.md *(coming soon in Phase 152)*
   - jest-expo, React Native Testing Library
   - Target: 50%+ coverage
 
-- **Desktop Testing Guide** → [DESKTOP_TESTING_GUIDE.md](testing/desktop.md) *(coming soon in Phase 152)*
+- **Desktop Testing Guide** → DESKTOP_TESTING_GUIDE.md *(coming soon in Phase 152)*
   - cargo test, proptest, tarpaulin
   - Target: 40%+ coverage
 
 ### Advanced Testing Techniques
 
-- **Property Testing** → [PROPERTY_TESTING_PATTERNS.md](testing/property-testing.md)
+- **Property Testing** → PROPERTY_TESTING_PATTERNS.md
   - FastCheck (frontend/mobile/desktop)
   - Hypothesis (backend)
   - Test invariants instead of specific examples
 
-- **E2E Testing** → [E2E_TESTING_GUIDE.md](testing/e2e-guide.md)
+- **E2E Testing** → E2E_TESTING_GUIDE.md
   - Playwright (web)
   - API-level tests (mobile)
   - Tauri integration (desktop)
 
-- **Cross-Platform Coverage** → [CROSS_PLATFORM_COVERAGE.md](testing/cross-platform.md)
+- **Cross-Platform Coverage** → CROSS_PLATFORM_COVERAGE.md
   - Weighted coverage calculation
   - Platform-specific thresholds
   - Quality gates
 
 ### Testing Quality & Reliability
 
-- **Flaky Test Detection** → [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md)
+- **Flaky Test Detection** → backend/tests/docs/FLAKY_TEST_QUARANTINE.md
   - Multi-run flaky detection (10 runs, 30% threshold)
   - SQLite quarantine tracking
   - Auto-removal policies
 
-- **Parallel Execution** → [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)
+- **Parallel Execution** → backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md
   - Matrix strategy (4 platforms in parallel)
   - Target: <15 min total execution time
 
-- **Test Isolation** → [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md)
+- **Test Isolation** → backend/tests/docs/TEST_ISOLATION_PATTERNS.md
   - Independent tests (no shared state)
   - Fixture patterns
   - Resource conflict prevention
 
 ### Full Documentation Index
 
-- **Testing Documentation Index** → [TESTING_INDEX.md](TESTING_INDEX.md)
+- **Testing Documentation Index** → TESTING_INDEX.md
   - Central hub for all testing documentation
   - Use case navigation
   - Quick reference tables
@@ -364,6 +364,6 @@ You've successfully run your first test and written your own test. Continue your
 - **Testing questions:** Ask in Slack #testing channel
 - **Documentation issues:** Open a docs issue on GitHub
 - **Onboarding sessions:** Join weekly "Testing at Atom" office hours
-- **Quick lookup:** Check [TESTING_INDEX.md](TESTING_INDEX.md) for full documentation
+- **Quick lookup:** Check TESTING_INDEX.md for full documentation
 
 **Happy testing!** 🧪

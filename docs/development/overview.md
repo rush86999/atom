@@ -246,7 +246,7 @@ Fixed critical CI failures preventing tests from running:
 2. **Missing Dependencies**: Added `jsonschema` and `responses` packages to requirements.txt
 3. **Syntax Errors**: Fixed indentation errors in 3 core files that prevented coverage.py from parsing
 
-**See Also:** [docs/CI_FIXES.md](CI_FIXES.md) for detailed breakdown of fixes
+**See Also:** [docs/CI_FIXES.md](../archive/legacy/CI_FIXES.md) for detailed breakdown of fixes
 
 ### Running CI Locally
 
@@ -429,44 +429,44 @@ systemctl start atom-backend atom-workers
 ## 📚 Documentation Resources
 
 ### Getting Started
-- [Quick Start Guide](missing_credentials_guide.md) - Configure 117+ integrations
-- [Developer Handover](developer_handover.md) - Architecture overview & status
-- [Architecture Specification](ATOM_ARCHITECTURE_SPEC.md) - High-level system design
+- [Quick Start Guide](../archive/old-guides/missing_credentials_guide.md) - Configure 117+ integrations
+- [Developer Handover](../archive/legacy/developer_handover.md) - Architecture overview & status
+- Architecture Specification - High-level system design
 
 ### Security
 - [Authentication Guide][<!-- SECURITY/AUTHENTICATION.md -->] - OAuth 2.0 and session management
 - [Data Protection][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets management
-- [Compliance](security/COMPLIANCE.md) - GDPR, SOC2, HIPAA considerations
+- Compliance - GDPR, SOC2, HIPAA considerations
 
 ### Deployment
-- [Cloud Deployment](deployment/CLOUD_DEPLOYMENT.md) - AWS, GCP, Azure deployment
-- [Production Deployment](docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md) - Production checklist
-- [Docker Deployment](deployment/DOCKER_DEPLOYMENT.md) - Container deployment guide
-- [Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md) - Performance monitoring
+- Cloud Deployment - AWS, GCP, Azure deployment
+- Production Deployment - Production checklist
+- Docker Deployment - Container deployment guide
+- Monitoring Setup - Performance monitoring
 
 ### Integration Development
-- [API Integration Guide](guides/DEVELOPERS/API_INTEGRATION.md) - Build custom integrations
-- [Contributing Integrations](backend/docs/CONTRIBUTING_INTEGRATIONS.md) - Integration contribution guide
-- [BYOK LLM Integration](docs/ARCHITECTURE/BYOK_LLM_INTEGRATION_COMPLETE.md) - Multi-provider LLM setup
+- API Integration Guide - Build custom integrations
+- Contributing Integrations - Integration contribution guide
+- BYOK LLM Integration - Multi-provider LLM setup
 
 ### New Features (February 2026)
-- [Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
-- [Episodic Memory](intelligence/episodic-memory.md) - Agent learning framework
+- Student Agent Training - Agent maturity system
+- Episodic Memory - Agent learning framework
 - [Agent Graduation Guide](../agents/graduation.md) - Agent promotion criteria
-- [Real-Time Agent Guidance](agents/guidance-system.md) - Live operation tracking
-- [Canvas & Feedback Integration](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas presentations in episodes
+- Real-Time Agent Guidance - Live operation tracking
+- Canvas & Feedback Integration - Canvas presentations in episodes
 - [Canvas AI Accessibility](../canvas/ai-accessibility.md) - Dual representation for AI agents
-- [Canvas State API](CANVAS_STATE_API.md) - JavaScript API for real-time canvas state
+- Canvas State API - JavaScript API for real-time canvas state
 - [LLM Canvas Summaries](../canvas/llm-summaries.md) - LLM-powered semantic summaries
-- [Deep Linking](DEEPLINK_IMPLEMENTATION.md) - External app integration via atom:// URLs
-- [Device Capabilities](backend/docs/BROWSER_AUTOMATION.md) - Camera, screen recording, location
+- [Deep Linking](../archive/legacy/DEEPLINK_IMPLEMENTATION.md) - External app integration via atom:// URLs
+- Device Capabilities - Camera, screen recording, location
 
 ### Workflow Automation
-- [Workflow Automation Engine](workflow_automation/ENHANCED_WORKFLOW_GUIDE.md) - Complete workflow guide
-- [Workflow Intelligence](workflow_automation/WORKFLOW_INTELLIGENCE_ENGINE.md) - AI-powered workflow optimization
-- [Workflow Monitoring](workflow_automation/WORKFLOW_MONITORING_SYSTEM.md) - Track workflow performance
+- Workflow Automation Engine - Complete workflow guide
+- Workflow Intelligence - AI-powered workflow optimization
+- Workflow Monitoring - Track workflow performance
 
 ### Recent Implementation Status
-- [Incomplete Fixes Summary](docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes
-- [Task Queue Implementation](docs/ARCHITECTURE/TASK_QUEUE_IMPLEMENTATION_PLAN.md) - Background task queue
-- [Final Implementation Report](docs/archive/implementation/FINAL_IMPLEMENTATION_SUMMARY.md) - Complete change log
+- [Incomplete Fixes Summary](../archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes
+- Task Queue Implementation - Background task queue
+- [Final Implementation Report](../archive/implementation/FINAL_IMPLEMENTATION_SUMMARY.md) - Complete change log

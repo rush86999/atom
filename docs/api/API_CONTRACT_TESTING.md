@@ -239,4 +239,4 @@ This ensures contract violations never leave your development machine.
 - [Schemathesis Documentation](https://schemathesis.readthedocs.io/)
 - [openapi-diff GitHub](https://github.com/OpenAPITools/openapi-diff)
 - [FastAPI OpenAPI Customization](https://fastapi.tiangolo.com/tutorial/extending-openapi/)
-- [Phase 128 Research](.planning/phases/128-backend-api-contract-testing/128-RESEARCH.md)
+- Phase 128 Research

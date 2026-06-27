@@ -5,20 +5,20 @@ AI capabilities, knowledge management, and cognitive systems.
 ## Core Intelligence
 
 ### LLM & Cognition
-- **[BYOK V6 Migration Guide](BYOK_V6_MIGRATION_GUIDE.md)** - LLM service migration (if exists)
-- **[Cognitive Tier System](COGNITIVE_TIER_SYSTEM.md)** - 5-tier intelligent LLM routing (if exists in root, otherwise reference)
+- **BYOK V6 Migration Guide** - LLM service migration (if exists)
+- **Cognitive Tier System** - 5-tier intelligent LLM routing (if exists in root, otherwise reference)
 
 ### World Model & Knowledge
-- **[AI World Model](intelligence/world-model-guide.md)** - Knowledge representation
-- **[GraphRAG and Entity Types](intelligence/graphrag.md)** - Graph-based intelligence
-- **[GraphRAG Ported](GRAPHRAG_PORTED.md)** - GraphRAG implementation
+- **AI World Model** - Knowledge representation
+- **GraphRAG and Entity Types** - Graph-based intelligence
+- **[GraphRAG Ported](../archive/legacy/GRAPHRAG_PORTED.md)** - GraphRAG implementation
 
 ### Business Facts & Citations
-- **[JIT Fact Provision System](intelligence/jit-facts.md)** - Just-in-time fact retrieval
-- **[Citation System Guide](intelligence/jit-facts.md)** - Citation management
-- **[JIT Verification Quickstart](JIT_VERIFICATION_QUICKSTART.md)** - Quick setup
-- **[JIT Verification Agent Compliance](JIT_VERIFICATION_AGENT_COMPLIANCE.md)** - Compliance checks
-- **[JIT Verification Cache](JIT_VERIFICATION_CACHE.md)** - Caching layer
+- **JIT Fact Provision System** - Just-in-time fact retrieval
+- **Citation System Guide** - Citation management
+- **[JIT Verification Quickstart](../archive/legacy/JIT_VERIFICATION_QUICKSTART.md)** - Quick setup
+- **[JIT Verification Agent Compliance](../archive/legacy/JIT_VERIFICATION_AGENT_COMPLIANCE.md)** - Compliance checks
+- **[JIT Verification Cache](../archive/legacy/JIT_VERIFICATION_CACHE.md)** - Caching layer
 
 ## Memory & Learning
 
@@ -36,7 +36,7 @@ AI capabilities, knowledge management, and cognitive systems.
 
 ### Agent Learning
 - **[Agent Graduation Guide](../agents/graduation.md)** - Agent promotion system
-- **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
+- **Student Agent Training** - Training workflow
 - **🆕 Enhanced Governance Integration** - Three-layer governance with intelligence systems
 
 ### Enhanced Governance (2026) ✨
@@ -54,25 +54,25 @@ AI capabilities, knowledge management, and cognitive systems.
 
 ### Canvas Summaries
 - **[LLM Canvas Summaries](../canvas/llm-summaries.md)** - AI-generated summaries
-- **[Canvas Agent Learning Integration](CANVAS_AGENT_LEARNING_INTEGRATION.md)** - Learning from canvas
+- **Canvas Agent Learning Integration** - Learning from canvas
 
 ### Canvas State
 - **[Canvas AI Accessibility](../canvas/ai-accessibility.md)** - AI-readable canvas state
-- **[Canvas State API](CANVAS_STATE_API.md)** - State API
-- **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference
-- **[Canvas Recording Implementation](canvas/recording.md)** - Recording system
-- **[Specialized Canvas Types](SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md)** - Custom components (archived)
-- **[Recording Review Integration](canvas/recording.md)** - Review workflow
+- **Canvas State API** - State API
+- **Canvas Quick Reference** - Quick reference
+- **Canvas Recording Implementation** - Recording system
+- **[Specialized Canvas Types](../archive/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md)** - Custom components (archived)
+- **Recording Review Integration** - Review workflow
 
 ## Error Handling & Debugging
 
 ### AI Debug System
-- **[AI Debug Quick Start](AI_DEBUG_QUICK_START.md)** - Debug setup
-- **[AI Debug System](AI_DEBUG_SYSTEM.md)** - Debug architecture
+- **AI Debug Quick Start** - Debug setup
+- **AI Debug System** - Debug architecture
 
 ### Error Handling
-- **[Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)** - Error patterns
-- **[Error Handling Standard](ERROR_HANDLING_STANDARD.md)** - Standards
+- **Error Handling Guidelines** - Error patterns
+- **[Error Handling Standard](../archive/legacy/ERROR_HANDLING_STANDARD.md)** - Standards
 
 ## Supervision & Multi-Level Learning
 
@@ -102,17 +102,17 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 ## Quick Links
 
 ### By Feature
-- **Memory**: [Episodic Memory](intelligence/episodic-memory.md)
-- **Knowledge**: [World Model](intelligence/world-model-guide.md)
-- **Graph**: [GraphRAG](intelligence/graphrag.md)
-- **Facts**: [JIT Fact Provision](intelligence/jit-facts.md)
+- **Memory**: Episodic Memory
+- **Knowledge**: World Model
+- **Graph**: GraphRAG
+- **Facts**: JIT Fact Provision
 
 ### By Use Case
-- **Learning from Interactions**: [Memory Integration Guide](MEMORY_INTEGRATION_GUIDE.md)
+- **Learning from Interactions**: Memory Integration Guide
 - **Self-Evolution & Mistakes**: [Self-Evolution & Reflection Pool](self-evolution.md) ✨ NEW
-- **Storing Business Knowledge**: [Citation System Guide](intelligence/jit-facts.md)
+- **Storing Business Knowledge**: Citation System Guide
 - **AI Summaries**: [LLM Canvas Summaries](../canvas/llm-summaries.md)
-- **Error Recovery**: [Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)
+- **Error Recovery**: Error Handling Guidelines
 
 ## Performance
 
@@ -129,7 +129,7 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 ## See Also
 
 - **[Agent System](../agents/)** - Agent governance and learning
-- **[Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md)** - Self-evolving agent capabilities
+- **Auto-Dev User Guide** - Self-evolving agent capabilities
 - **[Canvas Documentation](../canvas/)** - Canvas presentations
 - **[API Documentation](../API/)** - Intelligence API endpoints
 

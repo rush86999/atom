@@ -3315,7 +3315,7 @@ TDD is a powerful development approach that has proven effective in Atom develop
 - Practice with [Step-by-Step TDD Tutorials](#step-by-step-tdd-tutorials)
 - Review [TDD Best Practices for Atom](#tdd-best-practices-for-atom)
 - Avoid [Common Pitfalls](#common-pitfalls-and-solutions)
-- Use [TDD Cheat Sheet](backend/docs/TDD_CHEAT_SHEET.md) for quick reference
+- Use TDD Cheat Sheet for quick reference
 
 **Remember:** TDD is a skill that improves with practice. Start small, be consistent, and focus on the red-green-refactor cycle.
 

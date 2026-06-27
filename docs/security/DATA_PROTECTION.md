@@ -611,7 +611,7 @@ tail -f logs/atom.log | grep "migration"
 - [OWASP Encryption](https://cheatsheetseries.owasp.org/cheatsheets/Encryption_In_Practice_Cheat_Sheet.html)
 
 ### Atom Documentation
-- [DEVELOPMENT.md](../DEVELOPMENT.md) - Security Configuration section
+- DEVELOPMENT.md - Security Configuration section
 - [SECURITY/AUTHENTICATION.md](AUTHENTICATION.md) - OAuth credential storage
 - [backend/core/secrets_encryption.py](../../backend/core/secrets_encryption.py) - Implementation
 - [backend/tests/test_secrets_encryption.py](../../backend/tests/test_secrets_encryption.py) - Tests

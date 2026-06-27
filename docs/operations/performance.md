@@ -1057,8 +1057,8 @@ Performance optimization requires:
 ---
 
 **See Also**:
-- [Advanced Skill Execution](../INTEGRATIONS/advanced-skills.md) - Phase 60 overview
-- [Skill Composition Patterns](../INTEGRATIONS/skill-composition.md) - Workflow optimization
+- Advanced Skill Execution - Phase 60 overview
+- Skill Composition Patterns - Workflow optimization
 - [Supply Chain Security][<!-- ./SUPPLY_CHAIN_SECURITY.md -->] - Security testing (Plan 60-06)
 
 **Last Updated**: February 19, 2026

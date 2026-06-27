@@ -962,12 +962,12 @@ python -m py_compile skill_code.py
 - **[Vector Embeddings](vector-embeddings.md)** - Semantic search infrastructure
 
 ### Auto-Dev Module
-- **[Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md)** - Getting started with Auto-Dev
+- **Auto-Dev User Guide** - Getting started with Auto-Dev
 - **[Event Bus Architecture](../reference/ARCHITECTURE_DIAGRAMS.md)** - Event-driven system design
 
 ### Development
-- **[Testing Guide](../../DEVELOPMENT/TESTING_GUIDE.md)** - Property-based testing for Auto-Dev
-- **[Code Quality](../../DEVELOPMENT/code-quality.md)** - Auto-Dev code standards
+- **Testing Guide** - Property-based testing for Auto-Dev
+- **Code Quality** - Auto-Dev code standards
 
 ### API Reference
 - **Reflection Service API**: `POST /api/v1/reflection/critiques`
@@ -994,7 +994,7 @@ python -m py_compile skill_code.py
 ---
 
 **Next Steps:**
-- 📖 Read [Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md) for practical examples
+- 📖 Read Auto-Dev User Guide for practical examples
 - 🔧 Set up your first self-evolving agent
 - 📊 Monitor reflection pool metrics in your dashboard
 - 🎯 Enable Memento-Skills to reduce agent failure rates

@@ -329,7 +329,7 @@ Add contact to audience
 ### Documentation
 - [Mailchimp API Documentation](https://mailchimp.com/developer/)
 - [API Authentication Guide](https://mailchimp.com/developer/marketing/guides/quick-start/)
-- [ATOM Integration Standards](../docs/integration-standards.md)
+- ATOM Integration Standards
 
 ### Support
 - **Technical Support**: ATOM Platform Team

@@ -1081,14 +1081,14 @@ Before submitting a PR, verify:
 
 Frontend, mobile, and desktop guides extend these backend quality standards to their platforms:
 
-- **[Frontend Testing Guide](../../docs/FRONTEND_TESTING_GUIDE.md)** - Jest/RTL patterns, MSW mocking, accessibility (jest-axe)
-- **[Mobile Testing Guide](../../docs/MOBILE_TESTING_GUIDE.md)** - jest-expo patterns, React Native Testing Library, platform mocking
-- **[Desktop Testing Guide](../../docs/DESKTOP_TESTING_GUIDE.md)** - cargo test patterns, proptest invariants, tarpaulin coverage
+- **Frontend Testing Guide** - Jest/RTL patterns, MSW mocking, accessibility (jest-axe)
+- **Mobile Testing Guide** - jest-expo patterns, React Native Testing Library, platform mocking
+- **Desktop Testing Guide** - cargo test patterns, proptest invariants, tarpaulin coverage
 
 ### Related Documentation
 
-- **[Testing Documentation Index](../../docs/TESTING_INDEX.md)** - Central hub for all testing documentation
-- **[Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md)** - 15-minute quick start for all platforms
+- **Testing Documentation Index** - Central hub for all testing documentation
+- **Testing Onboarding Guide** - 15-minute quick start for all platforms
 
 ---
 

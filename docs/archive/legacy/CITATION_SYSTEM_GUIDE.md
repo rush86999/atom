@@ -760,9 +760,9 @@ print(processor.get_supported_formats())
 
 ## Related Documentation
 
-- [JIT Fact Provision System](./JIT_FACT_PROVISION_SYSTEM.md) - Real-time fact retrieval
+- JIT Fact Provision System - Real-time fact retrieval
 - [Document Processing Pipeline](./DOCUMENT_PROCESSING_PIPELINE.md) - Multi-format parsing
-- [Architecture Diagrams](./ARCHITECTURE_DIAGRAMS.md) - Visual system overview
+- Architecture Diagrams - Visual system overview
 - [Agent World Model](../backend/core/agent_world_model.py) - Core implementation
 
 ---

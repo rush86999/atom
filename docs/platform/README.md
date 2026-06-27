@@ -101,7 +101,7 @@ kubectl apply -f deploy/kubernetes/
 ## 📖 Related Documentation
 
 - **[Architecture Diagrams](../reference/ARCHITECTURE_DIAGRAMS.md)** - System diagrams
-- **[Deployment](../DEPLOYMENT/README.md)** - Deployment guides
+- **Deployment** - Deployment guides
 - **[Operations](../operations/README.md)** - Operations and monitoring
 
 ---

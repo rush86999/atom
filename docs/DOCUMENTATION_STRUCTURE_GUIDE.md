@@ -234,7 +234,7 @@ docs/
 | Canvas System | [canvas/reference.md](canvas/reference.md) |
 | Episodic Memory | [intelligence/episodic-memory.md](intelligence/episodic-memory.md) |
 | Marketplace | [marketplace/connection.md](marketplace/connection.md) |
-| World Model | [intelligence/world-model.md](intelligence/world-model.md) |
+| World Model | intelligence/world-model.md |
 | Meta-Agent Routing | [agents/meta-agent.md](agents/meta-agent.md) |
 | Fleet Recruitment | [agents/fleet-admiral.md](agents/fleet-admiral.md) |
 
@@ -242,13 +242,13 @@ docs/
 
 | Task | Documentation Location |
 |------|----------------------|
-| **Install Atom** | [GETTING_STARTED/installation.md](getting_started/installation.md) |
+| **Install Atom** | [GETTING_STARTED/installation.md](getting_started/INSTALLATION.md) |
 | **Setup Marketplace** | [marketplace/connection.md](marketplace/connection.md) |
 | **Create Agent** | [agents/overview.md](agents/overview.md) |
-| **Deploy Production** | [DEPLOYMENT/production.md](deployment/production.md) |
+| **Deploy Production** | DEPLOYMENT/production.md |
 | **Integrate Service** | [INTEGRATIONS/](integrations/) |
 | **Monitor System** | [operations/monitoring.md](operations/monitoring.md) |
-| **Troubleshoot** | [operations/troubleshooting.md](operations/troubleshooting.md) |
+| **Troubleshoot** | [operations/troubleshooting.md](operations/TROUBLESHOOTING.md) |
 
 ### By Role
 

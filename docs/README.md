@@ -10,8 +10,8 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 
 **New to Atom?** Start here:
 - **[📖 User Guide Index](USER_GUIDE_INDEX.md)** ⭐ **START HERE** - Complete user documentation
-- [Getting Started](getting-started/quick-start.md) - Get Atom running in 15 minutes
-- [Installation Guide](getting-started/installation.md) - Complete setup instructions
+- Getting Started - Get Atom running in 15 minutes
+- Installation Guide - Complete setup instructions
 
 **Documentation by Category:**
 - **[🤖 Agent System](agents/)** - Governance, graduation, and orchestration
@@ -37,7 +37,7 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Agent Graduation](agents/graduation.md) - Learning and promotion framework
 - [Student Training](agents/training.md) - Training workflow for student agents
 - [Meta-Agent Routing](agents/meta-agent.md) - Intent classification and orchestration
-- [Queen Agent (Queen Hive)](../QUEEN_AGENT.md) - **Structured workflow automation** ✨ NEW
+- Queen Agent (Queen Hive) - **Structured workflow automation** ✨ NEW
 - [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) - **Complete guide to Queen Agent** ✨ NEW
 - [Fleet Admiral](agents/fleet-admiral.md) - Multi-agent orchestration for unstructured tasks
 - [Unstructured Tasks](agents/unstructured-tasks.md) - Intent classification and fleet coordination
@@ -59,12 +59,12 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Feedback & Memory](canvas/feedback-memory.md) - Feedback integration
 
 ### Integrations & Automation 🔌
-- **[Integrations Overview](integrations/overview.md)** - Complete integration documentation
+- **[Integrations Overview](integrations/OVERVIEW.md)** - Complete integration documentation
 - [Browser Automation](integrations/browser-automation.md) - Web scraping and automation
 - [Community Skills](integrations/community-skills.md) - 5,000+ community skills
 - [Advanced Skill Execution](integrations/advanced-skills.md) - Skill composition engine
 - [CLI Skills Guide](ATOM_CLI_SKILLS_GUIDE.md) - Atom CLI skills (daemon, status, start, stop, execute, config)
-- [Device Capabilities](archive/DEVICE_CAPABILITIES.md) - Device access controls
+- Device Capabilities - Device access controls
 
 ### Marketplace 🏪
 - [Marketplace Connection](marketplace/connection.md) - Connect to public marketplace
@@ -81,11 +81,11 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 ## 🏗️ **Development Guides**
 
 ### Getting Started
-- [Quick Start](getting-started/quick-start.md) - 15-minute quick start
-- [Installation Guide](getting-started/installation.md) - Complete installation
-- [Installation Options](getting-started/installation-options.md) - Installation variants
-- [Mac Mini Install](getting-started/mac-mini-install.md) - Mac mini setup
-- [Install Script Guide](getting-started/install-script.md) - Automated installation
+- Quick Start - 15-minute quick start
+- Installation Guide - Complete installation
+- Installation Options - Installation variants
+- Mac Mini Install - Mac mini setup
+- Install Script Guide - Automated installation
 
 ### Development
 - **[Development Overview](development/overview.md)** - Complete development documentation
@@ -96,7 +96,7 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 ### Testing 🧪
 - **[Testing Index](testing/index.md)** - Complete testing documentation
 - [Testing Onboarding](testing/onboarding.md) - 15-minute testing quick start
-- [E2E Testing](testing/e2e.md) - End-to-end testing guide
+- E2E Testing - End-to-end testing guide
 - [Mobile Testing](testing/mobile-archive.md) - Mobile-specific testing
 - [Desktop Testing](testing/desktop.md) - Desktop application testing
 - [Cross-Platform Testing](testing/cross-platform.md) - Cross-platform coverage
@@ -144,10 +144,10 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 ## 🔧 **Reference**
 
 ### API Reference
-- **[API Overview](api/overview.md)** - REST API reference
-- [API Index](api/index.md) - Complete API documentation
-- [Type Generation](api/type-generation.md) - API type generation
-- [Frontend to Backend API](api/frontend-backend.md) - Frontend-backend API
+- **[API Overview](api/OVERVIEW.md)** - REST API reference
+- API Index - Complete API documentation
+- Type Generation - API type generation
+- Frontend to Backend API - Frontend-backend API
 
 ### Security
 - **[Security Overview](security/packages.md)** - Package security
@@ -157,8 +157,8 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 
 ### Features
 - [Atom vs OpenClaw](features/atom-vs-openclaw.md) - Feature comparison
-- [Use Cases](features/use-cases.md) - Real-world examples
-- [Feature Matrix](features/matrix.md) - Capability comparison
+- Use Cases - Real-world examples
+- Feature Matrix - Capability comparison
 
 ---
 
@@ -181,7 +181,7 @@ Legacy documentation has been moved to [`archive/`](archive/). These files are k
 
 **Developers**:
 - [Development Overview](development/overview.md)
-- [API Documentation](api/overview.md)
+- [API Documentation](api/OVERVIEW.md)
 - [Testing Index](testing/index.md)
 
 **System Administrators**:
@@ -190,18 +190,18 @@ Legacy documentation has been moved to [`archive/`](archive/). These files are k
 - [Performance Tuning](operations/performance.md)
 
 **Product Managers**:
-- [Feature Matrix](features/matrix.md)
-- [Use Cases](features/use-cases.md)
+- Feature Matrix
+- Use Cases
 
 **End Users**:
 - [User Guide Index](USER_GUIDE_INDEX.md)
-- [Quick Start](getting-started/quick-start.md)
+- Quick Start
 
 ### By Task
 
 **Setting up Atom**:
-1. [Quick Start](getting-started/quick-start.md)
-2. [Installation Guide](getting-started/installation.md)
+1. Quick Start
+2. Installation Guide
 3. [Development Setup](development/setup.md)
 
 **Building Agents**:
@@ -211,7 +211,7 @@ Legacy documentation has been moved to [`archive/`](archive/). These files are k
 4. [Meta-Agent Routing](agents/meta-agent.md)
 
 **Integrating Systems**:
-1. [Integrations Overview](integrations/overview.md)
+1. [Integrations Overview](integrations/OVERVIEW.md)
 2. [Browser Automation](integrations/browser-automation.md)
 3. [Marketplace Connection](marketplace/connection.md)
 
@@ -263,7 +263,7 @@ When adding new features:
 
 **Need Help?**
 - Check the [Troubleshooting](../README.md#troubleshooting) guide
-- Review [FAQ](getting-started/quick-start.md#faq)
+- Review FAQ
 - Search [GitHub Issues](https://github.com/rush86999/atom/issues)
 
 ---

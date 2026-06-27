@@ -709,8 +709,8 @@ cargo tarpaulin --verbose --config tarpaulin.toml
 ## References
 
 ### Internal Documentation
-- [Phase 140 Plan 01 Summary](../.planning/phases/140-desktop-coverage-baseline/140-01-SUMMARY.md) - Coverage infrastructure
-- [Phase 140 Plan 02 Summary](../.planning/phases/140-desktop-coverage-baseline/140-02-SUMMARY.md) - Platform-specific testing
+- Phase 140 Plan 01 Summary - Coverage infrastructure
+- Phase 140 Plan 02 Summary - Platform-specific testing
 - [Phase 139 Mobile Platform-Specific Testing](../.planning/phases/139-mobile-platform-specific-testing/) - Mobile testing patterns
 
 ### External Resources
@@ -2359,20 +2359,20 @@ fn test_file_operations_with_real_files() {
 
 ### Testing Documentation
 
-- **[Testing Documentation Index](testing/index.md)** - Central hub for all testing documentation
-- **[Desktop Coverage](testing/desktop.md)** - Detailed coverage analysis and gap tracking
+- **Testing Documentation Index** - Central hub for all testing documentation
+- **Desktop Coverage** - Detailed coverage analysis and gap tracking
 
 ### Platform Guides
 
-- **[Frontend Testing Guide](FRONTEND_TESTING_GUIDE.md)** - Jest, React Testing Library, MSW, jest-axe
-- **[Mobile Testing Guide](testing/mobile-archive.md)** - jest-expo, React Native Testing Library
-- **Backend:** [Backend Coverage Guide](testing/index.md) - pytest, Hypothesis, Schemathesis
+- **Frontend Testing Guide** - Jest, React Testing Library, MSW, jest-axe
+- **Mobile Testing Guide** - jest-expo, React Native Testing Library
+- **Backend:** Backend Coverage Guide - pytest, Hypothesis, Schemathesis
 
 ### Cross-Platform Testing
 
-- **[Property Testing Patterns](testing/property-testing.md)** - FastCheck, Hypothesis, proptest
-- **[E2E Testing Guide](testing/e2e-guide.md)** - Playwright, API-level tests, Tauri integration
-- **[Cross-Platform Coverage](testing/cross-platform.md)** - Weighted coverage, platform minimums
+- **Property Testing Patterns** - FastCheck, Hypothesis, proptest
+- **E2E Testing Guide** - Playwright, API-level tests, Tauri integration
+- **Cross-Platform Coverage** - Weighted coverage, platform minimums
 
 ---
 

@@ -690,10 +690,10 @@ Cmd+Shift+T (Mac)
 
 ### Internal Documentation
 
-- [TDD_WORKFLOW.md](backend/docs/TDD_WORKFLOW.md) - Comprehensive TDD guide
-- [TESTING.md](backend/TESTING.md) - How to run tests
-- [README_TDD.md](backend/tests/README_TDD.md) - Test directory structure
-- [BUILD.md](backend/BUILD.md) - Build process
+- TDD_WORKFLOW.md - Comprehensive TDD guide
+- TESTING.md - How to run tests
+- README_TDD.md - Test directory structure
+- BUILD.md - Build process
 
 ### External Resources
 
@@ -777,4 +777,4 @@ def test_property(x):
 **Phase:** 257 - TDD & Property Test Documentation
 **Maintained By:** Atom Development Team
 
-**For detailed TDD guidance, see [TDD_WORKFLOW.md](backend/docs/TDD_WORKFLOW.md)**
+**For detailed TDD guidance, see TDD_WORKFLOW.md**

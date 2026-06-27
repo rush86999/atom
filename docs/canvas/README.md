@@ -193,7 +193,7 @@ window.atom.canvas.subscribe((state) => console.log(state))
 ## 📖 Related Documentation
 
 ### 2026 Enhancements
-- **[Enhancement Plan](../ATOM_ENHANCEMENT_PLAN.md)** - Complete 5-phase enhancement overview
+- **Enhancement Plan** - Complete 5-phase enhancement overview
 - **[Validation Metrics](../../backend/docs/VALIDATION_METRICS.md)** - Performance validation
 - **[POMDP Memory](../intelligence/episodic-memory.md#phase-1-enhancements)** - Memory framework
 - **[GraphRAG Enhancement](../intelligence/graphrag.md#phase-2-enhancements)** - Multi-hop expansion

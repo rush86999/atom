@@ -115,7 +115,7 @@ Expected output:
 ✅ Vector storage ready
 ```
 
-**Learn more:** [Vector Embeddings Guide](VECTOR_EMBEDDINGS.md)
+**Learn more:** Vector Embeddings Guide
 
 ---
 
@@ -349,7 +349,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
   }'
 ```
 
-[Full Documentation →](integrations/community-skills.md)
+Full Documentation →
 
 ---
 
@@ -583,9 +583,9 @@ command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload --log-leve
 ### Documentation
 
 - [Full Documentation](./README.md)
-- [API Documentation](api/OVERVIEW.md)
-- [Development Guide](./docs/DEVELOPMENT.md)
-- [Architecture](./docs/ARCHITECTURE.md)
+- API Documentation
+- Development Guide
+- Architecture
 
 ### Community
 

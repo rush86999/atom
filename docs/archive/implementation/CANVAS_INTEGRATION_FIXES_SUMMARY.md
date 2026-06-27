@@ -488,11 +488,11 @@ function MyComponent() {
 
 ## Related Documentation
 
-- [Canvas AI Accessibility Guide](./CANVAS_AI_ACCESSIBILITY.md)
-- [LLM Canvas Summaries](./LLM_CANVAS_SUMMARIES.md)
-- [Canvas & Feedback Episodic Memory](./CANVAS_FEEDBACK_EPISODIC_MEMORY.md)
-- [Agent Graduation Guide](./AGENT_GRADUATION_GUIDE.md)
-- [Episodic Memory Implementation](./EPISODIC_MEMORY_IMPLEMENTATION.md)
+- Canvas AI Accessibility Guide
+- LLM Canvas Summaries
+- Canvas & Feedback Episodic Memory
+- [Agent Graduation Guide](../legacy/AGENT_GRADUATION_GUIDE.md)
+- Episodic Memory Implementation
 
 ---
 

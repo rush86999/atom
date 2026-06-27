@@ -86,7 +86,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Browse and install 5,000+ skills
   - Privacy-first analytics
 
-- **[Marketplace Connection Guide](MARKETPLACE_CONNECTION_GUIDE.md)** - Connect to public marketplace
+- **Marketplace Connection Guide** - Connect to public marketplace
   - Detailed connection configuration
   - Troubleshooting and support
 
@@ -95,7 +95,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Template creation
   - Federation setup
 
-- **[Skill Marketplace Guide](SKILL_MARKETPLACE_GUIDE.md)** - Community skills ecosystem
+- **Skill Marketplace Guide** - Community skills ecosystem
   - Skill discovery
   - Installation and management
   - Rating and reviews
@@ -127,9 +127,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Developers
 
-- **[Development Setup](DEVELOPMENT_SETUP.md)** - Local development environment
+- **Development Setup** - Local development environment
 - **[Development Guide](development/overview.md)** - Coding standards and workflows
-- **[API Documentation](API.md)** - REST API reference
+- **API Documentation** - REST API reference
 - **[Code Quality Guide](development/code-quality.md)** - Testing and style guidelines
 
 **Developer Topics:**
@@ -140,7 +140,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Administrators
 
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment
+- **Deployment Guide** - Production deployment
 - **[Monitoring Guide](deployment/MONITORING_SETUP.md)** - Health checks and metrics
 - **[Performance Tuning](operations/performance.md)** - Optimization strategies
 - **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
@@ -164,7 +164,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Agent System
 
 - **[Agent Governance](agents/governance.md)** - Maturity levels and permissions
-- **[Agent Graduation Guide](../agents/graduation.md)** - Learning and promotion
+- **Agent Graduation Guide** - Learning and promotion
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
 - **[Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
 - **[Queen vs Fleet Admiral Comparison](guides/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
@@ -179,9 +179,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Canvas & Presentations
 
-- **[Canvas AI Accessibility](../canvas/ai-accessibility.md)** - AI-readable canvas state
-- **[LLM Canvas Summaries](../canvas/llm-summaries.md)** - Enhanced memory integration
-- **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference guide
+- **Canvas AI Accessibility** - AI-readable canvas state
+- **LLM Canvas Summaries** - Enhanced memory integration
+- **Canvas Quick Reference** - Quick reference guide
 
 ---
 
@@ -189,13 +189,13 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Desktop
 
-- **[MenuBar App Guide](MENUBAR_GUIDE.md)** - macOS menu bar application
-- **[Native Setup](NATIVE_SETUP.md)** - Native desktop builds
+- **[MenuBar App Guide](archive/menubar/MENUBAR_GUIDE.md)** - macOS menu bar application
+- **[Native Setup](archive/legacy/NATIVE_SETUP.md)** - Native desktop builds
 
 ### Mobile
 
-- **[Mobile Quick Start](MOBILE_QUICK_START.md)** - React Native app setup
-- **[Mobile User Guide](MOBILE_USER_GUIDE.md)** - Mobile-specific features
+- **[Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md)** - React Native app setup
+- **[Mobile User Guide](archive/mobile/MOBILE_USER_GUIDE.md)** - Mobile-specific features
 - **[Mobile Testing Guide](testing/mobile-archive.md)** - Mobile testing
 
 ---
@@ -204,9 +204,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Common Issues
 
-- **[Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)** - Common errors and solutions
+- **Error Handling Guidelines** - Common errors and solutions
 - **[Troubleshooting Section](guides/USER_GUIDE.md#troubleshooting)** - User-level troubleshooting
-- **[FAQ](QUICKSTART.md#faq)** - Frequently asked questions
+- **FAQ** - Frequently asked questions
 
 ### Getting Help
 
@@ -253,9 +253,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### For Developers
 
-1. Set up [Development Environment](DEVELOPMENT_SETUP.md)
+1. Set up Development Environment
 2. Read [Development Guide](development/overview.md)
-3. Study [API Documentation](API.md)
+3. Study API Documentation
 4. Review [Code Quality Standards](development/code-quality.md)
 
 ### For Administrators
@@ -263,7 +263,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 1. Review [System Setup](guides/ADMINISTRATORS/SYSTEM_SETUP.md)
 2. Configure [Security](guides/ADMINISTRATORS/SECURITY_CONFIG.md)
 3. Set up [Monitoring](guides/ADMINISTRATORS/MONITORING.md)
-4. Deploy to [Production](DEPLOYMENT_GUIDE.md)
+4. Deploy to Production
 
 ---
 
@@ -274,7 +274,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Main README](../README.md)** - Project overview
 - **[Documentation Index](README.md)** - Complete docs index
 - **[Development Guide](development/overview.md)** - For contributors
-- **[API Documentation](API.md)** - REST API reference
+- **API Documentation** - REST API reference
 
 ### Community & Support
 

@@ -245,7 +245,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 - **Key Addition**: Arbor Framework - Hypothesis Tree Refinement (HTR) for code/workflow/routing optimization
 
 **See**: [ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md) - Complete Arbor documentation
-**See**: [ATOM_ENHANCEMENT_PLAN.md](../ATOM_ENHANCEMENT_PLAN.md) - Complete 2026 Enhancement Plan
+**See**: ATOM_ENHANCEMENT_PLAN.md - Complete 2026 Enhancement Plan
 
 ### Testing & Validation
 
@@ -299,7 +299,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 | **Parallel Execution** | ✅ pytest-xdist for 2-4x faster test runs | ⚠️ Sequential execution |
 | **Page Object Model** | ✅ Maintainable UI abstractions (LoginPage, DashboardPage, ChatPage) | ❌ No POM |
 
-**Documentation**: [E2E Testing Guide](backend/tests/e2e_ui/README.md)
+**Documentation**: E2E Testing Guide
 
 ### Bug Discovery Infrastructure ✨ NEW (March 2026)
 
@@ -313,7 +313,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 | **Automated Bug Filing** | ✅ GitHub Issues API integration with idempotency | ❌ No automated filing |
 | **CI Pipeline Separation** | ✅ Fast PR tests (<10min) + weekly bug discovery (~2 hours) | ⚠️ Single pipeline |
 
-**Documentation**: [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md)
+**Documentation**: Bug Discovery Infrastructure
 
 ### Stress Testing & Performance ✨ NEW (March 2026)
 
@@ -328,7 +328,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 | **Cross-Platform Testing** | ✅ Mobile API-level, Desktop Tauri, Visual regression (Percy) | ⚠️ Limited testing |
 | **Accessibility Testing** | ✅ jest-axe for WCAG 2.1 AA compliance | ❌ No a11y testing |
 
-**Documentation**: [Cross-Platform & Stress Testing Verification](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md)
+**Documentation**: Cross-Platform & Stress Testing Verification
 
 ---
 
@@ -406,24 +406,24 @@ Both are excellent choices depending on your use case. For business workflows re
 - [OpenClaw SourceForge](https://sourceforge.net/projects/openclaw.mirror/)
 
 ### Atom
-- [Documentation Index](INDEX.md) - Comprehensive documentation overview
-- [DEVELOPMENT.md](development/overview.md) - Developer setup and deployment guide
-- [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
-- [PYTHON_PACKAGES.md](security/python-packages.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
-- [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination system ✨ NEW
+- Documentation Index - Comprehensive documentation overview
+- DEVELOPMENT.md - Developer setup and deployment guide
+- [IMPLEMENTATION_HISTORY.md](../archive/legacy/IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
+- PYTHON_PACKAGES.md - Python Package Support system (350K+ PyPI packages) ✨ NEW
+- FLEET_ADMIRAL.md - Multi-agent fleet coordination system ✨ NEW
 - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API ✨ NEW
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries ✨ NEW
-- [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment ✨ NEW
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system ✨ NEW
-- [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills documentation ✨ NEW
+- agents/unstructured-tasks.md - Intent classification and fleet recruitment ✨ NEW
+- STUDENT_AGENT_TRAINING_IMPLEMENTATION.md - Agent maturity system ✨ NEW
+- ATOM_CLI_SKILLS_GUIDE.md - Built-in CLI skills documentation ✨ NEW
 - [agents/graduation.md](../agents/graduation.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
-- [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
-- [Episodic Memory](intelligence/episodic-memory.md) - Agent learning framework
-- [MESSAGING_PLATFORMS.md](guides/MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
-- [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 486 comprehensive E2E test functions ✨ NEW
-- [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
-- [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices ✨ NEW
-- [Cross-Platform & Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Load testing, network simulation ✨ NEW
+- AGENT_GOVERNANCE_LEARNING_INTEGRATION.md - **Capability graduation logic (5/20/50 rule)** ✨ NEW
+- Episodic Memory - Agent learning framework
+- MESSAGING_PLATFORMS.md - 9 messaging platforms guide
+- E2E Testing Guide - 486 comprehensive E2E test functions ✨ NEW
+- Bug Discovery Infrastructure - AI-enhanced bug discovery ✨ NEW
+- Test Quality Standards - Testing best practices ✨ NEW
+- Cross-Platform & Stress Testing - Load testing, network simulation ✨ NEW
 - [Repository](https://github.com/rush86999/atom) - Source code
 
 ---

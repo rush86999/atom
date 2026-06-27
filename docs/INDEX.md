@@ -30,8 +30,8 @@
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
   - [PYTHON_PACKAGES.md](security/python-packages.md) - Python Package Support system (350K+ PyPI packages)
   - [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination
-  - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API
-  - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries
+  - CANVAS_AI_ACCESSIBILITY.md - Canvas AI accessibility and state API
+  - LLM_CANVAS_SUMMARIES.md - LLM-generated canvas summaries
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
   - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
   - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
@@ -65,8 +65,8 @@
 | [PERSONAL_EDITION.md](operations/personal-edition.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
 | [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
 | [DEVELOPMENT.md](development/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
-| [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
-| [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
+| ATOM_ARCHITECTURE_SPEC.md | High-level system design | - |
+| VECTOR_EMBEDDINGS.md | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
 
 ---
 
@@ -104,16 +104,16 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
-| [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
+| MARKETPLACE_CONNECTION_GUIDE.md | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
 | [PYTHON_PACKAGES.md](security/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
-| [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
+| PACKAGE_GOVERNANCE.md | Maturity-based access control and approval workflow | Feb 19, 2026 |
 | [PACKAGE_SECURITY.md](security/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
-| [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
+| PYTHON_PACKAGES_DEPLOYMENT.md | Production deployment and monitoring | Feb 19, 2026 |
 | [NPM_PACKAGE_SUPPORT.md](security/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
 | [ADVANCED_SKILL_EXECUTION.md](integrations/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
-| [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
-| [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
+| SKILL_MARKETPLACE_GUIDE.md | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
+| SKILL_COMPOSITION_PATTERNS.md | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
 | [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
 
@@ -143,7 +143,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) | Agent governance and learning integration | Feb 2, 2026 |
-| [AGENT_GRADUATION_GUIDE.md](../agents/graduation.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
+| AGENT_GRADUATION_GUIDE.md | **Agent promotion criteria and validation** | Feb 3, 2026 |
 | [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
 | [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
 
@@ -173,8 +173,8 @@
 | [intelligence/jit-facts.md](intelligence/jit-facts.md) | **JIT Fact Provision** - Real-time fact verification with citations | Apr 7, 2026 |
 | [intelligence/vector-embeddings.md](intelligence/vector-embeddings.md) | **Vector Embeddings** - Semantic search infrastructure (FastEmbed, OpenAI) | Feb 16, 2026 |
 | [intelligence/memory-integration.md](intelligence/memory-integration.md) | Memory integration guide | Feb 4, 2026 |
-| [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) | Episodic memory quick start guide | Feb 4, 2026 |
-| [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) | **Canvas presentations in episodes** | Feb 4, 2026 |
+| EPISODIC_MEMORY_QUICK_START.md | Episodic memory quick start guide | Feb 4, 2026 |
+| CANVAS_FEEDBACK_EPISODIC_MEMORY.md | **Canvas presentations in episodes** | Feb 4, 2026 |
 
 ---
 
@@ -184,14 +184,14 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
-| [CANVAS_QUICK_REFERENCE.md](CANVAS_QUICK_REFERENCE.md) | Canvas types and usage | Feb 1, 2026 |
+| CANVAS_QUICK_REFERENCE.md | Canvas types and usage | Feb 1, 2026 |
 | [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](archive/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
 
 ### Canvas AI & State
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [canvas/ai-accessibility.md](canvas/ai-accessibility.md) | **AI agent accessibility with dual representation** | Apr 2026 |
-| [CANVAS_STATE_API.md](CANVAS_STATE_API.md) | **JavaScript API for real-time canvas state** | Feb 2026 |
+| CANVAS_STATE_API.md | **JavaScript API for real-time canvas state** | Feb 2026 |
 | [canvas/llm-summaries.md](canvas/llm-summaries.md) | **LLM-powered semantic summaries** | Apr 2026 |
 
 ### Canvas Collaboration
@@ -199,7 +199,7 @@
 |----------|-------------|--------------|
 | [archive/COLLABORATION_PHASE_4_COMPLETE.md](archive/COLLABORATION_PHASE_4_COMPLETE.md) | Multi-agent canvas coordination | Feb 1, 2026 |
 | [CANVAS_RECORDING_IMPLEMENTATION.md](canvas/recording.md) | Canvas recording and replay | Feb 2, 2026 |
-| [CANVAS_AGENT_LEARNING_INTEGRATION.md](CANVAS_AGENT_LEARNING_INTEGRATION.md) | Canvas and agent learning | Feb 2, 2026 |
+| CANVAS_AGENT_LEARNING_INTEGRATION.md | Canvas and agent learning | Feb 2, 2026 |
 
 ---
 
@@ -218,7 +218,7 @@
 | [INTEGRATIONS.md](integrations/OVERVIEW.md) | **Complete workflow guide** | - |
 | [INTEGRATIONS.md](integrations/OVERVIEW.md) | AI-powered workflow optimization | - |
 | [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Track workflow performance | - |
-| [MULTI_INTEGRATION_WORKFLOW_ENGINE.md](MULTI_INTEGRATION_WORKFLOW_ENGINE.md) | Multi-integration workflows | - |
+| MULTI_INTEGRATION_WORKFLOW_ENGINE.md | Multi-integration workflows | - |
 
 ---
 
@@ -226,9 +226,9 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [REACT_NATIVE_ARCHITECTURE.md](REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
-| [MOBILE_QUICK_START.md](MOBILE_QUICK_START.md) | Mobile development quick start | Feb 1, 2026 |
-| [MOBILE_DEPLOYMENT.md](MOBILE_DEPLOYMENT.md) | Mobile deployment guide | Feb 1, 2026 |
+| [REACT_NATIVE_ARCHITECTURE.md](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
+| [MOBILE_QUICK_START.md](archive/mobile/MOBILE_QUICK_START.md) | Mobile development quick start | Feb 1, 2026 |
+| [MOBILE_DEPLOYMENT.md](archive/mobile/MOBILE_DEPLOYMENT.md) | Mobile deployment guide | Feb 1, 2026 |
 | [archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md](archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md) | Mobile screens implementation | Feb 5, 2026 |
 
 ---
@@ -237,10 +237,10 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [BROWSER_AUTOMATION.md](BROWSER_AUTOMATION.md) | **Browser automation (Playwright CDP)** | Jan 31, 2026 |
-| [BROWSER_QUICK_START.md](BROWSER_QUICK_START.md) | Browser automation quick start | Jan 31, 2026 |
-| [DEVICE_CAPABILITIES.md](DEVICE_CAPABILITIES.md) | **Camera, screen recording, location** | Feb 1, 2026 |
-| [DEEPLINK_IMPLEMENTATION.md](DEEPLINK_IMPLEMENTATION.md) | **External app integration via atom:// URLs** | Feb 1, 2026 |
+| BROWSER_AUTOMATION.md | **Browser automation (Playwright CDP)** | Jan 31, 2026 |
+| BROWSER_QUICK_START.md | Browser automation quick start | Jan 31, 2026 |
+| DEVICE_CAPABILITIES.md | **Camera, screen recording, location** | Feb 1, 2026 |
+| [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | **External app integration via atom:// URLs** | Feb 1, 2026 |
 
 ---
 
@@ -249,16 +249,16 @@
 ### Database
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md) | Database migration guide | Feb 4, 2026 |
-| [DATABASE_MODEL_AUDIT.md](DATABASE_MODEL_AUDIT.md) | Database model audit | Feb 4, 2026 |
-| [DATABASE_MODEL_BEST_PRACTICES.md](DATABASE_MODEL_BEST_PRACTICES.md) | Database best practices | Feb 4, 2026 |
+| [DATABASE_MIGRATION_GUIDE.md](archive/legacy/DATABASE_MIGRATION_GUIDE.md) | Database migration guide | Feb 4, 2026 |
+| DATABASE_MODEL_AUDIT.md | Database model audit | Feb 4, 2026 |
+| DATABASE_MODEL_BEST_PRACTICES.md | Database best practices | Feb 4, 2026 |
 
 ### Performance
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [PERFORMANCE_MONITORING_SETUP.md](PERFORMANCE_MONITORING_SETUP.md) | Performance monitoring setup | - |
+| PERFORMANCE_MONITORING_SETUP.md | Performance monitoring setup | - |
 | [CODE_QUALITY_GUIDE.md](development/code-quality.md) | Code quality guidelines | Feb 4, 2026 |
-| [CODEBASE_HEALTH_CHECK.md](CODEBASE_HEALTH_CHECK.md) | Codebase health check | Feb 3, 2026 |
+| [CODEBASE_HEALTH_CHECK.md](archive/legacy/CODEBASE_HEALTH_CHECK.md) | Codebase health check | Feb 3, 2026 |
 
 ---
 
@@ -267,7 +267,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [Production Readiness](operations/production-readiness.md) | **Production deployment checklist** | Feb 5, 2026 |
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | AWS, GCP, Azure deployment | - |
+| DEPLOYMENT_GUIDE.md | AWS, GCP, Azure deployment | - |
 | [PERSONAL_EDITION.md](operations/personal-edition.md) | Docker deployment guide | - |
 
 ---
@@ -277,9 +277,9 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [API_DOCUMENTATION.md](api/OVERVIEW.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
-| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
-| [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
-| [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
+| DEPLOYMENT_RUNBOOK.md | **Deployment procedures with rollback** | Feb 16, 2026 |
+| OPERATIONS_GUIDE.md | **Daily operations & common tasks** | Feb 16, 2026 |
+| TROUBLESHOOTING.md | **Production troubleshooting guide** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
 | [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
 
@@ -288,7 +288,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
-| [HEALTH_MONITORING_SYSTEM.md](HEALTH_MONITORING_SYSTEM.md) | Health monitoring system | Feb 2, 2026 |
+| HEALTH_MONITORING_SYSTEM.md | Health monitoring system | Feb 2, 2026 |
 | [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Monitoring guide | Feb 2, 2026 |
 
 ### CI/CD Pipeline
@@ -356,9 +356,9 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [CODE_QUALITY_GUIDE.md](development/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
-| [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
-| [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
-| [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
+| [CI_FIXES.md](archive/legacy/CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
+| [TEST_RESULTS_FEB2026.md](archive/TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
+| [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
 **Test Suite Summary**:
 - 495+ tests (unit, integration, E2E, bug discovery)
@@ -376,23 +376,23 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [ARCHITECTURE.md](architecture/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
-| [CODE_STRUCTURE_OVERVIEW.md](CODE_STRUCTURE_OVERVIEW.md) | Code structure overview | - |
+| CODE_STRUCTURE_OVERVIEW.md | Code structure overview | - |
 | [DATABASE_ARCHITECTURE.md](reference/DATABASE_ARCHITECTURE.md) | Database architecture | - |
 
 ### API Documentation
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [API_DOCUMENTATION_INDEX.md](API_DOCUMENTATION_INDEX.md) | **API documentation index** | Feb 4, 2026 |
-| [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | **API standards and conventions** | Feb 4, 2026 |
+| API_DOCUMENTATION_INDEX.md | **API documentation index** | Feb 4, 2026 |
+| API_STANDARDS.md | **API standards and conventions** | Feb 4, 2026 |
 | [API.md](api/OVERVIEW.md) | API reference | - |
 
 ### Guides
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [USER_GUIDE.md](USER_GUIDE.md) | User guide | - |
-| [USER_PERSONAS_AND_JOURNEYS.md](USER_PERSONAS_AND_JOURNEYS.md) | User personas and journeys | - |
-| [MEMORY_INTEGRATION_GUIDE.md](MEMORY_INTEGRATION_GUIDE.md) | Memory integration guide | - |
-| [ERROR_HANDLING_GUIDELINES.md](ERROR_HANDLING_GUIDELINES.md) | Error handling guidelines | - |
+| USER_GUIDE.md | User guide | - |
+| USER_PERSONAS_AND_JOURNEYS.md | User personas and journeys | - |
+| MEMORY_INTEGRATION_GUIDE.md | Memory integration guide | - |
+| ERROR_HANDLING_GUIDELINES.md | Error handling guidelines | - |
 
 ---
 
@@ -400,25 +400,25 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) | **Consolidated implementation timeline** | Feb 6, 2026 |
-| [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) | **Background task queue guide** | Feb 6, 2026 |
+| [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) | **Consolidated implementation timeline** | Feb 6, 2026 |
+| TASK_QUEUE_GUIDE.md | **Background task queue guide** | Feb 6, 2026 |
 
 ---
 
 ## 🗄️ Archive
 
 ### Archived Implementation Summaries (2026)
-- [IMPLEMENTATION_SUMMARY.md](archive/implementation-summaries/IMPLEMENTATION_SUMMARY.md) - General implementation summary
-- [IMPLEMENTATION_SUMMARY_FEB_2026.md](archive/implementation-summaries/IMPLEMENTATION_SUMMARY_FEB_2026.md) - February 2026 summary
-- [IMPLEMENTATION_PROGRESS.md](archive/implementation-summaries/IMPLEMENTATION_PROGRESS.md) - Implementation progress
-- [IMPLEMENTATION_FIXES_FEB2026.md](archive/implementation-summaries/IMPLEMENTATION_FIXES_FEB2026.md) - February 2026 fixes
-- [INCOMPLETE_IMPLEMENTATIONS_FIX_SUMMARY.md](archive/implementation-summaries/INCOMPLETE_IMPLEMENTATIONS_FIX_SUMMARY.md) - Incomplete fixes summary
+- IMPLEMENTATION_SUMMARY.md - General implementation summary
+- IMPLEMENTATION_SUMMARY_FEB_2026.md - February 2026 summary
+- IMPLEMENTATION_PROGRESS.md - Implementation progress
+- IMPLEMENTATION_FIXES_FEB2026.md - February 2026 fixes
+- INCOMPLETE_IMPLEMENTATIONS_FIX_SUMMARY.md - Incomplete fixes summary
 
 ### Archived Implementation Summaries (2025-12)
-- [BROWSER_IMPLEMENTATION_SUMMARY.md](archive/2025-12/BROWSER_IMPLEMENTATION_SUMMARY.md) - Browser automation implementation
-- [DEVICE_WEBSOCKET_IMPLEMENTATION.md](archive/2025-12/DEVICE_WEBSOCKET_IMPLEMENTATION.md) - Device WebSocket implementation
-- [JAVASCRIPT_EXECUTION_IMPLEMENTATION.md](archive/2025-12/JAVASCRIPT_EXECUTION_IMPLEMENTATION.md) - JavaScript execution implementation
-- [MENUBAR_IMPLEMENTATION_SUMMARY.md](archive/2025-12/MENUBAR_IMPLEMENTATION_SUMMARY.md) - MenuBar implementation
+- BROWSER_IMPLEMENTATION_SUMMARY.md - Browser automation implementation
+- DEVICE_WEBSOCKET_IMPLEMENTATION.md - Device WebSocket implementation
+- JAVASCRIPT_EXECUTION_IMPLEMENTATION.md - JavaScript execution implementation
+- MENUBAR_IMPLEMENTATION_SUMMARY.md - MenuBar implementation
 
 ### Legacy Reports
 - [ATOM-Testing-Report.md](archive/legacy-reports/ATOM-Testing-Report.md) - Testing report
@@ -439,11 +439,11 @@
 - [ENHANCEMENT_NEXT_STEPS.md](archive/old-guides/ENHANCEMENT_NEXT_STEPS.md) - Enhancement next steps
 
 ### Archive Index
-- [INCOMPLETE_FIXES_COMPLETE.md](archive/INCOMPLETE_FIXES_COMPLETE.md) - Incomplete fixes completion
-- [INCOMPLETE_IMPLEMENTATION_FIX_SUMMARY.md](archive/INCOMPLETE_IMPLEMENTATION_FIX_SUMMARY.md) - Implementation fix summary
-- [INCOMPLETE_FIXES_SUMMARY.md](archive/INCOMPLETE_FIXES_SUMMARY.md) - Fixes summary
-- [TODO_FEATURES_IMPLEMENTATION_SUMMARY.md](archive/TODO_FEATURES_IMPLEMENTATION_SUMMARY.md) - TODO features implementation
-- [TODO_FEATURES_QUICK_REFERENCE.md](archive/TODO_FEATURES_QUICK_REFERENCE.md) - TODO features reference
+- INCOMPLETE_FIXES_COMPLETE.md - Incomplete fixes completion
+- INCOMPLETE_IMPLEMENTATION_FIX_SUMMARY.md - Implementation fix summary
+- INCOMPLETE_FIXES_SUMMARY.md - Fixes summary
+- TODO_FEATURES_IMPLEMENTATION_SUMMARY.md - TODO features implementation
+- TODO_FEATURES_QUICK_REFERENCE.md - TODO features reference
 
 ---
 
@@ -463,53 +463,53 @@
 
 **Canvas**:
 - [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
-- [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas in episodes
+- CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas in episodes
 
 **Integrations**:
 - [BYOK_LLM_INTEGRATION_COMPLETE.md]# - LLM providers
 - [INTEGRATIONS.md](integrations/OVERVIEW.md) - Workflows
 
 **Background Jobs**:
-- [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - RQ and Redis setup
+- TASK_QUEUE_GUIDE.md - RQ and Redis setup
 
 ### By Date (Most Recent)
 
 **February 2026**:
 - [COMMUNITY_SKILLS.md](integrations/community-skills.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](operations/personal-edition.md) - **Personal Edition guide** (Feb 16)
-- [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
+- VECTOR_EMBEDDINGS.md - **Vector embeddings guide** (Feb 16)
 - [API_DOCUMENTATION.md](api/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
-- [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)
-- [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
-- [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
+- DEPLOYMENT_RUNBOOK.md - **Deployment runbook** (Feb 16)
+- OPERATIONS_GUIDE.md - **Operations guide** (Feb 16)
+- TROUBLESHOOTING.md - **Troubleshooting** (Feb 16)
 - [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
 - [CODE_QUALITY_STANDARDS.md](development/code-quality.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
-- [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - **AI agent accessibility with dual representation** (Feb 2026)
-- [CANVAS_STATE_API.md](CANVAS_STATE_API.md) - **JavaScript API for real-time canvas state** (Feb 2026)
-- [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - **LLM-powered semantic summaries** (Feb 2026)
+- CANVAS_AI_ACCESSIBILITY.md - **AI agent accessibility with dual representation** (Feb 2026)
+- CANVAS_STATE_API.md - **JavaScript API for real-time canvas state** (Feb 2026)
+- LLM_CANVAS_SUMMARIES.md - **LLM-powered semantic summaries** (Feb 2026)
 
 ### Core Development (Feb 6)
 - [DEVELOPMENT.md](development/overview.md) - Updated with security, testing, task queue (Feb 6)
-- [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
-- [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
+- [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
+- TASK_QUEUE_GUIDE.md - Background task queue (Feb 6)
 - [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
 - [AUTHENTICATION.md]# - Updated with validation (Feb 6)
 - [DATA_PROTECTION.md]# - Updated with encryption (Feb 6)
-- [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration (Feb 4)
-- [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
-- [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) - Quick start (Feb 4)
-- [AGENT_GRADUATION_GUIDE.md](../agents/graduation.md) - Graduation criteria (Feb 3)
+- CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas integration (Feb 4)
+- [DATABASE_MIGRATION_GUIDE.md](archive/legacy/DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
+- EPISODIC_MEMORY_QUICK_START.md - Quick start (Feb 4)
+- AGENT_GRADUATION_GUIDE.md - Graduation criteria (Feb 3)
 - [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Memory framework (Feb 3)
 
 **January 2026**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
 - [agents/guidance-system.md](agents/guidance-system.md) - Agent guidance (Feb 2)
 - [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
-- [DEEPLINK_IMPLEMENTATION.md](DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
-- [BROWSER_AUTOMATION.md](BROWSER_AUTOMATION.md) - Browser automation (Jan 31)
+- [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
+- BROWSER_AUTOMATION.md - Browser automation (Jan 31)
 
 ---
 
@@ -519,13 +519,13 @@
 |----------|-------------|--------------|
 | [INCOMPLETE_IMPLEMENTATIONS.md]# | **Recent fixes status (Feb 5, 2026)** | Feb 5, 2026 |
 | [Production Readiness](operations/production-readiness.md) | Production deployment | Feb 5, 2026 |
-| [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | API standards | Feb 4, 2026 |
+| API_STANDARDS.md | API standards | Feb 4, 2026 |
 | [BYOK_LLM_INTEGRATION_COMPLETE.md]# | LLM integration | Feb 5, 2026 |
 | [FINAL_IMPLEMENTATION_SUMMARY.md]# | Final implementation summary | Feb 5, 2026 |
 | [API_DOCUMENTATION.md](api/OVERVIEW.md) | **Comprehensive API docs** | Feb 16, 2026 |
-| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment runbook** | Feb 16, 2026 |
-| [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
-| [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
+| DEPLOYMENT_RUNBOOK.md | **Deployment runbook** | Feb 16, 2026 |
+| OPERATIONS_GUIDE.md | **Operations guide** | Feb 16, 2026 |
+| TROUBLESHOOTING.md | **Troubleshooting guide** | Feb 16, 2026 |
 | [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
 | [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
@@ -546,7 +546,7 @@
 **Need Help?**
 - Check [DEVELOPMENT.md](development/overview.md) for setup instructions
 - Review [SECURITY/AUTHENTICATION.md]# for authentication issues
-- See [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) for recent changes
+- See [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) for recent changes
 
 **Found an Issue?**
 - Report bugs on GitHub

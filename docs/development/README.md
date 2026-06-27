@@ -66,7 +66,7 @@ pytest backend/tests/e2e_ui/ -v
 ## 📖 Related Documentation
 
 - **[Development (lowercase)](../development/README.md)** - Additional development docs
-- **[API Documentation](../API/README.md)** - API reference
+- **API Documentation** - API reference
 - **[Testing](../testing/README.md)** - Testing guides
 
 > **Note**: This folder contains uppercase development documentation. Additional development docs are in the `development/` (lowercase) folder.

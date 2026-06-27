@@ -678,26 +678,26 @@ GET /auto-install/status/{skill_id}
 ## Related Documentation
 
 ### Core Documentation
-- [Community Skills](../INTEGRATIONS/community-skills.md) - Phase 14 foundation for skill infrastructure
-- [Python Packages](../SECURITY/python-packages.md) - Python package support with dependency isolation
-- [npm Packages](../SECURITY/npm-packages.md) - npm package support with postinstall protection
-- [Package Governance](../SECURITY/package-governance.md) - Maturity-based package access control
-- [Package Security](../SECURITY/packages.md) - Comprehensive security testing documentation
+- Community Skills - Phase 14 foundation for skill infrastructure
+- Python Packages - Python package support with dependency isolation
+- npm Packages - npm package support with postinstall protection
+- Package Governance - Maturity-based package access control
+- Package Security - Comprehensive security testing documentation
 
 ### Advanced Guides
 - [Skill Marketplace Guide](../marketplace/skills.md) - Detailed marketplace usage
-- [Skill Composition Patterns](../INTEGRATIONS/skill-composition.md) - Workflow design patterns
+- Skill Composition Patterns - Workflow design patterns
 - [Performance Tuning](../operations/performance.md) - Optimization and monitoring guide
 - [Supply Chain Security][<!-- ./SUPPLY_CHAIN_SECURITY.md -->] - E2E security testing (Plan 60-06)
 
 ### API Documentation
-- [API Reference](api/OVERVIEW.md) - Complete REST API documentation
-- [Marketplace API](../backend/docs/API_DOCUMENTATION.md#marketplace) - Marketplace endpoints
-- [Composition API](../backend/docs/API_DOCUMENTATION.md#composition) - Workflow endpoints
-- [Auto-Install API](../backend/docs/API_DOCUMENTATION.md#auto-install) - Package installation endpoints
+- API Reference - Complete REST API documentation
+- Marketplace API - Marketplace endpoints
+- Composition API - Workflow endpoints
+- Auto-Install API - Package installation endpoints
 
 ### Testing
-- [Security Testing](../backend/docs/PACKAGE_SECURITY.md) - 34 tests covering all threat vectors
+- Security Testing - 34 tests covering all threat vectors
 - [Performance Benchmarks](../backend/tests/test_performance_benchmarks.py) - Regression testing
 - [E2E Supply Chain Tests](../backend/tests/test_e2e_supply_chain.py) - Real-world attack simulation
 

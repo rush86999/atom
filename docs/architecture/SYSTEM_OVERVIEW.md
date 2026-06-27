@@ -247,7 +247,7 @@ cd desktop/tauri && npm run dev
 - **Zero-Trust Federation**: DID/VC identity with mTLS
 - **Arbor Framework**: Hypothesis Tree Refinement for optimization
 
-**See**: [ATOM_ENHANCEMENT_PLAN.md](../ATOM_ENHANCEMENT_PLAN.md) - Complete 2026 Enhancement Plan
+**See**: ATOM_ENHANCEMENT_PLAN.md - Complete 2026 Enhancement Plan
 
 ### Planned Improvements
 - Microservices architecture for scalability

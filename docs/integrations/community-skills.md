@@ -331,7 +331,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
   }'
 ```
 
-**See:** [ATOM_CLI_SKILLS_GUIDE.md](./ATOM_CLI_SKILLS_GUIDE.md) for complete documentation.
+**See:** ATOM_CLI_SKILLS_GUIDE.md for complete documentation.
 
 ---
 
@@ -442,7 +442,7 @@ Remove skill image when no longer needed:
 curl -X DELETE http://localhost:8000/api/packages/data-analysis-skill?agent_id=agent_789
 ```
 
-**See:** [API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management) for complete reference.
+**See:** API Documentation for complete reference.
 
 ---
 
@@ -600,7 +600,7 @@ Remove skill image when no longer needed:
 curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
 ```
 
-**See:** [npm Package Support](security/npm-packages.md) for comprehensive user guide.
+**See:** npm Package Support for comprehensive user guide.
 
 ---
 
@@ -866,16 +866,16 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 
 ## Related Documentation
 
-- [Phase 14 Verification →](../.planning/phases/14-community-skills-integration/14-VERIFICATION.md) - Complete with 13/13 success criteria verified ✅
-- [Agent Governance →](agents/governance.md)
-- [Episodic Memory →](intelligence/episodic-memory.md) - Skill executions create EpisodeSegments for learning
+- Phase 14 Verification → - Complete with 13/13 success criteria verified ✅
+- Agent Governance →
+- Episodic Memory → - Skill executions create EpisodeSegments for learning
 - [Agent Graduation →](../agents/graduation.md) - Community skills count toward graduation readiness
-- [API Documentation →](api/OVERVIEW.md)
+- API Documentation →
 - **✨ Phase 60: Advanced Skill Execution**
-  - [Advanced Skill Execution →](integrations/advanced-skills.md) - Marketplace, composition, auto-installation overview
-  - [Skill Marketplace Guide →](SKILL_MARKETPLACE_GUIDE.md) - Discovery, search, ratings, installation
-  - [Skill Composition Patterns →](SKILL_COMPOSITION_PATTERNS.md) - Workflow design with DAG patterns
-  - [Performance Tuning →](operations/performance.md) - Optimization and monitoring guide
+  - Advanced Skill Execution → - Marketplace, composition, auto-installation overview
+  - Skill Marketplace Guide → - Discovery, search, ratings, installation
+  - Skill Composition Patterns → - Workflow design with DAG patterns
+  - Performance Tuning → - Optimization and monitoring guide
 
 ---
 

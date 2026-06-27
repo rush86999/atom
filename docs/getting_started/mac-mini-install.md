@@ -698,8 +698,8 @@ df -h       # Disk usage
 
 - [Full Documentation](./README.md)
 - [Personal Edition Guide](../operations/personal-edition.md)
-- [API Documentation](API_DOCUMENTATION_INDEX.md)
-- [Troubleshooting](ERROR_HANDLING_GUIDELINES.md)
+- API Documentation
+- Troubleshooting
 
 ### Community
 

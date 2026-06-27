@@ -35,8 +35,8 @@ Integration guides for connecting Atom with external platforms and services.
 ## 📖 Related Documentation
 
 - **[Agent System](../agents/README.md)** - Agent integration workflows
-- **[API Documentation](../API/README.md)** - REST API reference
-- **[Security](../SECURITY/README.md)** - Integration security
+- **API Documentation** - REST API reference
+- **Security** - Integration security
 
 ---
 

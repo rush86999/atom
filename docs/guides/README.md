@@ -53,8 +53,8 @@ Comprehensive guides organized by user type and topic.
 
 ### For Developers
 1. [Auto-Dev User Guide](AUTO_DEV_USER_GUIDE.md) - Self-evolving agents
-2. [API Development](../DEVELOPMENT/API_DEVELOPMENT.md) - API integration
-3. [Contributing Integrations](../DEVELOPMENT/CONTRIBUTING_INTEGRATIONS.md) - Build integrations
+2. API Development - API integration
+3. Contributing Integrations - Build integrations
 
 ### For Administrators
 1. [Enterprise](ENTERPRISE) - Enterprise deployment
@@ -63,7 +63,7 @@ Comprehensive guides organized by user type and topic.
 
 ## 📖 Related Documentation
 
-- **[Getting Started](../getting-started/README.md)** - Installation and setup
+- **Getting Started** - Installation and setup
 - **[Agent System](../agents/README.md)** - Agent documentation
 - **[Operations](../operations/README.md)** - Deployment and operations
 

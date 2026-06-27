@@ -67,7 +67,7 @@ result = agent.execute(
 
 ## 📖 Related Documentation
 
-- **[API Documentation](../API/README.md)** - Complete API reference
+- **API Documentation** - Complete API reference
 - **[Development](../development/README.md)** - Development setup
 - **[Components](../components/README.md)** - Component documentation
 

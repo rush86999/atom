@@ -83,8 +83,8 @@ scrape_configs:
 
 ## 📖 Related Documentation
 
-- **[Deployment](../DEPLOYMENT/README.md)** - Deployment guides
-- **[Security](../SECURITY/README.md)** - Security operations
+- **Deployment** - Deployment guides
+- **Security** - Security operations
 - **[Testing](../testing/README.md)** - Monitoring tests
 
 ---

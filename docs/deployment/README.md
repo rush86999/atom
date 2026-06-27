@@ -71,8 +71,8 @@ docker-compose -f docker-compose-personal.yml up -d --build
 ## 📖 Related Documentation
 
 - **[Operations](../operations/README.md)** - Operations guides
-- **[Security](../SECURITY/README.md)** - Security best practices
-- **[Development](../DEVELOPMENT/README.md)** - Development setup
+- **Security** - Security best practices
+- **Development** - Development setup
 
 ---
 

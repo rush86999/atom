@@ -694,5 +694,5 @@ print("Episode indexes:", indexes)
 
 - [Episodic Memory Implementation](../intelligence/episodic-memory.md)
 - [Agent Graduation Guide](../agents/graduation.md)
-- [Canvas Implementation Guide](archive/CANVAS_IMPLEMENTATION_COMPLETE.md)
+- [Canvas Implementation Guide](../archive/CANVAS_IMPLEMENTATION_COMPLETE.md)
 - [Episode Quick Start](../intelligence/episodic-quickstart.md)

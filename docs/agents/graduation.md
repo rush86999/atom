@@ -40,7 +40,7 @@ Atom has **two distinct graduation systems** that work together:
 - But have **AUTONOMOUS** level for "data_query" capability (capability graduation)
 - While still being **STUDENT** for "shell_access" capability
 
-**See**: [Capability Graduation Logic](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic) for the 5/20/50 rule.
+**See**: Capability Graduation Logic for the 5/20/50 rule.
 
 ---
 
@@ -132,7 +132,7 @@ The `BackgroundAgentRunner` performs system-wide audits independently of user in
 
 ## Skill Promotion Logic
 
-**Note**: This section describes skill promotion within the agent graduation framework. For per-capability graduation based on usage count (5/20/50 rule), see [Capability Graduation Logic](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic).
+**Note**: This section describes skill promotion within the agent graduation framework. For per-capability graduation based on usage count (5/20/50 rule), see Capability Graduation Logic.
 
 Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
 
@@ -826,7 +826,7 @@ See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for comple
 
 For more information:
 - [Episodic Memory Implementation](../intelligence/episodic-memory.md)
-- [Quick Start Guide](EPISODIC_MEMORY_QUICK_START.md)
+- Quick Start Guide
 - [API Documentation](../api/episode_routes.py)
 
 ---
@@ -842,9 +842,9 @@ For more information:
 ### Agent Systems
 - **[Agent Governance](governance.md)** - Maturity levels and permissions system
 - **[Student Training](training.md)** - Maturity routing and training proposals
-- **[Queen Agent](../GUIDES/QUEEN_AGENT_USER_GUIDE.md)** - Structured workflow automation
+- **Queen Agent** - Structured workflow automation
 - **[Fleet Admiral](fleet-admiral.md)** - Dynamic agent recruitment for unstructured tasks
 
 ### Integration Guides
-- **[Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md)** - Self-evolving agent capabilities (Memento-Skills, AlphaEvolver)
+- **Auto-Dev User Guide** - Self-evolving agent capabilities (Memento-Skills, AlphaEvolver)
 - **[Memory Integration Guide](../intelligence/memory-integration.md)** - Complete memory system integration

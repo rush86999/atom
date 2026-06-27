@@ -5,7 +5,7 @@ Quick start guides, installation options, and first steps with Atom.
 ## 📚 Quick Navigation
 
 ### Essential Guides
-- **[Installation](installation.md)** - Complete installation guide
+- **[Installation](INSTALLATION.md)** - Complete installation guide
 - **[Installation Options](installation-options.md)** - Installation variants
 - **[Mac Mini Install](mac-mini-install.md)** - Mac mini specific setup
 - **[Install Script](install-script.md)** - Automated installation script
@@ -110,7 +110,7 @@ MARKETPLACE_API_TOKEN=at_saas_your_token
 
 - **[User Guide Index](../USER_GUIDE_INDEX.md)** - Complete user documentation
 - **[Agent System](../agents/README.md)** - Learn about agents
-- **[Integrations](../INTEGRATIONS/README.md)** - Connect external services
+- **Integrations** - Connect external services
 - **[Operations](../operations/README.md)** - Deployment and monitoring
 
 ## ❓ Troubleshooting
@@ -148,8 +148,8 @@ docker-compose -f docker-compose-personal.yml up -d --build
 
 ## 📖 Related Documentation
 
-- **[GETTING_STARTED (uppercase)](../GETTING_STARTED/README.md)** - Additional getting started docs
-- **[Installation](../getting-started/installation.md)** - Detailed installation
+- **GETTING_STARTED (uppercase)** - Additional getting started docs
+- **Installation** - Detailed installation
 - **[Development](../development/README.md)** - Development setup
 
 > **Note**: This folder (lowercase `getting-started/`) contains quick start and installation guides. Additional getting started docs are in the `GETTING_STARTED/` (uppercase) folder.

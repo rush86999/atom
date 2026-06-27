@@ -346,19 +346,19 @@ PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/test_agent_guid
 
 ## 📚 Documentation Index
 
-1. **[AGENT_GUIDANCE_IMPLEMENTATION.md](./AGENT_GUIDANCE_IMPLEMENTATION.md)**
+1. **AGENT_GUIDANCE_IMPLEMENTATION.md**
    - Complete implementation overview
    - Architecture and data flow
    - API endpoints reference
    - Usage examples
 
-2. **[AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](./AGENT_GOVERNANCE_LEARNING_INTEGRATION.md)**
+2. **AGENT_GOVERNANCE_LEARNING_INTEGRATION.md**
    - Governance integration
    - Attribution and audit trail
    - Feedback loops
    - Real-time monitoring
 
-3. **[CANVAS_AGENT_LEARNING_INTEGRATION.md](./CANVAS_AGENT_LEARNING_INTEGRATION.md)**
+3. **CANVAS_AGENT_LEARNING_INTEGRATION.md**
    - Canvas context for learning
    - User feedback → confidence
    - Personalization engine

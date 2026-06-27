@@ -266,6 +266,6 @@ curl -X POST http://localhost:8000/api/edition/enable \
 
 ## See Also
 
-- [Installation Guide](getting_started/INSTALLATION.md)
-- [Personal Edition Guide](operations/personal-edition.md)
+- Installation Guide
+- Personal Edition Guide
 - [Package Feature Service API](../backend/core/package_feature_service.py)

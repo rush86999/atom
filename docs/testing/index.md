@@ -10,7 +10,7 @@ Welcome to the central hub for all testing documentation at Atom. This index hel
 ## I'm New Here (Start Here)
 
 ### Testing Onboarding Guide (15 min)
-→ [TESTING_ONBOARDING.md](testing/onboarding.md)
+→ TESTING_ONBOARDING.md
 
 **What you'll learn:**
 - How to verify your test setup works
@@ -30,7 +30,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Frontend (Next.js/React)
 
-→ [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+→ FRONTEND_TESTING_GUIDE.md *(coming soon in Phase 152)*
 
 **Frameworks:** Jest, React Testing Library, MSW, jest-axe
 **Target Coverage:** 80%+ across all modules
@@ -43,12 +43,12 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 - `frontend-nextjs/tests/__mocks__` - Mock modules
 
 **See Also:**
-- [Frontend Coverage Guide](../frontend-nextjs/docs/FRONTEND_COVERAGE.md) - Per-module thresholds
-- [API Robustness](../frontend-nextjs/docs/API_ROBUSTNESS.md) - MSW patterns
+- Frontend Coverage Guide - Per-module thresholds
+- API Robustness - MSW patterns
 
 ### Mobile (React Native)
 
-→ [MOBILE_TESTING_GUIDE.md](testing/mobile-archive.md) *(coming soon in Phase 152)*
+→ MOBILE_TESTING_GUIDE.md *(coming soon in Phase 152)*
 
 **Frameworks:** jest-expo, React Native Testing Library
 **Target Coverage:** 50%+ across all modules
@@ -67,7 +67,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Desktop (Tauri/Rust)
 
-→ [DESKTOP_TESTING_GUIDE.md](testing/desktop.md) *(coming soon in Phase 152)*
+→ DESKTOP_TESTING_GUIDE.md *(coming soon in Phase 152)*
 
 **Frameworks:** cargo test, proptest, tarpaulin, #[tauri::test]
 **Target Coverage:** 40%+ across all modules
@@ -86,7 +86,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Backend (Python/FastAPI)
 
-→ [backend/tests/docs/COVERAGE_GUIDE.md](testing/index.md)
+→ backend/tests/docs/COVERAGE_GUIDE.md
 
 **Frameworks:** pytest, Hypothesis, Schemathesis
 **Target Coverage:** 70%+ across all modules
@@ -112,7 +112,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### Property Testing
 
-→ [PROPERTY_TESTING_PATTERNS.md](testing/property-testing.md)
+→ PROPERTY_TESTING_PATTERNS.md
 
 **What you'll learn:**
 - FastCheck (frontend/mobile/desktop) - 32 properties
@@ -131,7 +131,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### E2E Testing
 
-→ [E2E_TESTING_GUIDE.md](testing/e2e-guide.md)
+→ E2E_TESTING_GUIDE.md
 
 **What you'll learn:**
 - Playwright (web) - Browser automation
@@ -145,7 +145,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### Cross-Platform Coverage
 
-→ [CROSS_PLATFORM_COVERAGE.md](testing/cross-platform.md)
+→ CROSS_PLATFORM_COVERAGE.md
 
 **What you'll learn:**
 - Weighted coverage calculation (40/30/20/10%)
@@ -161,7 +161,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### API Contract Testing
 
-→ [backend/docs/API_CONTRACT_TESTING.md](../backend/docs/API_CONTRACT_TESTING.md)
+→ backend/docs/API_CONTRACT_TESTING.md
 
 **What you'll learn:**
 - Schemathesis validation
@@ -181,7 +181,7 @@ Troubleshooting guides for common testing problems.
 
 ### Flaky Tests
 
-→ [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](testing/index.md)
+→ backend/tests/docs/FLAKY_TEST_QUARANTINE.md
 
 **Problem:** Tests pass sometimes, fail other times
 
@@ -202,7 +202,7 @@ Troubleshooting guides for common testing problems.
 
 ### Slow Test Execution
 
-→ [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)
+→ backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md
 
 **Problem:** Tests take too long to run
 
@@ -223,7 +223,7 @@ Troubleshooting guides for common testing problems.
 
 ### Coverage Regression
 
-→ [backend/tests/docs/COVERAGE_TRENDING_GUIDE.md](testing/index.md)
+→ backend/tests/docs/COVERAGE_TRENDING_GUIDE.md
 
 **Problem:** Coverage decreased from last build
 
@@ -244,7 +244,7 @@ Troubleshooting guides for common testing problems.
 
 ### Test Isolation Issues
 
-→ [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](testing/index.md)
+→ backend/tests/docs/TEST_ISOLATION_PATTERNS.md
 
 **Problem:** Tests fail when run together but pass individually
 
@@ -271,7 +271,7 @@ Quality standards and reference materials for all platforms.
 
 ### Quality Standards
 
-→ [backend/docs/TEST_QUALITY_STANDARDS.md](development/code-quality.md)
+→ backend/docs/TEST_QUALITY_STANDARDS.md
 
 **Standards:**
 - TQ-01: Test Independence
@@ -285,7 +285,7 @@ Quality standards and reference materials for all platforms.
 
 ### API Testing Guide
 
-→ [docs/testing/API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md)
+→ docs/testing/API_TESTING_GUIDE.md
 
 **Topics:**
 - Contract testing with Schemathesis
@@ -302,12 +302,12 @@ Deep dives into each platform's testing infrastructure.
 
 **Location:** `frontend-nextjs/docs/`
 
-- **[Frontend Coverage](../frontend-nextjs/docs/FRONTEND_COVERAGE.md)** - Per-module coverage breakdown
+- **Frontend Coverage** - Per-module coverage breakdown
   - Canvas components: 90% target
   - Integration layer: 85% target
   - Dashboard: 80% target
 
-- **[API Robustness](../frontend-nextjs/docs/API_ROBUSTNESS.md)** - MSW patterns
+- **API Robustness** - MSW patterns
   - Request/response mocking
   - Error handling
   - Retry logic
@@ -316,32 +316,32 @@ Deep dives into each platform's testing infrastructure.
 
 **Location:** `backend/tests/docs/`
 
-1. **[COVERAGE_GUIDE.md](testing/index.md)** (727 lines)
+1. **COVERAGE_GUIDE.md** (727 lines)
    - Coverage measurement
    - Gap analysis
    - Priority tiers
 
-2. **[COVERAGE_TRENDING_GUIDE.md](testing/index.md)** (759 lines)
+2. **COVERAGE_TRENDING_GUIDE.md** (759 lines)
    - 30-day trending
    - Regression detection
    - Dashboards
 
-3. **[FLAKY_TEST_GUIDE.md](testing/index.md)** (922 lines)
+3. **FLAKY_TEST_GUIDE.md** (922 lines)
    - Detection strategies
    - Quarantine workflows
    - Fixing strategies
 
-4. **[FLAKY_TEST_QUARANTINE.md](testing/index.md)** (590 lines)
+4. **FLAKY_TEST_QUARANTINE.md** (590 lines)
    - Multi-run detection
    - SQLite tracking
    - Auto-removal policies
 
-5. **[PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)** (1,519 lines)
+5. **PARALLEL_EXECUTION_GUIDE.md** (1,519 lines)
    - Matrix execution
    - <15 min feedback
    - Retry workflows
 
-6. **[TEST_ISOLATION_PATTERNS.md](testing/index.md)** (961 lines)
+6. **TEST_ISOLATION_PATTERNS.md** (961 lines)
    - Independent tests
    - Fixture patterns
    - Resource conflicts
@@ -369,12 +369,12 @@ Phase completion reports and overall progress tracking.
 - Documentation consolidation (Phase 152)
 
 **Phase Summaries:**
-- [Phase 146](../.planning/phases/146-cross-platform-weighted-coverage/146-SUMMARY.md) - Cross-platform coverage
-- [Phase 147](../.planning/phases/147-shared-property-tests/147-SUMMARY.md) - Shared property tests
-- [Phase 148](../.planning/phases/148-cross-platform-e2e-orchestration/148-SUMMARY.md) - E2E orchestration
-- [Phase 149](../.planning/phases/149-quality-infrastructure-parallel/149-SUMMARY.md) - Parallel execution
-- [Phase 150](../.planning/phases/150-quality-infrastructure-trending/150-SUMMARY.md) - Coverage trending
-- [Phase 151](../.planning/phases/151-quality-infrastructure-reliability/151-SUMMARY.md) - Flaky test quarantine
+- Phase 146 - Cross-platform coverage
+- Phase 147 - Shared property tests
+- Phase 148 - E2E orchestration
+- Phase 149 - Parallel execution
+- Phase 150 - Coverage trending
+- Phase 151 - Flaky test quarantine
 
 ---
 
@@ -453,4 +453,4 @@ When updating testing documentation:
 **Total documentation pages:** 15+ guides across 4 platforms
 **Total lines of documentation:** 8,000+ lines
 
-**See also:** [TESTING_ONBOARDING.md](testing/onboarding.md) for the 15-minute quick start guide.
+**See also:** TESTING_ONBOARDING.md for the 15-minute quick start guide.

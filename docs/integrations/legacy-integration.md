@@ -5,48 +5,48 @@ Platform integrations, automation capabilities, and third-party connections.
 ## Core Integration
 
 ### Platform Integration
-- **[Integrations](integrations/OVERVIEW.md)** - Overview of 46+ platform integrations
-- **[Integration Health Monitoring](INTEGRATION_HEALTH_MONITORING.md)** - Monitoring integration status
-- **[Multi-Integration Workflow Engine](MULTI_INTEGRATION_WORKFLOW_ENGINE.md)** - Cross-platform workflows
+- **Integrations** - Overview of 46+ platform integrations
+- **Integration Health Monitoring** - Monitoring integration status
+- **Multi-Integration Workflow Engine** - Cross-platform workflows
 
 ### Skills & Automation
-- **[Advanced Skill Execution](integrations/advanced-skills.md)** - Community skills framework
-- **[Skill Marketplace Guide](SKILL_MARKETPLACE_GUIDE.md)** - Skill discovery and usage
-- **[Skill Composition Patterns](SKILL_COMPOSITION_PATTERNS.md)** - Composing multiple skills
-- **[Community Skills](integrations/community-skills.md)** - OpenClaw/ClawHub integration
+- **Advanced Skill Execution** - Community skills framework
+- **Skill Marketplace Guide** - Skill discovery and usage
+- **Skill Composition Patterns** - Composing multiple skills
+- **Community Skills** - OpenClaw/ClawHub integration
 
 ### Automation Capabilities
-- **[Browser Automation](BROWSER_AUTOMATION.md)** - Web scraping and automation
-- **[Browser Quick Start](BROWSER_QUICK_START.md)** - Getting started with browser automation
-- **[Device Capabilities](DEVICE_CAPABILITIES.md)** - Camera, screen recording, location
-- **[Atom CLI Skills](ATOM_CLI_SKILLS_GUIDE.md)** - Command-line automation
-- **[Task Queue Guide](TASK_QUEUE_GUIDE.md)** - Background task processing
+- **Browser Automation** - Web scraping and automation
+- **Browser Quick Start** - Getting started with browser automation
+- **Device Capabilities** - Camera, screen recording, location
+- **Atom CLI Skills** - Command-line automation
+- **Task Queue Guide** - Background task processing
 
 ## Authentication & Security
 
 ### OAuth Integration
-- **[OAuth Setup Guide](OAUTH_SETUP_GUIDE.md)** - OAuth 2.0 configuration
-- **[OAuth Integration Guide](OAUTH_INTEGRATION_GUIDE.md)** - Integration patterns
-- **[OAuth Setup](OAUTH_SETUP.md)** - Quick setup instructions
-- **[OAuth Checklist](OAUTH_CHECKLIST.md)** - Implementation checklist
-- **[OAuth Test Summary](OAUTH_TEST_SUMMARY.md)** - Test results
-- **[OAuth Token Encryption Migration](OAUTH_TOKEN_ENCRYPTION_MIGRATION.md)** - Security upgrade
+- **[OAuth Setup Guide](../archive/oauth/OAUTH_SETUP_GUIDE.md)** - OAuth 2.0 configuration
+- **[OAuth Integration Guide](../archive/oauth/OAUTH_INTEGRATION_GUIDE.md)** - Integration patterns
+- **[OAuth Setup](../archive/oauth/OAUTH_SETUP.md)** - Quick setup instructions
+- **[OAuth Checklist](../archive/oauth/OAUTH_CHECKLIST.md)** - Implementation checklist
+- **[OAuth Test Summary](../archive/OAUTH_TEST_SUMMARY.md)** - Test results
+- **[OAuth Token Encryption Migration](../archive/oauth/OAUTH_TOKEN_ENCRYPTION_MIGRATION.md)** - Security upgrade
 
 ### Security
-- **[Package Security](security/packages.md)** - Package vulnerability scanning
-- **[Package Governance](PACKAGE_GOVERNANCE.md)** - Package access control
-- **[Security Advisory 2025-03-23](SECURITY_ADVISORY_2025-03-23.md)** - Security notices
-- **[Security Audit Final](SECURITY_AUDIT_FINAL.md)** - Audit results
+- **Package Security** - Package vulnerability scanning
+- **Package Governance** - Package access control
+- **Security Advisory 2025-03-23** - Security notices
+- **[Security Audit Final](../archive/legacy/SECURITY_AUDIT_FINAL.md)** - Audit results
 
 ## Protocols & Tools
 
 ### MCP (Model Context Protocol)
-- **[MCP Setup](MCP_SETUP.md)** - MCP server configuration
+- **MCP Setup** - MCP server configuration
 
 ### Package Support
-- **[Python Packages](security/python-packages.md)** - Python package governance
-- **[Python Packages Deployment](PYTHON_PACKAGES_DEPLOYMENT.md)** - Deployment guide
-- **[NPM Package Support](security/npm-packages.md)** - Node.js package support
+- **Python Packages** - Python package governance
+- **Python Packages Deployment** - Deployment guide
+- **NPM Package Support** - Node.js package support
 
 ## Quick Reference
 
@@ -60,16 +60,16 @@ Platform integrations, automation capabilities, and third-party connections.
 - **And 30+ more...**
 
 ### Integration Setup
-1. **OAuth Integration**: See [OAuth Setup Guide](OAUTH_SETUP_GUIDE.md)
-2. **Custom Skills**: See [Advanced Skill Execution](integrations/advanced-skills.md)
-3. **Browser Automation**: See [Browser Quick Start](BROWSER_QUICK_START.md)
-4. **CLI Automation**: See [Atom CLI Skills](ATOM_CLI_SKILLS_GUIDE.md)
+1. **OAuth Integration**: See [OAuth Setup Guide](../archive/oauth/OAUTH_SETUP_GUIDE.md)
+2. **Custom Skills**: See Advanced Skill Execution
+3. **Browser Automation**: See Browser Quick Start
+4. **CLI Automation**: See Atom CLI Skills
 
 ## See Also
 
-- **[API Documentation](api/OVERVIEW.md)** - REST API for integrations
-- **[Agent System](AGENTS.md)** - Agent capabilities
-- **[Development Guide](development/overview.md)** - Building custom integrations
+- **API Documentation** - REST API for integrations
+- **Agent System** - Agent capabilities
+- **Development Guide** - Building custom integrations
 
 ---
 

@@ -139,6 +139,6 @@ These `tenant_id` references are **harmless legacy** from the SaaS codebase and 
 Atom provides comprehensive AI agent capabilities optimized for self-hosted, single-tenant environments. All core features (governance, graduation, routing, fleet recruitment) work without complexity of multi-tenancy or billing systems.
 
 **See Also:**
-- [ROADMAP.md](../ROADMAP.md) - Feature roadmap
+- ROADMAP.md - Feature roadmap
 - [README.md](../README.md) - Platform overview
-- [CLAUDE.md](../CLAUDE.md) - Development guidelines
+- CLAUDE.md - Development guidelines

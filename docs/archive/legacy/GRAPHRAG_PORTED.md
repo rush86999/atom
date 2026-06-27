@@ -2,7 +2,7 @@
 
 The Atom Knowledge Graph provides a semantic layer over your existing database records, enabling high-order reasoning and visual relationship management.
 
-> **📚 Comprehensive Documentation**: For detailed technical documentation including entity types, API endpoints, and implementation details, see [GRAPHRAG_AND_ENTITY_TYPES.md](./GRAPHRAG_AND_ENTITY_TYPES.md)
+> **📚 Comprehensive Documentation**: For detailed technical documentation including entity types, API endpoints, and implementation details, see GRAPHRAG_AND_ENTITY_TYPES.md
 
 ## Quick Overview
 

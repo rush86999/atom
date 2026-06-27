@@ -5,7 +5,7 @@ Agent maturity levels, permissions, and governance controls with 2026 enhancemen
 ## 📚 Quick Navigation
 
 - **[Governance Quick Reference](GOVERNANCE_QUICK_REFERENCE.md)** - Quick reference guide
-- **[Validation Metrics](../backend/docs/VALIDATION_METRICS.md)** - Performance validation framework
+- **Validation Metrics** - Performance validation framework
 
 ## 🎯 Maturity Levels (Foundation)
 
@@ -154,7 +154,7 @@ response = service.check_permission(
 | Human Intervention Rate | <5% operational | ✅ Framework ready |
 | Policy Evaluation | <100ms | ✅ Tests passing |
 
-See [VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+See VALIDATION_METRICS.md for complete validation framework.
 
 ---
 
@@ -247,7 +247,7 @@ response = service.check_permission(
 - **[Agent System](../agents/README.md)** - Complete agent documentation
 
 ### Enhanced Features
-- **[VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md)** - Performance validation
+- **VALIDATION_METRICS.md** - Performance validation
 - **[ATOM_ENHANCEMENT_PLAN.md](../../ATOM_ENHANCEMENT_PLAN.md)** - Research-based enhancements
 - **[Federation Identity](../guides/FEDERATION_INSTANCE_IDENTITY.md)** - Zero-trust identity
 

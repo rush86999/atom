@@ -646,7 +646,7 @@ bus.create_workflow_trigger(
 
 ### Core
 - **[Agent System Overview](../agents/overview.md)** - Complete agent documentation
-- **[Fleet Admiral Guide](fleet-admiral.md)** - Unstructured task orchestration
+- **Fleet Admiral Guide** - Unstructured task orchestration
 - **[Agent Graduation](../agents/graduation.md)** - Promote your agent to higher maturity
 
 ### 🆕 Enhanced Features

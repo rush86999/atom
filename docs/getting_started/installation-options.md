@@ -41,7 +41,7 @@ docker-compose -f docker-compose-personal.yml up -d
 - Backend: http://localhost:8000
 
 ### Documentation
-[Full Docker Guide →](operations/personal-edition.md)
+Full Docker Guide →
 
 ---
 
@@ -102,7 +102,7 @@ npm run dev
 - Backend: http://localhost:8000
 
 ### Documentation
-[Full Native Guide →](NATIVE_SETUP.md)
+[Full Native Guide →](../archive/legacy/NATIVE_SETUP.md)
 
 ---
 
@@ -141,7 +141,7 @@ atom-os start --port 8000
 - API Docs: http://localhost:8000/docs
 
 ### Documentation
-[CLI Documentation →](../backend/README.md)
+CLI Documentation →
 
 ---
 
@@ -194,7 +194,7 @@ npm run dev
 - Backend: http://localhost:8000
 
 ### Documentation
-[Full Manual Guide →](NATIVE_SETUP.md)
+[Full Manual Guide →](../archive/legacy/NATIVE_SETUP.md)
 
 ---
 
@@ -298,10 +298,10 @@ curl http://localhost:8000/health/live
 4. **Read documentation** - Learn about governance, graduation, canvas
 
 **Documentation:**
-- [Personal Edition Guide](operations/personal-edition.md)
-- [Native Setup Guide](NATIVE_SETUP.md)
+- Personal Edition Guide
+- [Native Setup Guide](../archive/legacy/NATIVE_SETUP.md)
 - [Full Documentation](../README.md)
-- [API Documentation](API_DOCUMENTATION_INDEX.md)
+- API Documentation
 
 ---
 

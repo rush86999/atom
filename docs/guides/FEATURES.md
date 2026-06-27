@@ -23,7 +23,7 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 
 ## Integrations
 
-Atom supports a wide range of third-party integrations to extend its functionality. For a complete list of all available integrations and their setup guides, please see the [Integrations](./docs/INTEGRATIONS.md) document.
+Atom supports a wide range of third-party integrations to extend its functionality. For a complete list of all available integrations and their setup guides, please see the Integrations document.
 
 ### Communication
 *   **Gmail:** Search entire inbox with native queries, manage messages (list, get, modify, delete), and create/send drafts using natural language and advanced search nodes.

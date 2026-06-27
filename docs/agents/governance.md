@@ -368,7 +368,7 @@ if node.calculate_promise_score() > 0.8:
 - **Cost Control**: Respects budget limits for skill generation
 - **Learning**: Negative constraints prevent repeated failure patterns
 
-**See Also**: [Arbor Framework](../../ARBOR_FRAMEWORK.md) - Complete HTR documentation
+**See Also**: Arbor Framework - Complete HTR documentation
 
 Multi-layered skill creation mechanism:
 

@@ -89,8 +89,8 @@ CANVAS_GOVERNANCE_ENABLED=true
 
 ## 📖 Related Documentation
 
-- **[Development](../DEVELOPMENT/README.md)** - Development setup
-- **[API Documentation](../API/README.md)** - API reference
+- **Development** - Development setup
+- **API Documentation** - API reference
 - **[Operations](../operations/README.md)** - Operations guides
 
 ---

@@ -999,25 +999,25 @@ test('Android test', () => {
 
 ### Platform-Specific Guides
 
-- **Frontend Testing:** [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) - Shared React patterns (Jest, RTL)
-- **Desktop Testing:** [DESKTOP_TESTING_GUIDE.md](DESKTOP_TESTING_GUIDE.md) - Tauri/Rust patterns
-- **Backend Testing:** [backend/tests/docs/COVERAGE_GUIDE.md](TESTING_INDEX.md) - pytest patterns
+- **Frontend Testing:** FRONTEND_TESTING_GUIDE.md - Shared React patterns (Jest, RTL)
+- **Desktop Testing:** DESKTOP_TESTING_GUIDE.md - Tauri/Rust patterns
+- **Backend Testing:** backend/tests/docs/COVERAGE_GUIDE.md - pytest patterns
 
 ### Cross-Platform Patterns
 
-- **Property Testing:** [PROPERTY_TESTING_PATTERNS.md](PROPERTY_TESTING_PATTERNS.md) - FastCheck shared across frontend/mobile/desktop
-- **E2E Testing:** [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) - API-level mobile testing (Phase 148)
-- **Cross-Platform Coverage:** [CROSS_PLATFORM_COVERAGE.md](CROSS_PLATFORM_COVERAGE.md) - Mobile threshold 50%
+- **Property Testing:** PROPERTY_TESTING_PATTERNS.md - FastCheck shared across frontend/mobile/desktop
+- **E2E Testing:** E2E_TESTING_GUIDE.md - API-level mobile testing (Phase 148)
+- **Cross-Platform Coverage:** CROSS_PLATFORM_COVERAGE.md - Mobile threshold 50%
 
 ### Phase 139 Platform Infrastructure
 
-- **Summary:** [.planning/phases/139-mobile-platform-specific/139-01-SUMMARY.md](../.planning/phases/139-mobile-platform-specific/139-01-SUMMARY.md) - Platform-specific testing infrastructure
+- **Summary:** .planning/phases/139-mobile-platform-specific/139-01-SUMMARY.md - Platform-specific testing infrastructure
 - **Test Utilities:** `mobile/src/__tests__/helpers/testUtils.ts` - Platform helpers (mockPlatform, renderWithSafeArea)
 - **Platform Mocks:** `mobile/jest.setup.js` - Expo module mocks (camera, location, notifications)
 
 ### Testing Documentation Index
 
-- **Central Hub:** [TESTING_INDEX.md](TESTING_INDEX.md) - All testing documentation, use case navigation
+- **Central Hub:** TESTING_INDEX.md - All testing documentation, use case navigation
 
 ---
 
@@ -1025,9 +1025,9 @@ test('Android test', () => {
 
 ### Internal Documentation
 
-- **Testing Onboarding:** [TESTING_ONBOARDING.md](TESTING_ONBOARDING.md) - 15-min quick start for all platforms
-- **Flaky Test Quarantine:** [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md) - Multi-run flaky detection
-- **Test Isolation:** [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md) - Independent test patterns
+- **Testing Onboarding:** TESTING_ONBOARDING.md - 15-min quick start for all platforms
+- **Flaky Test Quarantine:** backend/tests/docs/FLAKY_TEST_QUARANTINE.md - Multi-run flaky detection
+- **Test Isolation:** backend/tests/docs/TEST_ISOLATION_PATTERNS.md - Independent test patterns
 
 ### External Resources
 
@@ -1041,4 +1041,4 @@ test('Android test', () => {
 **Last Updated:** March 7, 2026
 **Maintainer:** Mobile Testing Team
 
-**For questions or contributions, see:** [TESTING_INDEX.md](TESTING_INDEX.md)
+**For questions or contributions, see:** TESTING_INDEX.md

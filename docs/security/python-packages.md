@@ -610,10 +610,10 @@ Before launching to production:
 - [ ] **Security tests passed** (test_package_security.py: 34/34)
 - [ ] **Integration tests passed** (test_package_skill_integration.py: 11+/14)
 - [ ] **Documentation complete**
-  - [ ] [PYTHON_PACKAGES.md](security/python-packages.md) exists (>300 lines)
-  - [ ] [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) exists (>200 lines)
-  - [ ] [PACKAGE_SECURITY.md](security/packages.md) exists (>250 lines)
-  - [ ] [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) exists (this file)
+  - [ ] PYTHON_PACKAGES.md exists (>300 lines)
+  - [ ] PACKAGE_GOVERNANCE.md exists (>200 lines)
+  - [ ] PACKAGE_SECURITY.md exists (>250 lines)
+  - [ ] PYTHON_PACKAGES_DEPLOYMENT.md exists (this file)
 
 ### Runbook Ready
 
@@ -784,11 +784,11 @@ watch -n 60 'curl -s http://localhost:8000/health/metrics'
 
 ## See Also
 
-- **[Python Packages Guide](security/python-packages.md)** - User guide for package installation
-- **[Package Governance](PACKAGE_GOVERNANCE.md)** - Approval workflow and access control
-- **[Package Security](security/packages.md)** - Threat model and defenses
-- **[API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management)** - Complete API reference
-- **[Deployment Runbook](DEPLOYMENT_GUIDE.md)** - General deployment procedures
+- **Python Packages Guide** - User guide for package installation
+- **Package Governance** - Approval workflow and access control
+- **Package Security** - Threat model and defenses
+- **API Documentation** - Complete API reference
+- **Deployment Runbook** - General deployment procedures
 
 ---
 

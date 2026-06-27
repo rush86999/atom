@@ -726,7 +726,7 @@ GET /api/episodes/graduation/audit/{agent_id}
 
 ## Graduation Framework
 
-> **⚡ Two Types of Graduation**: Atom has both **Agent Graduation** (overall maturity level) and **Capability Graduation** (individual skill maturity). This section covers Agent Graduation. For Capability Graduation (5/20/50 rule), see [Agent Governance Learning Integration](../AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic).
+> **⚡ Two Types of Graduation**: Atom has both **Agent Graduation** (overall maturity level) and **Capability Graduation** (individual skill maturity). This section covers Agent Graduation. For Capability Graduation (5/20/50 rule), see Agent Governance Learning Integration.
 
 ### Graduation Criteria
 

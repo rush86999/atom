@@ -217,4 +217,4 @@ Each integration includes:
 
 **Need Help?** Check the individual integration guides for detailed setup instructions and troubleshooting.
 
-**Ready to Start?** Begin with the [Quick Start Guide](../GETTING_STARTED/QUICK_START.md) to get your first integration running in minutes.
+**Ready to Start?** Begin with the Quick Start Guide to get your first integration running in minutes.

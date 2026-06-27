@@ -521,7 +521,7 @@ ab -n 1000 -c 10 -p webhook.json -T application/json \
 - [Google: Pub/Sub push authentication](https://cloud.google.com/pubsub/docs/push#authentication_and_authorization)
 
 ### Atom Documentation
-- [DEVELOPMENT.md](../DEVELOPMENT.md) - Security Configuration section
+- DEVELOPMENT.md - Security Configuration section
 - [SECURITY/AUTHENTICATION.md](AUTHENTICATION.md) - Authentication system
 - [backend/core/webhook_handlers.py](../../backend/core/webhook_handlers.py) - Implementation
 - [backend/api/security_routes.py](../../backend/api/security_routes.py) - Security endpoints

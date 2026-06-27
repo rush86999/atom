@@ -5,80 +5,80 @@ Production deployment, monitoring, and platform-specific guides.
 ## Deployment
 
 ### Production Deployment
-- **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
-- **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
-- **[Deployment](deployment/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment
-- **[Rollback Procedure](operations/rollback.md)** - Emergency rollback
+- **Production Readiness** - Deployment checklist
+- **[Production Readiness Report](../archive/legacy/PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
+- **Deployment** - Deployment overview
+- **Deployment Guide** - Step-by-step deployment
+- **Rollback Procedure** - Emergency rollback
 
 ### Personal Edition
-- **[Personal Edition](operations/personal-edition.md)** - Local Docker setup
-- **[Personal Edition Guide](PERSONAL_EDITION_GUIDE.md)** - Complete guide
+- **Personal Edition** - Local Docker setup
+- **[Personal Edition Guide](../archive/legacy/PERSONAL_EDITION_GUIDE.md)** - Complete guide
 
 ### Installation
-- **[Installation](getting_started/INSTALLATION.md)** - Installation overview
-- **[Installation Options](INSTALLATION_OPTIONS.md)** - Deployment options
-- **[Install Script Guide](INSTALL_SCRIPT_GUIDE.md)** - Automated installation
-- **[Mac Mini Install](MAC_MINI_INSTALL.md)** - Mac-specific setup
-- **[Native Setup](NATIVE_SETUP.md)** - Native builds
+- **Installation** - Installation overview
+- **Installation Options** - Deployment options
+- **Install Script Guide** - Automated installation
+- **Mac Mini Install** - Mac-specific setup
+- **[Native Setup](../archive/legacy/NATIVE_SETUP.md)** - Native builds
 
 ## Monitoring & Operations
 
 ### Health & Monitoring
-- **[Health Monitoring System](HEALTH_MONITORING_SYSTEM.md)** - Health check endpoints
-- **[Monitoring Guide](deployment/MONITORING_SETUP.md)** - Monitoring setup
-- **[Performance Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md)** - Metrics and alerts
-- **[Performance Tuning](operations/performance.md)** - Optimization strategies
+- **Health Monitoring System** - Health check endpoints
+- **Monitoring Guide** - Monitoring setup
+- **Performance Monitoring Setup** - Metrics and alerts
+- **Performance Tuning** - Optimization strategies
 
 ### Build & CI/CD
-- **[Build](development/build.md)** - Build process
-- **[CI Fixes](CI_FIXES.md)** - CI/CD troubleshooting
+- **Build** - Build process
+- **[CI Fixes](../archive/legacy/CI_FIXES.md)** - CI/CD troubleshooting
 
 ## Platform-Specific
 
 ### Desktop (MenuBar App)
-- **[MenuBar Guide](MENUBAR_GUIDE.md)** - MenuBar app overview
-- **[MenuBar Complete Final](MENUBAR_COMPLETE_FINAL.md)** - Completion status
-- **[MenuBar Deployment](MENUBAR_DEPLOYMENT.md)** - Deployment guide
-- **[MenuBar Test Status](MENUBAR_TEST_STATUS_FEB_5.md)** - Test results
-- **[Desktop Coverage](testing/desktop.md)** - Feature coverage
-- **[Desktop and Browser Feature Proposal](DESKTOP_AND_BROWSER_FEATURE_PROPOSAL.md)** - Feature planning
-- **[Desktop Testing Guide](testing/desktop.md)** - Testing documentation
+- **[MenuBar Guide](../archive/menubar/MENUBAR_GUIDE.md)** - MenuBar app overview
+- **[MenuBar Complete Final](../archive/menubar/MENUBAR_COMPLETE_FINAL.md)** - Completion status
+- **[MenuBar Deployment](../archive/menubar/MENUBAR_DEPLOYMENT.md)** - Deployment guide
+- **[MenuBar Test Status](../archive/menubar/MENUBAR_TEST_STATUS_FEB_5.md)** - Test results
+- **Desktop Coverage** - Feature coverage
+- **[Desktop and Browser Feature Proposal](../archive/legacy/DESKTOP_AND_BROWSER_FEATURE_PROPOSAL.md)** - Feature planning
+- **Desktop Testing Guide** - Testing documentation
 
 ### Mobile (React Native)
-- **[Mobile Deployment](MOBILE_DEPLOYMENT.md)** - Mobile deployment
-- **[Mobile Quick Start](MOBILE_QUICK_START.md)** - Getting started
-- **[Mobile Testing Guide](testing/mobile-archive.md)** - Mobile testing
-- **[Mobile User Guide](MOBILE_USER_GUIDE.md)** - End-user guide
-- **[React Native Architecture](REACT_NATIVE_ARCHITECTURE.md)** - Architecture overview
+- **[Mobile Deployment](../archive/mobile/MOBILE_DEPLOYMENT.md)** - Mobile deployment
+- **[Mobile Quick Start](../archive/mobile/MOBILE_QUICK_START.md)** - Getting started
+- **Mobile Testing Guide** - Mobile testing
+- **[Mobile User Guide](../archive/mobile/MOBILE_USER_GUIDE.md)** - End-user guide
+- **[React Native Architecture](../archive/mobile/REACT_NATIVE_ARCHITECTURE.md)** - Architecture overview
 
 ### Database
-- **[Database Migration Guide](DATABASE_MIGRATION_GUIDE.md)** - Alembic migrations
-- **[PostgreSQL Production Guide](POSTGRESQL_PRODUCTION_GUIDE.md)** - Production setup
-- **[PostgreSQL Verification Report](POSTGRESQL_VERIFICATION_REPORT.md)** - Verification results
+- **[Database Migration Guide](../archive/legacy/DATABASE_MIGRATION_GUIDE.md)** - Alembic migrations
+- **PostgreSQL Production Guide** - Production setup
+- **[PostgreSQL Verification Report](../archive/legacy/POSTGRESQL_VERIFICATION_REPORT.md)** - Verification results
 
 ## Specialized Setup
 
 ### Audio/Video
-- **[FFMPEG Setup](FFMPEG_SETUP.md)** - FFMPEG configuration
-- **[LLMA CPP Setup Guide](LLMA_CPP_SETUP_GUIDE.md)** - LLM.cpp setup
+- **[FFMPEG Setup](../archive/legacy/FFMPEG_SETUP.md)** - FFMPEG configuration
+- **[LLMA CPP Setup Guide](../archive/legacy/LLMA_CPP_SETUP_GUIDE.md)** - LLM.cpp setup
 
 ### Authentication
-- **[NextAuth Production Setup](nextauth_production_setup.md)** - NextAuth configuration
+- **[NextAuth Production Setup](../archive/oauth/nextauth_production_setup.md)** - NextAuth configuration
 
 ## Architecture
 
-- **[Single Tenant](platform/single-tenant-legacy.md)** - Single-tenant architecture
-- **[Vector Embeddings](VECTOR_EMBEDDINGS.md)** - Embedding system
+- **Single Tenant** - Single-tenant architecture
+- **Vector Embeddings** - Embedding system
 
 ## Quick Reference
 
 ### Deployment Checklist
-- [ ] Review [Production Readiness](operations/production-readiness.md)
-- [ ] Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [ ] Configure [Monitoring](deployment/MONITORING_SETUP.md)
-- [ ] Set up [Health Checks](HEALTH_MONITORING_SYSTEM.md)
-- [ ] Prepare [Rollback Procedure](operations/rollback.md)
+- [ ] Review Production Readiness
+- [ ] Follow Deployment Guide
+- [ ] Configure Monitoring
+- [ ] Set up Health Checks
+- [ ] Prepare Rollback Procedure
 
 ### Health Endpoints
 ```bash
@@ -90,16 +90,16 @@ curl http://localhost:8000/health/metrics # Prometheus metrics
 ### Platform Support
 | Platform | Status | Docs |
 |----------|--------|------|
-| Web | ✅ Full Support | [Deployment Guide](DEPLOYMENT_GUIDE.md) |
-| Desktop (MenuBar) | ✅ Full Support | [MenuBar Guide](MENUBAR_GUIDE.md) |
-| Mobile (iOS/Android) | ✅ Full Support | [Mobile Quick Start](MOBILE_QUICK_START.md) |
-| Personal Edition | ✅ Full Support | [Personal Edition](operations/personal-edition.md) |
+| Web | ✅ Full Support | Deployment Guide |
+| Desktop (MenuBar) | ✅ Full Support | [MenuBar Guide](../archive/menubar/MENUBAR_GUIDE.md) |
+| Mobile (iOS/Android) | ✅ Full Support | [Mobile Quick Start](../archive/mobile/MOBILE_QUICK_START.md) |
+| Personal Edition | ✅ Full Support | Personal Edition |
 
 ## See Also
 
-- **[Development Guide](development/overview.md)** - Local development
-- **[API Documentation](api/OVERVIEW.md)** - API endpoints
-- **[Integration Guide](INTEGRATION.md)** - Third-party integrations
+- **Development Guide** - Local development
+- **API Documentation** - API endpoints
+- **Integration Guide** - Third-party integrations
 
 ---
 

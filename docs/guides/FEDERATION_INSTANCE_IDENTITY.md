@@ -723,7 +723,7 @@ curl http://localhost:8000/api/v1/trusted/dids
 | VC Validation Success | >99% | ✅ Tests passing |
 | Federation Success Rate | >99.9% | ✅ Tests passing |
 
-See [VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+See VALIDATION_METRICS.md for complete validation framework.
 
 ---
 
@@ -731,11 +731,11 @@ See [VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md) for complete 
 
 ### Federation
 - **[Marketplace Connection Guide](MARKETPLACE_QUICKSTART.md)** - Connect to marketplace
-- **[Agent Marketplace](../marketplace/agents.md)** - Share agents via federation
+- **Agent Marketplace** - Share agents via federation
 
 ### Security
-- **[Security Best Practices](../security/federation.md)** - Secure federation setup
-- **[VALIDATION_METRICS.md](../backend/docs/VALIDATION_METRICS.md)** - Performance validation
+- **Security Best Practices** - Secure federation setup
+- **VALIDATION_METRICS.md** - Performance validation
 
 ### Enhanced Features
 - **[Zero-Trust Security](../../backend/core/federation/zero_trust_security.py)** - Implementation

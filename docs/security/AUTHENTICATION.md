@@ -551,10 +551,10 @@ print(f'Expires: {payload["exp"]}')
 - [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
 
 ### Atom Documentation
-- [DEVELOPMENT.md](../DEVELOPMENT.md) - Security Configuration section
+- DEVELOPMENT.md - Security Configuration section
 - [SECURITY/DATA_PROTECTION.md](DATA_PROTECTION.md) - Encryption and secrets
 - [SECURITY/WEBHOOK_VERIFICATION.md](WEBHOOK_VERIFICATION.md) - Webhook security
-- [missing_credentials_guide.md](../missing_credentials_guide.md) - OAuth setup for 117+ providers
+- [missing_credentials_guide.md](../archive/old-guides/missing_credentials_guide.md) - OAuth setup for 117+ providers
 
 ### Implementation Files
 - `backend/core/auth.py` - Authentication functions

@@ -202,7 +202,7 @@ curl http://localhost:8000/api/v1/services
 ### Getting Help
 
 - Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
-- Review [API Documentation](../ARCHITECTURE/API_REFERENCE.md)
+- Review API Documentation
 - Visit [GitHub Issues](https://github.com/rush86999/atom/issues)
 
 ## 🎉 Next Steps
@@ -220,12 +220,12 @@ Congratulations! You've successfully set up ATOM. Here's what to do next:
 
 ### Additional Resources
 
-- [Enhanced Workflow Guide](../WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) - Learn about AI-powered features
-- [Integration Overview](../INTEGRATIONS/OVERVIEW.md) - Connect your favorite services
-- [Production Deployment](../DEPLOYMENT/PRODUCTION_DEPLOYMENT.md) - Deploy to production
+- Enhanced Workflow Guide - Learn about AI-powered features
+- Integration Overview - Connect your favorite services
+- Production Deployment - Deploy to production
 
 ---
 
 **Need immediate help?** Check our [Troubleshooting Guide](TROUBLESHOOTING.md) or create an issue in our [GitHub repository](https://github.com/rush86999/atom).
 
-**Ready for more?** Explore the [Enhanced Workflow Automation](../WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) to unlock AI-powered features.
+**Ready for more?** Explore the Enhanced Workflow Automation to unlock AI-powered features.

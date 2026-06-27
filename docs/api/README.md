@@ -32,9 +32,9 @@ Complete API reference and guides for the Atom platform.
 
 ## 📖 Related Documentation
 
-- **[Development Overview](../DEVELOPMENT/README.md)** - Development setup
-- **[Security Overview](../SECURITY/README.md)** - Security best practices
-- **[Integration Overview](../INTEGRATIONS/README.md)** - Integration guides
+- **Development Overview** - Development setup
+- **Security Overview** - Security best practices
+- **Integration Overview** - Integration guides
 
 ---
 

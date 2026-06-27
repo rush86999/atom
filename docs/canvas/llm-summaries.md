@@ -400,11 +400,11 @@ pytest tests/test_canvas_summary_service.py \
 
 ## Related Documentation
 
-- [Phase 21 Research](.planning/phases/21-llm-canvas-summaries/21-RESEARCH.md)
+- Phase 21 Research
 - [Episode Segmentation Service](backend/core/episode_segmentation_service.py)
 - [BYOK Handler](backend/core/llm/byok_handler.py)
 - [Canvas AI Accessibility](canvas/ai-accessibility.md
-- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
+- Episodic Memory
 
 ---
 

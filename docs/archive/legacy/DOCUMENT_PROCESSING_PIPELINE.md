@@ -840,8 +840,8 @@ MAX_CONCURRENT_DOCS = 3  # Default: 10
 ## Related Documentation
 
 - [Citation System Guide](./CITATION_SYSTEM_GUIDE.md) - Business fact management
-- [JIT Fact Provision System](./JIT_FACT_PROVISION_SYSTEM.md) - Real-time retrieval
-- [Architecture Diagrams](./ARCHITECTURE_DIAGRAMS.md) - Visual system overview
+- JIT Fact Provision System - Real-time retrieval
+- Architecture Diagrams - Visual system overview
 - [Docling Documentation](https://dsfsi.github.io/docling/) - External reference
 
 ---

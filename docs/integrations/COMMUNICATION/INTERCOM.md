@@ -281,7 +281,7 @@ Send message to contact
 ### Documentation
 - [Intercom API Documentation](https://developers.intercom.com/)
 - [OAuth 2.0 Implementation Guide](https://oauth.net/2/)
-- [ATOM Integration Standards](../docs/integration-standards.md)
+- ATOM Integration Standards
 
 ### Support
 - **Technical Support**: ATOM Platform Team

@@ -946,17 +946,17 @@ afterEach(() => {
 
 ### Testing Documentation Index
 
-- [Testing Documentation Index](testing/index.md) - Central hub for all testing documentation
+- Testing Documentation Index - Central hub for all testing documentation
 
 ### Platform-Specific Guides
 
-- [Backend Coverage Guide](testing/index.md) - Python/pytest testing patterns
-- [Mobile Testing Guide](testing/mobile-archive.md) - React Native testing patterns (to be created in Phase 152-03)
-- [Desktop Testing Guide](testing/desktop.md) - Rust/Tauri testing patterns (to be created in Phase 152-04)
+- Backend Coverage Guide - Python/pytest testing patterns
+- Mobile Testing Guide - React Native testing patterns (to be created in Phase 152-03)
+- Desktop Testing Guide - Rust/Tauri testing patterns (to be created in Phase 152-04)
 
 ### Quality Standards
 
-- [Test Quality Standards](development/code-quality.md) - Backend test independence, pass rates, performance standards
+- Test Quality Standards - Backend test independence, pass rates, performance standards
 
 ---
 
@@ -1023,4 +1023,4 @@ screen.queryByRole('button') // Returns null if not found
 **Last Updated:** March 7, 2026
 **Maintainer:** Frontend Team
 
-**For questions or contributions, see:** [Testing Documentation Index](testing/index.md)
+**For questions or contributions, see:** Testing Documentation Index

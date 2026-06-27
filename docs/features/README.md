@@ -61,7 +61,7 @@ Feature comparisons, use cases, and capability overviews.
 
 - **[Platform Overview](../platform/README.md)** - Platform architecture
 - **[Agent System](../agents/README.md)** - Agent documentation
-- **[Integrations](../INTEGRATIONS/README.md)** - Integration guides
+- **Integrations** - Integration guides
 
 ---
 

@@ -630,9 +630,9 @@ assert review.training_value in ["high", "medium"]
 
 ### Related Documentation
 
-- [Canvas Recording Implementation](./CANVAS_RECORDING_IMPLEMENTATION.md)
-- [Agent Governance System](./AGENT_GOVERNANCE.md)
-- [Agent Guidance System](./AGENT_GUIDANCE_IMPLEMENTATION.md)
+- Canvas Recording Implementation
+- Agent Governance System
+- Agent Guidance System
 - [Database Models](../backend/core/models.py)
 
 ### Related Code

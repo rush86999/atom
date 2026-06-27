@@ -239,7 +239,7 @@ announce new features, I'll: 1) Analyze the impact, 2) Draft response tweets,
 
 **Last Updated**: June 18, 2026
 **Related Documentation**:
-- [2026 Enhancement Plan](../ATOM_ENHANCEMENT_PLAN.md)
+- 2026 Enhancement Plan
 - [Episodic Memory Guide](../intelligence/episodic-memory.md)
 - [GraphRAG Documentation](../intelligence/graphrag.md)
 - [Enhanced Orchestration](../agents/governance.md#enhanced-governance-2026)

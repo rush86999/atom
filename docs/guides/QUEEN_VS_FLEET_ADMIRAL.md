@@ -476,11 +476,11 @@ As your agents mature:
 
 ### Learn More
 - **[Queen Agent User Guide](QUEEN_AGENT_USER_GUIDE.md)** - Complete Queen Agent documentation
-- **[Fleet Admiral Guide](fleet-admiral.md)** - Fleet Admiral deep dive
+- **Fleet Admiral Guide** - Fleet Admiral deep dive
 - **[Agent System Overview](../agents/overview.md)** - Complete agent documentation
 
 ### Explore Examples
-- **[Use Cases](../features/use-cases.md)** - Real-world automation examples
+- **Use Cases** - Real-world automation examples
 - **[Blueprint Library](../marketplace/)** - Community-built blueprints
 - **[Fleet Strategies](../agents/fleet-admiral.md)** - Advanced fleet patterns
 

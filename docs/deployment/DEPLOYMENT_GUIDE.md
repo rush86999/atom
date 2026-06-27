@@ -801,4 +801,4 @@ kubectl get events --namespace=staging --sort-by='.lastTimestamp'
 - [CI/CD Runbook](./CI_CD_RUNBOOK.md)
 - [CI/CD Troubleshooting](./CI_CD_TROUBLESHOOTING.md)
 - [Monitoring Setup](./MONITORING_SETUP.md)
-- [Kubernetes Deployment](./KUBERNETES_DEPLOYMENT.md)
+- Kubernetes Deployment

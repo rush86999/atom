@@ -145,9 +145,9 @@ open htmlcov/index.html
 
 ## 📖 Related Documentation
 
-- **[Code Quality](../DEVELOPMENT/code-quality.md)** - Detailed testing standards
-- **[Quality Assurance](../../backend/docs/QUALITY_ASSURANCE.md)** - QA practices
-- **[Development](../DEVELOPMENT/README.md)** - Development setup
+- **Code Quality** - Detailed testing standards
+- **Quality Assurance** - QA practices
+- **Development** - Development setup
 
 ---
 
