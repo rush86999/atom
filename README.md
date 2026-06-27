@@ -85,7 +85,7 @@ Atom is designed for **self-hosted deployment**:
 - Fleet recruitment limited by system resources only
 - All governance, routing, and graduation features work identically
 
-[Full Architecture Guide →](docs/SINGLE_TENANT.md)
+Full Architecture Guide →
 
 ### Data Flow & Privacy
 
@@ -141,7 +141,7 @@ That's it! 🚀
 - **Personal Edition** - Free, single-user, SQLite (default)
 - **Enterprise Edition** - Multi-user, PostgreSQL, monitoring → `pip install atom-os[enterprise]`
 
-[Full Installation Guide →](docs/getting-started/installation.md)
+[Full Installation Guide →](docs/getting_started/INSTALLATION.md)
 
 ---
 
@@ -160,17 +160,17 @@ That's it! 🚀
 - **Event Bus**: Event-driven workflow triggering with pub/sub
 - **Self-Evolving Capabilities**: Memento Skills learns from failures, AlphaEvolver optimizes via mutation
 
-[Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/GUIDES/AUTO_DEV_USER_GUIDE.md)
+[Queen Agent →](docs/agents/QUEEN_AGENT.md) | [Auto-Dev →](docs/guides/AUTO_DEV_USER_GUIDE.md)
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
 Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, smart error resolution, and AI accessibility (canvas state exposed to agents)
 
-[Canvas Guide →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
+[Canvas Guide →](docs/archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
 ### 🧠 Autonomous Self-Evolution & Graduation ✨
 Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
 
-[Agent Graduation Guide →](docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md)
+[Agent Graduation Guide →](docs/archive/legacy/AGENT_GRADUATION_GUIDE.md)
 
 ### 💾 Memory & Context (Hermes-style) ✨ New 2026
 Durable-fact extraction layer that survives context compression — the agent remembers what matters across sessions:
@@ -209,7 +209,7 @@ Recursive knowledge retrieval via BFS traversal, canonical anchoring to database
 ### 🌐 Community Skills & Package Marketplace ✨
 5,000+ OpenClaw/ClawHub skills with PostgreSQL marketplace, LLM-powered security scanning (21+ malicious patterns), DAG skill composition, Python + npm auto-installation with vulnerability scanning, and supply chain protection
 
-[Community Skills Guide →](docs/COMMUNITY_SKILLS.md) | [Python Packages →](docs/security/python-packages.md) | [npm Packages →](docs/security/npm-packages.md)
+[Community Skills Guide →](docs/integrations/community-skills.md) | [Python Packages →](docs/security/python-packages.md) | [npm Packages →](docs/security/npm-packages.md)
 
 ### 🔍 Browser & Device Automation
 - Browser automation via CDP (scraping, form filling)
@@ -270,7 +270,7 @@ Launch Atom on DigitalOcean App Platform with one click:
 
 [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 
-[See Cloud Deployment Guide →](docs/DEPLOYMENT/CLOUD_DEPLOYMENT.md)
+[See Cloud Deployment Guide →](docs/deployment/CLOUD_DEPLOYMENT.md)
 
 ### 💻 Native (10 minutes)
 ```bash
@@ -317,7 +317,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 
 ### User Guides ⭐
 - **[User Guide Index](docs/USER_GUIDE_INDEX.md)** - Complete user documentation (START HERE)
-- [Quick Start Guide](docs/getting-started/quick-start.md) - Get started in 15 minutes
+- [Quick Start Guide](docs/getting_started/quick-start.md) - Get started in 15 minutes
 - [User Guide](docs/guides/USER_GUIDE.md) - Core features and daily workflows
 
 ### Core Features
@@ -330,18 +330,18 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Student Training](docs/agents/training.md) - Maturity routing
 
 ### Testing & Quality ✨ NEW
-- [Quality Assurance Guide](backend/docs/QUALITY_ASSURANCE.md) - Comprehensive QA practices and standards
-- [Quality Metrics Dashboard](backend/docs/QUALITY_DASHBOARD.md) - Live quality metrics and trends
+- [Quality Assurance Guide](docs/testing/QUALITY_ASSURANCE.md) - Comprehensive QA practices and standards
+- [Quality Metrics Dashboard](docs/testing/QUALITY_DASHBOARD.md) - Live quality metrics and trends
 - [Bug Fix Process](docs/testing/BUG_FIX_PROCESS.md) - TDD-based bug fixing workflow
 - [Coverage Report Guide](docs/testing/COVERAGE_REPORT_GUIDE.md) - Coverage measurement and improvement
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 91+ comprehensive end-to-end tests
 - [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery
-- [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices
-- [Cross-Platform Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Mobile/desktop testing
+- [Test Quality Standards](docs/testing/TEST_QUALITY_STANDARDS.md) - Testing best practices
+- Cross-Platform Testing - Mobile/desktop testing
 
 ### Platform
 - [Development Guide](docs/development/overview.md) - Technical setup
-- [Installation Guide](docs/getting-started/installation.md) - Complete instructions
+- [Installation Guide](docs/getting_started/INSTALLATION.md) - Complete instructions
 - [Atom vs OpenClaw](docs/features/atom-vs-openclaw.md) - Feature comparison
 
 ### Advanced
@@ -350,7 +350,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Meta-Agent Routing](docs/agents/meta-agent.md) - Intent classification and fleet recruitment
 - [Personal Edition](docs/operations/personal-edition.md) - Local deployment
 
-**[Complete Documentation Index →](docs/INDEX.md)** | **[Reorganization Plan →](docs/DOCUMENTATION_REORGANIZATION_PLAN.md)**
+**[Complete Documentation Index →](docs/INDEX.md)** | **[Reorganization Plan →](docs/archive/plans/DOCUMENTATION_REORGANIZATION_PLAN.md)**
 
 ---
 
@@ -366,7 +366,7 @@ All contributions must meet quality standards:
 3. **Code reviewed** - At least one approval required
 4. **Documentation updated** - Update docs for new features
 
-See [Quality Assurance Guide](backend/docs/QUALITY_ASSURANCE.md) for details.
+See [Quality Assurance Guide](docs/testing/QUALITY_ASSURANCE.md) for details.
 
 ---
 

@@ -109,6 +109,14 @@ def iter_markdown_files(roots: list[Path]) -> Iterable[Path]:
     for root in roots:
         if not root.exists():
             continue
+        # If the root IS a directory, recurse for .md files. If it's a file
+        # (e.g. repo-root README.md passed explicitly), yield it directly.
+        if root.is_file() and root.suffix.lower() in {".md", ".markdown"}:
+            path = root.resolve()
+            if path not in seen:
+                seen.add(path)
+                yield path
+            continue
         for path in sorted(root.rglob("*.md")):
             if path in seen:
                 continue
@@ -192,9 +200,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--root",
         nargs="+",
-        default=[Path("docs"), Path("backend/docs")],
+        default=[Path("README.md"), Path("docs"), Path("backend/docs")],
         type=Path,
-        help="Root directories to scan (default: docs/ backend/docs/)",
+        help="Root files/directories to scan "
+        "(default: README.md docs/ backend/docs/)",
     )
     parser.add_argument(
         "--json-file",

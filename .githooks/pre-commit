@@ -11,9 +11,9 @@
 set -euo pipefail
 
 # Only run if markdown files are staged.
-if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(docs|backend/docs)/.*\.md$'; then
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(README\.md$|(docs|backend/docs)/.*\.md$)'; then
   echo "› doc-links: checking internal markdown links…"
-  python3 scripts/check_doc_links.py --root docs/ backend/docs/
+  python3 scripts/check_doc_links.py --root README.md docs/ backend/docs/
 else
   echo "› doc-links: no markdown changes, skipping"
 fi

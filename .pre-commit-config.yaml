@@ -82,7 +82,7 @@ repos:
     hooks:
       - id: doc-links
         name: doc-links (internal markdown link checker)
-        entry: python3 scripts/check_doc_links.py --root docs/ backend/docs/
+        entry: python3 scripts/check_doc_links.py --root README.md docs/ backend/docs/
         language: system
         pass_filenames: false
-        files: ^(?:docs|backend/docs)/.*\.md$
+        files: ^(?:README\.md$|(?:docs|backend/docs)/.*\.md$)
