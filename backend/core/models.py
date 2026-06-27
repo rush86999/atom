@@ -3399,6 +3399,106 @@ class CanvasAudit(Base):
         Index('idx_canvas_audit_session_id', 'session_id'),
     )
 
+    # ------------------------------------------------------------------------
+    # Legacy-kwarg compatibility shim
+    # ------------------------------------------------------------------------
+    # Multiple writers across the codebase construct CanvasAudit with kwargs
+    # that don't exist as columns: `workspace_id=`, `canvas_type=`,
+    # `component_type=`, `component_name=`, `action=`, `audit_metadata=`,
+    # `agent_execution_id=`, `governance_check_passed=`, `ip_address=`,
+    # `user_agent=`. The default SQLAlchemy constructor raised TypeError on
+    # these; the surrounding try/except in each writer swallowed the error,
+    # so NO audit row was ever persisted and downstream features
+    # (canvas-summary LLM extraction in episode_segmentation_service) had
+    # no data to work on.
+    #
+    # Translation map (legacy → canonical):
+    #   workspace_id              → tenant_id
+    #   action                    → action_type
+    #   audit_metadata            → details_json (merged)
+    #   canvas_type               → details_json["canvas_type"]
+    #   component_type            → details_json["component_type"]
+    #   component_name            → details_json["component_name"]
+    #   agent_execution_id        → details_json["agent_execution_id"]
+    #   governance_check_passed   → details_json["governance_check_passed"]
+    #   ip_address                → details_json["ip_address"]
+    #   user_agent                → details_json["user_agent"]
+    #
+    # New code SHOULD use the canonical names directly. The legacy names are
+    # supported so existing writers and readers keep working without a
+    # sweeping refactor; they will be removed once all callers migrate.
+    _LEGACY_KWARGS = {
+        "workspace_id", "canvas_type", "component_type", "component_name",
+        "action", "audit_metadata", "agent_execution_id",
+        "governance_check_passed", "ip_address", "user_agent",
+    }
+
+    def __init__(self, **kwargs):
+        # Translate legacy kwargs to canonical column names before letting
+        # SQLAlchemy's constructor run. We merge canvas_type / component_*
+        # into details_json so they round-trip through the @property readers
+        # below.
+        legacy = {k: kwargs.pop(k) for k in list(kwargs) if k in self._LEGACY_KWARGS}
+
+        if "workspace_id" in legacy and "tenant_id" not in kwargs:
+            kwargs["tenant_id"] = legacy["workspace_id"]
+        if "action" in legacy and "action_type" not in kwargs:
+            kwargs["action_type"] = legacy["action"]
+
+        # Merge legacy fields that live inside details_json.
+        details = dict(kwargs.get("details_json") or {})
+        for field in ("canvas_type", "component_type", "component_name",
+                      "agent_execution_id", "governance_check_passed",
+                      "ip_address", "user_agent"):
+            if field in legacy and legacy[field] is not None:
+                details[field] = legacy[field]
+        if "audit_metadata" in legacy and legacy["audit_metadata"] is not None:
+            # Merge caller-provided audit_metadata on top of any already-set
+            # details so neither wins outright.
+            details.update(legacy["audit_metadata"])
+        if details:
+            kwargs["details_json"] = details
+
+        # Delegate to SQLAlchemy's declarative constructor for the rest.
+        # This raises TypeError for any *other* unknown kwargs, which we want
+        # — that surfaces real bugs rather than silently dropping data.
+        super().__init__(**kwargs)
+
+    # --- Read-side property shims ------------------------------------------
+    # These give readers using the legacy attribute names transparent access
+    # to data stored in the canonical columns. Read-only by design — writes
+    # must go through __init__ or the canonical column attributes.
+
+    @property
+    def action(self) -> Optional[str]:
+        """Legacy alias for action_type. Read-only."""
+        return self.action_type
+
+    @property
+    def audit_metadata(self) -> Dict[str, Any]:
+        """Legacy alias for details_json. Returns {} when null. Read-only."""
+        return self.details_json or {}
+
+    @property
+    def canvas_type(self) -> Optional[str]:
+        """Legacy: the canvas type, stored inside details_json. Read-only."""
+        details = self.details_json or {}
+        return details.get("canvas_type")
+
+    @property
+    def component_type(self) -> Optional[str]:
+        """Legacy: the component type, stored inside details_json. Read-only."""
+        details = self.details_json or {}
+        return details.get("component_type")
+
+    @property
+    def component_name(self) -> Optional[str]:
+        """Legacy: the component name, stored inside details_json. Read-only.
+        Falls back to component_type for writers that used the two
+        interchangeably."""
+        details = self.details_json or {}
+        return details.get("component_name") or details.get("component_type")
+
     def __repr__(self):
         return f"<CanvasAudit(id={self.id}, canvas_id={self.canvas_id}, action_type={self.action_type})>"
 
