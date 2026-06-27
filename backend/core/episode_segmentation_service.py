@@ -331,8 +331,11 @@ class EpisodeSegmentationService:
         # 5. Create segments
         await self._create_segments(episode, messages, executions, message_boundaries, canvas_context)
 
-        # 6. Archive to LanceDB
-        await self._archive_to_lancedb(episode)
+        # 6. Archive to LanceDB. Pass canvas_context so its presentation_summary
+        # is concatenated into the embedded text (Gap C) — otherwise the
+        # canvas summary sits in metadata as a side channel that semantic
+        # retrieval can never surface.
+        await self._archive_to_lancedb(episode, canvas_context)
 
         logger.info(f"Created episode {episode['id']} from session {session_id}")
         return episode
@@ -661,20 +664,45 @@ class EpisodeSegmentationService:
         except Exception as e:
             logger.debug(f"_ensure_episode_columns skipped: {e}")
 
-    async def _archive_to_lancedb(self, episode: dict):
-        """Archive episode to LanceDB for semantic search"""
+    async def _archive_to_lancedb(self, episode: dict, canvas_context: Optional[Dict[str, Any]] = None):
+        """Archive episode to LanceDB for semantic search.
+
+        Args:
+            episode: Episode dict (id, title, description, summary, etc.)
+            canvas_context: Optional canvas_context dict from
+                _extract_canvas_context_llm. If it carries a non-empty
+                presentation_summary, that summary is concatenated into the
+                text passed to LanceDB's embedder (Gap C). This makes the
+                summary semantically searchable — previously it sat in
+                metadata as a write-only side channel.
+        """
         if not self.lancedb.db:
             logger.warning("LanceDB not available, skipping archival")
             return
 
         try:
             # Combine episode content for embedding
-            content = f"""
-Title: {episode.get('title', 'Untitled')}
-Description: {episode.get('description', '')}
-Summary: {episode.get('summary', '')}
-Topics: {', '.join(episode.get('topics', []))}
-            """.strip()
+            content_parts = [
+                f"Title: {episode.get('title', 'Untitled')}",
+                f"Description: {episode.get('description', '')}",
+                f"Summary: {episode.get('summary', '')}",
+                f"Topics: {', '.join(episode.get('topics', []))}",
+            ]
+
+            # Gap C: include canvas summary in the embedded text. Without
+            # this, retrieval can't answer "show me episodes where the
+            # canvas showed X" — the canvas summary lives in metadata only
+            # and never reaches the vector.
+            canvas_summary = None
+            if canvas_context and isinstance(canvas_context, dict):
+                canvas_summary = canvas_context.get("presentation_summary")
+            if canvas_summary:
+                canvas_type = canvas_context.get("canvas_type", "generic")
+                content_parts.append(
+                    f"Canvas ({canvas_type}): {canvas_summary}"
+                )
+
+            content = "\n".join(content_parts)
 
             metadata = {
                 "episode_id": episode["id"],

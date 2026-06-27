@@ -2018,3 +2018,156 @@ class TestCanvasSummaryOutcomeTag:
             service._extract_canvas_context_llm.assert_awaited_once()
             called_kwargs = service._extract_canvas_context_llm.call_args.kwargs
             assert called_kwargs.get("outcome") == "failure"
+
+
+# ============================================================================
+# Canvas summary embedded in vector (Gap C — make summary semantically
+# searchable, not just metadata sitting next to the embedding)
+# ============================================================================
+
+class TestCanvasSummaryEmbedded:
+    """Verify _archive_to_lancedb includes the canvas summary in the text
+    that gets embedded, so semantic retrieval can surface episodes by what
+    the canvas showed — not just by episode title/description."""
+
+    @pytest.mark.asyncio
+    async def test_canvas_summary_appears_in_embedded_text(self, db_session):
+        """When canvas_context carries a presentation_summary, that summary
+        is concatenated into the text passed to LanceDB's embedder."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_db = Mock()
+            mock_db.db = Mock()  # truthy: don't early-return
+            mock_db.db.table_names = Mock(return_value=[])
+            mock_db.add_document = Mock()
+            mock_lancedb.return_value = mock_db
+            mock_llm.return_value = Mock()
+
+            service = EpisodeSegmentationService(db_session)
+
+            episode = {
+                "id": "ep-c1",
+                "title": "Q4 Revenue Review",
+                "description": "Reviewed revenue trends",
+                "summary": "Discussed Q4 numbers",
+                "agent_id": "agent-1",
+                "user_id": "u1",
+                "workspace_id": "default",
+                "session_id": "s1",
+                "status": "completed",
+                "outcome": "success",
+                "topics": ["revenue"],
+                "maturity_at_time": "supervised",
+                "human_intervention_count": 0,
+                "constitutional_score": None,
+            }
+            canvas_context = {
+                "canvas_type": "sheets",
+                "presentation_summary": "Agent presented revenue sheet "
+                                        "showing $5000 Q4 growth requiring "
+                                        "budget approval decision.",
+                "outcome": "success",
+            }
+
+            await service._archive_to_lancedb(episode, canvas_context)
+
+            # The text passed to add_document must include the presentation_summary
+            # verbatim — otherwise the embedding never sees it.
+            call_kwargs = mock_db.add_document.call_args.kwargs
+            embedded_text = call_kwargs.get("text", "")
+            assert "revenue sheet showing $5000" in embedded_text
+            assert "Q4 growth" in embedded_text
+
+    @pytest.mark.asyncio
+    async def test_no_canvas_context_still_embeds_basic_content(self, db_session):
+        """When canvas_context is empty/missing, the embedded text still
+        contains title/description/summary/topics as before — backward compat."""
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_db = Mock()
+            mock_db.db = Mock()
+            mock_db.db.table_names = Mock(return_value=[])
+            mock_db.add_document = Mock()
+            mock_lancedb.return_value = mock_db
+            mock_llm.return_value = Mock()
+
+            service = EpisodeSegmentationService(db_session)
+
+            episode = {
+                "id": "ep-c2",
+                "title": "Plain Episode",
+                "description": "No canvas",
+                "summary": "Boring",
+                "agent_id": "agent-1",
+                "user_id": "u1",
+                "workspace_id": "default",
+                "session_id": "s2",
+                "status": "completed",
+                "outcome": "unknown",
+                "topics": [],
+                "maturity_at_time": "intern",
+                "human_intervention_count": 0,
+                "constitutional_score": None,
+            }
+
+            await service._archive_to_lancedb(episode)  # no canvas_context
+
+            call_kwargs = mock_db.add_document.call_args.kwargs
+            embedded_text = call_kwargs.get("text", "")
+            assert "Plain Episode" in embedded_text
+            assert "No canvas" in embedded_text
+
+    @pytest.mark.asyncio
+    async def test_create_episode_passes_canvas_context_to_archival(self, db_session):
+        """End-to-end: create_episode_from_session should thread the
+        canvas_context it built earlier into _archive_to_lancedb."""
+        from core.episode_segmentation_service import EpisodeSegmentationService
+
+        with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb, \
+             patch('core.episode_segmentation_service.LLMService') as mock_llm:
+            mock_db = Mock()
+            mock_db.db = Mock()
+            mock_db.db.table_names = Mock(return_value=[])
+            mock_db.add_document = Mock()
+            mock_lancedb.return_value = mock_db
+            mock_llm.return_value = Mock()
+
+            service = EpisodeSegmentationService(db_session)
+
+            # Force a specific canvas_context through
+            service._extract_canvas_context_llm = AsyncMock(return_value={
+                "canvas_type": "terminal",
+                "presentation_summary": "Agent ran pytest with exit 0 highlighting pass.",
+                "outcome": "success",
+            })
+            service._fetch_canvas_context = Mock(return_value=[
+                _make_canvas_audit("terminal", "execute", {"command": "pytest"}),
+            ])
+
+            # Build minimal session + execution
+            session = ChatSession(id="sess-c3", user_id="u1")
+            db_session.add(session)
+            exec_succ = AgentExecution(
+                id="exec-c3",
+                agent_id="agent-1",
+                status="completed",
+                input_summary="pytest",
+                started_at=datetime.now(timezone.utc),
+            )
+            db_session.add(exec_succ)
+            db_session.commit()
+
+            episode = await service.create_episode_from_session(
+                session_id="sess-c3",
+                agent_id="agent-1",
+                force_create=True,
+            )
+
+            assert episode is not None
+
+            # _archive_to_lancedb should have been called with the canvas_context
+            # populated (presentation_summary non-empty).
+            mock_db.add_document.assert_called_once()
+            call_text = mock_db.add_document.call_args.kwargs.get("text", "")
+            assert "pytest" in call_text  # was the canvas summary text
+            assert "exit 0" in call_text
