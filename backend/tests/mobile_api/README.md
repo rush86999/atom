@@ -451,9 +451,9 @@ jobs:
 
 ## Further Reading
 
-- [Backend API Documentation](../../docs/API_DOCUMENTATION.md)
-- [Agent Governance System](../../docs/AGENT_GOVERNANCE_SYSTEM.md)
-- [Device Capabilities](../../docs/DEVICE_CAPABILITIES.md)
+- Backend API Documentation
+- Agent Governance System
+- Device Capabilities
 - [Testing Best Practices](../../docs/CODE_QUALITY_STANDARDS.md)
 
 ## Contributing

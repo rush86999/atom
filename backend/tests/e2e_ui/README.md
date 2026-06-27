@@ -426,7 +426,7 @@ def test_console_errors_on_dashboard(authenticated_page: Page):
 
 **See Also:**
 - [Bug Discovery Templates](../bug_discovery/TEMPLATES/) - Test documentation templates
-- [TEST_QUALITY_STANDARDS.md](../../docs/TEST_QUALITY_STANDARDS.md) - Test quality requirements
+- TEST_QUALITY_STANDARDS.md - Test quality requirements
 
 ## Additional Resources
 

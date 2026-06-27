@@ -151,5 +151,5 @@ pytest tests/e2e/test_scenario_02_streaming.py -v -s --timeout=120
 ## Additional Resources
 
 - [README.md](./README.md) - Comprehensive E2E testing documentation
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Contribution guidelines
-- [CLAUDE.md](../../CLAUDE.md) - Project architecture and context
+- CONTRIBUTING.md - Contribution guidelines
+- CLAUDE.md - Project architecture and context

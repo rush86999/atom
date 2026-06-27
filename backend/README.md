@@ -299,9 +299,9 @@ pytest tests/ --durations=10
 ```
 
 For more details, see:
-- [TEST_COVERAGE_GUIDE.md](docs/TEST_COVERAGE_GUIDE.md) - Coverage strategy and improvement
-- [QUALITY_STANDARDS.md](docs/QUALITY_STANDARDS.md) - Testing patterns and conventions
-- [QUALITY_RUNBOOK.md](docs/QUALITY_RUNBOOK.md) - Troubleshooting and debugging
+- TEST_COVERAGE_GUIDE.md - Coverage strategy and improvement
+- QUALITY_STANDARDS.md - Testing patterns and conventions
+- QUALITY_RUNBOOK.md - Troubleshooting and debugging
 
 ### Before Committing
 

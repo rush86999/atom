@@ -357,7 +357,7 @@
 |----------|-------------|--------------|
 | [CODE_QUALITY_GUIDE.md](development/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](archive/legacy/CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
-| [TEST_RESULTS_FEB2026.md](archive/reports/TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
+| TEST_RESULTS_FEB2026.md | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
 **Test Suite Summary**:
@@ -435,7 +435,7 @@
 - [FOCUSED_DEV_PLAN.md](archive/old-guides/FOCUSED_DEV_PLAN.md) - Development plan
 - [CHAT_INTERFACE_QUICK_START.md](archive/old-guides/CHAT_INTERFACE_QUICK_START.md) - Chat interface quick start
 - [TESTING-INSTRUCTIONS.md](archive/old-guides/TESTING-INSTRUCTIONS.md) - Testing instructions
-- [phase24_quickstart.md](archive/old-guides/phase24_quickstart.md) - Phase 24 quick start
+- phase24_quickstart.md - Phase 24 quick start
 - [ENHANCEMENT_NEXT_STEPS.md](archive/old-guides/ENHANCEMENT_NEXT_STEPS.md) - Enhancement next steps
 
 ### Archive Index

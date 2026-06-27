@@ -332,11 +332,11 @@ frontend-nextjs/
 - [React Testing Library](https://testing-library.com/react)
 - [fast-check](https://github.com/dubzzc/fast-check)
 - [MSW (Mock Service Worker)](https://mswjs.io/)
-- [Phase 130 Research](.planning/phases/130-frontend-module-coverage-consistency/130-RESEARCH.md)
-- [Phase 130 Gap Analysis](.planning/phases/130-frontend-module-coverage-consistency/130-02-GAPS.md)
+- Phase 130 Research
+- Phase 130 Gap Analysis
 
 ## Related Documentation
 
 - [Backend Coverage Guide](../../backend/tests/coverage_reports/README.md)
 - [Testing Best Practices](../../backend/docs/CODE_QUALITY_STANDARDS.md#testing)
-- [API Documentation](../../backend/docs/API_DOCUMENTATION.md)
+- API Documentation

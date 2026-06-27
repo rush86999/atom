@@ -511,8 +511,8 @@ pytest tests/ -m "not slow" -v  # Exclude slow tests
 - **[FLAKY_TEST_GUIDE.md](./docs/FLAKY_TEST_GUIDE.md)** - Flaky test prevention and fixing
 
 ### Property Tests
-- **[property_tests/INVARIANTS.md](./property_tests/INVARIANTS.md)** - 66 documented invariants across 7 domains
-- **[property_tests/README.md](./property_tests/README.md)** - Property testing guide
+- **property_tests/INVARIANTS.md** - 66 documented invariants across 7 domains
+- **property_tests/README.md** - Property testing guide
 
 ### Factories
 - **[factories/README.md](./factories/README.md)** - Test data factory usage and patterns

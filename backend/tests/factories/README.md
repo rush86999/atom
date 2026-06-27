@@ -316,4 +316,4 @@ def test_agent_visibility(db_session):
 - [factory_boy Documentation](https://factoryboy.readthedocs.io/)
 - [Faker Documentation](https://faker.readthedocs.io/)
 - [TESTING_GUIDE.md](../TESTING_GUIDE.md)
-- [TEST_ISOLATION_PATTERNS.md](./docs/TEST_ISOLATION_PATTERNS.md) - Complete isolation patterns guide
+- TEST_ISOLATION_PATTERNS.md - Complete isolation patterns guide

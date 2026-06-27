@@ -1520,8 +1520,8 @@ cd frontend-nextjs/src-tauri && cargo test --test-threads=4
 
 ## See Also
 
-- [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
-- [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- Testing Documentation Index - Central hub for all testing documentation
+- Testing Onboarding Guide - 15-minute quick start for all platforms
 - [Flaky Test Quarantine](FLAKY_TEST_QUARANTINE.md) - Multi-run detection in CI/CD
 - [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - Track coverage over time
 - [Test Isolation Patterns](TEST_ISOLATION_PATTERNS.md) - Writing tests for parallel execution

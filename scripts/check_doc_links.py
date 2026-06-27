@@ -124,7 +124,10 @@ def iter_markdown_files(roots: list[Path]) -> Iterable[Path]:
             parts = path.parts
             if any(
                 skip in parts
-                for skip in {"node_modules", ".git", "venv", "__pycache__", ".venv"}
+                for skip in {
+                    "node_modules", ".git", "venv", "__pycache__", ".venv",
+                    ".planning",  # gitignored internal working state
+                }
             ):
                 continue
             seen.add(path)

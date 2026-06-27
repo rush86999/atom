@@ -26,7 +26,7 @@
   - **Time investment:** 15 min to read, saves hours debugging
 
 ### Phase Summaries
-- **[Phase 299: Frontend Coverage Acceleration](../archive/reports/PHASE_299_GAP_CLOSURE_SUMMARY.md)** ⭐ NEW
+- **Phase 299: Frontend Coverage Acceleration** ⭐ NEW
   - **When to use:** Understanding current test failures, planning fixes
   - **What you'll learn:**
     - Why pass rate is 73.8% (not 95%)
@@ -49,7 +49,7 @@
 - **[Bug Discovery Infrastructure](BUG_DISCOVERY_INFRASTRUCTURE.md)** - AI-enhanced bug discovery
 
 ### Coverage & Quality
-- **[Coverage Analysis](COVERAGE_ANALYSIS.md)** - Coverage measurement
+- **[Coverage Analysis](../archive/reports/COVERAGE_ANALYSIS.md)** - Coverage measurement
 - **[Coverage Enforcement](COVERAGE_ENFORCEMENT.md)** - Coverage requirements
 - **[Coverage Guide](COVERAGE_GUIDE.md)** - Coverage improvement
 - **[Coverage Report Guide](COVERAGE_REPORT_GUIDE.md)** - Coverage reporting

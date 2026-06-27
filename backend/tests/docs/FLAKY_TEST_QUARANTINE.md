@@ -591,8 +591,8 @@ python3 backend/tests/scripts/retry_policy.py --platform backend
 
 ## See Also
 
-- [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
-- [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- Testing Documentation Index - Central hub for all testing documentation
+- Testing Onboarding Guide - 15-minute quick start for all platforms
 - [Flaky Test Guide](FLAKY_TEST_GUIDE.md) - Comprehensive flaky test patterns
 - [Parallel Execution Guide](PARALLEL_EXECUTION_GUIDE.md) - CI/CD integration for flaky detection
 - [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - Track reliability trends over time

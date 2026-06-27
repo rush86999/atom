@@ -688,7 +688,7 @@ coverage erase  # Delete .coverage file
 
 - **[TEST_ISOLATION_PATTERNS.md](./TEST_ISOLATION_PATTERNS.md)** - Test isolation patterns and examples
 - **[FLAKY_TEST_GUIDE.md](./FLAKY_TEST_GUIDE.md)** - Flaky test prevention and fixing
-- **[../property_tests/INVARIANTS.md](../property_tests/INVARIANTS.md)** - Property test invariants
+- **../property_tests/INVARIANTS.md** - Property test invariants
 - **[../factories/README.md](../factories/README.md)** - Test data factory usage
 - **[../TESTING_GUIDE.md](../TESTING_GUIDE.md)** - Comprehensive testing guide
 
@@ -730,13 +730,13 @@ open tests/coverage_reports/html/index.html
 
 ### Platform-Specific Testing Guides
 
-- [Frontend Testing Guide](../../docs/FRONTEND_TESTING_GUIDE.md) - Jest, React Testing Library, MSW patterns
-- [Mobile Testing Guide](../../docs/MOBILE_TESTING_GUIDE.md) - jest-expo, React Native Testing Library
-- [Desktop Testing Guide](../../docs/DESKTOP_TESTING_GUIDE.md) - cargo test, proptest, tarpaulin
+- Frontend Testing Guide - Jest, React Testing Library, MSW patterns
+- Mobile Testing Guide - jest-expo, React Native Testing Library
+- Desktop Testing Guide - cargo test, proptest, tarpaulin
 
 ### Related Documentation
 
-- [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
-- [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- Testing Documentation Index - Central hub for all testing documentation
+- Testing Onboarding Guide - 15-minute quick start for all platforms
 - [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - 30-day trending and regression detection
 - [Flaky Test Quarantine](FLAKY_TEST_QUARANTINE.md) - Multi-run flaky detection and tracking

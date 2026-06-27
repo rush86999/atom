@@ -75,14 +75,14 @@ repos:
       - id: debug-statements
 
   # Local hook: verify internal markdown links resolve to a real file.
-  # Runs scripts/check_doc_links.py against docs/ and backend/docs/ whenever
-  # any markdown file changes. Install with `pre-commit install`. To bypass on
+  # Runs scripts/check_doc_links.py across the full repo whenever any
+  # markdown file changes. Install with `pre-commit install`. To bypass on
   # a known-exceptional commit, use `SKIP=doc-links git commit ...`.
   - repo: local
     hooks:
       - id: doc-links
         name: doc-links (internal markdown link checker)
-        entry: python3 scripts/check_doc_links.py --root README.md docs/ backend/docs/
+        entry: python3 scripts/check_doc_links.py --root README.md docs/ backend/ frontend-nextjs/ mobile/
         language: system
         pass_filenames: false
-        files: ^(?:README\.md$|(?:docs|backend/docs)/.*\.md$)
+        files: \.md$

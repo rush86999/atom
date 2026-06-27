@@ -471,11 +471,11 @@ python -c "from tests.bug_discovery.core import DiscoveryCoordinator; c = Discov
 
 ## Further Reading
 
-- [Bug Discovery Infrastructure](./docs/BUG_DISCOVERY_INFRASTRUCTURE.md)
+- Bug Discovery Infrastructure
 - [Feedback Loops Documentation](./feedback_loops/README.md)
-- [Property-Based Testing](./property_tests/README.md)
-- [Chaos Engineering](./chaos/README.md)
-- [Fuzzing Guide](./fuzzing/README.md)
+- Property-Based Testing
+- Chaos Engineering
+- Fuzzing Guide
 
 ## Contributing
 

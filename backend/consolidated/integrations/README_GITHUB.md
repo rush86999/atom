@@ -302,7 +302,7 @@ limits = github_service.get_rate_limit()
 
 - [GitHub REST API Documentation](https://docs.github.com/en/rest)
 - [GitHub OAuth App Guide](https://docs.github.com/en/developers/apps)
-- [Complete Integration Documentation](GITHUB_INTEGRATION_COMPLETE.md)
+- Complete Integration Documentation
 
 ---
 

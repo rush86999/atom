@@ -712,9 +712,9 @@ python coverage_trend_export.py --output /tmp/coverage_data.csv
 
 ### Platform-Specific Testing Guides
 
-- **[Frontend Testing Guide](../../docs/FRONTEND_TESTING_GUIDE.md)** - Jest coverage targets and per-module thresholds
-- **[Mobile Testing Guide](../../docs/MOBILE_TESTING_GUIDE.md)** - jest-expo coverage for React Native
-- **[Desktop Testing Guide](../../docs/DESKTOP_TESTING_GUIDE.md)** - tarpaulin coverage for Rust/Tauri
+- **Frontend Testing Guide** - Jest coverage targets and per-module thresholds
+- **Mobile Testing Guide** - jest-expo coverage for React Native
+- **Desktop Testing Guide** - tarpaulin coverage for Rust/Tauri
 
 ### Related Documentation
 

@@ -117,7 +117,7 @@ Despite the lack of desktop E2E, Atom has strong test coverage:
 ### Desktop Test Documentation (NEW - Phase 099-05)
 
 **See Also:**
-- **[TAURI_INTEGRATION_TESTS.md](../../.planning/phases/099-cross-platform-integration/TAURI_INTEGRATION_TESTS.md)** - Complete catalog of 54 Tauri integration tests (8,083 lines)
+- **TAURI_INTEGRATION_TESTS.md** - Complete catalog of 54 Tauri integration tests (8,083 lines)
 - **[CONTRACT.md](../../../backend/tests/e2e_ui/tests/cross-platform/CONTRACT.md)** - Cross-platform test contracts mapping web ↔ desktop tests
 
 **Desktop Test Categories:**

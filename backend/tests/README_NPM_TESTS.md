@@ -981,9 +981,9 @@ All threat scenarios documented in Phase 36 RESEARCH.md:
 6. **Pitfall 6: Phantom Dependencies**
 
 **See Also:**
-- [Phase 36 RESEARCH.md](.planning/phases/36-npm-package-support/36-RESEARCH.md)
-- [npm Package Support Guide](docs/NPM_PACKAGE_SUPPORT.md)
-- [Community Skills Documentation](docs/COMMUNITY_SKILLS.md)
+- Phase 36 RESEARCH.md
+- npm Package Support Guide
+- Community Skills Documentation
 
 ---
 
