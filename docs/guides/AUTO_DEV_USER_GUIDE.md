@@ -629,7 +629,7 @@ GET /api/v1/auto-dev/evolutions/{evolution_id}
 - **[Evolution Strategies](#best-practices)** - Advanced evolution techniques (see Best Practices above)
 - **[Performance Tuning](../operations/performance.md)** - Optimization best practices
 - **[Package Governance](../security/package-governance.md)** - Security constraints and sandbox configuration
-- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for code generation optimization
+- **[Arbor Framework](../architecture/ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for code generation optimization
 
 ### Get Help
 - **Documentation:** [docs.atomagentos.com](https://docs.atomagentos.com)

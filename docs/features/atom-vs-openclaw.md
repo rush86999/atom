@@ -244,7 +244,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 - **Phase 5**: Enhanced Orchestration Patterns (Conductor Agent, state machine, event bus)
 - **Key Addition**: Arbor Framework - Hypothesis Tree Refinement (HTR) for code/workflow/routing optimization
 
-**See**: [ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md) - Complete Arbor documentation
+**See**: [ARBOR_FRAMEWORK.md](../architecture/ARBOR_FRAMEWORK.md) - Complete Arbor documentation
 **See**: ATOM_ENHANCEMENT_PLAN.md - Complete 2026 Enhancement Plan
 
 ### Testing & Validation

@@ -398,8 +398,8 @@ docs.atomagentos.com/
 **Open Source:** Community contributions welcome
 
 **To contribute:**
-1. Read [CONTRIBUTING.md](../CONTRIBUTING.md)
-2. Follow documentation guidelines (see [DOCUMENTATION_STRUCTURE_GUIDE.md](../docs/DOCUMENTATION_STRUCTURE_GUIDE.md))
+1. Read [CONTRIBUTING.md](../../CONTRIBUTING.md)
+2. Follow documentation guidelines (see [DOCUMENTATION_STRUCTURE_GUIDE.md](../reference/DOCUMENTATION_STRUCTURE_GUIDE.md))
 3. Submit pull request to GitHub
 4. Include `documentation` label
 

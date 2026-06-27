@@ -572,7 +572,7 @@ promise = node.calculate_promise_score()
 - **Learning**: Negative constraints avoid known poor routing patterns
 - **Cost Optimization**: Finds optimal balance between quality and cost
 
-**See Also**: [Arbor Framework](../ARBOR_FRAMEWORK.md) - Complete HTR system documentation
+**See Also**: [Arbor Framework](ARBOR_FRAMEWORK.md) - Complete HTR system documentation
 
 ---
 

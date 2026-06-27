@@ -503,8 +503,8 @@ GET /api/v1/marketplace/health
 - **Canvas AI**: [canvas/ai-accessibility.md](../canvas/ai-accessibility.md) - AI accessibility
 
 **Documentation Guides:**
-- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs guide
-- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../reference/DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../guides/DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
 
 **Commercial Documentation:**
 - **Marketplace API**: https://docs.atomagentos.com/api - Complete API reference

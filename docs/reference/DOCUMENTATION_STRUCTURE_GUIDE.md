@@ -150,8 +150,8 @@ docs/
 ### For Users
 
 **Start Here:**
-1. [INDEX.md](INDEX.md) - Main documentation index
-2. [USER_GUIDE_INDEX.md](USER_GUIDE_INDEX.md) - User guide index
+1. [INDEX.md](../INDEX.md) - Main documentation index
+2. [USER_GUIDE_INDEX.md](../USER_GUIDE_INDEX.md) - User guide index
 3. [GETTING_STARTED/](getting_started/) - Getting started guides
 
 **Key Sections:**
@@ -190,15 +190,15 @@ docs/
 
 ### Marketplace Quick Links
 
-⚠️ **Important:** The marketplace is a commercial service requiring connection to atomagentos.com. See [LICENSE.md](../LICENSE.md#marketplace-commercial-appendix) for details.
+⚠️ **Important:** The marketplace is a commercial service requiring connection to atomagentos.com. See [LICENSE.md](../../LICENSE.md#marketplace-commercial-appendix) for details.
 
 | Document | Description | Quick Link |
 |----------|-------------|------------|
-| **Connection Guide** | Setup and configuration | [marketplace/connection.md](marketplace/connection.md) ⭐ |
-| **Canvas Components** | Component marketplace | [marketplace/canvas-components.md](marketplace/canvas-components.md) ⭐ |
-| **Domains** | Domain marketplace | [marketplace/domains.md](marketplace/domains.md) ⭐ |
-| **Skills** | Skills marketplace | [marketplace/skills.md](marketplace/skills.md) |
-| **Analytics** | Usage analytics | [marketplace/analytics.md](marketplace/analytics.md) |
+| **Connection Guide** | Setup and configuration | [marketplace/connection.md](../marketplace/connection.md) ⭐ |
+| **Canvas Components** | Component marketplace | [marketplace/canvas-components.md](../marketplace/canvas-components.md) ⭐ |
+| **Domains** | Domain marketplace | [marketplace/domains.md](../marketplace/domains.md) ⭐ |
+| **Skills** | Skills marketplace | [marketplace/skills.md](../marketplace/skills.md) |
+| **Analytics** | Usage analytics | [marketplace/analytics.md](../marketplace/analytics.md) |
 
 ### Marketplace Documentation Flow
 
@@ -228,34 +228,34 @@ docs/
 
 | Feature | Documentation Location |
 |---------|----------------------|
-| Agent Governance | [agents/governance.md](agents/governance.md) |
-| Agent Graduation | [agents/graduation.md](agents/graduation.md) |
-| Agent Training | [agents/training.md](agents/training.md) |
-| Canvas System | [canvas/reference.md](canvas/reference.md) |
-| Episodic Memory | [intelligence/episodic-memory.md](intelligence/episodic-memory.md) |
-| Marketplace | [marketplace/connection.md](marketplace/connection.md) |
+| Agent Governance | [agents/governance.md](../agents/governance.md) |
+| Agent Graduation | [agents/graduation.md](../agents/graduation.md) |
+| Agent Training | [agents/training.md](../agents/training.md) |
+| Canvas System | [canvas/reference.md](../canvas/reference.md) |
+| Episodic Memory | [intelligence/episodic-memory.md](../intelligence/episodic-memory.md) |
+| Marketplace | [marketplace/connection.md](../marketplace/connection.md) |
 | World Model | intelligence/world-model.md |
-| Meta-Agent Routing | [agents/meta-agent.md](agents/meta-agent.md) |
-| Fleet Recruitment | [agents/fleet-admiral.md](agents/fleet-admiral.md) |
+| Meta-Agent Routing | [agents/meta-agent.md](../agents/meta-agent.md) |
+| Fleet Recruitment | [agents/fleet-admiral.md](../agents/fleet-admiral.md) |
 
 ### By Task
 
 | Task | Documentation Location |
 |------|----------------------|
-| **Install Atom** | [GETTING_STARTED/installation.md](getting_started/INSTALLATION.md) |
-| **Setup Marketplace** | [marketplace/connection.md](marketplace/connection.md) |
-| **Create Agent** | [agents/overview.md](agents/overview.md) |
+| **Install Atom** | [GETTING_STARTED/installation.md](../getting_started/INSTALLATION.md) |
+| **Setup Marketplace** | [marketplace/connection.md](../marketplace/connection.md) |
+| **Create Agent** | [agents/overview.md](../agents/overview.md) |
 | **Deploy Production** | DEPLOYMENT/production.md |
 | **Integrate Service** | [INTEGRATIONS/](integrations/) |
-| **Monitor System** | [operations/monitoring.md](operations/monitoring.md) |
-| **Troubleshoot** | [operations/troubleshooting.md](operations/TROUBLESHOOTING.md) |
+| **Monitor System** | [operations/monitoring.md](../operations/monitoring.md) |
+| **Troubleshoot** | [operations/troubleshooting.md](../operations/TROUBLESHOOTING.md) |
 
 ### By Role
 
 | Role | Start Here |
 |------|-----------|
-| **New User** | [GETTING_STARTED/quick-start.md](getting_started/quick-start.md) |
-| **Agent Developer** | [agents/overview.md](agents/overview.md) |
+| **New User** | [GETTING_STARTED/quick-start.md](../getting_started/quick-start.md) |
+| **Agent Developer** | [agents/overview.md](../agents/overview.md) |
 | **Integration Developer** | [INTEGRATIONS/](integrations/) |
 | **System Administrator** | [DEPLOYMENT/](deployment/) |
 | **Platform Operator** | [operations/](operations/) |
@@ -389,7 +389,7 @@ Links to related documentation.
 
 ### Main Index Files
 
-1. **[INDEX.md](INDEX.md)** - Comprehensive documentation index
+1. **[INDEX.md](../INDEX.md)** - Comprehensive documentation index
    - All categories
    - Quick links
    - Recent updates
@@ -399,7 +399,7 @@ Links to related documentation.
    - How to use docs
    - Contribution guidelines
 
-3. **[USER_GUIDE_INDEX.md](USER_GUIDE_INDEX.md)** - User-focused index
+3. **[USER_GUIDE_INDEX.md](../USER_GUIDE_INDEX.md)** - User-focused index
    - Getting started
    - Feature guides
    - Common tasks
@@ -507,7 +507,7 @@ Add breadcrumbs to long documents:
 ### Contributing Documentation
 
 **Want to improve documentation?**
-1. Read [CONTRIBUTING.md](../CONTRIBUTING.md)
+1. Read [CONTRIBUTING.md](../../CONTRIBUTING.md)
 2. Follow documentation guidelines above
 3. Submit pull request with `documentation` label
 4. Include summary of changes

@@ -911,7 +911,7 @@ This creates a **virtuous cycle**:
 - [Agent Guidance Implementation](../agents/guidance-system.md)
 - [Agent Governance & Learning Integration](../agents/governance.md)
 - [Confidence Scoring System](../backend/core/confidence_scorer.py)
-- [Arbor Framework](../ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement for optimization node learning
+- [Arbor Framework](../architecture/ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement for optimization node learning
 
 ### Arbor Framework Integration for Optimization Learning
 

@@ -699,8 +699,8 @@ curl -X POST http://localhost:8000/api/agents \
 - **Meta-Agent Routing**: [agents/meta-agent.md](../agents/meta-agent.md) - Intent classification and routing
 
 **Documentation Guides:**
-- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
-- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../reference/DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../guides/DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
 
 **Commercial Documentation:**
 - **Domain API**: https://docs.atomagentos.com/api/domains - Domain API reference

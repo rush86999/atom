@@ -34,7 +34,7 @@ AI capabilities, knowledge management, and cognitive systems for Atom agents wit
 - **[Debug System](debug-system.md)** - Debug architecture
 
 #### 🌳 Optimization (NEW 2026)
-- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement (HTR) ✨ NEW
+- **[Arbor Framework](../architecture/ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement (HTR) ✨ NEW
   - CodeHypothesisNode for code generation optimization
   - WorkflowHypothesisNode for orchestration optimization
   - RoutingHypothesisNode for LLM routing optimization
@@ -71,7 +71,7 @@ All intelligence systems have been enhanced through the 2026 Enhancement Plan:
 - **GraphRAG Constraints**: Failed hypotheses become negative constraints
 - **Routing Optimization**: Arbor optimizes LLM selection for hypothesis generation
 
-**See**: [../ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md) - Complete Arbor documentation
+**See**: [../ARBOR_FRAMEWORK.md](../architecture/ARBOR_FRAMEWORK.md) - Complete Arbor documentation
 
 ## 🎯 Key Features
 
@@ -109,7 +109,7 @@ All intelligence systems have been enhanced through the 2026 Enhancement Plan:
 ## 📖 Related Documentation
 
 ### 2026 Enhancements
-- **[ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md)** - Arbor Framework complete guide ✨ NEW
+- **[ARBOR_FRAMEWORK.md](../architecture/ARBOR_FRAMEWORK.md)** - Arbor Framework complete guide ✨ NEW
 - **ATOM_ENHANCEMENT_PLAN.md** - 2026 Enhancement Plan
 - **VALIDATION_METRICS.md** - Performance metrics
 

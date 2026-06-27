@@ -85,7 +85,7 @@ fleet_admiral.execute_task(task)
 
 ## 📖 Related Documentation
 
-- **[Queen Agent](../QUEEN_AGENT.md)** - Structured workflow automation
+- **[Queen Agent](../agents/QUEEN_AGENT.md)** - Structured workflow automation
 - **[Fleet Admiral](../agents/fleet-admiral.md)** - Dynamic agent coordination
 - **Integrations** - Platform integrations
 

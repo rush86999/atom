@@ -725,7 +725,7 @@ raise HTTPException(status_code=403, detail="Not allowed")
 - **[Agent Guidance System](./guidance-system.md)** - Real-time monitoring
 - **[Episodic Memory](../intelligence/episodic-memory.md)** - Agent learning system
 - **[Canvas Reference](../canvas/reference.md)** - Canvas operations
-- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for optimization learning
+- **[Arbor Framework](../architecture/ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for optimization learning
 
 ---
 

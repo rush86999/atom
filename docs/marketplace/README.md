@@ -313,7 +313,7 @@ GET /api/marketplace/skills
 
 ### Integration & Packages
 - Community Skills Integration - 5,000+ OpenClaw/ClawHub skills
-- [Python Package Support](../PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
+- [Python Package Support](../security/PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
 - npm Package Support - Lodash, Express, 2M+ packages
 - Advanced Skill Execution - Skill composition and dynamic loading
 

@@ -615,8 +615,8 @@ curl -X POST http://localhost:8000/api/v1/marketplace/components/comp_form_surve
 - **Agent Learning**: [canvas/agent-learning.md](../canvas/agent-learning.md) - Agent learning from canvas
 
 **Documentation Guides:**
-- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
-- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../reference/DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../guides/DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
 
 **Commercial Documentation:**
 - **Component API**: https://docs.atomagentos.com/api/components - Component API reference

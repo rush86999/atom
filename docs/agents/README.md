@@ -9,7 +9,7 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 ## Quick Links
 
 ### Core Orchestration Systems
-- **[Queen Agent (Queen Hive)](../QUEEN_AGENT.md)** - Structured workflow automation (predefined blueprints)
+- **[Queen Agent (Queen Hive)](QUEEN_AGENT.md)** - Structured workflow automation (predefined blueprints)
 - **[Fleet Admiral](fleet-admiral.md)** - Unstructured complex tasks (dynamic fleet coordination)
 - **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and routing
 
@@ -89,7 +89,7 @@ Use **Queen Agent** when you have:
 - Known steps that can be blueprinted
 - Requirements for consistent, reliable execution
 
-See: [Queen Agent Documentation](../QUEEN_AGENT.md)
+See: [Queen Agent Documentation](QUEEN_AGENT.md)
 
 ### For Complex Problem-Solving (Unstructured Tasks)
 Use **Fleet Admiral** when you have:
@@ -102,16 +102,16 @@ See: [Fleet Admiral Documentation](fleet-admiral.md)
 ## Related Documentation
 
 ### Root Documentation
-- [QUEEN_AGENT.md](../QUEEN_AGENT.md) - Queen Agent complete guide
+- [QUEEN_AGENT.md](QUEEN_AGENT.md) - Queen Agent complete guide
 - [FLEET_ADMIRAL.md](fleet-admiral.md) - Fleet Admiral complete guide
 - [Unstructured Tasks](unstructured-tasks.md) - Intent classification system
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system
-- [ATOM_CLI_SKILLS_GUIDE.md](../ATOM_CLI_SKILLS_GUIDE.md) - CLI skills
+- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system
+- [ATOM_CLI_SKILLS_GUIDE.md](../guides/ATOM_CLI_SKILLS_GUIDE.md) - CLI skills
 
 ### Integration Points
 - [Canvas System](../canvas/) - Visual presentations and agent guidance
 - [Episodic Memory](../intelligence/episodic-memory.md) - Agent learning framework
-- [Package Governance](../PYTHON_PACKAGES.md) - Python package support
+- [Package Governance](../security/PYTHON_PACKAGES.md) - Python package support
 
 ---
 
@@ -129,7 +129,7 @@ The agent system has been significantly enhanced through the 2026 Enhancement Pl
 - **Event Bus**: Real-time event-driven workflow triggering with pub/sub
 - **Arbor Framework**: Hypothesis Tree Refinement (HTR) for workflow optimization
 
-**See**: [ARBOR_FRAMEWORK.md](../ARBOR_FRAMEWORK.md) - Complete Arbor documentation with WorkflowHypothesisNode
+**See**: [ARBOR_FRAMEWORK.md](../architecture/ARBOR_FRAMEWORK.md) - Complete Arbor documentation with WorkflowHypothesisNode
 
 ### Enhanced Governance (2026) ✅ COMPLETE
 - **Three-Layer Governance**: OPERATIONAL (<10ms), TACTICAL (<100ms), STRATEGIC (human-in-the-loop)

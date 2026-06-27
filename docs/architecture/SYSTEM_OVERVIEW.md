@@ -14,7 +14,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 - **Phase 4**: Zero-Trust Federation Identity (DID/VC with mTLS)
 - **Phase 5**: Enhanced Orchestration Patterns (Conductor Agent, state machine, event bus)
 
-**Key Addition**: [Arbor Framework](../ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement (HTR) for LLM code generation and workflow optimization
+**Key Addition**: [Arbor Framework](ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement (HTR) for LLM code generation and workflow optimization
 
 ---
 

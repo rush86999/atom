@@ -985,7 +985,7 @@ pytest tests/test_episode_*.py --cov=core.episode_segmentation_service --cov-rep
 ### Integration Guides
 - **[Memory Integration Guide](memory-integration.md)** - Complete memory system integration
 - **[Canvas Feedback Integration](../canvas/feedback-memory.md)** - Canvas presentations in episodes
-- **[Arbor Framework](../ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for POMDP action optimization
+- **[Arbor Framework](../architecture/ARBOR_FRAMEWORK.md)** - Hypothesis Tree Refinement for POMDP action optimization
 
 ### POMDP Integration with Arbor Framework
 

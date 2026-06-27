@@ -63,7 +63,7 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Browser Automation](integrations/browser-automation.md) - Web scraping and automation
 - [Community Skills](integrations/community-skills.md) - 5,000+ community skills
 - [Advanced Skill Execution](integrations/advanced-skills.md) - Skill composition engine
-- [CLI Skills Guide](ATOM_CLI_SKILLS_GUIDE.md) - Atom CLI skills (daemon, status, start, stop, execute, config)
+- [CLI Skills Guide](guides/ATOM_CLI_SKILLS_GUIDE.md) - Atom CLI skills (daemon, status, start, stop, execute, config)
 - Device Capabilities - Device access controls
 
 ### Marketplace 🏪
@@ -239,7 +239,7 @@ Legacy documentation has been moved to [`archive/`](archive/). These files are k
 - Added Meta-Agent routing documentation
 - Updated all cross-references
 
-**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](DOCUMENTATION_REORGANIZATION_PLAN.md)
+**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](reference/DOCUMENTATION_REORGANIZATION_PLAN.md)
 
 ---
 

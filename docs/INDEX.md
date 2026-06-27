@@ -10,7 +10,7 @@
 ## 🚀 Recent Updates (June 2026)
 
 - **2026 Enhancement Plan**: ✅ COMPLETE - All 5 phases delivered with validation metrics
-  - [ARBOR_FRAMEWORK.md](ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
+  - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
   - Phase 1: POMDP Memory Framework - Experience-driven agent learning
   - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
   - Phase 3: Learning-Based LLM Routing - RouteLLM with 15% cost savings
@@ -33,8 +33,8 @@
   - CANVAS_AI_ACCESSIBILITY.md - Canvas AI accessibility and state API
   - LLM_CANVAS_SUMMARIES.md - LLM-generated canvas summaries
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
-  - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
-  - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
+  - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
+  - [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
 - **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills
 - **Phase 234**: E2E Testing Infrastructure - 486 E2E test functions with API-first authentication
 - **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
@@ -52,8 +52,8 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [DOCUMENTATION_STRUCTURE_GUIDE.md](DOCUMENTATION_STRUCTURE_GUIDE.md) | **✨ NEW: Complete docs structure guide** - Navigation, organization, maintenance | Apr 7, 2026 |
-| [DOCS_ATOMAGENTOS_GUIDE.md](DOCS_ATOMAGENTOS_GUIDE.md) | **✨ NEW: docs.atomagentos.com guide** - Commercial platform documentation | Apr 7, 2026 |
+| [DOCUMENTATION_STRUCTURE_GUIDE.md](reference/DOCUMENTATION_STRUCTURE_GUIDE.md) | **✨ NEW: Complete docs structure guide** - Navigation, organization, maintenance | Apr 7, 2026 |
+| [DOCS_ATOMAGENTOS_GUIDE.md](guides/DOCS_ATOMAGENTOS_GUIDE.md) | **✨ NEW: docs.atomagentos.com guide** - Commercial platform documentation | Apr 7, 2026 |
 
 ---
 
@@ -115,7 +115,7 @@
 | SKILL_MARKETPLACE_GUIDE.md | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | SKILL_COMPOSITION_PATTERNS.md | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
-| [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
+| [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
 
 ## 🌐 Federation & Multi-Instance
 
@@ -144,7 +144,7 @@
 |----------|-------------|--------------|
 | [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) | Agent governance and learning integration | Feb 2, 2026 |
 | AGENT_GRADUATION_GUIDE.md | **Agent promotion criteria and validation** | Feb 3, 2026 |
-| [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
+| [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
 | [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
 
 ### Multi-Agent Coordination
@@ -162,7 +162,7 @@
 ### Intelligence & Learning Systems
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [ARBOR_FRAMEWORK.md](ARBOR_FRAMEWORK.md) | **✨ Arbor Framework - Hypothesis Tree Refinement (HTR)** - LLM code generation with tree search | Jun 18, 2026 |
+| [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) | **✨ Arbor Framework - Hypothesis Tree Refinement (HTR)** - LLM code generation with tree search | Jun 18, 2026 |
 | [intelligence/overview.md](intelligence/overview.md) | **Intelligence systems overview** - Memory, knowledge, and reasoning | Apr 7, 2026 |
 | [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory - Agent learning framework** | Feb 3, 2026 |
 | [architecture/CONTEXT_MEMORY.md](architecture/CONTEXT_MEMORY.md) | **Context Memory - Per-turn fact extraction** - Hermes-style durable-fact layer, two-tier recall, embedded LanceDB | Jun 24, 2026 |
@@ -457,7 +457,7 @@
 - [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security
 
 **Agent Systems**:
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity
+- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity
 - [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Agent learning
 - [agents/guidance-system.md](agents/guidance-system.md) - Real-time guidance
 
@@ -505,7 +505,7 @@
 - [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Memory framework (Feb 3)
 
 **January 2026**:
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
+- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
 - [agents/guidance-system.md](agents/guidance-system.md) - Agent guidance (Feb 2)
 - [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
 - [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
