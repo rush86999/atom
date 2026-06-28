@@ -775,3 +775,5 @@ mobile/coverage/html/
 
 # Planning directory (local development only)
 .planning/
+backend/backend/
+backend/tests/browser_discovery/
