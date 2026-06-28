@@ -311,16 +311,19 @@ class AuditService:
 
         audit = BrowserAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=data.get("agent_id"),
             agent_execution_id=data.get("agent_execution_id"),
             user_id=data["user_id"],
             session_id=data["session_id"],
-            action=data.get("action"),
-            url=data.get("url"),
-            audit_metadata=data.get("metadata") or {},
-            ip_address=ip_address,
-            user_agent=user_agent,
+            action_type=data.get("action"),
+            action_target=data.get("url"),
+            metadata_json={
+                **(data.get("metadata") or {}),
+                "agent_execution_id": data.get("agent_execution_id"),
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+            },
             created_at=datetime.utcnow()
         )
 
@@ -337,15 +340,18 @@ class AuditService:
 
         audit = DeviceAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=data.get("agent_id"),
             agent_execution_id=data.get("agent_execution_id"),
             user_id=data["user_id"],
             device_type=data.get("device_type"),
-            action=data.get("action"),
-            audit_metadata=data.get("metadata") or {},
-            ip_address=ip_address,
-            user_agent=user_agent,
+            action_type=data.get("action"),
+            metadata_json={
+                **(data.get("metadata") or {}),
+                "agent_execution_id": data.get("agent_execution_id"),
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+            },
             created_at=datetime.utcnow()
         )
 

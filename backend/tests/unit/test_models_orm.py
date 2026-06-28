@@ -667,18 +667,27 @@ class TestUserModel:
             assert user.status == status
 
     def test_user_preferences_json_field(self, db: Session):
-        """Test user preferences JSON field."""
+        """Test user notification_preferences JSON field.
+
+        NOTE: The legacy ``User.preferences`` column was renamed to
+        ``User.notification_preferences`` when the User schema was
+        refactored (the old column was commented out in models.py).
+        This test was migrated to the canonical column name as part of
+        the legacy-kwarg schema-drift sweep (same pattern as the
+        CanvasAudit refactor).
+        """
         preferences = {
             "theme": "dark",
             "notifications": True,
             "language": "en"
         }
         # FIXED (GAP-01): Use _session=db parameter
-        user = UserFactory(_session=db, preferences=preferences)
+        # FIXED (legacy-kwarg): preferences= -> notification_preferences=
+        user = UserFactory(_session=db, notification_preferences=preferences)
 
         loaded = db.query(User).filter_by(id=user.id).first()
-        assert loaded.preferences == preferences
-        assert loaded.preferences["theme"] == "dark"
+        assert loaded.notification_preferences == preferences
+        assert loaded.notification_preferences["theme"] == "dark"
 
 
 class TestWorkspaceModel:
@@ -843,39 +852,55 @@ class TestAgentProposalModel:
     def test_proposal_creation(self, db: Session):
         """Test agent proposal creation."""
         # FIXED (GAP-01): Use AgentProposalFactory with correct status
+        # FIXED (legacy-kwarg): AgentProposal was refactored to use the
+        # ``proposal_data`` JSON column; the legacy ``proposed_action`` /
+        # ``reasoning`` / ``learning_objectives`` / ``capability_gaps``
+        # columns were removed. The status SQL enum was also renamed
+        # (PROPOSED -> 'pending_approval'). Use canonical column names +
+        # canonical status value, matching the same refactor pattern as
+        # CanvasAudit.
         agent = AgentFactory(_session=db)
         user = UserFactory(_session=db)
 
         proposal = AgentProposalFactory(
             _session=db,
             agent_id=agent.id,
+            user_id=user.id,
+            tenant_id=user.tenant_id or "default",
             agent_name=agent.name,
             proposal_type="action",
             description="Execute browser automation",
-            status=ProposalStatus.PROPOSED.value
+            status="pending_approval",
+            proposal_data={"action_type": "browser_automation"},
         )
 
         assert proposal.id is not None
         assert proposal.agent_id == agent.id
-        assert proposal.status == "proposed"
+        assert proposal.status == "pending_approval"
+        # proposed_action is a @property that derives from proposal_data
+        assert proposal.proposed_action == {"action_type": "browser_automation"}
 
     def test_proposal_status_transitions(self, db: Session):
         """Test proposal status field updates."""
         # FIXED (GAP-01): Use AgentProposalFactory with correct status
+        # FIXED (legacy-kwarg): use canonical 'pending_approval' status.
         agent = AgentFactory(_session=db)
         user = UserFactory(_session=db)
 
         proposal = AgentProposalFactory(
             _session=db,
             agent_id=agent.id,
+            user_id=user.id,
+            tenant_id=user.tenant_id or "default",
             agent_name=agent.name,
             proposal_type="action",
             description="Test action",
-            status=ProposalStatus.PROPOSED.value
+            status="pending_approval",
+            proposal_data={"action_type": "test"},
         )
 
-        # PROPOSED -> APPROVED
-        proposal.status = ProposalStatus.APPROVED.value
+        # pending_approval -> approved
+        proposal.status = "approved"
 
         loaded = db.query(AgentProposal).filter_by(id=proposal.id).first()
         assert loaded.status == "approved"

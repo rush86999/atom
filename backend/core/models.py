@@ -3462,6 +3462,11 @@ class BrowserAudit(Base):
     # Action details
     action = Column(String(100), nullable=False, index=True)  # navigate, click, fill_form, screenshot, etc.
     action_type = Column(String(100), nullable=True, index=True)  # Alias for action
+    # Action target — denormalized from action_params/details for query & display.
+    # Used by browser_routes.py API response (a.action_target) and ~10 test
+    # assertion sites. Mirrors the canvas_type pattern on CanvasAudit: a
+    # primary display dimension that should not be hidden inside JSON.
+    action_target = Column(Text, nullable=True)
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
@@ -3491,6 +3496,10 @@ class BrowserAudit(Base):
 
     # Metadata
     metadata_json = Column(JSONColumn, default={})
+
+    __table_args__ = (
+        Index('idx_browser_audit_action_target', 'action_target'),
+    )
 
     # Relationships
     agent = relationship("AgentRegistry", foreign_keys=[agent_id])

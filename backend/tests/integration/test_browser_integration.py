@@ -454,7 +454,7 @@ class TestBrowserAuditTrail:
 
         # Create audit entry
         audit = BrowserAudit(
-            workspace_id="default",
+            tenant_id="default",
             user_id=user.id,
             session_id=session.session_id,
             action_type="navigate",
@@ -490,7 +490,7 @@ class TestBrowserAuditTrail:
 
         # Create audit with agent context
         audit = BrowserAudit(
-            workspace_id="default",
+            tenant_id="default",
             agent_id=agent.id,
             user_id=user.id,
             session_id=session.session_id,
@@ -525,7 +525,7 @@ class TestBrowserAuditTrail:
 
         # Create audit for failed action
         audit = BrowserAudit(
-            workspace_id="default",
+            tenant_id="default",
             user_id=user.id,
             session_id=session.session_id,
             action_type="navigate",
@@ -739,7 +739,7 @@ class TestBrowserSessionInfo:
         # Create audit entries
         for i in range(3):
             audit = BrowserAudit(
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user.id,
                 session_id=session_id,
                 action_type=["navigate", "screenshot", "click"][i],

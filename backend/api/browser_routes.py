@@ -178,7 +178,7 @@ def _create_browser_audit(
     try:
         audit = BrowserAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=agent_id,
             agent_execution_id=agent_execution_id,
             user_id=user_id,

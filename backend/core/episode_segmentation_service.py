@@ -202,20 +202,66 @@ class EpisodeBoundaryDetector:
 class EpisodeSegmentationService:
     """Creates episodes from agent sessions and executions"""
 
-    def __init__(self, db: Session, llm_service: Optional[LLMService] = None):
+    def __init__(
+        self,
+        db: Session,
+        byok_handler: Optional[Any] = None,
+        llm_service: Optional[LLMService] = None,
+        lancedb: Optional[Any] = None,
+    ):
+        """
+        Initialize the episode segmentation service.
+
+        Args:
+            db: SQLAlchemy session.
+            byok_handler: Optional BYOK handler (legacy / test injection).
+                Accepted for backwards compatibility with tests that inject
+                a Mock LLM provider. Stored on ``self.byok_handler``; when
+                provided AND ``llm_service`` is not, the handler is also
+                used as the LLM service so tests that mock
+                ``byok_handler.generate_response`` can still drive summary
+                generation. When ``None``, a default ``LLMService`` is
+                constructed (see ``_init_default_llm_service``).
+            llm_service: Optional LLMService instance. Takes precedence over
+                ``byok_handler`` when both are supplied.
+            lancedb: Optional LanceDB handler injection point (test-only).
+                When ``None``, the global handler is fetched via
+                ``get_lancedb_handler()``.
+        """
         self.db = db
-        self.lancedb = get_lancedb_handler()
+        self.lancedb = lancedb if lancedb is not None else get_lancedb_handler()
         self.detector = EpisodeBoundaryDetector(self.lancedb)
 
-        # Initialize LLM service for LLM summaries
-        if llm_service is None:
-            llm_service = LLMService(workspace_id="default")
-        self.llm_service = llm_service
+        # Resolve LLM service with the following precedence:
+        #   1. Explicit ``llm_service`` kwarg
+        #   2. ``byok_handler`` (legacy / test injection) — when supplied we
+        #      treat it as the LLM service so existing tests that mock
+        #      ``byok_handler.generate_response`` continue to drive summary
+        #      generation.
+        #   3. Default ``LLMService(workspace_id="default")``
+        if llm_service is not None:
+            resolved_llm = llm_service
+        elif byok_handler is not None:
+            resolved_llm = byok_handler
+        else:
+            resolved_llm = self._init_default_llm_service()
+
+        self.llm_service = resolved_llm
+        # Always expose ``byok_handler`` for backwards-compatible attribute
+        # access (tests assert ``service.byok_handler is not None``). When
+        # the caller did not inject one, fall back to the resolved LLM
+        # service so the attribute is never ``None``.
+        self.byok_handler = byok_handler if byok_handler is not None else resolved_llm
 
         # Initialize CanvasSummaryService
         self.canvas_summary_service = CanvasSummaryService(
             llm_service=self.llm_service
         )
+
+    @staticmethod
+    def _init_default_llm_service() -> LLMService:
+        """Construct the default ``LLMService`` used when no handler is injected."""
+        return LLMService(workspace_id="default")
 
     async def create_episode_from_session(
         self,

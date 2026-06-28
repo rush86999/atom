@@ -1171,8 +1171,11 @@ class MCPService(IntegrationService):
                              user = db.query(User).filter(User.id == user_id).first()
                              if user:
                                  tenant_id = user.tenant_id
-                                 if user.preferences:
-                                     user_force_hitl = user.preferences.get("force_agent_approval", False)
+                                 # Legacy-kwarg schema-drift fix: User.preferences was
+                                 # renamed to User.notification_preferences when the
+                                 # schema was refactored. Use the canonical column.
+                                 if user.notification_preferences:
+                                     user_force_hitl = user.notification_preferences.get("force_agent_approval", False)
                          
                          if agent_id:
                              from core.models import AgentRegistry
