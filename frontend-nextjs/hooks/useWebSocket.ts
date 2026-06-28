@@ -46,14 +46,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             return;
         }
 
-        // Bypass Next.js Proxy for WebSockets (it doesn't support WS upgrading well)
-        // Always connect directly to Backend port 8000 in development
-        const socketUrl = `ws://localhost:8000/ws?token=${token}`;
+        let socketUrl = `ws://localhost:8000/ws`;
+        if (url) {
+            if (url.startsWith("ws://") || url.startsWith("wss://")) {
+                socketUrl = url;
+            } else {
+                socketUrl = `ws://localhost:8000${url.startsWith("/") ? "" : "/"}${url}`;
+            }
+        }
 
-        // Only log connection attempts if not already connecting
-        // if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-        //     console.log("[useWebSocket] Connecting to:", socketUrl);
-        // }
+        const hasParams = socketUrl.includes("?");
+        socketUrl = `${socketUrl}${hasParams ? "&" : "?"}token=${token}`;
 
         const ws = new WebSocket(socketUrl);
         wsRef.current = ws;

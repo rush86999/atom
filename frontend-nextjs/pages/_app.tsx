@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppProps } from "next/app";
 
 import { ToastProvider } from "../components/ui/use-toast";
@@ -20,7 +21,14 @@ const TauriHooks = () => {
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        retry: false,
+      },
+    },
+  }));
 
   useEffect(() => {
     setMounted(true);
@@ -32,21 +40,23 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   return (
     <SessionProvider session={session}>
-      <TauriHooks />
-      <ChakraProvider value={defaultSystem}>
-        <ToastProvider>
-          <WakeWordProvider>
-            {isStandalonePage ? (
-              <Component {...pageProps} />
-            ) : (
-              <Layout>
+      <QueryClientProvider client={queryClient}>
+        <TauriHooks />
+        <ChakraProvider value={defaultSystem}>
+          <ToastProvider>
+            <WakeWordProvider>
+              {isStandalonePage ? (
                 <Component {...pageProps} />
-              </Layout>
-            )}
-            {mounted && !isStandalonePage && <GlobalChatWidget />}
-          </WakeWordProvider>
-        </ToastProvider>
-      </ChakraProvider>
+              ) : (
+                <Layout>
+                  <Component {...pageProps} />
+                </Layout>
+              )}
+              {mounted && !isStandalonePage && <GlobalChatWidget />}
+            </WakeWordProvider>
+          </ToastProvider>
+        </ChakraProvider>
+      </QueryClientProvider>
     </SessionProvider>
   );
 }

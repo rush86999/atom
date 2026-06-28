@@ -28,6 +28,7 @@ import {
     FileText,
     Shield,
     CheckCircle,
+    KanbanSquare,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Search", icon: Search, path: "/search" },
                 { label: "Documents", icon: FileText, path: "/documents" },
                 { label: "Tasks", icon: CheckSquare, path: "/tasks" },
+                { label: "Kanban", icon: KanbanSquare, path: "/boards" },
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },

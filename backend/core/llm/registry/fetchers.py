@@ -14,6 +14,7 @@ from datetime import datetime
 import httpx
 
 from .rate_limiter import APIClientWithRetry, RateLimiter
+from .curated_overrides import apply_curated_overrides
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +183,12 @@ class ModelMetadataFetcher:
                 if model_id:
                     model_dict[model_id] = model
 
-            logger.info(f"Successfully fetched {len(model_dict)} models from OpenRouter")
+            # Apply curated overrides (e.g. openrouter/owl-alpha which is not
+            # surfaced by the public /models feed but is still routable). Curated
+            # entries win on model_id collision. See curated_overrides.py.
+            model_dict = apply_curated_overrides(model_dict)
+
+            logger.info(f"Successfully fetched {len(model_dict)} models from OpenRouter (incl. curated overrides)")
             return model_dict
 
         except httpx.TimeoutException as e:

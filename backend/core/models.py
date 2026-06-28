@@ -3142,8 +3142,9 @@ class AgentMessage(Base):
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Sender/Receiver
-    from_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    to_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=True, index=True)
+    to_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=True, index=True)
+    from_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Message content
     message_type = Column(String(50), nullable=False)  # request, response, notification, status, error
@@ -10351,3 +10352,10 @@ class UnifiedWorkspace(Base):
     __table_args__ = (
         Index("ix_unified_workspaces_user_updated", "user_id", "updated_at"),
     )
+# These live in core/models_board.py for file-size sanity; importing here so
+# Alembic metadata discovers them.
+from core.models_board import (  # noqa: E402,F401
+    Board,
+    BoardColumn,
+    BoardTask,
+)

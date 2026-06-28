@@ -98,6 +98,11 @@ const nextConfig = {
         source: "/api/chat/:path*",
         destination: "http://127.0.0.1:8000/api/chat/:path*",
       },
+      // Boards Rewrite
+      {
+        source: "/api/boards/:path*",
+        destination: "http://127.0.0.1:8000/api/boards/:path*",
+      },
       // Add general API rewrite for other endpoints
       {
         source: "/api/v1/:path*",

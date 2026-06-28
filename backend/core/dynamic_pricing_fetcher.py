@@ -151,7 +151,13 @@ class DynamicPricingFetcher:
                         "source": "openrouter"
                     }
                 
-                logger.info(f"Fetched {len(pricing)} model prices from OpenRouter")
+                # Apply curated overrides in pricing shape
+                from core.llm.registry.curated_overrides import (
+                    apply_curated_overrides_to_pricing,
+                )
+                pricing = apply_curated_overrides_to_pricing(pricing)
+
+                logger.info(f"Fetched {len(pricing)} model prices from OpenRouter (incl. curated overrides)")
                 return pricing
                 
         except Exception as e:

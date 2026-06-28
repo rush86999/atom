@@ -47,6 +47,9 @@ from backend.api.health_routes import router as health_router
 from backend.api.shell_routes import router as shell_router
 from backend.api.user_management_routes import router as user_mgmt_router
 from backend.api.workflow_debugging import router as workflow_router
+from backend.api.board_routes import router as board_router
+from backend.api.board_comment_routes import router as board_comment_router
+from backend.api.board_decompose_routes import router as board_decompose_router
 
 logger = logging.getLogger("ATOM_MAIN")
 
@@ -102,6 +105,9 @@ app.include_router(user_mgmt_router)        # /api/users/*
 app.include_router(agent_router)
 app.include_router(workflow_router)
 app.include_router(canvas_router)
+app.include_router(board_router)
+app.include_router(board_comment_router)
+app.include_router(board_decompose_router)
 app.include_router(shell_router)             # /api/shell/* (auth required)
 if chat_router is not None:
     app.include_router(chat_router)          # /api/chat/* (message, history, sessions)

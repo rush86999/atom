@@ -106,3 +106,56 @@ async def test_broadcast(
     """Test endpoint to broadcast a message to a channel"""
     await manager.broadcast_event(channel, event_type, message)
     return {"status": "broadcasted", "channel": channel, "event": event_type}
+
+
+@router.websocket("/ws/boards/{board_id}")
+async def board_websocket_endpoint(
+    websocket: WebSocket,
+    board_id: str,
+    token: str = Query(...),
+):
+    """
+    WebSocket endpoint for real-time Kanban board updates (Phase 2).
+
+    Subscribes the caller to the single-tenant board channel
+    ``board:{board_id}``. Emits on task create / move /
+    transition / comment.
+    """
+    user = await manager.connect(websocket, token)
+    if not user:
+        return
+
+    # Verify board exists (lazy import)
+    from core.database import get_db_session
+    from core.models_board import Board
+
+    with get_db_session() as db:
+        board = db.query(Board).filter(Board.id == board_id).first()
+        if not board:
+            await websocket.close(code=4003, reason="Board not found")
+            return
+
+    room_id = f"board:{board_id}"
+    manager.subscribe(websocket, room_id)
+
+    logger.info(
+        f"User {user.email} connected to board {board_id} (room: {room_id})"
+    )
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            if data.get("type") == "ping":
+                from datetime import datetime, timezone
+                await websocket.send_json({
+                    "type": "pong",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnect for board {board_id} (user {user.id})")
+    except Exception as e:
+        logger.error(f"WebSocket error for board {board_id}: {e}")
+    finally:
+        manager.unsubscribe(websocket, room_id)
+        manager.disconnect(websocket, user.id)
+

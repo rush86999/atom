@@ -426,6 +426,48 @@ async def chat_with_agent(
                         detail="Forbidden: session belongs to another user"
                     )
         
+        # Wire /task slash commands pre-filter (Option A)
+        from core.board_command_router import parse_slash, BoardCommandRouter
+        from core.database import get_db_session
+
+        parsed = parse_slash(request.message)
+        if parsed is not None:
+            action_type, params = parsed
+            board_id = None
+            if request.context:
+                board_id = request.context.get("board_id")
+
+            with get_db_session() as db:
+                router = BoardCommandRouter(db)
+                reply = router.route(
+                    action_type=action_type,
+                    parameters=params,
+                    user_id=current_user.id,
+                    board_id=board_id,
+                )
+
+            save_chat_interaction(
+                session_id=session_id,
+                user_id=current_user.id,
+                user_message=request.message,
+                assistant_message=reply.reply,
+                intent=action_type,
+                entities=params,
+                result_data={"ok": reply.ok, "task_id": reply.task_id},
+                chat_history_mgr=chat_history,
+                session_mgr=session_manager,
+            )
+
+            return {
+                "success": reply.ok,
+                "response": {
+                    "message": reply.reply,
+                    "intent": action_type,
+                    "entities": params,
+                    "session_id": session_id,
+                }
+            }
+
         # Load conversation history from LanceDB (replaces passed history)
         stored_history = chat_history.get_session_history(session_id, limit=20)
         conversation_history = [
