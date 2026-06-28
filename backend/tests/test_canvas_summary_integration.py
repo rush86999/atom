@@ -24,9 +24,15 @@ class TestCanvasSummaryLLMIntegration:
 
     @pytest.fixture
     def mock_byok_handler(self):
-        """Mock BYOK handler for LLM generation"""
+        """Mock BYOK handler for LLM generation.
+
+        CanvasSummaryService.generate_summary() invokes
+        ``self.llm_service.generate(...)`` (the LLMService interface),
+        not ``generate_response``. The mock is therefore wired to the
+        ``generate`` attribute so it matches the production code path.
+        """
         handler = Mock()
-        handler.generate_response = AsyncMock(return_value=(
+        handler.generate = AsyncMock(return_value=(
             "Agent presented Q4 revenue chart showing $1.2M in sales, "
             "15% growth from Q3, highlighting December spike and "
             "requesting approval for Q1 budget."
@@ -84,9 +90,10 @@ class TestCanvasSummaryLLMIntegration:
         from core.models import CanvasAudit
         import asyncio
 
-        # Mock BYOK handler that times out
+        # Mock BYOK handler that times out. CanvasSummaryService calls
+        # ``self.llm_service.generate(...)``, so mock that interface.
         mock_byok_handler = Mock()
-        mock_byok_handler.generate_response = AsyncMock(
+        mock_byok_handler.generate = AsyncMock(
             side_effect=asyncio.TimeoutError("LLM timeout")
         )
 
@@ -152,13 +159,15 @@ class TestCanvasSummaryLLMIntegration:
         from core.episode_segmentation_service import EpisodeSegmentationService
         from core.models import CanvasAudit
 
-        # Track how many times generate_response is called
+        # Track how many times generate is called. CanvasSummaryService
+        # invokes ``self.llm_service.generate(...)``, so we mock that
+        # interface to assert caching behavior.
         call_count = [0]
         async def counting_response(*args, **kwargs):
             call_count[0] += 1
             return "Cached summary"
 
-        mock_byok_handler.generate_response = AsyncMock(side_effect=counting_response)
+        mock_byok_handler.generate = AsyncMock(side_effect=counting_response)
 
         service = EpisodeSegmentationService(db_session, byok_handler=mock_byok_handler)
 
@@ -184,9 +193,10 @@ class TestCanvasSummaryLLMIntegration:
         from core.episode_segmentation_service import EpisodeSegmentationService
         from core.models import CanvasAudit
 
-        # Mock BYOK handler that raises exception
+        # Mock BYOK handler that raises exception. CanvasSummaryService
+        # calls ``self.llm_service.generate(...)``, so mock that interface.
         mock_byok_handler = Mock()
-        mock_byok_handler.generate_response = AsyncMock(
+        mock_byok_handler.generate = AsyncMock(
             side_effect=Exception("LLM API error")
         )
 
