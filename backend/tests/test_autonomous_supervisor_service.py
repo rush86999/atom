@@ -77,7 +77,7 @@ def agent_proposal():
         },
         reasoning="Present sales data as chart"
     )
-    proposal.status = ProposalStatus.PROPOSED.value
+    proposal.status = ProposalStatus.PENDING_APPROVAL.value
     return proposal
 
 
@@ -644,7 +644,7 @@ class TestFallbackSupervision:
         """Test supervision status is tracked correctly."""
         # Arrange
         agent_proposal.id = "prop-002"
-        agent_proposal.status = ProposalStatus.PROPOSED.value
+        agent_proposal.status = ProposalStatus.PENDING_APPROVAL.value
 
         mock_query = MagicMock()
         mock_query.filter.return_value = mock_query

@@ -91,7 +91,7 @@ def training_proposal(db: Session, mock_agent: AgentRegistry):
         title="Training Proposal",
         description="Test training proposal",
         proposal_type=ProposalType.TRAINING.value,
-        status=ProposalStatus.PENDING.value,
+        status=ProposalStatus.PENDING_APPROVAL.value,
         capability_gaps=["gap1", "gap2"],
         learning_objectives=["obj1", "obj2"],
         estimated_duration_hours=10.0,
@@ -115,7 +115,7 @@ def action_proposal(db: Session, mock_agent: AgentRegistry):
         title="Action Proposal",
         description="Test action proposal",
         proposal_type=ProposalType.ACTION.value,
-        status=ProposalStatus.PENDING.value,
+        status=ProposalStatus.PENDING_APPROVAL.value,
         proposed_action={"action": "test"},
         reasoning="Test reasoning",
         proposed_by="system"
@@ -184,12 +184,12 @@ def test_list_training_proposals_filter_by_status(
     training_proposal: AgentProposal
 ):
     """Test filtering training proposals by status."""
-    response = client.get(f"/api/maturity/training/proposals?status_filter={ProposalStatus.PENDING.value}")
+    response = client.get(f"/api/maturity/training/proposals?status_filter={ProposalStatus.PENDING_APPROVAL.value}")
 
     assert response.status_code == 200
     data = response.json()
     assert "proposals" in data
-    assert all(p["status"] == ProposalStatus.PENDING.value for p in data["proposals"])
+    assert all(p["status"] == ProposalStatus.PENDING_APPROVAL.value for p in data["proposals"])
 
 
 def test_list_training_proposals_limit(
@@ -483,12 +483,12 @@ def test_list_action_proposals_filter_by_status(
     action_proposal: AgentProposal
 ):
     """Test filtering action proposals by status."""
-    response = client.get(f"/api/maturity/proposals?status_filter={ProposalStatus.PENDING.value}")
+    response = client.get(f"/api/maturity/proposals?status_filter={ProposalStatus.PENDING_APPROVAL.value}")
 
     assert response.status_code == 200
     data = response.json()
     assert "proposals" in data
-    assert all(p["status"] == ProposalStatus.PENDING.value for p in data["proposals"])
+    assert all(p["status"] == ProposalStatus.PENDING_APPROVAL.value for p in data["proposals"])
 
 
 # ============================================================================

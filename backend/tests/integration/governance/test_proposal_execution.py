@@ -84,7 +84,7 @@ class TestCanvasActionProposals:
                 "action": "submit"
             },
             reasoning="Form submission requires INTERN+ maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -146,7 +146,7 @@ class TestCanvasActionProposals:
                 }
             },
             reasoning="Chart presentation is LOW complexity (INTERN+)",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -196,7 +196,7 @@ class TestCanvasActionProposals:
                 }
             },
             reasoning="Sheet data presentation requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -247,7 +247,7 @@ class TestBrowserAutomationProposals:
                 ]
             },
             reasoning="Browser automation requires INTERN+ maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -304,7 +304,7 @@ class TestBrowserAutomationProposals:
                 ]
             },
             reasoning="Form automation requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -361,7 +361,7 @@ class TestDeviceCapabilityProposals:
                 }
             },
             reasoning="Camera access requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -409,7 +409,7 @@ class TestDeviceCapabilityProposals:
                 }
             },
             reasoning="Location access requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -457,7 +457,7 @@ class TestDeviceCapabilityProposals:
                 }
             },
             reasoning="Sending notifications requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -509,7 +509,7 @@ class TestDeepLinkProposals:
                 }
             },
             reasoning="Deep link navigation requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -555,7 +555,7 @@ class TestDeepLinkProposals:
                 }
             },
             reasoning="Workflow deep link requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -612,7 +612,7 @@ class TestMultiStepComplexActions:
                 ]
             },
             reasoning="Multi-step workflow requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -684,7 +684,7 @@ class TestMultiStepComplexActions:
                 }
             },
             reasoning="Conditional workflow requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -746,7 +746,7 @@ class TestMultiStepComplexActions:
                 ]
             },
             reasoning="Sequential pipeline requires INTERN maturity",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -793,7 +793,7 @@ class TestProposalExecutionErrors:
                 "url": "https://invalid-domain-that-does-not-exist.example"
             },
             reasoning="Test error handling",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -834,7 +834,7 @@ class TestProposalExecutionErrors:
                 "action_type": "unsupported_action_type"
             },
             reasoning="Test unknown type handling",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)
@@ -875,7 +875,7 @@ class TestProposalExecutionErrors:
                 "action_type": "canvas_present"
             },
             reasoning="Test execution disabled",
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id
         )
         db_session.add(proposal)

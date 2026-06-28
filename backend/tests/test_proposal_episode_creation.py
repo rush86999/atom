@@ -103,7 +103,7 @@ def proposal_factory(db: Session, intern_agent: AgentRegistry, user: User):
                 "canvas_type": "chart",
             },
             reasoning=reasoning,
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             proposed_by=intern_agent.id,
             created_at=datetime.now(),
         )

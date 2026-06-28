@@ -190,7 +190,7 @@ def test_review_proposal_returns_review(
             "canvas_type": "chart"
         },
         reasoning="This action is safe and necessary",
-        status=ProposalStatus.PROPOSED.value
+        status=ProposalStatus.PENDING_APPROVAL.value
     )
     db.add(proposal)
     db.commit()
@@ -230,7 +230,7 @@ def test_review_proposal_high_risk_action(
             "target": "important_data"
         },
         reasoning="Need to clean up old data",
-        status=ProposalStatus.PROPOSED.value
+        status=ProposalStatus.PENDING_APPROVAL.value
     )
     db.add(proposal)
     db.commit()
@@ -266,7 +266,7 @@ def test_review_proposal_safe_action(
             "canvas_type": "chart"
         },
         reasoning="Display data visualization",
-        status=ProposalStatus.PROPOSED.value
+        status=ProposalStatus.PENDING_APPROVAL.value
     )
     db.add(proposal)
     db.commit()
@@ -305,7 +305,7 @@ def test_approve_proposal_success(
         description="Test proposal",
         proposed_action={"action_type": "canvas_present"},
         reasoning="Safe action",
-        status=ProposalStatus.PROPOSED.value
+        status=ProposalStatus.PENDING_APPROVAL.value
     )
     db.add(proposal)
     db.commit()

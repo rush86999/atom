@@ -595,7 +595,7 @@ class TestRoutingMethods:
         assert proposal is not None
         assert proposal.agent_id == agent.id
         assert proposal.proposal_type == "training"
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert blocked_trigger.proposal_id == proposal.id
 
     @pytest.mark.asyncio
@@ -632,7 +632,7 @@ class TestRoutingMethods:
         assert "Action Proposal" in proposal.title
         assert "deploy" in proposal.description
         assert proposal.reasoning == "Testing proposal creation"
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.proposed_by == agent.id
 
         # Verify in database

@@ -97,7 +97,7 @@ Agent is proposing an action for your review.
 Please review and approve or reject this proposal.
             """.strip(),
             proposal_data=proposed_action,
-            status=ProposalStatus.PROPOSED.value
+            status=ProposalStatus.PENDING_APPROVAL.value
         )
 
         self.db.add(proposal)
@@ -119,12 +119,12 @@ Please review and approve or reject this proposal.
 
         Marks proposal as ready for review and notifies supervisors.
         """
-        if proposal.status != ProposalStatus.PROPOSED.value:
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             raise ValueError(
-                f"Proposal must be in PROPOSED status, current: {proposal.status}"
+                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
-        # Proposal is already in PROPOSED status, just log
+        # Proposal is already in PENDING_APPROVAL status, just log
         logger.info(
             f"Proposal {proposal.id} submitted for approval by {proposal.proposed_by}"
         )
@@ -158,9 +158,9 @@ Please review and approve or reject this proposal.
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
 
-        if proposal.status != ProposalStatus.PROPOSED.value:
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             raise ValueError(
-                f"Proposal must be in PROPOSED status, current: {proposal.status}"
+                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
         # Update proposal
@@ -278,7 +278,7 @@ Please review and approve or reject this proposal.
     ) -> List[AgentProposal]:
         """Get pending proposals awaiting review"""
         query = self.db.query(AgentProposal).filter(
-            AgentProposal.status == ProposalStatus.PROPOSED.value
+            AgentProposal.status == ProposalStatus.PENDING_APPROVAL.value
         )
 
         if agent_id:

@@ -146,7 +146,7 @@ After completing this training, the agent will be able to handle similar tasks a
                 "duration_estimation_reasoning": duration_estimate.reasoning,
                 "scenario_template": scenario_template
             },
-            status=ProposalStatus.PROPOSED.value,
+            status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=agent.id,  # Using agent_id as user_id for training proposals
             tenant_id="default"  # Default tenant for training proposals
         )
@@ -191,9 +191,9 @@ After completing this training, the agent will be able to handle similar tasks a
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
 
-        if proposal.status != ProposalStatus.PROPOSED.value:
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             raise ValueError(
-                f"Proposal must be in PROPOSED status, current: {proposal.status}"
+                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
         # Apply modifications if provided

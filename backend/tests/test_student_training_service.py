@@ -182,7 +182,7 @@ class TestTrainingProposalCreation:
 
                     assert proposal.agent_id == "agent-001"
                     assert proposal.proposal_type == ProposalType.TRAINING.value
-                    assert proposal.status == ProposalStatus.PROPOSED.value
+                    assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
                     assert "Training Proposal:" in proposal.title
                     assert len(proposal.proposal_data.get("capability_gaps", [])) == 2
                     mock_db.add.assert_called()
@@ -223,7 +223,7 @@ class TestTrainingSessionLifecycle:
             "estimated_duration_hours": 40.0,
             "duration_estimation_confidence": 0.8
         }
-        proposal.status = "proposed"  # Service expects this from ProposalStatus enum
+        proposal.status = "pending_approval"  # Service expects this from ProposalStatus enum
         proposal.user_id = "user-001"
         proposal.tenant_id = "tenant-001"
         proposal.approved_by = None
@@ -295,13 +295,13 @@ class TestTrainingSessionLifecycle:
 
     @pytest.mark.asyncio
     async def test_approve_training_invalid_status(self, mock_db, mock_proposal):
-        """Training approval fails when proposal not in PROPOSED status."""
+        """Training approval fails when proposal not in PENDING_APPROVAL status."""
         mock_proposal.status = ProposalStatus.APPROVED.value
         mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
 
         service = StudentTrainingService(mock_db)
 
-        with pytest.raises(ValueError, match="Proposal must be in PROPOSED status"):
+        with pytest.raises(ValueError, match="Proposal must be in PENDING_APPROVAL status"):
             await service.approve_training(
                 proposal_id="proposal-001",
                 user_id="user-001"

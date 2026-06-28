@@ -1356,12 +1356,18 @@ class TriggerSource(str, enum.Enum):
     AI_COORDINATOR = "ai_coordinator"    # AI-driven data ingestion
 
 class ProposalStatus(str, enum.Enum):
-    """Status of proposals (training or action)"""
-    PROPOSED = "proposed"
+    """Status of proposals (training or action).
+
+    Canonical values come from the ``AgentProposal.status`` SQLEnum column
+    (see ``AgentProposal.__table__.c.status.type.enums``). Do NOT add or
+    rename members without updating both sides.
+    """
+    PENDING_APPROVAL = "pending_approval"
     APPROVED = "approved"
     REJECTED = "rejected"
-    EXECUTED = "executed"
     CANCELLED = "cancelled"
+    EXECUTED = "executed"
+    EXECUTION_FAILED = "execution_failed"
 
 class ProposalType(str, enum.Enum):
     """Type of proposal"""

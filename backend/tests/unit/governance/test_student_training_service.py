@@ -870,7 +870,7 @@ class TestCreateTrainingProposal:
 
         # Assert
         assert proposal.agent_id == agent.id
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.proposal_type == ProposalType.TRAINING.value
         assert proposal.estimated_duration_hours > 0
         assert len(proposal.capability_gaps) > 0
@@ -915,7 +915,7 @@ class TestCreateTrainingProposal:
 
         # Assert
         assert proposal.agent_id == agent.id
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert "workflow_trigger" in proposal.description
         # Should include workflow-specific gaps
         assert any("workflow" in gap.lower() for gap in proposal.capability_gaps)

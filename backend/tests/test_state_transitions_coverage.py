@@ -217,23 +217,23 @@ class TestProposalStatusTransitions:
     """Test proposal status transitions"""
 
     def test_proposal_proposed_to_approved(self):
-        """Test PROPOSED → APPROVED transition"""
-        current = ProposalStatus.PROPOSED
+        """Test PENDING_APPROVAL -> APPROVED transition"""
+        current = ProposalStatus.PENDING_APPROVAL
         target = ProposalStatus.APPROVED
 
         assert current in ProposalStatus
         assert target in ProposalStatus
 
     def test_proposal_proposed_to_rejected(self):
-        """Test PROPOSED → REJECTED transition"""
-        current = ProposalStatus.PROPOSED
+        """Test PENDING_APPROVAL -> REJECTED transition"""
+        current = ProposalStatus.PENDING_APPROVAL
         target = ProposalStatus.REJECTED
 
         assert current in ProposalStatus
         assert target in ProposalStatus
 
     def test_proposal_approved_to_executed(self):
-        """Test APPROVED → EXECUTED transition"""
+        """Test APPROVED -> EXECUTED transition"""
         current = ProposalStatus.APPROVED
         target = ProposalStatus.EXECUTED
 
@@ -241,9 +241,9 @@ class TestProposalStatusTransitions:
         assert target in ProposalStatus
 
     def test_proposal_any_to_cancelled(self):
-        """Test any state → CANCELLED transition"""
+        """Test any state -> CANCELLED transition"""
         # Can cancel proposals from most states
-        states = [ProposalStatus.PROPOSED, ProposalStatus.APPROVED]
+        states = [ProposalStatus.PENDING_APPROVAL, ProposalStatus.APPROVED]
 
         for state in states:
             assert state in ProposalStatus
@@ -381,7 +381,7 @@ class TestStateTransitionSideEffects:
     def test_transition_triggers_notification(self):
         """Test transition triggers notification"""
         # In real system, certain transitions trigger notifications
-        transition = (ProposalStatus.PROPOSED, ProposalStatus.APPROVED)
+        transition = (ProposalStatus.PENDING_APPROVAL, ProposalStatus.APPROVED)
 
         assert transition[0] != transition[1]
 

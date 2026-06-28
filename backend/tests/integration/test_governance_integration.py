@@ -422,7 +422,7 @@ class TestProposalWorkflowIntegration:
         pending = db_session.query(AgentProposal).filter(
             and_(
                 AgentProposal.agent_id == agent.id,
-                AgentProposal.status == ProposalStatus.PROPOSED
+                AgentProposal.status == ProposalStatus.PENDING_APPROVAL
             )
         ).all()
 

@@ -348,9 +348,9 @@ class AutonomousSupervisorService:
             logger.error(f"Proposal not found: {proposal_id}")
             return False
 
-        if proposal.status != ProposalStatus.PROPOSED.value:
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             logger.warning(
-                f"Proposal {proposal_id} not in PROPOSED status: {proposal.status}"
+                f"Proposal {proposal_id} not in PENDING_APPROVAL status: {proposal.status}"
             )
             return False
 

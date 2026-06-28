@@ -77,7 +77,7 @@ class TestProposalServiceCoverage:
 
         assert proposal.id is not None
         assert proposal.agent_id == intern_agent.id
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.proposal_type == ProposalType.ACTION.value
         assert "Test Intern Agent" in proposal.description
 
@@ -294,7 +294,7 @@ class TestProposalServiceCoverage:
 
         pending = await proposal_service.get_pending_proposals()
         assert len(pending) >= 3
-        assert all(p.status == ProposalStatus.PROPOSED.value for p in pending)
+        assert all(p.status == ProposalStatus.PENDING_APPROVAL.value for p in pending)
 
     @pytest.mark.asyncio
     async def test_get_pending_proposals_by_agent(self, proposal_service, intern_agent, db_session):
@@ -784,7 +784,7 @@ class TestProposalServiceCoverage:
         )
 
         # Initial status
-        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
 
         # After approval
         with patch.object(proposal_service, '_execute_proposed_action', new_callable=AsyncMock) as mock_execute:

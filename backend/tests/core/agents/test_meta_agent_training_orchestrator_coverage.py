@@ -142,7 +142,7 @@ def sample_intern_proposal(db_session, intern_agent):
             "reasoning": "Update lead status based on recent interaction",
             "expected_outcome": "Lead status changed to qualified",
         },
-        status=ProposalStatus.PENDING,
+        status=ProposalStatus.PENDING_APPROVAL,
         confidence_score=0.6,
     )
     db_session.add(proposal)
@@ -487,7 +487,7 @@ class TestReviewInternProposal:
             agent_id="non-existent-agent",
             proposal_type=ProposalType.ACTION,
             proposed_action={"action_type": "test"},
-            status=ProposalStatus.PENDING,
+            status=ProposalStatus.PENDING_APPROVAL,
         )
         db_session.add(proposal)
         db_session.commit()
@@ -1005,7 +1005,7 @@ class TestEdgeCasesAndErrorHandling:
             agent_id=intern_agent.id,
             proposal_type=ProposalType.ACTION_PROPOSAL,
             proposed_action={},
-            status=ProposalStatus.PENDING,
+            status=ProposalStatus.PENDING_APPROVAL,
         )
         orchestrator.db.add(proposal)
         orchestrator.db.commit()
