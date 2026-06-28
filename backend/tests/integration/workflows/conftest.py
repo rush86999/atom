@@ -264,13 +264,15 @@ def sample_episode_context(db_session: Session):
     canvas_audit = CanvasAudit(
         id=str(uuid.uuid4()),
         canvas_id="test_canvas_123",
-        canvas_type="line_chart",
         agent_id="test_agent",
         user_id="test_user",
         session_id=chat_session.id,
         title="Sales Performance Chart",
         config={"data": [1, 2, 3, 4, 5]},
-        status="presented"
+        status="presented",
+        details_json={
+            'canvas_type': 'line_chart',
+        },
     )
     db_session.add(canvas_audit)
 

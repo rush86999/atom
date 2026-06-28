@@ -91,7 +91,7 @@ class TestConcurrentEpisodeCreation:
             db_session.add(session)
             db_session.flush()  # Flush to get session object with ID
             # Add workspace_id attribute (service expects it but ChatSession doesn't have it)
-            session.workspace_id = "default"
+            session.details_json = {'workspace_id': 'default'}
             sessions.append(session)
 
         db_session.commit()
@@ -536,9 +536,11 @@ class TestConcurrentCanvasContextExtraction:
         canvas = CanvasAudit(
             id=str(uuid.uuid4()),
             session_id=session.id,
-            canvas_type="chart",
             canvas_data={"type": "line", "data": [1, 2, 3]},
             created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -778,7 +780,7 @@ class TestAsyncResourceCleanup:
                 )
                 db_session.add(session)
                 db_session.flush()
-                session.workspace_id = "default"  # Service expects this
+                session.details_json = {'workspace_id': 'default'}
                 db_session.commit()
 
                 msg = ChatMessage(
@@ -890,7 +892,7 @@ class TestAsyncResourceCleanup:
                 )
                 db_session.add(session)
                 db_session.flush()
-                session.workspace_id = "default"  # Service expects this
+                session.details_json = {'workspace_id': 'default'}
                 db_session.commit()
 
                 msg = ChatMessage(

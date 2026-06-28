@@ -90,11 +90,13 @@ class DocumentationCanvasService:
             # Create canvas audit entry
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",  # Changed from "action" to "action_type"
                 details_json={  # Changed from "audit_metadata" to "details_json"
+                    "canvas_type": "docs",
                     "title": title,
                     "content": content,
                     "layout": layout,
@@ -179,9 +181,14 @@ class DocumentationCanvasService:
             # Create update audit entry
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                details_json=metadata
+                action_type="update_content",
+                details_json={
+                    "canvas_type": "docs",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -252,9 +259,14 @@ class DocumentationCanvasService:
             # Create comment audit entry
             comment_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                details_json=metadata
+                action_type="add_comment",
+                details_json={
+                    "canvas_type": "docs",
+                    **metadata,
+                }
             )
 
             self.db.add(comment_audit)
@@ -316,9 +328,14 @@ class DocumentationCanvasService:
             # Create resolution audit entry
             resolution_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                details_json=metadata
+                action_type="resolve_comment",
+                details_json={
+                    "canvas_type": "docs",
+                    **metadata,
+                }
             )
 
             self.db.add(resolution_audit)
@@ -431,9 +448,14 @@ class DocumentationCanvasService:
             # Create restoration audit entry
             restore_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                details_json=metadata
+                action_type="restore_version",
+                details_json={
+                    "canvas_type": "docs",
+                    **metadata,
+                }
             )
 
             self.db.add(restore_audit)

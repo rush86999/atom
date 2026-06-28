@@ -357,8 +357,8 @@ class TestConcurrentRequests:
         # Verify no lost updates - each successful submission has unique data
         form_data_values = set()
         for audit in audits:
-            if audit.audit_metadata and "form_data" in audit.audit_metadata:
-                form_data = audit.audit_metadata["form_data"]
+            if audit.details_json and "form_data" in audit.details_json:
+                form_data = audit.details_json["form_data"]
                 if "field1" in form_data:
                     form_data_values.add(form_data["field1"])
 
@@ -639,7 +639,7 @@ class TestAuditAtomicity:
             if len(audits) == 1:
                 audit = audits[0]
                 # Verify audit fields are populated
-                assert audit.action_type is not None or audit.action is not None, \
+                assert audit.action_type is not None or audit.action_type is not None, \
                     "Audit should have action_type"
                 assert audit.user_id == test_user_with_id.id, \
                     "Audit should have user_id"

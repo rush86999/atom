@@ -274,9 +274,11 @@ class TestSequentialRetrieval:
         # Create canvas audit
         canvas = CanvasAudit(
             id="canvas1",
-            canvas_type="sheets",
-            action="present",
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'sheets',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -428,9 +430,11 @@ class TestCanvasContextRetrieval:
         for i in range(3):
             canvas = CanvasAudit(
                 id=f"canvas-{i}",
-                canvas_type="sheets",
-                action="present",
-                created_at=datetime.now()
+                created_at=datetime.now(),
+                action_type='present',
+                details_json={
+                    'canvas_type': 'sheets',
+                },
             )
             db_session.add(canvas)
         db_session.commit()

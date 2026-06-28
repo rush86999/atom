@@ -146,4 +146,4 @@ async def get_email_canvas(canvas_id: str, db: Session = Depends(get_db)):
     if not audit:
         raise router.not_found_error("Email Canvas", canvas_id)
 
-    return audit.audit_metadata
+    return audit.details_json or {}

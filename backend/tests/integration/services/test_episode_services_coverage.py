@@ -2521,12 +2521,9 @@ class TestCanvasIntegration:
         canvas = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id=episode_test_session.id,
-            canvas_type="chart",
-            component_type="line",
-            component_name="SalesChart",
-            action="present",
-            audit_metadata={"title": "Monthly Sales"},
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component_type': 'line', 'component_name': 'SalesChart', 'title': 'Monthly Sales'},
         )
 
         segmentation_service_mocked.db.add(canvas)
@@ -2554,23 +2551,17 @@ class TestCanvasIntegration:
         canvas1 = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id=episode_test_session.id,
-            canvas_type="chart",
-            component_type="bar",
-            component_name="RevenueChart",
-            action="present",
-            audit_metadata={"revenue": 1000000},
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component_type': 'bar', 'component_name': 'RevenueChart', 'revenue': 1000000},
         )
 
         canvas2 = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id=episode_test_session.id,
-            canvas_type="form",
-            component_type="input",
-            component_name="UserForm",
-            action="submit",
-            audit_metadata={"email": "test@example.com"},
-            created_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+            created_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            action_type='submit',
+            details_json={'canvas_type': 'form', 'component_type': 'input', 'component_name': 'UserForm', 'email': 'test@example.com'},
         )
 
         segmentation_service_mocked.db.add(canvas1)
@@ -2599,12 +2590,9 @@ class TestCanvasIntegration:
         canvas = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id=episode_test_session.id,
-            canvas_type="sheets",
-            component_type="grid",
-            component_name="DataTable",
-            action="update",
-            audit_metadata={"updated_cells": ["A1", "B2"]},
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            action_type='update',
+            details_json={'canvas_type': 'sheets', 'component_type': 'grid', 'component_name': 'DataTable', 'updated_cells': ['A1', 'B2']},
         )
 
         segmentation_service_mocked.db.add(canvas)
@@ -3501,12 +3489,9 @@ class TestEpisodeCreationFlow:
         canvas = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id=episode_test_session.id,
-            canvas_type="chart",
-            component_type="line",
-            component_name="SalesChart",
-            action="present",
-            audit_metadata={"title": "Monthly Sales", "revenue": 1000000},
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component_type': 'line', 'component_name': 'SalesChart', 'title': 'Monthly Sales', 'revenue': 1000000},
         )
 
         segmentation_service_mocked.db.add(canvas)
@@ -3719,22 +3704,16 @@ class TestEpisodeCreationFlow:
             CanvasAudit(
                 id=f"canvas_{uuid4().hex[:8]}",
                 session_id=episode_test_session.id,
-                canvas_type="chart",
-                component_type="bar",
-                component_name="RevenueChart",
-                action="present",
-                audit_metadata={"revenue": 500000},
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
+                action_type='present',
+                details_json={'canvas_type': 'chart', 'component_type': 'bar', 'component_name': 'RevenueChart', 'revenue': 500000},
             ),
             CanvasAudit(
                 id=f"canvas_{uuid4().hex[:8]}",
                 session_id=episode_test_session.id,
-                canvas_type="form",
-                component_type="input",
-                component_name="UserForm",
-                action="submit",
-                audit_metadata={"email": "test@example.com"},
-                created_at=datetime.now(timezone.utc) + timedelta(minutes=1)
+                created_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                action_type='submit',
+                details_json={'canvas_type': 'form', 'component_type': 'input', 'component_name': 'UserForm', 'email': 'test@example.com'},
             ),
         ]
 
@@ -3871,22 +3850,16 @@ class TestCanvasContextExtraction:
             CanvasAudit(
                 id=f"canvas_{uuid4().hex[:8]}",
                 session_id=episode_test_session.id,
-                canvas_type="chart",
-                component_type="line",
-                component_name="Chart1",
-                action="present",
-                audit_metadata={"title": "Chart 1"},
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
+                action_type='present',
+                details_json={'canvas_type': 'chart', 'component_type': 'line', 'component_name': 'Chart1', 'title': 'Chart 1'},
             ),
             CanvasAudit(
                 id=f"canvas_{uuid4().hex[:8]}",
                 session_id=episode_test_session.id,
-                canvas_type="form",
-                component_type="input",
-                component_name="Form1",
-                action="submit",
-                audit_metadata={"field": "value"},
-                created_at=datetime.now(timezone.utc) + timedelta(minutes=1)
+                created_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                action_type='submit',
+                details_json={'canvas_type': 'form', 'component_type': 'input', 'component_name': 'Form1', 'field': 'value'},
             ),
         ]
 
@@ -3913,11 +3886,8 @@ class TestCanvasContextExtraction:
         canvas_audit = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id="test_session",
-            canvas_type="chart",
-            component_type="line",
-            component_name="SalesChart",
-            action="present",
-            audit_metadata={"title": "Monthly Sales", "revenue": 1000000}
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component_type': 'line', 'component_name': 'SalesChart', 'title': 'Monthly Sales', 'revenue': 1000000},
         )
 
         context = segmentation_service_mocked._extract_canvas_context([canvas_audit])
@@ -3941,11 +3911,8 @@ class TestCanvasContextExtraction:
         orch_canvas = CanvasAudit(
             id=f"canvas_{uuid4().hex[:8]}",
             session_id="test_session",
-            canvas_type="orchestration",
-            component_type="workflow",
-            component_name="WorkflowOrchestrator",
-            action="present",
-            audit_metadata={"workflow_id": "wf_123", "approval_status": "pending"}
+            action_type='present',
+            details_json={'canvas_type': 'orchestration', 'component_type': 'workflow', 'component_name': 'WorkflowOrchestrator', 'workflow_id': 'wf_123', 'approval_status': 'pending'},
         )
 
         context = segmentation_service_mocked._extract_canvas_context([orch_canvas])
@@ -4663,23 +4630,17 @@ class TestSequentialRetrieval:
         canvas1 = CanvasAudit(
             id="canvas_1",
             session_id=f"session_{uuid4().hex[:8]}",
-            canvas_type="chart",
-            component_type="line",
-            component_name="SalesChart",
-            action="present",
-            audit_metadata={"title": "Monthly Sales"},
-            created_at=base_time
+            created_at=base_time,
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component_type': 'line', 'component_name': 'SalesChart', 'title': 'Monthly Sales'},
         )
 
         canvas2 = CanvasAudit(
             id="canvas_2",
             session_id=f"session_{uuid4().hex[:8]}",
-            canvas_type="form",
-            component_type="input",
-            component_name="UserForm",
-            action="submit",
-            audit_metadata={"email": "test@example.com"},
-            created_at=base_time
+            created_at=base_time,
+            action_type='submit',
+            details_json={'canvas_type': 'form', 'component_type': 'input', 'component_name': 'UserForm', 'email': 'test@example.com'},
         )
 
         retrieval_service_mocked.db.add(canvas1)

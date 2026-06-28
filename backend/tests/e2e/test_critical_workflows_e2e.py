@@ -461,10 +461,12 @@ class TestCanvasPresentationWorkflow:
         audit = CanvasAudit(
             canvas_id=canvas_id,
             user_id=user_id,
-            action="present",
-            canvas_type="chart",
             canvas_data={"type": "line", "data": [1, 2, 3]},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         session.add(audit)
         session.commit()
@@ -497,10 +499,12 @@ class TestCanvasPresentationWorkflow:
         audit = CanvasAudit(
             canvas_id="llm-generated-canvas",
             user_id=user_id,
-            action="present",
-            canvas_type="docs",
             canvas_data={"content": "LLM generated content"},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         session.add(audit)
         session.commit()
@@ -527,10 +531,12 @@ class TestCanvasPresentationWorkflow:
         audit = CanvasAudit(
             canvas_id=canvas_id,
             user_id=user_id,
-            action="present",
-            canvas_type="chart",
             canvas_data={"test": "data"},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         session.add(audit)
         session.commit()
@@ -600,10 +606,12 @@ class TestEndToEndSmokeTests:
         audit = CanvasAudit(
             canvas_id=canvas_id,
             user_id=user_id,
-            action="present",
-            canvas_type="docs",
             canvas_data=execution.output_data,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         session_canvas.add(audit)
         session_canvas.commit()

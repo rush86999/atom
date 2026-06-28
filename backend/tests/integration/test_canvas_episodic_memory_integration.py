@@ -450,14 +450,12 @@ class TestCanvasContextRetrieval:
         for canvas_id in episode.canvas_ids:
             canvas = CanvasAudit(
                 id=canvas_id,
-                workspace_id="default",
                 agent_id=agent.id,
                 user_id=user.id,
                 canvas_id=canvas_id,
-                canvas_type="sheets",
-                component_type="data_grid",
-                action="present",
-                audit_metadata={"revenue": 1200000}
+                tenant_id='default',
+                action_type='present',
+                details_json={'canvas_type': 'sheets', 'component_type': 'data_grid', 'revenue': 1200000},
             )
             db_session.add(canvas)
 
@@ -544,18 +542,12 @@ class TestCanvasContextRetrieval:
         # Create canvas audit with full context
         canvas = CanvasAudit(
             id=episode.canvas_ids[0],
-            workspace_id="default",
             agent_id=agent.id,
             user_id=user.id,
             canvas_id=episode.canvas_ids[0],
-            canvas_type="orchestration",
-            component_type="workflow_board",
-            action="present",
-            audit_metadata={
-                "workflow_id": "wf-123",
-                "approval_amount": 1500000,
-                "approvers": ["manager", "director"]
-            }
+            tenant_id='default',
+            action_type='present',
+            details_json={'canvas_type': 'orchestration', 'component_type': 'workflow_board', 'workflow_id': 'wf-123', 'approval_amount': 1500000, 'approvers': ['manager', 'director']},
         )
         db_session.add(canvas)
         db_session.commit()

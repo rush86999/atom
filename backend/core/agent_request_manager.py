@@ -455,20 +455,20 @@ class AgentRequestManager:
         try:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
-                agent_execution_id=None,
                 user_id=user_id,
                 canvas_id=None,
                 session_id=None,
-                component_type="agent_request_prompt",
-                component_name="agent_request_manager",
-                action=action,
-                audit_metadata={
+                action_type=action,
+                details_json={
+                    "component_type": "agent_request_prompt",
+                    "component_name": "agent_request_manager",
+                    "agent_execution_id": None,
+                    "governance_check_passed": True,
                     "request_id": request_id,
-                    **(metadata or {})
-                },
-                governance_check_passed=True
+                    **(metadata or {}),
+                }
             )
             self.db.add(audit)
             self.db.commit()

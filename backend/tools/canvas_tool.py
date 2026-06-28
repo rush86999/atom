@@ -68,18 +68,20 @@ async def _create_canvas_audit(
     try:
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=agent_id,
-            agent_execution_id=agent_execution_id,
             user_id=user_id,
             canvas_id=canvas_id,
             session_id=session_id,
-            canvas_type=canvas_type,  # NEW: Canvas type
-            component_type=component_type,
-            component_name=component_name,
-            action=action,
-            audit_metadata=metadata or {},
-            governance_check_passed=governance_check_passed
+            action_type=action,
+            details_json={
+                "canvas_type": canvas_type,
+                "component_type": component_type,
+                "component_name": component_name,
+                "agent_execution_id": agent_execution_id,
+                "governance_check_passed": governance_check_passed,
+                **(metadata or {}),
+            }
         )
         db.add(audit)
         db.commit()

@@ -196,8 +196,10 @@ class TestCanvasDeletionEndpoint:
             canvas_id="audit_canvas_123",
             agent_id="test_agent",
             user_id="test_user",
-            action="present",
-            component_type="sheets"
+            action_type='present',
+            details_json={
+                'component_type': 'sheets',
+            },
         )
         db_session.add(audit)
         db_session.commit()
@@ -562,16 +564,20 @@ class TestCanvasAuditTrail:
             canvas_id="audit_history_canvas",
             agent_id="agent_1",
             user_id="user_1",
-            action="present",
-            component_type="sheets"
+            action_type='present',
+            details_json={
+                'component_type': 'sheets',
+            },
         )
         audit2 = CanvasAudit(
             id="audit_2",
             canvas_id="audit_history_canvas",
             agent_id="agent_2",
             user_id="user_2",
-            action="update",
-            component_type="docs"
+            action_type='update',
+            details_json={
+                'component_type': 'docs',
+            },
         )
         db_session.add(audit1)
         db_session.add(audit2)
@@ -599,10 +605,8 @@ class TestCanvasAuditTrail:
             canvas_id="governance_canvas",
             agent_id=agent.id,
             user_id="user_1",
-            action="submit",
-            component_type="form",
-            governance_check_passed=True,
-            audit_metadata={"field_count": 5}
+            action_type='submit',
+            details_json={'component_type': 'form', 'governance_check_passed': True, 'field_count': 5},
         )
         db_session.add(audit)
         db_session.commit()

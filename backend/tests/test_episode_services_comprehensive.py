@@ -198,12 +198,9 @@ class TestEpisodeSegmentationService:
             id=f"test_canvas_{uuid.uuid4().hex[:8]}",
             session_id=test_session.id,
             user_id=test_user.id,
-            canvas_type="sheets",
-            component_type="grid",
-            component_name="DataGrid",
-            action="present",
-            audit_metadata={"revenue": 1000000, "approval_status": "approved"},
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            action_type='present',
+            details_json={'canvas_type': 'sheets', 'component_type': 'grid', 'component_name': 'DataGrid', 'revenue': 1000000, 'approval_status': 'approved'},
         )
         segmentation_service.db.add(canvas)
         segmentation_service.db.commit()

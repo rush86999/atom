@@ -116,7 +116,7 @@ class TestCreateCanvasAudit:
 
         assert audit is not None
         assert audit.agent_id is None
-        assert audit.canvas_type == "generic"
+        assert (audit.details_json or {}).get("canvas_type") == "generic"
 
 
 # ============================================================================
@@ -1055,7 +1055,7 @@ class TestCanvasAuditEntryComplete:
             canvas_type="sheets"
         )
 
-        assert audit.canvas_type == "sheets"
+        assert (audit.details_json or {}).get("canvas_type") == "sheets"
 
     @pytest.mark.asyncio
     async def test_create_canvas_audit_includes_component_type(self, mock_db):
@@ -1070,7 +1070,7 @@ class TestCanvasAuditEntryComplete:
             component_type="data_grid"
         )
 
-        assert audit.component_type == "data_grid"
+        assert (audit.details_json or {}).get("component_type") == "data_grid"
 
     @pytest.mark.asyncio
     async def test_create_canvas_audit_includes_session_id(self, mock_db):
@@ -1100,7 +1100,7 @@ class TestCanvasAuditEntryComplete:
             metadata=metadata
         )
 
-        assert audit.audit_metadata == metadata
+        assert audit.details_json == metadata
 
     @pytest.mark.asyncio
     async def test_create_canvas_audit_handles_governance_check_passed_flag(self, mock_db):

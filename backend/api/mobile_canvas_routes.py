@@ -466,7 +466,7 @@ async def list_mobile_canvases(
 
             canvases.append(MobileCanvasListItem(
                 canvas_id=audit.canvas_id or str(uuid.uuid4()),
-                title=audit.component_name or f"Canvas {audit.canvas_id[:8] if audit.canvas_id else 'Unknown'}",
+                title=(audit.details_json or {}).get("component_name") or (audit.details_json or {}).get("component_type") or f"Canvas {audit.canvas_id[:8] if audit.canvas_id else 'Unknown'}",
                 agent_name=agent.name if agent else "Unknown",
                 status="active",  # Can be enhanced with actual status tracking
                 created_at=audit.created_at.isoformat(),

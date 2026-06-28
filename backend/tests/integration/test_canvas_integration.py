@@ -58,13 +58,12 @@ class TestCanvasCreation:
         # Create a canvas audit record for presentation
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
             agent_id=agent.id,
             user_id=canvas.user_id,
             canvas_id=canvas.id,
-            component_type="generic",
-            action="present",
-            audit_metadata={}
+            tenant_id='default',
+            action_type='present',
+            details_json={'component_type': 'generic'},
         )
         db_session.add(audit)
         db_session.commit()
@@ -254,13 +253,12 @@ class TestCanvasAuditTrail:
         # Create audit entry for presentation
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
             agent_id=canvas.agent_id,
             user_id=canvas.user_id,
             canvas_id=canvas.id,
-            component_type="generic",
-            action="present",
-            audit_metadata={}
+            tenant_id='default',
+            action_type='present',
+            details_json={'component_type': 'generic'},
         )
         db_session.add(audit)
         db_session.commit()
@@ -282,13 +280,12 @@ class TestCanvasAuditTrail:
         # Create audit with agent context
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
             agent_id=agent.id,
             user_id=canvas.user_id,
             canvas_id=canvas.id,
-            component_type="generic",
-            action="present",
-            audit_metadata={}
+            tenant_id='default',
+            action_type='present',
+            details_json={'component_type': 'generic'},
         )
         db_session.add(audit)
         db_session.commit()
@@ -310,13 +307,12 @@ class TestCanvasAuditTrail:
         for action in actions:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 agent_id=canvas.agent_id,
                 user_id=canvas.user_id,
                 canvas_id=canvas.id,
-                component_type="form",
-                action=action,
-                audit_metadata={}
+                tenant_id='default',
+                action_type=action,
+                details_json={'component_type': 'form'},
             )
             db_session.add(audit)
         db_session.commit()
@@ -344,26 +340,24 @@ class TestMultiAgentCanvasCoordination:
         # Agent 1 presents
         audit1 = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
             agent_id=agent1.id,
             user_id=canvas.user_id,
             canvas_id=canvas.id,
-            component_type="orchestration",
-            action="present",
-            audit_metadata={}
+            tenant_id='default',
+            action_type='present',
+            details_json={'component_type': 'orchestration'},
         )
         db_session.add(audit1)
 
         # Agent 2 presents on same canvas
         audit2 = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
             agent_id=agent2.id,
             user_id=canvas.user_id,
             canvas_id=canvas.id,
-            component_type="orchestration",
-            action="present",
-            audit_metadata={}
+            tenant_id='default',
+            action_type='present',
+            details_json={'component_type': 'orchestration'},
         )
         db_session.add(audit2)
         db_session.commit()
@@ -400,13 +394,15 @@ class TestMultiAgentCanvasCoordination:
             # Create audit entry
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 agent_id=agent.id,
                 user_id=canvas.user_id,
                 canvas_id=canvas.id,
-                component_type="form",
-                action="present",
-                audit_metadata={"agent_maturity": agent.status}
+                tenant_id='default',
+                action_type='present',
+                details_json={
+                    'component_type': 'form',
+                    'audit_metadata': {"agent_maturity": agent.status},
+                },
             )
             db_session.add(audit)
 
@@ -432,13 +428,15 @@ class TestMultiAgentCanvasCoordination:
         for mode in collaboration_modes:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 agent_id=agent1.id,
                 user_id=canvas.user_id,
                 canvas_id=canvas.id,
-                component_type="orchestration",
-                action="present",
-                audit_metadata={"collaboration_mode": mode}
+                tenant_id='default',
+                action_type='present',
+                details_json={
+                    'component_type': 'orchestration',
+                    'collaboration_mode': mode,
+                },
             )
             db_session.add(audit)
 

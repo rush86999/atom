@@ -364,9 +364,11 @@ class TestCanvasContextExtractionErrors:
         audit = CanvasAudit(
             id="audit-1",
             session_id="test-session",
-            canvas_type="chart",
-            action="present",
-            audit_metadata="not_a_dict"  # Wrong type
+            action_type='present',
+            details_json={
+                'canvas_type': 'chart',
+                'audit_metadata': 'not_a_dict',
+            },
         )
 
         result = service._extract_canvas_context([audit])
@@ -385,9 +387,8 @@ class TestCanvasContextExtractionErrors:
         audit = CanvasAudit(
             id="audit-1",
             session_id="test-session",
-            canvas_type="chart",
-            action="present",
-            audit_metadata={"component": "LineChart"}
+            action_type='present',
+            details_json={'canvas_type': 'chart', 'component': 'LineChart'},
         )
 
         # Mock canvas_summary_service to raise timeout

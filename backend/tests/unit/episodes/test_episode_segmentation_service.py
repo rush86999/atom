@@ -1902,14 +1902,8 @@ class TestCanvasContextExtraction:
     def test_extract_canvas_context_structure(self, segmentation_service):
         """Test _extract_canvas_context builds correct structure."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "component": "WorkflowCanvas",
-            "workflow_id": "wf-123",
-            "approval_status": "approved"
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'component': 'WorkflowCanvas', 'workflow_id': 'wf-123', 'approval_status': 'approved'}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -1923,13 +1917,8 @@ class TestCanvasContextExtraction:
         """Test canvas metadata extraction by canvas type."""
         # Test orchestration canvas
         orchestration_audit = Mock()
-        orchestration_audit.canvas_type = "orchestration"
-        orchestration_audit.component_name = "WorkflowCanvas"
-        orchestration_audit.action = "present"
-        orchestration_audit.audit_metadata = {
-            "workflow_id": "wf-123",
-            "approval_status": "approved"
-        }
+        orchestration_audit.action_type = 'present'
+        orchestration_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'workflow_id': 'wf-123', 'approval_status': 'approved'}}
 
         result = segmentation_service._extract_canvas_context([orchestration_audit])
 
@@ -1944,10 +1933,8 @@ class TestCanvasContextExtraction:
 
         for action in actions_to_test:
             canvas_audit = Mock()
-            canvas_audit.canvas_type = "generic"
-            canvas_audit.component_name = "TestCanvas"
-            canvas_audit.action = action
-            canvas_audit.audit_metadata = {}
+            canvas_audit.action_type = action
+            canvas_audit.details_json = {'canvas_type': 'generic', 'component_name': 'TestCanvas', 'audit_metadata': {}}
 
             result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -1956,13 +1943,8 @@ class TestCanvasContextExtraction:
     def test_extract_canvas_context_sheets_type(self, segmentation_service):
         """Test canvas context extraction for sheets type."""
         sheets_audit = Mock()
-        sheets_audit.canvas_type = "sheets"
-        sheets_audit.component_name = "DataGrid"
-        sheets_audit.action = "submit"
-        sheets_audit.audit_metadata = {
-            "revenue": 150000,
-            "amount": 5000
-        }
+        sheets_audit.action_type = 'submit'
+        sheets_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'audit_metadata': {'revenue': 150000, 'amount': 5000}}
 
         result = segmentation_service._extract_canvas_context([sheets_audit])
 
@@ -1973,13 +1955,8 @@ class TestCanvasContextExtraction:
     def test_extract_canvas_context_terminal_type(self, segmentation_service):
         """Test canvas context extraction for terminal type."""
         terminal_audit = Mock()
-        terminal_audit.canvas_type = "terminal"
-        terminal_audit.component_name = "CommandOutput"
-        terminal_audit.action = "present"
-        terminal_audit.audit_metadata = {
-            "command": "ls -la",
-            "exit_code": 0
-        }
+        terminal_audit.action_type = 'present'
+        terminal_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'audit_metadata': {'command': 'ls -la', 'exit_code': 0}}
 
         result = segmentation_service._extract_canvas_context([terminal_audit])
 
@@ -2060,13 +2037,8 @@ class TestCanvasContextExtraction:
     async def test_extract_canvas_context_llm_success(self, segmentation_service):
         """Test _extract_canvas_context_llm with LLM-generated summary."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "components": [{"type": "WorkflowCanvas"}, {"type": "Button"}],
-            "workflow_id": "wf-123",
-            "approval_status": "approved"
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'audit_metadata': {'components': [{'type': 'WorkflowCanvas'}, {'type': 'Button'}], 'workflow_id': 'wf-123', 'approval_status': 'approved'}}
 
         # Mock CanvasSummaryService
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary', new=AsyncMock(return_value="LLM-generated summary")) as mock_summary:
@@ -2081,10 +2053,8 @@ class TestCanvasContextExtraction:
     async def test_extract_canvas_context_llm_timeout(self, segmentation_service):
         """Test LLM timeout handling (2-second timeout)."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {}
-        canvas_audit.component_name = "TestCanvas"
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'TestCanvas', 'audit_metadata': {}}
 
         # Mock CanvasSummaryService with timeout
         async def timeout_summary(*args, **kwargs):
@@ -2110,10 +2080,8 @@ class TestCanvasContextExtraction:
     async def test_extract_canvas_context_llm_fallback_on_error(self, segmentation_service):
         """Test fallback to metadata extraction on LLM failure."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {}
-        canvas_audit.component_name = "TestCanvas"
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'TestCanvas', 'audit_metadata': {}}
 
         # Mock CanvasSummaryService to raise exception
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary', new=AsyncMock(side_effect=Exception("LLM failed"))):
@@ -2128,14 +2096,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for charts canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-charts-1"
-        canvas_audit.canvas_type = "charts"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "chart_type": "bar",
-            "data": [1, 2, 3, 4, 5],
-            "labels": ["A", "B", "C", "D", "E"]
-        }
-        canvas_audit.component_name = "BarChart"
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'charts', 'component_name': 'BarChart', 'audit_metadata': {'chart_type': 'bar', 'data': [1, 2, 3, 4, 5], 'labels': ['A', 'B', 'C', 'D', 'E']}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent presented bar chart showing data distribution")):
@@ -2155,12 +2117,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for sheets canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-sheets-1"
-        canvas_audit.canvas_type = "sheets"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "data": [["A", "B"], [1, 2]],
-            "revenue": 150000
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'sheets', 'audit_metadata': {'data': [['A', 'B'], [1, 2]], 'revenue': 150000}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent presented spreadsheet with revenue data")):
@@ -2180,12 +2138,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for forms canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-forms-1"
-        canvas_audit.canvas_type = "forms"
-        canvas_audit.action = "submit"
-        canvas_audit.audit_metadata = {
-            "form_fields": ["name", "email", "phone"],
-            "submitted_values": {"name": "John Doe", "email": "john@example.com"}
-        }
+        canvas_audit.action_type = 'submit'
+        canvas_audit.details_json = {'canvas_type': 'forms', 'audit_metadata': {'form_fields': ['name', 'email', 'phone'], 'submitted_values': {'name': 'John Doe', 'email': 'john@example.com'}}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="User submitted form with contact information")):
@@ -2205,12 +2159,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for markdown canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-markdown-1"
-        canvas_audit.canvas_type = "markdown"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "content": "# Report\n\nThis is a detailed report.",
-            "word_count": 250
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'markdown', 'audit_metadata': {'content': '# Report\n\nThis is a detailed report.', 'word_count': 250}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent presented markdown report with 250 words")):
@@ -2229,13 +2179,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for sheets_cell canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-cell-1"
-        canvas_audit.canvas_type = "sheets_cell"
-        canvas_audit.action = "update"
-        canvas_audit.audit_metadata = {
-            "cell": "A1",
-            "value": 150000,
-            "formula": "=SUM(B2:B10)"
-        }
+        canvas_audit.action_type = 'update'
+        canvas_audit.details_json = {'canvas_type': 'sheets_cell', 'audit_metadata': {'cell': 'A1', 'value': 150000, 'formula': '=SUM(B2:B10)'}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent updated cell A1 with calculated value")):
@@ -2255,14 +2200,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for sheets_range canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-range-1"
-        canvas_audit.canvas_type = "sheets_range"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "range": "A1:C10",
-            "data": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-            "row_count": 10,
-            "col_count": 3
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'sheets_range', 'audit_metadata': {'range': 'A1:C10', 'data': [[1, 2, 3], [4, 5, 6], [7, 8, 9]], 'row_count': 10, 'col_count': 3}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent presented data range A1:C10 with 30 cells")):
@@ -2281,13 +2220,8 @@ class TestCanvasContextExtraction:
         """Test LLM canvas context extraction for sheets_chart canvas type."""
         canvas_audit = Mock()
         canvas_audit.id = "canvas-sheet-chart-1"
-        canvas_audit.canvas_type = "sheets_chart"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "chart_type": "line",
-            "data_range": "Sheet1!A1:B10",
-            "title": "Sales Trend"
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'sheets_chart', 'audit_metadata': {'chart_type': 'line', 'data_range': 'Sheet1!A1:B10', 'title': 'Sales Trend'}}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent presented embedded line chart showing sales trend")):
@@ -2305,9 +2239,8 @@ class TestCanvasContextExtraction:
     async def test_extract_canvas_context_llm_failure(self, segmentation_service):
         """Test graceful fallback when LLM call fails."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "charts"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {"data": [1, 2, 3]}
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'charts', 'audit_metadata': {'data': [1, 2, 3]}}
 
         # Mock CanvasSummaryService to raise exception
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
@@ -2321,10 +2254,8 @@ class TestCanvasContextExtraction:
     def test_extract_canvas_context_empty_metadata(self, segmentation_service):
         """Test handling of empty audit_metadata dict."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "sheets"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {}
-        canvas_audit.component_name = None
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'sheets', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2336,13 +2267,8 @@ class TestCanvasContextExtraction:
     async def test_extract_canvas_context_detail_levels(self, segmentation_service):
         """Test brief/standard/detailed detail levels."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "sheets"
-        canvas_audit.action = "present"
-        canvas_audit.audit_metadata = {
-            "revenue": 150000,
-            "amount": 5000,
-            "data": [[1, 2], [3, 4]]
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'sheets', 'audit_metadata': {'revenue': 150000, 'amount': 5000, 'data': [[1, 2], [3, 4]]}}
 
         # Extract full context
         full_context = segmentation_service._extract_canvas_context([canvas_audit])
@@ -2727,12 +2653,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_single_canvas(self, segmentation_service):
         """Test _extract_canvas_context with single canvas audit."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {
-            "workflow_id": "wf-123"
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'workflow_id': 'wf-123'}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2762,10 +2684,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_visual_elements(self, segmentation_service):
         """Test _extract_canvas_context extracts component_name as visual element."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2776,10 +2696,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_user_interactions(self, segmentation_service):
         """Test _extract_canvas_context maps user interactions from actions."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "submit"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'submit'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2790,13 +2708,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_orchestration_type_critical_data(self, segmentation_service):
         """Test _extract_canvas_context extracts critical fields for orchestration."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {
-            "workflow_id": "wf-456",
-            "approval_status": "pending"
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'workflow_id': 'wf-456', 'approval_status': 'pending'}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2808,13 +2721,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_sheets_type_critical_data(self, segmentation_service):
         """Test _extract_canvas_context extracts critical fields for sheets."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "sheets"
-        canvas_audit.action = "submit"
-        canvas_audit.component_name = "DataGrid"
-        canvas_audit.audit_metadata = {
-            "revenue": 250000,
-            "amount": 7500
-        }
+        canvas_audit.action_type = 'submit'
+        canvas_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'audit_metadata': {'revenue': 250000, 'amount': 7500}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2826,13 +2734,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_terminal_type_critical_data(self, segmentation_service):
         """Test _extract_canvas_context extracts critical fields for terminal."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "terminal"
-        canvas_audit.action = "execute"
-        canvas_audit.component_name = "CommandOutput"
-        canvas_audit.audit_metadata = {
-            "command": "docker-compose up",
-            "exit_code": 0
-        }
+        canvas_audit.action_type = 'execute'
+        canvas_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'audit_metadata': {'command': 'docker-compose up', 'exit_code': 0}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2844,10 +2747,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_unknown_type(self, segmentation_service):
         """Test _extract_canvas_context handles unknown canvas types."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "unknown_type"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "UnknownCanvas"
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'unknown_type', 'component_name': 'UnknownCanvas', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2859,14 +2760,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_all_critical_fields(self, segmentation_service):
         """Test _extract_canvas_context extracts all critical field types."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "code"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "CodeEditor"
-        canvas_audit.audit_metadata = {
-            "file_path": "/path/to/file.py",
-            "language": "python",
-            "word_count": 1500
-        }
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'code', 'component_name': 'CodeEditor', 'audit_metadata': {'file_path': '/path/to/file.py', 'language': 'python', 'word_count': 1500}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2879,10 +2774,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_presentation_summary_with_component(self, segmentation_service):
         """Test _extract_canvas_context generates presentation summary with component."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2895,10 +2788,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_presentation_summary_without_component(self, segmentation_service):
         """Test _extract_canvas_context generates presentation summary without component."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = None
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2910,10 +2801,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_unknown_action(self, segmentation_service):
         """Test _extract_canvas_context handles unknown actions."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "unknown_action"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = {}
+        canvas_audit.action_type = 'unknown_action'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {}}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2924,10 +2813,8 @@ class TestCanvasContextExtractionPrivate:
     def test_extract_canvas_context_metadata_none_handling(self, segmentation_service):
         """Test _extract_canvas_context handles None audit_metadata."""
         canvas_audit = Mock()
-        canvas_audit.canvas_type = "orchestration"
-        canvas_audit.action = "present"
-        canvas_audit.component_name = "WorkflowCanvas"
-        canvas_audit.audit_metadata = None  # None metadata
+        canvas_audit.action_type = 'present'
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': None}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2940,11 +2827,13 @@ class TestCanvasContextExtractionPrivate:
 
     def test_extract_canvas_context_exception_handling(self, segmentation_service):
         """Test _extract_canvas_context returns {} on exception."""
-        # Create a mock that raises an exception
+        # Create a mock that raises an exception when details_json is accessed.
+        # Production code reads `audit.details_json` early in _extract_canvas_context,
+        # so a property that raises triggers the try/except fallback returning {}.
+        def _raise(_self):
+            raise Exception("Test error")
         broken_audit = Mock()
-        broken_audit.canvas_type = "orchestration"
-        # Make component_name raise an exception
-        type(broken_audit).component_name = property(lambda self: (_ for _ in ()).throw(Exception("Test error")))
+        type(broken_audit).details_json = property(_raise)
 
         result = segmentation_service._extract_canvas_context([broken_audit])
 

@@ -87,14 +87,14 @@ class CodingCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="coding",
-                component_type="repo_browser",
-                action="create",
-                audit_metadata={
+                action_type="create",
+                details_json={
+                    "canvas_type": "coding",
+                    "component_type": "repo_browser",
                     "repo": repo,
                     "branch": branch,
                     "layout": layout,
@@ -142,7 +142,7 @@ class CodingCanvasService:
             if not audit:
                 return {"success": False, "error": "Coding canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             files = metadata.get("files", [])
 
             code_file = CodeFile(
@@ -157,13 +157,15 @@ class CodingCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="coding",
-                component_type="code_editor",
-                action="add_file",
-                audit_metadata=metadata
+                action_type="add_file",
+                details_json={
+                    "canvas_type": "coding",
+                    "component_type": "code_editor",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -196,7 +198,7 @@ class CodingCanvasService:
             if not audit:
                 return {"success": False, "error": "Coding canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             diffs = metadata.get("diffs", [])
 
             diff = {
@@ -212,13 +214,15 @@ class CodingCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="coding",
-                component_type="diff_view",
-                action="add_diff",
-                audit_metadata=metadata
+                action_type="add_diff",
+                details_json={
+                    "canvas_type": "coding",
+                    "component_type": "diff_view",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)

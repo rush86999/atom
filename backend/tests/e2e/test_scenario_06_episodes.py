@@ -173,10 +173,9 @@ def test_episodic_memory_and_retrieval(
         canvas_id="test-canvas-001",
         agent_id=autonomous_agent.id,
         user_id="test-user-123",
-        action="present",
-        component_type="chart",
-        audit_metadata={"episode_id": "episode-001"},
         session_id="test-session-001",
+        action_type='present',
+        details_json={'component_type': 'chart', 'episode_id': 'episode-001'},
     )
     db_session.add(canvas1)
 
@@ -184,10 +183,9 @@ def test_episodic_memory_and_retrieval(
         canvas_id="test-canvas-002",
         agent_id=autonomous_agent.id,
         user_id="test-user-123",
-        action="present",
-        component_type="sheets",
-        audit_metadata={"episode_id": "episode-002"},
         session_id="test-session-002",
+        action_type='present',
+        details_json={'component_type': 'sheets', 'episode_id': 'episode-002'},
     )
     db_session.add(canvas2)
 

@@ -60,12 +60,14 @@ class TestCanvasPresentationWorkflow:
         audit_entry = CanvasAudit(
             id="audit-001",
             canvas_id=canvas_data["canvas_id"],
-            canvas_type=canvas_data["canvas_type"],
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data=canvas_data,
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': canvas_data["canvas_type"],
+            },
         )
         mock_db.add(audit_entry)
         mock_db.commit()
@@ -77,12 +79,14 @@ class TestCanvasPresentationWorkflow:
         interaction = CanvasAudit(
             id="audit-002",
             canvas_id=canvas_data["canvas_id"],
-            canvas_type="bar_chart",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"interaction_type": "click", "element": "legend"},
-            status="interaction"
+            status="interaction",
+            details_json={
+                'canvas_type': 'bar_chart',
+            },
         )
         mock_db.add(interaction)
         mock_db.commit()
@@ -91,12 +95,14 @@ class TestCanvasPresentationWorkflow:
         submission = CanvasAudit(
             id="audit-003",
             canvas_id=canvas_data["canvas_id"],
-            canvas_type="bar_chart",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"submitted": True, "values": {"selected": "Jan"}},
-            status="submitted"
+            status="submitted",
+            details_json={
+                'canvas_type': 'bar_chart',
+            },
         )
         mock_db.add(submission)
         mock_db.commit()
@@ -122,12 +128,14 @@ class TestCanvasPresentationWorkflow:
         audit = CanvasAudit(
             id="audit-form-001",
             canvas_id=form_canvas["canvas_id"],
-            canvas_type="interactive_form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data=form_canvas,
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(audit)
         mock_db.commit()
@@ -146,12 +154,14 @@ class TestCanvasPresentationWorkflow:
         submission_audit = CanvasAudit(
             id="audit-form-002",
             canvas_id=form_canvas["canvas_id"],
-            canvas_type="interactive_form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data=form_submission,
-            status="submitted"
+            status="submitted",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(submission_audit)
         mock_db.commit()
@@ -166,12 +176,14 @@ class TestCanvasPresentationWorkflow:
         canvas1 = CanvasAudit(
             id="audit-step-001",
             canvas_id="wizard-step-1",
-            canvas_type="markdown",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"content": "Step 1: Welcome", "step": 1, "total_steps": 3},
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'markdown',
+            },
         )
         mock_db.add(canvas1)
         mock_db.commit()
@@ -180,12 +192,14 @@ class TestCanvasPresentationWorkflow:
         canvas2 = CanvasAudit(
             id="audit-step-002",
             canvas_id="wizard-step-2",
-            canvas_type="form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"content": "Step 2: Enter data", "step": 2, "total_steps": 3},
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'form',
+            },
         )
         mock_db.add(canvas2)
         mock_db.commit()
@@ -194,12 +208,14 @@ class TestCanvasPresentationWorkflow:
         canvas3 = CanvasAudit(
             id="audit-step-003",
             canvas_id="wizard-step-3",
-            canvas_type="chart",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"content": "Step 3: Results", "step": 3, "total_steps": 3},
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         mock_db.add(canvas3)
         mock_db.commit()
@@ -223,7 +239,6 @@ class TestCanvasPresentationWorkflow:
         error_canvas = CanvasAudit(
             id="audit-error-001",
             canvas_id="error-canvas",
-            canvas_type="error",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -232,7 +247,10 @@ class TestCanvasPresentationWorkflow:
                 "message": "Invalid input data",
                 "details": {"field": "email", "issue": "invalid format"}
             },
-            status="error"
+            status="error",
+            details_json={
+                'canvas_type': 'error',
+            },
         )
         mock_db.add(error_canvas)
         mock_db.commit()
@@ -241,7 +259,6 @@ class TestCanvasPresentationWorkflow:
         recovery_canvas = CanvasAudit(
             id="audit-recovery-001",
             canvas_id="recovery-canvas",
-            canvas_type="form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -249,7 +266,10 @@ class TestCanvasPresentationWorkflow:
                 "message": "Please correct your input",
                 "retry": True
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'form',
+            },
         )
         mock_db.add(recovery_canvas)
         mock_db.commit()
@@ -264,7 +284,6 @@ class TestCanvasPresentationWorkflow:
         guidance_canvas = CanvasAudit(
             id="audit-guidance-001",
             canvas_id="guidance-canvas",
-            canvas_type="agent_guidance",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -278,7 +297,10 @@ class TestCanvasPresentationWorkflow:
                     {"name": "Render", "status": "pending"}
                 ]
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'agent_guidance',
+            },
         )
         mock_db.add(guidance_canvas)
         mock_db.commit()
@@ -306,12 +328,14 @@ class TestCanvasPresentationWorkflow:
         canvas1 = CanvasAudit(
             id="audit-collab-001",
             canvas_id="collab-canvas",
-            canvas_type="sheet",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"user": "user1", "action": "view"},
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'sheet',
+            },
         )
         mock_db.add(canvas1)
         mock_db.commit()
@@ -320,12 +344,14 @@ class TestCanvasPresentationWorkflow:
         canvas2 = CanvasAudit(
             id="audit-collab-002",
             canvas_id="collab-canvas",
-            canvas_type="sheet",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"user": "user2", "action": "update", "cell": "A1", "value": "100"},
-            status="updated"
+            status="updated",
+            details_json={
+                'canvas_type': 'sheet',
+            },
         )
         mock_db.add(canvas2)
         mock_db.commit()
@@ -334,12 +360,14 @@ class TestCanvasPresentationWorkflow:
         canvas3 = CanvasAudit(
             id="audit-collab-003",
             canvas_id="collab-canvas",
-            canvas_type="sheet",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"user": "user1", "action": "view_update", "cell": "A1"},
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'sheet',
+            },
         )
         mock_db.add(canvas3)
         mock_db.commit()
@@ -354,7 +382,6 @@ class TestCanvasPresentationWorkflow:
         upload_canvas = CanvasAudit(
             id="audit-upload-001",
             canvas_id="upload-canvas",
-            canvas_type="file_upload",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -363,7 +390,10 @@ class TestCanvasPresentationWorkflow:
                 "max_size_mb": 10,
                 "message": "Upload your data file"
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'file_upload',
+            },
         )
         mock_db.add(upload_canvas)
         mock_db.commit()
@@ -372,7 +402,6 @@ class TestCanvasPresentationWorkflow:
         file_submission = CanvasAudit(
             id="audit-upload-002",
             canvas_id="upload-canvas",
-            canvas_type="file_upload",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -382,7 +411,10 @@ class TestCanvasPresentationWorkflow:
                 "file_type": "text/csv",
                 "uploaded": True
             },
-            status="submitted"
+            status="submitted",
+            details_json={
+                'canvas_type': 'file_upload',
+            },
         )
         mock_db.add(file_submission)
         mock_db.commit()
@@ -391,7 +423,6 @@ class TestCanvasPresentationWorkflow:
         result_canvas = CanvasAudit(
             id="audit-upload-003",
             canvas_id="result-canvas",
-            canvas_type="table",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -400,7 +431,10 @@ class TestCanvasPresentationWorkflow:
                 "columns": 5,
                 "preview": [["col1", "col2"], ["val1", "val2"]]
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'table',
+            },
         )
         mock_db.add(result_canvas)
         mock_db.commit()
@@ -414,7 +448,6 @@ class TestCanvasPresentationWorkflow:
         initial_state = CanvasAudit(
             id="audit-state-001",
             canvas_id="state-canvas",
-            canvas_type="interactive_form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -423,7 +456,10 @@ class TestCanvasPresentationWorkflow:
                 "field2": "value2",
                 "step": 1
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(initial_state)
         mock_db.commit()
@@ -432,7 +468,6 @@ class TestCanvasPresentationWorkflow:
         updated_state = CanvasAudit(
             id="audit-state-002",
             canvas_id="state-canvas",
-            canvas_type="interactive_form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -442,7 +477,10 @@ class TestCanvasPresentationWorkflow:
                 "field3": "value3",
                 "step": 2
             },
-            status="updated"
+            status="updated",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(updated_state)
         mock_db.commit()
@@ -457,7 +495,6 @@ class TestCanvasPresentationWorkflow:
         governed_canvas = CanvasAudit(
             id="audit-gov-001",
             canvas_id="gov-canvas",
-            canvas_type="form",
             agent_id=sample_agent_execution.agent_id,
             execution_id=sample_agent_execution.id,
             presented_at=datetime.utcnow(),
@@ -466,7 +503,10 @@ class TestCanvasPresentationWorkflow:
                 "governance_level": 4,  # CRITICAL - AUTONOMOUS only
                 "agent_maturity": "INTERN"  # Not allowed
             },
-            status="governance_check"
+            status="governance_check",
+            details_json={
+                'canvas_type': 'form',
+            },
         )
         mock_db.add(governed_canvas)
         mock_db.commit()
@@ -488,12 +528,14 @@ class TestCanvasPresentationWorkflow:
             canvas = CanvasAudit(
                 id=f"audit-analytics-{i:03d}",
                 canvas_id=f"analytics-{i}",
-                canvas_type=canvas_type,
                 agent_id=sample_agent_execution.agent_id,
                 execution_id=sample_agent_execution.id,
                 presented_at=datetime.utcnow() - timedelta(minutes=len(canvas_types)-i),
                 canvas_data={"index": i},
-                status="presented"
+                status="presented",
+                details_json={
+                    'canvas_type': canvas_type,
+                },
             )
             mock_db.add(canvas)
 
@@ -509,8 +551,8 @@ class TestCanvasPresentationWorkflow:
 
         # Most popular canvas type
         mock_db.query.return_value.filter.return_value.all.return_value = [
-            CanvasAudit(canvas_type="bar_chart"),
-            CanvasAudit(canvas_type="line_chart"),
-            CanvasAudit(canvas_type="pie_chart"),
-            CanvasAudit(canvas_type="table")
+            CanvasAudit(details_json={"canvas_type": "bar_chart"}),
+            CanvasAudit(details_json={"canvas_type": "line_chart"}),
+            CanvasAudit(details_json={"canvas_type": "pie_chart"}),
+            CanvasAudit(details_json={"canvas_type": "table"})
         ]

@@ -173,9 +173,11 @@ class TestSyncOnReconnect:
                         canvas_id=data["canvas_id"],
                         tenant_id="test-tenant",
                         action_type="present",
-                        canvas_type=data["canvas_type"],
                         canvas_data=data["canvas_data"],
-                        created_at=datetime.utcnow()
+                        created_at=datetime.utcnow(),
+                        details_json={
+                            'canvas_type': data["canvas_type"],
+                        },
                     )
                     db_session.add(canvas)
             db_session.commit()
@@ -217,9 +219,11 @@ class TestConflictResolutionLatestWins:
             canvas_id="conflict-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={"version": 1, "source": "online"},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -273,13 +277,15 @@ class TestConflictResolutionManualMerge:
             canvas_id="manual-merge-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="form",
             canvas_data={
                 "title": "Original",
                 "field_a": "value_a",
                 "field_b": "value_b"
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'form',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -354,9 +360,11 @@ class TestPartialSyncHandling:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_type=data["canvas_type"],
                 canvas_data=data["canvas_data"],
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                details_json={
+                    'canvas_type': data["canvas_type"],
+                },
             )
             db_session.add(canvas)
             synced_count += 1
@@ -377,9 +385,11 @@ class TestPartialSyncHandling:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_type=data["canvas_type"],
                 canvas_data=data["canvas_data"],
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                details_json={
+                    'canvas_type': data["canvas_type"],
+                },
             )
             db_session.add(canvas)
             synced_count += 1
@@ -447,9 +457,11 @@ class TestSyncRetryWithBackoff:
                     canvas_id=data["canvas_id"],
                     tenant_id="test-tenant",
                     action_type="present",
-                    canvas_type=data["canvas_type"],
                     canvas_data=data["canvas_data"],
-                    created_at=datetime.utcnow()
+                    created_at=datetime.utcnow(),
+                    details_json={
+                        'canvas_type': data["canvas_type"],
+                    },
                 )
                 db_session.add(canvas)
                 db_session.commit()
@@ -491,9 +503,11 @@ class TestOfflineToOnlineTransition:
             canvas_id="online-canvas-1",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="chart",
             canvas_data={"source": "online-1"},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         db_session.add(canvas1)
         db_session.commit()
@@ -524,9 +538,11 @@ class TestOfflineToOnlineTransition:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_type=data["canvas_type"],
                 canvas_data=data["canvas_data"],
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                details_json={
+                    'canvas_type': data["canvas_type"],
+                },
             )
             db_session.add(canvas2)
         db_session.commit()
@@ -587,9 +603,11 @@ class TestConcurrentSyncConflicts:
             canvas_id="concurrent-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={"source": "original"},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas)
         db_session.commit()

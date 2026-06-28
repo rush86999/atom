@@ -111,14 +111,14 @@ class EmailCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="email",
-                component_type="compose_form",
-                action="create",
-                audit_metadata={
+                action_type="create",
+                details_json={
+                    "canvas_type": "email",
+                    "component_type": "compose_form",
                     "subject": subject,
                     "layout": layout,
                     "thread_id": thread_id,
@@ -182,7 +182,7 @@ class EmailCanvasService:
             if not audit:
                 return {"success": False, "error": "Email canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             thread_id = metadata.get("thread_id")
             messages = metadata.get("messages", [])
 
@@ -203,13 +203,15 @@ class EmailCanvasService:
             # Create message audit entry
             message_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="email",
-                component_type="thread_view",
-                action="add_message",
-                audit_metadata=metadata
+                action_type="add_message",
+                details_json={
+                    "canvas_type": "email",
+                    "component_type": "thread_view",
+                    **metadata,
+                }
             )
 
             self.db.add(message_audit)
@@ -260,7 +262,7 @@ class EmailCanvasService:
             if not audit:
                 return {"success": False, "error": "Email canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
 
             # Update draft
             draft = EmailDraft(
@@ -277,13 +279,15 @@ class EmailCanvasService:
             # Create draft audit entry
             draft_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="email",
-                component_type="compose_form",
-                action="save_draft",
-                audit_metadata=metadata
+                action_type="save_draft",
+                details_json={
+                    "canvas_type": "email",
+                    "component_type": "compose_form",
+                    **metadata,
+                }
             )
 
             self.db.add(draft_audit)
@@ -330,7 +334,7 @@ class EmailCanvasService:
             if not audit:
                 return {"success": False, "error": "Email canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             categories = metadata.get("categories", [])
 
             # Add or update category
@@ -346,13 +350,15 @@ class EmailCanvasService:
             # Create category audit entry
             category_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="email",
-                component_type="category_bucket",
-                action="categorize",
-                audit_metadata=metadata
+                action_type="categorize",
+                details_json={
+                    "canvas_type": "email",
+                    "component_type": "category_bucket",
+                    **metadata,
+                }
             )
 
             self.db.add(category_audit)

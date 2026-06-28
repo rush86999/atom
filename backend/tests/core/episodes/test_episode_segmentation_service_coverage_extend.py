@@ -938,12 +938,10 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 canvas_audit = CanvasAudit(
                     id="c1",
-                    canvas_type="sheets",
-                    component_name="RevenueSheet",
-                    action="present",
                     session_id="s1",
-                    audit_metadata={"revenue": 1000},
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='present',
+                    details_json={'canvas_type': 'sheets', 'component_name': 'RevenueSheet', 'revenue': 1000},
                 )
 
                 context = service._extract_canvas_context([canvas_audit])
@@ -964,19 +962,23 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 canvas1 = CanvasAudit(
                     id="c1",
-                    canvas_type="chart",
-                    component_name="Chart1",
-                    action="present",
                     session_id="s1",
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='present',
+                    details_json={
+                        'canvas_type': 'chart',
+                        'component_name': 'Chart1',
+                    },
                 )
                 canvas2 = CanvasAudit(
                     id="c2",
-                    canvas_type="form",
-                    component_name="Form1",
-                    action="submit",
                     session_id="s1",
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='submit',
+                    details_json={
+                        'canvas_type': 'form',
+                        'component_name': 'Form1',
+                    },
                 )
 
                 context = service._extract_canvas_context([canvas1, canvas2])
@@ -1009,12 +1011,10 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 canvas_audit = CanvasAudit(
                     id="c1",
-                    canvas_type="terminal",
-                    component_name="Terminal",
-                    action="execute",
                     session_id="s1",
-                    audit_metadata={"command": "ls -la", "exit_code": 0},
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='execute',
+                    details_json={'canvas_type': 'terminal', 'component_name': 'Terminal', 'command': 'ls -la', 'exit_code': 0},
                 )
 
                 context = service._extract_canvas_context_metadata(canvas_audit, None)
@@ -1435,12 +1435,10 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 canvas_audit = CanvasAudit(
                     id="c1",
-                    canvas_type="chart",
-                    component_name="RevenueChart",
-                    action="present",
                     session_id="s1",
-                    audit_metadata={"components": [{"type": "bar"}], "revenue": 1000},
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='present',
+                    details_json={'canvas_type': 'chart', 'component_name': 'RevenueChart', 'components': [{'type': 'bar'}], 'revenue': 1000},
                 )
 
                 # Mock canvas summary service
@@ -1466,12 +1464,10 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 canvas_audit = CanvasAudit(
                     id="c1",
-                    canvas_type="form",
-                    component_name="ApprovalForm",
-                    action="submit",
                     session_id="s1",
-                    audit_metadata={"approval_status": "approved"},
-                    created_at=datetime.now(timezone.utc)
+                    created_at=datetime.now(timezone.utc),
+                    action_type='submit',
+                    details_json={'canvas_type': 'form', 'component_name': 'ApprovalForm', 'approval_status': 'approved'},
                 )
 
                 # Mock LLM failure
@@ -1754,18 +1750,18 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 # ============================================================================
 
 def _make_canvas_audit(canvas_type, action, audit_metadata):
-    """Lightweight stand-in for CanvasAudit that matches the attribute
-    contract _extract_canvas_context_llm reads (.canvas_type, .action,
-    .audit_metadata). Using SimpleNamespace isolates these wiring tests
-    from the separate pre-existing schema mismatch (code reads
-    `audit_metadata` but the DB column is `details_json`)."""
+    """Lightweight stand-in for CanvasAudit using CANONICAL column names
+    (details_json, action_type). The canvas_type is merged into details_json
+    on construction, matching how the production code persists it after
+    the schema-bug refactor."""
     from types import SimpleNamespace
+    details = dict(audit_metadata or {})
+    if canvas_type is not None:
+        details["canvas_type"] = canvas_type
     return SimpleNamespace(
         id="test-audit",
-        canvas_type=canvas_type,
-        action=action,
-        audit_metadata=audit_metadata,
-        component_name="TestComponent",
+        action_type=action,
+        details_json=details,
         created_at=datetime.now(timezone.utc),
     )
 

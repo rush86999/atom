@@ -106,9 +106,11 @@ def create_test_canvas(
     canvas = CanvasAudit(
         agent_id=agent_id,
         canvas_id=str(uuid.uuid4()),
-        action="present",
-        canvas_type=canvas_type,
-        component_count=1,
+        action_type="present",
+        details_json={
+            "canvas_type": canvas_type,
+            "component_count": 1,
+        },
     )
     db_session.add(canvas)
     db_session.commit()

@@ -405,12 +405,14 @@ class TestAgentCanvasIntegration:
             canvas = CanvasAudit(
                 id=f"canvas-{i:03d}",
                 canvas_id=f"canvas-{i}",
-                canvas_type=canvas_config["type"],
                 agent_id=agent.id,
                 execution_id=execution.id,
                 presented_at=datetime.utcnow() + timedelta(seconds=i*2),
                 canvas_data=canvas_config,
-                status="presented"
+                status="presented",
+                details_json={
+                    'canvas_type': canvas_config["type"],
+                },
             )
             mock_db.add(canvas)
 
@@ -446,7 +448,6 @@ class TestAgentCanvasIntegration:
         form_canvas = CanvasAudit(
             id="form-001",
             canvas_id="user-form",
-            canvas_type="interactive_form",
             agent_id=agent.id,
             execution_id=execution.id,
             presented_at=datetime.utcnow(),
@@ -456,7 +457,10 @@ class TestAgentCanvasIntegration:
                     {"name": "email", "type": "email", "required": True}
                 ]
             },
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(form_canvas)
 
@@ -464,7 +468,6 @@ class TestAgentCanvasIntegration:
         submission = CanvasAudit(
             id="form-submit-001",
             canvas_id="user-form",
-            canvas_type="interactive_form",
             agent_id=agent.id,
             execution_id=execution.id,
             presented_at=datetime.utcnow() + timedelta(seconds=30),
@@ -475,7 +478,10 @@ class TestAgentCanvasIntegration:
                 },
                 "submitted": True
             },
-            status="submitted"
+            status="submitted",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(submission)
 

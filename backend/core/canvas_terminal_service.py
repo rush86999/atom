@@ -88,14 +88,14 @@ class TerminalCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="terminal",
-                component_type="shell_output",
-                action="create",
-                audit_metadata={
+                action_type="create",
+                details_json={
+                    "canvas_type": "terminal",
+                    "component_type": "shell_output",
                     "working_dir": working_dir,
                     "command": command,
                     "outputs": [],
@@ -142,7 +142,7 @@ class TerminalCanvasService:
             if not audit:
                 return {"success": False, "error": "Terminal canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             outputs = metadata.get("outputs", [])
 
             term_output = TerminalOutput(
@@ -157,13 +157,15 @@ class TerminalCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="terminal",
-                component_type="shell_output",
-                action="add_output",
-                audit_metadata=metadata
+                action_type="add_output",
+                details_json={
+                    "canvas_type": "terminal",
+                    "component_type": "shell_output",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -194,18 +196,20 @@ class TerminalCanvasService:
             if not audit:
                 return {"success": False, "error": "Terminal canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             metadata["file_tree"] = file_tree
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="terminal",
-                component_type="file_tree",
-                action="update_tree",
-                audit_metadata=metadata
+                action_type="update_tree",
+                details_json={
+                    "canvas_type": "terminal",
+                    "component_type": "file_tree",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)

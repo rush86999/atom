@@ -350,13 +350,15 @@ class TestConcurrentCanvasCreation:
                     canvas_id=canvas_id,
                     tenant_id="test-tenant",
                     action_type="present",
-                    canvas_type="chart",
                     canvas_data={
                         "type": "line",
                         "data": [i for i in range(10)],
                         "thread": thread_id
                     },
-                    created_at=datetime.utcnow()
+                    created_at=datetime.utcnow(),
+                    details_json={
+                        'canvas_type': 'chart',
+                    },
                 )
                 db_session.add(audit)
                 db_session.commit()
@@ -406,9 +408,11 @@ class TestConcurrentCanvasCreation:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="chart",
             canvas_data={"version": 0},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         db_session.add(audit)
         db_session.commit()

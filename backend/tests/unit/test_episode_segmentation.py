@@ -167,16 +167,18 @@ def test_canvas_audits(db_session: Session, test_session):
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
             session_id=test_session.id,
-            canvas_type=canvas_type,
-            component_name=f"TestComponent{i}",
-            action="present",
-            audit_metadata={
+            user_id="test_user",
+            tenant_id='default',
+            action_type='present',
+            details_json={
+                'canvas_type': canvas_type,
+                'component_name': f"TestComponent{i}",
+                'audit_metadata': {
                 "components": [{"type": f"element{i}"}],
                 "revenue": 1000 + i * 100,
                 "workflow_id": f"workflow_{i}"
             },
-            user_id="test_user",
-            workspace_id="default"
+            },
         )
         db_session.add(audit)
         audits.append(audit)
@@ -677,14 +679,14 @@ class TestCanvasIntegration:
             )
 
             assert context is not None
-            assert context['canvas_type'] == canvas_audit.canvas_type
+            assert context['canvas_type'] == (canvas_audit.details_json or {}).get("canvas_type")
             assert context['presentation_summary'] == "Agent presented financial data showing revenue growth and workflow approval status"
             assert context['summary_source'] == 'llm'
 
             # Verify generate_summary was called with correct params
             mock_summary.assert_called_once()
             call_kwargs = mock_summary.call_args.kwargs
-            assert call_kwargs['canvas_type'] == canvas_audit.canvas_type
+            assert call_kwargs['canvas_type'] == (canvas_audit.details_json or {}).get("canvas_type")
             assert call_kwargs['agent_task'] == "Analyze financial data"
 
     @pytest.mark.asyncio

@@ -791,17 +791,19 @@ class ErrorGuidanceEngine:
         try:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
-                agent_execution_id=None,
                 user_id=user_id,
                 canvas_id=None,
                 session_id=None,
-                component_type="operation_error_guide",
-                component_name="error_guidance",
-                action=action,
-                audit_metadata={"error_type": error_type},
-                governance_check_passed=True
+                action_type=action,
+                details_json={
+                    "component_type": "operation_error_guide",
+                    "component_name": "error_guidance",
+                    "agent_execution_id": None,
+                    "governance_check_passed": True,
+                    "error_type": error_type,
+                }
             )
             self.db.add(audit)
             self.db.commit()

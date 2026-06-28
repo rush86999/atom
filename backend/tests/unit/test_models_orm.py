@@ -786,107 +786,35 @@ class TestCanvasAuditModel:
         assert loaded.action_type == "canvas_close"
         assert loaded.agent_id == agent.id
 
-    # ========================================================================
-    # Legacy-kwarg compatibility (schema bug fix)
-    # ------------------------------------------------------------------------
-    # Multiple writers (canvas_terminal_service, canvas_sheets_service,
-    # canvas_orchestration_service, etc.) construct CanvasAudit with kwargs
-    # that don't exist on the model:
-    #   workspace_id=, canvas_type=, component_type=, component_name=,
-    #   action=, audit_metadata=
-    # The constructor raised TypeError; the surrounding try/except in each
-    # writer swallowed it silently, so NO audit row was ever persisted and
-    # the LLM canvas summary feature (Phase 21) had no data to work on.
-    # The model now accepts these legacy kwargs and routes them to the
-    # canonical columns (tenant_id, action_type, details_json).
-    # ========================================================================
-
-    def test_legacy_kwargs_accepted_on_write(self, db: Session):
-        """Construct CanvasAudit the way canvas_terminal_service does —
-        with workspace_id, canvas_type, action, audit_metadata — and verify
-        it persists without raising."""
+    def test_canonical_construction_round_trip(self, db: Session):
+        """Regression guard: the canonical constructor path (action_type=,
+        details_json=, tenant_id=) writes and reads back correctly. This
+        test used to live alongside legacy-kwarg compat tests; those were
+        removed when the legacy shim was taken out after the production
+        callers were migrated to canonical column names."""
         from core.models import CanvasAudit
 
         audit = CanvasAudit(
-            id="audit-legacy-1",
-            workspace_id="default",
-            agent_id="agent-test-1",
-            canvas_id="canvas-test-1",
-            canvas_type="terminal",
-            component_type="shell_output",
-            action="create",
-            audit_metadata={
-                "working_dir": "/tmp",
-                "command": "pytest",
-                "outputs": [],
-            },
-        )
-        db.add(audit)
-        db.commit()  # would have raised TypeError before the fix
-
-        loaded = db.query(CanvasAudit).filter_by(id="audit-legacy-1").first()
-        assert loaded is not None
-        # Legacy action= maps to canonical action_type
-        assert loaded.action_type == "create"
-        # Legacy audit_metadata= maps to canonical details_json
-        assert loaded.details_json is not None
-        assert loaded.details_json.get("command") == "pytest"
-        # Legacy workspace_id= maps to canonical tenant_id
-        assert loaded.tenant_id == "default"
-
-    def test_legacy_property_reads_return_correct_values(self, db: Session):
-        """Read-side: code in episode_segmentation_service reads
-        canvas_audit.audit_metadata / .canvas_type / .action /
-        .component_name. These properties must return the right values
-        whether the row was written via legacy or canonical kwargs."""
-        from core.models import CanvasAudit
-
-        # Written via CANONICAL fields
-        audit = CanvasAudit(
-            id="audit-canon-1",
+            id="audit-canon-rt",
             tenant_id="default",
-            canvas_id="canvas-test-2",
-            action_type="form_submit",
+            canvas_id="canvas-test-rt",
+            action_type="canvas_close",
             details_json={
                 "canvas_type": "sheets",
                 "component_name": "RevenueForm",
-                "amount": 1000,
+                "reason": "user dismissed",
             },
         )
         db.add(audit)
         db.commit()
 
-        loaded = db.query(CanvasAudit).filter_by(id="audit-canon-1").first()
-
-        # Legacy property reads should work
-        assert loaded.action == "form_submit"               # → action_type
-        assert loaded.audit_metadata["amount"] == 1000       # → details_json
-        assert loaded.canvas_type == "sheets"                # → details_json["canvas_type"]
-        assert loaded.component_name == "RevenueForm"        # → details_json["component_name"]
-
-    def test_canonical_construction_still_works(self, db: Session):
-        """Regression guard: the canonical constructor path (action_type=,
-        details_json=, tenant_id=) must continue to work unchanged after
-        adding the legacy-kwarg shim."""
-        from core.models import CanvasAudit
-
-        audit = CanvasAudit(
-            id="audit-canon-2",
-            tenant_id="default",
-            canvas_id="canvas-test-3",
-            action_type="canvas_close",
-            details_json={"reason": "user dismissed"},
-        )
-        db.add(audit)
-        db.commit()
-
-        loaded = db.query(CanvasAudit).filter_by(id="audit-canon-2").first()
+        loaded = db.query(CanvasAudit).filter_by(id="audit-canon-rt").first()
         assert loaded is not None
         assert loaded.action_type == "canvas_close"
+        assert loaded.tenant_id == "default"
+        assert loaded.details_json["canvas_type"] == "sheets"
+        assert loaded.details_json["component_name"] == "RevenueForm"
         assert loaded.details_json["reason"] == "user dismissed"
-        # And the legacy read properties return canonical values
-        assert loaded.action == "canvas_close"
-        assert loaded.audit_metadata["reason"] == "user dismissed"
 
 
 class TestBlockedTriggerContextModel:

@@ -116,4 +116,4 @@ async def get_spreadsheet(canvas_id: str, db: Session = Depends(get_db)):
     if not audit:
         raise router.not_found_error("Spreadsheet Canvas", canvas_id)
 
-    return audit.audit_metadata
+    return audit.details_json or {}

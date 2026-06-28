@@ -472,17 +472,19 @@ class ViewCoordinator:
         try:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
-                agent_execution_id=None,
                 user_id=user_id,
                 canvas_id=None,
                 session_id=session_id,
-                component_type="view_orchestrator",
-                component_name="view_coordinator",
-                action=action,
-                audit_metadata=metadata,
-                governance_check_passed=True
+                action_type=action,
+                details_json={
+                    "component_type": "view_orchestrator",
+                    "component_name": "view_coordinator",
+                    "agent_execution_id": None,
+                    "governance_check_passed": True,
+                    **metadata,
+                }
             )
             self.db.add(audit)
             self.db.commit()

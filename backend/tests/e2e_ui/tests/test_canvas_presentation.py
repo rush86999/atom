@@ -72,15 +72,15 @@ def create_canvas_via_api(db_session: Session, canvas_id: str, canvas_type: str 
     """
     canvas = CanvasAudit(
         canvas_id=canvas_id,
-        canvas_type=canvas_type,
-        action="present",
+        action_type="present",
         user_id=user_id or str(uuid.uuid4()),
         timestamp=datetime.utcnow(),
         metadata={
             "component": "test_canvas",
             "data_points": [],
-            "title": f"Test Canvas {canvas_id}"
-        }
+            "title": f"Test Canvas {canvas_id}",
+            "canvas_type": canvas_type,
+        },
     )
 
     db_session.add(canvas)

@@ -106,11 +106,13 @@ def menubar_canvases(db_session: Session, menubar_agents, menubar_user):
             agent_id=str(agent.id),
             user_id=str(menubar_user.id),
             session_id=f"session_{i}",
-            canvas_type=canvas_types[i % len(canvas_types)],
-            component_type="chart",
-            action="present",
-            audit_metadata={"title": f"Test Canvas {i}"},
             created_at=datetime.utcnow() - timedelta(hours=i),
+            action_type='present',
+            details_json={
+                'canvas_type': canvas_types[i % len(canvas_types)],
+                'component_type': 'chart',
+                'audit_metadata': {"title": f"Test Canvas {i}"},
+            },
         )
         db_session.add(canvas)
         canvases.append(canvas)

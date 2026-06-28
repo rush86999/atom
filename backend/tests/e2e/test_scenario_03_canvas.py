@@ -59,28 +59,25 @@ def test_canvas_presentations_with_governance(
             canvas_id="test-canvas-001",
             agent_id=student_agent.id,
             user_id="test-user-123",
-            action="present",
-            component_type="markdown",
-            audit_metadata={"type": "markdown"},
             session_id="test-session-1",
+            action_type='present',
+            details_json={'component_type': 'markdown', 'type': 'markdown'},
         ),
         CanvasAudit(
             canvas_id="test-canvas-002",
             agent_id=intern_agent.id,
             user_id="test-user-123",
-            action="present",
-            component_type="chart",
-            audit_metadata={"type": "chart"},
             session_id="test-session-2",
+            action_type='present',
+            details_json={'component_type': 'chart', 'type': 'chart'},
         ),
         CanvasAudit(
             canvas_id="test-canvas-003",
             agent_id=autonomous_agent.id,
             user_id="test-user-123",
-            action="close",
-            component_type="generic",
-            audit_metadata={"reason": "complete"},
             session_id="test-session-3",
+            action_type='close',
+            details_json={'component_type': 'generic', 'reason': 'complete'},
         ),
     ]
 
@@ -109,10 +106,12 @@ def test_canvas_presentations_with_governance(
             canvas_id=f"test-{canvas_type}-canvas",
             agent_id=autonomous_agent.id,
             user_id="test-user-123",
-            action="present",
-            component_type="generic",
-            audit_metadata={"canvas_type": canvas_type},
             session_id=f"test-{canvas_type}-session",
+            action_type='present',
+            details_json={
+                'component_type': 'generic',
+                'audit_metadata': {"canvas_type": canvas_type},
+            },
         )
         db_session.add(audit)
 

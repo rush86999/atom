@@ -390,11 +390,13 @@ class TestCanvasFeedbackLinkage:
             CanvasAudit(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
-                canvas_type="sheets",
-                action="present",
-                component_name=f"table_{i}",
-                audit_metadata={"index": i},
-                created_at=now - timedelta(minutes=10 - i)
+                created_at=now - timedelta(minutes=10 - i),
+                action_type='present',
+                details_json={
+                    'canvas_type': 'sheets',
+                    'component_name': f"table_{i}",
+                    'audit_metadata': {"index": i},
+                },
             )
             for i in range(3)
         ]
@@ -425,15 +427,9 @@ class TestCanvasFeedbackLinkage:
         canvas = CanvasAudit(
             id=str(uuid.uuid4()),
             session_id="session1",
-            canvas_type="sheets",
-            action="present",
-            component_name="SalesChart",
-            audit_metadata={
-                "component": "SalesChart",
-                "revenue": 1000000,
-                "approval_status": "approved"
-            },
-            created_at=now
+            created_at=now,
+            action_type='present',
+            details_json={'canvas_type': 'sheets', 'component_name': 'SalesChart', 'component': 'SalesChart', 'revenue': 1000000, 'approval_status': 'approved'},
         )
 
         context = segmentation_service._extract_canvas_context([canvas])

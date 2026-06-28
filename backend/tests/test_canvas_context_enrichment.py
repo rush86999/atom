@@ -74,7 +74,7 @@ def test_session(db_session: Session, test_user: User) -> ChatSession:
     db_session.add(session)
     db_session.commit()
     # Add workspace_id dynamically for episode creation compatibility
-    session.workspace_id = "default"
+    session.details_json = {'workspace_id': 'default'}
     return session
 
 
@@ -95,21 +95,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-generic-001",
             session_id=test_session.id,
-            canvas_type="generic",
-            action="present",
-            component_name="line_chart",
-            component_type="chart",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "line_chart",
-                "chart_type": "line",
-                "title": "User Growth",
-                "data_points": [
-                    {"x": "Jan", "y": 100},
-                    {"x": "Feb", "y": 150}
-                ]
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'generic', 'component_name': 'line_chart', 'component_type': 'chart', 'component': 'line_chart', 'chart_type': 'line', 'title': 'User Growth', 'data_points': [{'x': 'Jan', 'y': 100}, {'x': 'Feb', 'y': 150}]},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -132,17 +121,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-docs-001",
             session_id=test_session.id,
-            canvas_type="docs",
-            action="present",
-            component_name="document_viewer",
-            component_type="viewer",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "document_viewer",
-                "title": "API Documentation",
-                "word_count": 2500
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'docs', 'component_name': 'document_viewer', 'component_type': 'viewer', 'component': 'document_viewer', 'title': 'API Documentation', 'word_count': 2500},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -161,17 +143,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-email-001",
             session_id=test_session.id,
-            canvas_type="email",
-            action="present",
-            component_name="compose",
-            component_type="form",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "compose",
-                "subject": "Project Update",
-                "recipient": "team@example.com"
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'email', 'component_name': 'compose', 'component_type': 'form', 'component': 'compose', 'subject': 'Project Update', 'recipient': 'team@example.com'},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -190,17 +165,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-sheets-001",
             session_id=test_session.id,
-            canvas_type="sheets",
-            action="present",
-            component_name="sheet",
-            component_type="table",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "sheet",
-                "revenue": "$1.2M",
-                "amount": 1200000
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'sheets', 'component_name': 'sheet', 'component_type': 'table', 'component': 'sheet', 'revenue': '$1.2M', 'amount': 1200000},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -220,17 +188,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-orchestration-001",
             session_id=test_session.id,
-            canvas_type="orchestration",
-            action="submit",
-            component_name="workflow_board",
-            component_type="workflow",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "workflow_board",
-                "workflow_id": "wf-123",
-                "approval_status": "approved"
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='submit',
+            details_json={'canvas_type': 'orchestration', 'component_name': 'workflow_board', 'component_type': 'workflow', 'component': 'workflow_board', 'workflow_id': 'wf-123', 'approval_status': 'approved'},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -255,17 +216,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-terminal-001",
             session_id=test_session.id,
-            canvas_type="terminal",
-            action="execute",
-            component_name="terminal",
-            component_type="terminal",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "terminal",
-                "command": "npm install",
-                "exit_code": 0
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='execute',
+            details_json={'canvas_type': 'terminal', 'component_name': 'terminal', 'component_type': 'terminal', 'component': 'terminal', 'command': 'npm install', 'exit_code': 0},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -284,17 +238,10 @@ class TestCanvasContextExtraction:
         audit = CanvasAudit(
             id="audit-coding-001",
             session_id=test_session.id,
-            canvas_type="coding",
-            action="present",
-            component_name="editor",
-            component_type="editor",
             user_id=test_session.user_id,
-            audit_metadata={
-                "component": "editor",
-                "file_path": "src/components/Header.tsx",
-                "language": "typescript"
-            },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'coding', 'component_name': 'editor', 'component_type': 'editor', 'component': 'editor', 'file_path': 'src/components/Header.tsx', 'language': 'typescript'},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()
@@ -337,13 +284,10 @@ class TestEpisodeSegmentCanvasContext:
         audit = CanvasAudit(
             id="audit-segment-001",
             session_id=test_session.id,
-            canvas_type="orchestration",
-            action="present",
-            component_name="workflow_board",
-            component_type="workflow",
             user_id=test_user.id,
-            audit_metadata={"workflow_id": "wf-456", "approval_status": "pending"},
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={'canvas_type': 'orchestration', 'component_name': 'workflow_board', 'component_type': 'workflow', 'workflow_id': 'wf-456', 'approval_status': 'pending'},
         )
         segmentation_service.db.add(audit)
         segmentation_service.db.commit()

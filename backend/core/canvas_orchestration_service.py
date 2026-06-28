@@ -171,14 +171,14 @@ class OrchestrationCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="orchestration",
-                component_type="kanban_board",
-                action="create",
-                audit_metadata={
+                action_type="create",
+                details_json={
+                    "canvas_type": "orchestration",
+                    "component_type": "kanban_board",
                     "title": title,
                     "layout": layout,
                     "tasks": task_objects,
@@ -269,7 +269,7 @@ class OrchestrationCanvasService:
             if not audit:
                 return {"success": False, "error": "Orchestration canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             nodes = metadata.get("nodes", [])
             integrations = metadata.get("integrations", [])
 
@@ -292,13 +292,15 @@ class OrchestrationCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="orchestration",
-                component_type="workflow_diagram",
-                action="add_node",
-                audit_metadata=metadata
+                action_type="add_node",
+                details_json={
+                    "canvas_type": "orchestration",
+                    "component_type": "workflow_diagram",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -350,7 +352,7 @@ class OrchestrationCanvasService:
             if not audit:
                 return {"success": False, "error": "Orchestration canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             connections = metadata.get("connections", [])
 
             connection = WorkflowConnection(
@@ -365,13 +367,15 @@ class OrchestrationCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="orchestration",
-                component_type="workflow_diagram",
-                action="connect_nodes",
-                audit_metadata=metadata
+                action_type="connect_nodes",
+                details_json={
+                    "canvas_type": "orchestration",
+                    "component_type": "workflow_diagram",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -418,7 +422,7 @@ class OrchestrationCanvasService:
             if not audit:
                 return {"success": False, "error": "Orchestration canvas not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             tasks = metadata.get("tasks", [])
 
             task = WorkflowTask(
@@ -434,13 +438,15 @@ class OrchestrationCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="orchestration",
-                component_type="kanban_board",
-                action="add_task",
-                audit_metadata=metadata
+                action_type="add_task",
+                details_json={
+                    "canvas_type": "orchestration",
+                    "component_type": "kanban_board",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)

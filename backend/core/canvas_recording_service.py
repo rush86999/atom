@@ -517,17 +517,18 @@ class CanvasRecordingService:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
                 tenant_id=self.tenant_id,
-                workspace_id="default",
                 agent_id=agent_id,
-                agent_execution_id=None,
                 user_id=user_id,
                 canvas_id=None,
                 session_id=None,
-                component_type="canvas_recording",
-                component_name="canvas_recording_service",
-                action=action,
-                audit_metadata={"recording_id": recording_id},
-                governance_check_passed=True
+                action_type=action,
+                details_json={
+                    "component_type": "canvas_recording",
+                    "component_name": "canvas_recording_service",
+                    "agent_execution_id": None,
+                    "governance_check_passed": True,
+                    "recording_id": recording_id,
+                }
             )
             self.db.add(audit)
             self.db.commit()

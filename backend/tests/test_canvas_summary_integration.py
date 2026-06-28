@@ -55,13 +55,13 @@ class TestCanvasSummaryLLMIntegration:
         # Create mock canvas audit
         canvas_audit = CanvasAudit(
             id="test-canvas-1",
-            canvas_type="sheets",
-            action="present",
-            audit_metadata={
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
                 "revenue": "1200000",
                 "growth": "15%",
-                "components": [{"type": "line_chart"}]
-            }
+                "components": [{"type": "line_chart"}],
+            },
         )
 
         # Extract context with LLM
@@ -94,9 +94,12 @@ class TestCanvasSummaryLLMIntegration:
 
         canvas_audit = CanvasAudit(
             id="test-canvas-2",
-            canvas_type="terminal",
-            action="present",
-            audit_metadata={"command": "pytest tests/", "exit_code": "0"}
+            action_type="present",
+            details_json={
+                "canvas_type": "terminal",
+                "command": "pytest tests/",
+                "exit_code": "0",
+            },
         )
 
         # Should fallback to metadata
@@ -128,13 +131,13 @@ class TestCanvasSummaryLLMIntegration:
 
         canvas_audit = CanvasAudit(
             id="test-canvas-3",
-            canvas_type="orchestration",
-            action="present",
-            audit_metadata={
+            action_type="present",
+            details_json={
+                "canvas_type": "orchestration",
                 "workflow_id": "wf-123",
                 "approval_amount": 50000,
-                "approvers": ["manager", "director"]
-            }
+                "approvers": ["manager", "director"],
+            },
         )
 
         result = await service._extract_canvas_context_llm(canvas_audit=canvas_audit)
@@ -161,9 +164,11 @@ class TestCanvasSummaryLLMIntegration:
 
         canvas_audit = CanvasAudit(
             id="test-canvas-4",
-            canvas_type="sheets",
-            action="present",
-            audit_metadata={"revenue": "1000000"}
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
+                "revenue": "1000000",
+            },
         )
 
         # Call twice with same canvas
@@ -189,9 +194,12 @@ class TestCanvasSummaryLLMIntegration:
 
         canvas_audit = CanvasAudit(
             id="test-canvas-5",
-            canvas_type="docs",
-            action="present",
-            audit_metadata={"title": "Test Doc", "word_count": 500}
+            action_type="present",
+            details_json={
+                "canvas_type": "docs",
+                "title": "Test Doc",
+                "word_count": 500,
+            },
         )
 
         result = await service._extract_canvas_context_llm(canvas_audit=canvas_audit)
@@ -214,9 +222,10 @@ class TestCanvasSummaryLLMIntegration:
         for action in interactions:
             canvas_audit = CanvasAudit(
                 id=f"test-canvas-{action}",
-                canvas_type="generic",
-                action=action,
-                audit_metadata={}
+                action_type=action,
+                details_json={
+                    "canvas_type": "generic",
+                },
             )
 
             result = await service._extract_canvas_context_llm(canvas_audit=canvas_audit)
@@ -235,15 +244,15 @@ class TestCanvasSummaryLLMIntegration:
 
         canvas_audit = CanvasAudit(
             id="test-canvas-visual",
-            canvas_type="sheets",
-            action="present",
-            audit_metadata={
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
                 "components": [
                     {"type": "line_chart"},
                     {"type": "bar_chart"},
-                    {"type": "data_table"}
-                ]
-            }
+                    {"type": "data_table"},
+                ],
+            },
         )
 
         result = await service._extract_canvas_context_llm(canvas_audit=canvas_audit)

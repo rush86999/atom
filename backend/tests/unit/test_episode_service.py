@@ -837,7 +837,9 @@ class TestCanvasIntegration:
                 canvas_id=f"canvas-{i}",
                 agent_id=test_agent.id,
                 action_type="present",
-                canvas_type="chart"
+                details_json={
+                    'canvas_type': 'chart',
+                },
             )
             db_session.add(audit)
         db_session.commit()

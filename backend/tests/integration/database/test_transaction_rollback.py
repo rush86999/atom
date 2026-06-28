@@ -156,8 +156,10 @@ class TestCanvasTransactionRollback:
             canvas_id="audit_canvas",
             agent_id="audit_agent",
             user_id="audit_user",
-            action="present",
-            component_type="sheets"
+            action_type='present',
+            details_json={
+                'component_type': 'sheets',
+            },
         )
         db_session.add(audit)
         db_session.flush()
@@ -391,8 +393,10 @@ class TestCrossModelTransactionRollback:
             canvas_id="complex_canvas",
             agent_id=agent.id,
             user_id="test_user",
-            action="present",
-            component_type="sheets"
+            action_type='present',
+            details_json={
+                'component_type': 'sheets',
+            },
         )
         db_session.add(audit)
         db_session.flush()

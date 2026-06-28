@@ -831,9 +831,11 @@ class TestAsyncMethods:
 
         audit = CanvasAudit(
             id="canvas1",
-            canvas_type="sheets",
-            action="present",
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            action_type='present',
+            details_json={
+                'canvas_type': 'sheets',
+            },
         )
 
         result = service._extract_canvas_context_metadata(audit, None)

@@ -68,14 +68,14 @@ class SpreadsheetCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="sheets",
-                component_type="data_grid",
-                action="create",
-                audit_metadata={
+                action_type="create",
+                details_json={
+                    "canvas_type": "sheets",
+                    "component_type": "data_grid",
                     "title": title,
                     "layout": layout,
                     "cells": cells,
@@ -123,7 +123,7 @@ class SpreadsheetCanvasService:
             if not audit:
                 return {"success": False, "error": "Spreadsheet not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             cells = metadata.get("cells", {})
 
             cells[cell_ref] = {
@@ -138,13 +138,15 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="sheets",
-                component_type="data_grid",
-                action="update_cell",
-                audit_metadata=metadata
+                action_type="update_cell",
+                details_json={
+                    "canvas_type": "sheets",
+                    "component_type": "data_grid",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)
@@ -177,7 +179,7 @@ class SpreadsheetCanvasService:
             if not audit:
                 return {"success": False, "error": "Spreadsheet not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json or {}
             charts = metadata.get("charts", [])
 
             chart = {
@@ -193,13 +195,15 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="sheets",
-                component_type="chart_embed",
-                action="add_chart",
-                audit_metadata=metadata
+                action_type="add_chart",
+                details_json={
+                    "canvas_type": "sheets",
+                    "component_type": "chart_embed",
+                    **metadata,
+                }
             )
 
             self.db.add(update_audit)

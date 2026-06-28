@@ -278,20 +278,22 @@ class AuditService:
 
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=data.get("agent_id"),
-            agent_execution_id=data.get("agent_execution_id"),
             user_id=data["user_id"],
             canvas_id=data.get("canvas_id"),
             session_id=data.get("session_id"),
-            canvas_type=data.get("canvas_type", "generic"),
-            component_type=data.get("component_type", "component"),
-            component_name=data.get("component_name"),
-            action=data.get("action", "present"),
-            audit_metadata=data.get("metadata") or {},
-            governance_check_passed=data.get("governance_check_passed"),
-            ip_address=ip_address,
-            user_agent=user_agent,
+            action_type=data.get("action", "present"),
+            details_json={
+                **(data.get("metadata") or {}),
+                "canvas_type": data.get("canvas_type", "generic"),
+                "component_type": data.get("component_type", "component"),
+                "component_name": data.get("component_name"),
+                "agent_execution_id": data.get("agent_execution_id"),
+                "governance_check_passed": data.get("governance_check_passed"),
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+            },
             created_at=datetime.utcnow()
         )
 

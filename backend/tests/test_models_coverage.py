@@ -257,12 +257,14 @@ class TestAgentRegistryCoverage:
         db_session.commit()
 
         canvas_audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             agent_id=agent.id,
             user_id=user.id,
             canvas_id="test-canvas-123",
-            component_type="chart",
-            action="present",
+            action_type="present",
+            details_json={
+                "component_type": "chart",
+            },
         )
         db_session.add(canvas_audit)
         db_session.commit()
@@ -415,13 +417,15 @@ class TestAgentExecutionCoverage:
         db_session.commit()
 
         canvas_audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             agent_id=agent.id,
-            agent_execution_id=execution.id,
             user_id=user.id,
             canvas_id="test-canvas-456",
-            component_type="chart",
-            action="present",
+            action_type="present",
+            details_json={
+                "component_type": "chart",
+                "agent_execution_id": execution.id,
+            },
         )
         db_session.add(canvas_audit)
         db_session.commit()
@@ -629,19 +633,21 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             user_id=user.id,
-            canvas_type="generic",
-            component_type="markdown",
-            action="present",
+            action_type="present",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "markdown",
+            },
         )
         db_session.add(audit)
         db_session.commit()
 
         assert audit.id is not None
-        assert audit.action == "present"
-        assert audit.canvas_type == "generic"
-        assert audit.governance_check_passed is None
+        assert audit.action_type == "present"
+        assert (audit.details_json or {}).get("canvas_type") == "generic"
+        assert (audit.details_json or {}).get("governance_check_passed") is None
 
     def test_canvas_audit_create_full(self, db_session: Session):
         """Test canvas audit creation with all fields."""
@@ -676,27 +682,31 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             agent_id=agent.id,
-            agent_execution_id=execution.id,
             user_id=user.id,
             canvas_id="test-canvas-789",
             session_id="session-123",
-            canvas_type="sheets",
-            component_type="chart",
-            component_name="line_chart",
-            action="present",
-            audit_metadata={"chart_type": "line", "data_points": 100},
-            governance_check_passed=True,
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
+                "component_type": "chart",
+                "component_name": "line_chart",
+                "agent_execution_id": execution.id,
+                "chart_type": "line",
+                "data_points": 100,
+                "governance_check_passed": True,
+            },
         )
         db_session.add(audit)
         db_session.commit()
 
         assert audit.canvas_id == "test-canvas-789"
         assert audit.session_id == "session-123"
-        assert audit.canvas_type == "sheets"
-        assert audit.component_name == "line_chart"
-        assert audit.governance_check_passed is True
+        assert (audit.details_json or {}).get("canvas_type") == "sheets"
+        assert ((audit.details_json or {}).get("component_name")
+                or (audit.details_json or {}).get("component_type")) == "line_chart"
+        assert (audit.details_json or {}).get("governance_check_passed") is True
 
     def test_canvas_audit_query_by_canvas(self, db_session: Session):
         """Test querying audits by canvas ID."""
@@ -717,20 +727,24 @@ class TestCanvasAuditCoverage:
         canvas_id = "test-canvas-999"
 
         audit1 = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             user_id=user.id,
             canvas_id=canvas_id,
-            canvas_type="generic",
-            component_type="chart",
-            action="present",
+            action_type="present",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "chart",
+            },
         )
         audit2 = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             user_id=user.id,
             canvas_id=canvas_id,
-            canvas_type="generic",
-            component_type="form",
-            action="update",
+            action_type="update",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "form",
+            },
         )
         db_session.add_all([audit1, audit2])
         db_session.commit()
@@ -774,13 +788,15 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             agent_id=agent.id,
-            agent_execution_id=execution.id,
             user_id=user.id,
-            canvas_type="generic",
-            component_type="chart",
-            action="present",
+            action_type="present",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "chart",
+                "agent_execution_id": execution.id,
+            },
         )
         db_session.add(audit)
         db_session.commit()
@@ -807,11 +823,13 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         audit = CanvasAudit(
-            workspace_id=workspace.id,
+            tenant_id=workspace.id,
             user_id=user.id,
-            canvas_type="generic",
-            component_type="chart",
-            action="present",
+            action_type="present",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "chart",
+            },
         )
         db_session.add(audit)
         db_session.commit()  # Commit to generate ID

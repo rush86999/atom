@@ -440,20 +440,20 @@ class AgentGuidanceSystem:
         try:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=agent_id,
-                agent_execution_id=None,
                 user_id=user_id,
                 canvas_id=None,
                 session_id=None,
-                component_type="agent_operation_tracker",
-                component_name="agent_guidance",
-                action=action,
-                audit_metadata={
+                action_type=action,
+                details_json={
+                    "component_type": "agent_operation_tracker",
+                    "component_name": "agent_guidance",
+                    "agent_execution_id": None,
+                    "governance_check_passed": governance_check_passed,
                     "operation_id": operation_id,
-                    **metadata
-                },
-                governance_check_passed=governance_check_passed
+                    **metadata,
+                }
             )
             self.db.add(audit)
             self.db.commit()

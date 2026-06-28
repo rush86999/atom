@@ -383,12 +383,14 @@ class TestCanvasAgentIntegration:
         canvas_audit = CanvasAudit(
             id="canvas-001",
             canvas_id="chart-001",
-            canvas_type="bar_chart",
             agent_id=execution.agent_id,
             execution_id=execution.id,
             presented_at=datetime.utcnow(),
             canvas_data=canvas_data,
-            status="presented"
+            status="presented",
+            details_json={
+                'canvas_type': 'bar_chart',
+            },
         )
         mock_db.add(canvas_audit)
         mock_db.commit()
@@ -413,12 +415,14 @@ class TestCanvasAgentIntegration:
         submission = CanvasAudit(
             id="canvas-002",
             canvas_id="form-001",
-            canvas_type="interactive_form",
             agent_id=execution.agent_id,
             execution_id=execution.id,
             presented_at=datetime.utcnow(),
             canvas_data={"values": {"name": "User", "email": "user@example.com"}},
-            status="submitted"
+            status="submitted",
+            details_json={
+                'canvas_type': 'interactive_form',
+            },
         )
         mock_db.add(submission)
         mock_db.commit()

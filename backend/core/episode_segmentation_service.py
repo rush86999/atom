@@ -794,38 +794,38 @@ class EpisodeSegmentationService:
         critical_data = {}
 
         for audit in canvas_audits:
-            canvas_types.add(audit.canvas_type)
+            canvas_types.add((audit.details_json or {}).get("canvas_type"))
 
             # Extract visual elements from canvas metadata
-            if audit.audit_metadata:
-                metadata = audit.audit_metadata
-
+            metadata = audit.details_json or {}
+            if metadata:
                 # Check for component type
                 component = metadata.get('component', '')
                 if component:
                     visual_elements.append(component)
 
                 # Extract critical data points based on canvas type
-                if audit.canvas_type == 'orchestration':
+                canvas_type = metadata.get("canvas_type")
+                if canvas_type == 'orchestration':
                     if 'workflow_id' in metadata:
                         critical_data['workflow_id'] = metadata['workflow_id']
                     if 'approval_status' in metadata:
                         critical_data['approval_status'] = metadata['approval_status']
 
-                elif audit.canvas_type == 'sheets':
+                elif canvas_type == 'sheets':
                     if 'revenue' in metadata:
                         critical_data['revenue'] = metadata['revenue']
                     if 'amount' in metadata:
                         critical_data['amount'] = metadata['amount']
 
-                elif audit.canvas_type == 'terminal':
+                elif canvas_type == 'terminal':
                     if 'command' in metadata:
                         critical_data['command'] = metadata['command']
                     if 'exit_code' in metadata:
                         critical_data['exit_code'] = metadata['exit_code']
 
             # Extract user interaction from action
-            if audit.action:
+            if audit.action_type:
                 interaction_map = {
                     'submit': 'User submitted form',
                     'close': 'User closed canvas',
@@ -835,8 +835,8 @@ class EpisodeSegmentationService:
                     'approve': 'User approved',
                     'reject': 'User rejected'
                 }
-                interaction = interaction_map.get(audit.action, f'User action: {audit.action}')
-                if audit.action in ['submit', 'approve', 'reject', 'close']:
+                interaction = interaction_map.get(audit.action_type, f'User action: {audit.action_type}')
+                if audit.action_type in ['submit', 'approve', 'reject', 'close']:
                     user_interactions.append(interaction)
 
         # Build presentation summary
@@ -979,14 +979,14 @@ class EpisodeSegmentationService:
         """
         try:
             # Build canvas state from audit metadata
-            canvas_state = canvas_audit.audit_metadata or {}
+            canvas_state = canvas_audit.details_json or {}
 
             # Generate LLM summary with 2-second timeout
             presentation_summary = await self.canvas_summary_service.generate_summary(
-                canvas_type=canvas_audit.canvas_type or "generic",
+                canvas_type=(canvas_audit.details_json or {}).get("canvas_type") or "generic",
                 canvas_state=canvas_state,
                 agent_task=agent_task,
-                user_interaction=canvas_audit.action,
+                user_interaction=canvas_audit.action_type,
                 timeout_seconds=2
             )
 
@@ -1012,7 +1012,7 @@ class EpisodeSegmentationService:
                 summary_verification = "flagged"
                 logger.warning(
                     f"Canvas summary flagged as hallucinated "
-                    f"(canvas_type={canvas_audit.canvas_type}); "
+                    f"(canvas_type={(canvas_audit.details_json or {}).get('canvas_type')}); "
                     f"summary preserved but tagged."
                 )
             elif richness < 0.2:
@@ -1042,8 +1042,8 @@ class EpisodeSegmentationService:
                 "execute": "user executed"
             }
             user_interaction = interaction_map.get(
-                canvas_audit.action,
-                f"user action: {canvas_audit.action}"
+                canvas_audit.action_type,
+                f"user action: {canvas_audit.action_type}"
             )
 
             # Extract critical data points
@@ -1057,7 +1057,7 @@ class EpisodeSegmentationService:
                     critical_data[field] = canvas_state[field]
 
             return {
-                "canvas_type": canvas_audit.canvas_type or "generic",
+                "canvas_type": (canvas_audit.details_json or {}).get("canvas_type") or "generic",
                 "presentation_summary": presentation_summary,
                 "summary_verification": summary_verification,
                 "summary_richness": round(richness, 3),
@@ -1120,7 +1120,10 @@ class EpisodeSegmentationService:
             # Future: aggregate multiple canvases into combined context
             audit = canvas_audits[0]
 
-            # Extract details from JSON
+            # Extract details from JSON. After the CanvasAudit schema
+            # refactor, all business fields (canvas_type, component_name,
+            # workflow_id, etc.) are flat keys inside details_json — no
+            # more nested "audit_metadata" sub-dict.
             details = audit.details_json or {}
 
             # Base context structure
@@ -1131,9 +1134,6 @@ class EpisodeSegmentationService:
                 "user_interaction": "",
                 "critical_data_points": {}
             }
-
-            # Extract from audit_metadata
-            metadata = details.get("audit_metadata") or {}
 
             # Build presentation summary
             if details.get("component_name"):
@@ -1158,7 +1158,7 @@ class EpisodeSegmentationService:
                     f"user performed {action}"
                 )
 
-            # Extract critical data points from metadata
+            # Extract critical data points from details_json (flat)
             # Business logic fields that agents need for reasoning
             critical_fields = [
                 "workflow_id", "approval_status", "revenue", "amount",
@@ -1166,8 +1166,8 @@ class EpisodeSegmentationService:
                 "subject", "recipient", "word_count", "title"
             ]
             for field in critical_fields:
-                if field in metadata:
-                    context["critical_data_points"][field] = metadata[field]
+                if field in details:
+                    context["critical_data_points"][field] = details[field]
 
             logger.debug(f"Extracted canvas context: {context['canvas_type']}")
             return context

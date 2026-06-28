@@ -195,12 +195,16 @@ class TestPresentationLifecycle:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -285,16 +289,16 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
                 "tasks": [{"task_id": "task-001", "title": "Task 1"}],
                 "nodes": [],
-                "connections": []
-            }
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -316,12 +320,16 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -347,12 +355,16 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -384,12 +396,16 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -415,12 +431,16 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -448,17 +468,17 @@ class TestStateManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
                 "tasks": [],
                 "nodes": [],
                 "connections": [],
-                "integrations": []
-            }
+                "integrations": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -526,12 +546,16 @@ class TestMultiClientCoordination:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -572,12 +596,16 @@ class TestMultiClientCoordination:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -602,12 +630,16 @@ class TestMultiClientCoordination:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -632,12 +664,16 @@ class TestMultiClientCoordination:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="kanban_board",
-            action="create",
-            audit_metadata={"tasks": [], "nodes": [], "connections": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "kanban_board",
+                "tasks": [],
+                "nodes": [],
+                "connections": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -673,12 +709,16 @@ class TestNodeAndConnectionManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="workflow_diagram",
-            action="create",
-            audit_metadata={"nodes": [], "connections": [], "integrations": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "workflow_diagram",
+                "nodes": [],
+                "connections": [],
+                "integrations": [],
+            },
         )
 
         mock_query = MagicMock()
@@ -708,12 +748,16 @@ class TestNodeAndConnectionManagement:
         # Arrange
         mock_audit = CanvasAudit(
             id="audit-001",
-            workspace_id="default",
+            tenant_id="default",
             canvas_id="canvas-001",
-            canvas_type="orchestration",
-            component_type="workflow_diagram",
-            action="create",
-            audit_metadata={"nodes": [], "connections": [], "integrations": []}
+            action_type="create",
+            details_json={
+                "canvas_type": "orchestration",
+                "component_type": "workflow_diagram",
+                "nodes": [],
+                "connections": [],
+                "integrations": [],
+            },
         )
 
         mock_query = MagicMock()

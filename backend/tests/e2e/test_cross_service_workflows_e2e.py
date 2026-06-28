@@ -96,13 +96,15 @@ class TestAgentToCanvasWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={
                 "title": "Sales Insights",
                 "content": execution.output_data["insights"],
                 "source_execution_id": execution.id
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -179,13 +181,15 @@ class TestAgentToCanvasWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={
                 "title": "Combined Insights",
                 "insights": combined_insights,
                 "agent_count": len(agents)
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -347,9 +351,11 @@ class TestCanvasToEpisodeWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="chart",
             canvas_data={"type": "line", "data": [1, 2, 3]},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'chart',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -505,12 +511,14 @@ class TestMultiServiceChaining:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={
                 "title": "Analysis Results",
                 "content": execution.output_data["llm_response"]
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas)
         db_session.commit()
@@ -708,9 +716,11 @@ class TestWorkflowWithConcurrentUsers:
             canvas_id="canvas-a",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={"user": "A"},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas_a)
 
@@ -730,9 +740,11 @@ class TestWorkflowWithConcurrentUsers:
             canvas_id="canvas-b",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_type="docs",
             canvas_data={"user": "B"},
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            details_json={
+                'canvas_type': 'docs',
+            },
         )
         db_session.add(canvas_b)
         db_session.commit()

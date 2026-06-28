@@ -96,6 +96,6 @@ async def get_terminal_canvas(canvas_id: str, db: Session = Depends(get_db)):
         )
 
     return router.success_response(
-        data=audit.audit_metadata,
+        data=audit.details_json or {},
         message="Terminal canvas retrieved successfully"
     )

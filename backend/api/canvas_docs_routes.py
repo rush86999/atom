@@ -116,7 +116,7 @@ async def get_document_canvas(canvas_id: str, current_user: User = Depends(get_c
             resource_id=canvas_id
         )
 
-    metadata = audit.audit_metadata or {}
+    metadata = audit.details_json or {}
 
     return router.success_response(
         data={

@@ -396,10 +396,12 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas = CanvasAudit(
             id="canvas1",
-            component_type="chart",
-            component_name="test_chart",
-            action="present",
-            created_at=now
+            created_at=now,
+            action_type='present',
+            details_json={
+                'component_type': 'chart',
+                'component_name': 'test_chart',
+            },
         )
         feedback = AgentFeedback(
             id="feedback1",
@@ -902,18 +904,18 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas1 = CanvasAudit(
             id="canvas1",
-            component_type="chart",
-            component_name="test_chart",
-            action="present",
             created_at=now,
-            audit_metadata={"key": "value"}
+            action_type='present',
+            details_json={'component_type': 'chart', 'component_name': 'test_chart', 'key': 'value'},
         )
         canvas2 = CanvasAudit(
             id="canvas2",
-            component_type="form",
-            component_name="test_form",
-            action="submit",
-            created_at=now
+            created_at=now,
+            action_type='submit',
+            details_json={
+                'component_type': 'form',
+                'component_name': 'test_form',
+            },
         )
         db_session.add_all([canvas1, canvas2])
         db_session.commit()
@@ -1370,10 +1372,12 @@ class TestEpisodeRetrievalServiceCoverage:
         canvas = CanvasAudit(
             id="canvas1",
             episode_id="ep1",
-            component_type="table",
-            component_name="sales_table",
-            action="present",
-            created_at=now
+            created_at=now,
+            action_type='present',
+            details_json={
+                'component_type': 'table',
+                'component_name': 'sales_table',
+            },
         )
         ep1 = Episode(
             id="ep1",
@@ -1412,10 +1416,12 @@ class TestEpisodeRetrievalServiceCoverage:
         canvas = CanvasAudit(
             id="canvas1",
             episode_id="ep1",
-            component_type="form",
-            component_name="submit_form",
-            action="submit",
-            created_at=now
+            created_at=now,
+            action_type='submit',
+            details_json={
+                'component_type': 'form',
+                'component_name': 'submit_form',
+            },
         )
         ep1 = Episode(
             id="ep1",
@@ -1454,10 +1460,12 @@ class TestEpisodeRetrievalServiceCoverage:
         canvas = CanvasAudit(
             id="canvas1",
             episode_id="ep1",
-            component_type="document",
-            component_name="report",
-            action="present",
-            created_at=now
+            created_at=now,
+            action_type='present',
+            details_json={
+                'component_type': 'document',
+                'component_name': 'report',
+            },
         )
         ep1 = Episode(
             id="ep1",

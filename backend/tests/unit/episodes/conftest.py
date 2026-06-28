@@ -581,12 +581,14 @@ def episode_test_data(db_session, episode_test_agent):
             id=str(uuid.uuid4()),
             episode_id=episode.id,
             session_id=str(uuid.uuid4()),
-            canvas_type="sheets" if i == 0 else "charts",
-            component_type="table" if i == 0 else "chart",
-            component_name=f"component_{i}",
-            action="present",
-            audit_metadata={"test": f"data_{i}"},
-            created_at=now - timedelta(hours=1) + timedelta(minutes=i*15)
+            created_at=now - timedelta(hours=1) + timedelta(minutes=i*15),
+            action_type='present',
+            details_json={
+                'canvas_type': "sheets" if i == 0 else "charts",
+                'component_type': "table" if i == 0 else "chart",
+                'component_name': f"component_{i}",
+                'audit_metadata': {"test": f"data_{i}"},
+            },
         )
         db_session.add(canvas)
         canvas_ids.append(canvas.id)
@@ -647,12 +649,9 @@ def episode_with_canvas_context(db_session, episode_test_agent):
         id=str(uuid.uuid4()),
         episode_id=episode.id,
         session_id=str(uuid.uuid4()),
-        canvas_type="sheets",
-        component_type="table",
-        component_name="sales_table",
-        action="submit",
-        audit_metadata={"revenue": 1000000, "approval": "approved"},
-        created_at=now - timedelta(minutes=30)
+        created_at=now - timedelta(minutes=30),
+        action_type='submit',
+        details_json={'canvas_type': 'sheets', 'component_type': 'table', 'component_name': 'sales_table', 'revenue': 1000000, 'approval': 'approved'},
     )
     db_session.add(canvas)
     db_session.add(episode)

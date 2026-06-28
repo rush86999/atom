@@ -504,24 +504,24 @@ class RecordingReviewService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
+                tenant_id="default",
                 agent_id=review.agent_id,
-                agent_execution_id=None,
                 user_id=review.user_id,
                 canvas_id=None,
                 session_id=None,
-                component_type="recording_review",
-                component_name="recording_review_service",
-                action=f"review_{review.review_status}",
-                audit_metadata={
+                action_type=f"review_{review.review_status}",
+                details_json={
+                    "component_type": "recording_review",
+                    "component_name": "recording_review_service",
+                    "agent_execution_id": None,
+                    "governance_check_passed": True,
                     "review_id": review.id,
                     "recording_id": review.recording_id,
                     "review_status": review.review_status,
                     "confidence_delta": analysis["confidence_delta"],
                     "training_value": analysis.get("training_value"),
-                    "auto_reviewed": review.auto_reviewed
-                },
-                governance_check_passed=True
+                    "auto_reviewed": review.auto_reviewed,
+                }
             )
             self.db.add(audit)
             self.db.commit()

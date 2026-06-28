@@ -319,8 +319,8 @@ class TestCanvasAuditTrail:
         ).first()
 
         assert retrieved_audit is not None
-        assert retrieved_audit.action == "present"
-        assert retrieved_audit.canvas_type == "generic"
+        assert retrieved_audit.action_type == "present"
+        assert (retrieved_audit.details_json or {}).get("canvas_type") == "generic"
 
     def test_canvas_audit_metadata(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas audit metadata storage."""
@@ -345,4 +345,4 @@ class TestCanvasAuditTrail:
         ).first()
 
         assert retrieved_audit is not None
-        assert retrieved_audit.audit_metadata == metadata
+        assert retrieved_audit.details_json == metadata

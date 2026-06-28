@@ -244,28 +244,28 @@ class TestCanvasAudit:
         audit = CanvasAudit(
             canvas_id="canvas-1",
             agent_id="agent-1",
-            action="present"
+            action_type="present"
         )
 
         assert audit.canvas_id == "canvas-1"
-        assert audit.action == "present"
+        assert audit.action_type == "present"
 
     def test_audit_action_values(self):
         """Test audit accepts valid action values."""
         audit = CanvasAudit(
             canvas_id="canvas-1",
             agent_id="agent-1",
-            action="submit"
+            action_type="submit"
         )
 
-        assert audit.action in ["present", "submit", "close", "update", "execute"]
+        assert audit.action_type in ["present", "submit", "close", "update", "execute"]
 
     def test_audit_metadata(self):
         """Test audit can store metadata."""
         audit = CanvasAudit(
             canvas_id="canvas-1",
             agent_id="agent-1",
-            action="submit",
+            action_type="submit",
             metadata={"user_input": "test"}
         )
 

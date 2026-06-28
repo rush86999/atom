@@ -788,7 +788,7 @@ class TestCanvasPresentationFlow:
         ).all()
         assert len(all_audits) == 4, "Should have 4 canvas audit entries"
 
-        canvas_types = [audit.canvas_type for audit in all_audits]
+        canvas_types = [(audit.details_json or {}).get("canvas_type") for audit in all_audits]
         assert "line_chart" in canvas_types, "Should include line chart"
         assert "bar_chart" in canvas_types, "Should include bar chart"
         assert "pie_chart" in canvas_types, "Should include pie chart"

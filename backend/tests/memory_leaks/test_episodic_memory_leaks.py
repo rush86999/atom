@@ -381,9 +381,9 @@ def test_episode_memory_integration_leak(memray_session, db_session, check_memor
                 id=f"test_canvas_audit_{i}",
                 canvas_id=f"test_canvas_{i}",
                 agent_id="test_agent",
-                action="present",
                 timestamp=datetime.now(timezone.utc),
-                metadata={"test": True}
+                metadata={"test": True},
+                action_type='present',
             )
             db_session.add(canvas_audit)
 
