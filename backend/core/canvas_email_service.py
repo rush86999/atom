@@ -116,6 +116,7 @@ class EmailCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",
+                canvas_type="email",
                 details_json={
                     "canvas_type": "email",
                     "component_type": "compose_form",
@@ -207,6 +208,7 @@ class EmailCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_message",
+                canvas_type="email",
                 details_json={
                     "canvas_type": "email",
                     "component_type": "thread_view",
@@ -283,6 +285,7 @@ class EmailCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="save_draft",
+                canvas_type="email",
                 details_json={
                     "canvas_type": "email",
                     "component_type": "compose_form",
@@ -354,6 +357,7 @@ class EmailCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="categorize",
+                canvas_type="email",
                 details_json={
                     "canvas_type": "email",
                     "component_type": "category_bucket",

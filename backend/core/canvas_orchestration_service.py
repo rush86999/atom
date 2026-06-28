@@ -176,6 +176,7 @@ class OrchestrationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",
+                canvas_type="orchestration",
                 details_json={
                     "canvas_type": "orchestration",
                     "component_type": "kanban_board",
@@ -296,6 +297,7 @@ class OrchestrationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_node",
+                canvas_type="orchestration",
                 details_json={
                     "canvas_type": "orchestration",
                     "component_type": "workflow_diagram",
@@ -371,6 +373,7 @@ class OrchestrationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="connect_nodes",
+                canvas_type="orchestration",
                 details_json={
                     "canvas_type": "orchestration",
                     "component_type": "workflow_diagram",
@@ -442,6 +445,7 @@ class OrchestrationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_task",
+                canvas_type="orchestration",
                 details_json={
                     "canvas_type": "orchestration",
                     "component_type": "kanban_board",

@@ -95,6 +95,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",  # Changed from "action" to "action_type"
+                canvas_type="docs",
                 details_json={  # Changed from "audit_metadata" to "details_json"
                     "canvas_type": "docs",
                     "title": title,
@@ -185,6 +186,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="update_content",
+                canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
                     **metadata,
@@ -263,6 +265,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_comment",
+                canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
                     **metadata,
@@ -332,6 +335,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="resolve_comment",
+                canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
                     **metadata,
@@ -452,6 +456,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="restore_version",
+                canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
                     **metadata,

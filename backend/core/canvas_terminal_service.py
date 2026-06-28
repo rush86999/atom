@@ -93,6 +93,7 @@ class TerminalCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",
+                canvas_type="terminal",
                 details_json={
                     "canvas_type": "terminal",
                     "component_type": "shell_output",
@@ -161,6 +162,7 @@ class TerminalCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_output",
+                canvas_type="terminal",
                 details_json={
                     "canvas_type": "terminal",
                     "component_type": "shell_output",
@@ -205,6 +207,7 @@ class TerminalCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="update_tree",
+                canvas_type="terminal",
                 details_json={
                     "canvas_type": "terminal",
                     "component_type": "file_tree",

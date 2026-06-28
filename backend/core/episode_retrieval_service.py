@@ -850,7 +850,7 @@ class EpisodeRetrievalService:
         )
 
         if action:
-            canvas_subquery = canvas_subquery.filter(CanvasAudit.action == action)
+            canvas_subquery = canvas_subquery.filter(CanvasAudit.action_type == action)
 
         query = query.filter(Episode.id.in_(canvas_subquery))
 

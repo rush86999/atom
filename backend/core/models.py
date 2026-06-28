@@ -3382,6 +3382,13 @@ class CanvasAudit(Base):
     # Episode linkage for episodic memory context retrieval
     episode_id = Column(String(255), ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
 
+    # Canvas type — denormalized from details_json for query efficiency.
+    # 15+ filter sites across the codebase scope queries by canvas type
+    # (CanvasAudit.canvas_type == "sheets" etc.). Keeping it as a real
+    # indexed column lets those filters work natively; details_json holds
+    # the rest of the per-action payload.
+    canvas_type = Column(String(100), nullable=True, index=True)
+
     # Action details (JSON for flexibility)
     details_json = Column(JSONColumn, nullable=True)  # Action-specific data
 
@@ -3395,6 +3402,7 @@ class CanvasAudit(Base):
     __table_args__ = (
         Index('idx_canvas_audit_canvas_id', 'canvas_id'),
         Index('idx_canvas_audit_action_type', 'action_type'),
+        Index('idx_canvas_audit_canvas_type', 'canvas_type'),
         Index('idx_canvas_audit_created_at', 'created_at'),
         Index('idx_canvas_audit_session_id', 'session_id'),
     )

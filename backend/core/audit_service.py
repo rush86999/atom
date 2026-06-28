@@ -284,6 +284,7 @@ class AuditService:
             canvas_id=data.get("canvas_id"),
             session_id=data.get("session_id"),
             action_type=data.get("action", "present"),
+            canvas_type=data.get("canvas_type", "generic"),
             details_json={
                 **(data.get("metadata") or {}),
                 "canvas_type": data.get("canvas_type", "generic"),

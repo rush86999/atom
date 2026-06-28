@@ -522,7 +522,9 @@ class CanvasRecordingService:
                 canvas_id=None,
                 session_id=None,
                 action_type=action,
+                canvas_type="recording",
                 details_json={
+                    "canvas_type": "recording",
                     "component_type": "canvas_recording",
                     "component_name": "canvas_recording_service",
                     "agent_execution_id": None,

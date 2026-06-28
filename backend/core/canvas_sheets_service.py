@@ -73,6 +73,7 @@ class SpreadsheetCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",
+                canvas_type="sheets",
                 details_json={
                     "canvas_type": "sheets",
                     "component_type": "data_grid",
@@ -142,6 +143,7 @@ class SpreadsheetCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="update_cell",
+                canvas_type="sheets",
                 details_json={
                     "canvas_type": "sheets",
                     "component_type": "data_grid",
@@ -199,6 +201,7 @@ class SpreadsheetCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_chart",
+                canvas_type="sheets",
                 details_json={
                     "canvas_type": "sheets",
                     "component_type": "chart_embed",

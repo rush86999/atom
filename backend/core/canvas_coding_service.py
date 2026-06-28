@@ -92,6 +92,7 @@ class CodingCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="create",
+                canvas_type="coding",
                 details_json={
                     "canvas_type": "coding",
                     "component_type": "repo_browser",
@@ -161,6 +162,7 @@ class CodingCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_file",
+                canvas_type="coding",
                 details_json={
                     "canvas_type": "coding",
                     "component_type": "code_editor",
@@ -218,6 +220,7 @@ class CodingCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_diff",
+                canvas_type="coding",
                 details_json={
                     "canvas_type": "coding",
                     "component_type": "diff_view",
