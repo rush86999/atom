@@ -815,7 +815,7 @@ class TestEdgeCases:
 
     def test_deeply_nested_state(self, workflow_engine):
         """Test getting value from deeply nested state."""
-        state = {"outputs": {"level1": {"level2": {"level3": {"level4": {"value": "deep_value"}}}}}}}
+        state = {"outputs": {"level1": {"level2": {"level3": {"level4": {"value": "deep_value"}}}}}}
         value = workflow_engine._get_value_from_path("level1.level2.level3.level4.value", state)
         assert value == "deep_value"
 

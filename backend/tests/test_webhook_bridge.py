@@ -2,11 +2,22 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-# Mock problematic dependencies
-sys.modules["instructor"] = MagicMock()
-sys.modules["numpy"] = MagicMock()
-sys.modules["pandas"] = MagicMock()
-sys.modules["lancedb"] = MagicMock()
+# Mock optional dependencies ONLY for tests in this module (not session-wide).
+# The previous module-level sys.modules[...] = MagicMock() assignment was poisoning
+# numpy globally for the rest of the pytest session and breaking factory_boy
+# issubclass() checks in unrelated tests. Use a fixture-scoped patch.dict instead.
+@pytest.fixture(autouse=True)
+def _mock_optional_deps():
+    """Mock optional deps (instructor/numpy/pandas/lancedb) only for this module."""
+    mocks = {
+        "instructor": MagicMock(),
+        "numpy": MagicMock(),
+        "pandas": MagicMock(),
+        "lancedb": MagicMock(),
+    }
+    with patch.dict(sys.modules, mocks):
+        yield
+
 
 import asyncio
 from datetime import datetime

@@ -13,10 +13,17 @@ All tests use real PostgreSQL database with actual migration files.
 
 import os
 import sys
+import pathlib
 import pytest
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
+
+# Remove any path whose final component is "backend" so the installed `alembic`
+# package wins over the local `backend/alembic/` directory shadow. Must run
+# before the `from alembic.config import ...` line below.
+sys.path = [p for p in sys.path if pathlib.Path(p).name != "backend"]
+
 from sqlalchemy import text, inspect
 from alembic.config import Config
 from alembic.script import ScriptDirectory

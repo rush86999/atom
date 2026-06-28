@@ -6,6 +6,9 @@ This test file verifies the complete GitLab integration functionality
 including OAuth, API endpoints, and service operations.
 """
 
+import pytest
+pytest.importorskip("flask")  # optional third-party dep; codebase is FastAPI-based
+
 import asyncio
 import json
 import logging
@@ -19,7 +22,6 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "backend", "python-api-service")
 )
 
-import pytest
 from flask import Flask
 
 # Configure logging

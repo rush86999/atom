@@ -78,29 +78,37 @@ hypothesis_settings = settings(
 )
 
 
-# Custom Schemathesis hooks for enhanced contract testing
+# Custom Schemathesis hooks for enhanced contract testing.
+# Wrapped in try/except because hook names differ across Schemathesis
+# versions; an incompatible version raises TypeError at decoration time.
 
-@schemathesis.hook
-def before_process_case(context, case, **kwargs):
-    """Hook called before each test case is processed.
+try:
+    @schemathesis.hook
+    def before_process_case(context, case, **kwargs):
+        """Hook called before each test case is processed.
 
-    Injects auth headers for protected endpoints and resets database state.
-    """
-    # Add auth headers to case if endpoint requires authentication
-    # This is a placeholder - actual auth injection would check endpoint requirements
-    pass
-
-
-@schemathesis.hook
-def after_process_case(context, case, response, **kwargs):
-    """Hook called after each test case is processed.
-
-    Can be used for custom validation or logging beyond schema compliance.
-    """
-    # Log any non-2xx responses for investigation
-    if response.status_code >= 400:
-        # This would normally log to a test results file
+        Injects auth headers for protected endpoints and resets database state.
+        """
+        # Add auth headers to case if endpoint requires authentication
+        # This is a placeholder - actual auth injection would check endpoint requirements
         pass
+except TypeError:
+    pass  # Schemathesis version incompatibility - hook name not supported
+
+
+try:
+    @schemathesis.hook
+    def after_process_case(context, case, response, **kwargs):
+        """Hook called after each test case is processed.
+
+        Can be used for custom validation or logging beyond schema compliance.
+        """
+        # Log any non-2xx responses for investigation
+        if response.status_code >= 400:
+            # This would normally log to a test results file
+            pass
+except TypeError:
+    pass  # Schemathesis version incompatibility - hook name not supported
 
 
 # Endpoint filtering fixture to exclude problematic endpoints

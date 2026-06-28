@@ -181,7 +181,7 @@ async def send_slack_message(
             )
         except SlackApiError as e:
             logger.error(f"Error sending message: {e.response['error']}")
-            raise HTTPException(status_code=400, detail="Internal error"error']}")
+            raise HTTPException(status_code=400, detail="Internal error")
 
     # Fallback to mock
     return SlackMessageResponse(

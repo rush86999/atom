@@ -5,8 +5,10 @@ Tests coverage loading, threshold enforcement, weighted calculation,
 and CLI integration for cross-platform coverage enforcement.
 """
 
-import json
 import pytest
+pytest.importorskip("cross_platform_coverage_gate")  # script lives under tests/scripts/, not backend/scripts/ as the original sys.path insert assumed
+
+import json
 from pathlib import Path
 from sys import version_info
 import sys

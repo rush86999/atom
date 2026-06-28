@@ -10041,3 +10041,293 @@ class WebhookTombstone(Base):
     __table_args__ = (
         Index("ix_webhook_tombstones_lookup", "tenant_id", "integration_id", "source_record_id", unique=True),
     )
+
+
+# ============================================================================
+# Restored stub models
+#
+# These models were removed in commit 36ed0f548 (Hive feature parity port) but
+# are still imported by production callers and existing tests. They are restored
+# here as minimal stubs so test collection succeeds and the production import
+# paths resolve. See the per-test investigation in the test-import fix task for
+# the rationale on each restoration (vs. rename or delete).
+# ============================================================================
+
+
+class IngestionAuditLog(Base):
+    """Audit log for ingestion CRUD operations.
+
+    Restored stub: referenced by ``core/ingestion_crud_service.py`` (delete and
+    unlink operations) and exercised by ``tests/api/test_ingestion_crud_tdd.py``.
+    The model class itself was dropped during the Hive feature parity port
+    (commit 36ed0f548) while the production caller was left intact.
+    """
+
+    __tablename__ = "ingestion_audit_logs"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=False, index=True)
+    integration_id = Column(String, nullable=False, index=True)
+    operation = Column(String(50), nullable=False)  # 'delete', 'unlink', etc.
+    entity_id = Column(String, nullable=True, index=True)
+    source_record_id = Column(String, nullable=True, index=True)
+    idempotency_key = Column(String, nullable=True, index=True)
+    performed_by = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_ingestion_audit_logs_tenant_entity", "tenant_id", "entity_id"),
+        Index("ix_ingestion_audit_logs_operation", "operation"),
+    )
+
+
+class DebugSession(Base):
+    """Interactive debug session.
+
+    Restored stub: referenced by ``api/debug_routes.py`` (create/list/close
+    endpoints) and exercised by ``tests/api/test_debug_routes_coverage.py`` and
+    ``tests/test_debug_models.py``. Distinct from ``WorkflowDebugSession``
+    (which is the workflow-scoped debug session used by ``workflow_debugger``).
+    """
+
+    __tablename__ = "debug_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    filters = Column(JSONColumn, nullable=True)
+    scope = Column(JSONColumn, nullable=True)
+
+    active = Column(Boolean, default=True, nullable=False)
+    resolved = Column(Boolean, default=False, nullable=False)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    event_count = Column(Integer, default=0)
+    insight_count = Column(Integer, default=0)
+    query_count = Column(Integer, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_debug_sessions_active_resolved", "active", "resolved"),
+        Index("ix_debug_sessions_created_at", "created_at"),
+    )
+
+
+class WorkflowStepExecution(Base):
+    """Per-step execution record for a workflow run.
+
+    Restored stub: referenced by ``api/mobile_workflows.py`` (step progress
+    endpoint) and exercised by ``tests/test_models_coverage.py``. Pairs with
+    the existing ``WorkflowExecution`` model.
+    """
+
+    __tablename__ = "workflow_step_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    workflow_id = Column(String, nullable=True, index=True)
+    step_id = Column(String, nullable=False, index=True)
+    step_name = Column(String, nullable=True)
+    step_type = Column(String, nullable=True)
+    sequence_order = Column(Integer, default=0)
+
+    status = Column(String(50), default="pending")  # pending, running, completed, failed, skipped
+    retry_count = Column(Integer, default=0)
+
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    input_data = Column(JSONColumn, nullable=True)
+    output_data = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_workflow_step_exec_execution", "execution_id", "sequence_order"),
+    )
+
+
+class SupervisorRating(Base):
+    """Rating given to a supervisor for a supervision session.
+
+    Restored stub: referenced by ``core/feedback_service.py`` and
+    ``core/supervisor_learning_service.py`` (rating creation, retrieval, and
+    learning loops) and exercised by ``tests/test_two_way_learning.py``.
+    """
+
+    __tablename__ = "supervisor_ratings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, nullable=False, index=True)
+    rater_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+
+    rating = Column(Integer, nullable=False)  # 1-5 stars
+    rating_category = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    was_helpful = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "supervision_session_id",
+            "rater_id",
+            name="uq_supervisor_rating_session_rater",
+        ),
+        Index("ix_supervisor_ratings_supervisor_created", "supervisor_id", "created_at"),
+    )
+
+
+class SupervisorComment(Base):
+    """Threaded comment on a supervision session.
+
+    Restored stub: referenced by ``core/feedback_service.py`` (comment threading,
+    voting tallies, soft-delete) and exercised by ``tests/test_two_way_learning.py``.
+    The model class was dropped during the Hive feature parity port while the
+    production caller was left intact.
+    """
+
+    __tablename__ = "supervisor_comments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    author_id = Column(String, nullable=False, index=True)
+
+    parent_comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True)
+    thread_path = Column(String, default="root", nullable=False)
+    depth = Column(Integer, default=0, nullable=False)
+
+    content = Column(Text, nullable=False)
+    content_type = Column(String(50), default="text")
+    comment_type = Column(String(50), nullable=True)
+
+    upvote_count = Column(Integer, default=0, nullable=False)
+    downvote_count = Column(Integer, default=0, nullable=False)
+    reply_count = Column(Integer, default=0, nullable=False)
+
+    is_resolved = Column(Boolean, default=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_supervisor_comments_session_created", "supervision_session_id", "created_at"),
+    )
+
+
+class FeedbackVote(Base):
+    """Thumbs-up/down vote on a supervision session or comment.
+
+    Restored stub: referenced by ``core/feedback_service.py`` (``vote_on_comment``,
+    ``vote_on_session``) and exercised by ``tests/test_two_way_learning.py``.
+    A given vote row may target either a comment or a session.
+    """
+
+    __tablename__ = "feedback_votes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    vote_type = Column(String(20), nullable=False)  # 'up' | 'down'
+    vote_reason = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "comment_id",
+            "user_id",
+            name="uq_feedback_vote_comment_user",
+        ),
+        UniqueConstraint(
+            "supervision_session_id",
+            "user_id",
+            name="uq_feedback_vote_session_user",
+        ),
+    )
+
+
+class InterventionOutcome(Base):
+    """Outcome of a supervisor intervention during a supervision session.
+
+    Restored stub: referenced by ``core/supervisor_performance_service.py``
+    (``track_intervention_outcome``, leaderboard and recommendation generation)
+    and exercised by ``tests/test_two_way_learning.py``.
+    """
+
+    __tablename__ = "intervention_outcomes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+
+    intervention_type = Column(String(50), nullable=False)  # 'correct', 'pause', 'guide', etc.
+    intervention_timestamp = Column(DateTime(timezone=True), nullable=False)
+    assessed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    outcome = Column(String(50), nullable=False)  # 'success', 'failure', 'partial'
+    agent_behavior_change = Column(Text, nullable=True)
+    task_completion = Column(String(50), nullable=True)
+    seconds_to_recovery = Column(Integer, nullable=True)
+    was_necessary = Column(Boolean, default=False)
+    was_effective = Column(Boolean, default=False)
+    would_recommend = Column(Boolean, nullable=True)
+    lesson_learned = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_intervention_outcomes_supervisor_assessed", "supervisor_id", "assessed_at"),
+    )
+
+
+class UnifiedWorkspace(Base):
+    """Unified workspace spanning multiple collaboration platforms.
+
+    Restored stub: referenced by ``api/workspace_routes.py`` and
+    ``integrations/workspace_sync_service.py`` (create / list / add-platform /
+    delete endpoints) and exercised by ``tests/api/test_workspace_routes.py``.
+    """
+
+    __tablename__ = "unified_workspaces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Platform IDs
+    slack_workspace_id = Column(String, nullable=True, index=True)
+    discord_guild_id = Column(String, nullable=True, index=True)
+    google_chat_space_id = Column(String, nullable=True, index=True)
+    teams_team_id = Column(String, nullable=True, index=True)
+
+    # Sync state
+    sync_status = Column(String(50), default="pending")
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    sync_config = Column(JSONColumn, nullable=True)
+
+    # Aggregate counts
+    platform_count = Column(Integer, default=0)
+    member_count = Column(Integer, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_unified_workspaces_user_updated", "user_id", "updated_at"),
+    )

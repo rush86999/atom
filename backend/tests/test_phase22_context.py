@@ -1,4 +1,7 @@
 
+import pytest
+pytest.importorskip("cv2")  # transitive dep via browser_engine.agent
+
 import asyncio
 import http.server
 import logging

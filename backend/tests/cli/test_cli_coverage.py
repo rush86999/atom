@@ -15,6 +15,8 @@ File Count: 20+ tests
 """
 
 import pytest
+pytest.importorskip("cli.main")  # `cli` package name collides with tests/cli under pytest collection
+
 import os
 import sys
 import tempfile

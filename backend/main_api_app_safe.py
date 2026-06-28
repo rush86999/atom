@@ -4,23 +4,38 @@ import types
 from unittest.mock import MagicMock
 
 
-# --- FORCE MOCKS ---
-def mock_package(name):
-    m = types.ModuleType(name)
-    m.__path__ = []
-    sys.modules[name] = m
-    return m
+# --- FORCE MOCKS (only when real deps unavailable) ---
+# Safe-mode fallback: if numpy/pandas/etc aren't installed, mock them so the
+# app still boots. Gated by try/except so we DON'T poison the test session
+# when the real deps ARE present — previously this ran unconditionally at
+# module-import time, breaking factory_boy's issubclass() checks everywhere.
+def _install_safe_mode_mocks_if_needed():
+    try:
+        import numpy  # noqa: F401
+        import pandas  # noqa: F401
+        return  # Real deps available — no mocking needed
+    except ImportError:
+        pass
 
-np_mock = mock_package("numpy")
-pd_mock = mock_package("pandas")
-sys.modules["numpy.linalg"] = MagicMock()
-sys.modules["numpy.core"] = MagicMock()
-sys.modules["numpy._core"] = MagicMock()
-sys.modules["numpy.core.multiarray"] = MagicMock()
-sys.modules["numpy._core.multiarray"] = MagicMock()
-sys.modules["numpy.lib"] = MagicMock()
-sys.modules["networkx"] = MagicMock()
-sys.modules["lancedb"] = MagicMock()
+    def mock_package(name):
+        m = types.ModuleType(name)
+        m.__path__ = []
+        sys.modules[name] = m
+        return m
+
+    mock_package("numpy")
+    mock_package("pandas")
+    sys.modules["numpy.linalg"] = MagicMock()
+    sys.modules["numpy.core"] = MagicMock()
+    sys.modules["numpy._core"] = MagicMock()
+    sys.modules["numpy.core.multiarray"] = MagicMock()
+    sys.modules["numpy._core.multiarray"] = MagicMock()
+    sys.modules["numpy.lib"] = MagicMock()
+    sys.modules["networkx"] = MagicMock()
+    sys.modules["lancedb"] = MagicMock()
+
+
+_install_safe_mode_mocks_if_needed()
 
 import logging
 from pathlib import Path

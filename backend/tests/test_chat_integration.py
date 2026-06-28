@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip("websocket")  # websocket-client lib (singular); codebase uses websockets (plural)
+
 import asyncio
 import json
 import logging

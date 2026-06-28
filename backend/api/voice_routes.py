@@ -4,7 +4,7 @@ Voice Routes - API endpoints for voice transcription and TTS
 from datetime import datetime
 import logging
 from typing import Any, Dict, Optional
-from fastapi import File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter

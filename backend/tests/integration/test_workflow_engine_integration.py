@@ -29,7 +29,10 @@ from sqlalchemy.orm import Session
 
 from core.workflow_engine import WorkflowEngine, MissingInputError
 from core.models import WorkflowExecution, WorkflowExecutionStatus
-from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
+from tests.factories.workflow_factory import WorkflowExecutionFactory
+# NOTE: WorkflowStepExecutionFactory was removed from workflow_factory.py
+# because WorkflowStepExecution ORM model doesn't exist. If a test in this
+# file needs it, the model needs to land first.
 
 
 class TestAsyncWorkflowExecution:

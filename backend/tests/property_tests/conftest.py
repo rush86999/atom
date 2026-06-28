@@ -69,6 +69,25 @@ def db(db_engine):
 
 
 @pytest.fixture(scope="function")
+def db_session(db_engine):
+    """
+    Create a database session scoped to a single test function.
+
+    This is a thin alias around `db_engine` that other conftest files
+    (security/, scenarios/, integration/websocket/, integration/test_websocket_integration)
+    import via `from tests.property_tests.conftest import db_session`.
+    It mirrors the `db` fixture but uses the explicit Session context manager
+    pattern for clean teardown.
+    """
+    SessionLocal = sessionmaker(bind=db_engine, expire_on_commit=False)
+    session = SessionLocal()
+
+    yield session
+
+    session.close()
+
+
+@pytest.fixture(scope="function")
 def client(db):
     """
     Create a FastAPI TestClient with test database override.

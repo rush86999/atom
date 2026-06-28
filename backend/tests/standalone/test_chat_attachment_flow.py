@@ -1,4 +1,7 @@
 
+import pytest
+pytest.importorskip("cv2")  # transitive dep via ai.lux_model -> services.agent_service -> integrations.chat_orchestrator
+
 import asyncio
 import os
 import sys

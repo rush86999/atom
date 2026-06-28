@@ -14,40 +14,55 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
-sys.modules['cv2'] = MagicMock()
-sys.modules['numpy'] = MagicMock()
-sys.modules['pyautogui'] = MagicMock()
+# Mock optional deps only for tests in this module. The previous module-level
+# sys.modules[...] = MagicMock() assignment poisoned numpy globally for the
+# rest of the pytest session and broke factory_boy issubclass() checks in
+# unrelated tests. patch.dict scopes the mocks to this file's tests only.
+@pytest.fixture(autouse=True)
+def _mock_optional_deps():
+    """Mock cv2/numpy/pyautogui only for tests in this module."""
+    mocks = {
+        'cv2': MagicMock(),
+        'numpy': MagicMock(),
+        'pyautogui': MagicMock(),
+    }
+    with patch.dict(sys.modules, mocks):
+        # Pre-import lux_model inside the patch so its `import numpy as np`
+        # resolves to the mock. Subsequent `from ai.lux_model import ...`
+        # statements in tests will hit the cached module.
+        import ai.lux_model  # noqa: F401
+        yield
 
 
 class TestComputerAction:
     """Test ComputerAction dataclass"""
 
-    from ai.lux_model import ComputerAction, ComputerActionType
-
     def test_create_click_action(self):
         """Test creating a click action"""
-        action = self.ComputerAction(
-            action_type=self.ComputerActionType.CLICK,
+        from ai.lux_model import ComputerAction, ComputerActionType
+        action = ComputerAction(
+            action_type=ComputerActionType.CLICK,
             parameters={"coordinates": [100, 200]},
             confidence=0.95,
             description="Click login button"
         )
 
-        assert action.action_type == self.ComputerActionType.CLICK
+        assert action.action_type == ComputerActionType.CLICK
         assert action.parameters == {"coordinates": [100, 200]}
         assert action.confidence == 0.95
         assert action.description == "Click login button"
 
     def test_create_type_action(self):
         """Test creating a type action"""
-        action = self.ComputerAction(
-            action_type=self.ComputerActionType.TYPE,
+        from ai.lux_model import ComputerAction, ComputerActionType
+        action = ComputerAction(
+            action_type=ComputerActionType.TYPE,
             parameters={"text": "hello world"},
             confidence=1.0,
             description="Type text"
         )
 
-        assert action.action_type == self.ComputerActionType.TYPE
+        assert action.action_type == ComputerActionType.TYPE
         assert action.parameters["text"] == "hello world"
 
 

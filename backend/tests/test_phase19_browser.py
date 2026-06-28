@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip("cv2")  # transitive dep via finance.automations.legacy_portals
+
 import asyncio
 import os
 import sys

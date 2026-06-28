@@ -994,3 +994,8 @@ async def microsoft365_health():
         "service": "microsoft365",
         "timestamp": "2024-01-21T10:00:00Z",
     }
+
+
+# Global Microsoft 365 service instance (matches the lowercase-singleton
+# pattern used by other integrations such as outlook_service, asana_service, etc.)
+microsoft365_service = Microsoft365Service(tenant_id="default", config={})

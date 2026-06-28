@@ -20,6 +20,7 @@ migration paths.
 
 import os
 import sys
+import pathlib
 from pathlib import Path
 from typing import Generator, List, Dict, Any
 import pytest
@@ -32,6 +33,10 @@ import json
 # Add backend to path
 backend_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(backend_dir))
+
+# Remove any path whose final component is "backend" so the installed `alembic`
+# package wins over the local `backend/alembic/` directory shadow.
+sys.path = [p for p in sys.path if pathlib.Path(p).name != "backend"]
 
 import alembic.config as alembic_config
 from alembic.script import ScriptDirectory

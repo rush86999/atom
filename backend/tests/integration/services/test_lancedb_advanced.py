@@ -16,30 +16,40 @@ import pytest
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-# Mock lancedb at module level to prevent import errors
-sys.modules['lancedb'] = MagicMock()
-sys.modules['lancedb.pydantic'] = MagicMock()
-sys.modules['lancedb.query'] = MagicMock()
+# Only mock modules that aren't already importable. The previous code
+# unconditionally called `sys.modules['numpy'] = MagicMock()` etc., which
+# poisoned numpy globally for the rest of the pytest session and broke
+# factory_boy issubclass() checks in unrelated tests.
+import importlib.util
 
-# Mock boto3 for S3 operations
-sys.modules['boto3'] = MagicMock()
-sys.modules['botocore'] = MagicMock()
-sys.modules['botocore.exceptions'] = MagicMock()
 
-# Mock s3fs for S3 filesystem operations
-sys.modules['s3fs'] = MagicMock()
+def _mock_if_missing(name: str):
+    if importlib.util.find_spec(name) is None:
+        sys.modules[name] = MagicMock()
 
-# Mock numpy with proper ndarray support
-import numpy as np
-# Don't mock numpy entirely, just mock it if not available
-if 'numpy' not in sys.modules:
-    sys.modules['numpy'] = MagicMock()
 
-# Mock pandas availability
+# Mock lancedb / boto3 / s3fs only when truly absent (typical for CI).
+# numpy/pandas are intentionally NOT mocked here so they keep working for
+# any other test module that imports them at module top level.
+_mock_if_missing('lancedb')
+_mock_if_missing('lancedb.pydantic')
+_mock_if_missing('lancedb.query')
+_mock_if_missing('boto3')
+_mock_if_missing('botocore')
+_mock_if_missing('botocore.exceptions')
+_mock_if_missing('s3fs')
+
+# Ensure core.lancedb_handler sees pandas as available even when pandas
+# is absent (the handler guards all pandas usage behind PANDAS_AVAILABLE).
+try:
+    import pandas  # noqa: F401
+except ImportError:
+    sys.modules.setdefault('pandas', MagicMock())
+
+# Import after mocking
 import core.lancedb_handler as lancedb_module
 lancedb_module.PANDAS_AVAILABLE = True
 
-# Import after mocking
 from core.lancedb_handler import (
     LanceDBHandler,
     ChatHistoryManager,

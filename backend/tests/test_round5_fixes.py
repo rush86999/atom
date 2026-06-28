@@ -118,7 +118,7 @@ class TestNoExceptionLeakage:
         src = inspect.getsource(byok_endpoints)
         # Find any HTTPException with detail="Internal error" or detail="Internal error"
         bad_patterns = [
-            "detail="Internal error"",
+            'detail="Internal error"',
             'detail="Internal error"',
             'detail="Internal error"',
         ]

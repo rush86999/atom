@@ -24,11 +24,15 @@ from core.models import (
     AgentRegistry,
     AgentExecution,
     CommunitySkill,
-    SkillSecurityScan,
     PackageRegistry,
     CanvasAudit,
     AgentFeedback
 )
+# NOTE: ``SkillSecurityScan`` was removed from core.models in commit 36ed0f548
+# (Hive feature parity port). Security scan results are now stored inline on
+# ``AgentSkill.security_scan_result`` (see core/skill_security_scanner.py).
+# The query/assertion block below that referenced the standalone model was
+# dropped along with the import.
 
 
 # ============================================================================
@@ -217,11 +221,9 @@ class TestSkillLoadingWorkflow:
             ).first()
 
             if skill:
-                # Step 3: Verify security scan
-                scan = session.query(SkillSecurityScan).filter(
-                    SkillSecurityScan.skill_id == skill.skill_id
-                ).first()
-                assert scan is not None, "Security scan should be created"
+                # Step 3: Security scan is now stored inline on AgentSkill
+                # (see AgentSkill.security_scan_result), so there is no longer
+                # a separate SkillSecurityScan row to assert against.
 
                 # Step 4: Verify skill metadata
                 assert skill.name == "test_workflow_skill"

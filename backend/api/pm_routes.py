@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from service_delivery.models import Milestone, Project, ProjectTask
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter

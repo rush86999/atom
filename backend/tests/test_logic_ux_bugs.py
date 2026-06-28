@@ -36,7 +36,7 @@ class TestLogicAndUXBugs:
 
         # Verify the bug - internal error is exposed
         assert 'detail="Internal error"' in source, \
-            "Bug confirmed: Internal errors exposed via detail="Internal error""
+            "Bug confirmed: Internal errors exposed via detail='Internal error'"
 
     def test_evidence_collection_api_exposes_internal_errors(self):
         """
@@ -52,7 +52,7 @@ class TestLogicAndUXBugs:
         # Verify the bug - internal errors are exposed
         count = source.count('detail="Internal error"')
         assert count >= 3, \
-            f"Bug confirmed: {count} instances of internal errors exposed via detail="Internal error""
+            f"Bug confirmed: {count} instances of internal errors exposed via detail='Internal error'"
 
     def test_canvas_routes_missing_schema_validation(self):
         """
@@ -110,7 +110,7 @@ class TestLogicAndUXBugs:
                 pass
 
         assert vulnerable_count >= 1, \
-            f"Bug confirmed: {vulnerable_count} files expose internal errors via detail="Internal error""
+            f"Bug confirmed: {vulnerable_count} files expose internal errors via detail='Internal error'"
 
     def test_generic_exception_handling(self):
         """

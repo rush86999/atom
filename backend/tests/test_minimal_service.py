@@ -4,6 +4,10 @@ Minimal Backend Test Service
 Verifies frontend-backend integration
 """
 
+import pytest
+pytest.importorskip("flask")  # optional third-party dep; codebase is FastAPI-based
+pytest.importorskip("flask_cors")
+
 import os
 from datetime import datetime
 from flask import Flask, jsonify

@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip("cv2")  # transitive dep via sales.automations.* modules
+
 import asyncio
 import os
 import sys

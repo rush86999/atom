@@ -546,6 +546,7 @@ class AtomEducationCustomizationService:
         """Create new course with FERPA compliance"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_education_customization", "create_student", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_education_customization"):
                 logger.warning(f"Circuit breaker is open for atom_education_customization")
@@ -563,7 +564,6 @@ class AtomEducationCustomizationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_education_customization"
                 )
-        try:
             start_time = time.time()
             
             # Update analytics
@@ -661,6 +661,7 @@ class AtomEducationCustomizationService:
         """Create new assignment with FERPA compliance"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_education_customization", "create_course", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_education_customization"):
                 logger.warning(f"Circuit breaker is open for atom_education_customization")
@@ -678,7 +679,6 @@ class AtomEducationCustomizationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_education_customization"
                 )
-        try:
             start_time = time.time()
             
             # Update analytics
@@ -768,30 +768,12 @@ class AtomEducationCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_learning_analytics(self, analytics_type: LearningAnalyticsType,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "generate_learning_analytics", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
                                          time_period: str = '7d', student_id: str = None,
                                          course_id: str = None, instructor_id: str = None) -> Dict[str, Any]:
         """Generate learning analytics with FERPA compliance"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "create_assignment", locals())
+        audit_ctx = log_integration_attempt("atom_education_customization", "generate_learning_analytics", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_education_customization"):
                 logger.warning(f"Circuit breaker is open for atom_education_customization")
@@ -809,7 +791,6 @@ class AtomEducationCustomizationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_education_customization"
                 )
-        try:
             start_time = time.time()
             
             # Calculate date range
@@ -880,6 +861,7 @@ class AtomEducationCustomizationService:
     
     async def _analyze_student_with_educational_ai(self, student_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze student data with educational AI"""
+        try:
             start_time = time.time()
             # Prepare AI request for student analysis
             ai_request = AIRequest(
@@ -942,9 +924,6 @@ class AtomEducationCustomizationService:
             )
             return educational_ai_suggestions
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing student with educational AI: {e}")
             return {
                 'learning_style': 'visual',
@@ -962,6 +941,7 @@ class AtomEducationCustomizationService:
     
     async def _analyze_course_with_educational_ai(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze course data with educational AI"""
+        try:
             start_time = time.time()
             # Prepare AI request for course analysis
             ai_request = AIRequest(
@@ -1018,9 +998,6 @@ class AtomEducationCustomizationService:
             self.performance_metrics['educational_ai_processing_time'] = analysis_time
             return educational_ai_suggestions
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing course with educational AI: {e}")
             return {
                 'course_optimization_tips': [],
@@ -1037,6 +1014,7 @@ class AtomEducationCustomizationService:
     
     async def _analyze_assignment_with_educational_ai(self, assignment_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze assignment data with educational AI"""
+        try:
             start_time = time.time()
             # Prepare AI request for assignment analysis
             ai_request = AIRequest(
@@ -1093,9 +1071,6 @@ class AtomEducationCustomizationService:
             self.performance_metrics['educational_ai_processing_time'] = analysis_time
             return educational_ai_suggestions
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing assignment with educational AI: {e}")
             return {
                 'assignment_effectiveness_score': 0.7,
@@ -1112,6 +1087,7 @@ class AtomEducationCustomizationService:
     
     async def _setup_ferpa_compliance(self):
         """Setup FERPA compliance"""
+        try:
             # Initialize compliance standards
             self.compliance_standards = [
                 EducationComplianceStandard.FERPA,
@@ -1127,14 +1103,12 @@ class AtomEducationCustomizationService:
             }
             logger.info("FERPA compliance setup completed")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up FERPA compliance: {e}")
             raise
-    
+
     async def _encrypt_student_data(self, student_data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt student sensitive data"""
+        try:
             start_time = time.time()
             # In production, this would use proper encryption algorithms
             encrypted_data = student_data.copy()
@@ -1149,15 +1123,13 @@ class AtomEducationCustomizationService:
             self.performance_metrics['encryption_processing_time'] = encryption_time
             return encrypted_data
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error encrypting student data: {e}")
             return student_data
-    
-    async def _log_audit_event(self, event_type: str, original_data: Dict[str, Any], 
+
+    async def _log_audit_event(self, event_type: str, original_data: Dict[str, Any],
                              processed_data: Dict[str, Any]):
         """Log audit event for FERPA compliance"""
+        try:
             start_time = time.time()
             audit_event = {
                 'event_id': f"audit_{int(time.time())}",
@@ -1181,13 +1153,11 @@ class AtomEducationCustomizationService:
                 (self.analytics_metrics['compliance_score'] * 0.9 + 0.1), 1.0
             )
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging audit event: {e}")
-    
+
     async def _perform_ferpa_compliance_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform FERPA compliance check"""
+        try:
             start_time = time.time()
             # Check for required FERPA elements
             phi_elements = ['first_name', 'last_name', 'date_of_birth', 'address']
@@ -1211,32 +1181,32 @@ class AtomEducationCustomizationService:
             self.performance_metrics['compliance_check_time'] = compliance_time
             return compliance_result
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing FERPA compliance check: {e}")
             return {'passed': False, 'reason': str(e)}
-    
+
     async def _initialize_lms_integration(self):
         """Initialize LMS system integration"""
+        try:
             from atom_canvas_integration import atom_canvas_integration
             self.lms_integration = atom_canvas_integration
             logger.info("LMS integration initialized")
         except ImportError:
             logger.warning("LMS integration not available")
             self.lms_integration = None
-    
+
     async def _initialize_sis_integration(self):
         """Initialize SIS system integration"""
+        try:
             from atom_power_school_integration import atom_power_school_integration
             self.sis_integration = atom_power_school_integration
             logger.info("SIS integration initialized")
         except ImportError:
             logger.warning("SIS integration not available")
             self.sis_integration = None
-    
+
     async def _initialize_lms_connection(self):
         """Initialize LMS connection"""
+        try:
             # Test LMS connection
             if self.lms_integration:
                 connection_test = await self.lms_integration.test_connection()
@@ -1245,14 +1215,12 @@ class AtomEducationCustomizationService:
                 else:
                     raise Exception("LMS connection test failed")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"LMS connection failed: {e}")
             raise
-    
+
     async def _initialize_sis_connection(self):
         """Initialize SIS connection"""
+        try:
             # Test SIS connection
             if self.sis_integration:
                 connection_test = await self.sis_integration.test_connection()
@@ -1261,45 +1229,36 @@ class AtomEducationCustomizationService:
                 else:
                     raise Exception("SIS connection test failed")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"SIS connection failed: {e}")
             raise
-    
+
     async def _sync_student_to_sis(self, student: Dict[str, Any]):
         """Sync student to SIS system"""
+        try:
             if self.sis_integration:
                 await self.sis_integration.create_student(student)
                 logger.info(f"Student synced to SIS: {student['student_id']}")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error syncing student to SIS: {e}")
-    
+
     async def _sync_course_to_lms(self, course: Dict[str, Any]):
         """Sync course to LMS system"""
+        try:
             if self.lms_integration:
                 await self.lms_integration.create_course(course)
                 logger.info(f"Course synced to LMS: {course['course_id']}")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error syncing course to LMS: {e}")
-    
+
     async def _sync_assignment_to_lms(self, assignment: Dict[str, Any]):
         """Sync assignment to LMS system"""
+        try:
             if self.lms_integration:
                 await self.lms_integration.create_assignment(assignment)
                 logger.info(f"Assignment synced to LMS: {assignment['assignment_id']}")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error syncing assignment to LMS: {e}")
-    
+
     async def _get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers for education API"""
         return {
@@ -1308,9 +1267,10 @@ class AtomEducationCustomizationService:
             'X-FERPA-Compliant': 'true',
             'X-Encryption-Key': self.encryption_keys['data_encryption_key']
         }
-    
+
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Education Customization service status"""
+        try:
             return {
                 'service': 'education_customization',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1342,35 +1302,13 @@ class AtomEducationCustomizationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'education_customization'}
-    
+
     async def close(self):
         """Close Education Customization Service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "get_service_status", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
         try:
             logger.info("Education Customization Service closed")
-            
         except Exception as e:
             logger.error(f"Error closing Education Customization Service: {e}")
 
@@ -1416,22 +1354,3 @@ if _ai_service:
     _education_config['ai_service'] = _ai_service
 
 atom_education_customization_service = AtomEducationCustomizationService(_education_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "close", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )

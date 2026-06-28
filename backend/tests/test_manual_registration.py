@@ -4,6 +4,9 @@ Manual Blueprint Registration Test
 Tests blueprint registration for Asana, Trello, and Notion auth handlers
 """
 
+import pytest
+pytest.importorskip("flask")  # optional third-party dep; codebase is FastAPI-based
+
 import logging
 import os
 import sys
