@@ -90,7 +90,7 @@ def training_proposal(db: Session, mock_agent: AgentRegistry):
         agent_name=mock_agent.name,
         title="Training Proposal",
         description="Test training proposal",
-        proposal_type=ProposalType.TRAINING.value,
+        proposal_type=ProposalType.WORKFLOW.value,
         status=ProposalStatus.PENDING_APPROVAL.value,
         capability_gaps=["gap1", "gap2"],
         learning_objectives=["obj1", "obj2"],
@@ -222,7 +222,7 @@ def test_get_training_proposal_success(
     data = response.json()
     assert data["id"] == training_proposal.id
     assert data["agent_id"] == training_proposal.agent_id
-    assert data["proposal_type"] == ProposalType.TRAINING.value
+    assert data["proposal_type"] == ProposalType.WORKFLOW.value
 
 
 def test_get_training_proposal_not_found(

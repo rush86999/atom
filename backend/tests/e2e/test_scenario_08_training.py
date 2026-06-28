@@ -119,7 +119,7 @@ def test_student_agent_training_system(
     training_proposal = AgentProposal(
         agent_id=student_agent.id,
         agent_name=student_agent.name,
-        proposal_type="training",
+        proposal_type="workflow",
         title="Training Proposal for Student Agent",
         description="Student agent needs to complete training modules to graduate to INTERN",
         proposed_action="Complete training modules: governance, canvas, episodes",

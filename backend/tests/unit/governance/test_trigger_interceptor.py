@@ -594,7 +594,7 @@ class TestRoutingMethods:
         # Assert
         assert proposal is not None
         assert proposal.agent_id == agent.id
-        assert proposal.proposal_type == "training"
+        assert proposal.proposal_type == "workflow"
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert blocked_trigger.proposal_id == proposal.id
 

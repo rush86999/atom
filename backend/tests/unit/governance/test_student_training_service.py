@@ -871,7 +871,7 @@ class TestCreateTrainingProposal:
         # Assert
         assert proposal.agent_id == agent.id
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
-        assert proposal.proposal_type == ProposalType.TRAINING.value
+        assert proposal.proposal_type == ProposalType.WORKFLOW.value
         assert proposal.estimated_duration_hours > 0
         assert len(proposal.capability_gaps) > 0
         assert len(proposal.learning_objectives) > 0

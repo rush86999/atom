@@ -103,7 +103,7 @@ async def list_training_proposals(
 ):
     """List training proposals for STUDENT agents"""
     query = db.query(AgentProposal).filter(
-        AgentProposal.proposal_type == ProposalType.TRAINING.value
+        AgentProposal.proposal_type == ProposalType.WORKFLOW.value
     )
 
     if agent_id:
@@ -146,7 +146,7 @@ async def get_training_proposal(
     """Get training proposal details"""
     proposal = db.query(AgentProposal).filter(
         AgentProposal.id == proposal_id,
-        AgentProposal.proposal_type == ProposalType.TRAINING.value
+        AgentProposal.proposal_type == ProposalType.WORKFLOW.value
     ).first()
 
     if not proposal:

@@ -126,7 +126,7 @@ class StudentTrainingService:
         proposal = AgentProposal(
             agent_id=agent.id,
             agent_name=agent.name,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             title=f"Training Proposal: {agent.name} - {scenario_template} Fundamentals",
             description=f"""
 This agent was blocked from executing an automated task because it's in STUDENT maturity level.

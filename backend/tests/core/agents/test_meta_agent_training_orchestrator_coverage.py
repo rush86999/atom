@@ -566,7 +566,7 @@ class TestConductTrainingSession:
         proposal = AgentProposal(
             id="orphan-proposal",
             agent_id=student_agent.id,
-            proposal_type=ProposalType.TRAINING,
+            proposal_type=ProposalType.WORKFLOW,
             proposed_action={},
             status=ProposalStatus.APPROVED,
         )
@@ -1003,7 +1003,7 @@ class TestEdgeCasesAndErrorHandling:
         proposal = AgentProposal(
             id="minimal-proposal",
             agent_id=intern_agent.id,
-            proposal_type=ProposalType.ACTION_PROPOSAL,
+            proposal_type=ProposalType.ACTION,
             proposed_action={},
             status=ProposalStatus.PENDING_APPROVAL,
         )

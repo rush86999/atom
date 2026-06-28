@@ -1370,9 +1370,14 @@ class ProposalStatus(str, enum.Enum):
     EXECUTION_FAILED = "execution_failed"
 
 class ProposalType(str, enum.Enum):
-    """Type of proposal"""
-    TRAINING = "training"        # Training proposal for STUDENT agents
-    ACTION = "action"            # Action proposal from INTERN agents
+    """Type of proposal.
+
+    Canonical values come from the ``AgentProposal.proposal_type`` SQLEnum
+    column (see ``AgentProposal.__table__.c.proposal_type.type.enums``).
+    Do NOT add or rename members without updating both sides.
+    """
+    ACTION = "action"            # Action proposal from INTERN+ agents
+    WORKFLOW = "workflow"        # Structured workflow proposal (Queen Agent)
     ANALYSIS = "analysis"        # Analysis/review proposal
 
 class SupervisionStatus(str, enum.Enum):

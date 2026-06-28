@@ -181,7 +181,7 @@ class TestTrainingProposalCreation:
                     proposal = await service.create_training_proposal(mock_blocked_trigger)
 
                     assert proposal.agent_id == "agent-001"
-                    assert proposal.proposal_type == ProposalType.TRAINING.value
+                    assert proposal.proposal_type == ProposalType.WORKFLOW.value
                     assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
                     assert "Training Proposal:" in proposal.title
                     assert len(proposal.proposal_data.get("capability_gaps", [])) == 2

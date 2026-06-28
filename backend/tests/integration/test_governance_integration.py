@@ -478,7 +478,7 @@ class TestTrainingSessionIntegration:
         proposal = AgentProposal(
             agent_id=agent.id,
             agent_name=agent.name,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             title="Basic Workflow Execution",
             description="Scenario based training",
             reasoning="Test training session",
@@ -526,7 +526,7 @@ class TestTrainingSessionIntegration:
             proposal = AgentProposal(
                 agent_id=agent.id,
                 agent_name=agent.name,
-                proposal_type=ProposalType.TRAINING.value,
+                proposal_type=ProposalType.WORKFLOW.value,
                 title=f"Scenario {i}",
                 description=f"Training scenario {i}",
                 reasoning="Test training session",

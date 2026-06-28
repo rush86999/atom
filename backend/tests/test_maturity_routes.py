@@ -71,7 +71,7 @@ def sample_training_proposal():
     proposal.agent_name = "Student Agent"
     proposal.title = "Complete Training Module"
     proposal.description = "Training for basic skills"
-    proposal.proposal_type = ProposalType.TRAINING.value
+    proposal.proposal_type = ProposalType.WORKFLOW.value
     proposal.status = ProposalStatus.PENDING_APPROVAL.value
     proposal.capability_gaps = ["skill1", "skill2"]
     proposal.learning_objectives = ["objective1"]

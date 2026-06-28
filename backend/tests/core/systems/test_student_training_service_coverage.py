@@ -109,7 +109,7 @@ class TestTrainingProposalWorkflow:
         # Assert
         assert proposal is not None
         assert proposal.agent_id == agent.id
-        assert proposal.proposal_type == ProposalType.TRAINING.value
+        assert proposal.proposal_type == ProposalType.WORKFLOW.value
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.estimated_duration_hours == 8.0
         assert blocked_trigger.proposal_id == proposal.id
@@ -275,7 +275,7 @@ class TestTrainingProposalWorkflow:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.PENDING_APPROVAL.value,
             estimated_duration_hours=8.0,
@@ -332,7 +332,7 @@ class TestTrainingProposalWorkflow:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.PENDING_APPROVAL.value,
         )
@@ -677,7 +677,7 @@ class TestTrainingDurationEstimation:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.PENDING_APPROVAL.value,
             estimated_duration_hours=8.0,
@@ -978,7 +978,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.PENDING_APPROVAL.value,
             estimated_duration_hours=8.0,
@@ -1035,7 +1035,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
         )
@@ -1104,7 +1104,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
         )
@@ -1175,7 +1175,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
-            proposal_type=ProposalType.TRAINING.value,
+            proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
         )
