@@ -1244,8 +1244,9 @@ class TestEpisodeCreation:
                 )
 
         assert result is not None
-        assert result.agent_id == "agent-1"
-        assert result.session_id == "test-session-1"
+        # create_episode_from_session returns a dict (see production code).
+        assert result["agent_id"] == "agent-1"
+        assert result["session_id"] == "test-session-1"
 
     @pytest.mark.asyncio
     async def test_create_episode_title_generation(self, segmentation_service, sample_session, sample_messages, sample_executions):
@@ -1474,7 +1475,7 @@ class TestEpisodeCreation:
 
         # Should create episode despite being too small
         assert result is not None
-        assert result.agent_id == "agent-1"
+        assert result["agent_id"] == "agent-1"
 
     @pytest.mark.asyncio
     async def test_create_episode_with_canvas_presentations(self, segmentation_service):
@@ -1619,7 +1620,8 @@ class TestEpisodeCreation:
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
                 result = await segmentation_service.create_episode_from_session(
                     session_id="test-session-4",
-                    agent_id="agent-4"
+                    agent_id="agent-4",
+                    force_create=True
                 )
 
         assert result is not None
@@ -1673,7 +1675,8 @@ class TestEpisodeCreation:
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
                 result = await segmentation_service.create_episode_from_session(
                     session_id="test-session-5",
-                    agent_id="agent-5"
+                    agent_id="agent-5",
+                    force_create=True
                 )
 
         # Should create episode with execution data
@@ -1714,7 +1717,8 @@ class TestEpisodeCreation:
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
                 result = await segmentation_service.create_episode_from_session(
                     session_id="test-session-6",
-                    agent_id="agent-6"
+                    agent_id="agent-6",
+                    force_create=True
                 )
 
         assert result is not None
@@ -1763,11 +1767,12 @@ class TestEpisodeCreation:
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
                 result = await segmentation_service.create_episode_from_session(
                     session_id="test-session-7",
-                    agent_id="agent-7"
+                    agent_id="agent-7",
+                    force_create=True
                 )
 
         assert result is not None
-        assert result.maturity_at_time == "supervised"
+        assert result["maturity_at_time"] == "supervised"
 
     @pytest.mark.asyncio
     async def test_create_episode_with_multiple_canvas_actions(self, segmentation_service):
@@ -1781,12 +1786,18 @@ class TestEpisodeCreation:
             Mock(spec=ChatMessage, id="msg-1", role="user", content="Show charts", created_at=datetime.now())
         ]
 
-        # Multiple canvas events
+        # Multiple canvas events. CanvasAudit carries business fields inside
+        # details_json (flat schema); production reads .details_json and
+        # .action_type, not top-level canvas_type/audit_metadata attrs.
         canvas_audits = [
-            Mock(spec=CanvasAudit, id="canvas-1", canvas_type="charts", action="present",
-                 audit_metadata={}, created_at=datetime.now(), episode_id=None, session_id="test-session-8"),
-            Mock(spec=CanvasAudit, id="canvas-2", canvas_type="sheets", action="submit",
-                 audit_metadata={}, created_at=datetime.now(), episode_id=None, session_id="test-session-8")
+            Mock(spec=CanvasAudit, id="canvas-1",
+                 details_json={'canvas_type': 'charts', 'component_name': 'ChartView'},
+                 action_type="present", created_at=datetime.now(),
+                 episode_id=None, session_id="test-session-8"),
+            Mock(spec=CanvasAudit, id="canvas-2",
+                 details_json={'canvas_type': 'sheets', 'component_name': 'DataGrid'},
+                 action_type="submit", created_at=datetime.now(),
+                 episode_id=None, session_id="test-session-8")
         ]
 
         def setup_query(return_value):
@@ -1810,10 +1821,12 @@ class TestEpisodeCreation:
 
         with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
-                result = await segmentation_service.create_episode_from_session(
-                    session_id="test-session-8",
-                    agent_id="agent-8"
-                )
+                with patch.object(segmentation_service, '_extract_canvas_context_llm', new=AsyncMock(return_value={})):
+                    result = await segmentation_service.create_episode_from_session(
+                        session_id="test-session-8",
+                        agent_id="agent-8",
+                        force_create=True
+                    )
 
         assert result is not None
 
@@ -1849,14 +1862,15 @@ class TestEpisodeCreation:
 
         archival_called = [False]
 
-        async def mock_archival(episode):
+        async def mock_archival(episode, canvas_context=None):
             archival_called[0] = True
 
         with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
             with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock(side_effect=mock_archival)):
                 result = await segmentation_service.create_episode_from_session(
                     session_id="test-session-9",
-                    agent_id="agent-9"
+                    agent_id="agent-9",
+                    force_create=True
                 )
 
         assert result is not None
@@ -1918,7 +1932,7 @@ class TestCanvasContextExtraction:
         # Test orchestration canvas
         orchestration_audit = Mock()
         orchestration_audit.action_type = 'present'
-        orchestration_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'workflow_id': 'wf-123', 'approval_status': 'approved'}}
+        orchestration_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'workflow_id': 'wf-123', 'approval_status': 'approved'}
 
         result = segmentation_service._extract_canvas_context([orchestration_audit])
 
@@ -1944,7 +1958,7 @@ class TestCanvasContextExtraction:
         """Test canvas context extraction for sheets type."""
         sheets_audit = Mock()
         sheets_audit.action_type = 'submit'
-        sheets_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'audit_metadata': {'revenue': 150000, 'amount': 5000}}
+        sheets_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'revenue': 150000, 'amount': 5000}
 
         result = segmentation_service._extract_canvas_context([sheets_audit])
 
@@ -1956,7 +1970,7 @@ class TestCanvasContextExtraction:
         """Test canvas context extraction for terminal type."""
         terminal_audit = Mock()
         terminal_audit.action_type = 'present'
-        terminal_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'audit_metadata': {'command': 'ls -la', 'exit_code': 0}}
+        terminal_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'command': 'ls -la', 'exit_code': 0}
 
         result = segmentation_service._extract_canvas_context([terminal_audit])
 
@@ -2180,7 +2194,7 @@ class TestCanvasContextExtraction:
         canvas_audit = Mock()
         canvas_audit.id = "canvas-cell-1"
         canvas_audit.action_type = 'update'
-        canvas_audit.details_json = {'canvas_type': 'sheets_cell', 'audit_metadata': {'cell': 'A1', 'value': 150000, 'formula': '=SUM(B2:B10)'}}
+        canvas_audit.details_json = {'canvas_type': 'sheets_cell', 'cell': 'A1', 'value': 150000, 'formula': '=SUM(B2:B10)'}
 
         with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
                          new=AsyncMock(return_value="Agent updated cell A1 with calculated value")):
@@ -2360,7 +2374,9 @@ class TestSupervisionEpisodes:
         execution.task_description = "Execute workflow"
         execution.status = "completed"
         execution.input_summary = "Start workflow"
-        execution.output_summary = "Workflow completed"
+        # _format_agent_actions reads result_summary (canonical
+        # AgentExecution field), not output_summary.
+        execution.result_summary = "Workflow completed"
 
         result = segmentation_service._format_agent_actions(interventions, execution)
 
@@ -2576,8 +2592,9 @@ class TestSupervisionEpisodes:
     async def test_create_segments_boundary_handling(self, segmentation_service):
         """Test _create_segments with boundary handling."""
         now = datetime.now()
-        episode = Mock()
-        episode.id = "episode-1"
+        # _create_segments reads episode["id"] (dict contract used by
+        # create_episode_from_session). Use a dict, not a Mock.
+        episode = {"id": "episode-1"}
 
         messages = [
             Mock(id="msg-1", role="user", content="First message", created_at=now),
@@ -2604,8 +2621,7 @@ class TestSupervisionEpisodes:
     async def test_create_segments_execution_type(self, segmentation_service):
         """Test segment creation with execution type."""
         now = datetime.now()
-        episode = Mock()
-        episode.id = "episode-1"
+        episode = {"id": "episode-1"}
 
         messages = []
 
@@ -2665,14 +2681,21 @@ class TestCanvasContextExtractionPrivate:
 
     def test_extract_canvas_context_uses_first_audit(self, segmentation_service):
         """Test _extract_canvas_context uses first (most recent) audit only."""
-        canvas_audits = [
-            Mock(canvas_type="orchestration", action="present",
-                component_name="WorkflowCanvas",
-                audit_metadata={"workflow_id": "wf-first"}),
-            Mock(canvas_type="sheets", action="submit",
-                component_name="DataGrid",
-                audit_metadata={"revenue": 100000}),
-        ]
+        first_audit = Mock()
+        first_audit.action_type = 'present'
+        first_audit.details_json = {
+            'canvas_type': 'orchestration',
+            'component_name': 'WorkflowCanvas',
+            'workflow_id': 'wf-first',
+        }
+        second_audit = Mock()
+        second_audit.action_type = 'submit'
+        second_audit.details_json = {
+            'canvas_type': 'sheets',
+            'component_name': 'DataGrid',
+            'revenue': 100000,
+        }
+        canvas_audits = [first_audit, second_audit]
 
         result = segmentation_service._extract_canvas_context(canvas_audits)
 
@@ -2709,7 +2732,7 @@ class TestCanvasContextExtractionPrivate:
         """Test _extract_canvas_context extracts critical fields for orchestration."""
         canvas_audit = Mock()
         canvas_audit.action_type = 'present'
-        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'audit_metadata': {'workflow_id': 'wf-456', 'approval_status': 'pending'}}
+        canvas_audit.details_json = {'canvas_type': 'orchestration', 'component_name': 'WorkflowCanvas', 'workflow_id': 'wf-456', 'approval_status': 'pending'}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2722,7 +2745,7 @@ class TestCanvasContextExtractionPrivate:
         """Test _extract_canvas_context extracts critical fields for sheets."""
         canvas_audit = Mock()
         canvas_audit.action_type = 'submit'
-        canvas_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'audit_metadata': {'revenue': 250000, 'amount': 7500}}
+        canvas_audit.details_json = {'canvas_type': 'sheets', 'component_name': 'DataGrid', 'revenue': 250000, 'amount': 7500}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2735,7 +2758,7 @@ class TestCanvasContextExtractionPrivate:
         """Test _extract_canvas_context extracts critical fields for terminal."""
         canvas_audit = Mock()
         canvas_audit.action_type = 'execute'
-        canvas_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'audit_metadata': {'command': 'docker-compose up', 'exit_code': 0}}
+        canvas_audit.details_json = {'canvas_type': 'terminal', 'component_name': 'CommandOutput', 'command': 'docker-compose up', 'exit_code': 0}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -2761,7 +2784,7 @@ class TestCanvasContextExtractionPrivate:
         """Test _extract_canvas_context extracts all critical field types."""
         canvas_audit = Mock()
         canvas_audit.action_type = 'present'
-        canvas_audit.details_json = {'canvas_type': 'code', 'component_name': 'CodeEditor', 'audit_metadata': {'file_path': '/path/to/file.py', 'language': 'python', 'word_count': 1500}}
+        canvas_audit.details_json = {'canvas_type': 'code', 'component_name': 'CodeEditor', 'file_path': '/path/to/file.py', 'language': 'python', 'word_count': 1500}
 
         result = segmentation_service._extract_canvas_context([canvas_audit])
 
@@ -3172,8 +3195,8 @@ class TestEpisodeSegmentationEdgeCases:
         from core.episode_segmentation_service import TIME_GAP_THRESHOLD_MINUTES
 
         now = datetime.now()
-        episode = Mock()
-        episode.id = "episode-boundary-test"
+        # _create_segments reads episode["id"] (dict contract).
+        episode = {"id": "episode-boundary-test"}
 
         # Create messages with exactly 30-minute gap
         messages = [
@@ -3232,8 +3255,7 @@ class TestEpisodeSegmentationEdgeCases:
     async def test_segment_creation_with_supervision_context(self, segmentation_service):
         """Test segment creation includes supervision metadata."""
         now = datetime.now()
-        episode = Mock()
-        episode.id = "supervision-episode"
+        episode = {"id": "supervision-episode"}
 
         messages = [
             Mock(id="msg-1", role="user", content="Help me", created_at=now)

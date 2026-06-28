@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 
 from core.agent_graduation_service import AgentGraduationService, AgentStatus
-from core.sandbox_executor import SandboxExecutor
+from core.sandbox_executor import GraduationExamSandboxExecutor, SandboxExecutor
 from core.models import SupervisionSession
 
 
@@ -59,8 +59,12 @@ def graduation_service(db_session, mock_lancedb):
 
 @pytest.fixture
 def sandbox_executor(db_session):
-    """Create SandboxExecutor for testing."""
-    return SandboxExecutor(db_session)
+    """Create graduation-exam executor for testing.
+
+    The tests in this module exercise ``execute_exam``, which lives on
+    ``GraduationExamSandboxExecutor`` (not the base ``SandboxExecutor``).
+    """
+    return GraduationExamSandboxExecutor(db_session)
 
 
 @pytest.fixture

@@ -1311,7 +1311,9 @@ class TestSupervisionContextRetrieval:
             started_at=now,
             completed_at=now + timedelta(minutes=30),
             maturity_at_time="SUPERVISED",
-            human_intervention_count=1,
+            # intervention_count is denormalized from intervention_types
+            # (2 entries below) -- keep them consistent.
+            human_intervention_count=2,
             constitutional_score=0.85,
             decay_score=0.95,
             access_count=1,

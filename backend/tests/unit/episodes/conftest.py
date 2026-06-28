@@ -110,6 +110,11 @@ def episode_test_user(db_session):
     user = User(
         id=user_id,
         email="test@example.com",
+        # Required NOT NULL columns on the User model (see core/models.py)
+        first_name="Test",
+        last_name="User",
+        role="user",
+        status="active",
         created_at=datetime.now(timezone.utc)
     )
     db_session.add(user)
@@ -253,6 +258,12 @@ def segmentation_service_mocked(db_session, mock_lancedb, mock_byok_handler):
 
             # Mock generate_summary to return test summary
             mock_canvas_svc.return_value.generate_summary = AsyncMock(return_value="Test canvas summary")
+            # _extract_canvas_context_llm calls the hallucination / richness
+            # checkers; without explicit return values they yield MagicMock
+            # instances that fail to JSON-serialize when persisted on
+            # EpisodeSegment.canvas_context.
+            mock_canvas_svc.return_value._detect_hallucination = MagicMock(return_value=False)
+            mock_canvas_svc.return_value._calculate_semantic_richness = MagicMock(return_value=0.5)
 
             service = EpisodeSegmentationService(db_session, mock_byok_handler)
             service.lancedb = mock_lancedb

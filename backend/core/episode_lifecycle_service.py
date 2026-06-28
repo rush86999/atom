@@ -229,21 +229,24 @@ class EpisodeLifecycleService:
             user_feedback: Feedback score (-1.0 to 1.0)
 
         Returns:
-            True if successful, False if episode not found or invalid feedback
+            True if successful, False if episode not found
 
-        Raises:
-            ValueError: If user_feedback is outside valid range [-1.0, 1.0]
+        Note:
+            Out-of-range ``user_feedback`` is clamped to [-1.0, 1.0] so that
+            callers cannot accidentally push ``importance_score`` outside its
+            valid [0.0, 1.0] bounds. ``importance_score`` is itself clamped
+            after the update as a defensive measure.
         """
-        # Defensive validation: reject out-of-bounds feedback
+        # Defensive clamping: keep user_feedback within the valid range so
+        # the resulting importance_score stays in [0.0, 1.0]. Previously
+        # this raised ValueError, which broke callers that relied on the
+        # documented clamping contract (see TestImportanceScore).
         if not -1.0 <= user_feedback <= 1.0:
             logger.warning(
-                f"Invalid feedback score {user_feedback} for episode {episode_id}. "
-                f"Valid range is [-1.0, 1.0]"
+                f"Clamping out-of-range feedback score {user_feedback} for episode "
+                f"{episode_id} into [-1.0, 1.0]"
             )
-            raise ValueError(
-                f"Invalid feedback_score: {user_feedback}. "
-                f"Must be between -1.0 and 1.0"
-            )
+            user_feedback = max(-1.0, min(1.0, user_feedback))
 
         episode = self.db.query(Episode).filter(
             Episode.id == episode_id

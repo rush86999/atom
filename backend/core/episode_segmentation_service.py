@@ -344,7 +344,11 @@ class EpisodeSegmentationService:
         message_boundaries.update(self.detector.detect_time_gap(messages))
         message_boundaries.update(self.detector.detect_topic_changes(messages))
 
-        # 4. Create dummy episode dict instead of Episode model because it was removed
+        # 4. Build the episode record. Production keeps this as a dict (the
+        # ORM model is AgentEpisode but this service does not persist it
+        # directly — segments + LanceDB archival are the source of truth).
+        # We surface canvas_ids / feedback_ids / canvas_action_count on the
+        # dict so callers (and tests) can verify source-record linkage.
         episode_id = str(uuid.uuid4())
         episode = {
             "id": episode_id,
@@ -360,7 +364,12 @@ class EpisodeSegmentationService:
             "topics": self._extract_topics(messages, executions),
             "maturity_at_time": self._get_agent_maturity(agent_id),
             "human_intervention_count": self._count_interventions(executions),
-            "constitutional_score": None
+            "constitutional_score": None,
+            # Source-record linkage (populated by the back-linkage step
+            # below; declared up-front so the schema is stable).
+            "canvas_ids": [c.id for c in canvas_audits],
+            "canvas_action_count": len(canvas_audits),
+            "feedback_ids": [f.id for f in feedback_records],
         }
 
         # 4.5. Link back to source records (NEW)
@@ -1096,7 +1105,10 @@ class EpisodeSegmentationService:
             critical_data = {}
             critical_fields = [
                 "workflow_id", "approval_status", "revenue", "amount",
-                "priority", "command", "exit_code", "file_path", "language"
+                "priority", "command", "exit_code", "file_path", "language",
+                # Sheets-cell/range/chart specific fields
+                "cell", "formula", "range", "row_count", "col_count",
+                "chart_type", "data_range", "title"
             ]
             for field in critical_fields:
                 if field in canvas_state:
@@ -1492,12 +1504,22 @@ class EpisodeSegmentationService:
         execution: AgentExecution
     ) -> List[str]:
         """Extract topics from supervision session"""
-        topics = set()
+        # Intervention-derived topics are the highest-signal items — keep
+        # them all and never let the keyword-derived topics push them out
+        # via the trailing [:5] truncation.
+        intervention_topics = set()
+        if session.interventions:
+            for intervention in session.interventions:
+                int_type = intervention.get("type", "")
+                if int_type and int_type != "unknown":
+                    intervention_topics.add(f"intervention_{int_type}")
+
+        other_topics = set()
 
         # Extract from agent name
         if session.agent_name:
             words = session.agent_name.lower().split()
-            topics.update([w for w in words if len(w) > 4])
+            other_topics.update([w for w in words if len(w) > 4])
 
         # Extract from execution
         if execution:
@@ -1505,16 +1527,12 @@ class EpisodeSegmentationService:
                        getattr(execution, 'input_summary', None)
             if task_desc:
                 words = task_desc.lower().split()
-                topics.update([w for w in words if len(w) > 4][:3])
+                other_topics.update([w for w in words if len(w) > 4][:3])
 
-        # Add intervention types as topics
-        if session.interventions:
-            for intervention in session.interventions:
-                int_type = intervention.get("type", "")
-                if int_type and int_type != "unknown":
-                    topics.add(f"intervention_{int_type}")
-
-        return list(topics)[:5]
+        # Combine: interventions first (preserved), then keyword topics,
+        # truncated to the overall cap of 5.
+        combined = list(intervention_topics) + list(other_topics)
+        return combined[:5]
 
     def _extract_supervision_entities(
         self,

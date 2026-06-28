@@ -52,6 +52,23 @@ class RetrievalResult(NamedTuple):
     query_time_ms: float
 
 
+def _safe_intervention_count(episode: Any) -> int:
+    """Return a numeric intervention count regardless of which attribute
+    name the object exposes.
+
+    ``AgentEpisode`` stores it as ``human_intervention_count``; the older
+    ``SupervisionSession``-shaped objects (and some tests) expose it as
+    ``intervention_count``. Mocks in tests can set the attribute to a Mock
+    instance, which would break a naive ``getattr(...) or 0`` because Mocks
+    are truthy — coerce to ``int`` defensively.
+    """
+    for attr in ("intervention_count", "human_intervention_count"):
+        value = getattr(episode, attr, None)
+        if isinstance(value, (int, float)):
+            return int(value)
+    return 0
+
+
 class EpisodeRetrievalService:
     """Multi-mode episode retrieval with governance"""
 
@@ -493,15 +510,26 @@ class EpisodeRetrievalService:
                 CanvasAudit.id.in_(canvas_ids)
             ).all()
 
-            return [{
-                "id": c.id,
-                "canvas_type": c.canvas_type,
-                "component_type": c.component_type,
-                "component_name": c.component_name,
-                "action": c.action,
-                "created_at": c.created_at.isoformat() if c.created_at else None,
-                "metadata": c.audit_metadata
-            } for c in canvases]
+            # CanvasAudit stores business fields inside details_json
+            # (flat schema) — there are no top-level canvas_type /
+            # component_type / component_name / action / audit_metadata
+            # columns on the model. Reading them as attributes raises
+            # AttributeError and the broad `except` above silently
+            # returns [], masking the bug.
+            result = []
+            for c in canvases:
+                details = c.details_json or {}
+                result.append({
+                    "id": c.id,
+                    "canvas_type": details.get("canvas_type"),
+                    "component_type": details.get("component_type"),
+                    "component_name": details.get("component_name"),
+                    "action_type": c.action_type,
+                    "action": c.action_type,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                    "metadata": details,
+                })
+            return result
 
         except Exception as e:
             logger.error(f"Failed to fetch canvas context: {e}")
@@ -980,7 +1008,7 @@ class EpisodeRetrievalService:
                     filters_applied.append("high_rated")
 
                 elif supervision_outcome_filter == "low_intervention":
-                    if (episode.intervention_count or 0) > 1:
+                    if _safe_intervention_count(episode) > 1:
                         continue
                     filters_applied.append("low_intervention")
 
@@ -996,7 +1024,7 @@ class EpisodeRetrievalService:
 
             # Apply intervention filter
             if max_interventions is not None:
-                if (episode.intervention_count or 0) > max_interventions:
+                if _safe_intervention_count(episode) > max_interventions:
                     continue
                 filters_applied.append(f"max_interventions_{max_interventions}")
 
@@ -1037,7 +1065,9 @@ class EpisodeRetrievalService:
             "has_supervision": episode.supervisor_id is not None,
             "supervisor_id": episode.supervisor_id,
             "supervisor_rating": episode.supervisor_rating,
-            "intervention_count": episode.intervention_count or 0,
+            # AgentEpisode has `human_intervention_count`; older callers /
+            # SupervisionSession-shaped objects may expose `intervention_count`.
+            "intervention_count": _safe_intervention_count(episode),
             "intervention_types": episode.intervention_types or [],
             "feedback_summary": self._summarize_feedback(episode.supervision_feedback),
             "outcome_quality": self._assess_outcome_quality(episode)
@@ -1064,11 +1094,11 @@ class EpisodeRetrievalService:
             return "unknown"
 
         # Excellent: 5 stars, 0-1 interventions
-        if episode.supervisor_rating >= 5 and (episode.intervention_count or 0) <= 1:
+        if episode.supervisor_rating >= 5 and _safe_intervention_count(episode) <= 1:
             return "excellent"
 
         # Good: 4-5 stars, 0-2 interventions
-        if episode.supervisor_rating >= 4 and (episode.intervention_count or 0) <= 2:
+        if episode.supervisor_rating >= 4 and _safe_intervention_count(episode) <= 2:
             return "good"
 
         # Fair: 3-4 stars
