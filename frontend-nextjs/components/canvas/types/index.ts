@@ -426,6 +426,31 @@ export interface OrchestrationCanvasState extends BaseCanvasState {
 }
 
 /**
+ * Pre-action match-confidence types (Phase 2-4 of MATCH_CONFIDENCE.md).
+ * Mirror the Python dataclasses in core/selector_confidence_service.py.
+ */
+export interface SelectorCandidate {
+  selector: string;
+  match_count: number;
+  is_text_only: boolean;
+  appeared_after_ms: number;
+  tag_hint: string;
+  attributes: Record<string, string>;
+}
+
+export type MatchLevel = 'high' | 'partial' | 'ambiguous';
+
+export interface MatchConfidence {
+  level: MatchLevel;
+  score: number;
+  rationale: string;
+  candidates: SelectorCandidate[];
+  chosen_index: number;
+  /** Present on fill_form gating — per-field confidence rollup */
+  fields?: Record<string, MatchConfidence>;
+}
+
+/**
  * Agent operation tracker state
  */
 export interface AgentOperationState extends BaseCanvasState {
@@ -448,6 +473,8 @@ export interface AgentOperationState extends BaseCanvasState {
   logs_count: number;
   started_at: string;
   completed_at?: string;
+  /** Phase 5 — pre-action match-confidence (undefined when locator API off) */
+  match_confidence?: MatchConfidence;
 }
 
 /**

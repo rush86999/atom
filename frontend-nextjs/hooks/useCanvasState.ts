@@ -7,9 +7,11 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type {
+  AgentOperationState,
   AnyCanvasState,
   CanvasStateAPI,
-  CanvasStateChangeEvent
+  CanvasStateChangeEvent,
+  MatchConfidence
 } from '@/components/canvas/types';
 
 // Track registered canvases for verification
@@ -189,11 +191,27 @@ export function useCanvasState(canvasId?: string) {
     return api?.getAllStates() || [];
   }, []);
 
+  /**
+   * Phase 5 — pre-action match-confidence accessor.
+   * Mirrors getState() but extracts the match_confidence block from an
+   * AgentOperationState. Returns null for non-agent-operation canvases
+   * or when the locator API is off.
+   */
+  const getMatchConfidence = useCallback((opId: string): MatchConfidence | null => {
+    const api = (window as any).atom?.canvas as CanvasStateAPI;
+    if (!verifyCanvasAPI(api)) {
+      return null;
+    }
+    const state = api?.getState(opId) as (AgentOperationState | null);
+    return state?.match_confidence ?? null;
+  }, []);
+
   return {
     state,
     allStates,
     getState,
     getAllStates,
+    getMatchConfidence,
     isApiReady
   };
 }
