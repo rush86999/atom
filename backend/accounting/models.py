@@ -62,7 +62,7 @@ class Account(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     code = Column(String, nullable=False) # e.g., "1000", "5000"
-    type = Column(SQLEnum(AccountType), nullable=False)
+    type = Column(SQLEnum(AccountType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     parent_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=True)
@@ -94,7 +94,7 @@ class Transaction(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     external_id = Column(String, nullable=True, index=True) # e.g. Stripe ID, Bank ID
     source = Column(String, nullable=False) # e.g. "stripe", "manual", "bank_feed"
-    status = Column(SQLEnum(TransactionStatus), default=TransactionStatus.PENDING)
+    status = Column(SQLEnum(TransactionStatus, values_callable=lambda obj: [e.value for e in obj]), default=TransactionStatus.PENDING)
     transaction_date = Column(DateTime(timezone=True), nullable=False)
     description = Column(Text, nullable=True)
     amount = Column(Numeric(precision=19, scale=4), nullable=True) # Denormalized for convenience
@@ -125,7 +125,7 @@ class JournalEntry(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
     account_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=False)
-    type = Column(SQLEnum(EntryType), nullable=False)
+    type = Column(SQLEnum(EntryType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
     description = Column(Text, nullable=True)
@@ -163,7 +163,7 @@ class Entity(Base):
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     address = Column(Text, nullable=True)
-    type = Column(SQLEnum(EntityType), nullable=False)
+    type = Column(SQLEnum(EntityType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     tax_id = Column(String, nullable=True) # e.g. TIN, VAT
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -184,7 +184,7 @@ class Bill(Base):
     due_date = Column(DateTime(timezone=True), nullable=False)
     amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
-    status = Column(SQLEnum(BillStatus), default=BillStatus.DRAFT)
+    status = Column(SQLEnum(BillStatus, values_callable=lambda obj: [e.value for e in obj]), default=BillStatus.DRAFT)
     description = Column(Text, nullable=True)
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True) # Linked ledger tx
     
@@ -211,7 +211,7 @@ class Invoice(Base):
     due_date = Column(DateTime(timezone=True), nullable=False)
     amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
-    status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
+    status = Column(SQLEnum(InvoiceStatus, values_callable=lambda obj: [e.value for e in obj]), default=InvoiceStatus.DRAFT)
     description = Column(Text, nullable=True)
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True) # Linked ledger tx
     metadata_json = Column(JSON, nullable=True) # Additional invoice metadata (line items, billing details, etc.)

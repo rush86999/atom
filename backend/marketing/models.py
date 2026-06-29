@@ -33,7 +33,7 @@ class MarketingChannel(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     name = Column(String, nullable=False) # e.g., "Google Ads", "LinkedIn Ads"
-    type = Column(SQLEnum(ChannelType), nullable=False)
+    type = Column(SQLEnum(ChannelType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     status = Column(String, default="active")
     
     metadata_json = Column(JSON, nullable=True)

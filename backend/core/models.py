@@ -5219,7 +5219,7 @@ class MarketingChannel(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
-    type = Column(SQLEnum(ChannelType), nullable=False)
+    type = Column(SQLEnum(ChannelType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     status = Column(String, default="active")
     
     metadata_json = Column(JSONColumn, nullable=True)
@@ -9001,11 +9001,11 @@ class UserActivity(Base):
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     
     # State tracking
-    state = Column(SQLEnum(UserState, name='userstate'), nullable=False, default=UserState.OFFLINE)
+    state = Column(SQLEnum(UserState, name='userstate', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=UserState.OFFLINE)
     last_activity_at = Column(DateTime(timezone=True), nullable=False)
     
     # Manual override (optional)
-    manual_state = Column(SQLEnum(UserState, name='userstate_manual'), nullable=True)
+    manual_state = Column(SQLEnum(UserState, name='userstate_manual', values_callable=lambda obj: [e.value for e in obj]), nullable=True)
     manual_state_expiry = Column(DateTime(timezone=True), nullable=True)
     
     # Timestamps
@@ -9104,7 +9104,7 @@ class SupervisedExecutionQueue(Base):
     priority = Column(Integer, nullable=False, default=0)
     
     # Status tracking
-    status = Column(SQLEnum(QueueStatus, name='queuestatus'), nullable=False, default=QueueStatus.PENDING)
+    status = Column(SQLEnum(QueueStatus, name='queuestatus', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=QueueStatus.PENDING)
     attempts = Column(Integer, nullable=False, default=0)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)
     last_error = Column(Text, nullable=True)

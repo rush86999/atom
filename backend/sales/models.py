@@ -51,7 +51,7 @@ class Lead(Base):
     last_name = Column(String, nullable=True)
     company = Column(String, nullable=True)
     source = Column(String, nullable=True) # Website, LinkedIn, etc.
-    status = Column(SQLEnum(LeadStatus), default=LeadStatus.NEW)
+    status = Column(SQLEnum(LeadStatus, values_callable=lambda obj: [e.value for e in obj]), default=LeadStatus.NEW)
 
     # AI Enrichment
     ai_score = Column(Float, default=0.0)
@@ -82,14 +82,14 @@ class Deal(Base):
     name = Column(String, nullable=False)
     value = Column(Float, default=0.0)
     currency = Column(String, default="USD")
-    stage = Column(SQLEnum(DealStage), default=DealStage.DISCOVERY)
+    stage = Column(SQLEnum(DealStage, values_callable=lambda obj: [e.value for e in obj]), default=DealStage.DISCOVERY)
     probability = Column(Float, default=0.0)
 
     # Intelligence
     health_score = Column(Float, default=0.0) # 0 to 100
     risk_level = Column(String, default="low") # low, medium, high
     last_engagement_at = Column(DateTime(timezone=True), nullable=True)
-    negotiation_state = Column(SQLEnum(NegotiationState), default=NegotiationState.INITIAL)
+    negotiation_state = Column(SQLEnum(NegotiationState, values_callable=lambda obj: [e.value for e in obj]), default=NegotiationState.INITIAL)
     last_followup_at = Column(DateTime(timezone=True), nullable=True)
     followup_count = Column(Integer, default=0)
 
@@ -113,7 +113,7 @@ class CommissionEntry(Base):
     payee_id = Column(String, nullable=True) # User/Rep ID
     amount = Column(Float, nullable=False)
     currency = Column(String, default="USD")
-    status = Column(SQLEnum(CommissionStatus), default=CommissionStatus.ACCRUED)
+    status = Column(SQLEnum(CommissionStatus, values_callable=lambda obj: [e.value for e in obj]), default=CommissionStatus.ACCRUED)
 
     calculated_at = Column(DateTime(timezone=True), server_default=func.now())
     paid_at = Column(DateTime(timezone=True), nullable=True)

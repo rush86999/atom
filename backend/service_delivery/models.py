@@ -63,7 +63,7 @@ class Contract(Base):
     # Link to Deal is crucial for Deal -> Contract automation
 
     name = Column(String, nullable=False)
-    type = Column(SQLEnum(ContractType), default=ContractType.FIXED_FEE)
+    type = Column(SQLEnum(ContractType, values_callable=lambda obj: [e.value for e in obj]), default=ContractType.FIXED_FEE)
     total_amount = Column(Float, default=0.0)
     currency = Column(String, default="USD")
 
@@ -87,7 +87,7 @@ class Project(Base):
     contract_id = Column(String, ForeignKey("service_contracts.id"), nullable=True)
 
     name = Column(String, nullable=False)
-    status = Column(SQLEnum(ProjectStatus), default=ProjectStatus.PENDING)
+    status = Column(SQLEnum(ProjectStatus, values_callable=lambda obj: [e.value for e in obj]), default=ProjectStatus.PENDING)
 
     description = Column(Text, nullable=True)
 
@@ -96,7 +96,7 @@ class Project(Base):
     actual_hours = Column(Float, default=0.0)
     budget_amount = Column(Float, default=0.0) # Total financial budget
     actual_burn = Column(Float, default=0.0) # Total costs (labor + expenses)
-    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
+    budget_status = Column(SQLEnum(BudgetStatus, values_callable=lambda obj: [e.value for e in obj]), default=BudgetStatus.ON_TRACK)
 
     # Budget Guardrail Thresholds (per-project configuration)
     # Different projects can have different thresholds based on risk tolerance
@@ -137,12 +137,12 @@ class Milestone(Base):
     amount = Column(Float, default=0.0) # Billing amount
     percentage = Column(Float, default=0.0) # % of contract
 
-    status = Column(SQLEnum(MilestoneStatus), default=MilestoneStatus.PENDING)
+    status = Column(SQLEnum(MilestoneStatus, values_callable=lambda obj: [e.value for e in obj]), default=MilestoneStatus.PENDING)
     order = Column(Integer, default=0) # For sequential tracking
 
     # Financial Controls
     actual_burn = Column(Float, default=0.0)
-    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
+    budget_status = Column(SQLEnum(BudgetStatus, values_callable=lambda obj: [e.value for e in obj]), default=BudgetStatus.ON_TRACK)
 
     planned_start_date = Column(DateTime(timezone=True), nullable=True)
     due_date = Column(DateTime(timezone=True), nullable=True)
@@ -196,7 +196,7 @@ class Appointment(Base):
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)
 
-    status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.SCHEDULED)
+    status = Column(SQLEnum(AppointmentStatus, values_callable=lambda obj: [e.value for e in obj]), default=AppointmentStatus.SCHEDULED)
 
     deposit_amount = Column(Float, default=0.0)
     is_deposit_paid = Column(Boolean, default=False)
