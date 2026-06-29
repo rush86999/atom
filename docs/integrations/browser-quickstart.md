@@ -140,6 +140,38 @@ with SessionLocal() as db:
         print(f"Agent created session: {session['session_id']}")
 ```
 
+### Pre-Action Match-Confidence (June 2026)
+
+Every `browser_click`, `browser_fill_form`, and `browser_extract_text` call
+returns a `match_confidence` block describing how certain Playwright was
+about the selector resolution:
+
+```python
+result = await browser_click(
+    session_id=session_id,
+    selector="button.submit",
+    user_id="user-1",
+    agent_id="intern-agent-1",  # optional — enables proposal gating
+    db=db,
+)
+# result["match_confidence"] == {
+#     "level": "high" | "partial" | "ambiguous",
+#     "score": 0.70,
+#     "rationale": "2 matches (-0.30); text-only (-0.15)",
+#     "candidates": [...],
+#     "chosen_index": 0,
+# }
+```
+
+When `MATCH_CONFIDENCE_FORCE_PROPOSAL=true` (env flag, default `false` =
+shadow mode) and `level` is `partial` or `ambiguous`, the action is routed
+through `ProposalService.create_action_proposal` instead of executing —
+the return dict then contains `{requires_approval: True, proposal_id: ...}`.
+This applies to ALL agent tiers, including AUTONOMOUS. See
+**[Match-Confidence Layer](../architecture/MATCH_CONFIDENCE.md)** and
+**[Thresholds Tuning](../architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md)**.
+```
+
 ### Governance Checks
 
 ```python

@@ -16,6 +16,10 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 
 **Key Addition**: [Arbor Framework](ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement (HTR) for LLM code generation and workflow optimization
 
+**Additional (June 2026)**:
+- **[Pre-Action Match-Confidence Layer](MATCH_CONFIDENCE.md)** — selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state. Gates ambiguous/partial matches through `ProposalService` for ALL tiers, including AUTONOMOUS. Shadow mode default.
+- **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** — tuning one-pager (env vars, score curve, per-agent opt-out)
+
 ---
 
 ## Architecture Overview

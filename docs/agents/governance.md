@@ -130,6 +130,33 @@ AUTONOMOUS agent has every Level-4 action available to it on every call.
 Bounding blast radius is the job of the sandbox layer, not the complexity
 table.
 
+### Pre-Action Match-Confidence Gating (June 2026)
+
+The maturity system above routes actions by an agent's **historical** clean
+executions. It does not look at **current-call certainty**. A prompt-injected
+AUTONOMOUS agent at 0.95 confidence can still click an ambiguous selector
+directly — maturity gating alone can't catch that.
+
+The **[Pre-Action Match-Confidence Layer](../architecture/MATCH_CONFIDENCE.md)**
+is a complementary gate that runs at action time, not graduation time:
+
+- `browser_click` / `browser_fill_form` resolve the selector via
+  `page.locator()` and score it: `high` / `partial` / `ambiguous`.
+- When `MATCH_CONFIDENCE_FORCE_PROPOSAL=true` AND level ∈ {partial, ambiguous},
+  the action routes through `ProposalService.create_action_proposal` instead
+  of executing — **including for AUTONOMOUS-tier agents**.
+- Shadow mode is the default (`FORCE_PROPOSAL=false`): computation and audit
+  always on, gating off. See the rollout plan in
+  **[MATCH_CONFIDENCE.md § Rollout](../architecture/MATCH_CONFIDENCE.md#rollout-plan)**.
+
+Per-agent opt-out column on `AgentRegistry.match_confidence_gating_enabled`
+(migration `20260628_add_match_confidence_gating_flag`) — `NULL` falls
+through to the global flag, `TRUE`/`FALSE` overrides per row.
+
+**Same caveat applies**: match-confidence is not a sandbox. An action that
+resolves `high` still executes directly with full tier scope. See
+[`docs/security/TRUST_VS_SANDBOX.md`](../security/TRUST_VS_SANDBOX.md).
+
 ---
 
 ## Governance Checks

@@ -367,7 +367,13 @@ backend/
 │   ├── database_manager.py          # Database operations
 │   ├── lancedb_handler.py           # Vector database operations
 │   ├── auth_service.py              # Authentication service
-│   └── crypto.py                    # Encryption utilities
+│   ├── crypto.py                    # Encryption utilities
+│   ├── selector_confidence_service.py  # ✨ Pre-action selector scorer (high/partial/ambiguous)
+│   └── llm/match_confidence_tiebreaker.py  # ✨ LLM tiebreaker for partial band + circuit breaker
+│
+├── 🛡️ Verification & Governance (see docs/architecture/MATCH_CONFIDENCE.md)
+│   ├── tool_outcome_verifier.py     # Post-action tri-state (verified/unverified/failed)
+│   └── selector_confidence_service.py  # Pre-action tri-state (high/partial/ambiguous)
 │
 ├── 🔗 Integration Services (`integrations/`)
 │   ├── airtable_service.py          # Airtable integration

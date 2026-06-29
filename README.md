@@ -215,6 +215,7 @@ Recursive knowledge retrieval via BFS traversal, canonical anchoring to database
 - Browser automation via CDP (scraping, form filling)
 - Device control (camera, location, notifications)
 - Maturity-governed for security
+- **Pre-action match-confidence** ✨ — selectors scored `high/partial/ambiguous` before clicking; partial/ambiguous route through human review even for AUTONOMOUS agents. See [Match-Confidence Layer](docs/architecture/MATCH_CONFIDENCE.md)
 
 ---
 

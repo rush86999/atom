@@ -745,3 +745,4 @@ const unsubscribe = window.atom.canvas.subscribeAll((event) => {
 - [Agent Guidance System](../agents/guidance-system.md) - Real-time agent monitoring
 - [Episodic Memory Integration](../intelligence/episodic-memory.md) - Agent learning system
 - [Canvas AI Accessibility](../canvas/ai-accessibility.md) - AI-readable canvas state
+- [Pre-Action Match-Confidence Layer](../architecture/MATCH_CONFIDENCE.md) - Reviewer UI uses canvas state hooks (`useCanvasState.getMatchConfidence`); surfaces selector certainty before browser clicks (June 2026)

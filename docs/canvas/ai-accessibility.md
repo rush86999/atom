@@ -479,12 +479,37 @@ if needs_more_context:
 
 ---
 
+## Pre-Action Match-Confidence (companion layer, June 2026)
+
+This document covers how canvas exposes **structure** to agents. A common
+critique: structure ≠ **uncertainty**. When an agent clicks a field that
+moved or matched multiple elements, the canvas-state layer had no way to
+say *"I think this is the target because…"* before acting.
+
+Atom now has a companion layer for exactly that — the **Pre-Action
+Match-Confidence Layer** runs before any `browser_click` / `browser_fill_form`
+call and surfaces a `{level, score, rationale, candidates}` block on the
+tool result. When certainty is low (`partial` / `ambiguous`), the action
+routes through human review via `ProposalService` — including for
+AUTONOMOUS-tier agents.
+
+The reviewer UI for these proposals lives at
+`frontend-nextjs/components/canvas/MatchConfidenceReviewer.tsx` and uses
+the same canvas state hooks (`useCanvasState.getMatchConfidence(opId)`)
+documented above.
+
+**[→ Match-Confidence Layer design doc](../architecture/MATCH_CONFIDENCE.md)**
+| **[→ Thresholds tuning guide](../architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md)**
+
+---
+
 ## See Also
 
 - [Canvas State API Documentation](/docs/CANVAS_STATE_API.md)
 - [Episodic Memory Implementation](/docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
 - [Agent Guidance System](/docs/AGENT_GUIDANCE_IMPLEMENTATION.md)
 - [Phase 20 Summary](/.planning/phases/20-canvas-ai-context/20-PHASE-SUMMARY.md)
+- [Pre-Action Match-Confidence Layer](../architecture/MATCH_CONFIDENCE.md) — pre-action certainty companion to canvas structure (June 2026)
 
 ---
 

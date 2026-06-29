@@ -434,6 +434,7 @@ def test_console_errors_on_dashboard(authenticated_page: Page):
 - **pytest-playwright Plugin**: https://pytest-playwright.readthedocs.io/
 - **Factory Boy**: https://factoryboy.readthedocs.io/
 - **pytest-xdist**: https://pytest-xdist.readthedocs.io/
+- **Production browser_tool match-confidence** ([docs](../../../docs/architecture/MATCH_CONFIDENCE.md)): E2E tests call Playwright directly and bypass the production `browser_click` / `browser_fill_form` confidence-gating layer. When writing tests that exercise the proposal/gating flow via the API, see `backend/tests/test_match_confidence_proposal_gating.py` for patterns.
 
 ## Comprehensive Guide
 
