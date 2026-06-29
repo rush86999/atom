@@ -253,8 +253,8 @@ class TestSessionCreation:
         db_session.refresh(proposal)
         assert proposal.status == ProposalStatus.APPROVED.value
         assert proposal.approved_by == "test_user"
-        assert proposal.training_start_date is not None
-        assert proposal.training_end_date is not None
+        assert datetime.fromisoformat(proposal.proposal_data["training_start_date"]) is not None
+        assert datetime.fromisoformat(proposal.proposal_data["training_end_date"]) is not None
 
     @pytest.mark.asyncio
     async def test_approve_training_with_user_modifications(self, db_session: Session):
@@ -305,12 +305,12 @@ class TestSessionCreation:
         # Assert
         assert session is not None
         db_session.refresh(proposal)
-        assert proposal.user_override_duration_hours == 20.0
-        assert proposal.hours_per_day_limit == 4.0
+        assert proposal.proposal_data.get("user_override_duration_hours") == 20.0
+        assert proposal.proposal_data.get("hours_per_day_limit") == 4.0
 
         # Check end date calculation: 20 hours / 4 hours per day = 5 days
         expected_duration_days = 20.0 / 4.0
-        actual_duration_days = (proposal.training_end_date - proposal.training_start_date).days
+        actual_duration_days = (datetime.fromisoformat(proposal.proposal_data["training_end_date"]) - datetime.fromisoformat(proposal.proposal_data["training_start_date"])).days
         assert abs(actual_duration_days - expected_duration_days) <= 1  # Allow 1 day variance
 
     @pytest.mark.asyncio
@@ -872,9 +872,9 @@ class TestCreateTrainingProposal:
         assert proposal.agent_id == agent.id
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.proposal_type == ProposalType.WORKFLOW.value
-        assert proposal.estimated_duration_hours > 0
-        assert len(proposal.capability_gaps) > 0
-        assert len(proposal.learning_objectives) > 0
+        assert proposal.proposal_data.get("estimated_duration_hours", 0) > 0
+        assert len(proposal.proposal_data.get("capability_gaps", [])) > 0
+        assert len(proposal.proposal_data.get("learning_objectives", [])) > 0
         assert "agent_message" in proposal.description
         assert blocked_trigger.proposal_id == proposal.id
 
@@ -918,7 +918,7 @@ class TestCreateTrainingProposal:
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert "workflow_trigger" in proposal.description
         # Should include workflow-specific gaps
-        assert any("workflow" in gap.lower() for gap in proposal.capability_gaps)
+        assert any("workflow" in gap.lower() for gap in proposal.proposal_data.get("capability_gaps", []))
 
     @pytest.mark.asyncio
     async def test_proposal_created_for_form_submit_trigger(self, db_session: Session):
@@ -959,7 +959,7 @@ class TestCreateTrainingProposal:
         assert proposal.agent_id == agent.id
         assert "form_submit" in proposal.description
         # Should include form-specific gaps
-        assert any("form" in gap.lower() for gap in proposal.capability_gaps)
+        assert any("form" in gap.lower() for gap in proposal.proposal_data.get("capability_gaps", []))
 
     @pytest.mark.asyncio
     async def test_proposal_created_for_canvas_update_trigger(self, db_session: Session):
@@ -1001,7 +1001,7 @@ class TestCreateTrainingProposal:
         assert "canvas_update" in proposal.description
         # Should include canvas-specific gaps
         assert any("visualization" in gap.lower() or "presentation" in gap.lower()
-                   for gap in proposal.capability_gaps)
+                   for gap in proposal.proposal_data.get("capability_gaps", []))
 
     @pytest.mark.asyncio
     async def test_capability_gaps_include_finance_category(self, db_session: Session):
@@ -1040,7 +1040,7 @@ class TestCreateTrainingProposal:
 
         # Assert
         # Should include Finance-specific gaps
-        assert any("financial" in gap.lower() for gap in proposal.capability_gaps)
+        assert any("financial" in gap.lower() for gap in proposal.proposal_data.get("capability_gaps", []))
 
     @pytest.mark.asyncio
     async def test_capability_gaps_include_sales_category(self, db_session: Session):
@@ -1080,7 +1080,7 @@ class TestCreateTrainingProposal:
         # Assert
         # Should include Sales-specific gaps
         assert any("crm" in gap.lower() or "sales" in gap.lower()
-                   for gap in proposal.capability_gaps)
+                   for gap in proposal.proposal_data.get("capability_gaps", []))
 
     @pytest.mark.asyncio
     async def test_learning_objectives_include_base_objectives(self, db_session: Session):
@@ -1119,13 +1119,13 @@ class TestCreateTrainingProposal:
 
         # Assert
         # Should include base objectives for trigger type
-        assert any("workflow_trigger" in obj for obj in proposal.learning_objectives)
+        assert any("workflow_trigger" in obj for obj in proposal.proposal_data.get("learning_objectives", []))
         # Should include reliable task completion objective
         assert any("reliable task completion" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
         # Should include decision-making objective
         assert any("decision-making" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_learning_objectives_include_capability_specific(self, db_session: Session):
@@ -1164,7 +1164,7 @@ class TestCreateTrainingProposal:
 
         # Assert
         # Should include capability-specific objectives (max 5 gaps)
-        capability_objectives = [obj for obj in proposal.learning_objectives
+        capability_objectives = [obj for obj in proposal.proposal_data.get("learning_objectives", [])
                                  if "proficiency in" in obj.lower()]
         assert len(capability_objectives) > 0
         # Max 5 capability gaps
@@ -1207,7 +1207,7 @@ class TestCreateTrainingProposal:
 
         # Assert
         # Should use Finance scenario template
-        assert proposal.training_scenario_template == "Finance Fundamentals"
+        assert proposal.proposal_data.get("training_scenario_template") == "Finance Fundamentals"
         assert "Finance Fundamentals" in proposal.title
 
     @pytest.mark.asyncio
@@ -1247,11 +1247,11 @@ class TestCreateTrainingProposal:
 
         # Assert
         # Duration estimation should be called
-        assert proposal.estimated_duration_hours > 0
-        assert proposal.duration_estimation_confidence >= 0
-        assert proposal.duration_estimation_reasoning is not None
+        assert proposal.proposal_data.get("estimated_duration_hours", 0) > 0
+        assert proposal.proposal_data.get("duration_estimation_confidence", 0) >= 0
+        assert proposal.proposal_data.get("duration_estimation_reasoning") is not None
         # Target maturity should be INTERN
-        assert "0.5" in proposal.duration_estimation_reasoning or "INTERN" in proposal.duration_estimation_reasoning
+        assert "0.5" in proposal.proposal_data.get("duration_estimation_reasoning") or "INTERN" in proposal.proposal_data.get("duration_estimation_reasoning")
 
 
 class TestProposalGenerationEdgeCases:
@@ -1320,7 +1320,7 @@ class TestProposalGenerationEdgeCases:
         # Assert
         # Should still create proposal with empty or minimal gaps
         assert proposal is not None
-        assert proposal.capability_gaps is not None
+        assert proposal.proposal_data.get("capability_gaps", []) is not None
 
     @pytest.mark.asyncio
     async def test_proposal_with_empty_trigger_context_uses_default_scenario(self, db_session: Session):
@@ -1359,7 +1359,7 @@ class TestProposalGenerationEdgeCases:
 
         # Assert
         # Should use default scenario
-        assert proposal.training_scenario_template == "General Operations"
+        assert proposal.proposal_data.get("training_scenario_template") == "General Operations"
 
     @pytest.mark.asyncio
     async def test_deduplication_of_capability_gaps(self, db_session: Session):
@@ -1398,7 +1398,7 @@ class TestProposalGenerationEdgeCases:
 
         # Assert
         # Should not have duplicate gaps
-        assert len(proposal.capability_gaps) == len(set(proposal.capability_gaps))
+        assert len(proposal.proposal_data.get("capability_gaps", [])) == len(set(proposal.proposal_data.get("capability_gaps", [])))
 
     @pytest.mark.asyncio
     async def test_proposal_title_includes_scenario_template_name(self, db_session: Session):
@@ -1530,7 +1530,7 @@ class TestApprovalWithModifications:
 
         # Assert
         db_session.refresh(proposal)
-        assert proposal.user_override_duration_hours == 50.0
+        assert proposal.proposal_data.get("user_override_duration_hours") == 50.0
 
     @pytest.mark.asyncio
     async def test_hours_per_day_limit_applied(self, db_session: Session):
@@ -1575,7 +1575,7 @@ class TestApprovalWithModifications:
 
         # Assert
         db_session.refresh(proposal)
-        assert proposal.hours_per_day_limit == 6.0
+        assert proposal.proposal_data.get("hours_per_day_limit") == 6.0
 
     @pytest.mark.asyncio
     async def test_training_end_date_calculated_with_custom_hours_per_day(self, db_session: Session):
@@ -1624,7 +1624,7 @@ class TestApprovalWithModifications:
         # Assert
         db_session.refresh(proposal)
         expected_days = 40.0 / 5.0  # 8 days
-        actual_days = (proposal.training_end_date - proposal.training_start_date).days
+        actual_days = (datetime.fromisoformat(proposal.proposal_data["training_end_date"]) - datetime.fromisoformat(proposal.proposal_data["training_start_date"])).days
         assert abs(actual_days - expected_days) <= 1  # Allow 1 day variance
 
     @pytest.mark.asyncio
@@ -1660,7 +1660,7 @@ class TestApprovalWithModifications:
         db_session.commit()
 
         proposal = await service.create_training_proposal(blocked_trigger)
-        original_duration = proposal.estimated_duration_hours
+        original_duration = proposal.proposal_data.get("estimated_duration_hours", 0)
 
         # Act - Approve without custom hours per day
         session = await service.approve_training(
@@ -1671,10 +1671,10 @@ class TestApprovalWithModifications:
 
         # Assert
         db_session.refresh(proposal)
-        assert proposal.hours_per_day_limit is None  # Should remain None
+        assert proposal.proposal_data.get("hours_per_day_limit") is None  # Should remain None
         # Should use default 8 hours/day
         expected_days = original_duration / 8.0
-        actual_days = (proposal.training_end_date - proposal.training_start_date).days
+        actual_days = (datetime.fromisoformat(proposal.proposal_data["training_end_date"]) - datetime.fromisoformat(proposal.proposal_data["training_start_date"])).days
         assert abs(actual_days - expected_days) <= 1
 
     @pytest.mark.asyncio
@@ -1813,8 +1813,8 @@ class TestApprovalWithModifications:
 
         # Assert
         db_session.refresh(proposal)
-        assert proposal.training_start_date is not None
-        assert before_approval <= proposal.training_start_date <= datetime.now()
+        assert datetime.fromisoformat(proposal.proposal_data["training_start_date"]) is not None
+        assert before_approval <= datetime.fromisoformat(proposal.proposal_data["training_start_date"]) <= datetime.now()
 
     @pytest.mark.asyncio
     async def test_training_session_created_with_correct_total_tasks(self, db_session: Session):
@@ -1849,7 +1849,7 @@ class TestApprovalWithModifications:
         db_session.commit()
 
         proposal = await service.create_training_proposal(blocked_trigger)
-        expected_tasks = len(proposal.learning_objectives)
+        expected_tasks = len(proposal.proposal_data.get("learning_objectives", []))
 
         # Act
         session = await service.approve_training(
@@ -3900,7 +3900,7 @@ class TestTrainingHistoryDetailed:
 
         proposal = await service.create_training_proposal(blocked_trigger)
         await service.approve_training(proposal.id, "test_user", None)
-        expected_gaps = proposal.capability_gaps
+        expected_gaps = proposal.proposal_data.get("capability_gaps", [])
 
         # Act
         history = await service.get_training_history(agent_id=agent.id, limit=10)
@@ -4077,7 +4077,7 @@ class TestLearningObjectivesGeneration:
 
         # Assert
         # Should include trigger type execution flow objective
-        assert any("workflow_trigger" in obj for obj in proposal.learning_objectives)
+        assert any("workflow_trigger" in obj for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_base_objectives_include_reliable_task_completion_objective(self, db_session: Session):
@@ -4116,7 +4116,7 @@ class TestLearningObjectivesGeneration:
 
         # Assert
         assert any("reliable task completion" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_base_objectives_include_decision_making_objective(self, db_session: Session):
@@ -4155,7 +4155,7 @@ class TestLearningObjectivesGeneration:
 
         # Assert
         assert any("decision-making" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_capability_specific_objectives_added_max_5_gaps(self, db_session: Session):
@@ -4193,7 +4193,7 @@ class TestLearningObjectivesGeneration:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert - Should have capability-specific objectives (max 5)
-        capability_objectives = [obj for obj in proposal.learning_objectives
+        capability_objectives = [obj for obj in proposal.proposal_data.get("learning_objectives", [])
                                  if "proficiency in" in obj.lower()]
         assert len(capability_objectives) > 0
         assert len(capability_objectives) <= 5
@@ -4235,7 +4235,7 @@ class TestLearningObjectivesGeneration:
 
         # Assert - Should include Finance-specific objectives
         assert any("financial" in obj.lower() or "process financial data" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_category_specific_objectives_added_sales(self, db_session: Session):
@@ -4274,7 +4274,7 @@ class TestLearningObjectivesGeneration:
 
         # Assert - Should include Sales-specific objectives
         assert any("crm" in obj.lower() or "sales process" in obj.lower()
-                   for obj in proposal.learning_objectives)
+                   for obj in proposal.proposal_data.get("learning_objectives", []))
 
     @pytest.mark.asyncio
     async def test_objectives_deduplicated(self, db_session: Session):
@@ -4312,7 +4312,7 @@ class TestLearningObjectivesGeneration:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert - No duplicates
-        assert len(proposal.learning_objectives) == len(set(proposal.learning_objectives))
+        assert len(proposal.proposal_data.get("learning_objectives", [])) == len(set(proposal.proposal_data.get("learning_objectives", [])))
 
 
 class TestScenarioTemplateSelection:
@@ -4354,7 +4354,7 @@ class TestScenarioTemplateSelection:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert
-        assert proposal.training_scenario_template == "Finance Fundamentals"
+        assert proposal.proposal_data.get("training_scenario_template") == "Finance Fundamentals"
 
     @pytest.mark.asyncio
     async def test_sales_category_returns_sales_operations(self, db_session: Session):
@@ -4392,7 +4392,7 @@ class TestScenarioTemplateSelection:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert
-        assert proposal.training_scenario_template == "Sales Operations"
+        assert proposal.proposal_data.get("training_scenario_template") == "Sales Operations"
 
     @pytest.mark.asyncio
     async def test_operations_category_returns_process_automation(self, db_session: Session):
@@ -4430,7 +4430,7 @@ class TestScenarioTemplateSelection:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert
-        assert proposal.training_scenario_template == "Process Automation"
+        assert proposal.proposal_data.get("training_scenario_template") == "Process Automation"
 
     @pytest.mark.asyncio
     async def test_unknown_category_returns_general_operations(self, db_session: Session):
@@ -4468,4 +4468,4 @@ class TestScenarioTemplateSelection:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert
-        assert proposal.training_scenario_template == "General Operations"
+        assert proposal.proposal_data.get("training_scenario_template") == "General Operations"

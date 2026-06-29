@@ -221,16 +221,15 @@ class TestTrainingSessionLifecycle:
             "learning_objectives": ["Learn task execution"],
             "capability_gaps": ["task_execution"],
             "estimated_duration_hours": 40.0,
-            "duration_estimation_confidence": 0.8
+            "duration_estimation_confidence": 0.8,
+            # Service writes override/limit keys here on approval; seeded as
+            # absent so the service adds them via dict mutation.
         }
         proposal.status = "pending_approval"  # Service expects this from ProposalStatus enum
         proposal.user_id = "user-001"
         proposal.tenant_id = "tenant-001"
         proposal.approved_by = None
         proposal.approver_id = None
-        # Allow dynamic attribute assignment for modifications
-        proposal.user_override_duration_hours = None
-        proposal.hours_per_day_limit = None
         return proposal
 
     @pytest.mark.asyncio

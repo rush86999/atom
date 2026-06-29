@@ -92,11 +92,15 @@ def training_proposal(db: Session, mock_agent: AgentRegistry):
         description="Test training proposal",
         proposal_type=ProposalType.WORKFLOW.value,
         status=ProposalStatus.PENDING_APPROVAL.value,
-        capability_gaps=["gap1", "gap2"],
-        learning_objectives=["obj1", "obj2"],
-        estimated_duration_hours=10.0,
-        duration_estimation_confidence=0.8,
-        proposed_by="system"
+        user_id="system",
+        tenant_id="default",
+        proposal_data={
+            "capability_gaps": ["gap1", "gap2"],
+            "learning_objectives": ["obj1", "obj2"],
+            "estimated_duration_hours": 10.0,
+            "duration_estimation_confidence": 0.8,
+            "proposed_by": "system",
+        },
     )
     db.add(proposal)
     db.commit()
@@ -116,9 +120,13 @@ def action_proposal(db: Session, mock_agent: AgentRegistry):
         description="Test action proposal",
         proposal_type=ProposalType.ACTION.value,
         status=ProposalStatus.PENDING_APPROVAL.value,
-        proposed_action={"action": "test"},
-        reasoning="Test reasoning",
-        proposed_by="system"
+        user_id="system",
+        tenant_id="default",
+        proposal_data={
+            "proposed_action": {"action": "test"},
+            "reasoning": "Test reasoning",
+            "proposed_by": "system",
+        },
     )
     db.add(proposal)
     db.commit()

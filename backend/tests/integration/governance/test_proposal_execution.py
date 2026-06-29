@@ -72,7 +72,8 @@ class TestCanvasActionProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Submit Form Data",
             description="Submit user registration form",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "form_id": "registration_form",
@@ -83,9 +84,11 @@ class TestCanvasActionProposals:
                 },
                 "action": "submit"
             },
-            reasoning="Form submission requires INTERN+ maturity",
+                "reasoning": "Form submission requires INTERN+ maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -136,7 +139,8 @@ class TestCanvasActionProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Present Sales Chart",
             description="Display monthly sales data as line chart",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "chart",
                 "chart_type": "line",
@@ -145,9 +149,11 @@ class TestCanvasActionProposals:
                     "values": [100, 150, 200]
                 }
             },
-            reasoning="Chart presentation is LOW complexity (INTERN+)",
+                "reasoning": "Chart presentation is LOW complexity (INTERN+)",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -184,7 +190,8 @@ class TestCanvasActionProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Present Spreadsheet Data",
             description="Display financial data in spreadsheet format",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "sheets",
                 "data": {
@@ -195,9 +202,11 @@ class TestCanvasActionProposals:
                     ]
                 }
             },
-            reasoning="Sheet data presentation requires INTERN maturity",
+                "reasoning": "Sheet data presentation requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -238,7 +247,8 @@ class TestBrowserAutomationProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Navigate to Website",
             description="Navigate to example.com and extract data",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "browser_automate",
                 "url": "https://example.com",
                 "actions": [
@@ -246,9 +256,11 @@ class TestBrowserAutomationProposals:
                     {"type": "screenshot"}
                 ]
             },
-            reasoning="Browser automation requires INTERN+ maturity",
+                "reasoning": "Browser automation requires INTERN+ maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -294,7 +306,8 @@ class TestBrowserAutomationProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Fill and Submit Web Form",
             description="Automate form submission on external website",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "browser_automate",
                 "url": "https://example.com/form",
                 "actions": [
@@ -303,9 +316,11 @@ class TestBrowserAutomationProposals:
                     {"type": "click", "selector": "button[type='submit']"}
                 ]
             },
-            reasoning="Form automation requires INTERN maturity",
+                "reasoning": "Form automation requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -351,7 +366,8 @@ class TestDeviceCapabilityProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Capture Photo",
             description="Use device camera to capture document photo",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "device_command",
                 "device_type": "camera",
                 "command": "take_photo",
@@ -360,9 +376,11 @@ class TestDeviceCapabilityProposals:
                     "flash": "auto"
                 }
             },
-            reasoning="Camera access requires INTERN maturity",
+                "reasoning": "Camera access requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -400,7 +418,8 @@ class TestDeviceCapabilityProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Get Current Location",
             description="Retrieve device GPS location",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "device_command",
                 "device_type": "location",
                 "command": "get_location",
@@ -408,9 +427,11 @@ class TestDeviceCapabilityProposals:
                     "accuracy": "high"
                 }
             },
-            reasoning="Location access requires INTERN maturity",
+                "reasoning": "Location access requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -447,7 +468,8 @@ class TestDeviceCapabilityProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Send Notification",
             description="Send local notification to user",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "device_command",
                 "device_type": "notifications",
                 "command": "send",
@@ -456,9 +478,11 @@ class TestDeviceCapabilityProposals:
                     "body": "Your automated task has finished"
                 }
             },
-            reasoning="Sending notifications requires INTERN maturity",
+                "reasoning": "Sending notifications requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -499,7 +523,8 @@ class TestDeepLinkProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Open Agent via Deep Link",
             description="Open specific agent conversation",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://agent/sales_assistant",
@@ -508,9 +533,11 @@ class TestDeepLinkProposals:
                     "message": "Help me with sales data"
                 }
             },
-            reasoning="Deep link navigation requires INTERN maturity",
+                "reasoning": "Deep link navigation requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -546,7 +573,8 @@ class TestDeepLinkProposals:
             proposal_type=ProposalType.ACTION.value,
             title="Open Workflow via Deep Link",
             description="Navigate to workflow execution",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://workflow/monthly_report",
@@ -554,9 +582,11 @@ class TestDeepLinkProposals:
                     "auto_start": True
                 }
             },
-            reasoning="Workflow deep link requires INTERN maturity",
+                "reasoning": "Workflow deep link requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -597,7 +627,8 @@ class TestMultiStepComplexActions:
             proposal_type=ProposalType.ACTION.value,
             title="Extract Data and Visualize",
             description="Navigate to website, extract data, present as chart",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "browser_automate",  # Primary action type
                 "url": "https://example.com/data",
                 "actions": [
@@ -611,9 +642,11 @@ class TestMultiStepComplexActions:
                     }
                 ]
             },
-            reasoning="Multi-step workflow requires INTERN maturity",
+                "reasoning": "Multi-step workflow requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -658,7 +691,8 @@ class TestMultiStepComplexActions:
             proposal_type=ProposalType.ACTION.value,
             title="Conditional Action Workflow",
             description="Execute different actions based on conditions",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "conditional": {
@@ -683,9 +717,11 @@ class TestMultiStepComplexActions:
                     ]
                 }
             },
-            reasoning="Conditional workflow requires INTERN maturity",
+                "reasoning": "Conditional workflow requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -721,7 +757,8 @@ class TestMultiStepComplexActions:
             proposal_type=ProposalType.ACTION.value,
             title="Sequential Data Pipeline",
             description="Execute actions in sequence",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "sequence": [
@@ -745,9 +782,11 @@ class TestMultiStepComplexActions:
                     }
                 ]
             },
-            reasoning="Sequential pipeline requires INTERN maturity",
+                "reasoning": "Sequential pipeline requires INTERN maturity",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -788,13 +827,16 @@ class TestProposalExecutionErrors:
             proposal_type=ProposalType.ACTION.value,
             title="Failing Action",
             description="Action that will fail",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "browser_automate",
                 "url": "https://invalid-domain-that-does-not-exist.example"
             },
-            reasoning="Test error handling",
+                "reasoning": "Test error handling",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -830,12 +872,15 @@ class TestProposalExecutionErrors:
             proposal_type=ProposalType.ACTION.value,
             title="Unknown Action Type",
             description="Action with unsupported type",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "unsupported_action_type"
             },
-            reasoning="Test unknown type handling",
+                "reasoning": "Test unknown type handling",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()
@@ -871,12 +916,15 @@ class TestProposalExecutionErrors:
             proposal_type=ProposalType.ACTION.value,
             title="Skipped Action",
             description="Action should be skipped",
-            proposed_action={
+            proposal_data={
+                **{
                 "action_type": "canvas_present"
             },
-            reasoning="Test execution disabled",
+                "reasoning": "Test execution disabled",
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id
+            user_id=intern_agent.id,
+            tenant_id="default",
         )
         db_session.add(proposal)
         db_session.commit()

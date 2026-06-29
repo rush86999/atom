@@ -111,7 +111,7 @@ class TestTrainingProposalWorkflow:
         assert proposal.agent_id == agent.id
         assert proposal.proposal_type == ProposalType.WORKFLOW.value
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
-        assert proposal.estimated_duration_hours == 8.0
+        assert proposal.proposal_data.get("estimated_duration_hours") == 8.0
         assert blocked_trigger.proposal_id == proposal.id
 
     @pytest.mark.asyncio
@@ -174,8 +174,8 @@ class TestTrainingProposalWorkflow:
 
         # Assert
         assert proposal is not None
-        assert proposal.capability_gaps is not None
-        assert len(proposal.capability_gaps) > 0
+        assert proposal.proposal_data.get("capability_gaps") is not None
+        assert len(proposal.proposal_data.get("capability_gaps", [])) > 0
 
     @pytest.mark.asyncio
     async def test_proposal_with_estimated_duration(self, db_session: Session):
@@ -236,9 +236,9 @@ class TestTrainingProposalWorkflow:
         proposal = await service.create_training_proposal(blocked_trigger)
 
         # Assert
-        assert proposal.estimated_duration_hours == 6.5
-        assert proposal.duration_estimation_confidence == 0.90
-        assert proposal.duration_estimation_reasoning == expected_estimate.reasoning
+        assert proposal.proposal_data.get("estimated_duration_hours") == 6.5
+        assert proposal.proposal_data.get("duration_estimation_confidence") == 0.90
+        assert proposal.proposal_data.get("duration_estimation_reasoning") == expected_estimate.reasoning
 
     @pytest.mark.asyncio
     async def test_proposal_approval_by_admin(self, db_session: Session):
@@ -276,9 +276,11 @@ class TestTrainingProposalWorkflow:
             user_id=user.id,
             agent_id=agent.id,
             proposal_type=ProposalType.WORKFLOW.value,
-            proposal_data={"training_modules": ["basics"]},
+            proposal_data={
+                "training_modules": ["basics"],
+                "estimated_duration_hours": 8.0,
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            estimated_duration_hours=8.0,
         )
         db_session.add(proposal)
         db_session.commit()
@@ -447,7 +449,7 @@ class TestTrainingProposalWorkflow:
 
         # Assert - Should still create proposal with defaults
         assert proposal is not None
-        assert proposal.estimated_duration_hours == 4.0
+        assert proposal.proposal_data.get("estimated_duration_hours") == 4.0
 
     @pytest.mark.asyncio
     async def test_concurrent_training_proposals(self, db_session: Session):
@@ -678,9 +680,11 @@ class TestTrainingDurationEstimation:
             user_id=user.id,
             agent_id=agent.id,
             proposal_type=ProposalType.WORKFLOW.value,
-            proposal_data={"training_modules": ["basics"]},
+            proposal_data={
+                "training_modules": ["basics"],
+                "estimated_duration_hours": 8.0,
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            estimated_duration_hours=8.0,
         )
         db_session.add(proposal)
         db_session.commit()
@@ -979,9 +983,11 @@ class TestTrainingSessionManagement:
             user_id=user.id,
             agent_id=agent.id,
             proposal_type=ProposalType.WORKFLOW.value,
-            proposal_data={"training_modules": ["basics"]},
+            proposal_data={
+                "training_modules": ["basics"],
+                "estimated_duration_hours": 8.0,
+            },
             status=ProposalStatus.PENDING_APPROVAL.value,
-            estimated_duration_hours=8.0,
         )
         db_session.add(proposal)
         db_session.commit()

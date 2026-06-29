@@ -73,18 +73,19 @@ def sample_training_proposal():
     proposal.description = "Training for basic skills"
     proposal.proposal_type = ProposalType.WORKFLOW.value
     proposal.status = ProposalStatus.PENDING_APPROVAL.value
-    proposal.capability_gaps = ["skill1", "skill2"]
-    proposal.learning_objectives = ["objective1"]
-    proposal.estimated_duration_hours = 10
-    proposal.duration_estimation_confidence = 0.8
-    proposal.duration_estimation_reasoning = "Based on similar agents"
-    proposal.training_scenario_template = {}
-    proposal.proposed_by = "system"
+    # Training-proposal fields are folded into the canonical proposal_data JSON.
+    proposal.proposal_data = {
+        "capability_gaps": ["skill1", "skill2"],
+        "learning_objectives": ["objective1"],
+        "estimated_duration_hours": 10,
+        "duration_estimation_confidence": 0.8,
+        "duration_estimation_reasoning": "Based on similar agents",
+        "training_scenario_template": {},
+        "proposed_by": "system",
+    }
     proposal.approved_by = None
     proposal.approved_at = None
     proposal.modifications = None
-    proposal.training_start_date = None
-    proposal.training_end_date = None
     proposal.created_at = datetime.now()
     return proposal
 
@@ -103,10 +104,15 @@ def sample_action_proposal():
     proposal.description = "Proposed action for approval"
     proposal.proposal_type = ProposalType.ACTION.value
     proposal.status = ProposalStatus.PENDING_APPROVAL.value
-    proposal.proposed_action = {"action": "data_update"}
-    proposal.reasoning = "Needs approval for data modification"
+    # Action-proposal fields live in proposal_data JSON. ``proposed_action``
+    # and ``reasoning`` are read-only @property helpers derived from it, so we
+    # route them through proposal_data on the mock as well.
+    proposal.proposal_data = {
+        "proposed_action": {"action": "data_update"},
+        "reasoning": "Needs approval for data modification",
+        "proposed_by": "agent-intern-001",
+    }
     proposal.reversible = True
-    proposal.proposed_by = "agent-intern-001"
     proposal.approved_by = None
     proposal.approved_at = None
     proposal.modifications = None

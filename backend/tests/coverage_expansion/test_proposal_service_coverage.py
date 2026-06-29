@@ -160,7 +160,8 @@ class TestProposalServiceCoverage:
             status=ProposalStatus.APPROVED.value,  # Already approved
             proposal_type=ProposalType.ACTION.value,
             title="Test",
-            description="Test"
+            description="Test",
+            proposal_data={},
         )
         db_session.add(proposal)
         db_session.commit()
@@ -241,7 +242,7 @@ class TestProposalServiceCoverage:
             proposal_type=ProposalType.ACTION.value,
             title="Test",
             description="Test",
-            proposed_action={}
+            proposal_data={},
         )
         db_session.add(proposal)
         db_session.commit()
