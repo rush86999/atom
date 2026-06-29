@@ -47,14 +47,18 @@ from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.feature_flags import FeatureFlags
+from core.llm_service import get_llm_service
 from core.models import AgentExecution
+from core.proposal_service import ProposalService
 from core.selector_confidence_service import (
     AMBIGUOUS,
     HIGH,
     PARTIAL,
     MatchConfidence,
     SelectorCandidate,
+    MATCH_CONFIDENCE_FORCE_PROPOSAL,
     SELECTOR_CONFIDENCE_ENABLED,
+    attach_tiebreak,
     score_candidates,
 )
 from core.service_factory import ServiceFactory
@@ -256,6 +260,86 @@ def _write_browser_audit(
     except Exception as e:
         # Audit is best-effort; never break the action over an audit failure.
         logger.debug(f"BrowserAudit write skipped ({action}/{status}): {e}")
+
+
+async def _maybe_gate_with_proposal(
+    action: str,
+    selector: str,
+    confidence: MatchConfidence,
+    agent_id: Optional[str],
+    db: Optional[Session],
+    session_id: str,
+    user_id: Optional[str],
+    *,
+    extra_selectors: Optional[Dict[str, str]] = None,
+    override: bool = False,
+    per_field_confidence: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Route partial/ambiguous matches through ProposalService.
+
+    Returns None when the action should proceed (high confidence, shadow
+    mode, post-approval override, or no agent_id/db). Returns a
+    ``{requires_approval, proposal_id, match_confidence}`` dict when the
+    action should be gated.
+
+    Included for AUTONOMOUS agents — whose tier is routed by history, not
+    current-call certainty. See MATCH_CONFIDENCE.md § Phase 4.
+    """
+    if override:
+        return None
+    if confidence.level == HIGH:
+        return None
+    if not MATCH_CONFIDENCE_FORCE_PROPOSAL:
+        return None
+    if not agent_id or db is None:
+        return None
+
+    try:
+        # Build proposed_action with full candidate visibility for reviewer
+        proposed_action: Dict[str, Any] = {
+            "action_type": "browser_automate",
+            "action": action,
+            "selector": selector,
+            "selectors": extra_selectors or {},
+            "session_id": session_id,
+            "selector_candidates": [c.to_dict() if hasattr(c, "to_dict") else c.__dict__
+                                     for c in confidence.candidates],
+            "match_rationale": confidence.rationale,
+            "match_score": confidence.score,
+            "chosen_index": confidence.chosen_index,
+            "originating_tier": "match_confidence_gate",
+            "match_confidence_override": True,  # post-approval re-exec bypasses gate
+        }
+        if per_field_confidence is not None:
+            proposed_action["per_field_confidence"] = per_field_confidence
+
+        proposal = await ProposalService(db).create_action_proposal(
+            intern_agent_id=agent_id,
+            trigger_context={
+                "source": "match_confidence_gate",
+                "level": confidence.level,
+                "session_id": session_id,
+            },
+            proposed_action=proposed_action,
+            reasoning=(
+                f"Selector {selector!r} resolved with level={confidence.level} "
+                f"(score={confidence.score:.2f}): {confidence.rationale}. "
+                f"Routing through human review because current-call certainty is "
+                f"low, even though agent tier may permit direct execution."
+            ),
+            session_id=session_id,
+            title=f"Match-confidence gate: {action} {selector!r}",
+        )
+
+        return {
+            "requires_approval": True,
+            "proposal_id": proposal.id,
+            "match_confidence": confidence.to_dict(),
+        }
+    except Exception as e:
+        logger.warning(f"_maybe_gate_with_proposal failed (proceeding without gate): {e}", exc_info=True)
+        return None
 
 
 class BrowserSession:
@@ -690,6 +774,7 @@ async def browser_fill_form(
     user_id: str = None,
     agent_id: Optional[str] = None,
     db: Optional[Session] = None,
+    match_confidence_override: bool = False,
 ) -> Dict[str, Any]:
     """
     Fill form fields using CSS selectors.
@@ -706,9 +791,10 @@ async def browser_fill_form(
         user_id: User ID for validation
         agent_id: Optional agent ID for Phase 4 proposal gating
         db: Optional DB session for Phase 4 proposal gating
+        match_confidence_override: Skip gating (post-approval re-execution)
 
     Returns:
-        Dict with fill result (and match_confidence when locator API on)
+        Dict with fill result, or {requires_approval, proposal_id} when gated
     """
     session = get_browser_manager().get_session(session_id)
     if not session:
@@ -729,42 +815,128 @@ async def browser_fill_form(
     try:
         filled_count = 0
 
-        for selector, value in selectors.items():
-            try:
-                if use_locator:
+        # Phase 4: when locator + gating on, do TWO passes — resolve all
+        # fields first (so we can gate on worst-case before any fill
+        # executes), then fill only if not gated. Whole-form transactional
+        # integrity: partial fills leave the page in an inconsistent state.
+        if use_locator and MATCH_CONFIDENCE_FORCE_PROPOSAL and not match_confidence_override:
+            # Pass 1: resolve all
+            resolved: Dict[str, Dict[str, Any]] = {}
+            for selector, value in selectors.items():
+                try:
                     locator, confidence = await _resolve_selector_with_confidence(
                         session.page, selector
                     )
                     per_field_confidence[selector] = confidence.to_dict()
-                    if locator is None:
-                        logger.warning(f"Skipping unfilled field {selector}: 0 matches")
-                        continue
-
-                    # Determine tag via evaluate on the locator
                     info = await locator.evaluate(
                         "el => ({tag: el.tagName, type: el.type || ''})"
+                    ) if locator is not None else {}
+                    tag = (info or {}).get("tag", "") if isinstance(info, dict) else ""
+                    resolved[selector] = {"value": value, "locator": locator, "tag": tag}
+                except Exception as e:
+                    logger.warning(f"Failed to resolve {selector}: {e}")
+                    per_field_confidence[selector] = {
+                        "level": AMBIGUOUS, "score": 0.0,
+                        "rationale": f"resolve error: {type(e).__name__}",
+                        "candidates": [], "chosen_index": -1,
+                    }
+                    resolved[selector] = {"value": selectors[selector], "locator": None, "tag": ""}
+
+            # Compute worst-case confidence for gating
+            worst_level = HIGH
+            level_rank = {HIGH: 0, PARTIAL: 1, AMBIGUOUS: 2}
+            worst_field = None
+            for sel, fc in per_field_confidence.items():
+                fc_level = fc.get("level", PARTIAL)
+                if level_rank.get(fc_level, 1) > level_rank[worst_level]:
+                    worst_level = fc_level
+                    worst_field = sel
+
+            if worst_level != HIGH and worst_field is not None:
+                # Build gating confidence from worst field
+                worst_fc = per_field_confidence[worst_field]
+                gate_conf = MatchConfidence(
+                    level=worst_level,
+                    score=worst_fc.get("score", 0.0),
+                    rationale=f"worst field {worst_field!r}: {worst_fc.get('rationale', '')}",
+                    candidates=[SelectorCandidate(
+                        selector=worst_field,
+                        match_count=worst_fc.get("candidates", [{}])[0].get("match_count", 0)
+                            if worst_fc.get("candidates") else 0,
+                        is_text_only=worst_fc.get("candidates", [{}])[0].get("is_text_only", False)
+                            if worst_fc.get("candidates") else False,
+                        appeared_after_ms=0,
+                        tag_hint="",
+                        attributes={},
+                    )],
+                    chosen_index=0,
+                )
+                gate_result = await _maybe_gate_with_proposal(
+                    "fill_form", worst_field, gate_conf, agent_id, db,
+                    session_id, user_id,
+                    extra_selectors=dict(selectors),
+                    override=match_confidence_override,
+                    per_field_confidence=per_field_confidence,
+                )
+                if gate_result is not None:
+                    _write_browser_audit(
+                        db, agent_id, user_id, session_id, "fill_form", "gated",
+                        confidence=gate_conf,
                     )
-                    tag_name = (info or {}).get("tag", "") if isinstance(info, dict) else ""
-                else:
-                    # Legacy path
-                    await session.page.wait_for_selector(selector, timeout=5000)
-                    element = await session.page.query_selector(selector)
-                    tag_name = await element.evaluate("el => el.tagName")
+                    return gate_result
 
-                if tag_name in ["INPUT", "TEXTAREA"]:
-                    if use_locator:
+            # Pass 2: not gated — fill each resolved field
+            for selector, info in resolved.items():
+                try:
+                    if info["locator"] is None:
+                        continue
+                    tag = info["tag"]
+                    value = info["value"]
+                    if tag in ["INPUT", "TEXTAREA"]:
                         await session.page.fill(selector, value)
+                        filled_count += 1
+                    elif tag == "SELECT":
+                        await session.page.select_option(selector, value)
+                        filled_count += 1
                     else:
-                        await session.page.fill(selector, value)
-                    filled_count += 1
-                elif tag_name == "SELECT":
-                    await session.page.select_option(selector, value)
-                    filled_count += 1
-                else:
-                    logger.warning(f"Unsupported element type: {tag_name} for selector {selector}")
+                        logger.warning(f"Unsupported element type: {tag} for selector {selector}")
+                except Exception as e:
+                    logger.warning(f"Failed to fill {selector}: {e}")
+        else:
+            # Original single-pass loop (legacy or no-gate path)
+            for selector, value in selectors.items():
+                try:
+                    if use_locator:
+                        locator, confidence = await _resolve_selector_with_confidence(
+                            session.page, selector
+                        )
+                        per_field_confidence[selector] = confidence.to_dict()
+                        if locator is None:
+                            logger.warning(f"Skipping unfilled field {selector}: 0 matches")
+                            continue
 
-            except Exception as e:
-                logger.warning(f"Failed to fill {selector}: {e}")
+                        # Determine tag via evaluate on the locator
+                        info = await locator.evaluate(
+                            "el => ({tag: el.tagName, type: el.type || ''})"
+                        )
+                        tag_name = (info or {}).get("tag", "") if isinstance(info, dict) else ""
+                    else:
+                        # Legacy path
+                        await session.page.wait_for_selector(selector, timeout=5000)
+                        element = await session.page.query_selector(selector)
+                        tag_name = await element.evaluate("el => el.tagName")
+
+                    if tag_name in ["INPUT", "TEXTAREA"]:
+                        await session.page.fill(selector, value)
+                        filled_count += 1
+                    elif tag_name == "SELECT":
+                        await session.page.select_option(selector, value)
+                        filled_count += 1
+                    else:
+                        logger.warning(f"Unsupported element type: {tag_name} for selector {selector}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to fill {selector}: {e}")
 
         session.last_used = datetime.now()
 
@@ -824,13 +996,16 @@ async def browser_click(
     user_id: str = None,
     agent_id: Optional[str] = None,
     db: Optional[Session] = None,
+    match_confidence_override: bool = False,
 ) -> Dict[str, Any]:
     """
     Click an element using CSS selector.
 
     When BROWSER_LOCATOR_API_ENABLED=true, resolves via page.locator() and
-    surfaces match_confidence. In shadow mode (default) the click still
-    proceeds regardless of level; Phase 4 adds optional gating.
+    surfaces match_confidence. When MATCH_CONFIDENCE_FORCE_PROPOSAL=true
+    AND confidence.level in {partial, ambiguous}, routes through
+    ProposalService instead of clicking — for ALL agent tiers including
+    AUTONOMOUS.
 
     Args:
         session_id: Browser session ID
@@ -839,9 +1014,10 @@ async def browser_click(
         user_id: User ID for validation
         agent_id: Optional agent ID for Phase 4 proposal gating
         db: Optional DB session for Phase 4 proposal gating
+        match_confidence_override: Skip gating (post-approval re-execution)
 
     Returns:
-        Dict with click result (and match_confidence when locator API on)
+        Dict with click result, or {requires_approval, proposal_id} when gated
     """
     session = get_browser_manager().get_session(session_id)
     if not session:
@@ -867,6 +1043,31 @@ async def browser_click(
             locator, confidence = await _resolve_selector_with_confidence(
                 session.page, selector
             )
+
+            # Phase 3 — LLM tiebreaker (only fires on PARTIAL)
+            if confidence.level == PARTIAL and locator is not None:
+                try:
+                    llm_service = get_llm_service()
+                    confidence = await attach_tiebreak(
+                        confidence,
+                        page_context={"url": session.page.url},
+                        llm_service=llm_service,
+                    )
+                except Exception as e:
+                    logger.debug(f"attach_tiebreak skipped: {e}")
+
+            # Phase 4 — proposal gating (AUTONOMOUS included)
+            gate_result = await _maybe_gate_with_proposal(
+                "click", selector, confidence, agent_id, db,
+                session_id, user_id, override=match_confidence_override,
+            )
+            if gate_result is not None:
+                _write_browser_audit(
+                    db, agent_id, user_id, session_id, "click", "gated",
+                    confidence=confidence,
+                )
+                return gate_result
+
             if locator is None:
                 return {
                     "success": False,
@@ -880,6 +1081,10 @@ async def browser_click(
             if upgraded is not None:
                 confidence = upgraded
             if not ok:
+                _write_browser_audit(
+                    db, agent_id, user_id, session_id, "click", "failed",
+                    confidence=confidence, error=err or "click failed",
+                )
                 return {
                     "success": False,
                     "error": err or "click failed",

@@ -73,6 +73,38 @@ class ProposalService:
         # The agent object is already fetched above, so we can use it directly.
         agent_name = agent.name if agent else "Unknown Agent"
 
+        # Phase 4 — match-confidence gate: if selector_candidates are present,
+        # append a reviewer-visible block showing alternatives + rationale.
+        candidates_block = ""
+        sel_candidates = proposed_action.get("selector_candidates") or []
+        if sel_candidates:
+            cand_lines = []
+            for i, c in enumerate(sel_candidates[:5]):
+                if isinstance(c, dict):
+                    cand_lines.append(
+                        f"  {i}. `{c.get('selector', '?')}` — "
+                        f"match_count={c.get('match_count', '?')}, "
+                        f"text_only={c.get('is_text_only', '?')}"
+                    )
+                else:
+                    cand_lines.append(f"  {i}. {c}")
+            candidates_block = f"""
+
+**Selector candidates ({len(sel_candidates)}):**
+{chr(10).join(cand_lines)}
+
+**Match rationale:** {proposed_action.get('match_rationale', 'n/a')}
+**Match score:** {proposed_action.get('match_score', 'n/a')}
+**Chosen index:** {proposed_action.get('chosen_index', 'n/a')}
+"""
+            if proposed_action.get("per_field_confidence"):
+                pf = proposed_action["per_field_confidence"]
+                pf_lines = [
+                    f"  - `{sel}`: level={data.get('level', '?')} score={data.get('score', '?')}"
+                    for sel, data in pf.items()
+                ]
+                candidates_block += "\n**Per-field confidence:**\n" + "\n".join(pf_lines)
+
         proposal = AgentProposal(
             tenant_id=getattr(agent, 'tenant_id', 'default'),
             user_id=getattr(agent, 'user_id', 'system'),
@@ -90,7 +122,7 @@ Agent is proposing an action for your review.
 **Confidence:** {agent.confidence_score:.2f}
 
 **Proposed Action:** {proposed_action.get('action_type', 'Unknown')}
-
+{candidates_block}
 **Reasoning:**
 {reasoning}
 
