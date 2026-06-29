@@ -9,6 +9,11 @@
 
 ## 🚀 Recent Updates (June 2026)
 
+- **Pre-Action Match-Confidence Layer**: ✨ NEW - Selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state
+  - [MATCH_CONFIDENCE.md](architecture/MATCH_CONFIDENCE.md) - Pre-action `high/partial/ambiguous` gating through ProposalService (including AUTONOMOUS)
+  - [SELECTOR_CONFIDENCE_THRESHOLDS.md](architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md) - Tuning env vars + score curve
+  - Migration `20260628_add_match_confidence_gating_flag` (per-agent opt-out column)
+  - Shadow mode default — computation + audit always on, gating off (`MATCH_CONFIDENCE_FORCE_PROPOSAL=false`)
 - **2026 Enhancement Plan**: ✅ COMPLETE - All 5 phases delivered with validation metrics
   - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
   - Phase 1: POMDP Memory Framework - Experience-driven agent learning

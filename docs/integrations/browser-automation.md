@@ -40,12 +40,29 @@ Governance Check (AgentContextResolver → AgentGovernanceService)
     ↓
 Browser Tool Function (browser_tool.py)
     ↓
+Match-Confidence Resolver (page.locator + score_candidates)  ← see MATCH_CONFIDENCE.md
+    ↓   (partial/ambiguous → ProposalService gate, including for AUTONOMOUS)
 BrowserSessionManager (session lifecycle)
     ↓
 Playwright (CDP control)
     ↓
-Audit Entry (browser_audit table)
+Audit Entry (browser_audit table — metadata.match_confidence populated)
 ```
+
+### Pre-Action Match-Confidence (June 2026)
+
+Every `browser_click` / `browser_fill_form` / `browser_extract_text` call now
+surfaces a `match_confidence: {level, score, rationale, candidates, chosen_index}`
+block on its return dict. Levels: `high` (proceeds), `partial` (LLM tiebreaker
+or human review), `ambiguous` (human review required).
+
+When `MATCH_CONFIDENCE_FORCE_PROPOSAL=true` and level ∈ {partial, ambiguous},
+the action is routed through `ProposalService.create_action_proposal` instead
+of executing — for ALL agent tiers, including AUTONOMOUS. Shadow mode
+(`MATCH_CONFIDENCE_FORCE_PROPOSAL=false`) is the default: computation and
+audit always on, gating off. See
+**[Pre-Action Match-Confidence Layer](../architecture/MATCH_CONFIDENCE.md)**
+and **[Selector Confidence Thresholds](../architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md)**.
 
 ## Database Models
 

@@ -260,3 +260,24 @@ Also fixed a pre-existing bug surfaced by this work: `CapabilityGraduationServic
 - Removing Postgres or Redis/Valkey (evidence ambiguous)
 - Backfilling facts from historical `EpisodeSegment` rows (expensive, low-value)
 - `MemoryProvider` ABC abstraction (premature until a second backend like Mem0 cloud is added)
+
+---
+
+## Related Layer: Pre-Action Match-Confidence
+
+This document covers the **post-action** side (facts extracted *after* a tool
+runs, outcomes verified *after* execution). Atom now has a **pre-action**
+mirror for browser automation:
+
+- **[MATCH_CONFIDENCE.md](MATCH_CONFIDENCE.md)** — selector-resolution
+  certainty scored BEFORE `browser_click` runs. Same tri-state shape as
+  `VerifiedOutcome`: `high / partial / ambiguous` ↔ `verified / unverified /
+  failed_verification`. When certainty is low, the action routes through
+  `ProposalService` before executing — including for AUTONOMOUS-tier agents
+  (whose tier is otherwise routed by historical clean executions, not
+  current-call certainty).
+- **[SELECTOR_CONFIDENCE_THRESHOLDS.md](SELECTOR_CONFIDENCE_THRESHOLDS.md)**
+  — tuning one-pager.
+
+The bookends framing is documented in
+[HERMES_COMPARISON.md § Pre-action vs. post-action](HERMES_COMPARISON.md).
