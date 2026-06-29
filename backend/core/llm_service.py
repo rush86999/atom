@@ -852,13 +852,26 @@ class LLMService:
         model: str = "auto",
         task_type: Optional[str] = None,
         agent_id: Optional[str] = None,
-        image_payload: Optional[str] = None
+        image_payload: Optional[str] = None,
+        enable_self_consistency: bool = False,
     ) -> Optional[BaseModel]:
         """
         Generate structured output using Pydantic model validation.
 
         Provides tenant-aware routing between BYOK and Managed AI based on subscription,
         with support for vision inputs via image_payload.
+
+        Phase 2 hallucination-mitigation kwargs:
+
+          * ``enable_self_consistency`` — when True AND the
+            ``ATOM_SELF_CONSISTENCY`` env flag is enabled, dispatches to the
+            ``SelfConsistencyVoter`` for N-sample majority voting. The voter
+            uses the BYOKHandler directly, so each sample composes naturally
+            with cascade routing inside the handler.
+
+        Cascade routing (Workstream B) is handled *inside* the BYOKHandler
+        when the ``ATOM_CASCADE_ROUTING`` env flag is enabled — this wrapper
+        just forwards the resolved flag value.
 
         Args:
             prompt: The user prompt
@@ -869,39 +882,45 @@ class LLMService:
             task_type: Optional task type hint (e.g., "summarization", "code_generation")
             agent_id: Optional agent ID for cost tracking
             image_payload: Optional Base64 image string or URL for vision support
+            enable_self_consistency: Opt in to N-sample majority voting for
+                irreversible-action decisions (Phase 2 hallucination
+                mitigation; default off).
 
         Returns:
             Instance of response_model with validated data, or None if generation fails
-
-        Example:
-            ```python
-            from pydantic import BaseModel
-
-            class SentimentAnalysis(BaseModel):
-                sentiment: str  # "positive", "negative", "neutral"
-                confidence: float
-                key_points: List[str]
-
-            llm_service = LLMService()
-            result = await llm_service.generate_structured(
-                prompt="Analyze the sentiment of this review...",
-                response_model=SentimentAnalysis
-            )
-            if result:
-                print(f"Sentiment: {result.sentiment}")
-                print(f"Confidence: {result.confidence}")
-            ```
-
-        Note:
-            - Tenant-aware routing: BYOK keys used if available, otherwise Managed AI
-            - Vision support: Pass image_payload (Base64 or URL) for multimodal inputs
-            - Graceful fallback: Returns None if instructor unavailable or generation fails
-            - Auto model selection: When model="auto", selects optimal model for structured output
         """
         # Check if handler has clients available
         if not self.is_available():
             logger.warning("No LLM clients available for structured generation")
             return None
+
+        # Phase 2: resolve mitigation flags once per call. The actual
+        # cascade retry loop lives inside BYOKHandler.generate_structured_response.
+        from core.hallucination_config import (
+            is_cascade_routing_enabled,
+            is_self_consistency_enabled,
+        )
+
+        cascade_on = is_cascade_routing_enabled()
+
+        # Self-consistency voter dispatch (Workstream C). The voter imports
+        # only BYOKHandler — never the executor — and runs N samples at
+        # varying temperatures, each of which internally cascades on schema
+        # failure. Majority vote on hash-normalized JSON.
+        if enable_self_consistency and is_self_consistency_enabled():
+            from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+            voter = SelfConsistencyVoter(handler=self.handler)
+            return await voter.vote(
+                prompt=prompt,
+                response_model=response_model,
+                temperature=temperature,
+                task_type=task_type,
+                agent_id=agent_id,
+                image_payload=image_payload,
+                cascade=cascade_on,
+                system_instruction=system_instruction,
+            )
 
         # Delegate to BYOKHandler's generate_structured_response
         try:
@@ -912,7 +931,8 @@ class LLMService:
                 temperature=temperature,
                 task_type=task_type,
                 agent_id=agent_id,
-                image_payload=image_payload
+                image_payload=image_payload,
+                cascade=cascade_on,
             )
             return result
         except Exception as e:
