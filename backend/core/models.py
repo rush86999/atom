@@ -3518,17 +3518,90 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
+
+class SelfConsistencyVote(Base):
+    """Self-consistency voter audit log (Phase 2 hallucination mitigation).
+
+    Tracks every invocation of ``SelfConsistencyVoter.vote_with_consensus``
+    (one row per vote). Parallel to ``BrowserAudit`` from the
+    match-confidence layer — both audit pre-action certainty decisions.
+
+    Shadow mode (``ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL=false``, default):
+    rows are written regardless of agreement level so operators can
+    observe agreement rates before flipping the gate. Force-proposal mode:
+    partial/ambiguous outcomes route to ``ProposalService`` and the
+    resulting proposal ID is recorded here.
+
+    See ``docs/architecture/SELF_CONSISTENCY_VOTER.md``.
+    """
+
+    __tablename__ = "self_consistency_votes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    workspace_id = Column(String, nullable=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Agent / governance context
+    agent_id = Column(
+        String,
+        ForeignKey("agent_registry.id"),
+        nullable=True,
+        index=True,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Vote input fingerprint (prompt + target response model)
+    prompt_hash = Column(String(length=64), nullable=True, index=True)
+    response_model_name = Column(String(length=200), nullable=True)
+
+    # Vote outcome (mirrors VoteResult fields)
+    sample_count = Column(Integer, nullable=False)
+    valid_count = Column(Integer, nullable=False)
+    winner_count = Column(Integer, nullable=False)
+    distinct_hashes = Column(Integer, nullable=False)
+    agreement_ratio = Column(Float, nullable=False)
+    level = Column(String(length=16), nullable=False, index=True)  # high/partial/ambiguous
+    winner_hash = Column(String(length=64), nullable=True, index=True)
+    temperatures = Column(JSONColumn, nullable=True)  # list[float]
+
+    # Gating outcome
+    gated = Column(Boolean, default=False, index=True)  # True if routed to ProposalService
+    proposal_id = Column(String, nullable=True, index=True)  # soft ref, no FK
+
+    # Error capture (best-effort — populated when valid_count == 0)
+    error_message = Column(Text, nullable=True)
+
+    # Extensibility
+    metadata_json = Column(JSONColumn, default={})
+
+    __table_args__ = (
+        Index("idx_scv_agent_created", "agent_id", "created_at"),
+        Index("idx_scv_level_created", "level", "created_at"),
+    )
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    user = relationship("User", foreign_keys=[user_id])
+
 #
 #     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 #     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
 #     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
 #     session_id = Column(String, nullable=True, index=True) # Logical link to chat session
-#     
+#
 #     name = Column(String, nullable=False)
 #     type = Column(String, nullable=False) # 'code', 'markdown', etc.
 #     content = Column(Text, nullable=False)
 #     metadata_json = Column(JSONColumn, default={})
-#     
+#
 #     version = Column(Integer, default=1)
 #     is_locked = Column(Boolean, default=False)
 #     locked_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)

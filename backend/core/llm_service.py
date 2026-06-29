@@ -854,6 +854,8 @@ class LLMService:
         agent_id: Optional[str] = None,
         image_payload: Optional[str] = None,
         enable_self_consistency: bool = False,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Optional[BaseModel]:
         """
         Generate structured output using Pydantic model validation.
@@ -867,7 +869,9 @@ class LLMService:
             ``ATOM_SELF_CONSISTENCY`` env flag is enabled, dispatches to the
             ``SelfConsistencyVoter`` for N-sample majority voting. The voter
             uses the BYOKHandler directly, so each sample composes naturally
-            with cascade routing inside the handler.
+            with cascade routing inside the handler. Shadow + audit: a
+            ``SelfConsistencyVote`` row is written for every vote (regardless
+            of agreement level) when the voter runs.
 
         Cascade routing (Workstream B) is handled *inside* the BYOKHandler
         when the ``ATOM_CASCADE_ROUTING`` env flag is enabled — this wrapper
@@ -885,6 +889,10 @@ class LLMService:
             enable_self_consistency: Opt in to N-sample majority voting for
                 irreversible-action decisions (Phase 2 hallucination
                 mitigation; default off).
+            session_id: Optional session ID for audit attribution when the
+                self-consistency voter runs.
+            user_id: Optional user ID for audit attribution when the
+                self-consistency voter runs.
 
         Returns:
             Instance of response_model with validated data, or None if generation fails
@@ -903,24 +911,25 @@ class LLMService:
 
         cascade_on = is_cascade_routing_enabled()
 
-        # Self-consistency voter dispatch (Workstream C). The voter imports
-        # only BYOKHandler — never the executor — and runs N samples at
-        # varying temperatures, each of which internally cascades on schema
-        # failure. Majority vote on hash-normalized JSON.
+        # Self-consistency voter dispatch (Workstream C). Shadow + audit:
+        # dispatches to vote_with_consensus, writes a SelfConsistencyVote
+        # audit row, and returns the modal plan. Force-proposal gating
+        # (routing to ProposalService on partial/ambiguous) is the caller's
+        # responsibility via generate_structured_with_consensus.
         if enable_self_consistency and is_self_consistency_enabled():
-            from core.llm.self_consistency_voter import SelfConsistencyVoter
-
-            voter = SelfConsistencyVoter(handler=self.handler)
-            return await voter.vote(
+            winner, _vote = await self._run_self_consistency_vote(
                 prompt=prompt,
                 response_model=response_model,
+                system_instruction=system_instruction,
                 temperature=temperature,
                 task_type=task_type,
                 agent_id=agent_id,
                 image_payload=image_payload,
                 cascade=cascade_on,
-                system_instruction=system_instruction,
+                session_id=session_id,
+                user_id=user_id,
             )
+            return winner
 
         # Delegate to BYOKHandler's generate_structured_response
         try:
@@ -938,6 +947,210 @@ class LLMService:
         except Exception as e:
             logger.error(f"Structured generation failed: {e}")
             return None
+
+    async def generate_structured_with_consensus(
+        self,
+        prompt: str,
+        response_model: Type[BaseModel],
+        system_instruction: str = "You are a helpful assistant.",
+        temperature: float = 0.2,
+        model: str = "auto",
+        task_type: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        image_payload: Optional[str] = None,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ):
+        """Generate structured output with self-consistency metadata.
+
+        Always dispatches through the self-consistency voter (requires
+        ``ATOM_SELF_CONSISTENCY=true``). Returns ``(winner, vote_result)``
+        where ``vote_result`` is a ``VoteResult`` or ``None`` (when the
+        flag is off or the voter is otherwise disabled).
+
+        Callers that want to gate on agreement level should use this method
+        and inspect ``vote_result.requires_review``. The gating decision
+        itself (calling ProposalService) is the caller's responsibility,
+        mirroring the match-confidence pattern where ``browser_tool.py``
+        decides whether to gate, not ``selector_confidence_service``.
+
+        Example::
+
+            winner, vote = await llm.generate_structured_with_consensus(
+                prompt=plan_prompt,
+                response_model=ActionPlan,
+                agent_id=agent.id,
+            )
+            if vote and vote.requires_review and force_proposal_enabled:
+                await proposal_service.create_action_proposal(...)
+                return None  # do not execute
+            # Execute winner exactly once.
+        """
+        if not self.is_available():
+            logger.warning("No LLM clients available for structured generation")
+            return None, None
+
+        from core.hallucination_config import (
+            is_cascade_routing_enabled,
+            is_self_consistency_enabled,
+        )
+
+        cascade_on = is_cascade_routing_enabled()
+
+        if not is_self_consistency_enabled():
+            # Flag off — fall through to single-sample path, no vote metadata.
+            try:
+                result = await self.handler.generate_structured_response(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_model=response_model,
+                    temperature=temperature,
+                    task_type=task_type,
+                    agent_id=agent_id,
+                    image_payload=image_payload,
+                    cascade=cascade_on,
+                )
+                return result, None
+            except Exception as e:
+                logger.error(f"Structured generation failed: {e}")
+                return None, None
+
+        return await self._run_self_consistency_vote(
+            prompt=prompt,
+            response_model=response_model,
+            system_instruction=system_instruction,
+            temperature=temperature,
+            task_type=task_type,
+            agent_id=agent_id,
+            image_payload=image_payload,
+            cascade=cascade_on,
+            session_id=session_id,
+            user_id=user_id,
+        )
+
+    async def _run_self_consistency_vote(
+        self,
+        prompt: str,
+        response_model: Type[BaseModel],
+        system_instruction: str,
+        temperature: float,
+        task_type: Optional[str],
+        agent_id: Optional[str],
+        image_payload: Optional[str],
+        cascade: bool,
+        session_id: Optional[str],
+        user_id: Optional[str],
+    ):
+        """Dispatch to SelfConsistencyVoter.vote_with_consensus + persist audit.
+
+        Returns ``(winner, VoteResult)``. Never raises — voter and audit
+        failures degrade gracefully to ``(None, None)`` so the caller's
+        LLM call never crashes due to audit infrastructure.
+
+        Shadow mode: audit row is written unconditionally; force-proposal
+        gating is NOT applied here (caller's job).
+        """
+        from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+        try:
+            voter = SelfConsistencyVoter(
+                handler=self.handler,
+                db=self._db,
+                tenant_id=self._tenant_id,
+            )
+            vote = await voter.vote_with_consensus(
+                prompt=prompt,
+                response_model=response_model,
+                temperature=temperature,
+                agent_id=agent_id,
+                cascade=cascade,
+                system_instruction=system_instruction,
+                task_type=task_type,
+                image_payload=image_payload,
+            )
+        except Exception as exc:
+            logger.error(f"Self-consistency voter failed: {exc}")
+            return None, None
+
+        # Persist audit row. Best-effort — never let audit failures break
+        # the LLM call.
+        try:
+            self._write_self_consistency_audit(
+                vote=vote,
+                agent_id=agent_id,
+                session_id=session_id,
+                user_id=user_id,
+                response_model=response_model,
+            )
+        except Exception as exc:
+            logger.warning(f"Self-consistency audit write failed: {exc}")
+
+        return vote.winner, vote
+
+    def _write_self_consistency_audit(
+        self,
+        vote,
+        agent_id: Optional[str],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        response_model: Type[BaseModel],
+    ) -> None:
+        """Write one ``SelfConsistencyVote`` row. Best-effort.
+
+        Uses ``self._db`` when available (does NOT close it — caller owns the
+        lifecycle); otherwise opens a fresh session via the
+        ``get_db_session()`` context manager (auto-closed on exit).
+        """
+        try:
+            from core.models import SelfConsistencyVote
+        except Exception:
+            return
+
+        row = SelfConsistencyVote(
+            tenant_id=self._tenant_id if self._tenant_id != "default" else None,
+            workspace_id=self._workspace_id if self._workspace_id != "default" else None,
+            agent_id=agent_id,
+            user_id=user_id,
+            session_id=session_id,
+            prompt_hash=vote.prompt_hash,
+            response_model_name=getattr(response_model, "__name__", None),
+            sample_count=vote.sample_count,
+            valid_count=vote.valid_count,
+            winner_count=vote.winner_count,
+            distinct_hashes=vote.distinct_hashes,
+            agreement_ratio=vote.agreement_ratio,
+            level=vote.level,
+            winner_hash=vote.winner_hash,
+            temperatures=vote.temperatures,
+            gated=False,  # gating is the caller's responsibility
+            proposal_id=None,
+            error_message=None if vote.valid_count > 0 else "all samples returned None",
+        )
+
+        # Caller-provided session — add+commit but do not close.
+        if self._db is not None:
+            try:
+                self._db.add(row)
+                self._db.commit()
+            except Exception as exc:
+                try:
+                    self._db.rollback()
+                except Exception:
+                    pass
+                logger.debug(f"Self-consistency audit commit failed: {exc}")
+            return
+
+        # No caller session — open our own via the context manager.
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                db.add(row)
+                # get_db_session auto-commits on clean context exit; the
+                # explicit commit is belt-and-suspenders.
+                db.commit()
+        except Exception as exc:
+            logger.debug(f"Self-consistency audit (own session) failed: {exc}")
 
     async def generate_embedding(
         self,

@@ -30,9 +30,12 @@ import asyncio
 import hashlib
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from core.hallucination_config import (
+    get_self_consistency_high_threshold,
+    get_self_consistency_partial_threshold,
     get_self_consistency_samples,
     get_temperature_spread,
 )
@@ -40,6 +43,69 @@ from core.hallucination_config import (
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+# Tri-state level constants — mirror core.selector_confidence_service.
+# Kept at module scope so callers (audit writers, ProposalService gating)
+# can compare without re-importing the dataclass.
+LEVEL_HIGH = "high"
+LEVEL_PARTIAL = "partial"
+LEVEL_AMBIGUOUS = "ambiguous"
+
+
+@dataclass(frozen=True)
+class VoteResult:
+    """Outcome of a self-consistency vote (shadow + audit shape).
+
+    Mirrors the ``MatchConfidence`` shape from ``selector_confidence_service``
+    so downstream gating logic (ProposalService dispatch, audit writing) can
+    treat the two layers symmetrically.
+
+    Attributes:
+        winner: The modal plan (Pydantic model / dict / namespace), or
+            ``None`` if every sample failed.
+        agreement_ratio: ``winner_count / valid_count``. ``0.0`` when no
+            valid samples were drawn.
+        level: Tri-state — ``high`` / ``partial`` / ``ambiguous``. Derived
+            from ``agreement_ratio`` via ``_level_from_agreement()``.
+        sample_count: Total samples drawn (including failures).
+        valid_count: Samples that returned non-None.
+        winner_count: Samples sharing the modal hash (≥1).
+        distinct_hashes: Unique plan hashes among valid samples.
+        temperatures: The per-sample temperature spread used.
+        winner_hash: SHA-256 (truncated to 16 hex chars for log readability)
+            of the modal plan, or ``None`` if no winner.
+        prompt_hash: SHA-256 (16 hex chars) of the input prompt — for
+            audit-row correlation across the vote + execute lifecycle.
+    """
+
+    winner: Any
+    agreement_ratio: float
+    level: str
+    sample_count: int
+    valid_count: int
+    winner_count: int
+    distinct_hashes: int
+    temperatures: list[float] = field(default_factory=list)
+    winner_hash: str | None = None
+    prompt_hash: str | None = None
+
+    @property
+    def is_high(self) -> bool:
+        return self.level == LEVEL_HIGH
+
+    @property
+    def requires_review(self) -> bool:
+        """True when the vote should route to ProposalService.
+
+        Only true for partial/ambiguous outcomes. ``high`` auto-executes.
+        """
+        return self.level in {LEVEL_PARTIAL, LEVEL_AMBIGUOUS}
+
+    @property
+    def is_no_samples(self) -> bool:
+        """True when every sample failed (no valid plan returned)."""
+        return self.winner is None and self.valid_count == 0
 
 
 # Heuristic list of action verbs/prefixes that mark a plan as irreversible.
@@ -164,6 +230,138 @@ class SelfConsistencyVoter:
             return valid[0]
         return self._majority_vote(valid)
 
+    async def vote_with_consensus(
+        self,
+        prompt: str,
+        response_model: type[T],
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        agent_id: str | None = None,
+        cascade: bool = False,
+        sample_count: int | None = None,
+        **kwargs: Any,
+    ) -> VoteResult:
+        """Draw N samples and return the modal plan + agreement metadata.
+
+        Shadow + audit variant. Use this (instead of ``vote``) when you need
+        to write a ``SelfConsistencyVote`` audit row or gate execution on
+        the agreement level. The bare ``vote()`` method is preserved for
+        backward compatibility with simpler callers.
+
+        Same hard invariants as ``vote()``: never executes anything, never
+        imports the executor. Caller runs the winner exactly once.
+
+        Args: same as ``vote()``.
+
+        Returns:
+            A ``VoteResult``. ``winner`` is ``None`` if every sample failed.
+        """
+        n = sample_count if sample_count is not None else get_self_consistency_samples()
+        n = max(1, n)
+        temps = self._temperatures_for(n, base=temperature)
+        prompt_hash = self._hash_prompt(prompt)
+
+        # Extract known kwargs ONCE outside the per-sample closure so the
+        # second/third samples see the same values (kwargs.pop inside the
+        # loop would mutate the captured dict across iterations).
+        system_instruction = kwargs.pop("system_instruction", "You are a helpful assistant.")
+        task_type = kwargs.pop("task_type", None)
+        chain_id = kwargs.pop("chain_id", None)
+        image_payload = kwargs.pop("image_payload", None)
+
+        async def _one(temp: float) -> T | None:
+            try:
+                return await self.handler.generate_structured_response(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_model=response_model,
+                    temperature=temp,
+                    max_tokens=max_tokens,
+                    task_type=task_type,
+                    agent_id=agent_id,
+                    chain_id=chain_id,
+                    image_payload=image_payload,
+                    cascade=cascade,
+                )
+            except Exception as exc:
+                logger.warning(f"Self-consistency sample failed at temp={temp}: {exc}")
+                return None
+
+        samples = await asyncio.gather(*[_one(t) for t in temps])
+        valid = [s for s in samples if s is not None]
+
+        if not valid:
+            return VoteResult(
+                winner=None,
+                agreement_ratio=0.0,
+                level=LEVEL_AMBIGUOUS,
+                sample_count=n,
+                valid_count=0,
+                winner_count=0,
+                distinct_hashes=0,
+                temperatures=temps,
+                winner_hash=None,
+                prompt_hash=prompt_hash,
+            )
+
+        if len(valid) == 1:
+            single_hash = self._hash_sample(valid[0])
+            return VoteResult(
+                winner=valid[0],
+                agreement_ratio=1.0,
+                level=self._level_from_agreement(1.0),
+                sample_count=n,
+                valid_count=1,
+                winner_count=1,
+                distinct_hashes=1,
+                temperatures=temps,
+                winner_hash=single_hash[:16],
+                prompt_hash=prompt_hash,
+            )
+
+        # Majority vote over hash-normalized samples.
+        counts: dict[str, list[int]] = {}
+        for idx, s in enumerate(valid):
+            h = self._hash_sample(s)
+            counts.setdefault(h, []).append(idx)
+
+        winner_hash: str | None = None
+        winner_count = 0
+        for h, idxs in counts.items():
+            if len(idxs) > winner_count:
+                winner_hash = h
+                winner_count = len(idxs)
+
+        agreement = winner_count / len(valid)
+        level = self._level_from_agreement(agreement)
+        winner_idx = counts[winner_hash][0] if winner_hash is not None else 0
+
+        if winner_count == 1:
+            # All samples distinct — fall back to lowest-temperature sample
+            # (samples are ordered by ascending temperature via the spread).
+            logger.warning(
+                f"Self-consistency vote: all {len(valid)} samples distinct; "
+                f"falling back to lowest-temperature sample"
+            )
+
+        logger.info(
+            f"Self-consistency vote: {winner_count}/{len(valid)} samples agreed "
+            f"(level={level}, agreement={agreement:.2f}, hash={(winner_hash or 'none')[:8]})"
+        )
+
+        return VoteResult(
+            winner=valid[winner_idx],
+            agreement_ratio=agreement,
+            level=level,
+            sample_count=n,
+            valid_count=len(valid),
+            winner_count=winner_count,
+            distinct_hashes=len(counts),
+            temperatures=temps,
+            winner_hash=(winner_hash or "")[:16] or None,
+            prompt_hash=prompt_hash,
+        )
+
     # ------------------------------------------------------------------
     # Irreversibility heuristic — exposed for callers that want to gate
     # self-consistency behind "is this action even irreversible?"
@@ -242,6 +440,29 @@ class SelfConsistencyVoter:
             payload = {"value": str(sample)}
         serialized = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _level_from_agreement(agreement: float) -> str:
+        """Map an agreement ratio to the tri-state level.
+
+        Mirrors ``selector_confidence_service.level_from_score``:
+
+            agreement ≥ HIGH_THRESHOLD     → high
+            PARTIAL_THRESHOLD ≤ x < HIGH   → partial
+            x < PARTIAL_THRESHOLD          → ambiguous
+        """
+        high_t = get_self_consistency_high_threshold()
+        partial_t = get_self_consistency_partial_threshold()
+        if agreement >= high_t:
+            return LEVEL_HIGH
+        if agreement >= partial_t:
+            return LEVEL_PARTIAL
+        return LEVEL_AMBIGUOUS
+
+    @staticmethod
+    def _hash_prompt(prompt: str) -> str:
+        """Short hash of the input prompt for audit correlation."""
+        return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
     def _majority_vote(self, samples: list[Any]) -> Any:
         """Pick the most common sample; ties go to the first seen.

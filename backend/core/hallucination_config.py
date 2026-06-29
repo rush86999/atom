@@ -41,6 +41,22 @@ def is_self_consistency_enabled() -> bool:
     return _flag("ATOM_SELF_CONSISTENCY")
 
 
+def is_self_consistency_force_proposal_enabled() -> bool:
+    """Force-proposal mode for self-consistency (Workstream C shadow gate).
+
+    Shadow mode (default ``False``): voter always runs, audit row always
+    written, modal plan always returned to the caller — even on
+    partial/ambiguous agreement. This gives telemetry on agreement rates
+    before flipping the gate.
+
+    When True: voters route partial/ambiguous results to ``ProposalService``
+    instead of returning the modal plan. Mirrors the
+    ``MATCH_CONFIDENCE_FORCE_PROPOSAL`` pattern from
+    ``core/selector_confidence_service.py``.
+    """
+    return _flag("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL")
+
+
 def _flag(env_var: str) -> bool:
     return os.getenv(env_var, "false").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -57,6 +73,30 @@ def get_self_consistency_samples() -> int:
     except (TypeError, ValueError):
         n = 3
     return max(1, n)
+
+
+def get_self_consistency_high_threshold() -> float:
+    """Agreement ratio at/above which a vote is ``high`` (default 0.85).
+
+    Mirrors ``MATCH_CONFIDENCE_HIGH_THRESHOLD`` from the selector-confidence
+    layer. At N=3 this threshold is only reached by unanimous 3/3 votes;
+    at N=5 it's reached by 5/5 = 1.0 (4/5 = 0.8 falls just under).
+    """
+    try:
+        return float(os.getenv("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", "0.85"))
+    except (TypeError, ValueError):
+        return 0.85
+
+
+def get_self_consistency_partial_threshold() -> float:
+    """Agreement ratio at/above which a vote is ``partial`` (default 0.50).
+
+    Below this is ``ambiguous``. Mirrors ``MATCH_CONFIDENCE_PARTIAL_THRESHOLD``.
+    """
+    try:
+        return float(os.getenv("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", "0.50"))
+    except (TypeError, ValueError):
+        return 0.50
 
 
 def get_temperature_spread(n: int) -> list[float]:
