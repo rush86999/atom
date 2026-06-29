@@ -196,21 +196,25 @@ After completing this training, the agent will be able to handle similar tasks a
                 f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
-        # Apply modifications if provided
+        # Apply modifications if provided. IMPORTANT: JSONColumn is not backed
+        # by MutableDict, so in-place mutations to proposal.proposal_data are
+        # NOT detected by SQLAlchemy's change tracking. Re-assign the dict to
+        # force the ORM to flush.
+        updated_data = dict(proposal.proposal_data)
         if modifications:
             if "duration_override_hours" in modifications:
-                proposal.proposal_data["user_override_duration_hours"] = modifications[
+                updated_data["user_override_duration_hours"] = modifications[
                     "duration_override_hours"
                 ]
             if "hours_per_day_limit" in modifications:
-                proposal.proposal_data["hours_per_day_limit"] = modifications["hours_per_day_limit"]
+                updated_data["hours_per_day_limit"] = modifications["hours_per_day_limit"]
 
         # Calculate training schedule
         duration_hours = (
-            proposal.proposal_data.get("user_override_duration_hours") or
-            proposal.proposal_data.get("estimated_duration_hours", 40.0)
+            updated_data.get("user_override_duration_hours") or
+            updated_data.get("estimated_duration_hours", 40.0)
         )
-        hours_per_day = proposal.proposal_data.get("hours_per_day_limit")
+        hours_per_day = updated_data.get("hours_per_day_limit")
         if hours_per_day:
             days_needed = duration_hours / hours_per_day
         else:
@@ -219,14 +223,18 @@ After completing this training, the agent will be able to handle similar tasks a
         start_date = datetime.now()
         end_date = start_date + timedelta(days=days_needed)
 
-        proposal.proposal_data["training_start_date"] = start_date.isoformat()
-        proposal.proposal_data["training_end_date"] = end_date.isoformat()
+        updated_data["training_start_date"] = start_date.isoformat()
+        updated_data["training_end_date"] = end_date.isoformat()
+        proposal.proposal_data = updated_data  # re-assign so ORM detects change
         proposal.status = ProposalStatus.APPROVED.value
         proposal.approved_by = user_id
         proposal.approved_at = datetime.now()
 
         # Create training session
+        # NOTE: tenant_id is NOT NULL on TrainingSession; inherit from the
+        # approved proposal (which itself has a NOT NULL tenant_id).
         session = TrainingSession(
+            tenant_id=proposal.tenant_id or "default",
             proposal_id=proposal.id,
             agent_id=proposal.agent_id,
             agent_name=proposal.agent_name,
@@ -324,14 +332,21 @@ After completing this training, the agent will be able to handle similar tasks a
         ).first()
         if proposal:
             proposal.status = ProposalStatus.EXECUTED.value
-            proposal.completed_at = datetime.now()
-            proposal.execution_result = {
+            # AgentProposal has no `completed_at` / `execution_result` columns;
+            # use the real `executed_at` timestamp and stash the result dict in
+            # `supervision_metadata` (JSONColumn). The in-memory aliases below
+            # keep backwards compatibility with callers/tests that read the
+            # legacy attribute names.
+            proposal.executed_at = datetime.now()
+            proposal.completed_at = proposal.executed_at  # legacy alias
+            proposal.supervision_metadata = {
                 "session_id": session_id,
                 "performance_score": outcome.performance_score,
                 "confidence_boost": actual_boost,
                 "promoted_to_intern": promoted_to_intern,
                 "capabilities_developed": outcome.capabilities_developed
             }
+            proposal.execution_result = proposal.supervision_metadata  # legacy alias
 
         # Resolve blocked trigger if exists
         blocked_trigger = self.db.query(BlockedTriggerContext).filter(
