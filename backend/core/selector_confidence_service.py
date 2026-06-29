@@ -240,3 +240,53 @@ def coerce_match_level_for_storage(value: Optional[str]) -> str:
     if value in _VALID_LEVELS:
         return value
     return PARTIAL
+
+
+# ===========================================================================
+# Phase 3 — LLM tie-break attach point
+# ===========================================================================
+async def attach_tiebreak(
+    confidence: MatchConfidence,
+    page_context: Dict[str, Any],
+    llm_service: Any,
+) -> MatchConfidence:
+    """
+    Optionally attach an LLM tie-break to a partial-band confidence.
+
+    Only fires when:
+      - level == PARTIAL
+      - SELECTOR_CONFIDENCE_LLM_TIEBREAKER_ENABLED is true
+      - llm_service is not None
+
+    On any LLM failure / timeout / disabled flag, returns the original
+    confidence unchanged (caller routes to ProposalService per Phase 4).
+
+    On a successful tie-break with chosen_index >= 0, returns a new
+    MatchConfidence with level=HIGH, rationale updated, and chosen_index
+    pointing at the LLM-selected candidate.
+    """
+    if confidence.level != PARTIAL:
+        return confidence
+    if llm_service is None:
+        return confidence
+
+    try:
+        # Import lazily to avoid circular imports at module load.
+        from core.llm.match_confidence_tiebreaker import break_tie
+
+        result = await break_tie(confidence.candidates, page_context, llm_service)
+    except Exception as e:
+        logger.debug(f"attach_tiebreak skipped: {e}")
+        return confidence
+
+    if not result.used_llm or result.chosen_index < 0:
+        return confidence
+
+    # LLM picked a candidate — upgrade to HIGH with the new rationale.
+    return MatchConfidence(
+        level=HIGH,
+        score=confidence.score,  # keep raw score for audit
+        rationale=f"LLM tiebreak: {result.rationale}",
+        candidates=confidence.candidates,
+        chosen_index=result.chosen_index,
+    )
