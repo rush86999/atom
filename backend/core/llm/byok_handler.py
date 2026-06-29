@@ -1447,13 +1447,27 @@ class BYOKHandler:
         task_type: Optional[str] = None,
         agent_id: Optional[str] = None,
         chain_id: Optional[str] = None, # NEW Phase 11
-        image_payload: Optional[str] = None # Phase 14: Vision Support
+        image_payload: Optional[str] = None, # Phase 14: Vision Support
+        cascade: bool = False,  # Phase 2 hallucination mitigation
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
         Works with both BYOK and Managed AI.
         Supports multimodal inputs via `image_payload`.
-        
+
+        Phase 2 hallucination mitigation — ``cascade`` kwarg:
+
+          When ``True`` AND the original call fails with a *schema-validation*
+          error (pydantic ``ValidationError`` or ``json.JSONDecodeError``), the
+          handler retries ONCE on the same-provider flagship model. The
+          escalation target is resolved via
+          ``hallucination_config.get_frontier_model_for_provider`` so the
+          BYOK credential set, cost tracker, and rate limits stay constant
+          (provider-family invariant is structural here). Transient failures
+          (network, rate limit, auth) do NOT escalate — a bigger model won't
+          fix them. Already-frontier models do NOT escalate (no double-spend).
+          Default ``False`` = byte-identical to pre-Phase-2 behavior.
+
         Args:
             prompt: The user prompt
             system_instruction: System instruction for the LLM
@@ -1462,7 +1476,10 @@ class BYOKHandler:
             task_type: Optional task type hint
             agent_id: Optional agent ID for cost tracking
             image_payload: Optional Base64 image string or URL
-            
+            cascade: Opt in to single-retry frontier escalation on
+                schema-validation failures (Phase 2 hallucination
+                mitigation; default off).
+
         Returns:
             Instance of response_model or None if parsing fails
         """
@@ -1561,8 +1578,30 @@ class BYOKHandler:
             if not options:
                 return None
 
+            # Phase 2 hallucination mitigation — cascade state.
+            # Local only; never written to ``self`` (thread-safety).
+            from core.hallucination_config import (
+                get_frontier_model_for_provider,
+                is_frontier_model,
+            )
+
+            try:
+                from pydantic import ValidationError as _PydanticValidationError
+            except ImportError:  # pragma: no cover - pydantic always present
+                _PydanticValidationError = ()  # type: ignore[assignment]
+
             last_error = None
-            for provider_id, model in options:
+            last_was_schema_error = False
+            cascade_attempted = False
+
+            # Mutable list so we can insert the escalation target mid-loop
+            # without re-iterating the original ranking.
+            cascade_options: list = list(options)
+            cascade_idx = 0
+
+            while cascade_idx < len(cascade_options):
+                provider_id, model = cascade_options[cascade_idx]
+                cascade_idx += 1
                 try:
                     # Get the client and wrap with instructor
                     client = self.clients[provider_id]
@@ -1653,8 +1692,58 @@ class BYOKHandler:
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
-                    continue
-            
+                    # Phase 2 cascade classification. Instructor wraps the
+                    # underlying model output validation in pydantic; JSON
+                    # decode failures come back as json.JSONDecodeError. Both
+                    # are *schema* failures that a bigger model might fix.
+                    # Everything else (network, rate limit, auth, context
+                    # window) is transient and MUST NOT escalate.
+                    is_schema_err = (
+                        (
+                            _PydanticValidationError
+                            and isinstance(attempt_err, _PydanticValidationError)
+                        )
+                        or isinstance(attempt_err, json.JSONDecodeError)
+                        or "validation" in str(attempt_err).lower()
+                    )
+                    last_was_schema_error = is_schema_err
+                    # Fall through to the cascade check below (no continue).
+
+                # ========================================================
+                # Phase 2 hallucination mitigation: cascade escalation.
+                # ========================================================
+                # Fires only when:
+                #   1. Caller opted in via ``cascade=True``.
+                #   2. The just-failed attempt was a schema-validation
+                #      error (transient errors don't benefit from a bigger
+                #      model).
+                #   3. We haven't already attempted an escalation (single
+                #      retry per call).
+                #   4. The just-failed model is not already frontier.
+                #   5. The same provider has a known flagship to escalate
+                #      to.
+                #
+                # ``insert`` at ``cascade_idx`` puts the frontier next in
+                # the iteration order — it is tried BEFORE falling through
+                # to other providers in the ranking. The provider-family
+                # invariant is structural: the frontier is the flagship of
+                # the CURRENT failing provider, so BYOK credentials, cost
+                # tracking, and rate limits stay constant across the retry.
+                if (
+                    cascade
+                    and last_was_schema_error
+                    and not cascade_attempted
+                    and not is_frontier_model(model)
+                ):
+                    frontier = get_frontier_model_for_provider(provider_id)
+                    if frontier and frontier != model:
+                        logger.info(
+                            f"CASCADE ROUTING: escalating from {model} to {frontier} "
+                            f"for provider {provider_id} workspace {self.workspace_id}"
+                        )
+                        cascade_attempted = True
+                        cascade_options.insert(cascade_idx, (provider_id, frontier))
+
             logger.error(f"All structured providers failed. Last error: {last_error}")
             return None
             
