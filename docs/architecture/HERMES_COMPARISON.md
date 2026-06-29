@@ -218,3 +218,34 @@ This section is intentionally blunt.
 ---
 
 *This document is a living reference. Update it when either system ships a material change to the compared dimensions, and re-derive the "Out of scope" decisions against new evidence.*
+
+---
+
+## Pre-action confidence vs. post-action verification
+
+Atom ships bookends around tool execution that Hermes does not:
+
+| Dimension | Pre-action (`MatchConfidence`) | Post-action (`VerifiedOutcome`) |
+|---|---|---|
+| When | Before the tool call runs | After the tool call returns |
+| What | Selector resolution certainty | World-state change confirmation |
+| Discriminator | `high / partial / ambiguous` | `verified / unverified / failed_verification` |
+| Module | `core/selector_confidence_service.py` | `core/tool_outcome_verifier.py` |
+| Surfaced to LLM | Yes (tool_result JSON) | No (DB-only on `AgentReasoningStep`) |
+| Gates execution | Yes (partial/ambiguous → ProposalService) | No (graduation gates on it, not execution) |
+| Hermes analog | None | None |
+
+Hermes has no equivalent on either side. Its memory layer is concerned
+with durable facts across turns, not with the certainty of the action
+that produced them. Atom's pre-action layer is the direct answer to the
+critique that hidden a11y / canvas state expresses structure not
+uncertainty — when an agent clicks a field that moved, it can now say
+*"I think this is the target because…"* before acting, and route the
+ambiguous cases through human review even for AUTONOMOUS-tier agents
+(whose tier is otherwise routed by historical clean executions, not
+current-call certainty).
+
+The two layers are intentionally the same shape: frozen dataclass,
+never-raise parser, `coerce_*_for_storage` helper. This makes them easy
+to reason about together — every tool call has a pre-action certainty
+and a post-action outcome, and the graduation system consumes both.

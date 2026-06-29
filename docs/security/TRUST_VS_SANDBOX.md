@@ -151,3 +151,25 @@ When reviewing a PR that adds or changes agent behavior, ask:
 4. Does the PR log maturity-tier changes as security events? It should log
    them as routing changes — the security events happen at the sandbox
    layer.
+
+---
+
+## Match-confidence is not a sandbox
+
+The pre-action match-confidence layer (`docs/architecture/MATCH_CONFIDENCE.md`)
+expresses how certain an agent is about a selector *before* clicking. When
+certainty is low (partial/ambiguous), it routes the action through
+ProposalService for human review — including for AUTONOMOUS-tier agents.
+
+**This does not bound blast radius.** A prompt-injected AUTONOMOUS agent
+that produces a `high`-confidence selector still executes directly with
+full tier scope. Match-confidence intercepts the specific call where
+current-call certainty is low; it does not constrain what an agent can do
+on calls where certainty reads high.
+
+The same caveat applies as for the maturity system elsewhere in this
+document: tier is routing, not security. Bounding blast radius requires a
+deterministic sandbox layer (filesystem scope, tool whitelist, egress
+allowlist, resource caps, tripwires) that runs alongside the tier and
+runs alongside match-confidence. A selector that resolves to `high` and
+points at a destructive action still needs the sandbox to say no.

@@ -872,3 +872,37 @@ MyPy will be integrated into CI/CD pipeline:
 All Atom backend developers MUST follow these standards. Code that does not meet these standards will not be merged to main.
 
 **Questions?** Contact the platform team or open an issue in the repository.
+
+---
+
+## Browser Tool Return-Contract — match_confidence
+
+Every function in `backend/tools/browser_tool.py` that resolves a CSS
+selector (`browser_click`, `browser_fill_form`, `browser_extract_text`)
+MUST include a `match_confidence` key on its return dict when
+`BROWSER_LOCATOR_API_ENABLED=true`:
+
+```python
+{
+    "success": True,
+    "session_id": "...",
+    "selector": "...",
+    "match_confidence": {
+        "level": "high" | "partial" | "ambiguous",
+        "score": float,           # 0.0–1.0, floored
+        "rationale": str,         # human/LLM-readable
+        "candidates": [...],      # enumerated, capped at 5
+        "chosen_index": int,      # -1 when no decision
+    },
+}
+```
+
+The dict is serialized by `byok_handler.py` into `tool_result.content`,
+so the LLM sees the JSON rationale on the next turn — this is the key
+divergence from the DB-only `verified` field on post-action outcomes.
+
+When `BROWSER_LOCATOR_API_ENABLED=false` (kill switch), the legacy
+`query_selector*` path runs and the `match_confidence` key is omitted
+entirely. Existing callers degrade gracefully.
+
+See `docs/architecture/MATCH_CONFIDENCE.md` for the full design.
