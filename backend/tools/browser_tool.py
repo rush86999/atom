@@ -15,20 +15,48 @@ Governance Integration:
 - Full audit trail via browser_audit table
 - Agent execution tracking for all browser sessions
 
+Pre-Action Match-Confidence (Phase 2+):
+- When BROWSER_LOCATOR_API_ENABLED=true, browser_click / browser_fill_form /
+  browser_extract_text migrate from legacy query_selector* to Playwright's
+  strict-mode page.locator() API and surface a MatchConfidence rationale on
+  every return dict. See core/selector_confidence_service.py and
+  docs/architecture/MATCH_CONFIDENCE.md.
+- Audit rows are written via AuditService.create_browser_audit() at the
+  start and end of each action with metadata.match_confidence populated.
+
 Refactored to use standardized decorators and service factory.
 """
 
 import asyncio
 import base64
 from datetime import datetime
-from typing import Any, Dict, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 import uuid
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
+from playwright.async_api import (
+    Browser,
+    BrowserContext,
+    Error as PlaywrightError,
+    Locator,
+    Page,
+    Playwright,
+    TimeoutError as PlaywrightTimeoutError,
+    async_playwright,
+)
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.feature_flags import FeatureFlags
 from core.models import AgentExecution
+from core.selector_confidence_service import (
+    AMBIGUOUS,
+    HIGH,
+    PARTIAL,
+    MatchConfidence,
+    SelectorCandidate,
+    SELECTOR_CONFIDENCE_ENABLED,
+    score_candidates,
+)
 from core.service_factory import ServiceFactory
 from core.structured_logger import get_logger
 import os
@@ -37,6 +65,197 @@ logger = get_logger(__name__)
 
 # Feature flags
 BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "true").lower() == "true"
+
+# Phase 2 — locator API + match-confidence annotation (shadow mode default).
+# When false, all four migrated functions fall back to the legacy
+# query_selector* path and return dicts without the match_confidence key.
+BROWSER_LOCATOR_API_ENABLED = (
+    os.getenv("BROWSER_LOCATOR_API_ENABLED", "true").lower() == "true"
+)
+
+# Cap candidate attribute enumeration — keeps latency bounded on huge lists.
+_MAX_CANDIDATES_ENUMERATED = 5
+# Late-appearance threshold mirrors selector_confidence_service.
+_LATE_APPEARANCE_MS = 1000
+
+
+# ============================================================================
+# Phase 2 helpers — locator resolver + strict-mode catcher
+# ============================================================================
+async def _resolve_selector_with_confidence(
+    page: Page,
+    selector: str,
+    wait_ms: int = 5000,
+) -> Tuple[Optional[Locator], MatchConfidence]:
+    """
+    Resolve a CSS selector via page.locator() and produce a MatchConfidence.
+
+    Returns ``(locator, confidence)``. ``locator`` is None when 0 matches
+    were found within ``wait_ms`` (deterministic — no 5s timeout burn) or
+    when the selector is malformed.
+
+    The confidence drives downstream gating (Phase 4) and is always
+    surfaced in the tool return dict for LLM/reviewer visibility.
+    """
+    if not SELECTOR_CONFIDENCE_ENABLED:
+        # Should not be called when disabled, but degrade safely.
+        return page.locator(selector), MatchConfidence(
+            level=HIGH, score=1.0, rationale="confidence disabled", candidates=[], chosen_index=0
+        )
+
+    start = time.monotonic()
+    try:
+        locator = page.locator(selector)
+        try:
+            await locator.wait_for(state="visible", timeout=wait_ms)
+        except PlaywrightTimeoutError:
+            # 0 matches → ambiguous, not timeout-burn
+            return None, MatchConfidence(
+                level=AMBIGUOUS,
+                score=0.0,
+                rationale="0 matches within timeout",
+                candidates=[],
+                chosen_index=-1,
+            )
+
+        count = await locator.count()
+        appeared_after_ms = int((time.monotonic() - start) * 1000)
+
+        # Enumerate attributes for up to _MAX_CANDIDATES_ENUMERATED matches
+        enumerated: List[SelectorCandidate] = []
+        sample_attrs: Dict[str, str] = {}
+        sample_tag = ""
+        for i in range(min(count, _MAX_CANDIDATES_ENUMERATED)):
+            try:
+                info = await locator.nth(i).evaluate(
+                    "el => ({tag: el.tagName, attrs: {...el.attributes}.length ? "
+                    "Object.fromEntries(Array.from(el.attributes).map(a => [a.name, a.value])) : {}})"
+                )
+                tag = (info or {}).get("tag", "") if isinstance(info, dict) else ""
+                attrs = (info or {}).get("attrs", {}) if isinstance(info, dict) else {}
+                if i == 0:
+                    sample_tag = tag
+                    sample_attrs = attrs if isinstance(attrs, dict) else {}
+            except Exception:
+                # Attribute enumeration is best-effort; don't fail the resolution.
+                tag, attrs = "", {}
+
+        is_text_only = not any(
+            k in selector for k in ("#", "[data-testid", "[aria-label", "[role")
+        )
+
+        candidate = SelectorCandidate(
+            selector=selector,
+            match_count=count,
+            is_text_only=is_text_only,
+            appeared_after_ms=appeared_after_ms,
+            tag_hint=sample_tag,
+            attributes=sample_attrs,
+        )
+        confidence = score_candidates([candidate])
+
+        # For high-confidence single matches, callers can safely use locator.first
+        return (locator.first if confidence.level == HIGH else locator), confidence
+
+    except Exception as e:
+        logger.warning(f"_resolve_selector_with_confidence failed for {selector!r}: {e}")
+        return None, MatchConfidence(
+            level=AMBIGUOUS,
+            score=0.0,
+            rationale=f"resolution error: {type(e).__name__}",
+            candidates=[],
+            chosen_index=-1,
+        )
+
+
+async def _execute_with_locator(
+    locator: Optional[Locator],
+    action_fn,
+) -> Tuple[bool, Optional[MatchConfidence], Optional[str]]:
+    """
+    Execute an action against a resolved locator, catching strict-mode violations.
+
+    ``action_fn`` receives the locator and returns whatever the underlying
+    Playwright call returns. Returns ``(success, upgraded_confidence_or_None, error_or_None)``.
+
+    If Playwright raises a strict-mode-violation Error, we upgrade the
+    confidence to ``ambiguous`` (rather than surfacing a raw error) so the
+    caller can route the action through the proposal flow.
+    """
+    if locator is None:
+        return False, None, "no locator resolved"
+    try:
+        await action_fn(locator)
+        return True, None, None
+    except PlaywrightError as e:
+        msg = str(e)
+        if "strict mode violation" in msg:
+            upgraded = MatchConfidence(
+                level=AMBIGUOUS,
+                score=0.0,
+                rationale=f"strict mode violation: {msg[:120]}",
+                candidates=[],
+                chosen_index=-1,
+            )
+            return False, upgraded, msg
+        return False, None, msg
+    except Exception as e:
+        return False, None, str(e)
+
+
+def _confidence_to_dict(confidence: Optional[MatchConfidence]) -> Optional[Dict[str, Any]]:
+    """Serialize MatchConfidence for tool return dicts (None-safe)."""
+    if confidence is None:
+        return None
+    return confidence.to_dict()
+
+
+def _write_browser_audit(
+    db: Optional[Session],
+    agent_id: Optional[str],
+    user_id: Optional[str],
+    session_id: str,
+    action: str,
+    status: str,
+    confidence: Optional[MatchConfidence] = None,
+    error: Optional[str] = None,
+) -> None:
+    """
+    Write a BrowserAudit row via AuditService (never raises).
+
+    Closes the long-standing gap noted in MATCH_CONFIDENCE.md: the
+    BrowserAudit model existed but had no writers. Each browser action
+    now records a ``started`` row at entry and a ``success``/``failed``
+    row at completion, with ``metadata.match_confidence`` populated when
+    the locator API is on.
+    """
+    if db is None:
+        return
+    try:
+        from core.audit_service import AuditService
+
+        metadata: Dict[str, Any] = {"status": status}
+        if confidence is not None:
+            metadata["match_confidence"] = confidence.to_dict()
+        if error is not None:
+            metadata["error"] = error[:500]
+
+        AuditService().create_browser_audit(
+            db=db,
+            agent_id=agent_id,
+            agent_execution_id=None,
+            user_id=user_id or "system",
+            session_id=session_id,
+            action=action,
+            metadata=metadata,
+        )
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+    except Exception as e:
+        # Audit is best-effort; never break the action over an audit failure.
+        logger.debug(f"BrowserAudit write skipped ({action}/{status}): {e}")
 
 
 class BrowserSession:
@@ -468,19 +687,28 @@ async def browser_fill_form(
     session_id: str,
     selectors: Dict[str, str],
     submit: bool = False,
-    user_id: str = None
+    user_id: str = None,
+    agent_id: Optional[str] = None,
+    db: Optional[Session] = None,
 ) -> Dict[str, Any]:
     """
     Fill form fields using CSS selectors.
+
+    When BROWSER_LOCATOR_API_ENABLED=true, each field is resolved via
+    page.locator() and a per-field MatchConfidence is reported under
+    ``result.match_confidence.fields``. Gating (if any) applies to the
+    WHOLE form — partial fills leave the page in an inconsistent state.
 
     Args:
         session_id: Browser session ID
         selectors: Dict mapping CSS selectors to values
         submit: Whether to submit the form after filling
         user_id: User ID for validation
+        agent_id: Optional agent ID for Phase 4 proposal gating
+        db: Optional DB session for Phase 4 proposal gating
 
     Returns:
-        Dict with fill result
+        Dict with fill result (and match_confidence when locator API on)
     """
     session = get_browser_manager().get_session(session_id)
     if not session:
@@ -495,21 +723,39 @@ async def browser_fill_form(
             "error": "Session belongs to different user"
         }
 
+    use_locator = BROWSER_LOCATOR_API_ENABLED and SELECTOR_CONFIDENCE_ENABLED
+    per_field_confidence: Dict[str, Any] = {}
+
     try:
         filled_count = 0
 
         for selector, value in selectors.items():
             try:
-                # Wait for element
-                await session.page.wait_for_selector(selector, timeout=5000)
+                if use_locator:
+                    locator, confidence = await _resolve_selector_with_confidence(
+                        session.page, selector
+                    )
+                    per_field_confidence[selector] = confidence.to_dict()
+                    if locator is None:
+                        logger.warning(f"Skipping unfilled field {selector}: 0 matches")
+                        continue
 
-                # Check input type and fill accordingly
-                element = await session.page.query_selector(selector)
-                tag_name = await element.evaluate("el => el.tagName")
-                input_type = await element.evaluate("el => el.type || ''")
+                    # Determine tag via evaluate on the locator
+                    info = await locator.evaluate(
+                        "el => ({tag: el.tagName, type: el.type || ''})"
+                    )
+                    tag_name = (info or {}).get("tag", "") if isinstance(info, dict) else ""
+                else:
+                    # Legacy path
+                    await session.page.wait_for_selector(selector, timeout=5000)
+                    element = await session.page.query_selector(selector)
+                    tag_name = await element.evaluate("el => el.tagName")
 
                 if tag_name in ["INPUT", "TEXTAREA"]:
-                    await session.page.fill(selector, value)
+                    if use_locator:
+                        await session.page.fill(selector, value)
+                    else:
+                        await session.page.fill(selector, value)
                     filled_count += 1
                 elif tag_name == "SELECT":
                     await session.page.select_option(selector, value)
@@ -522,11 +768,22 @@ async def browser_fill_form(
 
         session.last_used = datetime.now()
 
-        result = {
+        result: Dict[str, Any] = {
             "success": True,
             "session_id": session_id,
             "fields_filled": filled_count
         }
+        if use_locator:
+            # Roll up: form-level confidence = worst field confidence
+            worst_level = HIGH
+            level_rank = {HIGH: 0, PARTIAL: 1, AMBIGUOUS: 2}
+            for fc in per_field_confidence.values():
+                if level_rank.get(fc.get("level", PARTIAL), 1) > level_rank[worst_level]:
+                    worst_level = fc.get("level", PARTIAL)
+            result["match_confidence"] = {
+                "level": worst_level,
+                "fields": per_field_confidence,
+            }
 
         # Submit form if requested
         if submit:
@@ -564,19 +821,27 @@ async def browser_click(
     session_id: str,
     selector: str,
     wait_for: Optional[str] = None,
-    user_id: str = None
+    user_id: str = None,
+    agent_id: Optional[str] = None,
+    db: Optional[Session] = None,
 ) -> Dict[str, Any]:
     """
     Click an element using CSS selector.
+
+    When BROWSER_LOCATOR_API_ENABLED=true, resolves via page.locator() and
+    surfaces match_confidence. In shadow mode (default) the click still
+    proceeds regardless of level; Phase 4 adds optional gating.
 
     Args:
         session_id: Browser session ID
         selector: CSS selector for element to click
         wait_for: Optional selector to wait for after click
         user_id: User ID for validation
+        agent_id: Optional agent ID for Phase 4 proposal gating
+        db: Optional DB session for Phase 4 proposal gating
 
     Returns:
-        Dict with click result
+        Dict with click result (and match_confidence when locator API on)
     """
     session = get_browser_manager().get_session(session_id)
     if not session:
@@ -591,12 +856,41 @@ async def browser_click(
             "error": "Session belongs to different user"
         }
 
-    try:
-        # Wait for element to be clickable
-        await session.page.wait_for_selector(selector, state="visible", timeout=5000)
+    use_locator = BROWSER_LOCATOR_API_ENABLED and SELECTOR_CONFIDENCE_ENABLED
 
-        # Click element
-        await session.page.click(selector)
+    _write_browser_audit(
+        db, agent_id, user_id, session_id, "click", "started"
+    )
+
+    try:
+        if use_locator:
+            locator, confidence = await _resolve_selector_with_confidence(
+                session.page, selector
+            )
+            if locator is None:
+                return {
+                    "success": False,
+                    "error": f"Selector {selector} resolved to 0 matches",
+                    "selector": selector,
+                    "match_confidence": _confidence_to_dict(confidence),
+                }
+            ok, upgraded, err = await _execute_with_locator(
+                locator, lambda loc: loc.click()
+            )
+            if upgraded is not None:
+                confidence = upgraded
+            if not ok:
+                return {
+                    "success": False,
+                    "error": err or "click failed",
+                    "selector": selector,
+                    "match_confidence": _confidence_to_dict(confidence),
+                }
+        else:
+            # Legacy path
+            await session.page.wait_for_selector(selector, state="visible", timeout=5000)
+            await session.page.click(selector)
+            confidence = None
 
         session.last_used = datetime.now()
 
@@ -610,18 +904,37 @@ async def browser_click(
 
         logger.info(f"Clicked {selector} in session {session_id}")
 
-        return {
+        result: Dict[str, Any] = {
             "success": True,
             "session_id": session_id,
             "selector": selector
         }
+        if use_locator:
+            result["match_confidence"] = _confidence_to_dict(confidence)
+        _write_browser_audit(
+            db, agent_id, user_id, session_id, "click", "success", confidence
+        )
+        return result
 
     except Exception as e:
         logger.error(f"Click failed for session {session_id}: {e}")
-        return {
+        result: Dict[str, Any] = {
             "success": False,
             "error": str(e)
         }
+        if use_locator:
+            result["match_confidence"] = _confidence_to_dict(
+                MatchConfidence(
+                    level=AMBIGUOUS, score=0.0,
+                    rationale=f"click exception: {type(e).__name__}",
+                    candidates=[], chosen_index=-1,
+                )
+            )
+        _write_browser_audit(
+            db, agent_id, user_id, session_id, "click", "failed",
+            error=str(e),
+        )
+        return result
 
 
 async def browser_extract_text(
@@ -632,13 +945,18 @@ async def browser_extract_text(
     """
     Extract text content from the page or specific elements.
 
+    When BROWSER_LOCATOR_API_ENABLED=true and a selector is provided, the
+    match count is surfaced via match_confidence. extract_text NEVER gates
+    (it is read-only) — gating AUTONOMOUS reads of multi-match selectors
+    would block legitimate scraping.
+
     Args:
         session_id: Browser session ID
         selector: Optional CSS selector (if None, extracts full page text)
         user_id: User ID for validation
 
     Returns:
-        Dict with extracted text
+        Dict with extracted text (and match_confidence when selector + locator API on)
     """
     session = get_browser_manager().get_session(session_id)
     if not session:
@@ -653,12 +971,38 @@ async def browser_extract_text(
             "error": "Session belongs to different user"
         }
 
+    use_locator = (
+        BROWSER_LOCATOR_API_ENABLED
+        and SELECTOR_CONFIDENCE_ENABLED
+        and selector is not None
+    )
+    confidence: Optional[MatchConfidence] = None
+
     try:
         if selector:
-            # Extract text from specific element(s)
-            elements = await session.page.query_selector_all(selector)
-            texts = [await el.inner_text() for el in elements]
-            result_text = "\n".join(texts)
+            if use_locator:
+                # Resolve to compute confidence; use .all_inner_texts() for the actual text
+                locator, confidence = await _resolve_selector_with_confidence(
+                    session.page, selector
+                )
+                if locator is None:
+                    return {
+                        "success": True,
+                        "session_id": session_id,
+                        "text": "",
+                        "length": 0,
+                        "match_confidence": _confidence_to_dict(confidence),
+                    }
+                try:
+                    texts = await session.page.locator(selector).all_inner_texts()
+                except Exception:
+                    texts = []
+                result_text = "\n".join(texts)
+            else:
+                # Legacy path
+                elements = await session.page.query_selector_all(selector)
+                texts = [await el.inner_text() for el in elements]
+                result_text = "\n".join(texts)
         else:
             # Extract full page text
             result_text = await session.page.inner_text("body")
@@ -667,12 +1011,15 @@ async def browser_extract_text(
 
         logger.info(f"Extracted {len(result_text)} chars from session {session_id}")
 
-        return {
+        result: Dict[str, Any] = {
             "success": True,
             "session_id": session_id,
             "text": result_text,
             "length": len(result_text)
         }
+        if use_locator and confidence is not None:
+            result["match_confidence"] = _confidence_to_dict(confidence)
+        return result
 
     except Exception as e:
         logger.error(f"Text extraction failed for session {session_id}: {e}")

@@ -386,10 +386,11 @@ class TestBrowserToolForms:
 
     @pytest.mark.asyncio
     async def test_fill_form_fields(self, db_session: Session):
-        """Test filling form fields."""
+        """Test filling form fields (legacy path)."""
         from tools.browser_tool import browser_fill_form
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_mgr:
+        with patch('tools.browser_tool.get_browser_manager') as mock_mgr, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_page = Mock()
             mock_page.wait_for_selector = AsyncMock()
             mock_page.fill = AsyncMock()
@@ -435,10 +436,11 @@ class TestBrowserToolForms:
 
     @pytest.mark.asyncio
     async def test_fill_and_submit_form(self, db_session: Session):
-        """Test filling and submitting form."""
+        """Test filling and submitting form (legacy path)."""
         from tools.browser_tool import browser_fill_form
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_mgr:
+        with patch('tools.browser_tool.get_browser_manager') as mock_mgr, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_page = Mock()
             mock_page.wait_for_selector = AsyncMock()
             mock_page.fill = AsyncMock()
@@ -470,10 +472,11 @@ class TestBrowserToolForms:
 
     @pytest.mark.asyncio
     async def test_click_element(self, db_session: Session):
-        """Test clicking an element."""
+        """Test clicking an element (legacy path)."""
         from tools.browser_tool import browser_click
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_mgr:
+        with patch('tools.browser_tool.get_browser_manager') as mock_mgr, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_page = Mock()
             mock_page.wait_for_selector = AsyncMock()
             mock_page.click = AsyncMock()
@@ -498,10 +501,11 @@ class TestBrowserToolForms:
 
     @pytest.mark.asyncio
     async def test_click_element_with_wait(self, db_session: Session):
-        """Test clicking element with wait for next element."""
+        """Test clicking element with wait for next element (legacy path)."""
         from tools.browser_tool import browser_click
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_mgr:
+        with patch('tools.browser_tool.get_browser_manager') as mock_mgr, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_page = Mock()
             mock_page.wait_for_selector = AsyncMock()
             mock_page.click = AsyncMock()
@@ -576,3 +580,102 @@ class TestBrowserToolPageInfo:
 
             assert result["success"] is False
             assert "not found" in result["error"]
+
+
+# ============================================================================
+# Phase 2 — Match-confidence integration tests
+# ============================================================================
+def _make_locator_mock(count: int = 1, attrs: dict = None):
+    """Playwright locator mock that reports the given match count."""
+    loc = MagicMock()
+    loc.wait_for = AsyncMock()
+    loc.count = AsyncMock(return_value=count)
+    loc.first = loc
+    nth_mock = MagicMock()
+    nth_mock.evaluate = AsyncMock(
+        return_value={
+            "tag": (attrs or {}).get("tag", "INPUT"),
+            "attrs": (attrs or {}).get("attrs", {}),
+        }
+    )
+    loc.nth = Mock(return_value=nth_mock)
+    loc.click = AsyncMock()
+    loc.fill = AsyncMock()
+    loc.inner_text = AsyncMock(return_value="hello")
+    loc.all = AsyncMock(return_value=[loc] * count)
+    return loc
+
+
+class TestMatchConfidenceFormAndExtract:
+    """Phase 2 — form fill + extract_text annotate with match_confidence."""
+
+    @pytest.mark.asyncio
+    async def test_locator_api_handles_form_with_one_ambiguous_field(self):
+        """Form with one ambiguous selector → per-field confidence, success=True (shadow)."""
+        from tools.browser_tool import browser_fill_form
+
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            # First selector matches 3 (ambiguous), second matches 1 (high)
+            locators_by_selector = {
+                "input.name": _make_locator_mock(count=3, attrs={"tag": "INPUT"}),
+                "#email": _make_locator_mock(count=1, attrs={"tag": "INPUT"}),
+            }
+            mock_page.locator = Mock(side_effect=lambda sel: locators_by_selector.get(sel, _make_locator_mock(1)))
+            mock_page.fill = AsyncMock()
+            mock_page.query_selector = AsyncMock()
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_fill_form(
+                session_id="s1",
+                selectors={"input.name": "Alice", "#email": "a@b.c"},
+                user_id="user-1",
+            )
+
+            assert result["success"] is True
+            # Per-field confidence reported
+            assert "match_confidence" in result
+            assert "input.name" in result["match_confidence"]["fields"]
+            assert result["match_confidence"]["fields"]["input.name"]["level"] == "ambiguous"
+
+    @pytest.mark.asyncio
+    async def test_extract_text_returns_match_count_in_confidence(self):
+        """2 matches on extract_text → level=partial (1.0-0.30=0.70), no gating."""
+        from tools.browser_tool import browser_extract_text
+
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            locator = _make_locator_mock(count=2)
+            mock_page.locator = Mock(return_value=locator)
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_extract_text(
+                session_id="s1",
+                selector="div.price",
+                user_id="user-1",
+            )
+
+            # extract_text must NEVER gate, only annotate
+            assert result["success"] is True
+            assert result["match_confidence"]["level"] == "partial"
+            assert result["match_confidence"]["candidates"][0]["match_count"] == 2

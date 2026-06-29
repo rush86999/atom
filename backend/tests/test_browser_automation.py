@@ -332,8 +332,9 @@ class TestBrowserFillForm:
 
     @pytest.mark.asyncio
     async def test_fill_form_success(self):
-        """Test successful form filling."""
-        with patch('tools.browser_tool.get_browser_manager') as mock_manager:
+        """Test successful form filling (legacy path)."""
+        with patch('tools.browser_tool.get_browser_manager') as mock_manager, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_element = Mock()
             mock_element.evaluate = AsyncMock(side_effect=lambda x: "INPUT" if "tagName" in x else "text")
 
@@ -365,8 +366,9 @@ class TestBrowserClick:
 
     @pytest.mark.asyncio
     async def test_click_success(self):
-        """Test successful element click."""
-        with patch('tools.browser_tool.get_browser_manager') as mock_manager:
+        """Test successful element click (legacy path)."""
+        with patch('tools.browser_tool.get_browser_manager') as mock_manager, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_session = Mock()
             mock_session.user_id = "user-1"
             mock_session.page = Mock()
@@ -386,6 +388,185 @@ class TestBrowserClick:
 
             assert result["success"] is True
             assert result["selector"] == "#submit-button"
+
+
+# ============================================================================
+# Phase 2 — Match-confidence (locator resolver) tests
+# ============================================================================
+def _make_locator_mock(count: int = 1, attrs: dict = None):
+    """Build a Playwright locator mock that reports the given match count."""
+    locator = MagicMock()
+    locator.wait_for = AsyncMock()
+    locator.count = AsyncMock(return_value=count)
+    locator.first = locator
+
+    # nth(i).evaluate(...) returns tag/attrs for the i-th match
+    nth_mock = MagicMock()
+    nth_mock.evaluate = AsyncMock(
+        return_value={
+            "tag": (attrs or {}).get("tag", "BUTTON"),
+            "attrs": (attrs or {}).get("attrs", {}),
+        }
+    )
+    locator.nth = Mock(return_value=nth_mock)
+    locator.click = AsyncMock()
+    locator.fill = AsyncMock()
+    return locator
+
+
+class TestBrowserClickMatchConfidence:
+    """Phase 2 — browser_click surfaces match_confidence and uses locator API."""
+
+    @pytest.mark.asyncio
+    async def test_browser_click_returns_match_confidence_high(self):
+        """Single ID-based match → level=high, action executes."""
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            mock_page.locator = Mock(return_value=_make_locator_mock(count=1))
+            mock_page.click = AsyncMock()
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_click(
+                session_id="s1",
+                selector="#submit-button",
+                user_id="user-1",
+            )
+
+            assert result["success"] is True
+            assert result["match_confidence"]["level"] == "high"
+            assert result["match_confidence"]["score"] == pytest.approx(1.0)
+
+    @pytest.mark.asyncio
+    async def test_browser_click_ambiguous_when_three_matches(self):
+        """Three matches → level=ambiguous, action still executes in shadow mode."""
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            mock_page.locator = Mock(return_value=_make_locator_mock(count=3))
+            mock_page.click = AsyncMock()
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_click(
+                session_id="s1",
+                selector="button",
+                user_id="user-1",
+            )
+
+            assert result["match_confidence"]["level"] == "ambiguous"
+            # Shadow mode (no gating) → still executes
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_browser_click_zero_matches_returns_ambiguous_not_timeout(self):
+        """0 matches → ambiguous + success=False (no 5s timeout burn)."""
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            locator = _make_locator_mock(count=0)
+            # Simulate Playwright TimeoutError on wait_for when 0 matches
+            from playwright.async_api import TimeoutError as PWTimeoutError
+            locator.wait_for = AsyncMock(side_effect=PWTimeoutError("timeout"))
+            mock_page.locator = Mock(return_value=locator)
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_click(
+                session_id="s1",
+                selector=".nonexistent",
+                user_id="user-1",
+            )
+
+            assert result["success"] is False
+            assert result["match_confidence"]["level"] == "ambiguous"
+            assert result["match_confidence"]["score"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_strict_mode_violation_caught_as_ambiguous(self):
+        """Playwright strict-mode violation → caught and surfaced as ambiguous."""
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
+             patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.last_used = None
+
+            mock_page = Mock()
+            locator = _make_locator_mock(count=3)
+            # Strict mode violation raised on click
+            from playwright.async_api import Error as PWError
+            locator.click = AsyncMock(
+                side_effect=PWError("Error: strict mode violation: locator.click resolved to 3 elements")
+            )
+            mock_page.locator = Mock(return_value=locator)
+            mock_session.page = mock_page
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_click(
+                session_id="s1",
+                selector="button",
+                user_id="user-1",
+            )
+
+            assert result["success"] is False
+            assert result["match_confidence"]["level"] == "ambiguous"
+
+    @pytest.mark.asyncio
+    async def test_legacy_path_unaffected_when_flag_off(self):
+        """BROWSER_LOCATOR_API_ENABLED=false → uses legacy query_selector path."""
+        with patch("tools.browser_tool.get_browser_manager") as mock_manager, \
+             patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", False):
+            mock_session = Mock()
+            mock_session.user_id = "user-1"
+            mock_session.page = Mock()
+            mock_session.page.wait_for_selector = AsyncMock()
+            mock_session.page.click = AsyncMock()
+            mock_session.last_used = None
+
+            mock_mgr_instance = Mock()
+            mock_mgr_instance.get_session = Mock(return_value=mock_session)
+            mock_manager.return_value = mock_mgr_instance
+
+            result = await browser_click(
+                session_id="test-session",
+                selector="#submit-button",
+                user_id="user-1",
+            )
+
+            assert result["success"] is True
+            # Legacy path does NOT populate match_confidence
+            assert "match_confidence" not in result
+            # Legacy API used
+            mock_session.page.wait_for_selector.assert_called_once()
 
 
 class TestBrowserExtractText:
@@ -764,10 +945,11 @@ class TestBrowserToolCoverage:
 
     @pytest.mark.asyncio
     async def test_browser_fill_form_with_select_element(self):
-        """Test browser_fill_form handles SELECT elements"""
+        """Test browser_fill_form handles SELECT elements (legacy path)"""
         from tools.browser_tool import browser_fill_form
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_manager:
+        with patch('tools.browser_tool.get_browser_manager') as mock_manager, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_element = MagicMock()
             # First call returns tag name, second returns input type
             mock_element.evaluate = AsyncMock(side_effect=lambda x: "SELECT" if "tagName" in x else "select-one")
@@ -852,10 +1034,11 @@ class TestBrowserToolCoverage:
 
     @pytest.mark.asyncio
     async def test_browser_extract_text_with_selector(self):
-        """Test browser_extract_text extracts from specific selector"""
+        """Test browser_extract_text extracts from specific selector (legacy path)"""
         from tools.browser_tool import browser_extract_text
 
-        with patch('tools.browser_tool.get_browser_manager') as mock_manager:
+        with patch('tools.browser_tool.get_browser_manager') as mock_manager, \
+             patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
             mock_elements = [
                 MagicMock(inner_text=AsyncMock(return_value="Item 1")),
                 MagicMock(inner_text=AsyncMock(return_value="Item 2"))
