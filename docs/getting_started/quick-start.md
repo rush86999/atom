@@ -1,238 +1,160 @@
-# Atom Personal Edition - One-Command Start
+# Atom — Quick Start (Verified Working June 2026)
 
-> **Start Atom with a single command - no configuration needed!**
+> **Fastest path to a running local server.** Verified end-to-end (backend
+> boots, health endpoints respond, login returns a JWT). For the full
+> guide with troubleshooting, see [`docs/guides/QUICKSTART.md`](../guides/QUICKSTART.md).
 
 ---
 
-## 🚀 Quick Start (One Command)
+## Prerequisites
 
-### macOS / Linux
+| Tool | Version | Why |
+|------|---------|-----|
+| Python | 3.11+ | Backend runtime |
+| Node.js | 18+ | Frontend runtime |
+| npm | 9+ | Frontend deps |
+| git | any | Clone the repo |
+
+Verify:
+```bash
+python3.11 --version && node --version && npm --version
+```
+
+---
+
+## 1. Clone & install (one-time, ~3 minutes)
 
 ```bash
-./start.sh
+git clone https://github.com/rush86999/atom.git
+cd atom
+
+# Backend deps in a venv
+cd backend
+python3.11 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+# Frontend deps
+cd ../frontend-nextjs
+npm install --legacy-peer-deps
+cd ..
 ```
 
-### Windows
+## 2. Configure environment
 
-```batch
-start.bat
-```
-
-That's it! Atom will start automatically. Open your browser to:
-
-**http://localhost:3000**
-
----
-
-## What This Script Does
-
-The `start.sh` (or `start.bat`) script automatically:
-
-1. ✅ **Checks prerequisites** - Python, Node.js, npm
-2. ✅ **Installs if needed** - Runs `install-native.sh` if first time
-3. ✅ **Starts backend** - On port 8000 (or 8001 if occupied)
-4. ✅ **Starts frontend** - On port 3000 (or 3001 if occupied)
-5. ✅ **Shows access URLs** - Dashboard, API, documentation
-6. ✅ **Handles cleanup** - Stops both services when you press Ctrl+C
-
----
-
-## 📋 What You'll See
-
-```
-╔════════════════════════════════════════════════════════════╗
-║  🚀 Atom Personal Edition - Starting...                       ║
-╚════════════════════════════════════════════════════════════╝
-
-📊 Starting backend...
-✅ Backend starting on port 8000
-
-🎨 Starting frontend...
-✅ Frontend starting on port 3000
-
-╔════════════════════════════════════════════════════════════╗
-║  ✅ Atom is Running!                                         ║
-╚════════════════════════════════════════════════════════════╝
-
-🌐 Dashboard:      http://localhost:3000
-🔌 Backend API:    http://localhost:8000
-📚 API Docs:      http://localhost:8000/docs
-```
-
----
-
-## 🛑 How to Stop
-
-Just press **Ctrl+C** in the terminal. The script will automatically stop both backend and frontend services.
-
----
-
-## 📝 First Time Setup
-
-If this is your first time running Atom, the script will automatically run the installer:
+Create `backend/.env` (the `backend/` directory, not the repo root):
 
 ```bash
-./start.sh
-# Will detect that installation is needed and run install-native.sh
+# backend/.env
+DATABASE_URL=sqlite:///./atom_dev.db     # SQLite = zero external setup
+SECRET_KEY=<run: openssl rand -base64 48>  # MUST be set or JWTs reset on restart
+OPENAI_API_KEY=sk-...                     # At least one LLM provider required
+# ANTHROPIC_API_KEY=sk-ant-...            # Optional alternates
+# DEEPSEEK_API_KEY=...
 ```
 
-The installer will:
-- Create Python virtual environment
-- Install all dependencies (FastAPI, FastEmbed, LanceDB, etc.)
-- Configure environment (.env file)
-- Generate encryption keys
-- Run database migrations
-- Create admin user
+A template lives at `backend/.env.example` with all options documented.
 
-This takes about **5 minutes** on first run.
+## 3. Launch the backend
+
+**From the repo root** (not from `backend/`):
+
+```bash
+cd /path/to/atom
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+```
+
+You should see:
+```
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+
+### Where's my admin password?
+
+On first boot the app auto-creates `admin@example.com` and writes a
+randomly-generated password to a **file** (not stdout — stdout is too
+easy to leak via log aggregators):
+
+```
+backend/logs/bootstrap_admin_password.txt   # mode 0600, owner-only readable
+```
+
+Read it:
+```bash
+cat backend/logs/bootstrap_admin_password.txt
+```
+
+To control the password yourself, set `ADMIN_PASSWORD` in `backend/.env`
+before launching.
+
+## 4. Verify it works
+
+```bash
+# Liveness (sub-10ms)
+curl http://localhost:8000/health/live
+# → {"status":"alive","timestamp":"..."}
+
+# Readiness (database + disk checks)
+curl http://localhost:8000/health/ready
+
+# Interactive API docs
+open http://localhost:8000/docs
+```
+
+## 5. Log in
+
+```bash
+PWD_VAL=$(cat backend/logs/bootstrap_admin_password.txt)
+
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"admin@example.com\",\"password\":\"$PWD_VAL\"}" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+echo "Token: $TOKEN"
+
+# Authenticated request
+curl http://localhost:8000/api/users/me -H "Authorization: Bearer $TOKEN"
+```
+
+## 6. Launch the frontend (optional, for the UI)
+
+In a second terminal:
+
+```bash
+cd /path/to/atom/frontend-nextjs
+npm run dev
+# → http://localhost:3000
+```
+
+Sign in at http://localhost:3000/auth/signin with
+`admin@example.com` + the password from step 3. The backend is
+CORS-enabled for `http://localhost:3000` by default.
 
 ---
 
-## ⚙️ Configuration
+## Common errors
 
-### Before First Run
+| Error | Fix |
+|-------|-----|
+| `ModuleNotFoundError: No module named 'backend.api'` | Run from repo root with `PYTHONPATH=$PWD:$PWD/backend` (see step 3) |
+| `Could not validate credentials` on every request | `SECRET_KEY` not set — tokens reset on restart. Set it in `backend/.env` |
+| Admin password lost | Delete the user and restart, or set `ADMIN_PASSWORD` in `backend/.env` |
+| Port 8000 in use | Use `--port 8001` (or any free port) |
+| `npm install` fails | Use `npm install --legacy-peer-deps` (peer-dep conflicts in the Next.js stack) |
 
-Add your AI provider API key to `.env`:
-
-```bash
-# Edit .env file
-nano .env
-
-# Add your API key:
-OPENAI_API_KEY=sk-your-key-here
-# OR
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-```
-
-**Get API Key:**
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/
-
-### Optional Configuration
-
-If you want to customize ports or other settings:
-
-```bash
-# Edit start.sh
-nano start.sh
-
-# Change these lines if needed:
-# PORT=8001  # Backend port
-# FRONTEND_PORT=3001  # Frontend port
-```
+For the full troubleshooting guide see [`docs/getting_started/TROUBLESHOOTING.md`](./TROUBLESHOOTING.md).
 
 ---
 
-## 🔍 Troubleshooting
+## What's next
 
-### Port Already in Use
-
-**Error:** `address already in use`
-
-**Solution:** The script automatically detects port conflicts and uses:
-- Backend: 8001 (if 8000 is busy)
-- Frontend: 3001 (if 3000 is busy)
-
-### Backend Won't Start
-
-**Error:** Backend exits immediately
-
-**Solution:** Check logs:
-```bash
-tail -f /tmp/atom-backend.log
-```
-
-Common issues:
-- Missing API key in `.env`
-- Port conflicts
-- Dependencies not installed (run `./install-native.sh`)
-
-### Frontend Won't Start
-
-**Solution:** Check frontend terminal or reinstall dependencies:
-```bash
-cd frontend-nextjs
-npm install
-```
+- **Explore the API**: http://localhost:8000/docs (Swagger UI)
+- **Add LLM providers**: edit `backend/.env` and restart (GLM-5.2, Gemini, MiniMax, Ollama all supported)
+- **Run the test suite**: `pytest backend/tests/unit/ -v`
+- **Production setup** (PostgreSQL): see [`docs/guides/QUICKSTART.md`](../guides/QUICKSTART.md) § Production Setup
+- **Docker setup**: `docker-compose -f docker-compose-personal.yml up -d`
 
 ---
 
-## 📊 What's Included
-
-**With the one-command start, you get:**
-
-✅ **Full AI Automation Platform**
-- Multi-agent system with governance
-- **AI Workflow Generator**: Create complex automations by simply describing them to the agent. ✨ NEW
-- **Intelligent request routing**: Automatic classification and task delegation. ✨ NEW
-- Workflow builder with visual editor
-- Browser automation
-- Device capabilities
-
-✅ **Community Skills** ✨ NEW
-- 5,000+ OpenClaw/ClawHub skills
-- Import via GitHub URL
-- Enterprise security with sandboxed execution
-- Automatic governance integration
-
-✅ **Vector Embeddings**
-- Local generation (FastEmbed, 10-20ms)
-- Semantic search
-- Episodic memory
-- LanceDB vector database
-
-✅ **Integrations**
-- 46+ pre-built integrations
-- Slack, Gmail, HubSpot, Salesforce, etc.
-- OAuth flows configured
-
-✅ **All Data Local**
-- SQLite database in `./data/`
-- LanceDB vectors in `./data/lancedb/`
-- 100% private, nothing leaves your machine
-
----
-
-## 🎯 Alternative: Docker Start
-
-If you prefer Docker (even simpler setup):
-
-```bash
-docker-compose -f docker-compose-personal.yml up -d
-```
-
-Then access at: **http://localhost:3000**
-
----
-
-## 📚 Documentation
-
-- PERSONAL_EDITION.md - Full Docker guide
-- [NATIVE_SETUP.md](../archive/legacy/NATIVE_SETUP.md) - Detailed native setup
-- VECTOR_EMBEDDINGS.md - Embeddings guide
-- INSTALLATION_OPTIONS.md - Method comparison
-
----
-
-## 🎉 Summary
-
-**One command is all you need:**
-
-```bash
-./start.sh  # macOS/Linux
-start.bat    # Windows
-```
-
-**Then open:** http://localhost:3000
-
-**Features ready:**
-- ✅ Multi-agent automation
-- ✅ 5,000+ community skills (OpenClaw/ClawHub)
-- ✅ Semantic search
-- ✅ Vector embeddings
-- ✅ Episodic memory
-- ✅ 46+ integrations
-- ✅ All data local
-- ✅ Zero cloud costs
-
-**That's it!** 🚀
+**Last Updated**: June 30, 2026 · **Status**: Verified working ✅

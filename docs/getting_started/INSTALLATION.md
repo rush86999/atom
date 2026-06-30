@@ -1,6 +1,13 @@
 # Atom Installation Guide
 
-> **Single-command installation:** `pip install atom-os`
+> ⚠️ **June 2026 status**: The `pip install atom-os` path below describes the
+> intended single-command install, but the package is **not yet published to
+> PyPI**. For a verified-working install today, use the **[Quick Start guide](./quick-start.md)**
+> instead (clone + venv + uvicorn — takes ~5 minutes). The `atom-os` CLI
+> commands documented in this file will work once the package is published;
+> until then they will fail with `No matching distribution found for atom-os`.
+
+> **Intended single-command installation (when published):** `pip install atom-os`
 
 Atom offers two editions:
 - **Personal Edition** - Free, local, single-user (default)

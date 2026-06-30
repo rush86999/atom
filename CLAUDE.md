@@ -506,10 +506,12 @@ alembic history
 cd /path/to/atom
 PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 
-# Auth (admin password auto-generated on first launch, check startup logs)
+# Auth (admin password auto-generated on first launch, written to
+# backend/logs/bootstrap_admin_password.txt mode 0600 — or set ADMIN_PASSWORD)
+cat backend/logs/bootstrap_admin_password.txt   # read the generated password
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin@example.com","password":"<from-log>"}'
+  -d '{"username":"admin@example.com","password":"<from-file>"}'
 
 # Daemon (Personal Edition)
 atom-os daemon | status | stop | execute <command>

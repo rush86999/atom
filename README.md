@@ -111,37 +111,50 @@ Intelligent CHAT/WORKFLOW/TASK routing with governance checks and dynamic fleet 
 
 ## Quick Start
 
+The fastest path to a running local server (verified working June 2026):
+
 ```bash
-# Install Atom
-pip install atom-os
+git clone https://github.com/rush86999/atom.git
+cd atom
 
-# Initialize
-atom init
+# Backend deps in a venv
+cd backend
+python3.11 -m venv venv
+./venv/bin/pip install -r requirements.txt
 
-# Add your API keys to .env
-# OPENAI_API_KEY=sk-...
-# MINIMAX_API_KEY=...  (optional, for MiniMax M2.7 support)
+# Frontend deps
+cd ../frontend-nextjs
+npm install --legacy-peer-deps
+cd ..
 
-# (Optional) Connect to marketplace for commercial specialty skills
-# MARKETPLACE_API_TOKEN=at_saas_your_token  # Get from https://atomagentos.com
+# Configure (DATABASE_URL, SECRET_KEY, at least one LLM key)
+cp backend/.env.example backend/.env
+# Edit backend/.env — generate SECRET_KEY with: openssl rand -base64 48
 
+# Launch backend (FROM REPO ROOT — main.py uses backend.* imports)
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 
-# Start Atom
-atom start
-
-# Open dashboard
-open http://localhost:8000
+# In a second terminal: frontend
+cd frontend-nextjs && npm run dev
 ```
+
+- **Frontend (UI)**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API docs (Swagger)**: http://localhost:8000/docs
+- **Admin password**: auto-generated at `backend/logs/bootstrap_admin_password.txt` (mode 0600)
 
 That's it! 🚀
 
-**[Optional: Connect to Marketplace →](#marketplace-connection-new)**
-
 **Choose your edition:**
-- **Personal Edition** - Free, single-user, SQLite (default)
-- **Enterprise Edition** - Multi-user, PostgreSQL, monitoring → `pip install atom-os[enterprise]`
+- **Personal Edition** (default) — Free, single-user, SQLite, zero external services
+- **Enterprise Edition** — Multi-user, PostgreSQL, monitoring (set `DATABASE_URL` to a Postgres DSN)
 
-[Full Installation Guide →](docs/getting_started/INSTALLATION.md)
+For alternative paths (Docker, DigitalOcean 1-click) and the full walkthrough, see:
+- **[Quick Start (verified)](docs/getting_started/quick-start.md)** ⭐ — step-by-step with troubleshooting
+- **[First Steps after install](docs/getting_started/FIRST_STEPS.md)** — what to do once the server is running
+- **[Troubleshooting](docs/getting_started/TROUBLESHOOTING.md)** — common errors and fixes
+- **[Full Installation Guide](docs/getting_started/INSTALLATION.md)** — all installation variants
+- **[Development Setup](docs/development/DEVELOPMENT_SETUP.md)** — for contributors
 
 ---
 

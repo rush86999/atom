@@ -44,12 +44,27 @@ cd /path/to/atom
 PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 ```
 
-On first launch, the app auto-creates `admin@example.com` and logs a
-randomly-generated password to stdout:
+On first launch, the app auto-creates `admin@example.com` and writes a
+randomly-generated password to a **file** (not stdout — stdout is too
+easy to leak via log aggregators):
+
 ```
-WARNING:ATOM_BOOTSTRAP:Generated temporary password: <random-string>
+backend/logs/bootstrap_admin_password.txt   # mode 0600, owner-only readable
 ```
-Set `ADMIN_PASSWORD` in `backend/.env` to control this.
+
+Read it:
+```bash
+cat backend/logs/bootstrap_admin_password.txt
+```
+
+The startup log will show:
+```
+INFO:ATOM_BOOTSTRAP:BOOTSTRAP: User admin@example.com found. Resetting password...
+WARNING:ATOM_BOOTSTRAP:BOOTSTRAP: Generated temporary password written to .../logs/bootstrap_admin_password.txt (mode 0600). Set ADMIN_PASSWORD env var for production.
+```
+
+To control the password, set `ADMIN_PASSWORD` in `backend/.env` before
+launching (recommended for production).
 
 ### 4. Verify Health
 ```bash
@@ -339,5 +354,5 @@ python tests/test_phase21_operations.py
 
 ---
 
-**Last Updated**: November 23, 2025
-**Status**: Production ready ✅
+**Last Updated**: June 30, 2026
+**Status**: Production ready ✅ (launch command verified working)
