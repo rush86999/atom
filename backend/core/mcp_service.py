@@ -79,6 +79,15 @@ def _sandbox_check(
             phase="A",
         )
 
+        # Phase B: filesystem scope check (only if Phase A allowed and
+        # the FS sub-feature is enabled).
+        if decision.is_allowed and sandbox_config.is_sandbox_fs_enabled():
+            from core.sandbox_fs import validate as fs_validate
+
+            fs_decision = fs_validate(policy, tool_name, args, context=context)
+            if fs_decision.requires_review:
+                decision = fs_decision
+
         # Audit the decision when it's a violation.
         if decision.requires_review:
             write_violation(

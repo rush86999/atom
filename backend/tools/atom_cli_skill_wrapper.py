@@ -8,6 +8,7 @@ Reference: Phase 25 Plan 02 - Subprocess Execution Wrapper
 """
 
 import logging
+import os
 import re
 import subprocess
 import time
@@ -16,7 +17,7 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
 
 
-def execute_atom_cli_command(command: str, args: Optional[List[str]] = None) -> Dict[str, Any]:
+def execute_atom_cli_command(command: str, args: Optional[List[str]] = None, **kwargs) -> Dict[str, Any]:
     """
     Execute Atom CLI command via subprocess.
 
@@ -60,12 +61,23 @@ def execute_atom_cli_command(command: str, args: Optional[List[str]] = None) -> 
 
         logger.info(f"Executing: atom-os {command} {' '.join(args) if args else ''}")
 
-        # Execute with timeout
+        # Execute with timeout.
+        #
+        # Execution Sandbox Layer (Round 44 / Phase B): when the caller
+        # passes a scoped cwd (typically the per-run tmpfs
+        # ``/tmp/agent/{run_id}/``), subprocess runs there. The sandbox
+        # FS validator at the MCP service layer enforces that any path
+        # arguments are already within the policy's fs_write_roots, so
+        # by the time we reach here the cwd is trusted. When cwd is
+        # None we preserve existing behavior (no behavior change).
+        cwd = kwargs.get("cwd") if kwargs else None
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=30  # 30 second timeout per plan requirement
+            timeout=30,  # 30 second timeout per plan requirement
+            cwd=cwd,
+            env={"PATH": "/usr/local/bin:/usr/bin:/bin", **os.environ} if cwd else None,
         )
 
         return {
