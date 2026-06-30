@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import {
   Search,
@@ -20,10 +21,39 @@ import {
 } from "../components/ui/card";
 import { OnboardingWizard } from "../components/Onboarding/OnboardingWizard";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+interface DashboardFeed {
+  recent_executions: Array<{
+    id: string;
+    agent_id: string | null;
+    agent_name: string;
+    status: string;
+    input_summary: string;
+    started_at: string | null;
+    duration_seconds: number;
+  }>;
+  recent_canvases: Array<{
+    id: string;
+    canvas_id: string | null;
+    action: string | null;
+    created_at: string | null;
+  }>;
+  last_chat_session: { id: string; title: string; updated_at: string | null } | null;
+  agents_progress: Array<{
+    id: string;
+    name: string;
+    current_tier: string;
+    next_tier: string | null;
+    next_threshold_episodes: number | null;
+  }>;
+}
+
 const Home = () => {
   const router = useRouter();
   const [showWizard, setShowWizard] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [feed, setFeed] = useState<DashboardFeed | null>(null);
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -31,7 +61,7 @@ const Home = () => {
         const token = localStorage.getItem("token");
         // Only check if we have a token (logged in)
         if (token) {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/onboarding/status`, {
+          const res = await fetch(`${API_BASE}/api/onboarding/status`, {
             headers: { "Authorization": `Bearer ${token}` }
           });
           if (res.ok) {
@@ -39,7 +69,7 @@ const Home = () => {
             if (!data.onboarding_completed) {
               setShowWizard(true);
               // Fetch full user details for wizard personalized greeting
-              const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/me`, {
+              const userRes = await fetch(`${API_BASE}/api/users/me`, {
                 headers: { "Authorization": `Bearer ${token}` }
               });
               if (userRes.ok) {
@@ -52,8 +82,33 @@ const Home = () => {
         console.error("Failed to check onboarding status", err);
       }
     };
+
+    // P3.2 — pull the dashboard activity feed once on mount. Non-blocking;
+    // failure leaves feed=null and the static feature grid still renders.
+    const loadFeed = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_BASE}/api/dashboard/feed`, {
+          headers: { "Authorization": `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        setFeed(json?.data ?? json);
+      } catch {
+        // Silent — the dashboard section just won't render.
+      }
+    };
+
     checkOnboarding();
+    loadFeed();
   }, []);
+
+  const hasFeed = !!feed && (
+    (feed.recent_executions?.length ?? 0) > 0 ||
+    !!feed.last_chat_session ||
+    (feed.agents_progress?.length ?? 0) > 0
+  );
 
   const features = [
     {
@@ -166,6 +221,83 @@ const Home = () => {
             (Development Mode - Auth Disabled)
           </p>
         </div>
+
+        {/* P3.2 — Activity feed dashboard. Replaces the static-feature-grid-only
+            landing with a real "pick up where you left off" surface. Renders
+            only when there is activity; otherwise the static grid below still
+            serves as the explore-the-platform fallback. */}
+        {hasFeed && feed && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pick up where you left off */}
+            {feed.last_chat_session && (
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/chat?session=${feed.last_chat_session!.id}`)}>
+                <CardHeader>
+                  <CardTitle className="text-base">Pick up where you left off</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm font-medium truncate">{feed.last_chat_session.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {feed.last_chat_session.updated_at
+                      ? `Updated ${new Date(feed.last_chat_session.updated_at).toLocaleString()}`
+                      : "Continue this conversation →"}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent executions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {feed.recent_executions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No agent runs yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {feed.recent_executions.slice(0, 5).map((ex) => (
+                      <li key={ex.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate flex-1 min-w-0">
+                          <span className="font-medium">{ex.agent_name}</span>
+                          <span className="text-muted-foreground"> — {ex.input_summary.slice(0, 60) || "(no input)"}</span>
+                        </span>
+                        <span className={`ml-2 shrink-0 text-xs px-2 py-0.5 rounded-full ${
+                          ex.status === "completed" ? "bg-green-100 text-green-800" :
+                          ex.status === "failed" ? "bg-red-100 text-red-800" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>
+                          {ex.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Agent progress */}
+            {feed.agents_progress.length > 0 && (
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Your agents&apos; progress</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {feed.agents_progress.slice(0, 6).map((a) => (
+                      <li key={a.id} className="flex items-center justify-between text-sm">
+                        <Link href={`/agents`} className="truncate font-medium hover:underline">{a.name}</Link>
+                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                          <span className="inline-block px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 uppercase tracking-wide mr-2">{a.current_tier}</span>
+                          {a.next_threshold_episodes ? `${a.next_threshold_episodes} eps → ${a.next_tier}` : "max tier"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (

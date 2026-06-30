@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
 import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
@@ -314,6 +315,12 @@ const AgentsDashboard = () => {
                             {!isLoading && !error && agents.length === 0 && (
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300 dark:border-gray-600">
                                     <p>No agents found. Create your first agent or spawn from a template.</p>
+                                    {/* P1.5: actionable CTA so the empty state is not a dead end. */}
+                                    <div className="mt-4 flex justify-center gap-2">
+                                        <Link href="/marketplace">
+                                            <Button size="sm">Browse templates</Button>
+                                        </Link>
+                                    </div>
                                 </div>
                             )}
 

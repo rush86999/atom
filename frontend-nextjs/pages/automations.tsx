@@ -55,10 +55,19 @@ const AutomationsPage: React.FC = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Build workflows with AI • 30+ integrations</p>
                 </div>
               </div>
-              <Button onClick={() => { setActiveTab('flows'); setTriggerNew(function(n) { return n + 1; }); }}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Automation
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* P3.3: link out to the schedule UI so recurring workflows are discoverable. */}
+                <Link href="/workflows/schedule">
+                  <Button variant="outline">
+                    <History className="w-4 h-4 mr-2" />
+                    Schedule
+                  </Button>
+                </Link>
+                <Button onClick={() => { setActiveTab('flows'); setTriggerNew(function(n) { return n + 1; }); }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Automation
+                </Button>
+              </div>
             </div>
 
             {/* Tab Navigation */}

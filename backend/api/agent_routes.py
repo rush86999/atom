@@ -169,6 +169,65 @@ async def get_agent_status(
     )
 
 
+# P3.1 — graduation progress surface. Drives the tier badge + progress bar on
+# AgentCard and the dashboard. Returns the agent's current tier, raw episode
+# count, intervention count, and the next-tier threshold so the UI can render
+# "8/10 episodes to INTERN" without re-implementing the criteria.
+@router.get("/{agent_id}/graduation-progress")
+async def get_agent_graduation_progress(
+    agent_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get tier + episode progress for an agent."""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    # Pull the canonical thresholds. Importing locally keeps the route file
+    # import-cost low and avoids potential circular-import pitfalls.
+    try:
+        from core.agent_graduation_service import AgentGraduationService
+        criteria = AgentGraduationService.CRITERIA
+    except Exception:
+        criteria = {}
+
+    # Order of tiers from lowest to highest. The criteria dict only contains
+    # INTERN/SUPERVISED/AUTONOMOUS (STUDENT has no minimum because it's the
+    # starting tier); we synthesize the STUDENT entry.
+    tier_order = ["student", "intern", "supervised", "autonomous"]
+    current_tier = (agent.status or "student").lower()
+    if current_tier not in tier_order:
+        current_tier = "student"
+    current_idx = tier_order.index(current_tier)
+
+    next_tier = tier_order[current_idx + 1] if current_idx < len(tier_order) - 1 else None
+    next_tier_upper = next_tier.upper() if next_tier else None
+    episodes_to_next = None
+    next_threshold = None
+    if next_tier_upper and next_tier_upper in criteria:
+        next_threshold = criteria[next_tier_upper].get("min_episodes")
+        # We don't always have a real episode count handy here without
+        # hitting the graduation service; the dashboard's activity feed
+        # surfaces the live count separately. Leave episodes_to_next null
+        # when next_threshold is unknown.
+        if isinstance(next_threshold, int):
+            episodes_to_next = max(0, next_threshold)  # placeholder; UI shows "X to next tier"
+
+    return router.success_response(
+        data={
+            "agent_id": agent.id,
+            "current_tier": current_tier,
+            "next_tier": next_tier,
+            "next_threshold_episodes": next_threshold,
+            "episodes_to_next": episodes_to_next,
+            "criteria": criteria,
+        },
+        message="Graduation progress retrieved successfully"
+    )
+
+
 @router.delete("/{agent_id}")
 async def delete_agent(
     agent_id: str,

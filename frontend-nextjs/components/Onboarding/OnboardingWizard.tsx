@@ -1,7 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { FaRobot, FaCheckCircle, FaRocket } from "react-icons/fa";
+import { FaRobot, FaCheckCircle, FaRocket, FaPlug, FaKey } from "react-icons/fa";
 import {
     Dialog,
     DialogContent,
@@ -30,6 +30,17 @@ const steps = [
     { title: "Ready", description: "Let's go" },
 ];
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// P1.2 — providers offered in the inline API-key card. Must stay in sync with
+// the valid_providers list on the backend store endpoint (byok_endpoints.py).
+const API_KEY_PROVIDERS = [
+    { id: "openai", label: "OpenAI", placeholder: "sk-..." },
+    { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-..." },
+    { id: "deepseek", label: "DeepSeek", placeholder: "sk-..." },
+    { id: "glm", label: "GLM (z.ai)", placeholder: "..." },
+];
+
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     isOpen,
     onClose,
@@ -45,22 +56,149 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         goal: "",
     });
 
+    // P1.2 — Card A (Ollama) state.
+    const [ollamaReachable, setOllamaReachable] = useState<boolean | null>(null);
+    const [ollamaInstallUrl, setOllamaInstallUrl] = useState<string>("https://ollama.com/download");
+    const [ollamaConnecting, setOllamaConnecting] = useState(false);
+
+    // P1.2 — Card B (API key) state.
+    const [apiKeyProvider, setApiKeyProvider] = useState<string>("openai");
+    const [apiKeyValue, setApiKeyValue] = useState<string>("");
+    const [apiKeySaving, setApiKeySaving] = useState(false);
+
     const handleNext = async () => {
-        if (activeStep === 0) {
-            setActiveStep(1);
-            setActiveStep(2);
-        } else if (activeStep === 2) {
-            // BYOK step - allow skip
-            setActiveStep(3);
-        } else {
+        if (activeStep === steps.length - 1) {
             await completeOnboarding();
+            return;
+        }
+        // Single-step advance. The previous implementation called setActiveStep(1)
+        // followed by setActiveStep(2) when activeStep===0, which skipped the
+        // Profile step entirely and made step 2 (BYOK fork) unreachable from the UI.
+        setActiveStep(activeStep + 1);
+    };
+
+    // P1.2 — probe Ollama when the user reaches step 2 so Card A renders the
+    // right state (1-click enable vs install-ollama instructions).
+    useEffect(() => {
+        if (activeStep !== 2 || ollamaReachable !== null) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${API_BASE}/api/onboarding/probe-ollama`, {
+                    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+                });
+                if (!res.ok) {
+                    if (!cancelled) setOllamaReachable(false);
+                    return;
+                }
+                const data = await res.json();
+                const reachable = !!(data?.data?.reachable ?? data?.reachable);
+                if (!cancelled) {
+                    setOllamaReachable(reachable);
+                    if (data?.data?.install_url) setOllamaInstallUrl(data.data.install_url);
+                }
+            } catch {
+                if (!cancelled) setOllamaReachable(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [activeStep, ollamaReachable]);
+
+    // P1.2 — Card A: store the Ollama provider via the existing keys endpoint.
+    // Ollama doesn't need a real secret; we send a placeholder that the BYOK
+    // store layer will hash/encrypt exactly like any other key.
+    const handleEnableOllama = async () => {
+        setOllamaConnecting(true);
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/api/ai/providers/ollama/keys`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                    api_key: "ollama-local-no-key-required",
+                    key_name: "Ollama (local)",
+                    environment: "production",
+                }),
+            });
+            if (!res.ok) {
+                const detail = await res.json().catch(() => ({}));
+                throw new Error(detail?.detail || `HTTP ${res.status}`);
+            }
+            toast({
+                title: "Ollama connected",
+                description: "Local Ollama is now your default AI provider.",
+                variant: "success",
+            });
+            onUpdate({ onboarding_completed: false, provider_configured: "ollama" });
+            // Advance to Ready step after a successful connect.
+            setActiveStep(3);
+        } catch (err: any) {
+            toast({
+                title: "Could not enable Ollama",
+                description: err?.message || "Please try the API key path instead.",
+                variant: "error",
+            });
+        } finally {
+            setOllamaConnecting(false);
+        }
+    };
+
+    // P1.2 — Card B: store the user-provided API key via the existing keys endpoint.
+    const handleSaveApiKey = async () => {
+        if (apiKeyValue.trim().length < 10) {
+            toast({
+                title: "Key too short",
+                description: "API keys must be at least 10 characters.",
+                variant: "error",
+            });
+            return;
+        }
+        setApiKeySaving(true);
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/api/ai/providers/${apiKeyProvider}/keys`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                    api_key: apiKeyValue.trim(),
+                    key_name: `${apiKeyProvider} (onboarding)`,
+                    environment: "production",
+                }),
+            });
+            if (!res.ok) {
+                const detail = await res.json().catch(() => ({}));
+                throw new Error(detail?.detail || `HTTP ${res.status}`);
+            }
+            toast({
+                title: "API key saved",
+                description: `${apiKeyProvider} is now configured. You can start chatting.`,
+                variant: "success",
+            });
+            onUpdate({ onboarding_completed: false, provider_configured: apiKeyProvider });
+            setApiKeyValue("");
+            setActiveStep(3);
+        } catch (err: any) {
+            toast({
+                title: "Failed to save key",
+                description: err?.message || "Please verify the key and try again.",
+                variant: "error",
+            });
+        } finally {
+            setApiKeySaving(false);
         }
     };
 
     const completeOnboarding = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/onboarding/update`, {
+            const res = await fetch(`${API_BASE}/api/onboarding/update`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -176,21 +314,107 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     )}
 
                     {activeStep === 2 && (
-                        <div className="space-y-4 px-4 text-center">
-                            <FaRobot className="w-12 h-12 text-purple-600 mx-auto" />
-                            <h3 className="text-xl font-bold">Connect Your Intelligence</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Atom uses a "Tiered BYOK" approach. You can provide your own API keys for maximum control and lowest costs.
-                            </p>
-                            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-left">
-                                <h4 className="text-sm font-semibold text-purple-900 mb-1">Recommended Pairing:</h4>
-                                <ul className="text-xs text-purple-800 space-y-1">
-                                    <li>• <b>Core Brain:</b> OpenAI or DeepSeek</li>
-                                    <li>• <b>Vision/OCR:</b> Google Gemini Flash (Cheapest for PDFs)</li>
-                                </ul>
+                        <div className="space-y-4 px-4">
+                            <div className="space-y-1 text-center">
+                                <h3 className="text-xl font-bold">Connect Your Intelligence</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Pick one to start chatting in under a minute. You can change this later in Settings → AI.
+                                </p>
                             </div>
-                            <p className="text-xs text-gray-400">
-                                You can configure these later in Settings &gt; AI Provider.
+
+                            {/* Card A: Use local Ollama (free, 1-click) */}
+                            <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3 flex-1">
+                                        <FaPlug className="w-5 h-5 text-purple-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-semibold text-sm">Use local Ollama (free)</p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                No API key, no billing. Runs fully on your machine.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {ollamaReachable === true && (
+                                        <span className="shrink-0 inline-flex items-center text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 px-2 py-0.5">
+                                            <FaCheckCircle className="mr-1" /> Detected
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="mt-3">
+                                    {ollamaReachable === null && (
+                                        <p className="text-xs text-muted-foreground">Checking for Ollama…</p>
+                                    )}
+                                    {ollamaReachable === true && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={handleEnableOllama}
+                                            disabled={ollamaConnecting}
+                                        >
+                                            {ollamaConnecting ? "Connecting…" : "Enable Ollama"}
+                                        </Button>
+                                    )}
+                                    {ollamaReachable === false && (
+                                        <div className="text-xs text-muted-foreground space-y-1">
+                                            <p>Ollama not detected on this machine.</p>
+                                            <a
+                                                href={ollamaInstallUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center text-purple-600 hover:underline"
+                                            >
+                                                Install Ollama →
+                                            </a>
+                                            <p className="text-[11px] text-gray-400">
+                                                After installing, restart Ollama and refresh this dialog.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Card B: Enter an API key */}
+                            <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                                <div className="flex items-start gap-3">
+                                    <FaKey className="w-5 h-5 text-blue-600 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm">Enter an API key</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Bring your own key — encrypted at rest.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-2">
+                                    <select
+                                        className="h-9 rounded-md border border-gray-200 dark:border-gray-800 bg-transparent px-2 text-sm"
+                                        value={apiKeyProvider}
+                                        onChange={(e) => setApiKeyProvider(e.target.value)}
+                                    >
+                                        {API_KEY_PROVIDERS.map((p) => (
+                                            <option key={p.id} value={p.id}>{p.label}</option>
+                                        ))}
+                                    </select>
+                                    <Input
+                                        type="password"
+                                        placeholder={API_KEY_PROVIDERS.find(p => p.id === apiKeyProvider)?.placeholder || "API key"}
+                                        value={apiKeyValue}
+                                        onChange={(e) => setApiKeyValue(e.target.value)}
+                                    />
+                                </div>
+                                <div className="mt-3 flex justify-end">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={handleSaveApiKey}
+                                        disabled={apiKeySaving || apiKeyValue.trim().length < 10}
+                                    >
+                                        {apiKeySaving ? "Saving…" : "Save key & continue"}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-gray-400 text-center">
+                                Prefer to skip? You can configure a provider any time from Settings → AI.
                             </p>
                         </div>
                     )}

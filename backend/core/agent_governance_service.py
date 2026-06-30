@@ -330,12 +330,29 @@ class AgentGovernanceService:
         if matches: complexity = max(matches)
         
         required_status = self.MATURITY_REQUIREMENTS.get(complexity, AgentStatus.SUPERVISED)
-        
+
         maturity_order = [s.value for s in [AgentStatus.STUDENT, AgentStatus.INTERN, AgentStatus.SUPERVISED, AgentStatus.AUTONOMOUS]]
         agent_idx = maturity_order.index(agent.status) if agent.status in maturity_order else 0
         req_idx = maturity_order.index(required_status.value)
 
         allowed = agent_idx >= req_idx
+
+        # P1.3 — Onboarding demo-agent bypass. The "Demo Assistant" agent is
+        # created by admin_bootstrap at INTERN tier with zero episodes (which
+        # would normally violate the graduation contract). The explicit
+        # configuration["demo_agent"] flag lets new users explore complexity ≤ 2
+        # actions during their first session. Capped at complexity 2 so a demo
+        # agent can stream + present but cannot mutate state (complexity 3+) or
+        # delete (complexity 4). Audit-logged so the bypass is observable.
+        config = agent.configuration if isinstance(agent.configuration, dict) else {}
+        if not allowed and config.get("demo_agent") is True and complexity <= 2:
+            logger.info(
+                "Governance demo_agent bypass: agent=%s action=%s complexity=%d tier=%s",
+                agent_id, action_type, complexity, agent.status,
+            )
+            allowed = True
+            required_status = AgentStatus.STUDENT  # cosmetic: report the relaxed bar
+
         approval_needed = not allowed or (agent.status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
         # Budget Check (requires tenant_id - skip if not available)

@@ -56,6 +56,34 @@ class QueryComplexity(Enum):
     ADVANCED = "advanced"   # Code, math, analysis -> specialized provider
 
 
+class NoProvidersConfiguredError(ValueError):
+    """Raised when no LLM providers are configured.
+
+    Subclasses ``ValueError`` so existing callers that catch ``ValueError``
+    continue to work. Carries a recovery URL the UI can deep-link to so the
+    new-user chat failure ("No LLM providers available") becomes an actionable
+    "Configure now" CTA instead of an opaque 500.
+    """
+
+    def __init__(
+        self,
+        message: str = "No LLM providers configured.",
+        recovery_url: str = "/settings/ai",
+        error_code: str = "no_llm_provider",
+    ):
+        super().__init__(message)
+        self.message = message
+        self.recovery_url = recovery_url
+        self.error_code = error_code
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "error_code": self.error_code,
+            "message": self.message,
+            "recovery_url": self.recovery_url,
+        }
+
+
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
     # Budget tier - cheapest, good for simple tasks
@@ -733,8 +761,10 @@ class BYOKHandler:
         if self.clients:
             provider_id = list(self.clients.keys())[0]
             return provider_id, "gpt-4o-mini"
-            
-        raise ValueError("No LLM providers available. Please configure BYOK keys.")
+
+        raise NoProvidersConfiguredError(
+            "You need an AI provider to do this. Add an API key or enable local Ollama to continue."
+        )
 
     async def get_ranked_providers(
         self,

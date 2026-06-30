@@ -5,7 +5,15 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_password_hash
 from core.database import get_db_session
-from core.models import User, UserStatus, Tenant, Workspace
+from core.models import (
+    AgentRegistry,
+    AgentStatus,
+    Tenant,
+    User,
+    UserStatus,
+    Workspace,
+)
+from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
 
 logger = logging.getLogger("ATOM_BOOTSTRAP")
 
@@ -91,6 +99,13 @@ def ensure_admin_user():
             
             # Ensure default tenant and workspace
             ensure_default_tenant_and_workspace(db)
+
+            # P1.3 — ensure the onboarding demo agent exists. Created at INTERN
+            # tier with the explicit demo_agent flag so the governance service
+            # can permit complexity ≤ 2 actions even though the agent has zero
+            # episodes. New users land on this agent so their first chat can
+            # produce a presentation/chart without waiting for graduation.
+            ensure_demo_agent(db)
             
         except Exception as e:
             logger.error(f"BOOTSTRAP FAILED: {e}")
@@ -101,29 +116,82 @@ def ensure_admin_user():
 def ensure_default_tenant_and_workspace(db: Session):
     """Ensures a default tenant and workspace exist for single-tenant mode."""
     # 1. Ensure Default Tenant
-    tenant = db.query(Tenant).filter(Tenant.id == "default").first()
+    tenant = db.query(Tenant).filter(Tenant.id == PERSONAL_TENANT_ID).first()
     if not tenant:
         logger.info("BOOTSTRAP: Creating default tenant...")
         tenant = Tenant(
-            id="default",
+            id=PERSONAL_TENANT_ID,
             name="Default Tenant",
             subdomain="default",
             edition="personal"
         )
         db.add(tenant)
         db.flush() # Get ID if not fixed
-    
+
     # 2. Ensure Default Workspace
-    workspace = db.query(Workspace).filter(Workspace.id == "default").first()
+    workspace = db.query(Workspace).filter(Workspace.id == PERSONAL_WORKSPACE_ID).first()
     if not workspace:
         logger.info("BOOTSTRAP: Creating default workspace...")
         workspace = Workspace(
-            id="default",
-            tenant_id="default",
+            id=PERSONAL_WORKSPACE_ID,
+            tenant_id=PERSONAL_TENANT_ID,
             name="Default Workspace",
             description="Your personal workspace"
         )
         db.add(workspace)
-    
+
     db.commit()
     logger.info("BOOTSTRAP: Default tenant and workspace ensured.")
+
+
+def ensure_demo_agent(db: Session) -> None:
+    """Ensure the onboarding "Demo Assistant" agent exists at INTERN tier.
+
+    Rationale (per Plan agent RISK-A): creating an INTERN agent with zero
+    episodes technically violates the graduation contract. The
+    ``configuration["demo_agent"]`` flag makes the bypass explicit and
+    auditable (see agent_governance_service.can_perform_action). The agent is
+    workspace-scoped to "default" so single-tenant Personal Edition picks it
+    up automatically; multi-tenant SaaS deployments simply never call this
+    function because admin_bootstrap is single-tenant-only.
+
+    Idempotent: if the demo agent already exists, no-op. This keeps restarts
+    cheap and lets an admin delete the demo agent from the UI without it
+    springing back to life on the next process boot.
+    """
+    existing = db.query(AgentRegistry).filter(
+        AgentRegistry.name == "Demo Assistant",
+        AgentRegistry.category == "system",
+    ).first()
+    if existing:
+        return
+
+    demo = AgentRegistry(
+        name="Demo Assistant",
+        description=(
+            "Onboarding demo agent. INTERN tier with a governance bypass for "
+            "complexity ≤ 2 actions so new users can explore streaming chat "
+            "and canvas presentations without waiting to graduate. Delete this "
+            "agent any time from Settings → Agents."
+        ),
+        category="system",
+        module_path="system",
+        class_name="DemoAssistant",
+        status=AgentStatus.INTERN.value,
+        confidence_score=0.6,
+        workspace_id=PERSONAL_WORKSPACE_ID,
+        tenant_id=PERSONAL_TENANT_ID,
+        configuration={
+            "system_prompt": (
+                "You are the Atom Demo Assistant. You help new users explore "
+                "multi-agent governance, canvas presentations, and chat. Be "
+                "concise and surface the platform's strengths."
+            ),
+            "capabilities": ["chat", "stream_chat", "present_chart", "present_markdown"],
+            "demo_agent": True,
+            "graduation_bypass_reason": "onboarding_demo",
+        },
+    )
+    db.add(demo)
+    db.commit()
+    logger.info("BOOTSTRAP: Created onboarding Demo Assistant agent (id=%s)", demo.id)

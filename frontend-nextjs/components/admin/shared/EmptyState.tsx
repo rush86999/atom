@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, AlertCircle, CheckCircle2, Inbox } from "lucide-react";
@@ -7,9 +8,13 @@ interface EmptyStateProps {
   type?: "no-data" | "no-results" | "no-issues" | "error";
   title?: string;
   description?: string;
+  // P1.5: extended so empty states can deep-link to a page (e.g. /agents/new)
+  // without forcing the caller to wire an onClick handler. Either onClick OR
+  // href is sufficient; if both are provided, href wins (renders as a Link).
   action?: {
     label: string;
-    onClick: () => void;
+    onClick?: () => void;
+    href?: string;
   };
 }
 
@@ -62,9 +67,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           <p className="text-lg font-medium mb-2">{title || defaultTitle}</p>
           <p className="text-sm text-muted-foreground mb-6">{description || defaultDescription}</p>
           {action && (
-            <Button onClick={action.onClick} size="sm">
-              {action.label}
-            </Button>
+            action.href ? (
+              <Link href={action.href}>
+                <Button size="sm">{action.label}</Button>
+              </Link>
+            ) : (
+              <Button onClick={action.onClick} size="sm">
+                {action.label}
+              </Button>
+            )
           )}
         </div>
       </CardContent>

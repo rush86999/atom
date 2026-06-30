@@ -644,6 +644,56 @@ class AgentGraduationService:
         try:
             self.db.commit()
             logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
+
+            # P2.1 — fire a graduation notification so the user has a reason
+            # to come back (Stage 5 of the new-user journey). Wrapped in
+            # try/except because a notification failure must NEVER roll back
+            # or obscure a successful promotion.
+            try:
+                import asyncio
+                from core.notification_service import NotificationService
+                notif_svc = NotificationService(self.db)
+                agent_name = getattr(agent, "name", "Your agent")
+                user_id = (
+                    getattr(agent, "user_id", None)
+                    or validated_by
+                    or "00000000-0000-0000-0000-000000000000"
+                )
+                from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+                workspace_id = resolve_workspace_id(agent, validated_by)
+                tenant_id = resolve_tenant_id(agent, validated_by)
+
+                payload = {
+                    "title": f"{agent_name} graduated to {new_maturity.title()}",
+                    "message": (
+                        f"{agent_name} has been promoted to the {new_maturity} tier. "
+                        "Great work — keep building."
+                    ),
+                    "workspace_id": workspace_id,
+                    "tenant_id": tenant_id,
+                    "action_url": f"/agents/{agent_id}",
+                    "action_label": "View agent",
+                    "agent_id": agent_id,
+                    "new_maturity": new_maturity,
+                }
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                loop.run_until_complete(
+                    notif_svc.send_notification(
+                        user_id=user_id,
+                        notification_type="agent_graduated",
+                        data=payload,
+                    )
+                )
+            except Exception as notif_exc:
+                logger.warning(
+                    "Graduation notification failed for agent %s (promotion already committed): %s",
+                    agent_id, notif_exc,
+                )
+
             return True
         except Exception as e:
             logger.error(f"Database error during promotion of agent {agent_id}: {e}")

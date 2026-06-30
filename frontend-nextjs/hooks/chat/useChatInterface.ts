@@ -30,6 +30,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
 
     const [activeAttachments, setActiveAttachments] = useState<any[]>([]);
     const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+    // P1.1: structured LLM-provider error for actionable recovery.
+    // Null when there is no provider error to show.
+    const [providerError, setProviderError] = useState<{ message: string; recovery_url: string; error_code: string } | null>(null);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -119,6 +122,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     const handleSend = async () => {
         if (!input.trim()) return;
 
+        // Clear any prior provider-error banner before attempting another send.
+        setProviderError(null);
+
         const userMsg: ChatMessageData = {
             id: Date.now().toString(),
             type: "user",
@@ -151,6 +157,23 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
 
             setActiveAttachments([]);
             const data = response.data;
+
+            // P1.1: detect the actionable "no LLM provider" structured error and
+            // surface it as a recovery banner rather than an opaque error toast.
+            if (data && data.error_code === "no_llm_provider") {
+                setProviderError({
+                    message: data.message || "You need an AI provider to do this.",
+                    recovery_url: data.recovery_url || "/settings/ai",
+                    error_code: data.error_code,
+                });
+                setMessages(prev => [...prev, {
+                    id: "no-provider",
+                    type: "system",
+                    content: data.message || "No AI provider configured.",
+                    timestamp: new Date(),
+                }]);
+                return;
+            }
 
             if (data.success && data.message) {
                 if (data.session_id && data.session_id !== sessionId && data.session_id !== "new") {
@@ -336,6 +359,8 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         handleTitleSave,
         handleFeedback,
         uploadFile,
-        toast
+        toast,
+        providerError,
+        clearProviderError: () => setProviderError(null)
     };
 };

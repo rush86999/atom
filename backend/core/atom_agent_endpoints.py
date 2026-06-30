@@ -1829,14 +1829,42 @@ Provide helpful, concise responses. When you need to take actions, describe what
 
         # Get optimal provider for streaming
         complexity = llm_service.analyze_query_complexity(request.message, task_type="chat")
-        provider_id, model = llm_service.get_optimal_provider(
-            complexity,
-            task_type="chat",
-            prefer_cost=True,
-            tenant_plan="free",
-            is_managed_service=False,
-            requires_tools=False
-        )
+        try:
+            provider_id, model = llm_service.get_optimal_provider(
+                complexity,
+                task_type="chat",
+                prefer_cost=True,
+                tenant_plan="free",
+                is_managed_service=False,
+                requires_tools=False
+            )
+        except Exception as provider_error:
+            # NoProvidersConfiguredError (subclass of ValueError) is the expected
+            # case for a fresh install with no BYOK keys and no Ollama running.
+            # Surface it as an actionable, structured error so the frontend can
+            # render a "Configure now" CTA instead of an opaque failure.
+            from core.llm.byok_handler import NoProvidersConfiguredError
+            if isinstance(provider_error, NoProvidersConfiguredError):
+                logger.warning(
+                    "Chat blocked: no LLM providers configured (user_id=%s)",
+                    getattr(request, "user_id", "unknown"),
+                )
+                return {
+                    "success": False,
+                    "error_code": provider_error.error_code,
+                    "message": provider_error.message,
+                    "recovery_url": provider_error.recovery_url,
+                    "status_code": 503,
+                }
+            # Any other provider-resolution error: re-raise with opaque detail
+            # per the project's never-leak-str(e) policy.
+            logger.error("Provider selection failed: %s", provider_error)
+            return {
+                "success": False,
+                "error_code": "llm_provider_error",
+                "message": "Could not select an AI provider.",
+                "status_code": 503,
+            }
 
         logger.info(f"Starting streaming chat with {provider_id}/{model}" +
                    (f" (agent: {agent.name})" if agent else ""))

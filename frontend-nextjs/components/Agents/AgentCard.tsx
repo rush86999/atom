@@ -24,6 +24,31 @@ interface AgentCardProps {
     onViewReasoning: (id: string) => void;
 }
 
+// P3.1 — Mirror of AgentGraduationService.CRITERIA min_episodes thresholds.
+// Used to render a lightweight progress hint on the card. For real-time
+// progress numbers, the dashboard calls GET /api/agents/:id/graduation-progress.
+const TIER_THRESHOLDS: Record<NonNullable<AgentInfo["maturity_level"]>, number> = {
+    student: 0,    // baseline; needs 10 to reach intern
+    intern: 10,
+    supervised: 25,
+    autonomous: 50,
+};
+
+const TIER_COLORS: Record<NonNullable<AgentInfo["maturity_level"]>, string> = {
+    student: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+    intern: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+    supervised: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
+    autonomous: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+};
+
+function getMaturityBadge(level: NonNullable<AgentInfo["maturity_level"]>) {
+    return (
+        <Badge variant="outline" className={`text-[10px] uppercase tracking-wide ${TIER_COLORS[level]}`} title={`Maturity: ${level}`}>
+            {level}
+        </Badge>
+    );
+}
+
 const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onEdit, onViewReasoning }) => {
 
     const getStatusBadge = (status: string) => {
@@ -50,6 +75,21 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onE
                 <CardDescription className="line-clamp-2 h-10">{agent.description}</CardDescription>
             </CardHeader>
             <CardContent className="pb-2">
+                {/* P3.1: maturity tier badge + graduation progress hint. The
+                    agent list payload doesn't carry live episode counts, so we
+                    show the tier name + the next threshold as a static target.
+                    The dashboard view surfaces real-time progress via the
+                    /graduation-progress endpoint. */}
+                {agent.maturity_level && (
+                    <div className="flex items-center gap-2 mt-2 mb-1">
+                        {getMaturityBadge(agent.maturity_level)}
+                        <span className="text-[11px] text-muted-foreground">
+                            {agent.maturity_level === "autonomous"
+                                ? "Max tier reached"
+                                : `${TIER_THRESHOLDS[agent.maturity_level]} episodes to next tier`}
+                        </span>
+                    </div>
+                )}
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-2">
                     <Clock className="w-3 h-3 mr-1" />
                     {agent.last_run ? `Last run: ${new Date(agent.last_run).toLocaleString()}` : 'Never run'}

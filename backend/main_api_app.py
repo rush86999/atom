@@ -2470,6 +2470,22 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Onboarding routes not found: {e}")
 
+    # 4b-notif. Notifications Routes (P2.2 — in-app notification center)
+    try:
+        from api.notifications_routes import router as notifications_router
+
+        app.include_router(notifications_router)
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Notifications routes not found: {e}")
+
+    # 4b-dash. Dashboard feed (P3.2 — activity feed aggregate endpoint)
+    try:
+        from api.dashboard_routes import router as dashboard_router
+
+        app.include_router(dashboard_router)
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Dashboard routes not found: {e}")
+
     # 4c. Reasoning & Feedback Routes
     try:
         from api.routes.reasoning_routes import router as reasoning_router
