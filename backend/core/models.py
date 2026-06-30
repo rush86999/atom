@@ -3591,6 +3591,149 @@ class SelfConsistencyVote(Base):
     agent = relationship("AgentRegistry", foreign_keys=[agent_id])
     user = relationship("User", foreign_keys=[user_id])
 
+
+class RunSandbox(Base):
+    """Execution Sandbox Layer — per-run policy snapshot (Round 43, Phase A).
+
+    One row per ``AgentExecution``. Stores the ``SandboxPolicy`` issued at
+    run start. Frozen semantics: once written, the row is immutable (the
+    policy is a snapshot of the tier at issuance time, not a live view).
+
+    Parallel to the match-confidence and self-consistency audit tables but
+    serves a different purpose: this is the *reference* row that
+    ``SandboxViolation`` rows FK into. Without this row, an in-flight audit
+    of "what was the policy when this violation happened?" is impossible.
+
+    See ``docs/architecture/SANDBOX_LAYER.md``.
+    """
+
+    __tablename__ = "run_sandboxes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    workspace_id = Column(String, nullable=True, index=True)
+
+    # The run this policy governs. Soft FK to AgentExecution.id (we don't
+    # hard-FK because AgentExecution.id may be a string from a different
+    # DB in the hybrid SQLite/PostgreSQL Personal setup).
+    run_id = Column(String, nullable=False, index=True)
+    agent_id = Column(
+        String,
+        ForeignKey("agent_registry.id"),
+        nullable=True,
+        index=True,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Tier captured at issuance — later tier changes don't retroactively
+    # widen scope of an in-flight run.
+    tier_at_issuance = Column(String(length=32), nullable=False)
+
+    issued_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Policy snapshot (mirror of SandboxPolicy frozen dataclass)
+    fs_roots = Column(JSONColumn, nullable=True)              # list[str]
+    fs_write_roots = Column(JSONColumn, nullable=True)         # list[str]
+    tool_whitelist = Column(JSONColumn, nullable=True)         # list[str]
+    egress_hosts = Column(JSONColumn, nullable=True)           # list[str]
+    max_bytes_written = Column(Integer, nullable=True)
+    max_exec_seconds = Column(Integer, nullable=True)
+    max_tool_calls = Column(Integer, nullable=True)
+    max_cost_usd = Column(Float, nullable=True)
+    tripwire_actions = Column(JSONColumn, nullable=True)       # list[str]
+    policy_version = Column(String(length=32), nullable=True)
+
+    # Extensibility
+    metadata_json = Column(JSONColumn, default={})
+
+    __table_args__ = (
+        Index("idx_rs_run_id", "run_id"),
+        Index("idx_rs_agent_issued", "agent_id", "issued_at"),
+    )
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class SandboxViolation(Base):
+    """Execution Sandbox Layer — audit row per non-allowed policy evaluation.
+
+    One row per ``PolicyIssuer.check()`` call that produced RESTRICTED or
+    BLOCKED. Allowed evaluations are NOT audited here (they're the common
+    case; auditing them would drown the signal).
+
+    Parallel to ``BrowserAudit`` and ``SelfConsistencyVote`` — same shape,
+    different domain. ``phase`` discriminates which sandbox phase produced
+    the row (A=whitelist, B=fs_path, C=tripwire/cap, D=egress_host,
+    E=provenance).
+
+    See ``docs/architecture/SANDBOX_LAYER.md``.
+    """
+
+    __tablename__ = "sandbox_violations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    workspace_id = Column(String, nullable=True, index=True)
+
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    agent_id = Column(
+        String,
+        ForeignKey("agent_registry.id"),
+        nullable=True,
+        index=True,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Soft FK to RunSandbox.id and to AgentExecution.id
+    policy_id = Column(String, nullable=True, index=True)
+    run_id = Column(String, nullable=True, index=True)
+
+    # What happened
+    phase = Column(String(length=4), nullable=False, index=True)  # A/B/C/D/E
+    decision = Column(String(length=16), nullable=False, index=True)  # allowed/restricted/blocked
+    tool_name = Column(String(length=200), nullable=False, index=True)
+    violation_type = Column(String(length=64), nullable=True, index=True)
+    violation_detail = Column(Text, nullable=True)
+
+    # Correlation hash of redacted args (the args themselves are NOT stored)
+    args_hash = Column(String(length=64), nullable=True, index=True)
+
+    # Enforcement state
+    enforced = Column(Boolean, default=False, index=True)  # True if call was actually blocked
+    killrun_triggered = Column(Boolean, default=False, index=True)  # True if tripwire fired KillRun
+
+    # Extensibility
+    metadata_json = Column(JSONColumn, default={})
+
+    __table_args__ = (
+        Index("idx_sv_phase_decision", "phase", "decision"),
+        Index("idx_sv_run_timestamp", "run_id", "timestamp"),
+        Index("idx_sv_agent_created", "agent_id", "created_at"),
+        Index("idx_sv_violation_type_created", "violation_type", "created_at"),
+    )
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    user = relationship("User", foreign_keys=[user_id])
+
+
 #
 #     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 #     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)

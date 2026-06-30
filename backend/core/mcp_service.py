@@ -8,6 +8,101 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Execution Sandbox Layer (Round 43 / Phase A) — module-level helpers.
+#
+# Defined at module scope (not as methods) so they can be unit-tested without
+# instantiating the MCPService singleton. Kept lazy-imported so the sandbox
+# has zero cost when the master switch is off.
+# ---------------------------------------------------------------------------
+def _sandbox_enabled() -> bool:
+    """True if the sandbox layer should intercept this process's tool calls.
+
+    Lazy import keeps the cost zero when ATOM_SANDBOX_ENABLED is false.
+    """
+    try:
+        from core import sandbox_config
+
+        return sandbox_config.is_sandbox_enabled()
+    except Exception:  # noqa: BLE001 — sandbox must never break tool dispatch
+        return False
+
+
+def _sandbox_check(
+    tool_name: str,
+    args: Dict[str, Any],
+    context: Dict[str, Any],
+):
+    """Evaluate the active run's policy against this tool call.
+
+    Returns a ``SandboxDecision`` or ``None`` when no policy is in scope
+    (e.g. run not yet issued, sandbox disabled mid-flight). Writes an
+    audit row on any non-allowed decision (Phase A scope: tool whitelist
+    only; Phase B-E hooks extend this).
+
+    Never raises — failures are caught and return an ALLOWED decision
+    with metadata_json.error so the call proceeds and the bug is
+    surfaced via audit.
+    """
+    try:
+        from core import sandbox_config
+        from core.sandbox_policy import PolicyIssuer, SandboxDecision, ALLOWED
+        from core.sandbox_audit import write_violation
+
+        run_id = context.get("run_id") or context.get("execution_id")
+        if not run_id:
+            # No run context → policy not in scope. Proceed.
+            return None
+
+        # Phase A: build a per-call policy from the tier in context. (The
+        # full RunSandbox row lookup arrives with Phase B when the FS
+        # scope checker needs fs_roots. For Phase A we only need the
+        # tier-floor whitelist which PolicyIssuer.issue can derive.)
+        tier = (context.get("tier_at_issuance") or context.get("tier") or "").lower()
+        if not tier:
+            # No tier in context → can't issue. Proceed.
+            return None
+
+        issuer = PolicyIssuer()
+        policy = issuer.issue(
+            run_id=run_id,
+            agent_id=context.get("agent_id", "unknown"),
+            tier_at_issuance=tier,
+            workspace_data_root=context.get("workspace_data_root"),
+        )
+        decision = issuer.check(
+            policy=policy,
+            tool_name=tool_name,
+            args=args,
+            context=context,
+            phase="A",
+        )
+
+        # Audit the decision when it's a violation.
+        if decision.requires_review:
+            write_violation(
+                decision,
+                tenant_id=context.get("tenant_id"),
+                workspace_id=context.get("workspace_id"),
+                agent_id=context.get("agent_id"),
+                user_id=context.get("user_id"),
+                session_id=context.get("session_id"),
+                run_id=run_id,
+            )
+        return decision
+    except Exception as e:  # noqa: BLE001 — sandbox must never break dispatch
+        logger.debug("sandbox check failed open for %s: %s", tool_name, e)
+        from core.sandbox_policy import SandboxDecision, ALLOWED
+
+        return SandboxDecision(
+            decision=ALLOWED,
+            phase="A",
+            tool_name=tool_name,
+            metadata_json={"error": str(e)},
+        )
+
+
 class MCPTool(BaseModel):
     """Standardized representation of an MCP Tool"""
     name: str
@@ -278,6 +373,40 @@ class MCPService:
                 except Exception as e:
                     logger.error(f"Governance failure for {tool_name}: {e}")
                     return {"error": "Security check failed."}
+
+        # 2b. Execution Sandbox Layer — Round 43 (Phase A, shadow mode)
+        #
+        # Deterministic blast-radius check. Where the governance block
+        # above decides "is this agent *normally* allowed to do this?" the
+        # sandbox decides "is this specific call within bounds?" — closing
+        # the prompt-injection gap documented in
+        # docs/security/TRUST_VS_SANDBOX.md.
+        #
+        # Shadow mode by default: policy is computed and an audit row is
+        # written on any non-allowed decision, but the call proceeds
+        # unchanged. Operators flip ATOM_SANDBOX_FORCE_ENFORCE=true after
+        # observing violation distributions in staging.
+        if _sandbox_enabled():
+            decision = _sandbox_check(
+                tool_name=tool_name,
+                args=arguments,
+                context=context,
+            )
+            if decision is not None and decision.requires_review:
+                if decision.enforced:
+                    logger.warning(
+                        "Sandbox %s: %s -> %s (%s)",
+                        decision.decision.upper(),
+                        context.get("agent_id", "?"),
+                        tool_name,
+                        decision.violation_type,
+                    )
+                    return {
+                        "error": f"Sandbox {decision.decision}: {decision.violation_detail}",
+                        "status": "sandbox_blocked",
+                        "sandbox_phase": decision.phase,
+                        "violation_type": decision.violation_type,
+                    }
 
         # 3. Execution: Coding Agent Service
         from core.coding_agent_service import coding_agent_service

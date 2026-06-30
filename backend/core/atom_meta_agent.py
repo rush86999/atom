@@ -55,6 +55,73 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Execution Sandbox Layer (Round 43 / Phase A) — module-level helper.
+#
+# Defined at module scope so it's unit-testable without the AtomMetaAgent
+# singleton. Lazy imports keep cost zero when the sandbox master switch is
+# off. Mirrors the helper pattern in ``core/mcp_service.py``.
+# ---------------------------------------------------------------------------
+def _meta_agent_sandbox_check(tool_name: str, args: Dict[str, Any], context: Dict[str, Any]):
+    """Evaluate this tool call against the run's sandbox policy.
+
+    Returns a ``SandboxDecision`` or ``None`` when no policy is in scope.
+    Writes an audit row on any non-allowed decision. Never raises — a
+    broken sandbox fails open (returns ALLOWED with metadata_json.error).
+    """
+    try:
+        from core import sandbox_config
+        from core.sandbox_policy import PolicyIssuer, SandboxDecision, ALLOWED
+        from core.sandbox_audit import write_violation
+
+        if not sandbox_config.is_sandbox_enabled():
+            return None
+
+        run_id = context.get("run_id") or context.get("execution_id")
+        if not run_id:
+            return None
+
+        tier = (context.get("tier_at_issuance") or context.get("tier") or "").lower()
+        if not tier:
+            return None
+
+        issuer = PolicyIssuer()
+        policy = issuer.issue(
+            run_id=run_id,
+            agent_id=context.get("agent_id", "atom_main"),
+            tier_at_issuance=tier,
+            workspace_data_root=context.get("workspace_data_root"),
+        )
+        decision = issuer.check(
+            policy=policy,
+            tool_name=tool_name,
+            args=args,
+            context=context,
+            phase="A",
+        )
+        if decision.requires_review:
+            write_violation(
+                decision,
+                tenant_id=context.get("tenant_id"),
+                workspace_id=context.get("workspace_id"),
+                agent_id=context.get("agent_id"),
+                user_id=context.get("user_id"),
+                session_id=context.get("session_id"),
+                run_id=run_id,
+            )
+        return decision
+    except Exception as e:  # noqa: BLE001
+        logger.debug("meta-agent sandbox check failed open for %s: %s", tool_name, e)
+        from core.sandbox_policy import SandboxDecision, ALLOWED
+
+        return SandboxDecision(
+            decision=ALLOWED,
+            phase="A",
+            tool_name=tool_name,
+            metadata_json={"error": str(e)},
+        )
+
+
 class ToolCall(BaseModel):
     tool: str = Field(..., description="Name of the tool to execute")
     params: Dict[str, Any] = Field(default_factory=dict, description="Parameters for the tool")
@@ -1029,6 +1096,27 @@ What is your next step?"""
                 return str(result)
 
             # 2. Execute via MCP with governance check
+            #
+            # Execution Sandbox Layer (Round 43 / Phase A) — defensive
+            # blast-radius check. Where governance above decides "is this
+            # agent normally allowed?", sandbox decides "is this specific
+            # call within bounds?". Closes the prompt-injection gap
+            # (docs/security/TRUST_VS_SANDBOX.md). Shadow mode by default.
+            sandbox_decision = _meta_agent_sandbox_check(tool_name, args, context)
+            if sandbox_decision is not None and sandbox_decision.requires_review:
+                if sandbox_decision.enforced:
+                    return (
+                        f"Sandbox {sandbox_decision.decision}: "
+                        f"{sandbox_decision.violation_detail}"
+                    )
+                # Shadow mode — log + audit but proceed.
+                logger.info(
+                    "sandbox shadow: %s -> %s (%s)",
+                    context.get("agent_id", "atom_main"),
+                    tool_name,
+                    sandbox_decision.violation_type,
+                )
+
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
 
