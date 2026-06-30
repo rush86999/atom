@@ -70,6 +70,11 @@ class CacheAwareRouter:
             "cached_cost_ratio": 1.0,    # No caching = full price
             "min_tokens": 0,
         },
+        "glm": {
+            "supports_cache": False,     # Zhipu AI has no documented prompt cache (June 2026)
+            "cached_cost_ratio": 1.0,    # No caching = full price
+            "min_tokens": 0,
+        },
     }
 
     def __init__(self, pricing_fetcher):

@@ -63,7 +63,7 @@ PROVIDER_TIERS = {
     # Mid tier - balanced cost/quality
     "mid": ["anthropic", "gemini", "mistral"],
     # Premium tier - best quality, higher cost
-    "premium": ["openai", "anthropic"],
+    "premium": ["openai", "anthropic", "glm"],
     # Specialized - task-specific
     "code": ["deepseek", "openai"],
     "math": ["deepseek", "openai"],
@@ -131,6 +131,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "llama3:8b",
         QueryComplexity.COMPLEX: "mistral:7b",
         QueryComplexity.ADVANCED: "mixtral:8x7b",
+    },
+    "glm": {  # Zhipu AI GLM family — OpenAI-compatible API
+        QueryComplexity.SIMPLE: "glm-4.5",
+        QueryComplexity.MODERATE: "glm-4.6",
+        QueryComplexity.COMPLEX: "glm-5",
+        QueryComplexity.ADVANCED: "glm-5.2",  # Latest flagship (June 2026) — 1M ctx, reasoning
     },
 }
 

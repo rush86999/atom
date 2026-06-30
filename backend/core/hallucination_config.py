@@ -143,6 +143,9 @@ FRONTIER_MODELS: set[str] = {
     # MiniMax
     "minimax-m2.7",
     "minimax-m2",
+    # Zhipu AI (GLM family) — GLM-5.2 is the June 2026 flagship
+    "glm-5.2",
+    "glm-5",
 }
 
 # Per-provider flagship for cascade escalation. The escalation target MUST
@@ -160,6 +163,8 @@ _FRONTIER_BY_PROVIDER: dict[str, str] = {
     "cohere": "command-r-plus",
     "ollama": "llama3:70b",  # local fallback
     "lux": "gpt-4o",  # Lux joins OpenAI family for escalation
+    "glm": "glm-5.2",  # Zhipu AI flagship (June 2026)
+    "zhipu": "glm-5.2",  # alternate provider key used by learning router
 }
 
 
