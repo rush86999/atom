@@ -73,7 +73,11 @@ class TestCanvasActionProposals:
             title="Submit Form Data",
             description="Submit user registration form",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "form_id": "registration_form",
@@ -84,7 +88,11 @@ class TestCanvasActionProposals:
                 },
                 "action": "submit"
             },
+<<<<<<< Updated upstream
                 "reasoning": "Form submission requires INTERN+ maturity",
+=======
+                "reasoning": "Form submission requires INTERN+ maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -140,7 +148,11 @@ class TestCanvasActionProposals:
             title="Present Sales Chart",
             description="Display monthly sales data as line chart",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "chart",
                 "chart_type": "line",
@@ -149,7 +161,11 @@ class TestCanvasActionProposals:
                     "values": [100, 150, 200]
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Chart presentation is LOW complexity (INTERN+)",
+=======
+                "reasoning": "Chart presentation is LOW complexity (INTERN+)"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -191,7 +207,11 @@ class TestCanvasActionProposals:
             title="Present Spreadsheet Data",
             description="Display financial data in spreadsheet format",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "sheets",
                 "data": {
@@ -202,7 +222,11 @@ class TestCanvasActionProposals:
                     ]
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Sheet data presentation requires INTERN maturity",
+=======
+                "reasoning": "Sheet data presentation requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -248,7 +272,11 @@ class TestBrowserAutomationProposals:
             title="Navigate to Website",
             description="Navigate to example.com and extract data",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "browser_automate",
                 "url": "https://example.com",
                 "actions": [
@@ -256,7 +284,11 @@ class TestBrowserAutomationProposals:
                     {"type": "screenshot"}
                 ]
             },
+<<<<<<< Updated upstream
                 "reasoning": "Browser automation requires INTERN+ maturity",
+=======
+                "reasoning": "Browser automation requires INTERN+ maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -307,7 +339,11 @@ class TestBrowserAutomationProposals:
             title="Fill and Submit Web Form",
             description="Automate form submission on external website",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "browser_automate",
                 "url": "https://example.com/form",
                 "actions": [
@@ -316,7 +352,11 @@ class TestBrowserAutomationProposals:
                     {"type": "click", "selector": "button[type='submit']"}
                 ]
             },
+<<<<<<< Updated upstream
                 "reasoning": "Form automation requires INTERN maturity",
+=======
+                "reasoning": "Form automation requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -367,7 +407,11 @@ class TestDeviceCapabilityProposals:
             title="Capture Photo",
             description="Use device camera to capture document photo",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "device_command",
                 "device_type": "camera",
                 "command": "take_photo",
@@ -376,7 +420,11 @@ class TestDeviceCapabilityProposals:
                     "flash": "auto"
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Camera access requires INTERN maturity",
+=======
+                "reasoning": "Camera access requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -419,7 +467,11 @@ class TestDeviceCapabilityProposals:
             title="Get Current Location",
             description="Retrieve device GPS location",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "device_command",
                 "device_type": "location",
                 "command": "get_location",
@@ -427,7 +479,11 @@ class TestDeviceCapabilityProposals:
                     "accuracy": "high"
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Location access requires INTERN maturity",
+=======
+                "reasoning": "Location access requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -469,7 +525,11 @@ class TestDeviceCapabilityProposals:
             title="Send Notification",
             description="Send local notification to user",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "device_command",
                 "device_type": "notifications",
                 "command": "send",
@@ -478,7 +538,11 @@ class TestDeviceCapabilityProposals:
                     "body": "Your automated task has finished"
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Sending notifications requires INTERN maturity",
+=======
+                "reasoning": "Sending notifications requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -524,7 +588,11 @@ class TestDeepLinkProposals:
             title="Open Agent via Deep Link",
             description="Open specific agent conversation",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://agent/sales_assistant",
@@ -533,7 +601,11 @@ class TestDeepLinkProposals:
                     "message": "Help me with sales data"
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Deep link navigation requires INTERN maturity",
+=======
+                "reasoning": "Deep link navigation requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -574,7 +646,11 @@ class TestDeepLinkProposals:
             title="Open Workflow via Deep Link",
             description="Navigate to workflow execution",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://workflow/monthly_report",
@@ -582,7 +658,11 @@ class TestDeepLinkProposals:
                     "auto_start": True
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Workflow deep link requires INTERN maturity",
+=======
+                "reasoning": "Workflow deep link requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -628,7 +708,11 @@ class TestMultiStepComplexActions:
             title="Extract Data and Visualize",
             description="Navigate to website, extract data, present as chart",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "browser_automate",  # Primary action type
                 "url": "https://example.com/data",
                 "actions": [
@@ -642,7 +726,11 @@ class TestMultiStepComplexActions:
                     }
                 ]
             },
+<<<<<<< Updated upstream
                 "reasoning": "Multi-step workflow requires INTERN maturity",
+=======
+                "reasoning": "Multi-step workflow requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -692,7 +780,11 @@ class TestMultiStepComplexActions:
             title="Conditional Action Workflow",
             description="Execute different actions based on conditions",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "conditional": {
@@ -717,7 +809,11 @@ class TestMultiStepComplexActions:
                     ]
                 }
             },
+<<<<<<< Updated upstream
                 "reasoning": "Conditional workflow requires INTERN maturity",
+=======
+                "reasoning": "Conditional workflow requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -758,7 +854,11 @@ class TestMultiStepComplexActions:
             title="Sequential Data Pipeline",
             description="Execute actions in sequence",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
+=======
+                "proposed_action": {
+>>>>>>> Stashed changes
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "sequence": [
@@ -782,7 +882,11 @@ class TestMultiStepComplexActions:
                     }
                 ]
             },
+<<<<<<< Updated upstream
                 "reasoning": "Sequential pipeline requires INTERN maturity",
+=======
+                "reasoning": "Sequential pipeline requires INTERN maturity"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -828,11 +932,19 @@ class TestProposalExecutionErrors:
             title="Failing Action",
             description="Action that will fail",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
                 "action_type": "browser_automate",
                 "url": "https://invalid-domain-that-does-not-exist.example"
             },
                 "reasoning": "Test error handling",
+=======
+                "proposed_action": {
+                "action_type": "browser_automate",
+                "url": "https://invalid-domain-that-does-not-exist.example"
+            },
+                "reasoning": "Test error handling"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -873,10 +985,17 @@ class TestProposalExecutionErrors:
             title="Unknown Action Type",
             description="Action with unsupported type",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
                 "action_type": "unsupported_action_type"
             },
                 "reasoning": "Test unknown type handling",
+=======
+                "proposed_action": {
+                "action_type": "unsupported_action_type"
+            },
+                "reasoning": "Test unknown type handling"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
@@ -917,10 +1036,17 @@ class TestProposalExecutionErrors:
             title="Skipped Action",
             description="Action should be skipped",
             proposal_data={
+<<<<<<< Updated upstream
                 **{
                 "action_type": "canvas_present"
             },
                 "reasoning": "Test execution disabled",
+=======
+                "proposed_action": {
+                "action_type": "canvas_present"
+            },
+                "reasoning": "Test execution disabled"
+>>>>>>> Stashed changes
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=intern_agent.id,
