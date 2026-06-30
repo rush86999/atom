@@ -108,6 +108,46 @@ def _meta_agent_sandbox_check(tool_name: str, args: Dict[str, Any], context: Dic
             fs_decision = fs_validate(policy, tool_name, args, context=context)
             if fs_decision.requires_review:
                 decision = fs_decision
+
+        # Phase C: tripwires + caps (Phase C).
+        if decision.is_allowed and sandbox_config.is_sandbox_tripwires_enabled():
+            from core import sandbox_tripwire
+
+            tw_decision = sandbox_tripwire.check(
+                tool_name=tool_name,
+                args=args,
+                args_hash=decision.args_hash,
+                context=context,
+            )
+            if tw_decision.decision != "allowed":
+                decision = tw_decision
+                if decision.killrun_triggered and sandbox_config.is_sandbox_force_enforce_enabled():
+                    from core import sandbox_killrun
+
+                    sandbox_killrun.trigger_killrun(
+                        run_id,
+                        reason=decision.violation_detail or "tripwire",
+                        tripwire_id=decision.metadata_json.get("tripwire_id"),
+                        execution_id=run_id,
+                    )
+
+        if decision.is_allowed and sandbox_config.is_sandbox_caps_enabled():
+            from core import sandbox_caps
+
+            cap_decision = sandbox_caps.check_caps(
+                policy,
+                tool_name=tool_name,
+                args=args,
+                args_hash=decision.args_hash,
+                context=context,
+            )
+            if cap_decision.requires_review:
+                decision = cap_decision
+
+        # KillRun guard.
+        from core import sandbox_killrun
+
+        sandbox_killrun.guard(run_id)
         if decision.requires_review:
             write_violation(
                 decision,
@@ -120,6 +160,12 @@ def _meta_agent_sandbox_check(tool_name: str, args: Dict[str, Any], context: Dic
             )
         return decision
     except Exception as e:  # noqa: BLE001
+        # KillRunAborted must propagate — it's how tripwire kills abort the
+        # AgentExecution. All other exceptions fail open.
+        from core.sandbox_killrun import KillRunAborted
+
+        if isinstance(e, KillRunAborted):
+            raise
         logger.debug("meta-agent sandbox check failed open for %s: %s", tool_name, e)
         from core.sandbox_policy import SandboxDecision, ALLOWED
 

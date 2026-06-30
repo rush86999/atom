@@ -88,6 +88,49 @@ def _sandbox_check(
             if fs_decision.requires_review:
                 decision = fs_decision
 
+        # Phase C: tripwires + resource caps.
+        # Tripwires run before caps (cheap regex first, then counter
+        # increments). Both are independently toggleable.
+        if decision.is_allowed and sandbox_config.is_sandbox_tripwires_enabled():
+            from core import sandbox_tripwire
+
+            tw_decision = sandbox_tripwire.check(
+                tool_name=tool_name,
+                args=args,
+                args_hash=decision.args_hash,
+                context=context,
+            )
+            if tw_decision.decision != "allowed":
+                decision = tw_decision
+                # Tripwire hit → fire KillRun (Phase C).
+                if decision.killrun_triggered and sandbox_config.is_sandbox_force_enforce_enabled():
+                    from core import sandbox_killrun
+
+                    sandbox_killrun.trigger_killrun(
+                        run_id,
+                        reason=decision.violation_detail or "tripwire",
+                        tripwire_id=decision.metadata_json.get("tripwire_id"),
+                        execution_id=run_id,
+                    )
+
+        if decision.is_allowed and sandbox_config.is_sandbox_caps_enabled():
+            from core import sandbox_caps
+
+            cap_decision = sandbox_caps.check_caps(
+                policy,
+                tool_name=tool_name,
+                args=args,
+                args_hash=decision.args_hash,
+                context=context,
+            )
+            if cap_decision.requires_review:
+                decision = cap_decision
+
+        # KillRun guard — abort if a prior tripwire killed this run.
+        from core import sandbox_killrun
+
+        sandbox_killrun.guard(run_id)
+
         # Audit the decision when it's a violation.
         if decision.requires_review:
             write_violation(
@@ -101,6 +144,13 @@ def _sandbox_check(
             )
         return decision
     except Exception as e:  # noqa: BLE001 — sandbox must never break dispatch
+        # KillRunAborted must propagate — it's how tripwire kills abort the
+        # AgentExecution. All other exceptions fail open (defensive: a
+        # broken sandbox should not break agent work).
+        from core.sandbox_killrun import KillRunAborted
+
+        if isinstance(e, KillRunAborted):
+            raise
         logger.debug("sandbox check failed open for %s: %s", tool_name, e)
         from core.sandbox_policy import SandboxDecision, ALLOWED
 
