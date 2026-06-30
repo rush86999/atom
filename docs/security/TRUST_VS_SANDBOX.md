@@ -107,7 +107,7 @@ security claims*. The distinction matters.
 | Axis | Question it answers | Time basis | Failure mode | Atom today |
 |---|---|---|---|---|
 | **Trust tier** | Should this agent, on average, be allowed to do X? | Past-tense, statistical | Wrong agent gets too much rope, or too little | ✅ Implemented (`AgentGovernanceService`) |
-| **Sandbox** | Can this *specific call*, regardless of who made it or how trustworthy they've been, do more than Y damage? | Present-tense, deterministic | Single compromised call exceeds intended scope | ❌ Scattered partial pieces; no unified layer |
+| **Sandbox** | Can this *specific call*, regardless of who made it or how trustworthy they've been, do more than Y damage? | Present-tense, deterministic | Single compromised call exceeds intended scope | ✅ Implemented (Rounds 43-47, see [`SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md)) |
 
 Both axes are required for any deployment where the agent touches untrusted
 content. Tier without sandbox = "we trust our butler, so we don't need a
@@ -131,7 +131,12 @@ Demotion (a trust-tier concern) is a slow, statistical response. Tripwires
 (a sandbox concern) are an instant, deterministic response. The two must not
 be confused for each other.
 
-Full design and phasing:
+✅ **Shipped (Rounds 43-47, June 30 2026).** All five phases landed in
+shadow mode (compute + audit always on, enforcement off by default; operators
+flip `ATOM_SANDBOX_FORCE_ENFORCE=true` after observing violation distributions).
+Full design and implementation:
+[`docs/architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md).
+Original engineering plan:
 [`PROMPT_INJECTION_DEFENSE_PLAN.md`](./PROMPT_INJECTION_DEFENSE_PLAN.md).
 
 ---
@@ -173,3 +178,8 @@ deterministic sandbox layer (filesystem scope, tool whitelist, egress
 allowlist, resource caps, tripwires) that runs alongside the tier and
 runs alongside match-confidence. A selector that resolves to `high` and
 points at a destructive action still needs the sandbox to say no.
+
+✅ That sandbox layer is now shipped (Rounds 43-47). See
+[`docs/architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md).
+Match-confidence and sandbox compose: match-confidence gates selectors
+within one LLM call; sandbox bounds what the resulting action can touch.

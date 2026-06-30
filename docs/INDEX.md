@@ -9,7 +9,16 @@
 
 ## 🚀 Recent Updates (June 2026)
 
-- **Pre-Action Match-Confidence Layer**: ✨ NEW - Selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state
+- **Execution Sandbox Layer**: ✨ NEW (Rounds 43-47) - Deterministic blast-radius layer that closes the "tier is routing, not security" gap
+  - [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md) - Five-phase design: (A) policy + audit table, (B) filesystem scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM + dual-proxy egress, (E) provenance tagging + LLM ActionJudge
+  - Closes the gap documented in [TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) and [PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md)
+  - Migration `20260630_add_sandbox_tables` (chains on Round 42, guarded per SQLite hybrid-DB pattern)
+  - Shadow mode default — compute + audit always on, enforcement off (`ATOM_SANDBOX_FORCE_ENFORCE=false`)
+  - 166 tests across 5 files in `tests/unit/core/test_sandbox_*.py`
+- **Self-Consistency Voter**: ✨ NEW (Round 42) - N-sample majority vote on structured plans (Wang et al. 2022)
+  - [SELF_CONSISTENCY_VOTER.md](architecture/SELF_CONSISTENCY_VOTER.md) - VoteResult tri-state mirroring match-confidence; shadow + audit extensions on PR #548 base
+  - Migration `20260629_add_self_consistency_votes` (guarded)
+- **Pre-Action Match-Confidence Layer**: ✨ NEW (Round 41) - Selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state
   - [MATCH_CONFIDENCE.md](architecture/MATCH_CONFIDENCE.md) - Pre-action `high/partial/ambiguous` gating through ProposalService (including AUTONOMOUS)
   - [SELECTOR_CONFIDENCE_THRESHOLDS.md](architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md) - Tuning env vars + score curve
   - Migration `20260628_add_match_confidence_gating_flag` (per-agent opt-out column)
@@ -81,6 +90,9 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [architecture/SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md) | **Execution Sandbox Layer** - 5-phase blast-radius defense (Rounds 43-47) | Jun 30, 2026 |
+| [security/TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) | **Trust tier ≠ security boundary** - Why maturity routing needs a sandbox | Jun 27, 2026 |
+| [security/PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md) | **Prompt injection defense plan** - ✅ Implemented (Rounds 43-47) | Jun 30, 2026 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | **Security guidelines** - NEVER commit .claude/, .env, secrets, credentials | Apr 23, 2026 |
 | [security/SECURITY_OVERVIEW.md](security/SECURITY_OVERVIEW.md) | Security audit report (A- rating) | Oct 19, 2025 |
 | [security/python-packages.md](security/python-packages.md) | Python package security & vulnerability scanning | Feb 19, 2026 |

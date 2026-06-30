@@ -23,6 +23,20 @@ System architecture, design patterns, and technical specifications.
 - **[Pre-Action Match-Confidence Layer](MATCH_CONFIDENCE.md)** - Pre-action selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state; gates ambiguous/partial matches through ProposalService for ALL tiers (including AUTONOMOUS) ✨
 - **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** - One-pager on tuning env vars, score curve, per-agent opt-out
 
+### Security & Sandbox Layers
+- **[Execution Sandbox Layer](SANDBOX_LAYER.md)** ✨ - Deterministic blast-radius
+  layer (Rounds 43-47). Five phases: (A) policy + audit table, (B) filesystem
+  scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM +
+  dual-proxy egress, (E) provenance tagging + LLM ActionJudge. Ships in
+  shadow mode — closes the "tier is routing, not security" gap documented in
+  [../security/TRUST_VS_SANDBOX.md](../security/TRUST_VS_SANDBOX.md).
+- **[Self-Consistency Voter](SELF_CONSISTENCY_VOTER.md)** - N-sample majority
+  vote on structured plans (Round 42). Composes with sandbox — voter gates
+  plan agreement, sandbox bounds execution scope.
+- **[Match-Confidence Layer](MATCH_CONFIDENCE.md)** - (See Memory & Context
+  above.) Pre-action selector certainty; Phase E provenance layer extends
+  this to context-window chunks.
+
 ### Application Design
 - **[Decorator Application Complete](../archive/implementation/DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns
 - **[API Reference](API_REFERENCE.md)** - Architecture API reference

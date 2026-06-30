@@ -308,9 +308,9 @@ Commercial marketplace for agents, domains, components, and skills at [atomagent
 
 ## Security & Privacy
 
-Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, comprehensive testing (495+ tests), AI-enhanced bug discovery, and stress testing
+Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, **5-phase execution sandbox layer** (filesystem scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge — Rounds 43-47), comprehensive testing (495+ tests), AI-enhanced bug discovery, and stress testing
 
-[Security Documentation →](docs/security/) | [Testing Guide →](backend/tests/e2e_ui/README.md)
+[Security Documentation →](docs/security/) | [Sandbox Layer →](docs/architecture/SANDBOX_LAYER.md) | [Testing Guide →](backend/tests/e2e_ui/README.md)
 
 ---
 

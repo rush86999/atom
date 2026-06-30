@@ -39,6 +39,7 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Tier-1 SQL recall** | ✅ | ➖ | Atom injects `DURABLE FACTS` prompt block. Hermes uses curated markdown instead. |
 | **Circuit breaker (memory)** | ✅ | ✅ | Both: trip after N failures, cooldown. Atom half-open probes; Hermes fixed window. |
 | **Maturity / governance** | ✅ | ❌ | Atom: STUDENT→INTERN→SUPERVISED→AUTONOMOUS with action gating. Hermes has none. |
+| **Deterministic sandbox / blast-radius enforcement** | ✅ | ❌ | Atom: 5-phase sandbox layer (Rounds 43-47) — FS scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge. Hermes has none. See [`SANDBOX_LAYER.md`](SANDBOX_LAYER.md). |
 | **HITL supervision** | ✅ | ❌ | Atom has real-time supervision sessions. |
 | **Multi-agent orchestration** | ✅ | ❌ | Atom: Queen + Fleet Admiral + spawnable specialists. Hermes is single-loop. |
 | **Canvas / rich presentations** | ✅ | ❌ | 7 canvas types, WebSocket, a11y. Hermes is terminal + messaging. |

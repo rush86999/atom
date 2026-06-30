@@ -88,6 +88,24 @@ match-confidence (does the LLM know what to click?), then the assembled
 plan goes through the voter (do N LLM calls agree on what to do?). Either
 layer can independently route the action to `ProposalService`.
 
+## Relation to the sandbox layer
+
+A third layer landed in Rounds 43-47: the
+[Execution Sandbox Layer](./SANDBOX_LAYER.md). Where the voter answers
+"do N LLM calls agree on the plan?", the sandbox answers "can this call,
+regardless of agreement, do more than Y damage?"
+
+| Layer | Question | Scope | Mechanism |
+|---|---|---|---|
+| Match-confidence | "Which selector to click?" | Within one LLM call | Deterministic scorer + LLM tiebreaker |
+| Self-consistency voter (this doc) | "Which plan to execute?" | Across N LLM calls | Hash-normalized majority vote |
+| Sandbox ([`SANDBOX_LAYER.md`](./SANDBOX_LAYER.md)) | "Can this call do more than Y damage?" | Per-run, all calls | FS scope + tool whitelist + tripwires + egress + caps + KillRun |
+
+All three default to shadow mode and compose independently. The voter can
+return `high` agreement on a plan that the sandbox then refuses (e.g. a
+unanimous plan to run `rm -rf /` hits the tripwire registry and fires
+KillRun). Defense in depth: each layer catches what the others miss.
+
 ## Tri-state levels
 
 `VoteResult.level` maps `agreement_ratio = winner_count / valid_count`:

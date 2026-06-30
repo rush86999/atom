@@ -217,11 +217,27 @@ Single-misbehaving-agent opt-out: set
    baseline, tune `MATCH_CONFIDENCE_HIGH_THRESHOLD` down (0.85 → 0.75).
 4. **6d** — enable for AUTONOMOUS. On-call watches reviewer UI first 24h.
 
-## Not a Sandbox
+## Not a Sandbox (but composes with one)
 
 **Match-confidence is NOT a sandbox.** AUTONOMOUS + high still has full
 blast radius. Same caveat as the maturity system in `CLAUDE.md`:
 bounding blast radius requires a deterministic sandbox layer
 (filesystem scope, tool whitelist, egress allowlist, resource caps,
-tripwires) that runs alongside the tier. See
-`docs/security/TRUST_VS_SANDBOX.md`.
+tripwires) that runs alongside the tier.
+
+✅ **That sandbox layer is now shipped** (Rounds 43-47, June 30 2026).
+See [`SANDBOX_LAYER.md`](./SANDBOX_LAYER.md) for the full design and
+[`docs/security/TRUST_VS_SANDBOX.md`](../security/TRUST_VS_SANDBOX.md)
+for the gap it closes.
+
+### How match-confidence and the sandbox compose
+
+| Layer | Question it answers | Scope | Mechanism |
+|---|---|---|---|
+| Match-confidence (this doc) | "Which selector should I click?" | Within one LLM call | Deterministic scorer + LLM tiebreaker |
+| Sandbox ([`SANDBOX_LAYER.md`](./SANDBOX_LAYER.md)) | "Can this call, regardless of confidence, do more than Y damage?" | Per-run, all calls | FS scope + tool whitelist + tripwires + egress + caps |
+
+They are complementary: match-confidence intercepts the call where
+current-call certainty is low; sandbox bounds what *any* call (high or
+low confidence) can actually touch. A selector that resolves to `high`
+and points at a destructive action still needs the sandbox to say no.

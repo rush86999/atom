@@ -14,10 +14,16 @@ Security best practices, compliance, and package security.
 - **[Trust Tier ≠ Security Boundary](TRUST_VS_SANDBOX.md)** ⚠️ — Why the
   maturity graduation system is a *routing* decision, not a *security*
   decision. Read this before treating `AUTONOMOUS` as a safety claim.
-- **[Prompt Injection Defense Plan](PROMPT_INJECTION_DEFENSE_PLAN.md)** —
+- **[Prompt Injection Defense Plan](PROMPT_INJECTION_DEFENSE_PLAN.md)** ✅ —
   Engineering plan for the deterministic sandbox layer (filesystem scope,
   tool whitelist, egress allowlist, resource caps, tripwires) required to
-  bound agent blast radius.
+  bound agent blast radius. **Implemented Rounds 43-47** — see the shipped
+  design at [../architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
+- **[Execution Sandbox Layer](../architecture/SANDBOX_LAYER.md)** ✨ —
+  Authoritative design doc for the five-phase blast-radius layer (Phases
+  A-E). Ships in shadow mode by default; covers Firecracker microVM
+  isolation, dual-proxy egress, tripwire registry, KillRun state machine,
+  provenance tagging, and LLM ActionJudge.
 
 ### Package Security
 - **[Packages](packages.md)** - Package security overview

@@ -99,10 +99,13 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 > does not bound the blast radius of a compromised run, and a prompt-injected
 > agent at any tier will use the full scope that tier permits on the very next
 > call. For blast-radius defense (filesystem scope, tool whitelist, egress
-> allowlist, resource caps, tripwires) see
-> [`docs/security/TRUST_VS_SANDBOX.md`](../security/TRUST_VS_SANDBOX.md) and
-> the implementation plan at
-> [`docs/security/PROMPT_INJECTION_DEFENSE_PLAN.md`](../security/PROMPT_INJECTION_DEFENSE_PLAN.md).
+> allowlist, resource caps, tripwires) — now **shipped (Rounds 43-47)** — see
+> [`docs/architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md)
+> (authoritative implementation doc),
+> [`docs/security/TRUST_VS_SANDBOX.md`](../security/TRUST_VS_SANDBOX.md)
+> (why this layer is necessary), and
+> [`docs/security/PROMPT_INJECTION_DEFENSE_PLAN.md`](../security/PROMPT_INJECTION_DEFENSE_PLAN.md)
+> (original engineering plan, status: implemented).
 > **Tier gates permission; sandbox gates capability. Both are required.**
 
 ### Maturity Progression

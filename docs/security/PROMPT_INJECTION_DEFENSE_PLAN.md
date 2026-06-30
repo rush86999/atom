@@ -1,11 +1,18 @@
 # Prompt Injection Defense — Engineering Plan
 
-**Status**: Draft for review
-**Last updated**: June 27, 2026
+**Status**: ✅ Implemented (Rounds 43-47, June 30 2026)
+**Last updated**: June 30, 2026
 **Scope**: Add a deterministic sandbox layer to Atom's agent runtime, separate
 from the existing probabilistic trust tier.
-**Companion doc**: [`TRUST_VS_SANDBOX.md`](./TRUST_VS_SANDBOX.md) — why this
-layer is necessary.
+**Companion docs**:
+- [`TRUST_VS_SANDBOX.md`](./TRUST_VS_SANDBOX.md) — why this layer is necessary.
+- [`../architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md) — the shipped implementation (authoritative).
+
+> All five phases (A through E) shipped in shadow mode — compute + audit
+> always on, enforcement off by default. Operators flip
+> `ATOM_SANDBOX_FORCE_ENFORCE=true` after observing violation distributions
+> in staging. See `SANDBOX_LAYER.md` for the per-phase kill switches,
+> audit table schema, and red-team verification protocol.
 
 ---
 
