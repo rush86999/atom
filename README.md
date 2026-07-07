@@ -35,6 +35,7 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 | **Governance** | ✅ 4-tier maturity (Student → Autonomous) | ❌ No maturity levels |
 | **Memory** | ✅ Episodic memory + per-turn fact extraction + agent memory tools | ✅ Persistent Markdown files |
 | **Integrations** | 46+ business (CRM, support, dev tools) | 50+ personal (smart home, media, messaging) |
+| **Office Automation** | ✅ Real-time Excel/Word/PPTX co-editing on Canvas | ❌ None |
 | **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
 | **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
 
@@ -55,6 +56,7 @@ Hermes (Nous Research) is an open-source personal agent known for its memory-pro
 | **Governance** | ✅ 4-tier maturity (Student → Autonomous) + HITL supervision | ❌ None |
 | **Multi-agent** | ✅ Queen + Fleet Admiral + specialty agents | ❌ Single agent loop |
 | **Canvas / rich UI** | ✅ 7 canvas types, WebSocket, a11y | ❌ Terminal + messaging |
+| **Office Automation** | ✅ Real-time Excel/Word/PPTX co-editing on Canvas | ❌ None |
 | **Cost routing** | ✅ 5-tier cognitive classification | ◐ Aux-model only |
 | **Observability** | ✅ Prometheus + `/health/*` + structlog | ❌ WARNING logs |
 | **Retrieval** | Tier-1 SQL + Tier-2 vector + FTS5 lexical | Vector + BM25 hybrid + cross-encoder reranker |
@@ -180,6 +182,13 @@ Rich interactive presentations (charts, forms, markdown) with live operation vis
 
 [Canvas Guide →](docs/archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
+### 💼 Office Automation & Document Co-Editing ✨
+- **Real-Time Collaboration**: Co-edit Excel spreadsheets, Word documents, and PowerPoint presentations directly on the interactive Canvas.
+- **AI-Driven Office Workflows**: Automate document generation, spreadsheet analysis, formatting, and reporting through voice or chat.
+- **Agent Integration**: Full synchronization between agent actions and document state for autonomous office task execution.
+
+[Office Automation Guide →](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
+
 ### 🧠 Autonomous Self-Evolution & Graduation ✨
 Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
 
@@ -203,7 +212,7 @@ Durable-fact extraction layer that survives context compression — the agent re
 - **AI-powered training**: Duration estimation with historical data
 - **Complete audit trail**: Every action logged, timestamped, and traceable
 
-[Governance Documentation →](docs/governance/) | [Enhancement Plan →](ATOM_ENHANCEMENT_PLAN.md)
+[Governance Documentation →](docs/governance/) | [Enhancement Plan →](archive/root_files/ATOM_ENHANCEMENT_PLAN.md)
 
 ### 🔌 Deep Integrations
 - **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce, Zendesk
@@ -265,7 +274,7 @@ Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major
 
 **Performance**: 193 tests passing, comprehensive validation metrics documented
 
-[Enhancement Plan →](ATOM_ENHANCEMENT_PLAN.md) | [Validation Metrics →](backend/docs/VALIDATION_METRICS.md)
+[Enhancement Plan →](archive/root_files/ATOM_ENHANCEMENT_PLAN.md) | [Validation Metrics →](backend/docs/VALIDATION_METRICS.md)
 
 ---
 
