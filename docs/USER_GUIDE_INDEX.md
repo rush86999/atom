@@ -61,6 +61,13 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Wake word detection
   - AI chat interface
 
+### Office & Document Automation
+
+- **[Office Automation & Co-Editing](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)**
+  - Direct Word, Excel, PowerPoint editing without Office dependencies
+  - Interactive Canvas co-editing with real-time sync
+  - CLI and REST API integration tools
+
 ---
 
 ## 🔌 Integrations & Marketplace

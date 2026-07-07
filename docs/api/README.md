@@ -19,6 +19,7 @@ Complete API reference and guides for the Atom platform.
 ### Mobile & Platform APIs
 - **[Mobile Workflow API Guide](MOBILE_WORKFLOW_API_GUIDE.md)** - Mobile-specific APIs
 - **[Slack & Asana Endpoints](SLACK_ASANA_ENDPOINTS.md)** - Integration endpoints
+- **Office REST APIs** - Endpoint details are listed in the [Office Automation Guide](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
 
 ### Authentication
 - **[Authentication](AUTHENTICATION.md)** - API authentication and security

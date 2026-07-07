@@ -16,6 +16,7 @@ Technical references, architecture diagrams, and system specifications.
 
 ### Features
 - **[Feature Matrix](FEATURE_MATRIX.md)** - Capability comparison matrix
+- **[Office Automation Guide](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)** - Technical guide for Office file manipulation & Canvas co-editing
 
 ### Architecture Diagrams
 - **[Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md)** - System architecture diagrams
