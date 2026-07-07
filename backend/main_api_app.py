@@ -302,6 +302,7 @@ scaling_router = safe_import_router("api.routes.scaling_routes")
 integration_memory_router = safe_import_router("api.routes.integration_memory_routes")
 qstash_router = safe_import_router("core.qstash_worker")
 protection_router = safe_import_router("api.routes.protection_routes")
+office_router = safe_import_router("api.office_routes")
 
 # --- CONFIGURATION & ENVIRONMENT ---
 # Logging already initialized at the top of file
@@ -1254,6 +1255,7 @@ app.include_router(workflow_versioning_router)
 app.include_router(protection_router)
 app.include_router(platform_webhook_router)
 app.include_router(ingestion_webhooks_router, prefix="/api", tags=["webhooks-ingestion"])
+app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 
 # --- V1 RESOURCE ROUTES (Migrated from lifespan) ---
 if agent_router:

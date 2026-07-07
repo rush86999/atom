@@ -431,5 +431,140 @@ def _confirm_host_mount():
     click.echo("✓ Host mount confirmed")
 
 
+@main_cli.group("office")
+def office_group():
+    """Office document automation commands (Word, Excel, PPTX)."""
+    pass
+
+
+@office_group.command("excel-read")
+@click.argument("file_path")
+@click.argument("cell_path", default="")
+def cli_excel_read(file_path: str, cell_path: str):
+    """Read values from Excel spreadsheet cell or range."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    res = service.excel.read_range(file_path, cell_path)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    
+    if "cells" in res:
+        for row in res["cells"]:
+            row_vals = [str(c["value"]) for c in row]
+            click.echo("\t".join(row_vals))
+    else:
+        click.echo(f"Value: {res.get('value')}")
+        if res.get("formula"):
+            click.echo(f"Formula: {res.get('formula')}")
+
+
+@office_group.command("excel-write")
+@click.argument("file_path")
+@click.argument("cell_path")
+@click.argument("value")
+@click.option("--formula", is_flag=True, help="Treat value as formula")
+def cli_excel_write(file_path: str, cell_path: str, value: str, formula: bool):
+    """Write value or formula to Excel spreadsheet coordinate."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    res = service.excel.write_cell(file_path, cell_path, value, formula)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    click.echo(res.get("message"))
+
+
+@office_group.command("word-read")
+@click.argument("file_path")
+def cli_word_read(file_path: str):
+    """Read content paragraphs and tables from a Word document."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    res = service.word.read_document(file_path)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    
+    click.echo(f"--- paragraphs ({len(res['paragraphs'])}) ---")
+    for p in res["paragraphs"]:
+        click.echo(f"[{p['style']}] {p['text']}")
+    
+    click.echo(f"\n--- tables ({len(res['tables'])}) ---")
+    for t in res["tables"]:
+        click.echo(f"Table {t['index']}:")
+        for row in t["rows"]:
+            click.echo(" | ".join(row))
+
+
+@office_group.command("word-write")
+@click.argument("file_path")
+@click.argument("content")
+@click.option("--action", default="append", help="Modification action: append or replace")
+@click.option("--target", help="Target placeholder to replace")
+@click.option("--style", default="Normal", help="Paragraph style name")
+def cli_word_write(file_path: str, content: str, action: str, target: str, style: str):
+    """Write text content to a Word document."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    options = {"style": style, "target": target}
+    res = service.word.modify_document(file_path, action, content, options)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    click.echo(res.get("message"))
+
+
+@office_group.command("pptx-read")
+@click.argument("file_path")
+def cli_pptx_read(file_path: str):
+    """Read layouts and slide content from a PowerPoint presentation."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    res = service.pptx.read_slides(file_path)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    
+    for slide in res["slides"]:
+        click.echo(f"Slide {slide['slide_index'] + 1}:")
+        for shape in slide["shapes"]:
+            if shape["type"] == "text":
+                click.echo(f"  [Text Frame] {shape['text']}")
+            elif shape["type"] == "table":
+                click.echo(f"  [Table] {len(shape['table'])} rows")
+
+
+@office_group.command("pptx-write")
+@click.argument("file_path")
+@click.argument("content")
+@click.option("--action", default="add_slide", help="Action: add_slide")
+@click.option("--title", help="Slide title")
+@click.option("--layout-idx", default=1, type=int, help="Slide layout index")
+def cli_pptx_write(file_path: str, content: str, action: str, title: str, layout_idx: int):
+    """Modify slides in a PowerPoint presentation."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    options = {"title": title, "content": content, "layout_idx": layout_idx}
+    res = service.pptx.modify_slides(file_path, action, options)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    click.echo(res.get("message"))
+
+
+@office_group.command("render")
+@click.argument("file_path")
+def cli_render(file_path: str):
+    """Render Word, Excel, or PPTX into HTML string."""
+    from core.office_service import OfficeService
+    service = OfficeService()
+    res = service.renderer.render_to_html(file_path)
+    if not res.get("success"):
+        click.echo(click.style(f"Error: {res.get('error')}", fg="red"), err=True)
+        raise SystemExit(1)
+    click.echo(res.get("html"))
+
+
 if __name__ == "__main__":
     main_cli()

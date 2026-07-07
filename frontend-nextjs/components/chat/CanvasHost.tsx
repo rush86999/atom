@@ -223,6 +223,9 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
         case "pie_chart":
             return <PieChartCanvas data={data.data} title={data.title} />;
 
+        case "office_preview":
+            return <OfficePreviewCanvas data={data} canvasId={canvasId} />;
+
         default:
             return (
                 <div className="p-4 border rounded-md border-dashed">
@@ -233,4 +236,54 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
                 </div>
             );
     }
+}
+
+function OfficePreviewCanvas({ data, canvasId }: { data: any; canvasId: string }) {
+    const [editableContent, setEditableContent] = useState(data.html || "");
+
+    useEffect(() => {
+        setEditableContent(data.html || "");
+    }, [data.html]);
+
+    const handleBlur = async (e: React.FocusEvent<HTMLDivElement>) => {
+        const textVal = e.currentTarget.textContent || "";
+        try {
+            await fetch("/api/v1/office/sync-update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    canvas_id: canvasId,
+                    file_path: data.file_path,
+                    user_id: "user_coedit",
+                    edit_type: "document",
+                    data: { content: textVal }
+                })
+            });
+        } catch (err) {
+            console.error("Office co-edit sync failed:", err);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded-lg border text-xs">
+                <span className="truncate flex-1 text-muted-foreground font-medium">{data.file_path || "Office Document"}</span>
+                <span className="text-[10px] text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 font-semibold">Co-Editing Active</span>
+            </div>
+            {data.html ? (
+                <div 
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={handleBlur}
+                    className="border rounded-lg p-4 bg-card overflow-auto max-h-[500px] prose dark:prose-invert max-w-none text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(editableContent) }}
+                />
+            ) : (
+                <div className="h-[200px] border border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground">
+                    <Layers className="h-8 w-8 mb-2 opacity-20" />
+                    <p className="text-xs">No preview content available</p>
+                </div>
+            )}
+        </div>
+    );
 }
