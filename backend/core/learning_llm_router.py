@@ -17,12 +17,9 @@ Success Criteria:
 - 90% routing accuracy
 - 15% additional cost reduction vs rule-based
 - <50ms routing decision latency
-
-Ported from SaaS (atom-saas) with upstream compatibility:
-- No UUID dependencies (uses String IDs)
-- Compatible with upstream model structure
 """
 from __future__ import annotations
+import uuid
 import asyncio
 import hashlib
 import json
@@ -31,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional, List, Dict, Set, Tuple, Union
+from uuid import UUID
 from collections import defaultdict
 
 import numpy as np
@@ -145,12 +143,6 @@ class LearningBasedRouter:
         self._preference_data: Dict[str, List[RoutingFeedback]] = {}
         self._router_cache: Dict[str, Tuple[ModelSpec, float]] = {}
         self._training_samples: List[Dict[str, Any]] = []
-        # SECURITY/STABILITY: caps to prevent unbounded memory growth
-        # in long-running processes. Each cache evicts oldest entries
-        # when the cap is exceeded.
-        self._max_router_cache_size = 1000
-        self._max_preference_data_per_key = 50
-        self._max_training_samples = 5000
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -919,12 +911,6 @@ class LearningBasedRouter:
 
         self._preference_data[feedback_key].append(feedback)
 
-        # Cap per-key history to prevent unbounded growth in long-running
-        # processes. Keep the most recent entries (highest signal value).
-        if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
-            overflow = len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
-            del self._preference_data[feedback_key][:overflow]
-
         # Trigger retraining after accumulating enough feedback
         if len(self._preference_data[feedback_key]) >= 10:
             await self._retrain_router(feedback.tenant_id, feedback.task_type)
@@ -960,11 +946,6 @@ class LearningBasedRouter:
             None,  # Placeholder for trained model
             0.0,  # Placeholder for accuracy
         )
-        # Evict oldest entries if cache exceeds cap. Dicts preserve insertion
-        # order in Python 3.7+ so the first key is the oldest.
-        if len(self._router_cache) > self._max_router_cache_size:
-            oldest = next(iter(self._router_cache))
-            del self._router_cache[oldest]
 
         logger.info(
             f"Retrained router for tenant={tenant_id}, task={task_type} "
@@ -1129,6 +1110,244 @@ class LearningBasedRouter:
             self._router_cache.clear()
 
         logger.info(f"Cleared learning cache for tenant={tenant_id or 'all'}")
+
+    # ========================================================================
+    # HYPOTHESIS TREE REFINEMENT INTEGRATION (Phase 2026-06-19)
+    # ========================================================================
+
+    async def optimize_routing_configuration(
+        self,
+        tenant_id: str,
+        task_type: str,
+        requirements: Dict[str, Any],
+        tier: str = "solo",
+        optimization_goals: List[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Optimize multi-agent routing configuration using HTR.
+
+        Explores different routing strategies (model sequences, caching,
+        fallback patterns) to find optimal cost/quality tradeoffs.
+
+        Args:
+            tenant_id: Tenant ID for multi-tenancy
+            task_type: Task type to optimize routing for
+            requirements: Task requirements (latency, quality, cost targets)
+            tier: Pricing tier for budget limits
+            optimization_goals: Specific goals (cost, quality, latency)
+
+        Returns:
+            Optimization result with best routing configuration
+        """
+        from core.models import HypothesisTree as DBHypothesisTree
+
+        optimization_goals = optimization_goals or ["cost", "quality"]
+
+        # Create optimization tree
+        tree_id = str(uuid.uuid4())
+        db_tree = DBHypothesisTree(
+            id=tree_id,
+            tenant_id=tenant_id,
+            task_description=f"Routing optimization for {task_type}",
+            complexity_level="standard",
+            tier=tier,
+            task_type="routing",
+        )
+        self.db.add(db_tree)
+        self.db.flush()
+
+        # Generate routing hypotheses
+        hypotheses = await self._generate_routing_hypotheses(
+            task_type,
+            requirements,
+            optimization_goals,
+        )
+
+        # Validate each hypothesis
+        best_config = None
+        best_score = -1.0
+        nodes_created = 0
+        pruning_events = []
+
+        for hypothesis in hypotheses:
+            if nodes_created >= self._get_tier_limit(tier):
+                break
+
+            # Validate routing hypothesis
+            validation = await self._validate_routing_hypothesis(
+                hypothesis,
+                requirements,
+            )
+
+            if validation["passed"]:
+                score = validation["score"]
+                if score > best_score:
+                    best_score = score
+                    best_config = validation["config"]
+            else:
+                pruning_events.append({
+                    "hypothesis": hypothesis.description,
+                    "reason": validation.get("reason", "unknown"),
+                    "details": validation.get("details", ""),
+                })
+
+            nodes_created += 1
+
+        # Update tree with results
+        db_tree.completed_at = datetime.now(timezone.utc)
+        db_tree.total_nodes_expanded = nodes_created
+        db_tree.total_tokens_used = 0  # Routing uses minimal tokens
+        db_tree.winning_path = []
+        self.db.commit()
+
+        logger.info(
+            f"[RoutingOptimizer] Optimized {task_type} routing: "
+            f"explored {nodes_created} hypotheses, best_score={best_score:.2f}"
+        )
+
+        return {
+            "tenant_id": tenant_id,
+            "task_type": task_type,
+            "optimized_config": best_config,
+            "tree_id": tree_id,
+            "nodes_explored": nodes_created,
+            "pruning_events": pruning_events,
+            "optimization_score": best_score,
+        }
+
+    async def _generate_routing_hypotheses(
+        self,
+        task_type: str,
+        requirements: Dict[str, Any],
+        goals: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Generate routing optimization hypotheses."""
+        hypotheses = []
+
+        # Get candidate models
+        all_models = list(self._model_registry.values())
+
+        # Hypothesis 1: Single best model
+        best_model = max(all_models, key=lambda m: m.quality_score)
+        hypotheses.append({
+            "description": f"Single premium model: {best_model.model_name}",
+            "config": {
+                "strategy": "single_model",
+                "primary_model": best_model.model_id,
+                "fallback_enabled": False,
+                "caching_enabled": True,
+            },
+            "estimated_cost": best_model.cost_per_million / 1000,
+            "estimated_quality": best_model.quality_score,
+            "estimated_latency": 1000 / best_model.speed_score,
+        })
+
+        # Hypothesis 2: Model cascade (premium → standard → cheap)
+        premium = [m for m in all_models if m.tier == "premium"]
+        standard = [m for m in all_models if m.tier in ("plus", "standard")]
+        cheap = [m for m in all_models if m.tier == "standard" and "cheap" in m.model_name.lower()]
+
+        if premium and standard:
+            hypotheses.append({
+                "description": "Cascade strategy: premium → standard",
+                "config": {
+                    "strategy": "cascade",
+                    "models": [m.model_id for m in premium[:2]],
+                    "fallback": standard[0].model_id if standard else None,
+                    "caching_enabled": True,
+                },
+                "estimated_cost": (premium[0].cost_per_million + standard[0].cost_per_million) / 2000,
+                "estimated_quality": premium[0].quality_score,
+                "estimated_latency": 1200,
+            })
+
+        # Hypothesis 3: Caching-heavy strategy
+        if "cost" in goals:
+            cacheable_models = [m for m in all_models if m.supports_cache]
+            if cacheable_models:
+                hypotheses.append({
+                    "description": "Aggressive caching with fastest model",
+                    "config": {
+                        "strategy": "cached",
+                        "primary_model": cacheable_models[0].model_id,
+                        "cache_ttl": 3600,
+                        "cache_warmup": True,
+                    },
+                    "estimated_cost": cacheable_models[0].cost_per_million / 2000,
+                    "estimated_quality": cacheable_models[0].quality_score * 0.95,
+                    "estimated_latency": 200,
+                })
+
+        # Hypothesis 4: Quality-first strategy
+        if "quality" in goals:
+            high_quality = [m for m in all_models if m.quality_score > 0.95]
+            if high_quality:
+                hypotheses.append({
+                    "description": "Quality-first with best models",
+                    "config": {
+                        "strategy": "quality_first",
+                        "primary_model": high_quality[0].model_id,
+                        "fallback": high_quality[1].model_id if len(high_quality) > 1 else None,
+                        "caching_enabled": False,
+                    },
+                    "estimated_cost": high_quality[0].cost_per_million / 1000,
+                    "estimated_quality": high_quality[0].quality_score,
+                    "estimated_latency": 1500,
+                })
+
+        return hypotheses
+
+    async def _validate_routing_hypothesis(
+        self,
+        hypothesis: Dict[str, Any],
+        requirements: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Validate a routing hypothesis against requirements."""
+        passed = True
+        reason = None
+        details = ""
+        score = 0.0
+
+        # Check cost requirements
+        max_cost = requirements.get("max_cost_per_1k", 0.10)
+        if hypothesis["estimated_cost"] > max_cost:
+            passed = False
+            reason = "cost_exceeded"
+            details = f"Cost ${hypothesis['estimated_cost']:.4f} exceeds ${max_cost:.4f}"
+
+        # Check latency requirements
+        max_latency = requirements.get("max_latency_ms", 5000)
+        if hypothesis["estimated_latency"] > max_latency:
+            passed = False
+            reason = "latency_exceeded"
+            details = f"Latency {hypothesis['estimated_latency']:.0f}ms exceeds {max_latency}ms"
+
+        # Check quality requirements
+        min_quality = requirements.get("min_quality", 0.8)
+        if hypothesis["estimated_quality"] < min_quality:
+            passed = False
+            reason = "quality_insufficient"
+            details = f"Quality {hypothesis['estimated_quality']:.2f} below {min_quality:.2f}"
+
+        if passed:
+            # Calculate score based on requirements
+            score = (
+                (hypothesis["estimated_quality"] * 0.4) +
+                (1.0 - min(1.0, hypothesis["estimated_cost"] / max_cost)) * 0.3 +
+                (1.0 - min(1.0, hypothesis["estimated_latency"] / max_latency)) * 0.3
+            )
+
+        return {
+            "passed": passed,
+            "reason": reason,
+            "details": details,
+            "score": score,
+            "config": hypothesis["config"],
+        }
+
+    def _get_tier_limit(self, tier: str) -> int:
+        """Get max nodes for pricing tier."""
+        return {"free": 3, "solo": 8, "enterprise": 20}.get(tier, 8)
 
 
 def get_learning_router(db: Session) -> LearningBasedRouter:
