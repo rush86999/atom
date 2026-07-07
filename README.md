@@ -337,6 +337,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 ### Core Features
 - [Agent System](docs/agents/overview.md) - Multi-agent governance and orchestration
 - [Community Skills Guide](docs/integrations/community-skills.md) - 5,000+ skills with Python & npm packages
+- [Office Automation & Co-Editing](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Real-time Excel/Word/PPTX co-editing on Canvas ✨ NEW
 - [Python Package Support](docs/security/python-packages.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](docs/security/npm-packages.md) - Lodash, Express, 2M+ packages
 - [Episodic Memory](docs/intelligence/episodic-memory.md) - Agent learning system

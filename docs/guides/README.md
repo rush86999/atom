@@ -24,6 +24,7 @@ Comprehensive guides organized by user type and topic.
 ### Core Guides
 - **[End User Workflow](END_USER_WORKFLOW.md)** - Daily workflows
 - **[Features](FEATURES.md)** - Feature overview
+- **[Office Automation & Co-Editing](ATOM_OFFICE_AUTOMATION_GUIDE.md)** - Office automation and live Canvas co-editing guide ✨ NEW (July 2026)
 - **[User Guide](USER_GUIDE.md)** - Complete user guide
 - **[User Training Guide](USER_TRAINING_GUIDE.md)** - Training materials
 - **[User Personas and Journeys](USER_PERSONAS_AND_JOURNEYS.md)** - User profiles
