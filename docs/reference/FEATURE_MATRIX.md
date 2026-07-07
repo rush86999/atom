@@ -50,6 +50,7 @@
 | Webhooks | ✅ | ✅ |
 | API Access | ✅ | ✅ |
 | Custom Integrations | ✅ | ✅ |
+| Office Automation & Co-Editing | ✅ | ✅ |
 
 ---
 

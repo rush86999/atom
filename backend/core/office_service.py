@@ -122,7 +122,10 @@ class ExcelManager:
     def write_cell(self, file_path: str, cell_path: str, value: Any, is_formula: bool = False) -> Dict[str, Any]:
         """Write value or formula to a cell."""
         try:
-            wb = openpyxl.load_workbook(file_path)
+            if os.path.exists(file_path):
+                wb = openpyxl.load_workbook(file_path)
+            else:
+                wb = openpyxl.Workbook()
             sheet_name, coordinate = self.parse_path(cell_path)
 
             if sheet_name:

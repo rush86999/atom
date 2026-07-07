@@ -7,6 +7,12 @@
 
 ---
 
+## 🚀 Recent Updates (July 2026)
+
+- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents without native Office/LibreOffice dependencies.
+  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints.
+  - Integrates directly with frontend `CanvasHost.tsx` for real-time bi-directional collaboration.
+
 ## 🚀 Recent Updates (June 2026)
 
 - **Execution Sandbox Layer**: ✨ NEW (Rounds 43-47) - Deterministic blast-radius layer that closes the "tier is routing, not security" gap
