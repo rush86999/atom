@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
+import numpy as np
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,7 @@ class AccessPatternAnalyzer:
 
         # Detect pattern
         if len(gaps) < 3:
+            self.pattern_cache[prompt_hash] = AccessPattern.RANDOM
             return AccessPattern.RANDOM
 
         gap_variance = sum((g - np.mean(gaps))**2 for g in gaps) / len(gaps)
