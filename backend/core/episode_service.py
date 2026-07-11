@@ -13,7 +13,7 @@ This service handles:
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any, Literal
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, text, update, cast, String
+from sqlalchemy import func, and_, or_, text, update, cast, String, Float
 import logging
 import asyncio
 import uuid
@@ -22,7 +22,7 @@ from enum import Enum
 
 from core.models import (
     AgentEpisode, AgentExecution, AgentRegistry, EpisodeOutcome,
-    AgentStatus, GraduationExam
+    AgentStatus, GraduationExam, EpisodeFeedback
 )
 from core.database import get_db
 from core.lancedb_service import LanceDBService
