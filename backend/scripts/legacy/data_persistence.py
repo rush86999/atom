@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import sqlite3
 import threading
@@ -10,6 +11,34 @@ from typing import Any, Dict, List, Optional, Union
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Tables managed by DataPersistence._init_database. Used to whitelist
+# table_name arguments in export_data/import_data so they cannot be used for
+# SQL injection (table/column identifiers cannot be parameterized).
+VALID_TABLE_NAMES = frozenset(
+    {
+        "services",
+        "ai_providers",
+        "workflow_templates",
+        "workflow_executions",
+        "oauth_tokens",
+        "system_settings",
+        "audit_log",
+    }
+)
+
+# A safe SQL identifier: letters, digits, underscore; must start with a letter.
+_SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+
+
+def _is_valid_table_name(table_name: str) -> bool:
+    """Return True only if table_name is a known, identifier-safe table."""
+    return isinstance(table_name, str) and table_name in VALID_TABLE_NAMES
+
+
+def _is_safe_identifier(identifier: str) -> bool:
+    """Return True if identifier is a simple safe SQL identifier."""
+    return bool(isinstance(identifier, str) and _SAFE_IDENTIFIER_RE.match(identifier))
 
 
 class DataPersistence:
@@ -798,6 +827,8 @@ class DataPersistence:
 
     def export_data(self, table_name: str) -> List[Dict[str, Any]]:
         """Export all data from a specific table"""
+        if not _is_valid_table_name(table_name):
+            raise ValueError(f"Invalid or unknown table name: {table_name!r}")
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -839,15 +870,25 @@ class DataPersistence:
 
     def import_data(self, table_name: str, data: List[Dict[str, Any]]) -> bool:
         """Import data into a specific table"""
+        if not _is_valid_table_name(table_name):
+            raise ValueError(f"Invalid or unknown table name: {table_name!r}")
         try:
             with self._lock:
                 conn = sqlite3.connect(self.db_path)
                 cursor = conn.cursor()
 
                 for item in data:
+                    # Validate every column name is a safe identifier before
+                    # interpolating it into the INSERT (values are parameterized,
+                    # but identifiers cannot be).
+                    col_names = list(item.keys())
+                    bad_cols = [c for c in col_names if not _is_safe_identifier(c)]
+                    if bad_cols:
+                        raise ValueError(f"Invalid column name(s): {bad_cols}")
+
                     # Convert dictionary to tuple for insertion
                     placeholders = ", ".join(["?" for _ in item])
-                    columns = ", ".join(item.keys())
+                    columns = ", ".join(col_names)
                     values = list(item.values())
 
                     # Handle JSON serialization for specific fields
