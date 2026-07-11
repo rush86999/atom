@@ -104,6 +104,30 @@ DEFAULT_SYNC_CONFIGS: Dict[str, SyncConfiguration] = {
         sync_last_n_days=30,
         max_records_per_sync=1000
     ),
+    "shopify": SyncConfiguration(
+        integration_id="shopify",
+        entity_types=["products", "orders", "customers"],
+        sync_last_n_days=30,
+        max_records_per_sync=500,
+    ),
+    "onedrive": SyncConfiguration(
+        integration_id="onedrive",
+        entity_types=["files"],
+        sync_last_n_days=30,
+        max_records_per_sync=200,
+    ),
+    "google_drive": SyncConfiguration(
+        integration_id="google_drive",
+        entity_types=["files"],
+        sync_last_n_days=30,
+        max_records_per_sync=200,
+    ),
+    "telegram": SyncConfiguration(
+        integration_id="telegram",
+        entity_types=["messages"],
+        sync_last_n_days=7,
+        max_records_per_sync=500,
+    ),
 }
 
 
@@ -411,6 +435,14 @@ class HybridDataIngestionService:
                 records = await self._fetch_gmail_data(config)
             elif integration_id == "zendesk":
                 records = await self._fetch_zendesk_data(config)
+            elif integration_id == "shopify":
+                records = await self._fetch_shopify_data(config)
+            elif integration_id == "onedrive":
+                records = await self._fetch_onedrive_data(config)
+            elif integration_id == "google_drive":
+                records = await self._fetch_google_drive_data(config)
+            elif integration_id == "telegram":
+                records = await self._fetch_telegram_data(config)
             else:
                 logger.warning(f"No fetcher implemented for {integration_id}")
         
@@ -843,7 +875,268 @@ class HybridDataIngestionService:
                 
         except Exception as e:
             logger.error(f"Universal Zoho fetch error: {e}")
-            
+
+        return records
+
+    # =========================================================================
+    # Shopify ingestion fetcher
+    # =========================================================================
+    async def _fetch_shopify_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+        """Fetch products/orders/customers from Shopify into the knowledge graph."""
+        records: List[Dict[str, Any]] = []
+        try:
+            from integrations.shopify_service import ShopifyService
+
+            service = ShopifyService(tenant_id=self.tenant_id, config={})
+            token = getattr(service, "config", {}).get("access_token") or os.getenv("SHOPIFY_ACCESS_TOKEN")
+            shop = service.shop_name or os.getenv("SHOPIFY_SHOP_NAME") or os.getenv("SHOPIFY_SHOP_DOMAIN")
+            if not token or not shop:
+                logger.warning("Shopify fetch skipped: missing access token or shop name")
+                return []
+
+            for entity_type in config.entity_types:
+                try:
+                    if entity_type == "products":
+                        items = await service.get_products(access_token=token, shop=shop)
+                        for p in items:
+                            p.setdefault("type", "shopify_product")
+                            p.setdefault("id", p.get("id"))
+                            p["source"] = "shopify"
+                            records.append(p)
+                    elif entity_type == "orders":
+                        items = await service.get_orders(access_token=token, shop=shop)
+                        for o in items:
+                            o.setdefault("type", "shopify_order")
+                            o.setdefault("id", o.get("id"))
+                            o["source"] = "shopify"
+                            records.append(o)
+                    elif entity_type == "customers":
+                        items = await service.get_customers(access_token=token, shop=shop)
+                        for c in items:
+                            c.setdefault("type", "shopify_customer")
+                            c.setdefault("id", c.get("id"))
+                            c["source"] = "shopify"
+                            records.append(c)
+                except Exception as fetch_err:
+                    logger.error(f"Error fetching {entity_type} from Shopify: {fetch_err}")
+
+            logger.info(f"Shopify sync: fetched {len(records)} records")
+        except Exception as e:
+            logger.error(f"Shopify fetch error: {e}")
+
+        return records
+
+    # =========================================================================
+    # OneDrive ingestion fetcher
+    # =========================================================================
+    async def _fetch_onedrive_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+        """List OneDrive files, download document content, and ingest into memory.
+
+        Downloads file content for parseable document types (.docx/.xlsx/.pdf/.csv/.txt)
+        and routes it through AutoDocumentIngestionService so the agent "remembers"
+        cloud-drive files. Non-document items are recorded as file entities.
+        """
+        records: List[Dict[str, Any]] = []
+        try:
+            from integrations.onedrive_service import OneDriveService
+            from core.connection_service import connection_service
+
+            service = OneDriveService(tenant_id=self.tenant_id, config={})
+            access_token = await service.get_access_token(self.tenant_id)
+            if not access_token:
+                logger.warning("OneDrive fetch skipped: no access token resolved")
+                return []
+
+            list_res = await service.list_files(access_token)
+            if list_res.get("status") != "success":
+                logger.warning(f"OneDrive list_files failed: {list_res.get('message')}")
+                return []
+
+            items = list_res.get("data", {}).get("value", [])
+
+            # Download and parse documents that we can extract knowledge from.
+            parseable_exts = (".docx", ".xlsx", ".xls", ".csv", ".pdf", ".txt", ".md", ".pptx")
+            try:
+                from core.auto_document_ingestion import AutoDocumentIngestionService
+
+                doc_ingestor = AutoDocumentIngestionService(workspace_id=self.workspace_id)
+            except Exception:
+                doc_ingestor = None
+                logger.warning("AutoDocumentIngestionService unavailable; OneDrive content not parsed")
+
+            for item in items:
+                # Skip folders
+                if "folder" in item:
+                    continue
+                file_id = item.get("id")
+                name = item.get("name", "")
+                record = {
+                    "type": "onedrive_file",
+                    "id": file_id,
+                    "name": name,
+                    "source": "onedrive",
+                    "object_type": "file",
+                    "properties": {
+                        "id": file_id,
+                        "name": name,
+                        "webUrl": item.get("webUrl"),
+                        "size": item.get("size"),
+                        "lastModifiedDateTime": item.get("lastModifiedDateTime"),
+                        "createdDateTime": item.get("createdDateTime"),
+                        "createdBy": item.get("createdBy"),
+                    },
+                }
+                records.append(record)
+
+                # Attempt content ingestion for parseable document types.
+                if doc_ingestor and name.lower().endswith(parseable_exts):
+                    try:
+                        content_bytes = await service.download_file_bytes(access_token, file_id)
+                        if content_bytes:
+                            await doc_ingestor.process_file_bytes(
+                                file_name=name,
+                                content=content_bytes,
+                                source="onedrive",
+                                workspace_id=self.workspace_id,
+                            )
+                    except Exception as content_err:
+                        logger.debug(f"OneDrive content ingestion skipped for {name}: {content_err}")
+
+            logger.info(f"OneDrive sync: fetched {len(records)} items")
+        except Exception as e:
+            logger.error(f"OneDrive fetch error: {e}")
+
+        return records
+
+    # =========================================================================
+    # Google Drive ingestion fetcher
+    # =========================================================================
+    async def _fetch_google_drive_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+        """List Google Drive files, download document content, and ingest into memory.
+
+        Mirrors the OneDrive fetcher: lists files, downloads parseable document
+        content and routes it through AutoDocumentIngestionService so the agent
+        "remembers" Drive files.
+        """
+        records: List[Dict[str, Any]] = []
+        try:
+            from integrations.google_drive_service import GoogleDriveService
+
+            service = GoogleDriveService(tenant_id=self.tenant_id, config={})
+            access_token = await service.get_access_token(self.tenant_id)
+            if not access_token:
+                logger.warning("Google Drive fetch skipped: no access token resolved")
+                return []
+
+            list_res = await service.list_files(access_token)
+            if list_res.get("status") != "success":
+                logger.warning(f"Google Drive list_files failed: {list_res.get('message')}")
+                return []
+
+            items = list_res.get("data", {}).get("value", []) or list_res.get("data", {}).get("files", [])
+
+            parseable_exts = (".docx", ".xlsx", ".xls", ".csv", ".pdf", ".txt", ".md", ".pptx")
+            try:
+                from core.auto_document_ingestion import AutoDocumentIngestionService
+
+                doc_ingestor = AutoDocumentIngestionService()
+            except Exception:
+                doc_ingestor = None
+                logger.warning("AutoDocumentIngestionService unavailable; Google Drive content not parsed")
+
+            for item in items:
+                file_id = item.get("id")
+                name = item.get("name", "")
+                mime = item.get("mimeType", "")
+                # Skip folders and Google-native formats that aren't directly parseable
+                # (download_file_bytes exports them, but keep the file entity regardless).
+                is_folder = mime == "application/vnd.google-apps.folder"
+                record = {
+                    "type": "google_drive_file",
+                    "id": file_id,
+                    "name": name,
+                    "source": "google_drive",
+                    "object_type": "folder" if is_folder else "file",
+                    "properties": {
+                        "id": file_id,
+                        "name": name,
+                        "mimeType": mime,
+                        "webViewLink": item.get("webViewLink"),
+                        "size": item.get("size"),
+                        "modifiedTime": item.get("modifiedTime"),
+                        "createdTime": item.get("createdTime"),
+                    },
+                }
+                records.append(record)
+
+                if doc_ingestor and not is_folder:
+                    # download_file_bytes handles both binary files and Google Docs exports.
+                    try:
+                        content_bytes = await service.download_file_bytes(access_token, file_id)
+                        if content_bytes:
+                            await doc_ingestor.process_file_bytes(
+                                file_name=name,
+                                content=content_bytes,
+                                source="google_drive",
+                                workspace_id=self.workspace_id,
+                            )
+                    except Exception as content_err:
+                        logger.debug(f"Google Drive content ingestion skipped for {name}: {content_err}")
+
+            logger.info(f"Google Drive sync: fetched {len(records)} items")
+        except Exception as e:
+            logger.error(f"Google Drive fetch error: {e}")
+
+        return records
+
+    # =========================================================================
+    # Telegram ingestion fetcher (poll-based)
+    # =========================================================================
+    async def _fetch_telegram_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+        """Poll recent Telegram bot updates and ingest messages into the knowledge graph.
+
+        Uses getUpdates (long-poll disabled for ingestion; offset tracked in-memory).
+        Each message becomes a record so the agent remembers chat conversations.
+        """
+        records: List[Dict[str, Any]] = []
+        try:
+            from core.communication.adapters.telegram import TelegramAdapter
+
+            adapter = TelegramAdapter()
+            updates = await adapter.get_updates(limit=config.max_records_per_sync)
+            if not updates:
+                return []
+
+            for update in updates:
+                message = update.get("message") or update.get("channel_post") or {}
+                if not message:
+                    continue
+                text = message.get("text", "")
+                chat = message.get("chat", {})
+                sender = message.get("from", {})
+                record = {
+                    "type": "telegram_message",
+                    "id": str(message.get("message_id", "")),
+                    "name": f"Telegram message from {sender.get('username') or sender.get('first_name', 'unknown')}",
+                    "source": "telegram",
+                    "object_type": "message",
+                    "text": text,
+                    "properties": {
+                        "message_id": message.get("message_id"),
+                        "chat_id": chat.get("id"),
+                        "chat_title": chat.get("title") or chat.get("username"),
+                        "sender_id": sender.get("id"),
+                        "sender_name": sender.get("username") or sender.get("first_name"),
+                        "date": message.get("date"),
+                        "text": text,
+                    },
+                }
+                records.append(record)
+
+            logger.info(f"Telegram sync: fetched {len(records)} messages")
+        except Exception as e:
+            logger.error(f"Telegram fetch error: {e}")
+
         return records
 
     async def _discover_schema(self, record: Dict[str, Any]) -> Dict[str, Any]:

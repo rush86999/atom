@@ -38,7 +38,7 @@ class OneDriveAdapter:
 
         # Token storage
         self._access_token: Optional[str] = None
-        _refresh_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
 
     async def get_oauth_url(self) -> str:
@@ -101,7 +101,7 @@ class OneDriveAdapter:
 
                 # Store tokens
                 self._access_token = token_data.get("access_token")
-                _refresh_token = token_data.get("refresh_token")
+                self._refresh_token = token_data.get("refresh_token")
 
                 # Calculate token expiration
                 if "expires_in" in token_data:
@@ -115,6 +115,50 @@ class OneDriveAdapter:
         except httpx.HTTPStatusError as e:
             logger.error(f"OneDrive token exchange failed: {e}")
             raise
+
+    async def refresh_access_token(self) -> Optional[str]:
+        """
+        Refresh the OneDrive access token using the stored refresh token.
+
+        Returns:
+            New access token string, or None if refresh failed / no refresh token.
+        """
+        if not self._refresh_token:
+            logger.warning("Cannot refresh OneDrive token: no refresh token stored")
+            return None
+        if not self.client_id or not self.client_secret:
+            logger.error("Cannot refresh OneDrive token: Microsoft OAuth credentials not configured")
+            return None
+
+        token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "scope": "Files.ReadWrite.All offline_access",
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, data=data)
+                response.raise_for_status()
+                token_data = response.json()
+
+                self._access_token = token_data.get("access_token")
+                # Microsoft rotates refresh tokens; store the new one if provided.
+                new_refresh = token_data.get("refresh_token")
+                if new_refresh:
+                    self._refresh_token = new_refresh
+                if "expires_in" in token_data:
+                    self._token_expires_at = datetime.now() + timedelta(
+                        seconds=token_data["expires_in"]
+                    )
+                logger.info(f"Refreshed OneDrive access token for workspace {self.workspace_id}")
+                return self._access_token
+        except Exception as e:
+            logger.error(f"Failed to refresh OneDrive access token: {e}")
+            return None
 
     async def test_connection(self) -> bool:
         """

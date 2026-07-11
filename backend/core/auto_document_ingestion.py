@@ -369,7 +369,92 @@ class AutoDocumentIngestionService:
         
         logger.info(f"Updated ingestion settings for {integration_id}: enabled={settings.enabled}")
         return settings
-    
+
+    async def process_file_bytes(
+        self,
+        content: bytes,
+        file_name: str,
+        source: str = "upload",
+        user_id: str = "system",
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Parse raw file bytes and ingest the extracted text into Atom memory.
+
+        Shared ingestion path used by cloud-drive connectors (OneDrive, Zoho
+        WorkDrive) and direct uploads. Parses with DocumentParser, redacts
+        secrets, and writes to LanceDB (documents table) with knowledge
+        extraction enabled.
+
+        Args:
+            content: Raw file bytes.
+            file_name: File name (used to infer type and metadata).
+            source: Source label (e.g. "onedrive", "zoho_workdrive").
+            user_id: Owning user id.
+            workspace_id: Optional workspace override (defaults to service default).
+
+        Returns:
+            Dict with ``status``, ``file_name``, ``chars_ingested``.
+        """
+        file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+        if not file_ext:
+            return {"status": "skipped", "reason": "no_file_extension", "file_name": file_name}
+
+        try:
+            text = await self.parser.parse_document(content, file_ext, file_name)
+        except Exception as parse_err:
+            logger.warning(f"Failed to parse {file_name} ({file_ext}): {parse_err}")
+            return {"status": "error", "reason": "parse_failed", "file_name": file_name}
+
+        if not text or len(text.strip()) < 5:
+            return {"status": "skipped", "reason": "no_text", "file_name": file_name}
+
+        # Redact secrets before storage
+        if self.redactor:
+            try:
+                redaction = self.redactor.redact(text)
+                if getattr(redaction, "has_secrets", False):
+                    logger.info(f"Redacted secrets from {file_name}")
+                    text = redaction.redacted_text
+            except Exception as redact_err:
+                logger.debug(f"Secrets redaction skipped for {file_name}: {redact_err}")
+
+        ws_id = workspace_id or self.workspace_id
+        chars_ingested = 0
+
+        if self.memory_handler:
+            try:
+                success = self.memory_handler.add_document(
+                    table_name="documents",
+                    text=text,
+                    source=f"{source}:{file_name}",
+                    metadata={
+                        "file_name": file_name,
+                        "file_type": file_ext,
+                        "file_size": len(content),
+                        "integration_id": source,
+                        "ingested_at": datetime.utcnow().isoformat(),
+                    },
+                    user_id=user_id,
+                    extract_knowledge=True,
+                )
+                if success:
+                    chars_ingested = len(text)
+                    logger.info(f"Ingested {file_name} ({chars_ingested} chars) from {source}")
+                else:
+                    logger.warning(f"memory_handler.add_document returned False for {file_name}")
+            except Exception as ingest_err:
+                logger.error(f"Failed to ingest {file_name} to memory: {ingest_err}")
+                return {"status": "error", "reason": "ingest_failed", "file_name": file_name}
+        else:
+            logger.warning("No memory_handler available; file content not stored")
+
+        return {
+            "status": "ingested" if chars_ingested else "skipped",
+            "file_name": file_name,
+            "chars_ingested": chars_ingested,
+            "source": source,
+        }
+
     async def sync_integration(
         self, 
         integration_id: str,

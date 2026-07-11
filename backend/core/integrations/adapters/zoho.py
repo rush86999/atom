@@ -137,7 +137,8 @@ class ZohoAdapter:
                 "ZohoCRM.users.READ",
                 "ZohoBooks.fullaccess.all",
                 "ZohoProjects.projects.ALL",
-                "ZohoInventory.fullaccess.all"
+                "ZohoInventory.fullaccess.all",
+                "ZohoWorkDrive.files.ALL",
             ]
         
         params = {

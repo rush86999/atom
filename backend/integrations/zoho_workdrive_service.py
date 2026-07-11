@@ -49,14 +49,14 @@ class ZohoWorkDriveService(IntegrationService):
             connections = connection_service.get_connections(user_id, "zoho_workdrive")
             if not connections:
                 connections = connection_service.get_connections(user_id, "zoho")
-            
+
             if not connections:
                 return None
-            
+
             # Use the first active connection
             conn_id = connections[0]["id"]
             creds = await connection_service.get_connection_credentials(conn_id, user_id)
-            
+
             if creds and creds.get("access_token"):
                 return creds["access_token"]
             return None
@@ -64,31 +64,41 @@ class ZohoWorkDriveService(IntegrationService):
             logger.error(f"Error getting Zoho access token: {e}")
             return None
 
+    async def get_teams(self, user_id: str) -> List[Dict[str, Any]]:
+        """List WorkDrive teams for the user (Team Folders root).
+
+        Required by the /teams route and the frontend ingestion picker.
+        Hits GET /api/v1/teams and normalizes the JSON:API response.
+        """
+        token = await self.get_access_token(user_id)
+        if not token:
+            return []
+
+        try:
+            headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+            response = await self.client.get(f"{self.base_url}/teams", headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+            teams = []
+            for item in data.get("data", []):
+                attrs = item.get("attributes", {})
+                teams.append(
+                    {
+                        "id": item.get("id"),
+                        "name": attrs.get("name") or attrs.get("display_name"),
+                        "type": item.get("type", "teams"),
+                        "status": attrs.get("status"),
+                        "role": attrs.get("role"),
+                    }
+                )
+            return teams
+        except Exception as e:
+            logger.error(f"Failed to list Zoho WorkDrive teams: {e}")
+            return []
+
     async def list_files(self, user_id: str, parent_id: str = "root") -> List[Dict[str, Any]]:
         """List files in a specific folder or 'root'"""
-        
-        # Development fallback for raj tenant
-        is_dev = os.getenv("ENVIRONMENT") != "production"
-        if is_dev and (user_id == "raj-test-tenant-id" or user_id == "me"):
-            return [
-                {
-                    "id": "mock_file_1",
-                    "name": "Project_Plan.pdf",
-                    "type": "files",
-                    "extension": "pdf",
-                    "size": 1024567,
-                    "modified_at": datetime.now().isoformat()
-                },
-                {
-                    "id": "mock_file_2",
-                    "name": "Q1_Marketing_Strategy.docx",
-                    "type": "files",
-                    "extension": "docx",
-                    "size": 256789,
-                    "modified_at": datetime.now().isoformat()
-                }
-            ]
-
         token = await self.get_access_token(user_id)
         if not token:
             return []
@@ -135,33 +145,31 @@ class ZohoWorkDriveService(IntegrationService):
     async def ingest_file_to_memory(self, user_id: str, file_id: str) -> Dict[str, Any]:
         """Download a file and process it through the ingestion pipeline"""
         token = await self.get_access_token(user_id)
-        
-        # Development fallback for raj tenant
-        if not token and (user_id == "raj-test-tenant-id" or user_id == "me"):
-            return {"success": True, "result": {"status": "ingested", "provider": "zoho_workdrive"}}
+        if not token:
+            return {"success": False, "error": "No Zoho WorkDrive access token. Connect the integration first."}
 
         content = await self.download_file(user_id, file_id)
         if not content:
             return {"success": False, "error": "Failed to download file"}
-        
+
         try:
-            token = await self.get_access_token(user_id)
+            # Fetch file metadata to get the real name (reuse the already-resolved token).
             headers = {"Authorization": f"Zoho-oauthtoken {token}"}
             resp = await self.client.get(f"{self.base_url}/files/{file_id}", headers=headers)
             resp.raise_for_status()
             meta = resp.json().get("data", {}).get("attributes", {})
             file_name = meta.get("name", "unknown")
-            
+
             from core.auto_document_ingestion import AutoDocumentIngestionService
             ingestor = AutoDocumentIngestionService()
-            
+
             result = await ingestor.process_file_bytes(
-                content, 
+                content,
                 file_name=file_name,
                 source="zoho_workdrive",
-                user_id=user_id
+                user_id=user_id,
             )
-            
+
             return {"success": True, "result": result}
         except Exception as e:
             logger.error(f"Failed to ingest Zoho WorkDrive file: {e}")
@@ -217,12 +225,102 @@ class ZohoWorkDriveService(IntegrationService):
             return {"success": False, "error": str(e)}
 
     async def full_sync(self, user_id: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
-        """Trigger full dual-pipeline sync for Zoho WorkDrive"""
+        """Trigger full dual-pipeline sync for Zoho WorkDrive.
+
+        Pipeline 1: Ingest parseable files into Atom memory (LanceDB + GraphRAG)
+        via AutoDocumentIngestionService.
+        Pipeline 2: Refresh the Postgres metrics cache.
+        """
+        ws_id = workspace_id or user_id
+        files = await self.list_files(user_id)
+        parseable_exts = (".docx", ".xlsx", ".xls", ".csv", ".pdf", ".txt", ".md", ".pptx")
+
+        ingested = 0
+        errors: list[str] = []
+        try:
+            from core.auto_document_ingestion import AutoDocumentIngestionService
+
+            ingestor = AutoDocumentIngestionService()
+            for f in files:
+                name = f.get("name", "") or ""
+                if not name.lower().endswith(parseable_exts):
+                    continue
+                try:
+                    res = await self.ingest_file_to_memory(user_id, f.get("id"))
+                    if res.get("success"):
+                        ingested += 1
+                    elif res.get("error"):
+                        errors.append(f"{name}: {res['error']}")
+                except Exception as file_err:
+                    errors.append(f"{name}: {file_err}")
+        except Exception as e:
+            logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
+            errors.append(str(e))
+
         cache_result = await self.sync_to_postgres_cache(user_id)
         return {
             "success": True,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "workspace_id": ws_id,
+            "files_found": len(files),
+            "files_ingested": ingested,
+            "postgres_cache": cache_result,
+            "errors": errors,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+    # -------------------------------------------------------------------------
+    # IntegrationService abstract-method implementations
+    # -------------------------------------------------------------------------
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the capabilities of the Zoho WorkDrive service."""
+        return {
+            "operations": [
+                {"id": "list_files", "name": "List Files"},
+                {"id": "download_file", "name": "Download File"},
+                {"id": "ingest_file_to_memory", "name": "Ingest File to Memory"},
+                {"id": "get_teams", "name": "Get Teams"},
+                {"id": "full_sync", "name": "Full Sync"},
+            ],
+            "required_params": ["access_token"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": False,
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check if the Zoho WorkDrive service is healthy."""
+        return {
+            "healthy": True,
+            "status": "healthy",
+            "service": "zoho_workdrive",
+            "message": "Zoho WorkDrive service is operational",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute a Zoho WorkDrive operation."""
+        operations = {
+            "list_files": self.list_files,
+            "download_file": self.download_file,
+            "ingest_file_to_memory": self.ingest_file_to_memory,
+            "get_teams": self.get_teams,
+            "full_sync": self.full_sync,
+        }
+        if operation not in operations:
+            return {"success": False, "error": f"Unknown operation: {operation}"}
+        try:
+            user_id = (context or {}).get("user_id") or parameters.get("user_id") or self.tenant_id
+            fn = operations[operation]
+            result = await fn(user_id, **{k: v for k, v in parameters.items() if k != "user_id"})
+            return {"success": True, "result": result}
+        except Exception as e:
+            logger.error(f"Zoho WorkDrive operation {operation} failed: {e}")
+            return {"success": False, "error": str(e)}
+
 
 # Create a default instance for hub_sync_service compatibility
 zoho_workdrive_service = ZohoWorkDriveService("default", {})

@@ -4,6 +4,10 @@ Office Synchronization Service for Atom
 Bridges the local filesystem documents (.docx, .xlsx, .pptx) and the active Canvas state.
 Ensures edits made by the user on the Canvas are saved to disk, and edits made by the agent
 on disk are pushed to the Canvas.
+
+In addition to file/Canvas sync, every meaningful document change is ingested into Atom's
+memory (knowledge graph + LanceDB) so the agent "remembers" the content of quotes, POs,
+price lists, and invoices it generates or edits.
 """
 
 import os
@@ -61,7 +65,7 @@ class OfficeSyncService:
             elif ext == ".docx" and edit_type == "document":
                 # For document, we might write the whole content (markdown/html) or replace paragraphs
                 content = data.get("content", "")
-                
+
                 # Turn content into Docx (for simple edit, we can clear and re-write, or append)
                 # For simplicity in co-editing, we write/overwrite paragraphs
                 doc = docx.Document()
@@ -114,8 +118,17 @@ class OfficeSyncService:
             self.db.add(audit)
             self.db.commit()
 
-            # Push live update via WebSocket manager
+            # Ingest the updated document content into Atom memory so the agent
+            # remembers quotes/POs/price-lists/invoices it just generated or edited.
+            # Fire-and-forget (async) to avoid blocking the Canvas update.
             import asyncio
+            try:
+                asyncio.create_task(self._ingest_document_to_memory(file_path, user_id))
+            except RuntimeError:
+                # No running loop (rare sync caller) — fall back to running it directly.
+                self._ingest_document_to_memory_sync(file_path, user_id)
+
+            # Push live update via WebSocket manager
             asyncio.create_task(ws_manager.broadcast({
                 "type": "canvas:update",
                 "data": {
@@ -132,3 +145,72 @@ class OfficeSyncService:
 
         except Exception as e:
             logger.error(f"Failed to broadcast file update: {e}")
+
+    async def _ingest_document_to_memory(self, file_path: str, user_id: str) -> bool:
+        """Read a document's content and ingest it into Atom memory (async).
+
+        Reuses AutoDocumentIngestionService.process_file_bytes so the same
+        parse → redact → LanceDB + knowledge-graph path used for cloud-drive
+        files applies to locally-edited Office documents. Failures are
+        non-fatal (best-effort) and only logged.
+        """
+        try:
+            content = self._read_file_bytes(file_path)
+            if not content:
+                return False
+            from core.auto_document_ingestion import AutoDocumentIngestionService
+
+            ingestor = AutoDocumentIngestionService()
+            result = await ingestor.process_file_bytes(
+                content=content,
+                file_name=Path(file_path).name,
+                source="office_canvas",
+                user_id=user_id,
+            )
+            status = result.get("status")
+            if status == "ingested":
+                logger.info(
+                    f"Office document ingested to memory: {Path(file_path).name} "
+                    f"({result.get('chars_ingested', 0)} chars)"
+                )
+            return status in ("ingested", "skipped")
+        except Exception as e:
+            logger.debug(f"Office→memory ingestion skipped for {file_path}: {e}")
+            return False
+
+    def _ingest_document_to_memory_sync(self, file_path: str, user_id: str) -> bool:
+        """Synchronous fallback for Office→memory ingestion (no running event loop)."""
+        try:
+            import asyncio
+            content = self._read_file_bytes(file_path)
+            if not content:
+                return False
+            from core.auto_document_ingestion import AutoDocumentIngestionService
+
+            ingestor = AutoDocumentIngestionService()
+            result = asyncio.new_event_loop().run_until_complete(
+                ingestor.process_file_bytes(
+                    content=content,
+                    file_name=Path(file_path).name,
+                    source="office_canvas",
+                    user_id=user_id,
+                )
+            )
+            return result.get("status") in ("ingested", "skipped")
+        except Exception as e:
+            logger.debug(f"Office→memory sync ingestion skipped for {file_path}: {e}")
+            return False
+
+    @staticmethod
+    def _read_file_bytes(file_path: str) -> Optional[bytes]:
+        """Read file bytes if the file exists and is non-empty."""
+        try:
+            if not os.path.exists(file_path):
+                return None
+            with open(file_path, "rb") as f:
+                content = f.read()
+            return content or None
+        except Exception:
+            return None
+
+
