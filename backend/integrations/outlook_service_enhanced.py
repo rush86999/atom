@@ -350,8 +350,15 @@ class OutlookEnhancedService:
         user_id: str,
         data: Dict[str, Any] = None,
         params: Dict[str, Any] = None,
+        _is_retry: bool = False,
     ) -> Dict[str, Any]:
-        """Make request to Microsoft Graph API"""
+        """Make request to Microsoft Graph API.
+
+        On 401 (expired token) and 429 (rate limited), the request is retried
+        once after refreshing the token / backing off. The original ``user_id``
+        and ``data`` are re-used (NOT reconstructed from the consumed response
+        body), and ``_is_retry`` guards against infinite recursion.
+        """
         try:
             access_token = await self._get_access_token(user_id)
             headers = {
@@ -365,21 +372,31 @@ class OutlookEnhancedService:
 
             if method.upper() == "GET":
                 async with session.get(url, headers=headers, params=params) as response:
-                    return await self._handle_response(response, url)
+                    return await self._handle_response(
+                        response, method, endpoint, user_id, data, params, _is_retry
+                    )
             elif method.upper() == "POST":
                 async with session.post(
                     url, headers=headers, json=data, params=params
                 ) as response:
-                    return await self._handle_response(response, url)
+                    return await self._handle_response(
+                        response, method, endpoint, user_id, data, params, _is_retry
+                    )
             elif method.upper() == "PUT":
                 async with session.put(url, headers=headers, json=data) as response:
-                    return await self._handle_response(response, url)
+                    return await self._handle_response(
+                        response, method, endpoint, user_id, data, params, _is_retry
+                    )
             elif method.upper() == "PATCH":
                 async with session.patch(url, headers=headers, json=data) as response:
-                    return await self._handle_response(response, url)
+                    return await self._handle_response(
+                        response, method, endpoint, user_id, data, params, _is_retry
+                    )
             elif method.upper() == "DELETE":
                 async with session.delete(url, headers=headers) as response:
-                    return await self._handle_response(response, url)
+                    return await self._handle_response(
+                        response, method, endpoint, user_id, data, params, _is_retry
+                    )
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -391,42 +408,37 @@ class OutlookEnhancedService:
             raise
 
     async def _handle_response(
-        self, response: aiohttp.ClientResponse, url: str
+        self,
+        response: aiohttp.ClientResponse,
+        method: str,
+        endpoint: str,
+        user_id: str,
+        data: Dict[str, Any],
+        params: Dict[str, Any],
+        is_retry: bool,
     ) -> Dict[str, Any]:
-        """Handle HTTP response"""
-        try:
-            if response.status == 401:
-                # Token might be expired, try to refresh
-                if await self._refresh_access_token():
-                    # Retry the request with new token
-                    return await self._make_graph_request(
-                        response.request_info.method,
-                        url.replace(GRAPH_API_BASE_URL + "/", ""),
-                        "retry_user",  # This would need proper user context
-                        await response.request_info.json()
-                        if response.request_info.method in ["POST", "PUT", "PATCH"]
-                        else None,
-                        dict(response.request_info.url.query),
-                    )
-                else:
-                    raise Exception(
-                        "Authentication failed and token refresh unsuccessful"
-                    )
+        """Handle HTTP response, with a single retry on 401/429.
 
-            if response.status == 429:
-                # Rate limiting - implement backoff
-                retry_after = int(response.headers.get("Retry-After", 5))
-                logger.warning(f"Rate limited, waiting {retry_after} seconds")
+        ``method``, ``endpoint``, ``user_id``, ``data`` and ``params`` are the
+        ORIGINAL request arguments (captured by the caller before the body was
+        consumed), so the retry does not depend on re-reading the response.
+        """
+        try:
+            if response.status == 401 and not is_retry:
+                # Token might be expired, try to refresh then retry once.
+                if await self._refresh_access_token():
+                    return await self._make_graph_request(
+                        method, endpoint, user_id, data=data, params=params, _is_retry=True
+                    )
+                raise Exception("Authentication failed and token refresh unsuccessful")
+
+            if response.status == 429 and not is_retry:
+                # Rate limiting - back off using Retry-After header.
+                retry_after = int(response.headers.get("Retry-After", "5") or 5)
+                logger.warning(f"Graph API rate limited, waiting {retry_after}s before retry")
                 await asyncio.sleep(retry_after)
-                # Retry the request
                 return await self._make_graph_request(
-                    response.request_info.method,
-                    url.replace(GRAPH_API_BASE_URL + "/", ""),
-                    "retry_user",
-                    await response.request_info.json()
-                    if response.request_info.method in ["POST", "PUT", "PATCH"]
-                    else None,
-                    dict(response.request_info.url.query),
+                    method, endpoint, user_id, data=data, params=params, _is_retry=True
                 )
 
             response.raise_for_status()

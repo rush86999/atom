@@ -2458,18 +2458,54 @@ class IngestionPipelineService(HybridDataIngestionService):
     async def _transform_telegram_payload(
         self, webhook_data: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        """Transform Telegram webhook payload to records."""
+        """Transform Telegram webhook payload to records.
+
+        Handles both private messages (``message``) and channel posts
+        (``channel_post``), and enriches the record with structured sender/chat
+        metadata so the knowledge graph can model sender↔message relationships.
+        """
         records = []
-        message = webhook_data.get("message", {})
+        message = webhook_data.get("message") or webhook_data.get("channel_post") or {}
+        if not message:
+            return records
+
+        sender = message.get("from", {}) or {}
+        chat = message.get("chat", {}) or {}
+        text = message.get("text", "") or message.get("caption", "")
+        media_type = None
+        media_id = None
+        for key in ("photo", "video", "voice", "document", "audio", "sticker"):
+            if key in message:
+                media_type = key
+                # photo is a list of sizes; take the largest file_id.
+                media_obj = message[key]
+                if isinstance(media_obj, list) and media_obj:
+                    media_id = media_obj[-1].get("file_id")
+                elif isinstance(media_obj, dict):
+                    media_id = media_obj.get("file_id")
+                break
 
         record = {
             "type": "telegram_message",
             "id": str(message.get("message_id", "")),
-            "text": message.get("text", ""),
-            "from": message.get("from", {}).get("username", ""),
-            "chat_id": str(message.get("chat", {}).get("id", "")),
+            "name": f"Telegram from {sender.get('username') or sender.get('first_name', 'unknown')}",
+            "text": text,
+            "from": sender.get("username") or sender.get("first_name", ""),
+            "from_id": str(sender.get("id", "")),
+            "chat_id": str(chat.get("id", "")),
+            "chat_title": chat.get("title") or chat.get("username", ""),
             "object_type": "message",
-            "properties": message,
+            "properties": {
+                "message_id": message.get("message_id"),
+                "text": text,
+                "chat_id": chat.get("id"),
+                "chat_title": chat.get("title") or chat.get("username"),
+                "sender_id": sender.get("id"),
+                "sender_name": sender.get("username") or sender.get("first_name"),
+                "date": message.get("date"),
+                "media_type": media_type,
+                "media_id": media_id,
+            },
             "event_type": "message_created",
         }
         records.append(record)

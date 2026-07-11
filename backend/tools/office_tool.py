@@ -3,8 +3,13 @@ Office Document Automation Tools
 
 Exposes agent-native tools for reading, writing, and rendering Office documents.
 These tools are auto-discovered by the Atom Tool Registry.
+
+After any agent write (Excel cell / Word document / PowerPoint slide), the
+updated file content is ingested into Atom memory so the agent remembers the
+quotes, POs, price lists, and invoices it generates.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, Optional
 from core.office_service import OfficeService
@@ -12,6 +17,31 @@ from core.office_sync_service import OfficeSyncService
 
 logger = logging.getLogger(__name__)
 office_service = OfficeService()
+
+
+async def _ingest_after_write(file_path: str, user_id: str) -> None:
+    """Fire-and-forget: ingest an Office file's content into Atom memory.
+
+    Best-effort; failures are logged at debug level and never surface to the
+    caller so a write tool always returns its document result.
+    """
+    try:
+        from core.auto_document_ingestion import AutoDocumentIngestionService
+
+        ingestor = AutoDocumentIngestionService()
+        from pathlib import Path
+        with open(file_path, "rb") as f:
+            content = f.read()
+        if not content:
+            return
+        await ingestor.process_file_bytes(
+            content=content,
+            file_name=Path(file_path).name,
+            source="office_tool",
+            user_id=user_id,
+        )
+    except Exception as e:
+        logger.debug(f"Office write→memory ingestion skipped for {file_path}: {e}")
 
 
 async def read_excel_cell(
@@ -59,6 +89,8 @@ async def write_excel_cell(
             value=value,
             is_formula=is_formula
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Excel write tool failed: {e}")
@@ -111,6 +143,8 @@ async def modify_word_document(
             content=content,
             options=options
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Word modify tool failed: {e}")
@@ -162,6 +196,8 @@ async def modify_pptx_slides(
             action=action,
             options=options
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"PowerPoint modify tool failed: {e}")

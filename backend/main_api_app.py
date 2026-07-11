@@ -483,6 +483,18 @@ async def lifespan(app: FastAPI):
             await run_startup_maintenance()
         except Exception as e:
             logger.error(f"Failed to start startup maintenance: {e}")
+
+        # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
+        # Opt-in via env (default off) to avoid surprising existing deployments.
+        if os.getenv("ENABLE_INGESTION_SYNC", "false").lower() == "true":
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+                ingestion_service = get_hybrid_ingestion_service()
+                asyncio.create_task(ingestion_service.run_scheduled_syncs())
+                logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
+            except Exception as e:
+                logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
     elif is_test_mode:
         logger.info("⊘ Skipping Schedulers and Workers in test mode")
 

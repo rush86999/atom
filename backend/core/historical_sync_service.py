@@ -497,20 +497,40 @@ class HistoricalSyncService:
                     break
 
                 # 3. Fetch Next Chunk
-                result = await self.integration_registry.fetch_paginated_records(
-                    integration_id=job.integration_id,
-                    tenant_id=self.tenant_id,
-                    start_date=job.start_date,
-                    end_date=job.end_date,
-                    page_size=job.chunk_size,
-                    page_token=page_token,
-                    connection_id=job.source_connection_id,
+                # NOTE: IntegrationRegistry has no fetch_paginated_records() method.
+                # Route through the ingestion pipeline's fetcher, which already
+                # supports every integration (Zoho, Shopify, OneDrive, Telegram, etc.).
+                from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS, SyncConfiguration
+
+                config = self.ingestion_pipeline.sync_configs.get(job.integration_id)
+                if config is None:
+                    config = DEFAULT_SYNC_CONFIGS.get(job.integration_id)
+                if config is None:
+                    # Fallback: build a minimal config from the job.
+                    config = SyncConfiguration(
+                        integration_id=job.integration_id,
+                        entity_types=[],
+                        max_records_per_sync=job.chunk_size or 100,
+                    )
+
+                # Respect the chunk size requested for this job.
+                fetch_config = SyncConfiguration(
+                    integration_id=config.integration_id,
+                    entity_types=config.entity_types,
+                    sync_last_n_days=config.sync_last_n_days,
+                    max_records_per_sync=job.chunk_size or config.max_records_per_sync or 100,
+                    include_metadata=config.include_metadata,
+                    sync_mode=config.sync_mode,
+                    discovery_frequency_hours=config.discovery_frequency_hours,
                 )
 
-                if "error" in result:
-                    raise Exception(result["error"])
+                try:
+                    records = await self.ingestion_pipeline._fetch_integration_data(
+                        job.integration_id, fetch_config
+                    )
+                except Exception as fetch_err:
+                    raise Exception(f"Fetch failed for {job.integration_id}: {fetch_err}")
 
-                records = result.get("records", [])
                 if not records:
                     break
 
@@ -536,20 +556,19 @@ class HistoricalSyncService:
                 # 5. Atomic Update Progress
                 records_processed += len(records)
                 chunk_count += 1
-                page_token = result.get("next_page_token")
-                
+
                 job.records_processed = records_processed
                 job.completed_chunks = chunk_count
                 job.entities_extracted = total_entities
                 job.relationships_extracted = total_relationships
-                
-                # CRITICAL: Save page_token for NEXT iteration.
-                # If we crash after this commit, we resume from page_token.
-                job.checkpoint_data = {"last_page_token": page_token}
+
+                # The pipeline fetchers return a bounded list (no cursor pagination),
+                # so a single fetch covers max_records_per_sync. Persist progress and
+                # stop after one successful chunk.
+                job.checkpoint_data = {"last_page_token": None}
                 bg_db.commit()
 
-                if not page_token:
-                    break
+                break
 
             # Final pass: Schema Discovery
             try:
