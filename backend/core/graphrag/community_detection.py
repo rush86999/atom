@@ -29,6 +29,13 @@ except ImportError:
     NETWORKX_AVAILABLE = False
     logging.warning("NetworkX not available, using simplified community detection")
 
+try:
+    import igraph as ig
+    IGRAPH_AVAILABLE = True
+except ImportError:
+    ig = None  # type: ignore[assignment]
+    IGRAPH_AVAILABLE = False
+
 from core.database import get_db_session
 from core.models import GraphNode, GraphEdge, GraphCommunity, CommunityMembership
 
@@ -590,6 +597,8 @@ class CommunityDetectionService:
         """Internal hierarchy detection implementation"""
         if not self.config.enable_hierarchy:
             return CommunityHierarchy()
+
+        hierarchy = CommunityHierarchy()
 
         # Build graph
         graph = self._build_graph(workspace_id, session)

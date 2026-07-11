@@ -5,10 +5,15 @@ Evaluates integration health metrics against configured thresholds.
 Supports sliding window evaluation and hysteresis to prevent alert flapping.
 """
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
+
+if TYPE_CHECKING:
+    # Forward references used only in type annotations (avoids circular imports).
+    from api.analytics_dashboard_endpoints import AlertConfiguration  # noqa: F401
+    from core.integration_metrics import IntegrationMetrics  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

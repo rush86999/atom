@@ -3,6 +3,7 @@ AI Workflow Optimization Endpoints
 API endpoints for AI-powered workflow analysis and optimization
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
@@ -16,6 +17,8 @@ from .ai_workflow_optimizer import (
 )
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 # Pydantic models for requests/responses
 
@@ -421,7 +424,7 @@ async def implement_optimization(
 
         # Start implementation in background
         background_tasks.add_task(
-            self._execute_optimization_implementation,
+            _execute_optimization_implementation,
             job_id,
             workflow_id,
             optimization_id
@@ -441,7 +444,6 @@ async def implement_optimization(
         )
 
 async def _execute_optimization_implementation(
-    self,
     job_id: str,
     workflow_id: str,
     optimization_id: str
