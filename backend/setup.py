@@ -74,6 +74,7 @@ extras_require = {
         # Advanced analytics
         "pandas>=2.0.0",
         "numpy>=1.24.0",
+        "scikit-learn>=1.3.0",
 
         # Rate limiting
         "slowapi>=0.1.9",

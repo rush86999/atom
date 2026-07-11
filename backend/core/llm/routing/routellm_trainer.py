@@ -144,7 +144,7 @@ class FeatureExtractor:
             Feature matrix X of shape (n_samples, n_features)
         """
         if not examples:
-            return np.array([])
+            return np.zeros((0, len(self.feature_names)))
 
         features = []
         for example in examples:
@@ -261,17 +261,18 @@ class RouteLLMTrainer:
             if len(X) == 0 or len(y) == 0:
                 raise ValueError("No features extracted from examples")
 
-            # Train/test split
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
+            # Train/test split (split weights alongside so they stay paired)
+            splits = train_test_split(
+                X, y, weights,
                 test_size=self.config.test_size,
                 random_state=self.config.random_seed,
                 stratify=y if len(np.unique(y)) > 1 else None
             )
+            X_train, X_test, y_train, y_test, weights_train, _weights_test = splits
 
             # Train model
             self.model = self._create_model()
-            self.model.fit(X_train, y_train, sample_weight=weights[:len(X_train)])
+            self.model.fit(X_train, y_train, sample_weight=weights_train)
 
             # Evaluate
             y_pred = self.model.predict(X_test)
@@ -397,7 +398,11 @@ class RouteLLMTrainer:
         # Predict probability of satisfaction
         if hasattr(self.model, 'predict_proba'):
             proba = self.model.predict_proba(feature_vector)
-            return proba[0][1] if proba.shape[1] > 1 else proba[0][0]
+            if proba.shape[1] > 1:
+                return float(proba[0][1])
+            # Single-class case: the one column is P(class 0) = P(not satisfied),
+            # so invert it to get the satisfaction score.
+            return float(1.0 - proba[0][0])
         else:
             prediction = self.model.predict(feature_vector)
             return float(prediction[0])
@@ -426,20 +431,29 @@ class RouteLLMTrainer:
         best_score = -1
         best_result = None
 
+        # Preserve the caller's config so the comparison loop has no side effects.
+        original_type = self.config.model_type
+
         for model_type in model_types:
-            # Temporarily change config
-            original_type = self.config.model_type
             self.config.model_type = model_type
 
             result = self.train(examples)
 
-            # Restore original config
-            self.config.model_type = original_type
-
-            if result.accuracy > best_score:
+            if result.status == TrainingStatus.COMPLETED and result.accuracy > best_score:
                 best_score = result.accuracy
                 best_model = model_type
                 best_result = result
+
+        # Point self at the winner (train() leaves self.model on whichever
+        # type ran last, which is not necessarily the best one). Also persist
+        # the winning model type on config so future predict()/retrain calls
+        # stay consistent.
+        if best_result is not None:
+            self.config.model_type = best_model
+            self.load_model(best_result.model_id)
+        else:
+            # Nothing trained successfully; restore the caller's config.
+            self.config.model_type = original_type
 
         return best_model, best_result
 

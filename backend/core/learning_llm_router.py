@@ -37,6 +37,12 @@ from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
 from core.models import Tenant, TenantSetting
+from core.llm.routing import (
+    RouteLLMTrainer,
+    TrainingConfig,
+    TrainingExample,
+    TrainingStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +147,23 @@ class LearningBasedRouter:
         self.db = db
         self._model_registry: Dict[str, ModelSpec] = {}
         self._preference_data: Dict[str, List[RoutingFeedback]] = {}
-        self._router_cache: Dict[str, Tuple[ModelSpec, float]] = {}
+        # Learned per-task weights derived from feedback, keyed "{tenant}:{task}".
+        self._router_cache: Dict[str, Dict[str, float]] = {}
         self._training_samples: List[Dict[str, Any]] = []
+        # Trained satisfaction-model id per "{tenant}:{task}" so predict() uses
+        # the right persisted model even after other tenants retrain.
+        self._trained_model_ids: Dict[str, str] = {}
+
+        # Bounded-memory caps (R17-2): unbounded caches grew without limit.
+        self._max_router_cache_size = 1000
+        self._max_preference_data_per_key = 5000
+
+        # Minimum samples before attempting a retrain (mirrors
+        # TrainingConfig.min_samples so train_test_split has enough data).
+        self._min_training_samples = TrainingConfig().min_samples
+
+        # Lazily-instantiated RouteLLM trainer for satisfaction prediction.
+        self._trainer: Optional[RouteLLMTrainer] = None
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -817,7 +838,13 @@ class LearningBasedRouter:
     def _get_learned_weights(
         self, task_type: str, tenant_id: str
     ) -> Dict[str, float]:
-        """Get learned preference weights for task type"""
+        """Get learned preference weights for task type.
+
+        When a tenant/task pair has accumulated enough feedback to retrain,
+        ``_retrain_router`` derives real ``{quality, cost, speed}`` weights from
+        observed per-model success rates and stores them in ``_router_cache``.
+        Otherwise we fall back to sensible per-task-type defaults.
+        """
         # Check for tenant-specific learning data
         cache_key = f"{tenant_id}:{task_type}"
 
@@ -911,8 +938,17 @@ class LearningBasedRouter:
 
         self._preference_data[feedback_key].append(feedback)
 
-        # Trigger retraining after accumulating enough feedback
-        if len(self._preference_data[feedback_key]) >= 10:
+        # Bound memory: keep only the most recent feedback per key (R17-2).
+        if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
+            # Drop the oldest entries to stay within the cap.
+            del self._preference_data[feedback_key][
+                : len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
+            ]
+
+        # Trigger retraining after accumulating enough feedback for a real
+        # train/test split (matches TrainingConfig.min_samples). Before that
+        # threshold the per-model sample counts are too noisy to learn from.
+        if len(self._preference_data[feedback_key]) >= self._min_training_samples:
             await self._retrain_router(feedback.tenant_id, feedback.task_type)
 
         logger.debug(
@@ -924,14 +960,18 @@ class LearningBasedRouter:
         """
         Retrain router with accumulated preference data.
 
-        Implements active learning by updating routing weights.
+        Runs the RouteLLMTrainer on the collected feedback (when there are
+        enough samples) and derives real ``{quality, cost, speed}`` routing
+        weights from observed per-model success rates. The previous
+        implementation computed those rates and then threw them away, storing
+        a ``(None, 0.0)`` placeholder; this does the actual learning.
         """
         feedback_list = self._preference_data.get(f"{tenant_id}:{task_type}", [])
 
         if not feedback_list:
             return
 
-        # Simple weight adjustment based on success rates
+        # ---- Per-model empirical success rates (used to derive weights) ----
         model_success = defaultdict(lambda: {"success": 0, "total": 0})
 
         for feedback in feedback_list:
@@ -939,18 +979,163 @@ class LearningBasedRouter:
             if feedback.success and feedback.quality_satisfied:
                 model_success[feedback.model_id]["success"] += 1
 
-        # Update learned weights (simplified)
-        # In production, this would use proper ML training
         cache_key = f"{tenant_id}:{task_type}"
-        self._router_cache[cache_key] = (
-            None,  # Placeholder for trained model
-            0.0,  # Placeholder for accuracy
-        )
+
+        # ---- Train the satisfaction model (best-effort) ----
+        # Convert feedback into TrainingExample for the ML pipeline. Note:
+        # RoutingFeedback carries no prompt text, so we synthesize the prompt
+        # features the extractor needs (task-type one-hots) from task_type and
+        # leave token-derived features at neutral defaults. The classifier
+        # still learns from the satisfaction signal; per-model routing below
+        # is driven by the empirical success rates.
+        trained_model_id: Optional[str] = None
+        if len(feedback_list) >= self._min_training_samples:
+            examples = [
+                self._feedback_to_training_example(fb, task_type)
+                for fb in feedback_list
+            ]
+            try:
+                trainer = self._get_trainer()
+                result = trainer.train(examples, model_id=f"{cache_key}")
+                if result.status == TrainingStatus.COMPLETED:
+                    trained_model_id = result.model_id
+                    self._trained_model_ids[cache_key] = result.model_id
+                    logger.info(
+                        f"Trained router model for tenant={tenant_id}, "
+                        f"task={task_type}: model_id={result.model_id}, "
+                        f"accuracy={result.accuracy:.3f}, "
+                        f"samples={result.samples_trained}"
+                    )
+                else:
+                    logger.warning(
+                        f"Router training did not complete for "
+                        f"tenant={tenant_id}, task={task_type}: "
+                        f"{result.metadata.get('error', result.status)}"
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Router training failed for tenant={tenant_id}, "
+                    f"task={task_type}: {e}"
+                )
+
+        # ---- Derive {quality, cost, speed} weights from success rates ----
+        weights = self._derive_weights_from_success(model_success, task_type)
+        self._set_cached_weights(cache_key, weights, tenant_id)
 
         logger.info(
-            f"Retrained router for tenant={tenant_id}, task={task_type} "
+            f"Updated router weights for tenant={tenant_id}, task={task_type} "
             f"with {len(feedback_list)} samples"
+            + (f", model={trained_model_id}" if trained_model_id else "")
         )
+
+    def _get_trainer(self) -> RouteLLMTrainer:
+        """Lazily instantiate the RouteLLM trainer (sklearn is a heavy import)."""
+        if self._trainer is None:
+            self._trainer = RouteLLMTrainer()
+        return self._trainer
+
+    def _feedback_to_training_example(
+        self, feedback: RoutingFeedback, task_type: str
+    ) -> TrainingExample:
+        """Convert a RoutingFeedback into a trainer TrainingExample.
+
+        RoutingFeedback has no prompt text, so prompt-derived features use
+        neutral defaults; only the task-type one-hot is set from task_type.
+        The satisfaction target is taken from user_satisfaction when present,
+        otherwise derived from success + quality.
+        """
+        # Map this router's task_type strings to the collector's one-hot keys.
+        task_key = task_type
+        prompt_features = {
+            "log_tokens": 0.0,
+            "token_bucket": 1.0,  # mid-size bucket
+            "task_code": 1.0 if task_key == "code_generation" else 0.0,
+            "task_analysis": 1.0 if task_key == "extraction" else 0.0,
+            "task_reasoning": 1.0 if task_key == "reasoning" else 0.0,
+            "task_chat": 1.0 if task_key == "question_answering" else 0.0,
+            "task_general": 1.0 if task_key not in {
+                "code_generation", "extraction", "reasoning", "question_answering"
+            } else 0.0,
+            "has_code": 1.0 if task_key == "code_generation" else 0.0,
+            "has_numbers": 0.0,
+            "avg_word_length": 5.0,
+        }
+
+        if feedback.user_satisfaction is not None:
+            satisfaction = float(feedback.user_satisfaction)
+        else:
+            satisfaction = 1.0 if (feedback.success and feedback.quality_satisfied) else 0.0
+
+        return TrainingExample(
+            estimated_tokens=0,
+            task_type=task_type,
+            prompt_features=prompt_features,
+            chosen_model=feedback.model_id,
+            user_satisfaction=satisfaction,
+            was_successful=feedback.success,
+            quality_score=satisfaction,
+        )
+
+    @staticmethod
+    def _derive_weights_from_success(
+        model_success: Dict[str, Dict[str, int]], task_type: str
+    ) -> Dict[str, float]:
+        """Translate per-model success rates into {quality, cost, speed} weights.
+
+        Higher observed success → weight quality more heavily (the models that
+        deliver quality are the ones worth prioritizing). Cost/speed are scaled
+        down in proportion so the weights stay normalized. Falls back to the
+        per-task defaults when no usable samples exist.
+        """
+        defaults = {
+            "code_generation": {"quality": 0.5, "cost": 0.2, "speed": 0.3},
+            "question_answering": {"quality": 0.4, "cost": 0.3, "speed": 0.3},
+            "reasoning": {"quality": 0.6, "cost": 0.1, "speed": 0.3},
+            "tool_use": {"quality": 0.3, "cost": 0.3, "speed": 0.4},
+            "vision": {"quality": 0.5, "cost": 0.2, "speed": 0.3},
+            "extraction": {"quality": 0.3, "cost": 0.4, "speed": 0.3},
+        }
+
+        total_samples = sum(s["total"] for s in model_success.values())
+        if total_samples == 0:
+            return defaults.get(task_type, {"quality": 0.4, "cost": 0.3, "speed": 0.3})
+
+        overall_success = sum(s["success"] for s in model_success.values()) / total_samples
+        base = defaults.get(task_type, {"quality": 0.4, "cost": 0.3, "speed": 0.3})
+
+        # Scale quality by how well models are doing overall relative to a
+        # neutral 0.5 baseline: strong outcomes → favor quality; poor outcomes
+        # → favor cost/speed (i.e. be more conservative).
+        quality_factor = 0.5 + overall_success  # range ~0.5..1.5
+        quality = min(0.8, base["quality"] * quality_factor)
+
+        # Redistribute the remainder between cost and speed, preserving their
+        # original ratio.
+        remainder = 1.0 - quality
+        cost_speed_sum = base["cost"] + base["speed"] or 1.0
+        cost = remainder * (base["cost"] / cost_speed_sum)
+        speed = remainder * (base["speed"] / cost_speed_sum)
+
+        return {"quality": quality, "cost": cost, "speed": speed}
+
+    def _set_cached_weights(
+        self,
+        cache_key: str,
+        weights: Dict[str, float],
+        tenant_id: str,
+    ) -> None:
+        """Store learned weights, evicting oldest entries when over the cap (R17-2)."""
+        self._router_cache[cache_key] = weights
+        if len(self._router_cache) > self._max_router_cache_size:
+            # Evict oldest tenant entries first (deterministic by insertion key).
+            # Keys are "{tenant}:{task}"; drop until back under the cap.
+            overflow = len(self._router_cache) - self._max_router_cache_size
+            for key in list(self._router_cache.keys())[:overflow]:
+                del self._router_cache[key]
+            logger.debug(
+                f"Evicted {overflow} router cache entries (cap="
+                f"{self._max_router_cache_size}) for tenant={tenant_id}"
+            )
 
     async def get_routing_statistics(
         self, tenant_id: str
