@@ -114,6 +114,13 @@ class RoutingResult:
     reasoning: str  # Human-readable explanation
     alternatives: List[ModelSpec]  # Alternative models considered
     routing_time_ms: float
+    # Correlates this decision to later RoutingFeedback. Callers should pass
+    # this id back when recording feedback so the router can recover the
+    # original prompt features for training. Empty when not generated.
+    routing_result_id: str = ""
+    # The prompt features used at route time. Echoed back for observability and
+    # so callers can attach them to feedback without re-deriving them.
+    prompt_features: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -172,6 +179,13 @@ class LearningBasedRouter:
         # one sklearn estimator per model id that served that task. This is the
         # structure that makes routing decisions actually change with feedback.
         self._per_model_routers: Dict[str, PerModelRouter] = {}
+        # Pending routing decisions awaiting feedback, keyed by routing_result_id.
+        # Stores the prompt features computed at route time so that, when feedback
+        # arrives, the per-model predictors can be trained on the REAL features
+        # that were used to make the decision — eliminating train/serve skew and
+        # letting predictors discriminate within a task (short vs long, etc.).
+        self._routing_decisions: Dict[str, Dict[str, float]] = {}
+        self._max_routing_decisions = 10000  # bounded (R17-2 pattern)
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -920,12 +934,28 @@ class LearningBasedRouter:
         alternatives: List[ModelSpec],
         start_ms: float,
     ) -> RoutingResult:
-        """Create routing result"""
+        """Create routing result.
+
+        Generates a routing_result_id and stashes the prompt features used at
+        decision time into ``self._routing_decisions`` so that later feedback
+        (carrying the same id) can train predictors on the real features.
+        """
         routing_time = datetime.now(timezone.utc)
         routing_time_ms = (routing_time.timestamp() * 1000) - start_ms
 
         # Estimate cost
         expected_cost = (model.cost_per_million * request.estimated_tokens) / 1_000_000
+
+        routing_result_id = str(uuid.uuid4())
+        prompt_features = self._extract_request_features(request)
+
+        # Stash the decision so feedback can recover the prompt features. Bound
+        # the store (R17-2 pattern): evict the oldest entries when over the cap.
+        self._routing_decisions[routing_result_id] = prompt_features
+        if len(self._routing_decisions) > self._max_routing_decisions:
+            overflow = len(self._routing_decisions) - self._max_routing_decisions
+            for stale_id in list(self._routing_decisions.keys())[:overflow]:
+                del self._routing_decisions[stale_id]
 
         return RoutingResult(
             selected_model=model,
@@ -935,6 +965,8 @@ class LearningBasedRouter:
             reasoning=reasoning,
             alternatives=alternatives,
             routing_time_ms=routing_time_ms,
+            routing_result_id=routing_result_id,
+            prompt_features=prompt_features,
         )
 
     def _generate_reasoning(
@@ -963,8 +995,25 @@ class LearningBasedRouter:
         """
         Record routing feedback for learning.
 
-        This enables active learning by collecting preference data.
+        This enables active learning by collecting preference data. If the
+        feedback carries a ``routing_result_id`` that matches a pending
+        decision, the prompt features captured at route time are attached to
+        the feedback so per-model predictors train on real (not constant)
+        features.
         """
+        # Recover the prompt features from the decision store so training uses
+        # the same features that were used to make the decision (no train/serve
+        # skew). Falls back to None -> _feedback_to_training_example derives
+        # task-level defaults (graceful degradation for evicted/restarted ids).
+        recovered = self._routing_decisions.get(feedback.routing_result_id)
+        if recovered is not None:
+            feedback._prompt_features = recovered  # type: ignore[attr-defined]
+        elif feedback.routing_result_id:
+            logger.debug(
+                f"routing_result_id not found in decision store (evicted or "
+                f"pre-restart); training will use task-level feature defaults"
+            )
+
         feedback_key = f"{feedback.tenant_id}:{feedback.task_type}"
 
         if feedback_key not in self._preference_data:
@@ -1077,10 +1126,41 @@ class LearningBasedRouter:
         that per-model predictors (trained on the same feature space) are
         queried consistently at route time. It is the single point to enrich
         if feedback later captures richer prompt characteristics.
+
+        Content signals (has_code, has_numbers, avg_word_length) are derived
+        from the task type by default, but if the caller supplies a prompt text
+        or pre-computed signals in ``request.conversation_context`` (keys:
+        ``"prompt_text"``, ``"has_code"``, ``"has_numbers"``,
+        ``"avg_word_length"``), those are used instead — enabling genuine
+        within-task discrimination.
         """
+        import math
+
         task = request.task_type
         tokens = max(1, request.estimated_tokens)
-        import math
+        ctx = request.conversation_context or {}
+
+        # Content signals: prefer caller-supplied values, then prompt-text
+        # inspection, then task-type defaults.
+        prompt_text = ctx.get("prompt_text") or ""
+        has_code = (
+            ctx.get("has_code")
+            if "has_code" in ctx
+            else (1.0 if "```" in prompt_text else (1.0 if task == "code_generation" else 0.0))
+        )
+        has_numbers = (
+            ctx.get("has_numbers")
+            if "has_numbers" in ctx
+            else (1.0 if any(ch.isdigit() for ch in prompt_text) else (1.0 if request.requires_reasoning else 0.0))
+        )
+        avg_word_length = ctx.get("avg_word_length")
+        if avg_word_length is None:
+            if prompt_text:
+                words = prompt_text.split()
+                avg_word_length = len(prompt_text) / max(len(words), 1) if words else 5.0
+            else:
+                avg_word_length = 5.0
+
         return {
             "log_tokens": math.log2(tokens + 1),
             "token_bucket": self._token_bucket(tokens),
@@ -1091,10 +1171,9 @@ class LearningBasedRouter:
             "task_general": 1.0 if task not in {
                 "code_generation", "extraction", "reasoning", "question_answering"
             } else 0.0,
-            # Request-level signal: code-related tasks often carry code blocks.
-            "has_code": 1.0 if task == "code_generation" else 0.0,
-            "has_numbers": 1.0 if request.requires_reasoning else 0.0,
-            "avg_word_length": 5.0,
+            "has_code": float(has_code),
+            "has_numbers": float(has_numbers),
+            "avg_word_length": float(avg_word_length),
         }
 
     @staticmethod
@@ -1108,40 +1187,59 @@ class LearningBasedRouter:
         if tokens < 5000:
             return 3.0
         return 4.0
+
+    @staticmethod
+    def _task_default_features(task_type: str) -> Dict[str, float]:
+        """Task-level prompt-feature defaults used when no decision features are
+        available (cold/evicted/un-correlated feedback). These match the
+        feature contract of FeatureExtractor.feature_names.
+        """
+        return {
+            "log_tokens": 0.0,
+            "token_bucket": 1.0,  # mid-size bucket
+            "task_code": 1.0 if task_type == "code_generation" else 0.0,
+            "task_analysis": 1.0 if task_type == "extraction" else 0.0,
+            "task_reasoning": 1.0 if task_type == "reasoning" else 0.0,
+            "task_chat": 1.0 if task_type == "question_answering" else 0.0,
+            "task_general": 1.0 if task_type not in {
+                "code_generation", "extraction", "reasoning", "question_answering"
+            } else 0.0,
+            "has_code": 1.0 if task_type == "code_generation" else 0.0,
+            "has_numbers": 0.0,
+            "avg_word_length": 5.0,
+        }
+
     def _feedback_to_training_example(
         self, feedback: RoutingFeedback, task_type: str
     ) -> TrainingExample:
         """Convert a RoutingFeedback into a trainer TrainingExample.
 
-        RoutingFeedback has no prompt text, so prompt-derived features use
-        neutral defaults; only the task-type one-hot is set from task_type.
-        The satisfaction target is taken from user_satisfaction when present,
-        otherwise derived from success + quality.
+        Prefers the prompt features recovered from the original routing
+        decision (stashed on ``feedback._prompt_features`` by
+        ``record_feedback``) so the predictor trains on the same features used
+        at route time — eliminating train/serve skew and enabling within-task
+        discrimination. Falls back to task-level defaults when no decision
+        features are available (evicted id, pre-restart, or un-correlated).
         """
-        # Map this router's task_type strings to the collector's one-hot keys.
-        task_key = task_type
-        prompt_features = {
-            "log_tokens": 0.0,
-            "token_bucket": 1.0,  # mid-size bucket
-            "task_code": 1.0 if task_key == "code_generation" else 0.0,
-            "task_analysis": 1.0 if task_key == "extraction" else 0.0,
-            "task_reasoning": 1.0 if task_key == "reasoning" else 0.0,
-            "task_chat": 1.0 if task_key == "question_answering" else 0.0,
-            "task_general": 1.0 if task_key not in {
-                "code_generation", "extraction", "reasoning", "question_answering"
-            } else 0.0,
-            "has_code": 1.0 if task_key == "code_generation" else 0.0,
-            "has_numbers": 0.0,
-            "avg_word_length": 5.0,
-        }
+        prompt_features = getattr(feedback, "_prompt_features", None)
+        if not prompt_features:
+            prompt_features = self._task_default_features(task_type)
 
         if feedback.user_satisfaction is not None:
             satisfaction = float(feedback.user_satisfaction)
         else:
             satisfaction = 1.0 if (feedback.success and feedback.quality_satisfied) else 0.0
 
+        # Recover an approximate token count from the captured features so the
+        # TrainingExample carries something other than a placeholder 0.
+        estimated_tokens = 0
+        log_tokens = prompt_features.get("log_tokens", 0.0)
+        if log_tokens > 0:
+            import math
+            estimated_tokens = int(math.pow(2, log_tokens) - 1)
+
         return TrainingExample(
-            estimated_tokens=0,
+            estimated_tokens=estimated_tokens,
             task_type=task_type,
             prompt_features=prompt_features,
             chosen_model=feedback.model_id,
