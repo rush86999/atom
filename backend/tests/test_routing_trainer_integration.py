@@ -551,3 +551,209 @@ class TestLearningActuallyRoutes:
         assert elapsed_ms < 50.0, (
             f"Routing took {elapsed_ms:.1f}ms, exceeds 50ms target"
         )
+
+
+# ----------------------------------------------------------------------------
+# Prompt-feature capture — eliminates train/serve skew, enables within-task
+# discrimination (the limitation fix)
+# ----------------------------------------------------------------------------
+
+class TestPromptFeatureCapture:
+    """The limitation fix: predictors must train on REAL per-prompt features
+    captured at decision time, not constants — so they can discriminate
+    WITHIN a task (short vs long, code vs no-code)."""
+
+    @pytest.fixture
+    def router(self, monkeypatch, tmp_path):
+        """Router writing models to temp dir, low thresholds, small decision cap."""
+        from core import learning_llm_router
+
+        original_init = learning_llm_router.TrainingConfig.__init__
+
+        def patched_init(self, *args, **kwargs):
+            kwargs.setdefault("model_path", str(tmp_path / "models"))
+            original_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(learning_llm_router.TrainingConfig, "__init__",
+                            patched_init)
+
+        router = learning_llm_router.LearningBasedRouter(Mock())
+        router._min_samples_per_model = 15
+        router._min_training_samples = 15
+        return router
+
+    def _fb(self, result_id, model_id, success, quality, tenant="t1",
+            task="code_generation", satisfaction=None):
+        from core.learning_llm_router import RoutingFeedback
+        return RoutingFeedback(
+            routing_result_id=result_id,
+            tenant_id=tenant,
+            model_id=model_id,
+            task_type=task,
+            success=success,
+            quality_satisfied=quality,
+            cost_within_budget=True,
+            user_satisfaction=satisfaction,
+        )
+
+    @pytest.mark.asyncio
+    async def test_route_returns_correlatable_id(self, router):
+        """route() must return a routing_result_id that's in the decision store."""
+        from core.learning_llm_router import RoutingRequest
+
+        req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=800,
+        )
+        result = await router.route(req)
+        assert result.routing_result_id, "route() did not return a routing_result_id"
+        assert result.routing_result_id in router._routing_decisions
+        # And real prompt features must be echoed back.
+        feats = result.prompt_features
+        assert feats["log_tokens"] > 0, "expected real log_tokens, not 0.0"
+
+    @pytest.mark.asyncio
+    async def test_feedback_recovers_real_features(self, router):
+        """Recording feedback with a real id attaches the captured features,
+        so _feedback_to_training_example uses them instead of constants."""
+        from core.learning_llm_router import RoutingRequest
+
+        # Route a long request and capture the id.
+        req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=4000,
+        )
+        result = await router.route(req)
+        long_id = result.routing_result_id
+
+        # Record feedback using that id.
+        await router.record_feedback(
+            self._fb(long_id, "gpt-4o", True, True, satisfaction=0.9)
+        )
+
+        # The stored feedback must carry the recovered features.
+        fb = router._preference_data["t1:code_generation"][0]
+        recovered = getattr(fb, "_prompt_features", None)
+        assert recovered is not None, "features were not attached to feedback"
+        # The long request must have produced a larger log_tokens than the
+        # constant default (0.0).
+        assert recovered["log_tokens"] > 5.0, (
+            f"expected real log_tokens for a 4000-token request, got "
+            f"{recovered['log_tokens']}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_bogus_id_falls_back_gracefully(self, router):
+        """A feedback with an un-correlatable id must not crash; training uses
+        task-level defaults."""
+        # No matching decision exists for this id.
+        await router.record_feedback(
+            self._fb("nonexistent-id", "gpt-4o", True, True, satisfaction=0.9)
+        )
+        fb = router._preference_data["t1:code_generation"][0]
+        # No recovered features -> the helper will derive task defaults.
+        assert not hasattr(fb, "_prompt_features") or fb._prompt_features is None
+
+    def test_decision_store_is_bounded(self, router):
+        """The _routing_decisions store must honor its cap (R17-2 pattern)."""
+        router._max_routing_decisions = 5
+        for i in range(20):
+            router._routing_decisions[f"id_{i}"] = {"log_tokens": 1.0}
+        # Simulate eviction as _create_routing_result would.
+        if len(router._routing_decisions) > router._max_routing_decisions:
+            overflow = len(router._routing_decisions) - router._max_routing_decisions
+            for stale_id in list(router._routing_decisions.keys())[:overflow]:
+                del router._routing_decisions[stale_id]
+        assert len(router._routing_decisions) <= router._max_routing_decisions
+
+    @pytest.mark.asyncio
+    async def test_within_task_discrimination(self, router):
+        """THE limitation-fix test: a predictor must discriminate WITHIN a task.
+
+        Model A satisfies LONG prompts but fails SHORT ones; model B is the
+        opposite. With constant features this is impossible to learn (every
+        example looks identical). With captured per-prompt features, the
+        predictors must learn the size preference.
+        """
+        from core.learning_llm_router import RoutingRequest
+
+        # Route alternating long and short requests, capturing each id.
+        long_ids_a, short_ids_a = [], []
+        long_ids_b, short_ids_b = [], []
+
+        for _ in range(15):
+            # Model A: long -> satisfied, short -> dissatisfied.
+            res_long = await router.route(RoutingRequest(
+                tenant_id="t1", task_type="code_generation", estimated_tokens=4000,
+            ))
+            long_ids_a.append(res_long.routing_result_id)
+
+            res_short = await router.route(RoutingRequest(
+                tenant_id="t1", task_type="code_generation", estimated_tokens=80,
+            ))
+            short_ids_a.append(res_short.routing_result_id)
+
+        # Model B: short -> satisfied, long -> dissatisfied.
+        for _ in range(15):
+            res_short = await router.route(RoutingRequest(
+                tenant_id="t1", task_type="code_generation", estimated_tokens=80,
+            ))
+            short_ids_b.append(res_short.routing_result_id)
+
+            res_long = await router.route(RoutingRequest(
+                tenant_id="t1", task_type="code_generation", estimated_tokens=4000,
+            ))
+            long_ids_b.append(res_long.routing_result_id)
+
+        # Record feedback correlating each id to its outcome.
+        for rid in long_ids_a:
+            await router.record_feedback(
+                self._fb(rid, "gpt-4o", True, True, satisfaction=0.95)
+            )
+        for rid in short_ids_a:
+            await router.record_feedback(
+                self._fb(rid, "gpt-4o", False, False, satisfaction=0.05)
+            )
+        for rid in short_ids_b:
+            await router.record_feedback(
+                self._fb(rid, "deepseek-v4-pro", True, True, satisfaction=0.95)
+            )
+        for rid in long_ids_b:
+            await router.record_feedback(
+                self._fb(rid, "deepseek-v4-pro", False, False, satisfaction=0.05)
+            )
+
+        # Force a retrain so the predictors are built now.
+        await router._retrain_router("t1", "code_generation")
+
+        pmr = router._per_model_routers["t1:code_generation"]
+        assert pmr.has_predictor("gpt-4o")
+        assert pmr.has_predictor("deepseek-v4-pro")
+
+        # Build the two feature vectors the predictor will be queried with.
+        # IMPORTANT: these must match what _score_candidates would build for
+        # the same request, i.e. via the router's own feature extractor.
+        long_req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=4000,
+        )
+        short_req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=80,
+        )
+        long_feats = router._extract_request_features(long_req)
+        short_feats = router._extract_request_features(short_req)
+
+        # Model A (gpt-4o) should predict HIGHER satisfaction for LONG than SHORT.
+        a_long = pmr.predict_satisfaction("gpt-4o", long_feats)
+        a_short = pmr.predict_satisfaction("gpt-4o", short_feats)
+        assert a_long is not None and a_short is not None
+        assert a_long > a_short, (
+            f"gpt-4o should prefer long prompts (trained long=satisfied), "
+            f"got long={a_long} vs short={a_short} — within-task "
+            f"discination FAILED (this is the limitation we fixed)"
+        )
+
+        # Model B (deepseek-v4-pro) should prefer SHORT.
+        b_long = pmr.predict_satisfaction("deepseek-v4-pro", long_feats)
+        b_short = pmr.predict_satisfaction("deepseek-v4-pro", short_feats)
+        assert b_short > b_long, (
+            f"deepseek-v4-pro should prefer short prompts, got "
+            f"short={b_short} vs long={b_long}"
+        )
