@@ -31,14 +31,11 @@ from typing import Any, Optional, List, Dict, Set, Tuple, Union
 from uuid import UUID
 from collections import defaultdict
 
-import numpy as np
-from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import Session
 
-from core.database import SessionLocal
-from core.models import Tenant, TenantSetting
+from core.database import get_db_session
+from core.models import LLMRoutingFeedback
 from core.llm.routing import (
-    RouteLLMTrainer,
     TrainingConfig,
     TrainingExample,
     TrainingStatus,
@@ -157,24 +154,14 @@ class LearningBasedRouter:
         self._preference_data: Dict[str, List[RoutingFeedback]] = {}
         # Learned per-task weights derived from feedback, keyed "{tenant}:{task}".
         self._router_cache: Dict[str, Dict[str, float]] = {}
-        self._training_samples: List[Dict[str, Any]] = []
-        # Trained satisfaction-model id per "{tenant}:{task}" so predict() uses
-        # the right persisted model even after other tenants retrain.
-        self._trained_model_ids: Dict[str, str] = {}
 
         # Bounded-memory caps (R17-2): unbounded caches grew without limit.
         self._max_router_cache_size = 1000
         self._max_preference_data_per_key = 5000
 
-        # Minimum samples before attempting a retrain (mirrors
-        # TrainingConfig.min_samples so train_test_split has enough data).
-        self._min_training_samples = TrainingConfig().min_samples
-        # Minimum samples to train a single per-model predictor. Lower than the
-        # global threshold because each predictor is an independent tiny model.
+        # Minimum samples to train a single per-model predictor.
         self._min_samples_per_model = 20
 
-        # Lazily-instantiated RouteLLM trainer for satisfaction prediction.
-        self._trainer: Optional[RouteLLMTrainer] = None
         # Per-model satisfaction predictors, keyed "{tenant}:{task}". Each holds
         # one sklearn estimator per model id that served that task. This is the
         # structure that makes routing decisions actually change with feedback.
@@ -1028,6 +1015,12 @@ class LearningBasedRouter:
                 : len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
             ]
 
+        # Write through to DB so learned data survives restarts. Best-effort:
+        # a DB failure must not break the hot routing path (in-memory state
+        # remains authoritative for reads).
+        recovered_features = getattr(feedback, "_prompt_features", None)
+        self._persist_feedback(feedback, recovered_features)
+
         # Trigger retraining once there's enough feedback for a per-model
         # predictor (the lowest learning threshold). _retrain_router internally
         # decides what to train based on available data.
@@ -1043,11 +1036,9 @@ class LearningBasedRouter:
         """
         Retrain router with accumulated preference data.
 
-        Runs the RouteLLMTrainer on the collected feedback (when there are
-        enough samples) and derives real ``{quality, cost, speed}`` routing
-        weights from observed per-model success rates. The previous
-        implementation computed those rates and then threw them away, storing
-        a ``(None, 0.0)`` placeholder; this does the actual learning.
+        Trains one per-model satisfaction predictor per model that has enough
+        feedback, and derives ``{quality, cost, speed}`` routing weights from
+        observed per-model success rates (used as the cold-start baseline).
         """
         feedback_list = self._preference_data.get(f"{tenant_id}:{task_type}", [])
 
@@ -1105,11 +1096,93 @@ class LearningBasedRouter:
             f"predictors=[{', '.join(trained_predictors)}]"
         )
 
-    def _get_trainer(self) -> RouteLLMTrainer:
-        """Lazily instantiate the RouteLLM trainer (sklearn is a heavy import)."""
-        if self._trainer is None:
-            self._trainer = RouteLLMTrainer()
-        return self._trainer
+    def _persist_feedback(
+        self, feedback: RoutingFeedback, prompt_features: Optional[Dict[str, float]]
+    ) -> None:
+        """Best-effort write-through of one feedback row to the DB.
+
+        Uses a short-lived session (not the long-lived ``self.db``) per the
+        codebase session-management guidance. Failures are logged and swallowed
+        so a DB issue never breaks the hot routing path.
+        """
+        try:
+            with get_db_session() as db:
+                row = LLMRoutingFeedback(
+                    routing_result_id=feedback.routing_result_id,
+                    tenant_id=feedback.tenant_id,
+                    task_type=feedback.task_type,
+                    model_id=feedback.model_id,
+                    success=feedback.success,
+                    quality_satisfied=feedback.quality_satisfied,
+                    cost_within_budget=feedback.cost_within_budget,
+                    user_satisfaction=feedback.user_satisfaction,
+                    actual_cost=feedback.actual_cost,
+                    actual_latency_ms=feedback.actual_latency_ms,
+                    prompt_features=prompt_features,
+                )
+                db.add(row)
+        except Exception as e:
+            logger.warning(
+                f"Could not persist routing feedback to DB (non-fatal, "
+                f"in-memory state remains): {e}"
+            )
+
+    def load_feedback_from_db(self, tenant_id: Optional[str] = None) -> int:
+        """Hydrate ``_preference_data`` from the DB so learned data survives restarts.
+
+        Call on startup (or lazily). Reads are capped per key by
+        ``_max_preference_data_per_key`` (R17-2). Returns the number of rows
+        loaded. Safe to call when the table is empty (clean cold start).
+        """
+        loaded = 0
+        try:
+            with get_db_session() as db:
+                query = db.query(LLMRoutingFeedback)
+                if tenant_id is not None:
+                    query = query.filter(
+                        LLMRoutingFeedback.tenant_id == tenant_id
+                    )
+                query = query.order_by(LLMRoutingFeedback.created_at.desc())
+                rows = query.all()
+
+            # Group rows by "{tenant}:{task}" and hydrate in-memory state,
+            # most-recent-first, capped per key.
+            by_key: Dict[str, List[RoutingFeedback]] = defaultdict(list)
+            for row in rows:
+                fb = RoutingFeedback(
+                    routing_result_id=row.routing_result_id,
+                    tenant_id=row.tenant_id,
+                    model_id=row.model_id,
+                    task_type=row.task_type,
+                    success=row.success,
+                    quality_satisfied=row.quality_satisfied,
+                    cost_within_budget=row.cost_within_budget,
+                    user_satisfaction=row.user_satisfaction,
+                    actual_cost=row.actual_cost,
+                    actual_latency_ms=row.actual_latency_ms,
+                    timestamp=row.created_at,
+                )
+                # Stash the persisted prompt features so subsequent retraining
+                # trains on real features (not task defaults).
+                if row.prompt_features:
+                    fb._prompt_features = row.prompt_features  # type: ignore[attr-defined]
+                key = f"{row.tenant_id}:{row.task_type}"
+                by_key[key].append(fb)
+                loaded += 1
+
+            for key, fbs in by_key.items():
+                # rows are most-recent-first; keep the most recent within cap.
+                self._preference_data[key] = fbs[: self._max_preference_data_per_key]
+        except Exception as e:
+            logger.warning(
+                f"Could not load routing feedback from DB (non-fatal, "
+                f"starting with empty state): {e}"
+            )
+            return 0
+
+        if loaded:
+            logger.info(f"Loaded {loaded} routing feedback rows from DB")
+        return loaded
 
     def _get_per_model_router(self, cache_key: str) -> PerModelRouter:
         """Get (or lazily create) the per-model predictor set for a tenant/task."""
@@ -1496,22 +1569,21 @@ class LearningBasedRouter:
         Returns:
             Optimization result with best routing configuration
         """
-        from core.models import HypothesisTree as DBHypothesisTree
+        from core.hypothesis_tree import HypothesisTree
 
         optimization_goals = optimization_goals or ["cost", "quality"]
 
-        # Create optimization tree
+        # Build an in-memory hypothesis tree to structure the exploration.
+        # (HypothesisTree is a plain dataclass, not an ORM model — this method
+        # computes and returns a recommendation; it does not persist a row.)
         tree_id = str(uuid.uuid4())
-        db_tree = DBHypothesisTree(
+        tree = HypothesisTree(
             id=tree_id,
-            tenant_id=tenant_id,
+            task_id=task_type,
             task_description=f"Routing optimization for {task_type}",
             complexity_level="standard",
             tier=tier,
-            task_type="routing",
         )
-        self.db.add(db_tree)
-        self.db.flush()
 
         # Generate routing hypotheses
         hypotheses = await self._generate_routing_hypotheses(
@@ -1551,11 +1623,10 @@ class LearningBasedRouter:
             nodes_created += 1
 
         # Update tree with results
-        db_tree.completed_at = datetime.now(timezone.utc)
-        db_tree.total_nodes_expanded = nodes_created
-        db_tree.total_tokens_used = 0  # Routing uses minimal tokens
-        db_tree.winning_path = []
-        self.db.commit()
+        tree.completed_at = datetime.now(timezone.utc)
+        tree.total_nodes_expanded = nodes_created
+        tree.total_tokens_used = 0  # Routing uses minimal tokens
+        tree.winning_path = []
 
         logger.info(
             f"[RoutingOptimizer] Optimized {task_type} routing: "

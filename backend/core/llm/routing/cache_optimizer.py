@@ -11,8 +11,6 @@ Implements:
 - Dynamic cache size adjustment
 """
 
-import hashlib
-import json
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -20,7 +18,6 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
 import numpy as np
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +38,6 @@ class AccessPattern(Enum):
     """Types of access patterns"""
     SEQUENTIAL = "sequential"  # Sequential accesses
     TEMPORAL = "temporal"  # Time-based patterns
-    HIERARCHICAL = "hierarchical"  # Nested patterns
     RANDOM = "random"  # No discernible pattern
 
 
@@ -217,7 +213,6 @@ class AccessPatternAnalyzer:
         pattern_boost = {
             AccessPattern.TEMPORAL: 1.5,
             AccessPattern.SEQUENTIAL: 2.0,
-            AccessPattern.HIERARCHICAL: 1.2,
             AccessPattern.RANDOM: 1.0,
         }
 
@@ -313,7 +308,6 @@ class CacheOptimizer:
 
         # Access tracking
         self.accesses: List[CacheAccess] = []
-        self.access_index: Dict[str, List[int]] = defaultdict(list)
 
     def record_access(
         self,
@@ -332,7 +326,6 @@ class CacheOptimizer:
             provider=provider
         )
         self.accesses.append(access)
-        self.access_index[prompt_hash].append(len(self.accesses) - 1)
 
         self.analyzer.record_access(prompt_hash, access.timestamp)
         self.statistics.update(was_hit, latency_ms)

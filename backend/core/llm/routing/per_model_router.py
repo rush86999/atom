@@ -163,10 +163,45 @@ class PerModelRouter:
         return result
 
     def _create_estimator(self):
-        """Build the sklearn estimator (mirrors RouteLLMTrainer defaults)."""
+        """Build the sklearn estimator (mirrors RouteLLMTrainer defaults).
+
+        Defaults to RandomForest — robust on small tabular data, no scaling.
+        Supports LOGISTIC_REGRESSION, NEURAL_NETWORK (small MLP), and ENSEMBLE
+        (soft-vote RF+LR). All CPU-only.
+        """
         if self.config.model_type == ModelType.LOGISTIC_REGRESSION:
             from sklearn.linear_model import LogisticRegression
-            return LogisticRegression(random_state=self.config.random_seed, max_iter=1000)
+            return LogisticRegression(
+                random_state=self.config.random_seed, max_iter=1000
+            )
+        if self.config.model_type == ModelType.NEURAL_NETWORK:
+            from sklearn.neural_network import MLPClassifier
+            return MLPClassifier(
+                hidden_layer_sizes=(64, 32),
+                learning_rate_init=self.config.learning_rate,
+                max_iter=self.config.epochs,
+                random_state=self.config.random_seed,
+            )
+        if self.config.model_type == ModelType.ENSEMBLE:
+            from sklearn.ensemble import (
+                RandomForestClassifier, VotingClassifier,
+            )
+            from sklearn.linear_model import LogisticRegression
+            return VotingClassifier(
+                estimators=[
+                    ("rf", RandomForestClassifier(
+                        n_estimators=self.config.n_estimators,
+                        max_depth=self.config.max_depth,
+                        random_state=self.config.random_seed,
+                        n_jobs=-1,
+                    )),
+                    ("lr", LogisticRegression(
+                        random_state=self.config.random_seed,
+                        max_iter=1000,
+                    )),
+                ],
+                voting="soft",
+            )
         # Default to RandomForest — robust on small tabular data, no scaling.
         from sklearn.ensemble import RandomForestClassifier
         return RandomForestClassifier(

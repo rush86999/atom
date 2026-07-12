@@ -218,10 +218,10 @@ class TestTrainingConfig:
 
         config = TrainingConfig()
 
-        assert config.test_size > 0
-        assert config.test_size < 1
-        assert config.min_accuracy > 0
-        assert config.min_accuracy <= 1
+        assert 0 < config.test_size < 1
+        assert config.min_samples > 0
+        assert config.n_estimators > 0
+        assert config.ab_test_confidence > 0
 
 
 class TestModelType:
