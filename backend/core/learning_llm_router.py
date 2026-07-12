@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.models import LLMRoutingFeedback
+from core.llm.response_quality import ResponseQuality
 from core.llm.routing import (
     TrainingConfig,
     TrainingExample,
@@ -1126,6 +1127,37 @@ class LearningBasedRouter:
                 f"Could not persist routing feedback to DB (non-fatal, "
                 f"in-memory state remains): {e}"
             )
+
+    @staticmethod
+    def build_feedback(
+        routing_result_id: str,
+        tenant_id: str,
+        model_id: str,
+        task_type: str,
+        quality: "ResponseQuality",
+        actual_cost: Optional[float] = None,
+        actual_latency_ms: Optional[float] = None,
+    ) -> RoutingFeedback:
+        """Build a RoutingFeedback from a ResponseQuality assessment.
+
+        Centralizes the mapping from a quality assessment to the feedback
+        dataclass so every observation point (chat endpoint, BYOK outcome
+        hook, explicit user feedback) uses identical semantics. ``user_satisfaction``
+        is populated from the quality score so the per-model predictors get a
+        graded signal.
+        """
+        return RoutingFeedback(
+            routing_result_id=routing_result_id,
+            tenant_id=tenant_id,
+            model_id=model_id,
+            task_type=task_type,
+            success=quality.success,
+            quality_satisfied=quality.quality_satisfied,
+            cost_within_budget=actual_cost is not None,  # no budget model yet; true if cost known
+            user_satisfaction=quality.quality_score,
+            actual_cost=actual_cost,
+            actual_latency_ms=actual_latency_ms,
+        )
 
     def load_feedback_from_db(self, tenant_id: Optional[str] = None) -> int:
         """Hydrate ``_preference_data`` from the DB so learned data survives restarts.

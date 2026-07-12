@@ -1204,7 +1204,9 @@ class BYOKHandler:
                     )
                     
                     result = response.choices[0].message.content
-                    
+                    finish_reason = getattr(response.choices[0], "finish_reason", None)
+                    observed_cost = None  # set below if usage attribution succeeds
+
                     # --- Dynamic Cost Attribution (Phase 47) ---
                     usage = getattr(response, 'usage', None)
                     if usage:
@@ -1243,6 +1245,7 @@ class BYOKHandler:
                                     is_managed_service=is_managed
                                 )
                                 logger.info(f"LLM Cost Attributed ({'Managed' if is_managed else 'BYOK'}): {model} - ${cost:.6f} (Saved: ${savings_usd:.6f})")
+                            observed_cost = cost
                         except Exception as cost_err:
                             logger.warning(f"Could not attribute LLM cost: {cost_err}")
 
@@ -1273,6 +1276,16 @@ class BYOKHandler:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
 
+                    # Learning-router outcome observation (flag-gated, best-effort).
+                    # Feeds real response quality (truncation, empty, etc.) into the
+                    # per-model predictors so they learn from outcomes, not just
+                    # "did the API return". No-op when ATOM_LEARNING_ROUTER is off.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=result, finish_reason=finish_reason,
+                        success=True, cost=observed_cost, latency_ms=latency_ms,
+                    )
+
                     return result
 
                 except Exception as attempt_err:
@@ -1285,13 +1298,87 @@ class BYOKHandler:
                         self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
                     except:
                         pass  # Don't let health monitoring errors affect primary flow
+
+                    # Learning-router outcome observation for failures.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=None, finish_reason=None,
+                        success=False, cost=None, latency_ms=latency_ms,
+                        exception=attempt_err,
+                    )
                     continue # Try next provider
             
             return f"All providers failed. Last error: {str(last_error)}"
-            
+
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             return f"Error generating response: {str(e)}"
+
+    async def _record_outcome_feedback(
+        self,
+        model: str,
+        provider_id: str,
+        task_type: Optional[str],
+        content: Optional[str],
+        finish_reason: Optional[str],
+        success: bool,
+        cost: Optional[float],
+        latency_ms: float,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        """Best-effort outcome observation for the learning router.
+
+        Assess response quality from observable signals (finish_reason, content,
+        exception) and record it as feedback so per-model predictors learn from
+        real outcomes. No-op when ``ATOM_LEARNING_ROUTER`` is off or when the
+        router can't be instantiated. Never raises — failures are logged and
+        swallowed so the hot generation path is unaffected.
+        """
+        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+            return
+        try:
+            from core.llm.response_quality import assess_response_quality
+            from core.learning_llm_router import LearningBasedRouter
+            from integrations.chat_routes import _get_learning_router
+            import uuid
+
+            learning_router = _get_learning_router()
+            if learning_router is None:
+                return
+
+            quality = assess_response_quality(
+                content=content,
+                finish_reason=finish_reason,
+                exception=exception,
+            )
+            fb = LearningBasedRouter.build_feedback(
+                routing_result_id=str(uuid.uuid4()),
+                tenant_id=self.tenant_id or "default",
+                model_id=model,
+                task_type=self._adapt_task_type(task_type),
+                quality=quality,
+                actual_cost=cost,
+                actual_latency_ms=latency_ms,
+            )
+            await learning_router.record_feedback(fb)
+        except Exception as e:
+            logger.debug(f"Learning-router outcome observation skipped: {e}")
+
+    @staticmethod
+    def _adapt_task_type(task_type: Optional[str]) -> str:
+        """Map the live path's ad-hoc task_type strings to the router vocabulary."""
+        if not task_type:
+            return "general"
+        mapping = {
+            "chat": "question_answering",
+            "reasoning": "reasoning",
+            "agentic": "tool_use",
+            "extraction": "extraction",
+            "pdf_ocr": "extraction",
+            "code": "code_generation",
+            "meta_orchestration": "tool_use",
+        }
+        return mapping.get(task_type.lower().strip(), "general")
 
     async def generate_with_cognitive_tier(
         self,

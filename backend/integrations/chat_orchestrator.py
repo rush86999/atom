@@ -326,7 +326,7 @@ class ChatOrchestrator:
             history = session.get("history", [])[-6:]  # Last 3 turns
 
             # 1. Try Qwen AI conversational response first (real AI reply)
-            ai_message = await self._get_qwen_response(message, history)
+            ai_response = await self._get_qwen_response(message, history)
 
             # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
@@ -337,8 +337,14 @@ class ChatOrchestrator:
             )
 
             # 4. If AI gave a real response, use it; otherwise use template
-            if ai_message:
-                main_message = ai_message
+            #    Carry model/provider through so the UI can surface which model
+            #    answered and feedback can be tied to a routing decision.
+            used_model = None
+            used_provider = None
+            if ai_response:
+                main_message = ai_response["content"]
+                used_model = ai_response.get("model")
+                used_provider = ai_response.get("provider")
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
 
@@ -361,7 +367,9 @@ class ChatOrchestrator:
                 "suggested_actions": suggested_actions[:5],
                 "requires_confirmation": False,
                 "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "model": used_model,
+                "provider": used_provider,
             }
 
             # Update session with new context
@@ -373,8 +381,13 @@ class ChatOrchestrator:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
 
-    async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
-        """Get a real conversational AI response using unified LLMService."""
+    async def _get_qwen_response(self, message: str, history: list) -> Optional[Dict[str, Any]]:
+        """Get a real conversational AI response using unified LLMService.
+
+        Returns ``{"content": str, "model": str, "provider": str}`` on success
+        (so model identity can be surfaced to the UI and tied to feedback), or
+        ``None`` on failure.
+        """
         if not self.llm_service:
             return None
 
@@ -413,8 +426,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             )
             
             if response_data.get("success"):
-                return response_data.get("content", "").strip()
-            
+                return {
+                    "content": response_data.get("content", "").strip(),
+                    "model": response_data.get("model"),
+                    "provider": response_data.get("provider"),
+                }
+
             return None
         except Exception as e:
             logger.warning(f"Unified conversational response failed: {e}")

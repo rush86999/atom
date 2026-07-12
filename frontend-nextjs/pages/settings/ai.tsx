@@ -1,6 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
-import { Box, Heading, Container } from '@chakra-ui/react';
+import Link from 'next/link';
+import { Box, Heading, Container, Text } from '@chakra-ui/react';
 import AIProviderSettings from '@/src/components/AIProviders/AIProviderSettings';
 import Layout from '../../components/layout/Layout';
 
@@ -15,6 +16,13 @@ const AISettingsPage = () => {
                     <Heading as="h1" size="xl" mb={4}>AI Provider Settings</Heading>
                 </Box>
                 <AIProviderSettings baseApiUrl="/api" />
+                <Box mt={8}>
+                    <Link href="/settings/routing">
+                        <Text color="blue.500" _hover={{ textDecoration: 'underline' }} cursor="pointer">
+                            Routing &amp; Learning Dashboard →
+                        </Text>
+                    </Link>
+                </Box>
             </Container>
         </Layout>
     );

@@ -40,6 +40,8 @@ class ChatMessageResponse(BaseModel):
     next_steps: list = Field(..., description="Suggested next steps")
     timestamp: str = Field(..., description="Response timestamp")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata and structured actions")
+    model: Optional[str] = Field(None, description="Which model produced the response")
+    provider: Optional[str] = Field(None, description="Which provider served the response")
 
 
 class ChatHistoryRequest(BaseModel):
@@ -66,6 +68,16 @@ class ChatMemoryResponse(BaseModel):
 class RenameSessionRequest(BaseModel):
     title: str = Field(..., description="New title for the session")
     user_id: str = Field(..., description="ID of the user performing the rename")
+
+
+class ChatFeedbackRequest(BaseModel):
+    """User feedback on a chat response (the previously-dead feedback loop)."""
+    message_id: str = Field(..., description="The message the feedback is about")
+    feedback: str = Field(..., description='"thumbs_up" or "thumbs_down"')
+    comment: Optional[str] = Field(None, description="Optional free-text feedback")
+    model: Optional[str] = Field(None, description="Which model produced the response")
+    provider: Optional[str] = Field(None, description="Which provider served the response")
+    session_id: Optional[str] = Field(None, description="Conversation session ID")
 
 
 @router.patch("/sessions/{session_id}")
@@ -211,7 +223,9 @@ async def send_chat_message(
             requires_confirmation=response.get("requires_confirmation", False),
             next_steps=response.get("next_steps", []),
             timestamp=response.get("timestamp", ""),
-            metadata=response.get("data", {}) # Map 'data' to 'metadata' for frontend
+            metadata=response.get("data", {}), # Map 'data' to 'metadata' for frontend
+            model=response.get("model"),
+            provider=response.get("provider"),
         )
 
     except Exception as e:
@@ -219,7 +233,117 @@ async def send_chat_message(
         raise HTTPException(status_code=500, detail="Chat processing failed")
 
 
-@router.get("/memory/{session_id}")
+def _learning_router_enabled() -> bool:
+    """Whether the learning router is enabled (flag-gated)."""
+    import os
+    return os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true"
+
+
+def _get_learning_router():
+    """Lazily instantiate the learning router + hydrate from DB.
+
+    Returns None when the learning router is disabled or instantiation fails.
+    """
+    if not _learning_router_enabled():
+        return None
+    try:
+        from core.learning_llm_router import get_learning_router
+        from core.database import SessionLocal
+        db = SessionLocal()
+        router = get_learning_router(db)
+        try:
+            router.load_feedback_from_db()
+        except Exception as load_err:
+            logger.warning(f"Could not hydrate learning router from DB: {load_err}")
+        return router
+    except Exception as e:
+        logger.warning(f"Could not instantiate learning router: {e}")
+        return None
+
+
+@router.post("/feedback")
+async def submit_chat_feedback(
+    request: ChatFeedbackRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Submit feedback on a chat response.
+
+    This is the live feedback endpoint (replacing the dead /api/atom-agent/feedback
+    path). When the learning router is enabled, feedback is recorded as a
+    RoutingFeedback with the user's thumbs-up/down mapped to a satisfaction
+    signal, and persists to DB for predictor training. When disabled, it
+    returns 200 without recording (so the UI never errors).
+    """
+    feedback_val = request.feedback.lower().strip()
+    if feedback_val not in ("thumbs_up", "thumbs_down"):
+        raise HTTPException(status_code=422, detail="feedback must be 'thumbs_up' or 'thumbs_down'")
+
+    learning_router = _get_learning_router()
+    if learning_router is None:
+        # Disabled — acknowledge but don't record.
+        return {"success": True, "recorded": False, "reason": "learning_router_disabled"}
+
+    try:
+        from core.learning_llm_router import LearningBasedRouter
+        from core.llm.response_quality import ResponseQuality
+        import uuid
+
+        # Map explicit user feedback to a quality assessment. Thumbs-down with
+        # a comment is a stronger negative signal than a bare thumbs-down.
+        if feedback_val == "thumbs_up":
+            quality = ResponseQuality(
+                success=True, quality_satisfied=True,
+                quality_score=0.95, issues=[],
+            )
+        else:
+            score = 0.15 if request.comment else 0.3
+            quality = ResponseQuality(
+                success=True, quality_satisfied=False,
+                quality_score=score, issues=["user_thumbs_down"],
+            )
+
+        fb = LearningBasedRouter.build_feedback(
+            routing_result_id=request.message_id,
+            tenant_id=str(current_user.id),
+            model_id=request.model or "unknown",
+            task_type="question_answering",  # chat path default
+            quality=quality,
+        )
+        await learning_router.record_feedback(fb)
+        return {"success": True, "recorded": True}
+    except Exception as e:
+        logger.warning(f"Failed to record chat feedback (non-fatal): {e}")
+        return {"success": True, "recorded": False, "reason": str(e)}
+
+
+@router.get("/routing-stats")
+async def get_routing_stats(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Routing-learning statistics for the dashboard.
+
+    Returns per-model success rates, total feedback samples, and whether the
+    learning router is enabled. When disabled, returns the stats that exist
+    (possibly empty) with enabled=false so the dashboard can show an honest
+    'Learning Router is off' banner.
+    """
+    enabled = _learning_router_enabled()
+    if not enabled:
+        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+
+    learning_router = _get_learning_router()
+    if learning_router is None:
+        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+
+    try:
+        stats = await learning_router.get_routing_statistics(str(current_user.id))
+        return {"enabled": True, "stats": stats}
+    except Exception as e:
+        logger.warning(f"Failed to get routing stats: {e}")
+        return {"enabled": True, "stats": {"error": str(e)}}
+
+
+
 async def get_chat_memory(
     session_id: str,
     user_id: str,
