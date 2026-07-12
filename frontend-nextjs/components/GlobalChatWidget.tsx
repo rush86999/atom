@@ -185,6 +185,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     timestamp: new Date(),
                     // Backend returns suggested_actions, map them if needed
                     actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'suggested' })) || [],
+                    model: data.model,
+                    provider: data.provider,
                 };
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
@@ -294,22 +296,54 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 description: comment ? "We'll use this to improve." : "Thanks for your feedback!",
             });
 
-            // Send to backend (using the same endpoint but with context identifying it as a message)
-            await fetch('/api/reasoning/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    agent_id: "universal_assistant", // Mapping to global assistant
-                    run_id: sessionId,
-                    step_index: -1, // -1 indicates final output feedback
-                    step_content: { thought: "Final Assistant Output", output: messages.find(m => m.id === messageId)?.content },
-                    feedback_type: type,
-                    comment: comment
-                })
+            // Repointed to the live learning-router feedback endpoint (was
+            // /api/reasoning/feedback, which is a different feedback store with
+            // no model identity). Carries model/provider so the router can tie
+            // feedback to the routing decision. Uses apiClient for auth.
+            const ratedMessage = messages.find(m => m.id === messageId);
+            const { apiClient } = await import('../lib/api-client');
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: type,
+                comment: comment,
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+                session_id: sessionId,
             });
         } catch (e) {
             console.error("Feedback failed", e);
         }
+    };
+
+    const handleRegenerate = async (messageId: string) => {
+        // Find the assistant message being regenerated and the user message
+        // that preceded it, so we can re-send the original prompt.
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx < 0 || isLoading) return;
+        let userIdx = idx - 1;
+        while (userIdx >= 0 && messages[userIdx].type !== 'user') userIdx -= 1;
+        if (userIdx < 0) return;
+        const originalPrompt = messages[userIdx].content;
+
+        // Record an implicit negative signal for the response being regenerated.
+        try {
+            const ratedMessage = messages[idx];
+            const { apiClient } = await import('../lib/api-client');
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: "thumbs_down",
+                comment: "regenerated",
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+                session_id: sessionId,
+            });
+        } catch {
+            // Non-fatal.
+        }
+
+        // Remove the old exchange and re-send the original prompt.
+        setMessages(prev => prev.slice(0, userIdx));
+        await handleSendMessage(originalPrompt);
     };
 
     return (
@@ -353,6 +387,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                                     message={msg}
                                     onActionClick={handleActionClick}
                                     onFeedback={handleMessageFeedback}
+                                    onRegenerate={handleRegenerate}
                                 />
                             ))}
                             {isLoading && (
