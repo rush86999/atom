@@ -157,25 +157,23 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const response = await fetch(`/api/chat/message`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: text,
-                    user_id: userId,
-                    session_id: sessionId,
-                    context: {
-                        current_page: router.asPath, // Send current page context
-                        conversation_history: messages.slice(-10).map(msg => ({
-                            role: msg.type === "user" ? "user" : "assistant",
-                            content: msg.content,
-                        })),
-                    }
-                }),
+            // Use apiClient (sends the Authorization header) — raw fetch 401s
+            // for logged-in users since /api/chat/message requires auth.
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.post("/api/chat/message", {
+                message: text,
+                user_id: userId,
+                session_id: sessionId,
+                context: {
+                    current_page: router.asPath, // Send current page context
+                    conversation_history: messages.slice(-10).map(msg => ({
+                        role: msg.type === "user" ? "user" : "assistant",
+                        content: msg.content,
+                    })),
+                }
             });
 
-            const data = await response.json();
+            const data = (response as any).data || response;
 
             if (data.success) {
                 const assistantMessage: ChatMessageData = {

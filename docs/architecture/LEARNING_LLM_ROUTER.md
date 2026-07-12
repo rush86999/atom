@@ -95,9 +95,10 @@ behind a flag. It runs in two phases:
 The keystone: the router holds in-memory state (per-model predictors, cached
 weights, pending decisions) that **must** persist across requests for learning
 to accumulate. `get_learning_router_instance()` returns a process-wide
-singleton — first call instantiates, hydrates preference data from the DB
-(`load_feedback_from_db`), and restores persisted per-model predictors from
-disk (`PerModelRouter.load_all()`). Subsequent calls return the same object.
+singleton — first call instantiates and hydrates preference data from the DB
+(`load_feedback_from_db`). Persisted per-model predictors are restored lazily
+from disk (`PerModelRouter.load_all()`) on first access per tenant/task key
+(inside `_get_per_model_router`). Subsequent calls return the same object.
 Double-checked locking for thread safety.
 
 Without the singleton, every call constructed a throwaway router and predictors
