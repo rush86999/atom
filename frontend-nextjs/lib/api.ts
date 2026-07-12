@@ -110,6 +110,27 @@ apiClient.interceptors.response.use(
   },
 );
 
+// Response interceptor: redirect to login on 401 (token expired / invalid).
+// Without this, a token expiry mid-session silently produces error toasts with
+// no re-login path — the user is stuck on a page that keeps failing.
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      // Avoid redirect loop if already on a login/auth page.
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      if (!path.startsWith("/login") && !path.startsWith("/auth/")) {
+        // Clear the stale token and redirect.
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_token");
+          window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
+        }
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 // System API
 export const systemAPI = {
   getHealth: () => apiClient.get("/api/health"),

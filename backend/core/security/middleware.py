@@ -185,11 +185,15 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         # CSRF is only required for session-based (cookie) authentication
         auth_header = request.headers.get("Authorization")
 
+        # Test bypass: ONLY allow the test-secret bypass during actual pytest
+        # runs (PYTEST_CURRENT_TEST is set by the test runner), not just when
+        # ENVIRONMENT != "production" — the default ENVIRONMENT is "development",
+        # so the old gate was effectively always open.
+        _is_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("PYTEST_VERSION") is not None
         if (
-            not is_production
+            _is_pytest
             and test_secret
-            and test_secret
-            in [os.getenv("E2E_TEST_SECRET", "test-secret-key"), "bypass-for-verification"]
+            and test_secret in [os.getenv("E2E_TEST_SECRET", "test-secret-key"), "bypass-for-verification"]
         ) or auth_header:
             return await call_next(request)
 
@@ -276,10 +280,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "X-Scheduler-Secret"
         )
 
-        # Bypass check
+        # Bypass check — test_secret bypass is ONLY valid during pytest runs
+        _is_pytest_rl = os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("PYTEST_VERSION") is not None
         if (
             any(path.startswith(prefix) for prefix in self.exempted_prefixes)
-            or test_secret
+            or (_is_pytest_rl and test_secret)
             or is_scheduler
         ) and not force_rate_limit:
             return await call_next(request)

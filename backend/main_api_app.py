@@ -186,6 +186,8 @@ from core.security import (
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from core.security_dependencies import get_current_user
+from core.models import User
 
 try:
     from core.integration_loader import (
@@ -794,12 +796,11 @@ try:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         """Catch all unhandled exceptions and return JSON response."""
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        logger.error(f"Unhandled exception on {request.url.path}: {exc}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={
-                "detail": f"Internal server error: {str(exc)}",
-                "error_type": type(exc).__name__,
+                "detail": "An internal server error occurred. Please try again.",
                 "path": request.url.path,
             },
         )
@@ -1241,7 +1242,7 @@ if not is_test_mode:
 
 
 @app.get("/api/debug/integrations")
-async def debug_integrations():
+async def debug_integrations(current_user: User = Depends(get_current_user)):
     from core.lazy_integration_registry import ESSENTIAL_API_ROUTERS
 
     routes = []
@@ -3633,7 +3634,7 @@ except Exception as e:
 
 
 @app.get("/api/integrations")
-async def list_integrations():
+async def list_integrations(current_user: User = Depends(get_current_user)):
     """List all available integrations and their status"""
     return {
         "total": len(get_integration_list()),
@@ -3645,6 +3646,7 @@ async def list_integrations():
 @app.post("/api/integrations/{integration_name}/load")
 async def load_integration_endpoint(
     integration_name: str,
+    current_user: User = Depends(get_current_user),
     tenant_id: str | None = None,  # Optional if passed in header or body
     db: Session = Depends(get_db),
 ):
@@ -3689,7 +3691,7 @@ async def get_all_integration_stats():
 
 
 @app.post("/api/integrations/{integration_name}/reset")
-async def reset_integration(integration_name: str):
+async def reset_integration(integration_name: str, current_user: User = Depends(get_current_user)):
     circuit_breaker.reset(integration_name)
     return {"status": "reset", "integration": integration_name}
 

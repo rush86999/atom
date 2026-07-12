@@ -1,6 +1,7 @@
 import logging
 import os
 import secrets
+import uuid
 from sqlalchemy.orm import Session
 
 from core.auth import get_password_hash
@@ -68,25 +69,29 @@ def ensure_admin_user():
             user = db.query(User).filter(User.email == email).first()
 
             if user:
-                logger.info(f"BOOTSTRAP: User {email} found. Resetting password...")
-                user.hashed_password = get_password_hash(password)
-                user.status = UserStatus.ACTIVE
-                user.role = "workspace_admin"  # Ensure role is set
-                db.commit()
-                logger.info(f"BOOTSTRAP: Password for {email} has been reset")
-                if is_generated:
-                    pwd_file = _write_password_to_secure_file(password)
-                    logger.warning("BOOTSTRAP: Generated temporary password written to %s (mode 0600). Set ADMIN_PASSWORD env var for production.", pwd_file or "<none>")
-                    logger.warning("BOOTSTRAP: Set ADMIN_PASSWORD environment variable for production!")
+                # Only reset the password if ADMIN_PASSWORD env var is explicitly
+                # set. Without this guard, every boot generates a new random
+                # password and overwrites the file — the admin password flaps
+                # on every restart, and anyone with logs/ access gets the live
+                # credential.
+                if password and os.getenv("ADMIN_PASSWORD"):
+                    logger.info(f"BOOTSTRAP: User {email} found. Resetting password (ADMIN_PASSWORD set)...")
+                    user.hashed_password = get_password_hash(password)
+                    user.status = UserStatus.ACTIVE
+                    user.role = "workspace_admin"
+                    db.commit()
+                    logger.info(f"BOOTSTRAP: Password for {email} has been reset")
+                else:
+                    logger.info(f"BOOTSTRAP: User {email} found. Keeping existing password (ADMIN_PASSWORD not set).")
             else:
                 logger.info(f"BOOTSTRAP: User {email} not found. Creating...")
                 new_user = User(
-                    id="00000000-0000-0000-0000-000000000000", # Fixed ID for development stability
+                    id=str(uuid.uuid4()),  # Random UUID — not a predictable constant
                     email=email,
                     hashed_password=get_password_hash(password),
                     first_name="Admin",
                     last_name="User",
-                    role="workspace_admin", # Explicitly set role
+                    role="workspace_admin",
                     status=UserStatus.ACTIVE
                 )
                 db.add(new_user)
