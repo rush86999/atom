@@ -63,7 +63,7 @@
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
   - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
   - [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
-- **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills
+- **Commercial Marketplace**: ✨ NEW - Mothership architecture with atomagentos.com - Proprietary marketplace for agents, domains, components, skills
 - **Phase 234**: E2E Testing Infrastructure - 486 E2E test functions with API-first authentication
 - **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
 - **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection
@@ -392,9 +392,9 @@
 | [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
 **Test Suite Summary**:
-- 495+ tests (unit, integration, E2E, bug discovery)
-- 99%+ pass rate (TQ-02 standard)
-- 17-27% overall coverage (expanding to 80%)
+- 27,000+ test functions (unit, integration, E2E, bug discovery, regression)
+- Pass rate: targeted 100% before merge (CI-enforced)
+- ~17-27% overall line coverage (expanding; new code requires ≥70%)
 - 60-70% coverage for MCP service
 - <60min full suite execution time
 - <30s per test performance target
