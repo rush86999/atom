@@ -312,3 +312,242 @@ class TestRouterLearnsRealWeights:
                 tenant_id=f"tenant{i}",
             )
         assert len(router._router_cache) <= router._max_router_cache_size
+
+
+# ----------------------------------------------------------------------------
+# PerModelRouter — per-model satisfaction predictors
+# ----------------------------------------------------------------------------
+
+class TestPerModelRouter:
+    """Unit tests for the per-model predictor that drives learning-based routing."""
+
+    @pytest.fixture
+    def router(self, tmp_path):
+        from core.llm.routing import PerModelRouter, TrainingConfig
+        config = TrainingConfig(model_path=str(tmp_path / "models"))
+        return PerModelRouter(config)
+
+    def _examples(self, n, satisfied, task_type="code_generation"):
+        """n examples, all with the given satisfaction outcome."""
+        out = []
+        for _ in range(n):
+            out.append(_make_example(task_type, satisfied=satisfied))
+        return out
+
+    def test_cold_start_returns_none(self, router):
+        """No predictor → predict_satisfaction returns None (caller falls back)."""
+        assert router.predict_satisfaction("unknown_model", {}) is None
+        assert router.has_predictor("unknown_model") is False
+        assert router.confidence("unknown_model") == 0.0
+
+    def test_model_that_satisfies_scores_higher(self, router):
+        """A predictor trained on satisfied examples must predict high satisfaction."""
+        router.train("good_model", self._examples(30, satisfied=True))
+        # Code features (matches the training task type).
+        code_features = {
+            "log_tokens": 10.0, "token_bucket": 2.0,
+            "task_code": 1.0, "task_analysis": 0.0, "task_reasoning": 0.0,
+            "task_chat": 0.0, "task_general": 0.0,
+            "has_code": 1.0, "has_numbers": 1.0, "avg_word_length": 5.0,
+        }
+        score = router.predict_satisfaction("good_model", code_features)
+        assert score is not None
+        assert score > 0.5, f"Expected high satisfaction, got {score}"
+
+    def test_good_model_outscores_bad_model(self, router):
+        """The core learning claim: a model that satisfies > one that fails."""
+        # good_model: all satisfied. bad_model: all dissatisfied.
+        router.train("good_model", self._examples(30, satisfied=True))
+        router.train("bad_model", self._examples(30, satisfied=False))
+
+        code_features = {
+            "log_tokens": 10.0, "token_bucket": 2.0,
+            "task_code": 1.0, "task_analysis": 0.0, "task_reasoning": 0.0,
+            "task_chat": 0.0, "task_general": 0.0,
+            "has_code": 1.0, "has_numbers": 1.0, "avg_word_length": 5.0,
+        }
+        good_score = router.predict_satisfaction("good_model", code_features)
+        bad_score = router.predict_satisfaction("bad_model", code_features)
+        assert good_score > bad_score, (
+            f"good_model ({good_score}) should outscore bad_model ({bad_score})"
+        )
+
+    def test_confidence_grows_with_samples(self, router):
+        """More data → higher blend weight (capped at max_weight)."""
+        router.train("m", self._examples(10, satisfied=True))
+        low = router.confidence("m")
+        router.train("m", self._examples(50, satisfied=True))
+        high = router.confidence("m")
+        assert high > low, "confidence should grow with more samples"
+        assert high <= 0.3, "confidence should be capped"
+
+    def test_persistence_round_trip(self, router, tmp_path):
+        """A trained predictor should persist and reload."""
+        from core.llm.routing import PerModelRouter, TrainingConfig
+
+        router.train("persisted_model", self._examples(30, satisfied=True))
+        assert router.has_predictor("persisted_model")
+
+        code_features = {
+            "log_tokens": 10.0, "token_bucket": 2.0,
+            "task_code": 1.0, "task_analysis": 0.0, "task_reasoning": 0.0,
+            "task_chat": 0.0, "task_general": 0.0,
+            "has_code": 1.0, "has_numbers": 1.0, "avg_word_length": 5.0,
+        }
+        before = router.predict_satisfaction("persisted_model", code_features)
+
+        # New instance reading from the same dir.
+        reloaded = PerModelRouter(
+            TrainingConfig(model_path=str(tmp_path / "models"))
+        )
+        loaded = reloaded.load_all()
+        assert loaded >= 1
+        assert reloaded.has_predictor("persisted_model")
+        after = reloaded.predict_satisfaction("persisted_model", code_features)
+        assert after == pytest.approx(before, abs=1e-6)
+
+
+# ----------------------------------------------------------------------------
+# Learning-based routing — routing decisions change with feedback
+# ----------------------------------------------------------------------------
+
+class TestLearningActuallyRoutes:
+    """The test that proves routing is learning-based: decisions flip with feedback."""
+
+    @pytest.fixture
+    def router(self, monkeypatch, tmp_path):
+        """A router writing models to an isolated temp dir, with low thresholds."""
+        from core import learning_llm_router
+
+        original_init = learning_llm_router.TrainingConfig.__init__
+
+        def patched_init(self, *args, **kwargs):
+            kwargs.setdefault("model_path", str(tmp_path / "models"))
+            original_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(learning_llm_router.TrainingConfig, "__init__",
+                            patched_init)
+
+        router = learning_llm_router.LearningBasedRouter(Mock())
+        # Low thresholds so tests don't need hundreds of feedback records.
+        router._min_samples_per_model = 15
+        router._min_training_samples = 15
+        return router
+
+    def _fb(self, model_id, success, quality, tenant="t1", task="code_generation",
+            satisfaction=None):
+        from core.learning_llm_router import RoutingFeedback
+        return RoutingFeedback(
+            routing_result_id="r",
+            tenant_id=tenant,
+            model_id=model_id,
+            task_type=task,
+            success=success,
+            quality_satisfied=quality,
+            cost_within_budget=True,
+            user_satisfaction=satisfaction,
+        )
+
+    @pytest.mark.asyncio
+    async def test_cold_start_matches_rule_based(self, router):
+        """With no feedback, routing must equal the pure rule-based baseline."""
+        from core.learning_llm_router import RoutingRequest
+
+        req = RoutingRequest(
+            tenant_id="fresh_tenant", task_type="code_generation",
+            estimated_tokens=800,
+        )
+        result = await router.route(req)
+        assert result is not None
+        # No predictors should exist for a fresh tenant.
+        assert "fresh_tenant:code_generation" not in router._per_model_routers
+
+    @pytest.mark.asyncio
+    async def test_routing_flips_with_feedback(self, router):
+        """THE test: feedback saying model A succeeds & B fails must make A win,
+        and reversing the feedback must flip the winner."""
+        from core.learning_llm_router import RoutingRequest
+
+        req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=800,
+        )
+        # Both models must be valid code-capable candidates.
+        cands = router._filter_by_capabilities(req)
+        cand_ids = {m.model_id for m in cands}
+        model_a = "gpt-4o"
+        model_b = "deepseek-v4-pro"
+        assert model_a in cand_ids and model_b in cand_ids, (
+            f"need both models as candidates, got {sorted(cand_ids)}"
+        )
+
+        # --- Phase 1: gpt-4o satisfies, deepseek fails ---
+        for _ in range(20):
+            await router.record_feedback(
+                self._fb(model_a, True, True, satisfaction=0.95)
+            )
+            await router.record_feedback(
+                self._fb(model_b, False, False, satisfaction=0.1)
+            )
+
+        # Predictors must now exist.
+        pmr = router._per_model_routers.get("t1:code_generation")
+        assert pmr is not None
+        assert pmr.has_predictor(model_a)
+        assert pmr.has_predictor(model_b)
+
+        result_a = await router.route(req)
+        winner_phase1 = result_a.selected_model.model_id
+        assert winner_phase1 == model_a, (
+            f"After feedback favoring {model_a}, expected {model_a} but routed "
+            f"to {winner_phase1}"
+        )
+
+        # --- Phase 2: clear and reverse the feedback ---
+        router.clear_learning_cache(tenant_id="t1")
+        router._preference_data.clear()
+        router._per_model_routers.clear()
+
+        for _ in range(20):
+            await router.record_feedback(
+                self._fb(model_a, False, False, satisfaction=0.1)
+            )
+            await router.record_feedback(
+                self._fb(model_b, True, True, satisfaction=0.95)
+            )
+
+        result_b = await router.route(req)
+        winner_phase2 = result_b.selected_model.model_id
+        assert winner_phase2 == model_b, (
+            f"After reversed feedback favoring {model_b}, expected {model_b} "
+            f"but routed to {winner_phase2}"
+        )
+        assert winner_phase1 != winner_phase2, (
+            "Routing decision did not change after feedback reversed — "
+            "learning is not influencing the decision"
+        )
+
+    @pytest.mark.asyncio
+    async def test_route_latency_under_target(self, router):
+        """Routing with predictors loaded must stay < 50ms (file's stated target)."""
+        import time
+        from core.learning_llm_router import RoutingRequest
+
+        # Seed predictors.
+        for _ in range(20):
+            await router.record_feedback(
+                self._fb("gpt-4o", True, True, satisfaction=0.9)
+            )
+
+        req = RoutingRequest(
+            tenant_id="t1", task_type="code_generation", estimated_tokens=800,
+        )
+        # Warm any caches.
+        await router.route(req)
+
+        start = time.perf_counter()
+        await router.route(req)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        assert elapsed_ms < 50.0, (
+            f"Routing took {elapsed_ms:.1f}ms, exceeds 50ms target"
+        )
