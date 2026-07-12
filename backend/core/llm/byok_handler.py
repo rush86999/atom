@@ -554,6 +554,83 @@ class BYOKHandler:
             else:
                 logger.debug(f"No credential available for {provider_id}, skipping initialization")
 
+        # Load user-registered local model providers (Ollama, LM Studio, vLLM,
+        # etc.) from the DB and create OpenAI-compatible clients for each.
+        # Their models become eligible for BPC ranking alongside cloud models.
+        self._load_local_providers()
+
+    def _load_local_providers(self) -> None:
+        """Load registered local model providers from the DB into self.clients.
+
+        Each provider gets a client keyed by ``local_{id}``. Their models are
+        injected into the pricing cache so BPC ranking and capability detection
+        work without special-casing. Best-effort: a DB failure or no providers
+        registered is a clean no-op.
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import LocalModelProvider, LocalModelCapabilities
+
+            with get_db_session() as db:
+                ws_id = self.workspace_id or "default"
+                providers = db.query(LocalModelProvider).filter(
+                    LocalModelProvider.workspace_id == ws_id,
+                    LocalModelProvider.is_active == True,  # noqa: E712
+                ).all()
+
+                if not providers:
+                    return
+
+                fetcher = get_pricing_fetcher()
+
+                for provider in providers:
+                    provider_key = f"local_{provider.id[:8]}"
+                    api_key = provider.api_key or "local"
+                    base_url = provider.base_url.rstrip("/")
+
+                    try:
+                        self.clients[provider_key] = OpenAI(api_key=api_key, base_url=base_url)
+                        self.async_clients[provider_key] = AsyncOpenAI(api_key=api_key, base_url=base_url)
+                        logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
+                    except Exception as e:
+                        logger.warning(f"Could not create client for local provider '{provider.name}': {e}")
+                        continue
+
+                    # Inject the provider's models into the pricing cache.
+                    caps = db.query(LocalModelCapabilities).filter(
+                        LocalModelCapabilities.provider_id == provider.id
+                    ).all()
+
+                    if caps:
+                        for cap in caps:
+                            fetcher.pricing_cache[cap.model_id] = {
+                                "model_id": cap.model_id,
+                                "litellm_provider": provider.provider_type,
+                                "input_cost": 0.0,
+                                "output_cost": 0.0,
+                                "max_input_tokens": cap.context_window or 8192,
+                                "supports_tools": cap.supports_tools,
+                                "supports_vision": cap.supports_vision,
+                                "supports_reasoning": cap.supports_reasoning,
+                                "quality_score": cap.quality_score,
+                            }
+                    else:
+                        # No capabilities configured — register a generic entry
+                        # so the model at least appears in BPC with defaults.
+                        fetcher.pricing_cache[f"{provider.provider_type}_default"] = {
+                            "model_id": f"{provider.provider_type}_default",
+                            "litellm_provider": provider.provider_type,
+                            "input_cost": 0.0,
+                            "output_cost": 0.0,
+                            "max_input_tokens": 8192,
+                            "supports_tools": True,
+                            "supports_vision": False,
+                            "supports_reasoning": False,
+                            "quality_score": 0.5,
+                        }
+        except Exception as e:
+            logger.debug(f"Could not load local providers (non-fatal): {e}")
+
     def get_context_window(self, model_name: str) -> int:
         """
         Get the context window size for a model from dynamic pricing data.
