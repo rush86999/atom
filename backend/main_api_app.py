@@ -606,6 +606,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"CRITICAL: Failed to start Webhook Processing Worker: {e}")
 
+    # 11. Start POMDP Memory Consolidation (offline "sleep-inspired" cycle)
+    # Runs every CONSOLIDATION_INTERVAL_HOURS (6h). Previously the service
+    # existed but nothing ever invoked it — the advertised feature was inert.
+    if not is_test_mode:
+        try:
+            async def _consolidation_loop():
+                from core.memory.memory_consolidation_service import MemoryConsolidationService, CONSOLIDATION_INTERVAL_HOURS
+                from core.database import SessionLocal
+                interval = CONSOLIDATION_INTERVAL_HOURS * 3600
+                while True:
+                    try:
+                        svc = MemoryConsolidationService(db=SessionLocal())
+                        await svc.run_consolidation_cycle()
+                        logger.info("✓ POMDP memory consolidation cycle complete")
+                    except Exception as ce:
+                        logger.warning(f"Memory consolidation cycle failed (non-fatal): {ce}")
+                    await asyncio.sleep(interval)
+            asyncio.create_task(_consolidation_loop())
+            logger.info("✓ POMDP Memory Consolidation background task started (6h interval)")
+        except Exception as e:
+            logger.warning(f"Could not start memory consolidation loop (non-fatal): {e}")
+
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
 
@@ -3525,11 +3547,10 @@ try:
     # Agent Marketplace & Federation Routes
     try:
         from api.agent_marketplace_routes import router as agent_marketplace_router
-        from api.federation_routes import router as federation_router
-
+        # NOTE: federation routes are loaded at line ~2110 via
+        # api.routes.federation_routes (prefix="/api"), not here.
         app.include_router(agent_marketplace_router)
-        app.include_router(federation_router)
-        logger.info("✓ Agent Marketplace & Federation Routes Loaded")
+        logger.info("✓ Agent Marketplace Routes Loaded")
     except Exception as e:
         logger.warning(f"Agent Marketplace routes failed to load: {e}")
 

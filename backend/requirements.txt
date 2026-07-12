@@ -151,6 +151,10 @@ pytest-xdist==3.6.1
 faker==22.7.0
 instructor>=1.0.0
 networkx>=3.0
+# Phase 2 GraphRAG: Leiden community detection (optional — falls back to
+# NetworkX Louvain when not installed, but these give the marketed algorithm).
+leidenalg>=0.10.0
+igraph>=0.11.0
 
 # Smart Home Control (Phase 66)
 python-hue-v2>=0.20.0  # Philips Hue API v2 integration
