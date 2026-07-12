@@ -5,6 +5,19 @@
 **Scope**: Research-driven improvements to Atom's AI agent platform
 **Research Sources**: Latest academic papers, surveys, and industry frameworks
 
+> **⚠️ As-Built Note (July 2026):** This document is the *original plan*. All 5
+> phases have been implemented and wired into the live application. The body
+> below describes the planned approach; in several cases the as-built design
+> differs (notably Phase 3, which ships a per-model re-ranking layer instead of
+> the "train a RouteLLM model" approach described in §Phase 3). For the as-built
+> design of the learning router, see
+> [docs/architecture/LEARNING_LLM_ROUTER.md](../../docs/architecture/LEARNING_LLM_ROUTER.md).
+> For current status of all phases, see the [README](../../README.md) phase
+> summary. Key as-built details:
+> - **Phase 2**: Multi-hop + community detection wired into `GraphRAGEngine.local_search` and `build_communities`.
+> - **Phase 4**: Reachable via `POST /api/federation/{dids,credentials,verify}`. Identity state is in-memory (DB persistence is a follow-up).
+> - **Phase 5**: Conductor at `POST /api/v1/workflows/conductor/execute`; EventBus lifecycle events from every live workflow.
+
 ---
 
 ## Executive Summary

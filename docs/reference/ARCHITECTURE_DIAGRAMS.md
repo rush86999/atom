@@ -28,6 +28,7 @@ graph TB
         
         subgraph Coordination ["🎛️ Coordination & Automation Tier"]
             Orchestrator["Advanced Workflow Orchestrator<br/>(System Spinal Cord)"]
+            Conductor["Conductor Agent<br/>(5 Strategies + State Machine + EventBus)"]
             BackgroundRunner["Background Agent Runner<br/>(Autonomous Scheduled Jobs)"]
             BatchSync["Automated Data Sync<br/>(Deterministic Workers)"]
         end
@@ -37,7 +38,8 @@ graph TB
         LLMService["LLMService<br/>(Cognitive Entry Point)"]
         BYOK["BYOKHandler<br/>(Tenant Isolation)"]
         Tiering["Cognitive Tiering<br/>(5-Tier Logic)"]
-        
+        LearnRouter["Learning Router<br/>(Re-ranks BPC, flag-gated)"]
+
         subgraph Evolution ["🧬 Self-Evolution & Learning Loop"]
             Reflection["ReflectionPool<br/>(Mistake Storage / Critique)"]
             Graduation["GraduationService<br/>(Performance Review / Promotion)"]

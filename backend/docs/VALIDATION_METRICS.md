@@ -163,12 +163,12 @@ Based on 2026 research:
 |-----------|--------|--------|
 | Phase 4 Tests Passing | 101/101 | ✅ Complete |
 | Phase 5 Tests Passing | 92/92 | ✅ Complete |
+| Phase 4/5 Wired into Live App | Endpoints reachable | ✅ Complete (July 2026) |
 | Performance Benchmarks | Defined | ⚠️ Needs execution |
-| Shadow Mode Testing | Not started | ❌ Gap |
-| Production Dashboard | Not started | ❌ Gap |
+| Shadow Mode Testing | Not started | ❌ Gap (governance shadow mode, not Phase 4/5 wiring) |
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: June 18, 2026
-**Next Review**: After Phase 4/5 production deployment
+**Document Version**: 1.1
+**Last Updated**: July 12, 2026
+**Next Review**: After performance benchmarks are executed

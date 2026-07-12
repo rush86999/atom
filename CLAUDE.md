@@ -2,7 +2,7 @@
 
 > **Project Context**: Intelligent business automation/integration platform using AI agents to automate workflows, integrate services, and manage operations.
 
-**Last Updated**: June 22, 2026
+**Last Updated**: July 12, 2026
 
 ---
 
@@ -94,7 +94,9 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 23. **Code Quality** (`mypy.ini`, `backend/docs/CODE_QUALITY_STANDARDS.md`): Type hints enforced via CI
 24. **E2E Tests** (`backend/tests/e2e_ui/`): 486 test functions, API-first auth, worker isolation, Page Object Model
 25. **Advanced Skills** (Phase 60): Marketplace, dynamic loading, DAG composition, supply-chain security
-26. **GraphRAG & Entity Types** (`core/graphrag_engine.py`, `entity_type_service.py`, `model_factory.py`): PostgreSQL recursive CTEs, 6 canonical types, dynamic custom types
+26. **GraphRAG & Entity Types** (`core/graphrag_engine.py`, `core/graphrag/multi_hop_expansion.py`, `core/graphrag/community_detection.py`, `entity_type_service.py`): PostgreSQL recursive CTEs, 6 canonical types, dynamic custom types; multi-hop scored expansion wired into `local_search` (SQLMultiHopExpander); Leiden community detection via `build_communities` (with Louvain fallback)
+26c. **Zero-Trust Federation** (`api/routes/federation_routes.py`, `core/identity/did_manager.py`, `core/identity/verifiable_credentials.py`, `core/federation/zero_trust_security.py`): DIDs, verifiable credentials, zero-trust verification reachable at `/api/federation/{dids,credentials,verify,security/health}`. In-memory state (resets on restart); DB persistence is a follow-up
+26d. **Enhanced Orchestration** (`core/orchestration/conductor_agent.py`, `core/orchestration/workflow_state_machine.py`, `core/orchestration/event_bus.py`): Conductor Agent (5 strategies: sequential/parallel/hybrid/adaptive/rollback_safe) at `POST /api/v1/workflows/conductor/execute`; EventBus lifecycle events (WORKFLOW_STARTED/STEP_STARTED/STEP_COMPLETED/STEP_FAILED/WORKFLOW_COMPLETED) published by every live workflow; state machine with validated transitions + rollback
 27. **Frontend XSS Protection** (`frontend-nextjs/lib/sanitize.ts`): DOMPurify-based `sanitizeHtml()` + `renderMarkdownSafe()`, applied to all `dangerouslySetInnerHTML` sites
 28. **Mobile Secure Storage** (`mobile/src/storage/secureTokenStorage.ts`): expo-secure-store wrapper for auth tokens (iOS Keychain / Android EncryptedSharedPreferences), transparent AsyncStorage migration
 29. **Safe Expression Evaluator** (`core/safe_evaluator.py`): AST-validated `safe_eval()` replacing raw `eval()` in workflow conditions, event bus, and conductor

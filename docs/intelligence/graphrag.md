@@ -380,107 +380,70 @@ graphrag_engine.add_entity(
 
 ## Phase 2 Enhancements (2026) ✨
 
-### Multi-Hop Expansion
+> **As-built (July 2026):** All three enhancements are wired into the production
+> `GraphRAGEngine`, not standalone modules. Multi-hop expansion runs automatically
+> inside `local_search`; community detection is invoked via `build_communities`.
 
-Advanced query expansion with cue-driven activation for entity relationships:
+### Multi-Hop Expansion — wired into `local_search`
+
+Multi-hop scored expansion runs **automatically** inside `GraphRAGEngine.local_search`
+after the seed-node BFS, producing scored, prioritized multi-hop paths via
+`SQLMultiHopExpander`. The response now includes a `multi_hop_paths` field with
+relevance-scored traversal paths — no separate instantiation needed.
 
 ```python
-from core.graphrag.multi_hop_expansion import MultiHopExpander
+# Multi-hop expansion is automatic — just call local_search:
+from core.graphrag_engine import graphrag_engine
 
-expander = MultiHopExpander()
-
-# Expand query with multi-hop traversal
-results = expander.expand_query(
+result = graphrag_engine.local_search(
+    workspace_id="ws_123",
     query="Find all formulas used in tasks assigned to support team",
-    max_hops=3,
-    expansion_mode="cue_driven"
+    depth=3,  # max hop depth
 )
-
-# Result includes:
-# - Hop 1: Tasks assigned to support team
-# - Hop 2: Formulas used in those tasks
-# - Hop 3: Related entities (e.g., templates, dependencies)
+# result["multi_hop_paths"] now contains scored paths with:
+# - relationship-type prioritization
+# - per-hop relevance scoring with decay
+# - confidence propagation along paths
 ```
 
-**Features:**
-- **Configurable hop depth** - Control traversal depth (1-5 hops)
-- **Cue-driven activation** - Smart expansion based on query relevance
-- **Optimized traversal** - Efficient path finding in large graphs
-- **Relationship scoring** - Rank paths by relevance strength
+**Features (wired into the live `/api/graphrag/query` route):**
+- **Automatic** — no separate API call; multi-hop results are part of every `local_search` response
+- **Cue-driven activation** — relationship/entity-type priorities guide expansion
+- **Per-hop relevance scoring** with decay and confidence propagation
+- **Non-disruptive** — base `entities`/`relationships` from BFS are preserved; multi-hop augments via the `multi_hop_paths` field
 
-### Dynamic Graph Construction
+### Dynamic Graph Construction — library available
 
-Incremental graph updates without full rebuilds:
+`DynamicGraphManager` (`core/graphrag/dynamic_graph.py`) provides incremental
+graph updates, versioning, and temporal tracking. It is available as a library
+module but is not yet wired into the engine's write path (the engine writes
+synchronously to Postgres; the dynamic manager would batch writes for
+performance). This is a future optimization, not a user-facing gap.
+
+### Enhanced Community Detection — wired into `build_communities`
+
+Community detection is invoked via `GraphRAGEngine.build_communities(workspace_id)`,
+which delegates to `CommunityDetectionService.detect_communities(store_results=True)`,
+populating the `graph_communities` and `community_membership` tables. This makes
+the `global_search` mode return community-synthesized answers.
 
 ```python
-from core.graphrag.dynamic_graph import DynamicGraphBuilder
+# Community detection is invoked via the engine (also reachable via the API):
+from core.graphrag_engine import graphrag_engine
 
-builder = DynamicGraphBuilder()
-
-# Add new nodes incrementally
-builder.add_node(
-    entity_id="entity_123",
-    entity_type="custom_type",
-    properties={"name": "New Entity"}
-)
-
-# Update existing nodes
-builder.update_node(
-    entity_id="entity_123",
-    properties={"status": "active"}
-)
-
-# Add relationships
-builder.add_edge(
-    source_id="entity_123",
-    target_id="entity_456",
-    relationship_type="depends_on",
-    properties={"strength": 0.8}
-)
-
-# Graph versioning for rollback
-version = builder.create_version snapshot()
+result = graphrag_engine.build_communities(workspace_id="ws_123")
+# {"success": True, "communities": 12, "workspace_id": "ws_123"}
 ```
 
-**Features:**
-- **Incremental updates** - Add/modify nodes without full rebuild
-- **Temporal evolution** - Track graph changes over time
-- **Version control** - Create snapshots for rollback capability
-- **Conflict resolution** - Handle concurrent updates
+Uses the **Leiden algorithm** when `leidenalg` is installed (added to
+requirements.txt), with a **NetworkX Louvain fallback** for environments
+without it.
 
-### Enhanced Community Detection
-
-Improved clustering with Leiden algorithm:
-
-```python
-from core.graphrag.community_detection import CommunityDetector
-
-detector = CommunityDetector(algorithm="leiden")
-
-# Detect communities in graph
-communities = detector.detect_communities(
-    resolution=1.0,  # Community granularity
-    n_iterations=100  # Optimization iterations
-)
-
-# Generate community summaries
-summaries = detector.summarize_communities(communities)
-
-# Result: Hierarchical community structure with themes
-# {
-#   "community_1": {
-#     "entities": ["entity_1", "entity_2", ...],
-#     "theme": "Customer Support",
-#     "summary": "Entities related to ticket resolution..."
-#   }
-# }
-```
-
-**Performance Metrics:**
-- Multi-hop query accuracy: >85%
-- Graph construction time: <30s for 1000 entities
-- Community detection quality (NMI): >0.7
-- Incremental update latency: <5s per 100 nodes
+**Performance Targets (not yet measured — see VALIDATION_METRICS.md):**
+- Multi-hop query accuracy: >85% (target)
+- Graph construction time: <30s for 1000 entities (target)
+- Community detection quality (NMI): >0.7 (target)
+- Incremental update latency: <5s per 100 nodes (target)
 
 ---
 

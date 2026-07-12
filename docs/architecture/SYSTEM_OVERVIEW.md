@@ -8,11 +8,11 @@ ATOM is an open-source, self-hosted AI-powered task orchestration and management
 
 All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 
-- **Phase 1**: Enhanced Episodic Memory & Graduation (POMDP framework)
-- **Phase 2**: GraphRAG Enhancement (multi-hop expansion, dynamic graphs)
+- **Phase 1**: Enhanced Episodic Memory & Graduation (POMDP framework; sleep-inspired consolidation on a 6h loop)
+- **Phase 2**: GraphRAG Enhancement — multi-hop scored expansion wired into `local_search`; Leiden community detection via `build_communities`
 - **Phase 3**: Learning-Based LLM Routing — per-model predictors re-rank BPC candidates from observed outcomes ([LEARNING_LLM_ROUTER.md](LEARNING_LLM_ROUTER.md)); flag-gated
-- **Phase 4**: Zero-Trust Federation Identity (DID/VC with mTLS)
-- **Phase 5**: Enhanced Orchestration Patterns (Conductor Agent, state machine, event bus)
+- **Phase 4**: Zero-Trust Federation Identity — DIDs, verifiable credentials, zero-trust verification reachable via `POST /api/federation/{dids,credentials,verify}` (in-memory state; DB persistence is a follow-up)
+- **Phase 5**: Enhanced Orchestration — Conductor Agent (5 strategies) at `POST /api/v1/workflows/conductor/execute`; EventBus lifecycle events from every live workflow; state machine + rollback
 
 **Key Addition**: [Arbor Framework](ARBOR_FRAMEWORK.md) - Hypothesis Tree Refinement (HTR) for LLM code generation and workflow optimization
 
