@@ -1296,6 +1296,17 @@ if agent_router:
     app.include_router(agent_router, prefix="/api/v1/agents", tags=["agents"])
 if workflow_router:
     app.include_router(workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
+
+# Mount the live workflow endpoints (core/workflow_endpoints.py) at the
+# advertised /api/v1/workflows path. The safe_import_router("api.routes.workflow_routes")
+# above references a file that doesn't exist; this is the real router that has
+# the conductor endpoint (POST /workflows/conductor/execute) + execute/resume.
+try:
+    from core.workflow_endpoints import router as live_workflow_router
+    app.include_router(live_workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
+    logger.info("✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)")
+except Exception as e:
+    logger.warning(f"Could not mount live workflow endpoints: {e}")
 if workflow_template_router:
     app.include_router(
         workflow_template_router,
@@ -2673,11 +2684,15 @@ try:
         logger.warning(f"Connection routes not found: {e}")
 
     # 7. Chat Orchestrator Routes (Critical for chat functionality)
+    # The chat router lives at integrations/chat_routes.py (prefix /api/chat
+    # already set on the router itself). The old import path
+    # (api.routes.integrations.chat_routes) didn't exist and silently failed,
+    # leaving /api/chat/feedback and /api/chat/routing-stats unmounted.
     try:
-        from api.routes.integrations.chat_routes import router as chat_router
+        from integrations.chat_routes import router as chat_router
 
-        app.include_router(chat_router, prefix="/api/v1", tags=["Chat"])
-        logger.info("✓ Chat Routes Loaded")
+        app.include_router(chat_router, tags=["Chat"])
+        logger.info("✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Chat routes not found: {e}")
 
