@@ -10,7 +10,7 @@ All 5 phases of the 2026 Enhancement Plan have been successfully implemented:
 
 - **Phase 1**: Enhanced Episodic Memory & Graduation (POMDP framework)
 - **Phase 2**: GraphRAG Enhancement (multi-hop expansion, dynamic graphs)
-- **Phase 3**: Learning-Based LLM Routing (RouteLLM with 15% cost savings)
+- **Phase 3**: Learning-Based LLM Routing — per-model predictors re-rank BPC candidates from observed outcomes ([LEARNING_LLM_ROUTER.md](LEARNING_LLM_ROUTER.md)); flag-gated
 - **Phase 4**: Zero-Trust Federation Identity (DID/VC with mTLS)
 - **Phase 5**: Enhanced Orchestration Patterns (Conductor Agent, state machine, event bus)
 
@@ -247,7 +247,7 @@ cd desktop/tauri && npm run dev
 - **Event Bus**: Pub/sub event-driven workflow triggering
 - **POMDP Memory Framework**: Experience-driven agent learning
 - **GraphRAG Enhancement**: Multi-hop expansion with dynamic graph construction
-- **Learning-Based LLM Routing**: RouteLLM training with preference collection
+- **Learning-Based LLM Routing**: per-model satisfaction predictors re-ranking BPC candidates from observed outcomes ([LEARNING_LLM_ROUTER.md](LEARNING_LLM_ROUTER.md))
 - **Zero-Trust Federation**: DID/VC identity with mTLS
 - **Arbor Framework**: Hypothesis Tree Refinement for optimization
 

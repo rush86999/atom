@@ -460,121 +460,39 @@ escalation_rate = len(escalations) / total_requests  # Target: <10%
 
 ### Learning-Based LLM Routing
 
-Based on RouteLLM research, Phase 3 adds intelligent routing that learns from user preferences and system performance:
+Phase 3 adds a learning layer that **augments** the Cognitive Tier / BPC
+selection. Rather than a separate routing system, it re-ranks BPC's
+already-filtered candidate list using per-model satisfaction predictors
+trained from observed outcomes (truncation, schema failures, refusals,
+exceptions) and explicit user feedback (thumbs up/down, regenerate).
 
-**Key Components:**
-- **Preference Collector** - Gather user feedback on routing decisions
-- **RouteLLM Trainer** - Train custom routing models from preference data
-- **Cache Optimizer** - Predictive cache warming and optimization
+The shipped implementation differs from earlier speculative descriptions in
+this document (which showed a `PreferenceCollector.record_preference` /
+`RouteLLMTrainer.train_model` API that was never built). The as-built system
+is:
 
-### Preference Collection
+- **`LearningBasedRouter`** (`core/learning_llm_router.py`) — the router.
+- **Process-wide singleton** (`core/llm/learning_router_registry.py`) — so
+  predictors accumulate across requests (not throwaway instances).
+- **Per-model predictors** (`core/llm/routing/per_model_router.py`) — one
+  sklearn estimator per model_id; model identity enters via *which predictor
+  you query*, not a feature.
+- **Quality assessment** (`core/llm/response_quality.py`) — derives real
+  signals from `finish_reason`, content, schema validation, exceptions.
+- **DB persistence** (`LLMRoutingFeedback` table, migration `20260711`) —
+  feedback survives restarts.
+- **Live feedback** — `POST /api/chat/feedback` + `GET /api/chat/routing-stats`.
+- **Re-ranking** — `_rerank_with_learning` in `BYOKHandler` re-orders BPC
+  candidates flag-gated; cold start is a pure no-op.
 
-```python
-from core.llm.routing.preference_collector import PreferenceCollector
+Flag-gated: `ATOM_LEARNING_ROUTER=true` (default off). When off, behavior is
+identical to the rule-based Cognitive Tier System documented above.
 
-collector = PreferenceCollector()
-
-# Record user preference
-collector.record_preference(
-    user_id="user_123",
-    query="Explain machine learning",
-    selected_tier="standard",
-    alternative_tiers=["micro", "versatile"],
-    user_satisfaction=0.9,  # 0.0 to 1.0
-    reasoning="Good explanation, right level of detail"
-)
-
-# Get training data
-training_data = collector.get_training_data(user_id="user_123")
-# Returns: [(query, selected_tier, satisfaction), ...]
-```
-
-### RouteLLM Training
-
-```python
-from core.llm.routing.routellm_trainer import RouteLLMTrainer
-
-trainer = RouteLLMTrainer()
-
-# Train custom routing model
-model = trainer.train_model(
-    training_data=preference_collector.get_all_data(),
-    validation_split=0.2,
-    epochs=10
-)
-
-# Evaluate model
-metrics = trainer.evaluate(model, test_data)
-# Returns: {"accuracy": 0.92, "cost_reduction": 0.15, ...}
-```
-
-### Cache Optimization
-
-```python
-from core.llm.routing.cache_optimizer import CacheOptimizer
-
-optimizer = CacheOptimizer()
-
-# Predictive cache warming
-optimizer.warm_cache_for_patterns(
-    workspace_id="workspace_123",
-    patterns=["daily_report", "meeting_summary"]
-)
-
-# Cache hit prediction
-hit_prob = optimizer.predict_cache_hit(
-    provider="openai",
-    model="gpt-4o",
-    prompt_prefix="Generate daily report for"
-)
-# Returns: 0.85 (85% probability)
-```
-
-**Performance Metrics:**
-- Routing accuracy: >90%
-- Additional cost reduction: 15% (on top of 90% cache savings)
-- Cache hit prediction accuracy: >85%
-- Training time: <5min for 10k samples
-
-### Arbor Framework Integration
-
-For advanced LLM routing optimization, the RouteLLM system integrates with the **Arbor Framework** for hypothesis-based routing refinement:
-
-```python
-from core.hypothesis_tree import RoutingHypothesisNode, OptimizationTree
-
-# Create routing optimization tree
-routing_tree = OptimizationTree(
-    task_type=TaskType.ROUTING,
-    task_description="Optimize LLM routing for code generation tasks"
-)
-
-# Create routing-specific hypothesis node
-node = routing_tree.create_node(
-    node_type=TaskType.ROUTING,
-    model_sequence=["gpt-4o-mini", "claude-3-5-haiku", "gpt-4o"],
-    caching_enabled=True,
-    streaming_enabled=True,
-    # Quality vs cost metrics
-    accuracy_score=0.92,
-    cost_per_1k_tokens=0.50,
-    p95_latency_ms=125
-)
-
-# Arbor learns optimal routing patterns through hypothesis refinement
-promise = node.calculate_promise_score()
-# Higher promise = better routing efficiency
-```
-
-**Benefits**:
-- **Exploration**: Tests multiple routing hypotheses in parallel
-- **Pruning**: Eliminates underperforming routes early (latency, cost, quality)
-- **Learning**: Negative constraints avoid known poor routing patterns
-- **Cost Optimization**: Finds optimal balance between quality and cost
-
-**See Also**: [Arbor Framework](ARBOR_FRAMEWORK.md) - Complete HTR system documentation
+➡️ **Full design, the user journey, and limitations: [Learning LLM Router](LEARNING_LLM_ROUTER.md)**
 
 ---
+
+
 
 ## API Reference
 

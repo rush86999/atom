@@ -256,9 +256,11 @@ Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major
 - Enhanced community detection (Leiden algorithm)
 
 **Phase 3: Learning-Based LLM Routing** ✅ Complete
-- RouteLLM training from user preferences
-- Predictive cache warming and optimization
-- Additional 15% cost reduction on top of cache savings
+- Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes
+- DB-persisted feedback (`llm_routing_feedback`), live `/api/chat/feedback`, quality signals
+- Model visibility badge on chat responses + routing dashboard at `/settings/routing`
+- Flag-gated (`ATOM_LEARNING_ROUTER`, default off) — augments, doesn't replace, the Cognitive Tier System
+- See [docs/architecture/LEARNING_LLM_ROUTER.md](docs/architecture/LEARNING_LLM_ROUTER.md)
 
 **Phase 4: Zero-Trust Federation Identity** ✅ Complete
 - DID (Decentralized Identifiers) for cryptographic identity
