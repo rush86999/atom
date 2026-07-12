@@ -42,6 +42,7 @@ from core.llm.routing import (
     TrainingConfig,
     TrainingExample,
     TrainingStatus,
+    PerModelRouter,
 )
 
 logger = logging.getLogger(__name__)
@@ -161,9 +162,16 @@ class LearningBasedRouter:
         # Minimum samples before attempting a retrain (mirrors
         # TrainingConfig.min_samples so train_test_split has enough data).
         self._min_training_samples = TrainingConfig().min_samples
+        # Minimum samples to train a single per-model predictor. Lower than the
+        # global threshold because each predictor is an independent tiny model.
+        self._min_samples_per_model = 20
 
         # Lazily-instantiated RouteLLM trainer for satisfaction prediction.
         self._trainer: Optional[RouteLLMTrainer] = None
+        # Per-model satisfaction predictors, keyed "{tenant}:{task}". Each holds
+        # one sklearn estimator per model id that served that task. This is the
+        # structure that makes routing decisions actually change with feedback.
+        self._per_model_routers: Dict[str, PerModelRouter] = {}
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -788,11 +796,25 @@ class LearningBasedRouter:
         candidates: List[ModelSpec],
         request: RoutingRequest,
     ) -> List[Tuple[ModelSpec, float]]:
-        """Score candidates based on learned preferences and context"""
+        """Score candidates based on learned preferences and context.
+
+        Combines the rule-based quality/cost/speed score with a learned
+        per-model satisfaction signal. When a model has a trained predictor
+        for this tenant/task, its predicted satisfaction probability boosts
+        (or penalizes) the score — this is what makes routing decisions
+        change as feedback accumulates. Cold start (no predictor) leaves the
+        rule-based score untouched.
+        """
         scores = []
 
         # Get learned preference weights for this task type
         weights = self._get_learned_weights(request.task_type, request.tenant_id)
+
+        # Look up the per-model predictors for this tenant/task (may be absent).
+        cache_key = f"{request.tenant_id}:{request.task_type}"
+        per_model = self._per_model_routers.get(cache_key)
+        # Pre-compute the request's prompt features once for all predictors.
+        request_features = self._extract_request_features(request) if per_model else None
 
         for model in candidates:
             score = 0.0
@@ -828,6 +850,18 @@ class LearningBasedRouter:
             tenant_pref = request.user_preferences.get("preferred_model")
             if tenant_pref and tenant_pref in model.model_name.lower():
                 score += 0.15
+
+            # Learned per-model satisfaction signal. The blend weight scales
+            # with how much data backs this predictor (see PerModelRouter.confidence),
+            # so cold-start models get zero learned influence and the rule-based
+            # score above dominates — no regression for new tenants.
+            if per_model is not None and request_features is not None:
+                satisfaction = per_model.predict_satisfaction(
+                    model.model_id, request_features
+                )
+                if satisfaction is not None:
+                    blend = per_model.confidence(model.model_id)
+                    score += blend * satisfaction
 
             scores.append((model, score))
 
@@ -945,10 +979,10 @@ class LearningBasedRouter:
                 : len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
             ]
 
-        # Trigger retraining after accumulating enough feedback for a real
-        # train/test split (matches TrainingConfig.min_samples). Before that
-        # threshold the per-model sample counts are too noisy to learn from.
-        if len(self._preference_data[feedback_key]) >= self._min_training_samples:
+        # Trigger retraining once there's enough feedback for a per-model
+        # predictor (the lowest learning threshold). _retrain_router internally
+        # decides what to train based on available data.
+        if len(self._preference_data[feedback_key]) >= self._min_samples_per_model:
             await self._retrain_router(feedback.tenant_id, feedback.task_type)
 
         logger.debug(
@@ -981,51 +1015,45 @@ class LearningBasedRouter:
 
         cache_key = f"{tenant_id}:{task_type}"
 
-        # ---- Train the satisfaction model (best-effort) ----
-        # Convert feedback into TrainingExample for the ML pipeline. Note:
-        # RoutingFeedback carries no prompt text, so we synthesize the prompt
-        # features the extractor needs (task-type one-hots) from task_type and
-        # leave token-derived features at neutral defaults. The classifier
-        # still learns from the satisfaction signal; per-model routing below
-        # is driven by the empirical success rates.
-        trained_model_id: Optional[str] = None
-        if len(feedback_list) >= self._min_training_samples:
+        # ---- Train per-model satisfaction predictors ----
+        # Partition feedback by model and train one tiny predictor per model
+        # that has enough samples. These predictors are what _score_candidates
+        # consults to make routing decisions change with feedback.
+        per_model = self._get_per_model_router(cache_key)
+        by_model: Dict[str, List[RoutingFeedback]] = defaultdict(list)
+        for feedback in feedback_list:
+            by_model[feedback.model_id].append(feedback)
+
+        trained_predictors: List[str] = []
+        for model_id, model_feedback in by_model.items():
+            if len(model_feedback) < self._min_samples_per_model:
+                continue
             examples = [
                 self._feedback_to_training_example(fb, task_type)
-                for fb in feedback_list
+                for fb in model_feedback
             ]
             try:
-                trainer = self._get_trainer()
-                result = trainer.train(examples, model_id=f"{cache_key}")
+                result = per_model.train(model_id, examples)
                 if result.status == TrainingStatus.COMPLETED:
-                    trained_model_id = result.model_id
-                    self._trained_model_ids[cache_key] = result.model_id
-                    logger.info(
-                        f"Trained router model for tenant={tenant_id}, "
-                        f"task={task_type}: model_id={result.model_id}, "
-                        f"accuracy={result.accuracy:.3f}, "
-                        f"samples={result.samples_trained}"
-                    )
-                else:
-                    logger.warning(
-                        f"Router training did not complete for "
-                        f"tenant={tenant_id}, task={task_type}: "
-                        f"{result.metadata.get('error', result.status)}"
+                    trained_predictors.append(
+                        f"{model_id}({result.accuracy:.2f})"
                     )
             except Exception as e:
                 logger.warning(
-                    f"Router training failed for tenant={tenant_id}, "
-                    f"task={task_type}: {e}"
+                    f"Per-model training failed for {model_id} "
+                    f"(tenant={tenant_id}, task={task_type}): {e}"
                 )
 
         # ---- Derive {quality, cost, speed} weights from success rates ----
+        # Kept as the cold-start baseline; per-model predictors layer on top
+        # of this in _score_candidates.
         weights = self._derive_weights_from_success(model_success, task_type)
         self._set_cached_weights(cache_key, weights, tenant_id)
 
         logger.info(
-            f"Updated router weights for tenant={tenant_id}, task={task_type} "
-            f"with {len(feedback_list)} samples"
-            + (f", model={trained_model_id}" if trained_model_id else "")
+            f"Updated router for tenant={tenant_id}, task={task_type} "
+            f"with {len(feedback_list)} samples; "
+            f"predictors=[{', '.join(trained_predictors)}]"
         )
 
     def _get_trainer(self) -> RouteLLMTrainer:
@@ -1034,6 +1062,52 @@ class LearningBasedRouter:
             self._trainer = RouteLLMTrainer()
         return self._trainer
 
+    def _get_per_model_router(self, cache_key: str) -> PerModelRouter:
+        """Get (or lazily create) the per-model predictor set for a tenant/task."""
+        pmr = self._per_model_routers.get(cache_key)
+        if pmr is None:
+            pmr = PerModelRouter()
+            self._per_model_routers[cache_key] = pmr
+        return pmr
+
+    def _extract_request_features(self, request: RoutingRequest) -> Dict[str, float]:
+        """Extract the trainer's 10 prompt features from a RoutingRequest.
+
+        This mirrors the feature contract in FeatureExtractor.feature_names so
+        that per-model predictors (trained on the same feature space) are
+        queried consistently at route time. It is the single point to enrich
+        if feedback later captures richer prompt characteristics.
+        """
+        task = request.task_type
+        tokens = max(1, request.estimated_tokens)
+        import math
+        return {
+            "log_tokens": math.log2(tokens + 1),
+            "token_bucket": self._token_bucket(tokens),
+            "task_code": 1.0 if task == "code_generation" else 0.0,
+            "task_analysis": 1.0 if task == "extraction" else 0.0,
+            "task_reasoning": 1.0 if task == "reasoning" else 0.0,
+            "task_chat": 1.0 if task == "question_answering" else 0.0,
+            "task_general": 1.0 if task not in {
+                "code_generation", "extraction", "reasoning", "question_answering"
+            } else 0.0,
+            # Request-level signal: code-related tasks often carry code blocks.
+            "has_code": 1.0 if task == "code_generation" else 0.0,
+            "has_numbers": 1.0 if request.requires_reasoning else 0.0,
+            "avg_word_length": 5.0,
+        }
+
+    @staticmethod
+    def _token_bucket(tokens: int) -> float:
+        if tokens < 100:
+            return 0.0
+        if tokens < 500:
+            return 1.0
+        if tokens < 2000:
+            return 2.0
+        if tokens < 5000:
+            return 3.0
+        return 4.0
     def _feedback_to_training_example(
         self, feedback: RoutingFeedback, task_type: str
     ) -> TrainingExample:
