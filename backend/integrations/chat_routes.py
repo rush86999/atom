@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+# The chat orchestrator is a module-level singleton with tenant_id="default",
+# so BYOK outcome observations record feedback under this key. Explicit user
+# feedback and dashboard reads MUST use the same key, otherwise the dashboard
+# only sees thumbs feedback and misses the bulk of the signal.
+CHAT_ROUTING_TENANT_KEY = "default"
+
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()
 
@@ -213,6 +219,26 @@ async def send_chat_message(
             context=request.context
         )
 
+        # Detect the "no LLM provider configured" sentinel and surface it as a
+        # structured error so the frontend shows the recovery banner (linking
+        # to /settings/ai) instead of a junk assistant message. The orchestrator
+        # returns these sentinels as the message string when no provider key is
+        # configured.
+        response_msg = response.get("message", "") or ""
+        _NO_PROVIDER_MARKERS = (
+            "llm client not initialized",
+            "no api keys configured",
+            "no eligible llm providers",
+        )
+        if any(m in response_msg.lower() for m in _NO_PROVIDER_MARKERS):
+            return {
+                "success": False,
+                "error_code": "no_llm_provider",
+                "message": "You need an AI provider to use chat. Add an API key in Settings to get started.",
+                "recovery_url": "/settings/ai",
+                "session_id": request.session_id or "unknown",
+            }
+
         return ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),
@@ -292,7 +318,7 @@ async def submit_chat_feedback(
 
         fb = LearningBasedRouter.build_feedback(
             routing_result_id=request.message_id,
-            tenant_id=_resolve_tenant_id(current_user.id),
+            tenant_id=CHAT_ROUTING_TENANT_KEY,
             model_id=request.model or "unknown",
             task_type="question_answering",  # chat path default
             quality=quality,
@@ -324,36 +350,11 @@ async def get_routing_stats(
         return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
 
     try:
-        stats = await learning_router.get_routing_statistics(_resolve_tenant_id(current_user.id))
+        stats = await learning_router.get_routing_statistics(CHAT_ROUTING_TENANT_KEY)
         return {"enabled": True, "stats": stats}
     except Exception as e:
         logger.warning(f"Failed to get routing stats: {e}")
         return {"enabled": True, "stats": {"error": str(e)}}
-
-
-def _resolve_tenant_id(user_id) -> str:
-    """Resolve the tenant id for a user, matching the BYOKHandler's tenant key.
-
-    The outcome-observation path records feedback under the BYOKHandler's
-    ``self.tenant_id`` (workspace-scoped). To keep explicit user feedback in
-    the same namespace (so the dashboard aggregates correctly), resolve the
-    user → workspace → tenant here. Falls back to the string user id when the
-    lookup fails (single-user/dev setups).
-    """
-    try:
-        from core.database import get_db_session
-        from core.models import Workspace, Tenant
-        with get_db_session() as db:
-            ws = db.query(Workspace).filter(Workspace.owner_id == user_id).first()
-            if ws and ws.tenant_id:
-                return ws.tenant_id
-            # Fall back: any workspace the user belongs to.
-            ws = db.query(Workspace).first()
-            if ws and ws.tenant_id:
-                return ws.tenant_id
-    except Exception:
-        pass
-    return str(user_id)
 
 
 

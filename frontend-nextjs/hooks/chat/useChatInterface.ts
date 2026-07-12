@@ -119,8 +119,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    const handleSend = async (overrideText?: string) => {
+        // overrideText is used by handleRegenerate to re-send the original
+        // prompt (input is empty at that point). Without it, regenerate would
+        // silently delete the exchange and produce nothing.
+        const currentInput = (overrideText ?? input).trim();
+        if (!currentInput) return;
 
         // Clear any prior provider-error banner before attempting another send.
         setProviderError(null);
@@ -128,12 +132,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         const userMsg: ChatMessageData = {
             id: Date.now().toString(),
             type: "user",
-            content: input,
+            content: currentInput,
             timestamp: new Date(),
         };
 
         setMessages(prev => [...prev, userMsg]);
-        const currentInput = input;
         setInput("");
         setIsProcessing(true);
         setStatusMessage("Agent is thinking...");

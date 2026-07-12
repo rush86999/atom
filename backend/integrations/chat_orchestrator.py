@@ -347,6 +347,11 @@ class ChatOrchestrator:
                 used_provider = ai_response.get("provider")
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
+                # The response came from a template, not an LLM. Label it
+                # honestly so the badge renders ("template") rather than
+                # silently absent, and feedback records a real model id.
+                used_model = "template"
+                used_provider = "template"
 
             # Build combined data from feature responses
             combined_data = {}
