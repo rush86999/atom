@@ -2126,6 +2126,14 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Federation routes: {e}")
 
+    # Local Model Provider Routes (Ollama, LM Studio, vLLM, custom)
+    try:
+        from api.routes.local_model_routes import router as local_model_router
+        app.include_router(local_model_router)
+        logger.info("✓ Local Model Routes Loaded (/api/local-models)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load Local Model routes: {e}")
+
     try:
         from sales.routes import router as sales_router
 

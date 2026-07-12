@@ -199,10 +199,35 @@ class CognitiveClassifier:
         """
         return len(prompt) // 4
 
-    def get_tier_models(self, tier: CognitiveTier) -> list[str]:
+    def get_tier_models(self, tier: CognitiveTier, workspace_id: str | None = None) -> list[str]:
         """
         Get recommended models for a cognitive tier.
+
+        If ``workspace_id`` is provided and the workspace has a
+        ``CognitiveTierPreference`` with a ``tier_models`` override in its
+        ``metadata_json``, those user-configured models are returned instead
+        of the hardcoded defaults. This lets users map their local models
+        to tiers (e.g. "use llama3:8b for MICRO, qwen2.5:32b for HEAVY").
         """
+        # Check for user-configured overrides.
+        if workspace_id:
+            try:
+                from core.database import get_db_session
+                from core.models import CognitiveTierPreference
+                with get_db_session() as db:
+                    pref = db.query(CognitiveTierPreference).filter(
+                        CognitiveTierPreference.workspace_id == workspace_id
+                    ).first()
+                    if pref and pref.metadata_json:
+                        tier_models = pref.metadata_json.get("tier_models")
+                        if tier_models and isinstance(tier_models, dict):
+                            tier_key = tier.value if hasattr(tier, 'value') else str(tier)
+                            user_models = tier_models.get(tier_key, [])
+                            if user_models:
+                                return user_models
+            except Exception:
+                pass  # Fall through to defaults.
+
         TIER_MODELS = {
             CognitiveTier.MICRO: [
                 "deepseek-chat",
@@ -226,6 +251,7 @@ class CognitiveClassifier:
                 "gpt-4o-mini",
                 "deepseek-v3",
                 "claude-3-5-sonnet",
+                "ollama/llama3:8b",
             ],
             CognitiveTier.HEAVY: [
                 "gpt-4o",

@@ -1531,6 +1531,75 @@ class LearningBasedRouter:
         logger.info(f"Updated model registry: added {added} models")
         return added
 
+    def load_local_models_into_registry(self, workspace_id: str = "default") -> int:
+        """Load user-registered local models into the learning router's registry.
+
+        Reads LocalModelProvider + LocalModelCapabilities from the DB and calls
+        update_model_registry with each as a ModelSpec (cost=0). This makes
+        local models eligible for per-model predictor training and re-ranking —
+        a local model that serves good responses will accumulate positive
+        feedback and the re-ranker will start preferring it, at zero cost.
+
+        Returns the number of models added/updated.
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import LocalModelProvider, LocalModelCapabilities
+
+            model_defs = []
+            with get_db_session() as db:
+                providers = db.query(LocalModelProvider).filter(
+                    LocalModelProvider.workspace_id == workspace_id,
+                    LocalModelProvider.is_active == True,  # noqa: E712
+                ).all()
+
+                for provider in providers:
+                    caps = db.query(LocalModelCapabilities).filter(
+                        LocalModelCapabilities.provider_id == provider.id
+                    ).all()
+
+                    if caps:
+                        for cap in caps:
+                            cap_list = []
+                            if cap.supports_tools:
+                                cap_list.append("tool_use")
+                            if cap.supports_vision:
+                                cap_list.append("vision")
+                            if cap.supports_reasoning:
+                                cap_list.append("reasoning")
+                            model_defs.append({
+                                "model_id": cap.model_id,
+                                "provider": provider.provider_type,
+                                "model_name": cap.model_id,
+                                "capabilities": cap_list,
+                                "cost_per_million": 0.0,
+                                "quality_score": cap.quality_score or 0.5,
+                                "speed_score": cap.speed_score or 0.5,
+                                "context_window": cap.context_window or 8192,
+                                "tier": "budget",
+                            })
+                    else:
+                        # Provider has no configured capabilities — register
+                        # with defaults so it at least appears in the registry.
+                        model_defs.append({
+                            "model_id": f"{provider.provider_type}_default",
+                            "provider": provider.provider_type,
+                            "model_name": f"{provider.name} (default)",
+                            "capabilities": [],
+                            "cost_per_million": 0.0,
+                            "quality_score": 0.5,
+                            "speed_score": 0.5,
+                            "context_window": 8192,
+                            "tier": "budget",
+                        })
+
+            if model_defs:
+                return self.update_model_registry(model_defs)
+            return 0
+        except Exception as e:
+            logger.debug(f"Could not load local models into registry (non-fatal): {e}")
+            return 0
+
     async def export_routing_data(
         self, tenant_id: str, days: int = 30
     ) -> Dict[str, Any]:

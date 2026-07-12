@@ -23,6 +23,13 @@ const AISettingsPage = () => {
                         </Text>
                     </Link>
                 </Box>
+                <Box mt={4}>
+                    <Link href="/settings/local-models">
+                        <Text color="blue.500" _hover={{ textDecoration: 'underline' }} cursor="pointer">
+                            Local Models (Ollama, LM Studio, vLLM) →
+                        </Text>
+                    </Link>
+                </Box>
             </Container>
         </Layout>
     );

@@ -10622,3 +10622,62 @@ class LLMRoutingFeedback(Base):
     __table_args__ = (
         Index("ix_llm_routing_fb_tenant_task", "tenant_id", "task_type", "created_at"),
     )
+
+
+# ============================================================================
+# Local Model Providers — user-registered local LLM backends
+# ============================================================================
+
+class LocalModelProvider(Base):
+    """A user-registered local LLM provider (Ollama, LM Studio, vLLM, etc.).
+
+    Each provider is an OpenAI-compatible endpoint the user configures via
+    the /api/local-models settings page. Models served by the provider are
+    auto-discovered (GET {base_url}/models) and become eligible for BPC
+    ranking, cognitive tier assignment, and learning-router re-ranking —
+    just like cloud models, but at zero cost.
+    """
+
+    __tablename__ = "local_model_providers"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    name = Column(String, nullable=False)  # User-friendly label
+    provider_type = Column(String, nullable=False, default="custom")  # ollama|lm_studio|vllm|localai|custom
+    base_url = Column(String, nullable=False)  # e.g. http://localhost:11434/v1
+    api_key = Column(String, nullable=True)  # Optional — some local backends require a key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_local_model_provider_workspace", "workspace_id"),
+    )
+
+
+class LocalModelCapabilities(Base):
+    """User-specified capabilities for a model served by a local provider.
+
+    Local models aren't in the dynamic pricing cache, so the user tells the
+    system what each model can do. These feed into BPC capability filtering,
+    cognitive tier assignment, and the learning router's model registry.
+    """
+
+    __tablename__ = "local_model_capabilities"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_id = Column(String, ForeignKey("local_model_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(String, nullable=False)  # e.g. "llama3:8b"
+    supports_tools = Column(Boolean, default=False)
+    supports_vision = Column(Boolean, default=False)
+    supports_reasoning = Column(Boolean, default=False)
+    quality_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
+    speed_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
+    context_window = Column(Integer, default=4096)  # Max context length in tokens
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_local_model_caps_provider_model", "provider_id", "model_id"),
+        Index("ix_local_model_caps_workspace", "workspace_id"),
+    )
