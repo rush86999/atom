@@ -9,6 +9,8 @@
 
 ## 🚀 Recent Updates (July 2026)
 
+- **Learning LLM Router**: ✨ NEW - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes. A genuine end-to-end learning loop: the router observes response quality (truncation, schema failures, refusals), collects user feedback (thumbs up/down + regenerate), and re-ranks model candidates as data accumulates. Flag-gated (`ATOM_LEARNING_ROUTER`, default off). DB-persisted feedback (`llm_routing_feedback` table, migration `20260711`). Live `POST /api/chat/feedback` + `GET /api/chat/routing-stats` endpoints. Model visibility badge on chat messages + routing dashboard at `/settings/routing`.
+  - [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md) - Architecture, the singleton registry, per-model predictors, quality assessment, the flag, the user journey, and honest limitations.
 - **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents without native Office/LibreOffice dependencies.
   - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints.
   - Integrates directly with frontend `CanvasHost.tsx` for real-time bi-directional collaboration.
@@ -33,7 +35,7 @@
   - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
   - Phase 1: POMDP Memory Framework - Experience-driven agent learning
   - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
-  - Phase 3: Learning-Based LLM Routing - RouteLLM with 15% cost savings
+  - Phase 3: Learning-Based LLM Routing - per-model predictors, DB persistence, live feedback, quality signals, re-ranking. See [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md). Flag-gated (`ATOM_LEARNING_ROUTER`).
   - Phase 4: Zero-Trust Federation Identity - DID/VC with mTLS
   - Phase 5: Enhanced Orchestration - Conductor Agent, workflow state machine
 - **Canvas Integration**: ✅ COMPLETE - Canvas system integrated with Phase 1-5 features

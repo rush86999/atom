@@ -78,6 +78,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 8. **Queen Agent** (`core/agents/queen_agent.py`, `intent_classifier.py`): Structured workflow automation with blueprints. WORKFLOW intents → Queen
 9. **Unstructured Tasks** (`atom_meta_agent.py`, `fleet_admiral.py`): FleetAdmiral recruits specialists; TASK intents → Fleet. `spawn_agent()` for custom domains
 10. **BYOK Cognitive Tiers** (`core/llm/cognitive_tier_system.py`, `cache_aware_router.py`, `escalation_manager.py`): 5-tier LLM routing, 90% cost reduction via caching
+10b. **Learning LLM Router** (`core/learning_llm_router.py`, `core/llm/learning_router_registry.py`, `core/llm/routing/per_model_router.py`, `core/llm/response_quality.py`): per-model satisfaction predictors that re-rank BPC candidates from observed outcomes (truncation/schema/refusal) + user feedback. Process-wide singleton, DB-persisted feedback (`llm_routing_feedback`), live `/api/chat/feedback`, flag-gated (`ATOM_LEARNING_ROUTER`, default off). See `docs/architecture/LEARNING_LLM_ROUTER.md`
 11. **Browser Automation** (`tools/browser_tool.py`, `api/browser_routes.py`): Playwright CDP, INTERN+ required
 12. **Device Capabilities** (`tools/device_tool.py`, `api/device_capabilities.py`): Camera (INTERN+), Screen (SUPERVISED+), Location/Notifications (INTERN+), Cmd Exec (AUTONOMOUS only)
 13. **Atom CLI Skills** (`tools/atom_cli_skill_wrapper.py`, `skills/atom-cli/`): 6 built-in skills, subprocess wrapper with 30s timeout

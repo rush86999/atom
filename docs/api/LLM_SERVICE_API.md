@@ -64,6 +64,24 @@
 4. **Cognitive Tier Routing**: `generate_with_tier()` for cost-optimized intelligent routing
 5. **Provider Selection**: `get_optimal_provider()` and `get_ranked_providers()` for cost estimation
 6. **Routing Info**: `get_routing_info()` for previewing model selection without API calls
+7. **Learning-Based Re-Ranking**: when `ATOM_LEARNING_ROUTER=true`, BPC candidates are re-ranked using per-model satisfaction predictors trained from observed outcomes and user feedback. See [Learning LLM Router](../architecture/LEARNING_LLM_ROUTER.md).
+
+### Chat Feedback & Routing Stats Endpoints
+
+These live endpoints (prefix `/api/chat`, registered in both app entrypoints) back
+the learning router's data flywheel and dashboard:
+
+- **`POST /api/chat/feedback`** — submit thumbs up/down on a chat response.
+  Carries `model`/`provider` so feedback ties to a routing decision. Records a
+  `RoutingFeedback` when the learning router is enabled; returns 200 without
+  recording when disabled (the UI never errors).
+  ```json
+  { "message_id": "...", "feedback": "thumbs_up", "model": "gpt-4o", "provider": "openai", "comment": "..." }
+  ```
+- **`GET /api/chat/routing-stats`** — per-model success rates, total feedback
+  samples, learning status. Powers the `/settings/routing` dashboard.
+
+➡️ Full architecture and the flag semantics: [Learning LLM Router](../architecture/LEARNING_LLM_ROUTER.md)
 
 ---
 

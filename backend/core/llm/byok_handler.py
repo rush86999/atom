@@ -1407,7 +1407,16 @@ class BYOKHandler:
         error. ``options`` is a list of ``(provider_id, model)`` tuples from
         ``get_ranked_providers``.
         """
-        if not options or len(options) == 1:
+        if not options or len(options) <= 1:
+            # Re-ranking needs at least 2 candidates to matter. Single-provider
+            # setups yield 1 — log so operators can diagnose why learning had
+            # no effect (it's expected, not a bug).
+            if options and os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true":
+                logger.debug(
+                    f"[LearningRouter] Only {len(options)} BPC candidate(s) — "
+                    f"nothing to re-rank (configure multiple provider keys to "
+                    f"give the learning router candidates to choose among)"
+                )
             return options
         if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
             return options
