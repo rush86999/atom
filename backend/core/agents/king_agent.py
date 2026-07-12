@@ -8,6 +8,7 @@ orchestrating specialty agents and enforcing sovereign governance.
 
 import logging
 import asyncio
+import json
 from typing import Dict, Any, List, Optional
 from core.agents.queen_agent import QueenAgent
 from core.blueprint_healer import BlueprintHealer
@@ -60,6 +61,10 @@ class KingAgent(AtomMetaAgent):
                 agent_id=getattr(self, "agent_id", None)
             )
             canvas_id = canvas_res.get("canvas_id")
+
+        results = []
+        retry_count = 0
+        max_retries = 3
 
         while pending_nodes and retry_count < max_retries:
             ready_nodes = [

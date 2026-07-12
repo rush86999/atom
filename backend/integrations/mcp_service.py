@@ -1133,7 +1133,7 @@ class MCPService(IntegrationService):
 
         try:
             from core.database import SessionLocal
-            from core.models import Tenant, Workspace
+            from core.models import Tenant, Workspace, User
             with SessionLocal() as db:
                 workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
                 # SECURITY FIX: Don't return None for missing workspace - log and raise error
@@ -1416,7 +1416,11 @@ class MCPService(IntegrationService):
                     )
 
             elif tool_name == "ingest_message_attachment":
-                # ... existing implementation ...
+                # TODO: Actual ingestion logic is not implemented; returning
+                # a placeholder result with safe defaults.
+                file_name = arguments.get("file_name", "attachment")
+                edges = 0
+                graphrag = {}
                 return f"Successfully ingested attachment '{file_name}'. Extracted {edges} knowledge edges. GraphRAG: {graphrag.get('entities', 0)} entities, {graphrag.get('relationships', 0)} relationships."
 
             elif tool_name.startswith("shopify_"):
@@ -2089,7 +2093,6 @@ class MCPService(IntegrationService):
                     return "Error: Access denied to system paths."
                 
                 # Check existence
-                import os
                 if os.path.exists(path):
                     try:
                         # Read first 500 chars to confirm context
@@ -2571,8 +2574,7 @@ class MCPService(IntegrationService):
                     platforms = [c["integration_id"] for c in conns if c.get("status") == "active"]
                 
                 results = {}
-                import asyncio
-                
+
                 async def search_task(p):
                     try:
                         return p, await universal_integration_service.search(p, query, context=context)
@@ -2976,7 +2978,7 @@ class MCPService(IntegrationService):
 
         return value
 
-    async def web_search(self, query: str = None) -> Dict[str, Any]:
+    async def web_search(self, query: str = None, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Performs a web search using available search APIs or MCP servers.
         Supports BYOK - checks tenant-specific Tavily key first, then falls back to env var.

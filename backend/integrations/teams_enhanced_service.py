@@ -840,12 +840,19 @@ class TeamsEnhancedService(IntegrationService):
             if not client:
                 raise Exception("Failed to create Graph client")
             
-            # Build search query
-            search_query = f'"{query}"'
+            # Build search query.
+            # Sanitize each user-supplied term by escaping double quotes (KQL
+            # uses doubled quotes "" to represent a literal quote inside a
+            # quoted phrase). Without this, a quote in the input could break
+            # out of the phrase and inject arbitrary KQL operators.
+            def _kql_escape(value: str) -> str:
+                return str(value).replace('"', '""') if value else ""
+
+            search_query = f'"{_kql_escape(query)}"'
             if channel_id:
-                search_query += f' AND channel:"{channel_id}"'
+                search_query += f' AND channel:"{_kql_escape(channel_id)}"'
             if user_id:
-                search_query += f' AND from:"{user_id}"'
+                search_query += f' AND from:"{_kql_escape(user_id)}"'
             
             # Search using Microsoft Search API
             search_url = f"https://graph.microsoft.com/v1.0/search/query"

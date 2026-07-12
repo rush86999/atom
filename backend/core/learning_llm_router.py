@@ -1108,7 +1108,6 @@ class LearningBasedRouter:
         if tokens < 5000:
             return 3.0
         return 4.0
-
     def _feedback_to_training_example(
         self, feedback: RoutingFeedback, task_type: str
     ) -> TrainingExample:
