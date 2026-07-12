@@ -1119,6 +1119,16 @@ class BYOKHandler:
                 turn_index=turn_index
             )
 
+            # --- Learning-router re-ranking (flag-gated, phase 2 of rollout) ---
+            # When enabled and a trained predictor exists for this tenant/task,
+            # re-order BPC's already-filtered candidate list using the learned
+            # satisfaction signal. Never adds/removes candidates — only re-orders
+            # — so the live pricing-cache (not the router's stale registry)
+            # remains the source of truth for which models are eligible. Cold
+            # start (no predictor) leaves BPC order untouched. Best-effort: any
+            # error falls back to BPC order so the hot path never breaks.
+            options = await self._rerank_with_learning(options, prompt, task_type)
+
             # --- Phase 14.5: Coordinated Vision Logic ---
             if requires_vision:
                 # Check if the primary ranked model supports vision natively
@@ -1325,30 +1335,33 @@ class BYOKHandler:
         cost: Optional[float],
         latency_ms: float,
         exception: Optional[Exception] = None,
+        schema_error: bool = False,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
         Assess response quality from observable signals (finish_reason, content,
-        exception) and record it as feedback so per-model predictors learn from
-        real outcomes. No-op when ``ATOM_LEARNING_ROUTER`` is off or when the
-        router can't be instantiated. Never raises — failures are logged and
-        swallowed so the hot generation path is unaffected.
+        exception, schema validation) and record it as feedback so per-model
+        predictors learn from real outcomes. No-op when
+        ``ATOM_LEARNING_ROUTER`` is off or when the router can't be
+        instantiated. Never raises — failures are logged and swallowed so the
+        hot generation path is unaffected.
         """
         if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
             return
         try:
             from core.llm.response_quality import assess_response_quality
             from core.learning_llm_router import LearningBasedRouter
-            from integrations.chat_routes import _get_learning_router
+            from core.llm.learning_router_registry import get_learning_router_instance
             import uuid
 
-            learning_router = _get_learning_router()
+            learning_router = get_learning_router_instance()
             if learning_router is None:
                 return
 
             quality = assess_response_quality(
                 content=content,
                 finish_reason=finish_reason,
+                schema_error=schema_error,
                 exception=exception,
             )
             fb = LearningBasedRouter.build_feedback(
@@ -1379,6 +1392,78 @@ class BYOKHandler:
             "meta_orchestration": "tool_use",
         }
         return mapping.get(task_type.lower().strip(), "general")
+
+    async def _rerank_with_learning(
+        self,
+        options: list,
+        prompt: str,
+        task_type: Optional[str],
+    ) -> list:
+        """Re-rank BPC's candidate list using the learned satisfaction signal.
+
+        Only re-orders the existing list — never adds or removes candidates.
+        Returns the original list unchanged when the learning router is off,
+        when no predictor exists for this tenant/task (cold start), or on any
+        error. ``options`` is a list of ``(provider_id, model)`` tuples from
+        ``get_ranked_providers``.
+        """
+        if not options or len(options) == 1:
+            return options
+        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+            return options
+        try:
+            from core.llm.learning_router_registry import get_learning_router_instance
+            learning_router = get_learning_router_instance()
+            if learning_router is None:
+                return options
+
+            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}"
+            per_model = learning_router._per_model_routers.get(cache_key)
+            if per_model is None:
+                return options  # cold start — no predictor for this tenant/task
+
+            # Build the prompt features once (the 10-feature contract).
+            estimated_tokens = max(1, len(prompt) // 4)
+            features = learning_router._extract_request_features(
+                type("RR", (), {
+                    "task_type": self._adapt_task_type(task_type),
+                    "estimated_tokens": estimated_tokens,
+                    "requires_reasoning": False,
+                })()
+            )
+
+            # Score each candidate by learned satisfaction, blended by confidence.
+            # Candidates without a predictor keep their BPC-implied position
+            # (score 0 so they sort below learned-favored models but above none).
+            scored = []
+            learned_any = False
+            for idx, (provider_id, model) in enumerate(options):
+                satisfaction = per_model.predict_satisfaction(model, features)
+                if satisfaction is None:
+                    # No predictor for this model — keep BPC order via a small
+                    # negative score so it sorts after learned-positive models.
+                    scored.append((-(idx * 0.001), provider_id, model))
+                else:
+                    blend = per_model.confidence(model)
+                    score = blend * satisfaction
+                    scored.append((score, provider_id, model))
+                    if blend > 0:
+                        learned_any = True
+
+            if not learned_any:
+                return options  # no predictor had enough data to influence
+
+            # Stable sort by learned score descending (ties keep BPC order).
+            scored.sort(key=lambda t: -t[0])
+            reranked = [(pid, mdl) for _, pid, mdl in scored]
+            logger.info(
+                f"[LearningRouter] Re-ranked {len(reranked)} candidates for "
+                f"{cache_key} (learned signal applied)"
+            )
+            return reranked
+        except Exception as e:
+            logger.debug(f"Learning-router re-rank skipped (non-fatal): {e}")
+            return options
 
     async def generate_with_cognitive_tier(
         self,
@@ -1810,7 +1895,14 @@ class BYOKHandler:
                                 )
                     except Exception as cost_err:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
-                        
+
+                    # Learning-router outcome observation (structured success).
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=str(result), finish_reason="stop",
+                        success=True, cost=None, latency_ms=0.0,
+                        schema_error=False,
+                    )
                     return result
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
@@ -1830,6 +1922,17 @@ class BYOKHandler:
                         or "validation" in str(attempt_err).lower()
                     )
                     last_was_schema_error = is_schema_err
+                    # Learning-router outcome observation (structured failure).
+                    # schema_error=True tells assess_response_quality this was a
+                    # validation failure (not a transient provider error), so the
+                    # predictor learns model X fails structured output for this task.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=None, finish_reason=None,
+                        success=not is_schema_err, cost=None, latency_ms=0.0,
+                        schema_error=is_schema_err,
+                        exception=attempt_err if not is_schema_err else None,
+                    )
                     # Fall through to the cascade check below (no continue).
 
                 # ========================================================
@@ -2165,6 +2268,13 @@ class BYOKHandler:
                 latency_ms = (time.time() - request_start) * 1000
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
 
+                # Learning-router outcome observation (streaming success).
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=None,
+                    content="(streamed)", finish_reason="stop",
+                    success=True, cost=None, latency_ms=latency_ms,
+                )
+
                 # Success! Return from the function
                 return
 
@@ -2178,6 +2288,14 @@ class BYOKHandler:
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
                 except:
                     pass  # Don't let health monitoring errors affect primary flow
+
+                # Learning-router outcome observation (streaming failure).
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=None,
+                    content=None, finish_reason=None,
+                    success=False, cost=None, latency_ms=0.0,
+                    exception=e,
+                )
 
                 # If this is not the last provider, try the next one
                 if attempt_provider_id != provider_order[-1]:

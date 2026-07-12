@@ -51,6 +51,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         handleStop,
         handleTitleSave,
         handleFeedback,
+        handleRegenerate,
         uploadFile,
         toast,
         providerError,
@@ -153,6 +154,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 messagesEndRef={messagesEndRef}
                 handleActionClick={handleActionClick}
                 handleFeedback={handleFeedback}
+                handleRegenerate={handleRegenerate}
             />
 
             <ChatInput

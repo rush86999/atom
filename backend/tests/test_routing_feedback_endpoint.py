@@ -37,21 +37,51 @@ class TestFeedbackEndpointLogic:
             ChatFeedbackRequest(message_id="m1")  # type: ignore
 
     def test_learning_router_flag_off_returns_not_recorded(self, monkeypatch):
-        """When ATOM_LEARNING_ROUTER is off, _get_learning_router returns None."""
+        """When ATOM_LEARNING_ROUTER is off, the registry returns None."""
+        from core.llm.learning_router_registry import (
+            learning_router_enabled, get_learning_router_instance, reset_learning_router_instance,
+        )
         monkeypatch.delenv("ATOM_LEARNING_ROUTER", raising=False)
-        from integrations.chat_routes import _learning_router_enabled, _get_learning_router
+        reset_learning_router_instance()
 
-        assert _learning_router_enabled() is False
-        assert _get_learning_router() is None
+        assert learning_router_enabled() is False
+        assert get_learning_router_instance() is None
 
     def test_learning_router_flag_on_attempts_instantiation(self, monkeypatch):
-        """When the flag is on, _get_learning_router tries to instantiate."""
+        """When the flag is on, the registry attempts to instantiate."""
+        from core.llm.learning_router_registry import learning_router_enabled
         monkeypatch.setenv("ATOM_LEARNING_ROUTER", "true")
-        from integrations.chat_routes import _learning_router_enabled
 
-        assert _learning_router_enabled() is True
-        # _get_learning_router will try to instantiate; may fail without a real
-        # DB, but the flag check is what matters for the gate.
+        assert learning_router_enabled() is True
+        # get_learning_router_instance will try to instantiate; may fail without
+        # a real DB, but the flag check is what matters for the gate.
+
+
+class TestLearningRouterSingleton:
+    """The keystone fix: the router must be a process-wide singleton so
+    predictors accumulate across requests instead of being garbage-collected."""
+
+    def test_singleton_returns_same_instance(self, monkeypatch):
+        """Two calls to get_learning_router_instance return the same object."""
+        from core.llm.learning_router_registry import (
+            get_learning_router_instance, reset_learning_router_instance,
+        )
+        monkeypatch.setenv("ATOM_LEARNING_ROUTER", "true")
+        reset_learning_router_instance()
+
+        r1 = get_learning_router_instance()
+        r2 = get_learning_router_instance()
+        assert r1 is not None, "expected a router when flag is on"
+        assert r1 is r2, "singleton must return the same object across calls"
+
+    def test_flag_off_returns_none(self, monkeypatch):
+        """When the flag is off, the registry returns None."""
+        from core.llm.learning_router_registry import (
+            get_learning_router_instance, reset_learning_router_instance,
+        )
+        monkeypatch.delenv("ATOM_LEARNING_ROUTER", raising=False)
+        reset_learning_router_instance()
+        assert get_learning_router_instance() is None
 
 
 class TestOutcomeObservationHook:
@@ -93,7 +123,7 @@ class TestOutcomeObservationHook:
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
         # Patch the helper that builds the router + the imports inside the hook.
-        with patch("integrations.chat_routes._get_learning_router", return_value=FakeRouter()):
+        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="gpt-4o", provider_id="openai",
                 task_type="chat", content="Here is a thorough answer. " * 30,
@@ -128,7 +158,7 @@ class TestOutcomeObservationHook:
         handler.tenant_id = "t1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
-        with patch("integrations.chat_routes._get_learning_router", return_value=FakeRouter()):
+        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="mini", provider_id="openai",
                 task_type="chat", content="partial...",
@@ -158,7 +188,7 @@ class TestOutcomeObservationHook:
         handler.tenant_id = "t1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
-        with patch("integrations.chat_routes._get_learning_router", return_value=FakeRouter()):
+        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="mini", provider_id="openai",
                 task_type="chat", content=None,
@@ -181,7 +211,7 @@ class TestOutcomeObservationHook:
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
 
-        with patch("integrations.chat_routes._get_learning_router", return_value=None):
+        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=None):
             # Must not raise.
             await BYOKHandler._record_outcome_feedback(
                 handler, model="gpt-4o", provider_id="openai",

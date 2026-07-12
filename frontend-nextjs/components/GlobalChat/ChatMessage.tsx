@@ -21,7 +21,8 @@ import {
     MessageCircle,
     ThumbsDown,
     ThumbsUp,
-    MessageSquare
+    MessageSquare,
+    RefreshCw
 } from "lucide-react";
 
 export interface ChatAction {
@@ -68,9 +69,10 @@ interface ChatMessageProps {
     message: ChatMessageData;
     onActionClick: (action: ChatAction) => void;
     onFeedback?: (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => void;
+    onRegenerate?: (messageId: string) => void;
 }
 
-export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageProps) {
+export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }: ChatMessageProps) {
     const isUser = message.type === 'user';
     const [showComment, setShowComment] = useState(false);
     const [comment, setComment] = useState('');
@@ -162,18 +164,29 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
                 </span>
 
                 {/* Feedback Controls for Assistant */}
-                {!isUser && onFeedback && (
+                {!isUser && (onFeedback || onRegenerate) && (
                     <div className="flex flex-col mt-2 px-1">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onFeedback(message.id, 'thumbs_up')}>
-                                <ThumbsUp className="h-3 w-3 text-muted-foreground hover:text-green-600" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onFeedback(message.id, 'thumbs_down')}>
-                                <ThumbsDown className="h-3 w-3 text-muted-foreground hover:text-red-600" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowComment(!showComment)}>
-                                <MessageSquare className={cn("h-3 w-3 transition-colors", showComment ? "text-blue-500" : "text-muted-foreground hover:text-blue-500")} />
-                            </Button>
+                            {onFeedback && (
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onFeedback(message.id, 'thumbs_up')}>
+                                    <ThumbsUp className="h-3 w-3 text-muted-foreground hover:text-green-600" />
+                                </Button>
+                            )}
+                            {onFeedback && (
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onFeedback(message.id, 'thumbs_down')}>
+                                    <ThumbsDown className="h-3 w-3 text-muted-foreground hover:text-red-600" />
+                                </Button>
+                            )}
+                            {onRegenerate && (
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onRegenerate(message.id)} title="Regenerate response">
+                                    <RefreshCw className="h-3 w-3 text-muted-foreground hover:text-blue-500" />
+                                </Button>
+                            )}
+                            {onFeedback && (
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowComment(!showComment)}>
+                                    <MessageSquare className={cn("h-3 w-3 transition-colors", showComment ? "text-blue-500" : "text-muted-foreground hover:text-blue-500")} />
+                                </Button>
+                            )}
                         </div>
 
                         {showComment && (
