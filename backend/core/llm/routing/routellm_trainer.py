@@ -22,9 +22,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -68,28 +69,20 @@ class TrainingConfig:
     """Configuration for router training"""
     # Model selection
     model_type: ModelType = ModelType.RANDOM_FOREST
-    use_ensemble: bool = False
 
     # Training parameters
     test_size: float = 0.2  # Train/test split
     random_seed: int = 42
     min_samples: int = 100  # Minimum samples to train
-    max_samples: int = 100000  # Maximum samples for training
 
     # Model hyperparameters
     n_estimators: int = 100  # For random forest
     max_depth: int = 10
-    learning_rate: float = 0.001
-    epochs: int = 10
-
-    # Evaluation
-    min_accuracy: float = 0.7  # Minimum accuracy to deploy
-    cross_validation: bool = True
-    cv_folds: int = 5
+    learning_rate: float = 0.001  # For NEURAL_NETWORK (MLPClassifier)
+    epochs: int = 10  # For NEURAL_NETWORK (MLPClassifier max_iter)
 
     # Persistence
     model_path: str = "data/router_models"
-    model_version: str = "latest"
 
     # A/B testing
     ab_test_confidence: float = 0.95  # Confidence threshold for A/B test
@@ -290,6 +283,7 @@ class RouteLLMTrainer:
                 result.precision = precision_score(y_test, y_pred)
                 result.recall = recall_score(y_test, y_pred)
                 result.f1_score = f1_score(y_test, y_pred)
+                result.confusion_matrix = confusion_matrix(y_test, y_pred)
             except Exception as e:
                 logger.warning(f"Could not calculate precision/recall: {e}")
 
@@ -315,7 +309,12 @@ class RouteLLMTrainer:
         return result
 
     def _create_model(self):
-        """Create model instance based on configuration"""
+        """Create model instance based on configuration.
+
+        All estimators are CPU-only scikit-learn. NEURAL_NETWORK is a small
+        MLPClassifier; ENSEMBLE is a soft-vote over RandomForest + Logistic
+        Regression.
+        """
         if self.config.model_type == ModelType.RANDOM_FOREST:
             return RandomForestClassifier(
                 n_estimators=self.config.n_estimators,
@@ -327,6 +326,33 @@ class RouteLLMTrainer:
             return LogisticRegression(
                 random_state=self.config.random_seed,
                 max_iter=1000
+            )
+        elif self.config.model_type == ModelType.NEURAL_NETWORK:
+            # Small MLP — CPU-only. learning_rate/epochs come from config so
+            # those fields are not dead.
+            return MLPClassifier(
+                hidden_layer_sizes=(64, 32),
+                learning_rate_init=self.config.learning_rate,
+                max_iter=self.config.epochs,
+                random_state=self.config.random_seed,
+            )
+        elif self.config.model_type == ModelType.ENSEMBLE:
+            # Soft-vote over RF + LR. predict_proba is delegated so predict()
+            # in this trainer still works.
+            return VotingClassifier(
+                estimators=[
+                    ("rf", RandomForestClassifier(
+                        n_estimators=self.config.n_estimators,
+                        max_depth=self.config.max_depth,
+                        random_state=self.config.random_seed,
+                        n_jobs=-1,
+                    )),
+                    ("lr", LogisticRegression(
+                        random_state=self.config.random_seed,
+                        max_iter=1000,
+                    )),
+                ],
+                voting="soft",
             )
         else:
             raise ValueError(f"Unsupported model type: {self.config.model_type}")
@@ -508,7 +534,8 @@ class RouterEvaluator:
         improvement = learning_mean - control_mean
 
         # Statistical test
-        if len(control_outcomes) >= 30 and len(learning_outcomes) >= 30:
+        min_n = self.config.min_ab_samples
+        if len(control_outcomes) >= min_n and len(learning_outcomes) >= min_n:
             t_stat, p_value = stats.ttest_ind(learning_outcomes, control_outcomes)
             significant = p_value < (1 - self.config.ab_test_confidence)
         else:

@@ -10575,3 +10575,50 @@ from core.models_board import (  # noqa: E402,F401
     BoardColumn,
     BoardTask,
 )
+
+
+# ============================================================================
+# LLM Routing — feedback persistence for learning-based routing
+# ============================================================================
+
+class LLMRoutingFeedback(Base):
+    """Persisted routing feedback for the learning-based LLM router.
+
+    Each row is one observed outcome of a routing decision, used to train
+    per-model satisfaction predictors. Survives process restarts so learned
+    data is not lost (the in-memory ``_preference_data`` is hydrated from this
+    table on startup). The ``prompt_features`` column stores the 10 features
+    captured at route time so training can reproduce them without relying on
+    the transient ``_routing_decisions`` map.
+    """
+
+    __tablename__ = "llm_routing_feedback"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    routing_result_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    task_type = Column(String, nullable=False, index=True)
+    model_id = Column(String, nullable=False, index=True)
+
+    # Outcome
+    success = Column(Boolean, nullable=False)
+    quality_satisfied = Column(Boolean, nullable=False)
+    cost_within_budget = Column(Boolean, nullable=False)
+
+    # Optional metrics
+    user_satisfaction = Column(Float, nullable=True)
+    actual_cost = Column(Float, nullable=True)
+    actual_latency_ms = Column(Float, nullable=True)
+
+    # Prompt features captured at decision time (the 10-feature vector). Stored
+    # as JSON so training reproduces the exact features the decision used.
+    prompt_features = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_llm_routing_fb_tenant_task", "tenant_id", "task_type", "created_at"),
+    )

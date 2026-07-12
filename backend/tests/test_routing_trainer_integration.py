@@ -218,10 +218,8 @@ class TestRouterLearnsRealWeights:
                             patched_init)
 
         router = learning_llm_router.LearningBasedRouter(Mock())
-        # Lower the thresholds so the test doesn't need 100 feedbacks.
-        router._min_training_samples = 30
-        # And let the trainer actually train on that many samples.
-        router._get_trainer().config.min_samples = 30
+        # Lower the threshold so the test doesn't need 100 feedbacks.
+        router._min_samples_per_model = 30
         return router
 
     def _feedback(self, model_id, success, quality, tenant="t1",
@@ -294,7 +292,7 @@ class TestRouterLearnsRealWeights:
         # Set a tiny cap to exercise eviction without a huge loop.
         router._max_preference_data_per_key = 50
         # Disable retraining to isolate the trimming behavior.
-        router._min_training_samples = 10_000_000
+        router._min_samples_per_model = 10_000_000
         for _ in range(120):
             await router.record_feedback(
                 self._feedback("gpt-4o", True, True, tenant="t3", task="reasoning")
@@ -431,7 +429,6 @@ class TestLearningActuallyRoutes:
         router = learning_llm_router.LearningBasedRouter(Mock())
         # Low thresholds so tests don't need hundreds of feedback records.
         router._min_samples_per_model = 15
-        router._min_training_samples = 15
         return router
 
     def _fb(self, model_id, success, quality, tenant="t1", task="code_generation",
@@ -579,7 +576,6 @@ class TestPromptFeatureCapture:
 
         router = learning_llm_router.LearningBasedRouter(Mock())
         router._min_samples_per_model = 15
-        router._min_training_samples = 15
         return router
 
     def _fb(self, result_id, model_id, success, quality, tenant="t1",
