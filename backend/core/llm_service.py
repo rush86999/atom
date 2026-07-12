@@ -301,6 +301,14 @@ class LLMService:
         input_tokens = self.estimate_tokens(prompt + system_instruction, model)
         output_tokens = self.estimate_tokens(response_text, model)
 
+        # Surface the concrete model/provider BPC actually selected (not the
+        # "auto" input). BYOKHandler stashes these before returning; fall back
+        # to the input model if the stash is empty (defensive).
+        used_model = getattr(handler, "_last_used_model", None) or model
+        used_provider = getattr(handler, "_last_used_provider", None)
+        if used_provider is None:
+            used_provider = self.get_provider(used_model).value
+
         return {
             "success": True,
             "content": response_text,
@@ -310,8 +318,8 @@ class LLMService:
                 "completion_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens
             },
-            "model": model,
-            "provider": self.get_provider(model).value
+            "model": used_model,
+            "provider": used_provider
         }
 
     async def generate_structured_response(

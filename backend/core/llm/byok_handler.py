@@ -272,6 +272,17 @@ class BYOKHandler:
         self.health_monitor = get_provider_health_monitor()
         self.async_clients = self.async_clients or {} # Ensure it exists if _initialize_clients failed
 
+        # Last concrete (model, provider) selected by BPC and actually called.
+        # generate_response returns only the text, so callers (LLMService.
+        # generate_completion) read these to surface the real model in the
+        # response and key feedback correctly (instead of the "auto" input).
+        self._last_used_model: Optional[str] = None
+        self._last_used_provider: Optional[str] = None
+        # routing_result_id stashed by _rerank_with_learning when it computed
+        # per-decision prompt features, so the outcome hook can recover them
+        # (train/serve consistency). None when re-ranking didn't fire.
+        self._pending_routing_result_id: Optional[str] = None
+
         # Thread safety for lazy embedding init
         self._embedding_initialized = False
         self._embedding_init_lock = threading.Lock()
@@ -1294,7 +1305,15 @@ class BYOKHandler:
                         model=model, provider_id=provider_id, task_type=task_type,
                         content=result, finish_reason=finish_reason,
                         success=True, cost=observed_cost, latency_ms=latency_ms,
+                        routing_result_id=self._pending_routing_result_id,
                     )
+                    self._pending_routing_result_id = None  # consume
+
+                    # Stash the concrete model/provider so generate_completion
+                    # can surface the real model (not the "auto" input) in its
+                    # return dict — for the model badge and correct feedback keying.
+                    self._last_used_model = model
+                    self._last_used_provider = provider_id
 
                     return result
 
@@ -1315,7 +1334,9 @@ class BYOKHandler:
                         content=None, finish_reason=None,
                         success=False, cost=None, latency_ms=latency_ms,
                         exception=attempt_err,
+                        routing_result_id=self._pending_routing_result_id,
                     )
+                    self._pending_routing_result_id = None  # consume
                     continue # Try next provider
             
             return f"All providers failed. Last error: {str(last_error)}"
@@ -1336,6 +1357,7 @@ class BYOKHandler:
         latency_ms: float,
         exception: Optional[Exception] = None,
         schema_error: bool = False,
+        routing_result_id: Optional[str] = None,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
@@ -1345,6 +1367,11 @@ class BYOKHandler:
         ``ATOM_LEARNING_ROUTER`` is off or when the router can't be
         instantiated. Never raises — failures are logged and swallowed so the
         hot generation path is unaffected.
+
+        ``routing_result_id``: when provided (stashed by _rerank_with_learning),
+        the feedback carries the id so record_feedback recovers the real
+        per-decision prompt features — eliminating train/serve skew. When None,
+        a random id is used (feedback falls back to task-level feature defaults).
         """
         if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
             return
@@ -1364,8 +1391,12 @@ class BYOKHandler:
                 schema_error=schema_error,
                 exception=exception,
             )
+            # Use the stashed decision id when available so feedback recovers
+            # the real prompt features (train/serve consistency). Fall back to
+            # a random id (task-level feature defaults) when re-ranking didn't fire.
+            decision_id = routing_result_id or str(uuid.uuid4())
             fb = LearningBasedRouter.build_feedback(
-                routing_result_id=str(uuid.uuid4()),
+                routing_result_id=decision_id,
                 tenant_id=self.tenant_id or "default",
                 model_id=model,
                 task_type=self._adapt_task_type(task_type),
@@ -1465,9 +1496,25 @@ class BYOKHandler:
             # Stable sort by learned score descending (ties keep BPC order).
             scored.sort(key=lambda t: -t[0])
             reranked = [(pid, mdl) for _, pid, mdl in scored]
+
+            # Mint a routing_result_id and stash the prompt features under it
+            # so the outcome-observation hook can recover the REAL features
+            # (not task-level defaults) when feedback arrives. This closes the
+            # train/serve-skew gap: predictors train on the same features used
+            # to make the decision.
+            import uuid as _uuid
+            decision_id = str(_uuid.uuid4())
+            learning_router._routing_decisions[decision_id] = features
+            # Bound the decision store (R17-2 pattern).
+            if len(learning_router._routing_decisions) > learning_router._max_routing_decisions:
+                _overflow = len(learning_router._routing_decisions) - learning_router._max_routing_decisions
+                for _stale in list(learning_router._routing_decisions.keys())[:_overflow]:
+                    del learning_router._routing_decisions[_stale]
+            self._pending_routing_result_id = decision_id
+
             logger.info(
                 f"[LearningRouter] Re-ranked {len(reranked)} candidates for "
-                f"{cache_key} (learned signal applied)"
+                f"{cache_key} (learned signal applied, decision_id={decision_id[:8]})"
             )
             return reranked
         except Exception as e:
@@ -2174,7 +2221,8 @@ class BYOKHandler:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
-        db = None
+        db = None,
+        task_type: Optional[str] = "chat",
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -2279,7 +2327,7 @@ class BYOKHandler:
 
                 # Learning-router outcome observation (streaming success).
                 await self._record_outcome_feedback(
-                    model=model, provider_id=attempt_provider_id, task_type=None,
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
                     content="(streamed)", finish_reason="stop",
                     success=True, cost=None, latency_ms=latency_ms,
                 )
@@ -2300,7 +2348,7 @@ class BYOKHandler:
 
                 # Learning-router outcome observation (streaming failure).
                 await self._record_outcome_feedback(
-                    model=model, provider_id=attempt_provider_id, task_type=None,
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
                     content=None, finish_reason=None,
                     success=False, cost=None, latency_ms=0.0,
                     exception=e,
