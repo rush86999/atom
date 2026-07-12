@@ -186,6 +186,8 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     content: data.message,
                     timestamp: new Date(),
                     actions: data.metadata?.actions || data.suggested_actions || [],
+                    model: data.model,
+                    provider: data.provider,
                 };
                 setMessages(prev => [...prev, agentMsg]);
             } else {
@@ -207,11 +209,15 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     const handleFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.post("/api/atom-agent/feedback", {
+            // Look up the message so feedback carries which model produced it —
+            // this closes the loop for learning-based routing.
+            const ratedMessage = messages.find(m => m.id === messageId);
+            const response = await apiClient.post("/api/chat/feedback", {
                 message_id: messageId,
                 feedback: type,
                 comment: comment,
-                workspace_id: "default"
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
             });
 
             const data = (response as any).data || response;
