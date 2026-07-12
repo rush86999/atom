@@ -43,20 +43,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get the token from the request
-  // const token = await getToken({
-  //   req: request,
-  //   secret: process.env.NEXTAUTH_SECRET || "atom_secure_secret_2025_fixed_key",
-  // });
+  // Client-side route protection: check for the auth_token cookie (set on
+  // login by lib/auth.ts). This is a first-line gate — the real security
+  // enforcement is API-level (Depends(get_current_user) on every backend
+  // endpoint). This middleware prevents unauthenticated users from seeing
+  // page shells; without it, every route is public.
+  const authToken = request.cookies.get('auth_token')?.value;
+  const sessionCookie = request.cookies.get('next-auth.session-token')?.value;
 
-  // If there's no token and the route is not public, redirect to sign in
-  // if (!token) {
-  //   const signInUrl = new URL('/auth/signin', request.url);
-  //   signInUrl.searchParams.set('callbackUrl', request.url);
-  //   return NextResponse.redirect(signInUrl);
-  // }
+  if (!authToken && !sessionCookie) {
+    const signInUrl = new URL('/login', request.url);
+    signInUrl.searchParams.set('callbackUrl', request.url);
+    return NextResponse.redirect(signInUrl);
+  }
 
-  // User is authenticated, allow the request to proceed
+  // User has a token cookie, allow the request to proceed
   return NextResponse.next();
 }
 

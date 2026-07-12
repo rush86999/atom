@@ -108,13 +108,13 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const fetchUrl = `/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
-            const response = await fetch(fetchUrl);
+            // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`);
+            const data = (response as any).data || response;
 
-            if (response.ok) {
+            if (data && data.messages) {
                 try {
-                    const data = await response.json();
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
                         const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => ({
@@ -133,8 +133,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setMessages([welcomeMsg]);
                 }
             } else {
-                // Clear stale session so next open creates a fresh one
-                localStorage.removeItem('atom_chat_session_id');
+                // No messages or error — show welcome
                 setMessages([welcomeMsg]);
             }
         } catch (error) {
