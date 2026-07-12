@@ -9,6 +9,12 @@
 
 ## 🚀 Recent Updates (July 2026)
 
+- **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:
+  - **Phase 2 (GraphRAG)**: Multi-hop scored expansion wired into `local_search`; `build_communities` populates the community table; `leidenalg` dependency added (with Louvain fallback).
+  - **Phase 4 (Federation)**: New `api/routes/federation_routes.py` exposes DIDs, verifiable credentials, zero-trust verification, and security health/stats at `/api/federation/...` (the previously broken import in `main_api_app.py` now resolves).
+  - **Phase 5 (Orchestration)**: EventBus lifecycle events published by every live workflow; Conductor Agent endpoint at `POST /api/v1/workflows/conductor/execute` with 5 execution strategies; state-machine + rollback integrated.
+  - **Phase 1 (Memory)**: POMDP-backed consolidation service now wired correctly (was importing the legacy class) and scheduled on a 6-hour background loop (was never invoked).
+  - **Bug fix**: Word-doc canvas→file sync was crashing (`office_sync_service.py` missing `import docx`).
 - **Learning LLM Router**: ✨ NEW - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes. A genuine end-to-end learning loop: the router observes response quality (truncation, schema failures, refusals), collects user feedback (thumbs up/down + regenerate), and re-ranks model candidates as data accumulates. Flag-gated (`ATOM_LEARNING_ROUTER`, default off). DB-persisted feedback (`llm_routing_feedback` table, migration `20260711`). Live `POST /api/chat/feedback` + `GET /api/chat/routing-stats` endpoints. Model visibility badge on chat messages + routing dashboard at `/settings/routing`.
   - [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md) - Architecture, the singleton registry, per-model predictors, quality assessment, the flag, the user journey, and honest limitations.
 - **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents without native Office/LibreOffice dependencies.

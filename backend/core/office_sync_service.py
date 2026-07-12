@@ -17,6 +17,8 @@ from typing import Any, Dict, Optional
 import uuid
 from sqlalchemy.orm import Session
 
+import docx  # python-docx — used for Word-doc canvas→file sync (line ~71)
+
 from core.office_service import OfficeService
 from core.models import CanvasAudit
 from core.websockets import manager as ws_manager
