@@ -235,30 +235,18 @@ async def send_chat_message(
 
 def _learning_router_enabled() -> bool:
     """Whether the learning router is enabled (flag-gated)."""
-    import os
-    return os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true"
+    from core.llm.learning_router_registry import learning_router_enabled
+    return learning_router_enabled()
 
 
 def _get_learning_router():
-    """Lazily instantiate the learning router + hydrate from DB.
+    """Return the process-wide learning router singleton (or None).
 
-    Returns None when the learning router is disabled or instantiation fails.
+    Uses the singleton registry so predictors accumulate across requests
+    instead of being trained into throwaway instances.
     """
-    if not _learning_router_enabled():
-        return None
-    try:
-        from core.learning_llm_router import get_learning_router
-        from core.database import SessionLocal
-        db = SessionLocal()
-        router = get_learning_router(db)
-        try:
-            router.load_feedback_from_db()
-        except Exception as load_err:
-            logger.warning(f"Could not hydrate learning router from DB: {load_err}")
-        return router
-    except Exception as e:
-        logger.warning(f"Could not instantiate learning router: {e}")
-        return None
+    from core.llm.learning_router_registry import get_learning_router_instance
+    return get_learning_router_instance()
 
 
 @router.post("/feedback")
@@ -304,7 +292,7 @@ async def submit_chat_feedback(
 
         fb = LearningBasedRouter.build_feedback(
             routing_result_id=request.message_id,
-            tenant_id=str(current_user.id),
+            tenant_id=_resolve_tenant_id(current_user.id),
             model_id=request.model or "unknown",
             task_type="question_answering",  # chat path default
             quality=quality,
@@ -336,11 +324,36 @@ async def get_routing_stats(
         return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
 
     try:
-        stats = await learning_router.get_routing_statistics(str(current_user.id))
+        stats = await learning_router.get_routing_statistics(_resolve_tenant_id(current_user.id))
         return {"enabled": True, "stats": stats}
     except Exception as e:
         logger.warning(f"Failed to get routing stats: {e}")
         return {"enabled": True, "stats": {"error": str(e)}}
+
+
+def _resolve_tenant_id(user_id) -> str:
+    """Resolve the tenant id for a user, matching the BYOKHandler's tenant key.
+
+    The outcome-observation path records feedback under the BYOKHandler's
+    ``self.tenant_id`` (workspace-scoped). To keep explicit user feedback in
+    the same namespace (so the dashboard aggregates correctly), resolve the
+    user → workspace → tenant here. Falls back to the string user id when the
+    lookup fails (single-user/dev setups).
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import Workspace, Tenant
+        with get_db_session() as db:
+            ws = db.query(Workspace).filter(Workspace.owner_id == user_id).first()
+            if ws and ws.tenant_id:
+                return ws.tenant_id
+            # Fall back: any workspace the user belongs to.
+            ws = db.query(Workspace).first()
+            if ws and ws.tenant_id:
+                return ws.tenant_id
+    except Exception:
+        pass
+    return str(user_id)
 
 
 

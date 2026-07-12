@@ -59,15 +59,6 @@ class ModelCapability(str, Enum):
     HIGH_QUALITY = "high_quality"
 
 
-class RoutingDecision(str, Enum):
-    """Routing decision outcome"""
-
-    ROUTE_SUCCESS = "route_success"  # Request routed successfully
-    ROUTE_FAILURE = "route_failure"  # Routing failed, used fallback
-    QUALITY_FAILURE = "quality_failure"  # Routed but quality insufficient
-    COST_OVERAGE = "cost_overage"  # Routed but exceeded budget
-
-
 @dataclass
 class ModelSpec:
     """Model specification for routing"""
@@ -136,6 +127,25 @@ class RoutingFeedback:
     actual_cost: Optional[float] = None
     actual_latency_ms: Optional[float] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def _check_cost_within_budget(tenant_id: str, actual_cost: Optional[float]) -> bool:
+    """Whether an observed cost is within the tenant's budget.
+
+    Defaults to True (within budget) when no cost was observed or when budget
+    enforcement can't be reached — a missing signal should not mark a response
+    as over-budget. When the cost IS known and the tenant has exceeded their
+    budget (per the existing ``llm_usage_tracker``), this returns False so the
+    predictor can learn that expensive models hurt budget adherence.
+    """
+    if actual_cost is None:
+        return True
+    try:
+        from core.llm_usage_tracker import llm_usage_tracker
+        return not llm_usage_tracker.is_budget_exceeded(tenant_id)
+    except Exception:
+        # Budget tracker unavailable — don't penalize.
+        return True
 
 
 class LearningBasedRouter:
@@ -781,16 +791,19 @@ class LearningBasedRouter:
         candidates: List[ModelSpec],
         max_latency_ms: int,
     ) -> List[ModelSpec]:
-        """Filter models by latency requirements"""
-        # Simplified: use speed_score as proxy for latency
-        # speed_score 0.9 = ~50ms, 0.5 = ~500ms
+        """Filter models by latency requirements.
+
+        Uses speed_score as a proxy for latency: a model with speed_score ``s``
+        is estimated at roughly ``100 / s`` ms (so 1.0 ≈ 100ms, 0.5 ≈ 200ms).
+        Models whose estimated latency is within ``max_latency_ms`` are kept.
+        """
         fast_models = []
-
         for model in candidates:
-            # Convert speed_score to approximate latency
-            if model.speed_score >= 0.7:
+            if model.speed_score <= 0:
+                continue
+            estimated_latency_ms = 100.0 / model.speed_score
+            if estimated_latency_ms <= max_latency_ms:
                 fast_models.append(model)
-
         return fast_models
 
     def _score_candidates(
@@ -1153,7 +1166,7 @@ class LearningBasedRouter:
             task_type=task_type,
             success=quality.success,
             quality_satisfied=quality.quality_satisfied,
-            cost_within_budget=actual_cost is not None,  # no budget model yet; true if cost known
+            cost_within_budget=_check_cost_within_budget(tenant_id, actual_cost),
             user_satisfaction=quality.quality_score,
             actual_cost=actual_cost,
             actual_latency_ms=actual_latency_ms,
@@ -1217,10 +1230,19 @@ class LearningBasedRouter:
         return loaded
 
     def _get_per_model_router(self, cache_key: str) -> PerModelRouter:
-        """Get (or lazily create) the per-model predictor set for a tenant/task."""
+        """Get (or lazily create) the per-model predictor set for a tenant/task.
+
+        On first creation for any key, restore persisted predictors from disk
+        (``load_all``) so learned models survive restarts. The shared model
+        directory means all PerModelRouter instances see the same restored set.
+        """
         pmr = self._per_model_routers.get(cache_key)
         if pmr is None:
             pmr = PerModelRouter()
+            try:
+                pmr.load_all()
+            except Exception as e:
+                logger.debug(f"Could not load persisted predictors: {e}")
             self._per_model_routers[cache_key] = pmr
         return pmr
 

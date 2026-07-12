@@ -3128,13 +3128,11 @@ try:
         logger.warning(f"Skill composition routes not found: {e}")
 
     # 15.3 Atom Agent Streaming Routes
-    try:
-        from api.routes.atom_agent_routes import router as atom_agent_router
-
-        app.include_router(atom_agent_router, prefix="", tags=["Atom Agent"])
-        logger.info("✓ Atom Agent Streaming Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Atom Agent routes not found: {e}")
+    # NOTE: The real atom-agent endpoints live at core/atom_agent_endpoints.py
+    # and are mounted via the lazy integration registry (lazy_integration_registry.py).
+    # The old api/routes/atom_agent_routes.py re-export shim never existed and
+    # always failed to import, logging a spurious warning on every startup.
+    # Removed to avoid the noise; the lazy-registry path is the source of truth.
 
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:

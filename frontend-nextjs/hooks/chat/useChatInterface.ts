@@ -240,6 +240,39 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
+    const handleRegenerate = async (messageId: string) => {
+        // Find the assistant message being regenerated and the user message
+        // that preceded it, so we can re-send the original prompt.
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx < 0) return;
+        // Walk back to the previous user message.
+        let userIdx = idx - 1;
+        while (userIdx >= 0 && messages[userIdx].type !== 'user') userIdx -= 1;
+        if (userIdx < 0) return;
+        const originalPrompt = messages[userIdx].content;
+
+        // Record an implicit negative signal for the response being regenerated
+        // (the user asked for a different answer = the previous one wasn't good).
+        try {
+            const { apiClient } = await import('../../lib/api-client');
+            const ratedMessage = messages[idx];
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: "thumbs_down",
+                comment: "regenerated",
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+            });
+        } catch {
+            // Non-fatal — the regenerate still proceeds.
+        }
+
+        // Remove everything from the user message onward (the old exchange)
+        // and re-send the original prompt to get a fresh response.
+        setMessages(prev => prev.slice(0, userIdx));
+        await handleSend(originalPrompt);
+    };
+
     const handleStop = () => {
         setIsProcessing(false);
         const stopMsg: ChatMessageData = {
@@ -364,6 +397,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         handleStop,
         handleTitleSave,
         handleFeedback,
+        handleRegenerate,
         uploadFile,
         toast,
         providerError,
