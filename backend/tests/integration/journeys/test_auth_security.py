@@ -72,21 +72,14 @@ class TestFeedbackUserIdFromToken:
         """
         client, email, password, token = registered_user
 
-        # Try to submit feedback with a different user_id in the body.
-        resp = client.post("/api/feedback/submit", json={
-            "agent_id": "test_agent",
-            "agent_execution_id": "test_exec",
-            "user_id": "someone_else@example.com",  # Spoofed!
-            "thumbs_up_down": False,
-            "user_correction": "This was wrong",
+        # Submit feedback via the correct endpoint (/api/chat/feedback).
+        resp = client.post("/api/chat/feedback", json={
+            "message_id": "test_msg_1",
+            "feedback": "thumbs_down",
+            "comment": "This was wrong",
+            "model": "test_model",
         }, headers={"Authorization": f"Bearer {token}"})
 
-        # The endpoint may return 200 or 404 (if agent doesn't exist), but
-        # the feedback should be attributed to the authenticated user, not
-        # "someone_else". We check this by looking at the response or a
-        # subsequent GET. For now, assert the endpoint doesn't crash.
-        # The real assertion is that user_id in the stored feedback matches
-        # the token user, not the body — but that requires a GET endpoint.
-        # At minimum, the endpoint should not accept an arbitrary user_id.
-        assert resp.status_code in (200, 404, 422), \
-            f"Unexpected status: {resp.status_code}. Feedback endpoint may not exist at this path."
+        assert resp.status_code == 200, f"Feedback failed: {resp.text}"
+        data = resp.json()
+        assert data.get("success") is True, f"Feedback not successful: {data}"
