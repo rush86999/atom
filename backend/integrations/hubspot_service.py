@@ -11,6 +11,7 @@ import httpx
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
+from core.integration_http import IntegrationHTTP
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ class HubSpotService(IntegrationService):
         self.access_token = config.get("access_token")
         self.refresh_token = config.get("refresh_token")
         self.client = httpx.AsyncClient(timeout=30.0)
+        # IntegrationHTTP wrapper for resilient API calls (circuit breaker,
+        # rate limiting, retries, health monitoring).
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         await self.client.aclose()

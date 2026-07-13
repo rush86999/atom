@@ -111,7 +111,7 @@ class OAuthUserContext:
             Updated connection data with new access token
         """
         try:
-            from api.oauth_handler import oauth_handler
+            from core.oauth_handler import oauth_handler
 
             refresh_token = connection.get("refresh_token")
             if not refresh_token:
