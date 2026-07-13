@@ -1,4 +1,5 @@
 import httpx
+from core.integration_http import IntegrationHTTP
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -22,6 +23,7 @@ class MailchimpService(IntegrationService):
         self.client_id = config.get("client_id")
         self.client_secret = config.get("client_secret")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         await self.client.aclose()
@@ -126,14 +128,14 @@ class MailchimpService(IntegrationService):
             "redirect_uri": redirect_uri,
             "code": code
         }
-        response = await self.client.post(url, data=data)
+        response = await self.http.post("mailchimp", url, data=data)
         response.raise_for_status()
         return response.json()
 
     async def get_metadata(self, access_token: str) -> Dict[str, Any]:
         url = "https://login.mailchimp.com/oauth2/metadata"
         headers = {"Authorization": f"OAuth {access_token}"}
-        response = await self.client.get(url, headers=headers)
+        response = await self.http.get("mailchimp", url, headers=headers)
         response.raise_for_status()
         return response.json()
 
@@ -141,7 +143,7 @@ class MailchimpService(IntegrationService):
         url = f"{self._get_base_url(server_prefix)}/lists"
         headers = self._get_headers(access_token)
         params = {"count": limit}
-        response = await self.client.get(url, headers=headers, params=params)
+        response = await self.http.get("mailchimp", url, headers=headers, params=params)
         response.raise_for_status()
         return response.json().get("lists", [])
 
@@ -151,14 +153,14 @@ class MailchimpService(IntegrationService):
         params = {"count": limit}
         if status:
             params["status"] = status
-        response = await self.client.get(url, headers=headers, params=params)
+        response = await self.http.get("mailchimp", url, headers=headers, params=params)
         response.raise_for_status()
         return response.json().get("campaigns", [])
 
     async def get_account_info(self, access_token: str, server_prefix: str) -> Dict[str, Any]:
         url = f"{self._get_base_url(server_prefix)}/"
         headers = self._get_headers(access_token)
-        response = await self.client.get(url, headers=headers)
+        response = await self.http.get("mailchimp", url, headers=headers)
         response.raise_for_status()
         return response.json()
 

@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Box, Heading, Container, Text, Button, VStack, HStack, Input, Select, Checkbox, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Badge } from '@chakra-ui/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, RefreshCw, Cable, Settings2 } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
 
@@ -84,7 +88,6 @@ const LocalModelsPage: React.FC = () => {
             const resp = await apiClient.get(`/api/local-models/${providerId}/models`);
             const data = (resp as any).data || resp;
             setDiscoveredModels({ ...discoveredModels, [providerId]: data.models || [] });
-            // Also fetch existing capabilities.
             const capResp = await apiClient.get(`/api/local-models/${providerId}/capabilities`);
             const capData = (capResp as any).data || capResp;
             setCapabilities({ ...capabilities, [providerId]: Array.isArray(capData) ? capData : [] });
@@ -108,37 +111,40 @@ const LocalModelsPage: React.FC = () => {
     return (
         <Layout>
             <Head><title>Local Models | Atom</title></Head>
-            <Container maxW="container.xl" py={8}>
-                <Box mb={8}>
-                    <Heading as="h1" size="xl" mb={2}>Local Models</Heading>
-                    <Text color="gray.500">Register local LLM backends (Ollama, LM Studio, vLLM) to use them in routing and the learning system.</Text>
-                </Box>
+            <div className="container mx-auto max-w-4xl py-8">
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold">Local Models</h1>
+                    <p className="text-muted-foreground mt-1">Register local LLM backends (Ollama, LM Studio, vLLM) to use them in routing and the learning system.</p>
+                </div>
 
-                <Box mb={6}>
-                    <Button leftIcon={<Plus className="h-4 w-4" />} colorScheme="blue" onClick={() => setShowAddForm(!showAddForm)}>
-                        Add Provider
+                <div className="mb-6">
+                    <Button onClick={() => setShowAddForm(!showAddForm)}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Provider
                     </Button>
-                </Box>
+                </div>
 
                 {showAddForm && (
                     <Card className="mb-6">
                         <CardContent className="pt-6 space-y-4">
-                            <HStack>
+                            <div className="flex gap-4">
                                 <Input placeholder="Name (e.g. 'My Ollama')" value={newProvider.name} onChange={(e: any) => setNewProvider({ ...newProvider, name: e.target.value })} />
-                                <Select value={newProvider.provider_type} onChange={(e: any) => setNewProvider({ ...newProvider, provider_type: e.target.value })} width="150px">
-                                    <option value="ollama">Ollama</option>
-                                    <option value="lm_studio">LM Studio</option>
-                                    <option value="vllm">vLLM</option>
-                                    <option value="localai">LocalAI</option>
-                                    <option value="custom">Custom</option>
+                                <Select value={newProvider.provider_type} onValueChange={(v: any) => setNewProvider({ ...newProvider, provider_type: v })}>
+                                    <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ollama">Ollama</SelectItem>
+                                        <SelectItem value="lm_studio">LM Studio</SelectItem>
+                                        <SelectItem value="vllm">vLLM</SelectItem>
+                                        <SelectItem value="localai">LocalAI</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
                                 </Select>
-                            </HStack>
+                            </div>
                             <Input placeholder="Base URL (e.g. http://localhost:11434/v1)" value={newProvider.base_url} onChange={(e: any) => setNewProvider({ ...newProvider, base_url: e.target.value })} />
                             <Input placeholder="API Key (optional)" type="password" value={newProvider.api_key} onChange={(e: any) => setNewProvider({ ...newProvider, api_key: e.target.value })} />
-                            <HStack>
-                                <Button colorScheme="green" onClick={handleAdd} disabled={!newProvider.name || !newProvider.base_url}>Register</Button>
+                            <div className="flex gap-2">
+                                <Button onClick={handleAdd} disabled={!newProvider.name || !newProvider.base_url}>Register</Button>
                                 <Button variant="ghost" onClick={() => setShowAddForm(false)}>Cancel</Button>
-                            </HStack>
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -149,79 +155,78 @@ const LocalModelsPage: React.FC = () => {
                         <div className="h-20 w-full rounded-lg border bg-muted/30 animate-pulse" />
                     </div>
                 ) : providers.length === 0 ? (
-                    <Card><CardContent className="py-12 text-center"><Text color="gray.500">No local providers registered yet. Click "Add Provider" to get started.</Text></CardContent></Card>
+                    <Card><CardContent className="py-12 text-center"><p className="text-muted-foreground">No local providers registered yet. Click "Add Provider" to get started.</p></CardContent></Card>
                 ) : (
-                    <VStack spacing={4} align="stretch">
+                    <div className="space-y-4">
                         {providers.map((p) => (
                             <Card key={p.id}>
                                 <CardHeader>
-                                    <HStack justify="space-between">
-                                        <HStack>
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
                                             <Cable className="h-5 w-5 text-blue-500" />
-                                            <Box>
+                                            <div>
                                                 <CardTitle className="text-lg">{p.name}</CardTitle>
-                                                <Text fontSize="sm" color="gray.500">{p.provider_type} • {p.base_url}</Text>
-                                            </Box>
-                                        </HStack>
-                                        <HStack>
-                                            <Button size="sm" variant="outline" leftIcon={<RefreshCw className="h-3 w-3" />} onClick={() => handleDiscover(p.id)}>Discover Models</Button>
+                                                <p className="text-sm text-muted-foreground">{p.provider_type} • {p.base_url}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => handleDiscover(p.id)}><RefreshCw className="h-3 w-3 mr-1" /> Discover</Button>
                                             <Button size="sm" variant="outline" onClick={() => handleTest(p.id)}>Test</Button>
-                                            <Button size="sm" variant="ghost" colorScheme="red" leftIcon={<Trash2 className="h-3 w-3" />} onClick={() => handleDelete(p.id)}>Delete</Button>
-                                        </HStack>
-                                    </HStack>
+                                            <Button size="sm" variant="ghost" onClick={() => handleDelete(p.id)}><Trash2 className="h-3 w-3 mr-1 text-red-500" /> Delete</Button>
+                                        </div>
+                                    </div>
                                 </CardHeader>
                                 {discoveredModels[p.id] && discoveredModels[p.id].length > 0 && (
                                     <CardContent>
-                                        <Text fontSize="sm" fontWeight="medium" mb={2}>Discovered Models ({discoveredModels[p.id].length}):</Text>
-                                        <VStack spacing={2} align="stretch">
+                                        <p className="text-sm font-medium mb-2">Discovered Models ({discoveredModels[p.id].length}):</p>
+                                        <div className="space-y-2">
                                             {discoveredModels[p.id].map((model) => {
                                                 const cap = capabilities[p.id]?.find((c) => c.model_id === model);
                                                 return (
-                                                    <HStack key={model} justify="space-between" className="rounded-md border p-3">
-                                                        <Box>
-                                                            <Text fontSize="sm" fontFamily="mono">{model}</Text>
+                                                    <div key={model} className="flex justify-between items-center rounded-md border p-3">
+                                                        <div>
+                                                            <p className="text-sm font-mono">{model}</p>
                                                             {cap && (
-                                                                <HStack mt={1} spacing={2}>
-                                                                    {cap.supports_tools && <Badge colorScheme="blue" fontSize="2xs">tools</Badge>}
-                                                                    {cap.supports_vision && <Badge colorScheme="purple" fontSize="2xs">vision</Badge>}
-                                                                    {cap.supports_reasoning && <Badge colorScheme="green" fontSize="2xs">reasoning</Badge>}
-                                                                    <Badge fontSize="2xs">Q: {(cap.quality_score * 100).toFixed(0)}%</Badge>
-                                                                </HStack>
+                                                                <div className="flex gap-2 mt-1">
+                                                                    {cap.supports_tools && <Badge variant="secondary">tools</Badge>}
+                                                                    {cap.supports_vision && <Badge variant="secondary">vision</Badge>}
+                                                                    {cap.supports_reasoning && <Badge variant="secondary">reasoning</Badge>}
+                                                                    <Badge variant="outline">Q: {(cap.quality_score * 100).toFixed(0)}%</Badge>
+                                                                </div>
                                                             )}
-                                                        </Box>
-                                                        <Button size="xs" variant="ghost" leftIcon={<Settings2 className="h-3 w-3" />} onClick={() => setEditingCapFor(editingCapFor === `${p.id}:${model}` ? null : `${p.id}:${model}`)}>
-                                                            Configure
+                                                        </div>
+                                                        <Button size="sm" variant="ghost" onClick={() => setEditingCapFor(editingCapFor === `${p.id}:${model}` ? null : `${p.id}:${model}`)}>
+                                                            <Settings2 className="h-3 w-3 mr-1" /> Configure
                                                         </Button>
-                                                    </HStack>
+                                                    </div>
                                                 );
                                             })}
-                                        </VStack>
+                                        </div>
                                         {editingCapFor && editingCapFor.startsWith(`${p.id}:`) && (
-                                            <Box className="mt-4">
+                                            <div className="mt-4">
                                                 <CapabilityEditor
                                                     providerId={p.id}
                                                     modelId={editingCapFor.split(':')[1]}
                                                     existing={capabilities[p.id]?.find((c) => c.model_id === editingCapFor.split(':')[1])}
                                                     onSaved={() => { setEditingCapFor(null); handleDiscover(p.id); }}
                                                 />
-                                            </Box>
+                                            </div>
                                         )}
                                     </CardContent>
                                 )}
                             </Card>
                         ))}
-                    </VStack>
+                    </div>
                 )}
 
-                <Box mt={8}>
-                    <Link href="/settings/ai"><Text color="blue.500" _hover={{ textDecoration: 'underline' }} cursor="pointer">← Back to AI Provider Settings</Text></Link>
-                </Box>
-            </Container>
+                <div className="mt-8">
+                    <Link href="/settings/ai"><p className="text-blue-500 hover:underline cursor-pointer">← Back to AI Provider Settings</p></Link>
+                </div>
+            </div>
         </Layout>
     );
 };
 
-// Inline capability editor component.
 const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing?: ModelCapabilities; onSaved: () => void }> = ({ providerId, modelId, existing, onSaved }) => {
     const [caps, setCaps] = useState({
         supports_tools: existing?.supports_tools ?? false,
@@ -243,35 +248,29 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
     };
 
     return (
-        <Box className="mt-4 rounded-md border p-4 space-y-3" bg="gray.50">
-            <Text fontSize="sm" fontWeight="medium">Configure: {modelId}</Text>
-            <HStack spacing={6}>
-                <Checkbox isChecked={caps.supports_tools} onChange={(e: any) => setCaps({ ...caps, supports_tools: e.target.checked })}>Tools</Checkbox>
-                <Checkbox isChecked={caps.supports_vision} onChange={(e: any) => setCaps({ ...caps, supports_vision: e.target.checked })}>Vision</Checkbox>
-                <Checkbox isChecked={caps.supports_reasoning} onChange={(e: any) => setCaps({ ...caps, supports_reasoning: e.target.checked })}>Reasoning</Checkbox>
-            </HStack>
-            <HStack spacing={6}>
-                <Box>
-                    <Text fontSize="xs" color="gray.500">Quality: {(caps.quality_score * 100).toFixed(0)}%</Text>
-                    <Slider value={caps.quality_score * 100} min={0} max={100} step={5} onChange={(v: any) => setCaps({ ...caps, quality_score: v / 100 })} w="150px">
-                        <SliderTrack><SliderFilledTrack /></SliderTrack>
-                        <SliderThumb />
-                    </Slider>
-                </Box>
-                <Box>
-                    <Text fontSize="xs" color="gray.500">Speed: {(caps.speed_score * 100).toFixed(0)}%</Text>
-                    <Slider value={caps.speed_score * 100} min={0} max={100} step={5} onChange={(v: any) => setCaps({ ...caps, speed_score: v / 100 })} w="150px">
-                        <SliderTrack><SliderFilledTrack /></SliderTrack>
-                        <SliderThumb />
-                    </Slider>
-                </Box>
-                <Box>
-                    <Text fontSize="xs" color="gray.500">Context: {caps.context_window}</Text>
-                    <Input type="number" value={caps.context_window} onChange={(e: any) => setCaps({ ...caps, context_window: parseInt(e.target.value) || 4096 })} w="100px" size="sm" />
-                </Box>
-            </HStack>
-            <Button size="sm" colorScheme="green" onClick={handleSave}>Save Capabilities</Button>
-        </Box>
+        <div className="mt-4 rounded-md border p-4 space-y-3 bg-muted/50">
+            <p className="text-sm font-medium">Configure: {modelId}</p>
+            <div className="flex gap-6">
+                <div className="flex items-center gap-2"><Checkbox checked={caps.supports_tools} onCheckedChange={(v: any) => setCaps({ ...caps, supports_tools: !!v })} /> Tools</div>
+                <div className="flex items-center gap-2"><Checkbox checked={caps.supports_vision} onCheckedChange={(v: any) => setCaps({ ...caps, supports_vision: !!v })} /> Vision</div>
+                <div className="flex items-center gap-2"><Checkbox checked={caps.supports_reasoning} onCheckedChange={(v: any) => setCaps({ ...caps, supports_reasoning: !!v })} /> Reasoning</div>
+            </div>
+            <div className="flex gap-6 items-end">
+                <div>
+                    <p className="text-xs text-muted-foreground">Quality: {(caps.quality_score * 100).toFixed(0)}%</p>
+                    <input type="range" min={0} max={100} step={5} value={caps.quality_score * 100} onChange={(e) => setCaps({ ...caps, quality_score: parseInt(e.target.value) / 100 })} className="w-[150px]" />
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Speed: {(caps.speed_score * 100).toFixed(0)}%</p>
+                    <input type="range" min={0} max={100} step={5} value={caps.speed_score * 100} onChange={(e) => setCaps({ ...caps, speed_score: parseInt(e.target.value) / 100 })} className="w-[150px]" />
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Context: {caps.context_window}</p>
+                    <Input type="number" value={caps.context_window} onChange={(e: any) => setCaps({ ...caps, context_window: parseInt(e.target.value) || 4096 })} className="w-[100px]" />
+                </div>
+            </div>
+            <Button size="sm" onClick={handleSave}>Save Capabilities</Button>
+        </div>
     );
 };
 

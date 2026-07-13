@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
@@ -29,6 +30,7 @@ class QuickBooksService(IntegrationService):
         self.realm_id = config.get("realm_id") or os.getenv("QUICKBOOKS_REALM_ID")
         self.use_sandbox = str(config.get("use_sandbox", os.getenv("QUICKBOOKS_USE_SANDBOX", "false"))).lower() == "true"
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -72,7 +74,7 @@ class QuickBooksService(IntegrationService):
             auth = (self.client_id, self.client_secret)
             headers = {"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"}
             
-            response = await self.client.post(
+            response = await self.http.post("quickbooks", 
                 self.token_url,
                 data=data,
                 auth=auth,
@@ -104,7 +106,7 @@ class QuickBooksService(IntegrationService):
             headers = self._get_headers(token)
             url = f"{self._get_api_url()}/company/{realm}/companyinfo/{realm}"
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("quickbooks", url, headers=headers)
             response.raise_for_status()
             
             data = response.json()
@@ -136,7 +138,7 @@ class QuickBooksService(IntegrationService):
             
             url = f"{self._get_api_url()}/company/{realm}/query"
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("quickbooks", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -168,7 +170,7 @@ class QuickBooksService(IntegrationService):
             
             url = f"{self._get_api_url()}/company/{realm}/query"
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("quickbooks", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -200,7 +202,7 @@ class QuickBooksService(IntegrationService):
             
             url = f"{self._get_api_url()}/company/{realm}/query"
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("quickbooks", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()

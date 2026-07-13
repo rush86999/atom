@@ -1,5 +1,6 @@
 import os
 import httpx
+from core.integration_http import IntegrationHTTP
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import logging
@@ -16,6 +17,7 @@ class IntercomService(IntegrationService):
         self.client_id = self.config.get("intercom_client_id") or os.getenv("INTERCOM_CLIENT_ID")
         self.client_secret = self.config.get("intercom_client_secret") or os.getenv("INTERCOM_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     def get_capabilities(self) -> Dict[str, Any]:
         """
@@ -155,14 +157,14 @@ class IntercomService(IntegrationService):
             "client_id": self.client_id,
             "client_secret": self.client_secret,
         }
-        response = await self.client.post(url, json=data)
+        response = await self.http.post("intercom", url, json=data)
         response.raise_for_status()
         return response.json()
 
     async def get_admins(self, access_token: str) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/admins"
         headers = self._get_headers(access_token)
-        response = await self.client.get(url, headers=headers)
+        response = await self.http.get("intercom", url, headers=headers)
         response.raise_for_status()
         return response.json().get("admins", [])
 
@@ -170,7 +172,7 @@ class IntercomService(IntegrationService):
         url = f"{self.base_url}/contacts"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
-        response = await self.client.get(url, headers=headers, params=params)
+        response = await self.http.get("intercom", url, headers=headers, params=params)
         response.raise_for_status()
         return response.json().get("data", [])
 
@@ -178,7 +180,7 @@ class IntercomService(IntegrationService):
         url = f"{self.base_url}/conversations"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
-        response = await self.client.get(url, headers=headers, params=params)
+        response = await self.http.get("intercom", url, headers=headers, params=params)
         response.raise_for_status()
         return response.json().get("conversations", [])
 
@@ -192,7 +194,7 @@ class IntercomService(IntegrationService):
                 "value": query
             }
         }
-        response = await self.client.post(url, headers=headers, json=data)
+        response = await self.http.post("intercom", url, headers=headers, json=data)
         response.raise_for_status()
         return response.json().get("data", [])
 

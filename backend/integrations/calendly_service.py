@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
@@ -26,6 +27,7 @@ class CalendlyService(IntegrationService):
         self.client_secret = config.get("client_secret") or os.getenv("CALENDLY_CLIENT_SECRET")
         self.access_token = config.get("access_token") or os.getenv("CALENDLY_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -62,7 +64,7 @@ class CalendlyService(IntegrationService):
                 "client_secret": self.client_secret
             }
             
-            response = await self.client.post(self.token_url, data=data)
+            response = await self.http.post("calendly", self.token_url, data=data)
             response.raise_for_status()
             
             token_data = response.json()
@@ -84,7 +86,7 @@ class CalendlyService(IntegrationService):
                 raise HTTPException(status_code=401, detail="Not authenticated")
             
             headers = self._get_headers(token)
-            response = await self.client.get(f"{self.base_url}/users/me", headers=headers)
+            response = await self.http.get("calendly", f"{self.base_url}/users/me", headers=headers)
             response.raise_for_status()
             
             return response.json()
@@ -110,7 +112,7 @@ class CalendlyService(IntegrationService):
             headers = self._get_headers(token)
             params = {"user": user_uri, "count": count}
             
-            response = await self.client.get(
+            response = await self.http.get("calendly", 
                 f"{self.base_url}/event_types",
                 headers=headers,
                 params=params
@@ -145,7 +147,7 @@ class CalendlyService(IntegrationService):
             if user_uri:
                 params["user"] = user_uri
             
-            response = await self.client.get(
+            response = await self.http.get("calendly", 
                 f"{self.base_url}/scheduled_events",
                 headers=headers,
                 params=params

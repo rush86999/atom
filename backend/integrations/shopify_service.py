@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class ShopifyService(IntegrationService):
         self.api_secret = config.get("api_secret") or os.getenv("SHOPIFY_API_SECRET")
         self.shop_name = config.get("shop_name") or os.getenv("SHOPIFY_SHOP_NAME")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     def _get_base_url(self, shop: str) -> str:
         # Shop should be "my-shop.myshopify.com"
@@ -46,7 +48,7 @@ class ShopifyService(IntegrationService):
                 "code": code
             }
             
-            response = await self.client.post(url, json=data)
+            response = await self.http.post("shopify", url, json=data)
             response.raise_for_status()
             
             return response.json()
@@ -61,7 +63,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"limit": limit}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -77,7 +79,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"limit": limit, "status": "any"}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -92,7 +94,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/shop.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             data = response.json()
@@ -119,7 +121,7 @@ class ShopifyService(IntegrationService):
                     }
                 }
                 
-                response = await self.client.post(url, headers=headers, json=data)
+                response = await self.http.post("shopify", url, headers=headers, json=data)
                 # Shopify returns 422 if webhook already exists
                 if response.status_code == 422:
                     logger.info(f"Webhook for topic {topic} already exists for shop {shop}")
@@ -143,7 +145,7 @@ class ShopifyService(IntegrationService):
             if location_id:
                 params["location_ids"] = location_id
                 
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             return response.json().get("inventory_levels", [])
@@ -157,7 +159,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/locations.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("locations", [])
@@ -175,7 +177,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"limit": limit}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             return response.json().get("customers", [])
@@ -189,7 +191,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/customers/{customer_id}.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("customer", {})
@@ -204,7 +206,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"query": query}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             return response.json().get("customers", [])
@@ -219,7 +221,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("fulfillments", [])
@@ -247,7 +249,7 @@ class ShopifyService(IntegrationService):
             if tracking_company:
                 fulfillment_data["fulfillment"]["tracking_company"] = tracking_company
             
-            response = await self.client.post(url, headers=headers, json=fulfillment_data)
+            response = await self.http.post("shopify", url, headers=headers, json=fulfillment_data)
             response.raise_for_status()
             
             return response.json().get("fulfillment", {})
@@ -262,7 +264,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/orders/{order_id}/refunds.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("refunds", [])
@@ -283,7 +285,7 @@ class ShopifyService(IntegrationService):
                 }
             }
             
-            response = await self.client.post(url, headers=headers, json=data)
+            response = await self.http.post("shopify", url, headers=headers, json=data)
             response.raise_for_status()
             
             return response.json().get("refund", {})
@@ -299,7 +301,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"limit": limit}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             return response.json().get("draft_orders", [])
@@ -324,7 +326,7 @@ class ShopifyService(IntegrationService):
             if customer_id:
                 draft_data["draft_order"]["customer"] = {"id": customer_id}
             
-            response = await self.client.post(url, headers=headers, json=draft_data)
+            response = await self.http.post("shopify", url, headers=headers, json=draft_data)
             response.raise_for_status()
             
             return response.json().get("draft_order", {})
@@ -338,7 +340,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/draft_orders/{draft_order_id}/complete.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.put(url, headers=headers)
+            response = await self.http.put("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("draft_order", {})
@@ -353,7 +355,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/orders/{order_id}/transactions.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("transactions", [])
@@ -369,7 +371,7 @@ class ShopifyService(IntegrationService):
             headers = self._get_headers(access_token)
             params = {"status": status}
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
             
             return response.json().get("count", 0)
@@ -383,7 +385,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/products/count.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("count", 0)
@@ -397,7 +399,7 @@ class ShopifyService(IntegrationService):
             url = f"{self._get_base_url(shop)}/customers/count.json"
             headers = self._get_headers(access_token)
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
             
             return response.json().get("count", 0)
