@@ -292,6 +292,10 @@ class ConductorAgent:
 
     def __init__(self, config: Optional[ConductorConfig] = None):
         self.config = config or ConductorConfig()
+        # Injectable step executor. Defaults to the mock stub; the conductor
+        # endpoint injects the real WorkflowEngine step dispatcher so the
+        # Conductor runs actual AI/webhook/tool steps instead of mock sleep.
+        self._step_executor: Optional[Callable] = None
 
         # Execution tracking
         self._active_workflows: Dict[str, WorkflowExecutionContext] = {}
@@ -595,19 +599,40 @@ class ConductorAgent:
         step: WorkflowStep,
         context: WorkflowExecutionContext
     ) -> Dict[str, Any]:
-        """Execute a single workflow step"""
-        # In production, this would call the actual agent/service
-        logger.info(f"Executing step: {step.step_id} ({step.name})")
+        """Execute a single workflow step.
 
-        # Simulate execution
+        If a real step executor was injected (via ``set_step_executor``),
+        delegates to it so the Conductor runs actual AI/webhook/tool steps.
+        Otherwise falls back to the mock stub (for tests and standalone use).
+        """
+        if self._step_executor is not None:
+            try:
+                result = self._step_executor(step, context)
+                if asyncio.iscoroutine(result):
+                    result = await result
+                if isinstance(result, dict):
+                    return result
+                return {"step_id": step.step_id, "status": "completed", "output": str(result)}
+            except Exception as e:
+                logger.error(f"Injected step executor failed for {step.step_id}: {e}")
+                return {"step_id": step.step_id, "status": "failed", "error": str(e)}
+
+        # Mock fallback (original behavior)
+        logger.info(f"Executing step (mock): {step.step_id} ({step.name})")
         await asyncio.sleep(0.1)
-
-        # Return mock result
         return {
             "step_id": step.step_id,
             "status": "completed",
             "output": f"Result from {step.name}"
         }
+
+    def set_step_executor(self, executor: Callable) -> None:
+        """Inject a real step executor (e.g. WorkflowEngine._execute_step).
+
+        When set, the Conductor delegates step execution to this callable
+        instead of the mock stub, so it runs actual AI/webhook/tool steps.
+        """
+        self._step_executor = executor
 
     async def _execute_and_track(
         self,

@@ -10681,3 +10681,47 @@ class LocalModelCapabilities(Base):
         Index("ix_local_model_caps_provider_model", "provider_id", "model_id"),
         Index("ix_local_model_caps_workspace", "workspace_id"),
     )
+
+
+# ============================================================================
+# Federation Identity Persistence — DB-backed DID/VC storage
+# ============================================================================
+
+class FederationDID(Base):
+    """Persisted DID document for zero-trust federation identity.
+
+    Previously DIDManager used in-memory dicts that reset on restart. This
+    table provides durable storage so identity state survives process restarts.
+    """
+
+    __tablename__ = "federation_dids"
+
+    did = Column(String, primary_key=True)  # The DID string itself
+    entity_type = Column(String, nullable=False)  # agent | instance | workspace | user
+    entity_id = Column(String, nullable=False, index=True)
+    document_json = Column(JSONColumn, nullable=True)  # Full DID document
+    public_key_pem = Column(Text, nullable=True)  # PEM-encoded public key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class FederationCredential(Base):
+    """Persisted verifiable credential for zero-trust federation.
+
+    Previously VerifiableCredentialManager used in-memory dicts. This table
+    provides durable storage so credentials survive restarts.
+    """
+
+    __tablename__ = "federation_credentials"
+
+    credential_id = Column(String, primary_key=True)
+    issuer_did = Column(String, nullable=False, index=True)
+    subject_did = Column(String, nullable=False, index=True)
+    credential_type = Column(String, nullable=False)
+    claims_json = Column(JSONColumn, nullable=True)
+    status = Column(String, default="active")  # active | revoked | expired
+    issued_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revocation_reason = Column(Text, nullable=True)

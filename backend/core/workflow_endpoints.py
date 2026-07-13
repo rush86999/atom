@@ -446,6 +446,15 @@ async def execute_with_conductor(
 
     conductor = get_conductor_agent()
 
+    # Inject the real WorkflowEngine step executor so the Conductor runs
+    # actual AI/webhook/tool steps instead of the mock stub.
+    try:
+        from core.workflow_engine import get_workflow_engine
+        engine = get_workflow_engine()
+        conductor.set_step_executor(engine._execute_step)
+    except Exception:
+        pass  # Falls back to mock executor if engine isn't available
+
     # Build WorkflowStep objects from the raw step dicts. Map common field
     # names (id → step_id) and default step_type to AGENT.
     from core.orchestration.conductor_agent import StepType

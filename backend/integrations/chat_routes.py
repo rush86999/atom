@@ -259,6 +259,23 @@ async def send_chat_message(
         raise HTTPException(status_code=500, detail="Chat processing failed")
 
 
+@router.post("/cancel/{session_id}")
+async def cancel_chat(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Cancel an in-flight chat message for a session.
+
+    Marks the session as cancelled so the orchestrator returns early between
+    processing steps. Best-effort: if the LLM call is already in-flight, the
+    cancel takes effect after it returns. The frontend's AbortController drops
+    the connection immediately; this endpoint prevents the backend from
+    continuing unnecessary work (e.g. tool execution, follow-up steps).
+    """
+    chat_orchestrator.request_cancellation(session_id)
+    return {"cancelled": True, "session_id": session_id}
+
+
 def _learning_router_enabled() -> bool:
     """Whether the learning router is enabled (flag-gated)."""
     from core.llm.learning_router_registry import learning_router_enabled

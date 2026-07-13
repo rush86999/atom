@@ -314,7 +314,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleStop = () => {
+    const handleStop = async () => {
         // Abort the in-flight POST so the backend connection is dropped and
         // a late response doesn't append after the "stopped" message.
         if (abortControllerRef.current) {
@@ -324,6 +324,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         if (processingTimeoutRef.current) {
             clearTimeout(processingTimeoutRef.current);
             processingTimeoutRef.current = null;
+        }
+        // Best-effort: tell the backend to cancel the in-flight processing
+        // so it stops consuming tokens / executing tools. Non-blocking — the
+        // frontend proceeds regardless.
+        if (sessionId) {
+            import('../../lib/api-client').then(({ apiClient }) => {
+                apiClient.post(`/api/chat/cancel/${sessionId}`).catch(() => {});
+            });
         }
         setIsProcessing(false);
         const stopMsg: ChatMessageData = {

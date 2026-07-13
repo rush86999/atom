@@ -129,7 +129,11 @@ const RoutingDashboardPage: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         {loading ? (
-                            <p className="text-sm text-muted-foreground">Loading…</p>
+                            <div className="space-y-2">
+                                <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                                <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                                <div className="h-4 w-2/3 rounded bg-muted animate-pulse" />
+                            </div>
                         ) : Object.keys(successRates).length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No per-model data yet. Data appears here as users chat and submit feedback.
