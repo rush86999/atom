@@ -1416,11 +1416,13 @@ class BYOKHandler:
                     self._pending_routing_result_id = None  # consume
                     continue # Try next provider
             
-            return f"All providers failed. Last error: {str(last_error)}"
+            logger.error(f"All providers failed. Last error: {last_error}")
+            return "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
 
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
-            return f"Error generating response: {str(e)}"
+            logger.error(f"LLM Generation failed: {e}", exc_info=True)
+            return "I'm sorry, an error occurred while generating a response. Please try again."
 
     async def _record_outcome_feedback(
         self,

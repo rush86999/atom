@@ -200,6 +200,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 return;
             }
 
+            // Clear the safety-net timeout on any successful resolution.
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+            }
+
             if (data.success && data.message) {
                 if (data.session_id && data.session_id !== sessionId && data.session_id !== "new") {
                     onSessionCreated?.(data.session_id);
