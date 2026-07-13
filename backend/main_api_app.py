@@ -3694,7 +3694,13 @@ except (ImportError, TypeError) as e:
 if __name__ == "__main__":
     startup_logger.info("Starting uvicorn server directly...")
     try:
-        uvicorn.run("main_api_app:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+        host = os.getenv("HOST", "0.0.0.0")
+        port = int(os.getenv("PORT", "8000"))
+        reload_enabled = os.getenv("RELOAD", "false").lower() in {"1", "true", "yes", "on"}
+        if reload_enabled:
+            uvicorn.run("main_api_app:app", host=host, port=port, reload=True, log_level="info")
+        else:
+            uvicorn.run(app, host=host, port=port, reload=False, log_level="info")
     except Exception as e:
         startup_logger.error(f"CRITICAL: Failed to start uvicorn: {e}")
         startup_logger.error(traceback.format_exc())

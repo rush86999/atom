@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import tempfile
 import secrets
 import threading
 from typing import Any, Dict, List, Optional
@@ -161,29 +162,76 @@ class BYOKManager:
         
         # Save providers
         try:
-            with open(BYOK_CONFIG_FILE, "w") as f:
-                json.dump({
-                    "providers": [asdict(p) for p in self.providers.values()]
-                }, f, indent=2)
+            self._atomic_write_json(
+                BYOK_CONFIG_FILE,
+                {"providers": [self._provider_to_dict(p) for p in self.providers.values()]},
+            )
         except Exception as e:
             logger.error(f"Failed to save BYOK config: {e}")
 
         # Save API keys
         try:
-            with open(BYOK_KEYS_FILE, "w") as f:
-                # Convert datetime objects to ISO strings for JSON serialization
-                keys_data = {}
-                for k_id, k_obj in self.api_keys.items():
-                    k_dict = asdict(k_obj)
-                    if k_dict.get("created_at"):
-                        k_dict["created_at"] = k_dict["created_at"].isoformat()
-                    if k_dict.get("last_used"):
-                        k_dict["last_used"] = k_dict["last_used"].isoformat()
-                    keys_data[k_id] = k_dict
-                    
-                json.dump({"keys": keys_data}, f, indent=2)
+            keys_data = {
+                k_id: self._api_key_to_dict(k_obj)
+                for k_id, k_obj in self.api_keys.items()
+                if isinstance(k_obj, APIKey)
+            }
+            self._atomic_write_json(BYOK_KEYS_FILE, {"keys": keys_data})
         except Exception as e:
             logger.error(f"Failed to save BYOK keys: {e}")
+
+    @staticmethod
+    def _provider_to_dict(provider: AIProviderConfig) -> Dict[str, Any]:
+        return {
+            "id": provider.id,
+            "name": provider.name,
+            "description": provider.description,
+            "api_key_env_var": provider.api_key_env_var,
+            "base_url": provider.base_url,
+            "model": provider.model,
+            "cost_per_token": provider.cost_per_token,
+            "supported_tasks": list(provider.supported_tasks or []),
+            "supports_vision": provider.supports_vision,
+            "supports_tools": provider.supports_tools,
+            "supports_cache": provider.supports_cache,
+            "supports_structured_output": provider.supports_structured_output,
+            "reasoning_level": provider.reasoning_level,
+            "quality_score": provider.quality_score,
+            "max_requests_per_minute": provider.max_requests_per_minute,
+            "rate_limit_window": provider.rate_limit_window,
+            "is_active": provider.is_active,
+            "requires_encryption": provider.requires_encryption,
+        }
+
+    @staticmethod
+    def _api_key_to_dict(api_key: APIKey) -> Dict[str, Any]:
+        return {
+            "provider_id": api_key.provider_id,
+            "key_name": api_key.key_name,
+            "encrypted_key": api_key.encrypted_key,
+            "key_hash": api_key.key_hash,
+            "created_at": api_key.created_at.isoformat() if api_key.created_at else None,
+            "last_used": api_key.last_used.isoformat() if api_key.last_used else None,
+            "is_active": api_key.is_active,
+            "usage_count": api_key.usage_count,
+            "environment": api_key.environment,
+        }
+
+    @staticmethod
+    def _atomic_write_json(path: str, payload: Dict[str, Any]) -> None:
+        directory = os.path.dirname(path) or "."
+        fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=directory)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(payload, f, indent=2)
+                f.write("\n")
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     def _initialize_default_providers(self):
         """Initialize default AI providers"""
@@ -529,6 +577,8 @@ class BYOKManager:
         environment: str = "production",
     ) -> str:
         """Store an encrypted API key"""
+        key_name = self._normalize_key_part(key_name, "default")
+        environment = self._normalize_key_part(environment, "production")
         if provider_id not in self.providers:
             raise ValueError(f"Provider {provider_id} not found")
 
@@ -557,6 +607,8 @@ class BYOKManager:
         environment: str = "production",
     ) -> Optional[str]:
         """Retrieve and decrypt an API key"""
+        key_name = self._normalize_key_part(key_name, "default")
+        environment = self._normalize_key_part(environment, "production")
         key_id = f"{provider_id}_{key_name}_{environment}"
 
         if key_id not in self.api_keys:
@@ -683,6 +735,16 @@ class BYOKManager:
     def get_tenant_api_key(self, tenant_id: str, provider_id: str) -> Optional[str]:
         """Get API key for a tenant (compatibility alias)"""
         return self.get_api_key(provider_id, key_name=tenant_id)
+
+    @staticmethod
+    def _normalize_key_part(value: Any, default: str) -> str:
+        if value is None:
+            return default
+        if isinstance(value, (str, int, float, bool)):
+            text = str(value).strip()
+            return text or default
+        logger.warning("Invalid BYOK key identifier %r; using %s", type(value).__name__, default)
+        return default
 
 
 # Global BYOK Manager instance
