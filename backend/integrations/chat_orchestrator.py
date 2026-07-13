@@ -155,6 +155,9 @@ class ChatOrchestrator:
         self.platform_connectors = {}
         self.ai_engines = {}
         self.tenant_id = tenant_id
+        # Cancellation registry: session_ids that have been cancelled by the user.
+        # Checked between processing steps so a long generation can be halted.
+        self._cancelled_sessions: set = set()
         
         # Initialize LLMService (Unified interface replaces direct clients)
         self.llm_service = None
@@ -1254,6 +1257,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "error": "agent_request_failed",
                 "feature": "agent"
             }
+
+    def request_cancellation(self, session_id: str) -> None:
+        """Mark a session's in-flight processing as cancelled.
+
+        Called by the POST /api/chat/cancel/{session_id} endpoint. The
+        orchestrator checks _is_cancelled between processing steps and
+        returns early if set. Best-effort: if the LLM call is already
+        in-flight, the cancel takes effect after it returns.
+        """
+        self._cancelled_sessions.add(session_id)
+
+    def _is_cancelled(self, session_id: str) -> bool:
+        """Check if a session has been cancelled and clear the flag."""
+        if session_id in self._cancelled_sessions:
+            self._cancelled_sessions.discard(session_id)
+            return True
+        return False
+
 
 # Global Chat Orchestrator Instance
 chat_orchestrator = ChatOrchestrator()

@@ -23,8 +23,8 @@ describe('MessageList', () => {
   // Test 1: renders list of messages
   test('renders list of messages', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'Hello', type: 'text' },
-      { id: '2', role: 'assistant', content: 'Hi there!', type: 'text' },
+      { id: '1', type: 'user', content: 'Hello', timestamp: new Date() },
+      { id: '2', type: 'assistant', content: 'Hi there!', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -103,7 +103,7 @@ describe('MessageList', () => {
   // Test 5: renders user messages correctly
   test('renders user messages with correct styling', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'User message', type: 'text' },
+      { id: '1', type: 'user', content: 'User message', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -125,7 +125,7 @@ describe('MessageList', () => {
   // Test 6: renders assistant messages correctly
   test('renders assistant messages with correct styling', () => {
     const messages = [
-      { id: '1', role: 'assistant', content: 'Assistant response', type: 'text' },
+      { id: '1', type: 'assistant', content: 'Assistant response', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -147,9 +147,9 @@ describe('MessageList', () => {
   // Test 7: handles multiple messages in sequence
   test('handles multiple messages in correct order', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'First', type: 'text' },
-      { id: '2', role: 'assistant', content: 'Second', type: 'text' },
-      { id: '3', role: 'user', content: 'Third', type: 'text' },
+      { id: '1', type: 'user', content: 'First', timestamp: new Date() },
+      { id: '2', type: 'assistant', content: 'Second', timestamp: new Date() },
+      { id: '3', type: 'user', content: 'Third', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -174,7 +174,7 @@ describe('MessageList', () => {
   // Test 8: renders without crashing when messagesEndRef is null
   test('renders without crashing when messagesEndRef is null', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'Test', type: 'text' },
+      { id: '1', type: 'user', content: 'Test', timestamp: new Date() },
     ];
 
     expect(() => {
@@ -196,7 +196,7 @@ describe('MessageList', () => {
   // Test 9: handles empty streaming content map
   test('handles empty streaming content map', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'Hello', type: 'text' },
+      { id: '1', type: 'user', content: 'Hello', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -241,7 +241,7 @@ describe('MessageList', () => {
   // Test 11: displays system messages
   test('displays system messages', () => {
     const messages = [
-      { id: '1', role: 'system', content: 'System notification', type: 'text' },
+      { id: '1', type: 'system', content: 'System notification', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -264,7 +264,7 @@ describe('MessageList', () => {
   test('handles long messages without truncation', () => {
     const longMessage = 'A'.repeat(1000);
     const messages = [
-      { id: '1', role: 'user', content: longMessage, type: 'text' },
+      { id: '1', type: 'user', content: longMessage, timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -287,7 +287,7 @@ describe('MessageList', () => {
   test('handles special characters in messages', () => {
     const specialMessage = 'Test <script>alert("xss")</script> & "quotes"';
     const messages = [
-      { id: '1', role: 'user', content: specialMessage, type: 'text' },
+      { id: '1', type: 'user', content: specialMessage, timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(
@@ -327,7 +327,7 @@ describe('MessageList', () => {
   // Test 15: handles null currentStreamId
   test('handles null currentStreamId gracefully', () => {
     const messages = [
-      { id: '1', role: 'user', content: 'Test', type: 'text' },
+      { id: '1', type: 'user', content: 'Test', timestamp: new Date() },
     ];
 
     const { container } = renderWithProviders(

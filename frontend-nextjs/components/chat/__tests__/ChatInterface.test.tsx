@@ -13,14 +13,14 @@ import ChatInterface from '../ChatInterface';
 
 // Mock hooks
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => ({
+  useWebSocket: (): any => ({
     lastMessage: null,
     isConnected: false,
   }),
 }));
 
 jest.mock('@/hooks/chat/useChatInterface', () => ({
-  useChatInterface: () => ({
+  useChatInterface: (): any => ({
     input: '',
     setInput: jest.fn(),
     isProcessing: false,
@@ -61,7 +61,7 @@ jest.mock('./ChatInput', () => ({
 }));
 
 jest.mock('@/components/Voice/VoiceModeOverlay', () => ({
-  VoiceModeOverlay: () => null,
+  VoiceModeOverlay: (): any => null,
 }));
 
 describe('ChatInterface', () => {

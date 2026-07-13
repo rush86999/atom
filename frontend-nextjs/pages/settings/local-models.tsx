@@ -144,7 +144,10 @@ const LocalModelsPage: React.FC = () => {
                 )}
 
                 {loading ? (
-                    <Text color="gray.500">Loading…</Text>
+                    <div className="space-y-3">
+                        <div className="h-20 w-full rounded-lg border bg-muted/30 animate-pulse" />
+                        <div className="h-20 w-full rounded-lg border bg-muted/30 animate-pulse" />
+                    </div>
                 ) : providers.length === 0 ? (
                     <Card><CardContent className="py-12 text-center"><Text color="gray.500">No local providers registered yet. Click "Add Provider" to get started.</Text></CardContent></Card>
                 ) : (
