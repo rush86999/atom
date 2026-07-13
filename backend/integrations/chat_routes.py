@@ -449,9 +449,34 @@ async def get_chat_history(
             )
             raise HTTPException(status_code=403, detail="Access denied")
 
+        # Get history. Prefer in-memory; fall back to DB if empty (e.g. after
+        # a restart where in-memory state is lost but ChatMessage rows persist).
+        history = session.get("history", [])
+        if not history:
+            try:
+                from core.database import get_db_session
+                from core.models import ChatMessage as ChatMessageModel
+                with get_db_session() as db:
+                    rows = db.query(ChatMessageModel).filter(
+                        ChatMessageModel.conversation_id == session_id
+                    ).order_by(ChatMessageModel.created_at).all()
+                    # Convert DB rows to the in-memory history shape the frontend expects.
+                    history = [
+                        {
+                            "message": row.content if row.role == "user" else None,
+                            "response": {"message": row.content} if row.role == "assistant" else None,
+                            "timestamp": row.created_at.isoformat() if row.created_at else None,
+                        }
+                        for row in rows
+                    ]
+                    if history:
+                        logger.info(f"Loaded {len(history)} messages from DB for session {session_id}")
+            except Exception as db_err:
+                logger.warning(f"Could not load history from DB: {db_err}")
+
         return ChatHistoryResponse(
             session_id=session_id,
-            messages=session.get("history", []),
+            messages=history,
             timestamp=session.get("last_updated", "")
         )
 

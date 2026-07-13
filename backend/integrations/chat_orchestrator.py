@@ -1224,9 +1224,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         try:
             if self.session_manager:
                 self.session_manager.create_session(
-                    session_id=session_id,
                     user_id=str(user_id),
-                    title="New Conversation",
+                    session_id=session_id,
                 )
         except Exception as e:
             logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
