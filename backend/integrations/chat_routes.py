@@ -29,7 +29,7 @@ chat_orchestrator = ChatOrchestrator()
 
 # Pydantic Models
 class ChatMessageRequest(BaseModel):
-    message: str = Field(..., description="Chat message from user")
+    message: str = Field(..., max_length=32000, description="Chat message from user")
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")

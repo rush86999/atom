@@ -186,6 +186,12 @@ class LearningBasedRouter:
         self._routing_decisions: Dict[str, Dict[str, float]] = {}
         self._max_routing_decisions = 10000  # bounded (R17-2 pattern)
 
+        # Lock to prevent concurrent feedback/retrain races on shared state
+        # (_preference_data, _router_cache, _per_model_routers). Without this,
+        # two concurrent record_feedback calls can interleave during the
+        # append→retrain window, corrupting list state.
+        self._state_lock = asyncio.Lock()
+
         # Initialize model registry
         self._initialize_model_registry()
 
@@ -1018,29 +1024,33 @@ class LearningBasedRouter:
 
         feedback_key = f"{feedback.tenant_id}:{feedback.task_type}"
 
-        if feedback_key not in self._preference_data:
-            self._preference_data[feedback_key] = []
+        # Acquire the state lock to prevent concurrent feedback/retrain races.
+        # Without this, two record_feedback calls can interleave during the
+        # append→retrain window (the await in _retrain_router yields control).
+        async with self._state_lock:
+            if feedback_key not in self._preference_data:
+                self._preference_data[feedback_key] = []
 
-        self._preference_data[feedback_key].append(feedback)
+            self._preference_data[feedback_key].append(feedback)
 
-        # Bound memory: keep only the most recent feedback per key (R17-2).
-        if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
-            # Drop the oldest entries to stay within the cap.
-            del self._preference_data[feedback_key][
-                : len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
-            ]
+            # Bound memory: keep only the most recent feedback per key (R17-2).
+            if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
+                # Drop the oldest entries to stay within the cap.
+                del self._preference_data[feedback_key][
+                    : len(self._preference_data[feedback_key]) - self._max_preference_data_per_key
+                ]
 
-        # Write through to DB so learned data survives restarts. Best-effort:
-        # a DB failure must not break the hot routing path (in-memory state
-        # remains authoritative for reads).
-        recovered_features = getattr(feedback, "_prompt_features", None)
-        self._persist_feedback(feedback, recovered_features)
+            # Write through to DB so learned data survives restarts. Best-effort:
+            # a DB failure must not break the hot routing path (in-memory state
+            # remains authoritative for reads).
+            recovered_features = getattr(feedback, "_prompt_features", None)
+            self._persist_feedback(feedback, recovered_features)
 
-        # Trigger retraining once there's enough feedback for a per-model
-        # predictor (the lowest learning threshold). _retrain_router internally
-        # decides what to train based on available data.
-        if len(self._preference_data[feedback_key]) >= self._min_samples_per_model:
-            await self._retrain_router(feedback.tenant_id, feedback.task_type)
+            # Trigger retraining once there's enough feedback for a per-model
+            # predictor (the lowest learning threshold). _retrain_router internally
+            # decides what to train based on available data.
+            if len(self._preference_data[feedback_key]) >= self._min_samples_per_model:
+                await self._retrain_router(feedback.tenant_id, feedback.task_type)
 
         logger.debug(
             f"Recorded routing feedback: tenant={feedback.tenant_id}, "
