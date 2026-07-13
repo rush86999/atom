@@ -51,10 +51,12 @@ def get_learning_router_instance():
             return _SINGLETON
         try:
             from core.learning_llm_router import get_learning_router
-            from core.database import SessionLocal
 
-            db = SessionLocal()
-            router = get_learning_router(db)
+            # Pass None as the db session — the router never uses self.db for
+            # reads or writes (every DB-touching method opens its own
+            # short-lived get_db_session). Holding a SessionLocal forever leaks
+            # a connection from the pool.
+            router = get_learning_router(None)
 
             # Hydrate preference data from the DB so learned data survives restarts.
             try:

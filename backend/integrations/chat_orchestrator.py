@@ -1197,13 +1197,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return {"success": True, "data": {"message": "Ecommerce logic here"}}
 
     def _get_or_create_session(self, user_id: str, session_id: str) -> Dict[str, Any]:
-        if session_id not in self.conversation_sessions:
-            self.conversation_sessions[session_id] = {
-                "id": session_id,
-                "user_id": user_id,
-                "created_at": datetime.now().isoformat(),
-                "history": []
-            }
+        # Security: verify ownership — if the session exists but belongs to a
+        # different user, reject (prevents cross-user session IDOR).
+        if session_id in self.conversation_sessions:
+            existing = self.conversation_sessions[session_id]
+            if existing.get("user_id") and str(existing["user_id"]) != str(user_id):
+                # Don't reveal the session exists — just create a fresh one.
+                session_id = str(uuid.uuid4())
+                self.conversation_sessions[session_id] = {
+                    "id": session_id,
+                    "user_id": user_id,
+                    "created_at": datetime.now().isoformat(),
+                    "history": []
+                }
+            return self.conversation_sessions[session_id]
+
+        # New session — create in-memory AND persist the ChatSession row.
+        self.conversation_sessions[session_id] = {
+            "id": session_id,
+            "user_id": user_id,
+            "created_at": datetime.now().isoformat(),
+            "history": []
+        }
+        # Persist the session row so it survives restarts and appears in the
+        # session list sidebar.
+        try:
+            if self.session_manager:
+                self.session_manager.create_session(
+                    session_id=session_id,
+                    user_id=str(user_id),
+                    title="New Conversation",
+                )
+        except Exception as e:
+            logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
         return self.conversation_sessions[session_id]
 
     def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
@@ -1216,28 +1242,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         # Persist to DB so chat history survives restarts. Previously this was
         # in-memory only — every server restart silently deleted all conversations.
+        # Uses the ChatMessage model: conversation_id (not session_id), tenant_id
+        # (required), created_at (server-default, no timestamp kwarg).
         try:
             from core.database import get_db_session
             from core.models import ChatMessage as ChatMessageModel
             session_id = session.get("id")
+            tenant_id = self.tenant_id or "default"
             if session_id:
-                ts = datetime.now(timezone.utc)
                 with get_db_session() as db:
                     # Store the user message.
                     db.add(ChatMessageModel(
-                        session_id=session_id,
+                        conversation_id=session_id,
+                        tenant_id=tenant_id,
                         role="user",
                         content=message,
-                        timestamp=ts,
                     ))
                     # Store the assistant response.
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
                         db.add(ChatMessageModel(
-                            session_id=session_id,
+                            conversation_id=session_id,
+                            tenant_id=tenant_id,
                             role="assistant",
                             content=resp_content,
-                            timestamp=ts,
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
