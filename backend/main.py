@@ -112,6 +112,13 @@ app.include_router(shell_router)             # /api/shell/* (auth required)
 if chat_router is not None:
     app.include_router(chat_router)          # /api/chat/* (message, history, sessions)
 
+# BYOK routes (API key management)
+try:
+    from api.byok_routes import router as byok_router
+    app.include_router(byok_router)
+except Exception as e:
+    print(f"BYOK routes not loaded: {e}")
+
 
 @app.on_event("startup")
 def _startup_bootstrap() -> None:

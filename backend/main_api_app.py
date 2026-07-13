@@ -3394,9 +3394,9 @@ try:
 
     # 24. BYOK API Routes (Phase 51)
     try:
-        from api.routes.byok_api_routes import router as byok_router
+        from api.byok_routes import router as byok_router
 
-        app.include_router(byok_router, prefix="/api/v1", tags=["BYOK"])
+        app.include_router(byok_router, tags=["BYOK"])
         logger.info("✓ BYOK API Routes Loaded")
     except Exception as e:
         logger.warning(f"BYOK API routes failed to load: {e}")
