@@ -177,6 +177,7 @@ class LearningBasedRouter:
         # one sklearn estimator per model id that served that task. This is the
         # structure that makes routing decisions actually change with feedback.
         self._per_model_routers: Dict[str, PerModelRouter] = {}
+        self._max_per_model_routers = 1000  # Bounded (R17-2 pattern)
         # Pending routing decisions awaiting feedback, keyed by routing_result_id.
         # Stores the prompt features computed at route time so that, when feedback
         # arrives, the per-model predictors can be trained on the REAL features
@@ -1244,6 +1245,11 @@ class LearningBasedRouter:
             except Exception as e:
                 logger.debug(f"Could not load persisted predictors: {e}")
             self._per_model_routers[cache_key] = pmr
+            # Bound growth: evict oldest entries when over the cap.
+            if len(self._per_model_routers) > self._max_per_model_routers:
+                _overflow = len(self._per_model_routers) - self._max_per_model_routers
+                for _stale_key in list(self._per_model_routers.keys())[:_overflow]:
+                    del self._per_model_routers[_stale_key]
         return pmr
 
     def _extract_request_features(self, request: RoutingRequest) -> Dict[str, float]:

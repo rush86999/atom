@@ -331,8 +331,18 @@ class ChatOrchestrator:
             # 1. Try Qwen AI conversational response first (real AI reply)
             ai_response = await self._get_qwen_response(message, history)
 
+            # Check for cancellation between steps.
+            if self._is_cancelled(session_id):
+                return {"success": False, "message": "Request cancelled by user.",
+                        "session_id": session_id, "cancelled": True}
+
             # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
+
+            # Check for cancellation between steps.
+            if self._is_cancelled(session_id):
+                return {"success": False, "message": "Request cancelled by user.",
+                        "session_id": session_id, "cancelled": True}
 
             # 3. Route to appropriate feature handlers (for data lookups)
             feature_responses = await self._route_to_features(
@@ -1203,6 +1213,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "intent": intent,
             "timestamp": datetime.now().isoformat()
         })
+
+        # Persist to DB so chat history survives restarts. Previously this was
+        # in-memory only — every server restart silently deleted all conversations.
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+            session_id = session.get("id")
+            if session_id:
+                ts = datetime.now(timezone.utc)
+                with get_db_session() as db:
+                    # Store the user message.
+                    db.add(ChatMessageModel(
+                        session_id=session_id,
+                        role="user",
+                        content=message,
+                        timestamp=ts,
+                    ))
+                    # Store the assistant response.
+                    resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
+                    if resp_content:
+                        db.add(ChatMessageModel(
+                            session_id=session_id,
+                            role="assistant",
+                            content=resp_content,
+                            timestamp=ts,
+                        ))
+        except Exception as e:
+            logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
 
     def _generate_error_response(self, error: str, session_id: str) -> Dict[str, Any]:
         return {

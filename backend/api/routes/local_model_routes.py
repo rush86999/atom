@@ -119,6 +119,17 @@ async def register_provider(
     return {"id": provider.id, "name": provider.name, "registered": True}
 
 
+def _get_owned_provider(provider_id: str, workspace_id: str, db: Session) -> LocalModelProvider:
+    """Fetch a provider and verify workspace ownership. 404 if not found or not owned."""
+    provider = db.query(LocalModelProvider).filter(
+        LocalModelProvider.id == provider_id,
+        LocalModelProvider.workspace_id == workspace_id,
+    ).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return provider
+
+
 @router.delete("/{provider_id}")
 async def unregister_provider(
     provider_id: str,
@@ -126,9 +137,8 @@ async def unregister_provider(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Unregister a local model provider."""
-    provider = db.query(LocalModelProvider).filter(LocalModelProvider.id == provider_id).first()
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+    ws_id = current_user.workspace_id or "default"
+    provider = _get_owned_provider(provider_id, ws_id, db)
     db.delete(provider)
     db.commit()
     return {"deleted": True}
@@ -150,9 +160,8 @@ async def discover_models(
     the model list. Also registers each discovered model into the pricing cache
     so capability detection works.
     """
-    provider = db.query(LocalModelProvider).filter(LocalModelProvider.id == provider_id).first()
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+    ws_id = current_user.workspace_id or "default"
+    provider = _get_owned_provider(provider_id, ws_id, db)
 
     try:
         headers = {}
@@ -220,9 +229,7 @@ async def set_capabilities(
     filtering, cognitive tier assignment, and the learning router registry.
     """
     ws_id = current_user.workspace_id or "default"
-    provider = db.query(LocalModelProvider).filter(LocalModelProvider.id == provider_id).first()
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+    provider = _get_owned_provider(provider_id, ws_id, db)
 
     # Upsert: update if exists, create if not.
     existing = db.query(LocalModelCapabilities).filter(
@@ -270,9 +277,8 @@ async def test_connection(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Test whether a local provider is reachable."""
-    provider = db.query(LocalModelProvider).filter(LocalModelProvider.id == provider_id).first()
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+    ws_id = current_user.workspace_id or "default"
+    provider = _get_owned_provider(provider_id, ws_id, db)
 
     try:
         headers = {}
