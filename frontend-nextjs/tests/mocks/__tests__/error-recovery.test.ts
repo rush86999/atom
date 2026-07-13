@@ -249,4 +249,3 @@ afterEach(() => {
       expect(errorRecoveryHandlers.networkRecovery).toBeDefined();
     });
   });
-});

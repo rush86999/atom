@@ -181,7 +181,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     content: data.message, // Backend 'message' field
                     timestamp: new Date(),
                     // Backend returns suggested_actions, map them if needed
-                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'suggested' })) || [],
+                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'view_template' as const })) || [],
                     model: data.model,
                     provider: data.provider,
                 };
@@ -235,14 +235,13 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         // Implement specific action logic here (execute workflow, etc.)
         // For now, we'll just simulate a response
         if (action.type === 'execute' && action.workflowId) {
-            // Call execute API
+            // Call execute API (use apiClient for auth)
             try {
-                const response = await fetch("/api/atom-agent/execute-generated", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ workflow_id: action.workflowId, input_data: {} }),
-                });
-                const data = await response.json();
+                const { apiClient } = await import('../lib/api-client');
+                const response = await apiClient.post("/api/atom-agent/execute-generated", {
+                    workflow_id: action.workflowId, input_data: {},
+                }) as any;
+                const data = response.data || response;
                 if (data.success) {
                     toast({ title: "Workflow Started", description: `Execution ID: ${data.execution_id}`, variant: "default" });
                 } else {
@@ -269,12 +268,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
     const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
         try {
-            const response = await fetch(`/api/agents/approvals/${actionId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ decision }),
-            });
-            const data = await response.json();
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.post(`/api/agents/approvals/${actionId}`, {
+                decision,
+            }) as any;
+            const data = response.data || response;
             if (data.success) {
                 toast({ title: `Action ${decision}`, description: `Decision recorded.`, variant: "default" });
                 setPendingApproval(null);
@@ -288,11 +286,6 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
     const handleMessageFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
-            toast({
-                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
-                description: comment ? "We'll use this to improve." : "Thanks for your feedback!",
-            });
-
             // Repointed to the live learning-router feedback endpoint (was
             // /api/reasoning/feedback, which is a different feedback store with
             // no model identity). Carries model/provider so the router can tie
@@ -306,6 +299,12 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 model: ratedMessage?.model,
                 provider: ratedMessage?.provider,
                 session_id: sessionId,
+            });
+            // Fire the toast AFTER the POST resolves so the user isn't told
+            // "thanks" if the feedback actually failed.
+            toast({
+                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
+                description: comment ? "We'll use this to improve." : "Thanks for your feedback!",
             });
         } catch (e) {
             console.error("Feedback failed", e);
