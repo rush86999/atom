@@ -75,6 +75,9 @@ class SlackUnifiedService:
             base_url=self.api_base_url,
             timeout=30.0
         )
+        # IntegrationHTTP wrapper for resilient API calls.
+        from core.integration_http import IntegrationHTTP
+        self.http = IntegrationHTTP(client=self.client)
         
         # Rate limiting
         self.rate_limits: Dict[str, SlackRateLimit] = {}
