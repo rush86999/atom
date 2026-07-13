@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
@@ -33,6 +34,7 @@ class ZoomService(IntegrationService):
         self.token_url = "https://zoom.us/oauth/token"
         self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -72,7 +74,7 @@ class ZoomService(IntegrationService):
                 "redirect_uri": redirect_uri
             }
             
-            response = await self.client.post(
+            response = await self.http.post("zoom", 
                 self.token_url,
                 data=data,
                 auth=auth
@@ -99,7 +101,7 @@ class ZoomService(IntegrationService):
             
             headers = self._get_headers(token)
             
-            response = await self.client.get(
+            response = await self.http.get("zoom", 
                 f"{self.base_url}/users/{user_id}",
                 headers=headers
             )
@@ -132,7 +134,7 @@ class ZoomService(IntegrationService):
                 "page_size": page_size
             }
             
-            response = await self.client.get(
+            response = await self.http.get("zoom", 
                 f"{self.base_url}/users/{user_id}/meetings",
                 headers=headers,
                 params=params
@@ -177,7 +179,7 @@ class ZoomService(IntegrationService):
             if agenda:
                 payload["agenda"] = agenda
             
-            response = await self.client.post(
+            response = await self.http.post("zoom", 
                 f"{self.base_url}/users/{user_id}/meetings",
                 headers=headers,
                 json=payload
@@ -205,7 +207,7 @@ class ZoomService(IntegrationService):
             
             headers = self._get_headers(token)
             
-            response = await self.client.delete(
+            response = await self.http.delete("zoom", 
                 f"{self.base_url}/meetings/{meeting_id}",
                 headers=headers
             )
@@ -361,7 +363,7 @@ class ZoomService(IntegrationService):
                 "page_number": page_number
             }
             
-            response = await self.client.get(
+            response = await self.http.get("zoom", 
                 f"{self.base_url}/users",
                 headers=headers,
                 params=params
@@ -399,7 +401,7 @@ class ZoomService(IntegrationService):
             if to_date:
                 params["to"] = to_date
             
-            response = await self.client.get(
+            response = await self.http.get("zoom", 
                 f"{self.base_url}/users/{user_id}/recordings",
                 headers=headers,
                 params=params

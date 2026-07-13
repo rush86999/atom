@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 from core.integration_service import IntegrationService
 
@@ -30,6 +31,7 @@ class PlaidService(IntegrationService):
         }
         self.base_url = env_urls.get(self.environment, env_urls["sandbox"])
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     def get_capabilities(self) -> Dict[str, Any]:
         """
@@ -211,7 +213,7 @@ class PlaidService(IntegrationService):
                 "language": language
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/link/token/create",
                 headers=headers,
                 json=payload
@@ -238,7 +240,7 @@ class PlaidService(IntegrationService):
                 "public_token": public_token
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/item/public_token/exchange",
                 headers=headers,
                 json=payload
@@ -265,7 +267,7 @@ class PlaidService(IntegrationService):
                 "access_token": access_token
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/accounts/get",
                 headers=headers,
                 json=payload
@@ -293,7 +295,7 @@ class PlaidService(IntegrationService):
                 "access_token": access_token
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/accounts/balance/get",
                 headers=headers,
                 json=payload
@@ -333,7 +335,7 @@ class PlaidService(IntegrationService):
                 }
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/transactions/get",
                 headers=headers,
                 json=payload
@@ -360,7 +362,7 @@ class PlaidService(IntegrationService):
                 "access_token": access_token
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/identity/get",
                 headers=headers,
                 json=payload
@@ -387,7 +389,7 @@ class PlaidService(IntegrationService):
                 "access_token": access_token
             }
             
-            response = await self.client.post(
+            response = await self.http.post("plaid", 
                 f"{self.base_url}/item/remove",
                 headers=headers,
                 json=payload

@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class AirtableService(IntegrationService):
         self.api_key = config.get("api_key") or os.getenv("AIRTABLE_API_KEY")
         self.base_url = "https://api.airtable.com/v0"
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -39,7 +41,7 @@ class AirtableService(IntegrationService):
         """List all bases accessible to the user"""
         try:
             headers = self._get_headers(token)
-            response = await self.client.get(f"{self.base_url}/meta/bases", headers=headers)
+            response = await self.http.get("airtable", f"{self.base_url}/meta/bases", headers=headers)
             response.raise_for_status()
             return response.json().get("bases", [])
         except Exception as e:
@@ -50,7 +52,7 @@ class AirtableService(IntegrationService):
         """List all tables in a base"""
         try:
             headers = self._get_headers(token)
-            response = await self.client.get(f"{self.base_url}/meta/bases/{base_id}/tables", headers=headers)
+            response = await self.http.get("airtable", f"{self.base_url}/meta/bases/{base_id}/tables", headers=headers)
             response.raise_for_status()
             return response.json().get("tables", [])
         except Exception as e:
@@ -78,7 +80,7 @@ class AirtableService(IntegrationService):
             if filter_formula:
                 params["filterByFormula"] = filter_formula
             
-            response = await self.client.get(
+            response = await self.http.get("airtable", 
                 f"{self.base_url}/{base_id}/{table_name}",
                 headers=headers,
                 params=params
@@ -107,7 +109,7 @@ class AirtableService(IntegrationService):
             
             headers = self._get_headers()
             
-            response = await self.client.get(
+            response = await self.http.get("airtable", 
                 f"{self.base_url}/{base_id}/{table_name}/{record_id}",
                 headers=headers
             )
@@ -135,7 +137,7 @@ class AirtableService(IntegrationService):
             headers = self._get_headers()
             payload = {"fields": fields}
             
-            response = await self.client.post(
+            response = await self.http.post("airtable", 
                 f"{self.base_url}/{base_id}/{table_name}",
                 headers=headers,
                 json=payload
@@ -165,7 +167,7 @@ class AirtableService(IntegrationService):
             headers = self._get_headers()
             payload = {"fields": fields}
             
-            response = await self.client.patch(
+            response = await self.http.patch("airtable", 
                 f"{self.base_url}/{base_id}/{table_name}/{record_id}",
                 headers=headers,
                 json=payload
@@ -193,7 +195,7 @@ class AirtableService(IntegrationService):
             
             headers = self._get_headers()
             
-            response = await self.client.delete(
+            response = await self.http.delete("airtable", 
                 f"{self.base_url}/{base_id}/{table_name}/{record_id}",
                 headers=headers
             )

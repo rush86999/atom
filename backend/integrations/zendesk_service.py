@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
@@ -26,6 +27,7 @@ class ZendeskService(IntegrationService):
         self.oauth_url = f"https://{self.subdomain}.zendesk.com/oauth"
         self.access_token = config.get("access_token") or os.getenv("ZENDESK_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -64,7 +66,7 @@ class ZendeskService(IntegrationService):
                 "scope": scope
             }
             
-            response = await self.client.post(f"{self.oauth_url}/tokens", data=data)
+            response = await self.http.post("zendesk", f"{self.oauth_url}/tokens", data=data)
             response.raise_for_status()
             
             token_data = response.json()
@@ -98,7 +100,7 @@ class ZendeskService(IntegrationService):
                 "sort_order": sort_order
             }
             
-            response = await self.client.get(
+            response = await self.http.get("zendesk", 
                 f"{self.base_url}/tickets.json",
                 headers=headers,
                 params=params
@@ -123,7 +125,7 @@ class ZendeskService(IntegrationService):
             
             headers = self._get_headers(token)
             
-            response = await self.client.get(
+            response = await self.http.get("zendesk", 
                 f"{self.base_url}/tickets/{ticket_id}.json",
                 headers=headers
             )
@@ -170,7 +172,7 @@ class ZendeskService(IntegrationService):
             
             payload = {"ticket": ticket_data}
             
-            response = await self.client.post(
+            response = await self.http.post("zendesk", 
                 f"{self.base_url}/tickets.json",
                 headers=headers,
                 json=payload
@@ -204,7 +206,7 @@ class ZendeskService(IntegrationService):
                 "per_page": per_page
             }
             
-            response = await self.client.get(
+            response = await self.http.get("zendesk", 
                 f"{self.base_url}/search.json",
                 headers=headers,
                 params=params
@@ -234,7 +236,7 @@ class ZendeskService(IntegrationService):
             headers = self._get_headers(token)
             params = {"per_page": per_page}
             
-            response = await self.client.get(
+            response = await self.http.get("zendesk", 
                 f"{self.base_url}/users.json",
                 headers=headers,
                 params=params

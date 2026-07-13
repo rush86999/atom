@@ -6,7 +6,7 @@ type ToastProps = {
     id: string
     title?: string
     description?: string
-    variant?: "default" | "success" | "error" | "warning"
+    variant?: "default" | "success" | "error" | "warning" | "destructive"
     duration?: number
 }
 

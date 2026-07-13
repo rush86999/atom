@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ class LinearService(IntegrationService):
         self.token_url = "https://api.linear.app/oauth/token"
         self.access_token = config.get("access_token") or os.getenv("LINEAR_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -64,7 +66,7 @@ class LinearService(IntegrationService):
                 "client_secret": self.client_secret
             }
             
-            response = await self.client.post(self.token_url, data=data)
+            response = await self.http.post("linear", self.token_url, data=data)
             response.raise_for_status()
             
             token_data = response.json()
@@ -90,7 +92,7 @@ class LinearService(IntegrationService):
             if variables:
                 payload["variables"] = variables
             
-            response = await self.client.post(
+            response = await self.http.post("linear", 
                 self.graphql_url,
                 headers=headers,
                 json=payload
