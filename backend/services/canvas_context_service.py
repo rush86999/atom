@@ -180,7 +180,7 @@ class CanvasContextService:
                     tenant_id=self.tenant_id,
                     original_output=str(original_action),
                     user_correction=str(corrected_action),
-                    input_context=str(context_info or ""),
+                    input_context=f"canvas_id={canvas_id}; {context_info or ''}",
                     feedback_type='correction',
                     status=FeedbackStatus.PENDING.value if hasattr(FeedbackStatus, 'PENDING') else "pending",
                     created_at=datetime.now(timezone.utc)

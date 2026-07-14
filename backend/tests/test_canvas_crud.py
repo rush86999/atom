@@ -68,22 +68,21 @@ class TestCanvasHttpEndpoints:
         """GET /api/canvas/{canvas_id} is registered."""
         from api.canvas_routes import router
         paths = {r.path for r in router.routes if hasattr(r, "path")}
-        assert "/{canvas_id}" in paths or any("/{canvas_id}" in p for p in paths)
+        assert any("/{canvas_id}" in p for p in paths)
 
     def test_delete_endpoint_exists(self):
         """DELETE /api/canvas/{canvas_id} is registered."""
         from api.canvas_routes import router
-        methods = []
         for r in router.routes:
             if hasattr(r, "methods") and hasattr(r, "path") and "/{canvas_id}" in r.path:
-                methods.extend(r.methods)
-        assert "DELETE" in methods
+                if "DELETE" in r.methods:
+                    return
+        pytest.fail("No DELETE /{canvas_id} route found")
 
     def test_list_endpoint_exists(self):
-        """GET /api/canvas/ (list) is registered."""
+        """GET / (list) is registered."""
         from api.canvas_routes import router
         paths = {r.path for r in router.routes if hasattr(r, "path")}
-        # Router has prefix /api/canvas, so "/" becomes "/api/canvas/"
         assert "/" in paths or "/api/canvas/" in paths
 
 

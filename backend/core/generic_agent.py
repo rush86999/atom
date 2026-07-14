@@ -435,7 +435,7 @@ ORCHESTRATION POWERS:
             try:
                 # In Upstream, we use the local CanvasPresentationSummaryService or port the SaaS one
                 # For consistency with SaaS port, we use the port we just made
-                from core.canvas_summary_service import CanvasSummaryService as CSS
+                from core.llm.canvas_summary_service import CanvasSummaryService as CSS
                 # If vision is DISABLED or it's M2.7, we use the summary instead of screenshot
                 # Identify M2.7 by routing info
                 is_minimax = "minimax" in str(self.llm._get_handler().default_provider_id).lower()
