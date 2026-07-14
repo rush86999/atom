@@ -110,6 +110,68 @@ async def list_canvas_types(
 
 
 # ============================================================================
+# Canvas CRUD — Read, Update, Delete (Create happens via agent tools)
+# ============================================================================
+
+@router.get("/{canvas_id}")
+async def read_canvas_content(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Read the current content of a canvas by ID (from the audit trail)."""
+    from tools.canvas_crud_tool import read_canvas
+    result = await read_canvas(str(current_user.id), canvas_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error"))
+    return result
+
+
+@router.put("/{canvas_id}")
+async def update_canvas_content(
+    canvas_id: str,
+    content: Dict[str, Any],
+    canvas_type: str = "generic",
+    title: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Update the content of an existing canvas."""
+    from tools.canvas_crud_tool import update_canvas_content as update_fn
+    result = await update_fn(
+        str(current_user.id), canvas_id, content, canvas_type, title
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.delete("/{canvas_id}")
+async def delete_canvas(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete (close) a specific canvas by ID."""
+    from tools.canvas_crud_tool import delete_canvas as delete_fn
+    result = await delete_fn(str(current_user.id), canvas_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.get("/")
+async def list_user_canvases(
+    canvas_type: Optional[str] = None,
+    include_deleted: bool = False,
+    current_user: User = Depends(get_current_user)
+):
+    """List all canvases for the current user."""
+    from tools.canvas_crud_tool import list_canvases
+    result = await list_canvases(
+        str(current_user.id), canvas_type, include_deleted
+    )
+    return result
+
+
+# ============================================================================
 # Context Management (Memory & Learning)
 # ============================================================================
 

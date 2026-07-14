@@ -126,6 +126,7 @@ class RoutingFeedback:
     user_satisfaction: Optional[float] = None  # 0-1 if available
     actual_cost: Optional[float] = None
     actual_latency_ms: Optional[float] = None
+    canvas_type: Optional[str] = None  # Which canvas type the model output to (for canvas-aware learning)
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
