@@ -131,19 +131,23 @@ class OfficeSyncService:
                 self._ingest_document_to_memory_sync(file_path, user_id)
 
             # Push live update via WebSocket manager
-            asyncio.create_task(ws_manager.broadcast({
-                "type": "canvas:update",
-                "data": {
-                    "action": "update",
-                    "canvas_id": canvas_id,
-                    "canvas_type": canvas_type,
-                    "component": "office_preview",
+            try:
+                asyncio.create_task(ws_manager.broadcast({
+                    "type": "canvas:update",
                     "data": {
-                        "html": render_res["html"],
-                        "file_path": file_path
+                        "action": "update",
+                        "canvas_id": canvas_id,
+                        "canvas_type": canvas_type,
+                        "component": "office_preview",
+                        "data": {
+                            "html": render_res["html"],
+                            "file_path": file_path
+                        }
                     }
-                }
-            }))
+                }))
+            except RuntimeError:
+                # No running loop — skip async broadcast (rare sync caller).
+                pass
 
         except Exception as e:
             logger.error(f"Failed to broadcast file update: {e}")
