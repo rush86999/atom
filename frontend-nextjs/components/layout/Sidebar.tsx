@@ -66,6 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             items: [
                 { label: "Dashboard", icon: Home, path: "/" },
                 { label: "Chat", icon: MessageSquare, path: "/chat" },
+                { label: "Canvases", icon: Layout, path: "/canvas" },
                 { label: "Search", icon: Search, path: "/search" },
                 { label: "Documents", icon: FileText, path: "/documents" },
                 { label: "Tasks", icon: CheckSquare, path: "/tasks" },
