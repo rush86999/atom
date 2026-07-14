@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink, RefreshCw, Check, AlertCircle, Code, Camera, Globe, Play, Layers } from "lucide-react";
@@ -8,6 +8,7 @@ import { LineChartCanvas } from "../canvas/LineChart";
 import { BarChartCanvas } from "../canvas/BarChart";
 import { PieChartCanvas } from "../canvas/PieChart";
 import { InteractiveForm } from "../canvas/InteractiveForm";
+import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 
 interface CanvasHostProps {
     lastMessage: any;
@@ -15,7 +16,7 @@ interface CanvasHostProps {
 
 interface CanvasState {
     visible: boolean;
-    component: "markdown" | "chart" | "form" | "status_panel" | "line_chart" | "bar_chart" | "pie_chart" | "eval" | "snapshot" | "browser_view" | "custom";
+    component: "markdown" | "chart" | "form" | "status_panel" | "line_chart" | "bar_chart" | "pie_chart" | "eval" | "snapshot" | "browser_view" | "office_preview" | "custom";
     title?: string;
     data: any;
 }
@@ -47,6 +48,37 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     }, [lastMessage]);
 
     if (!state || !state.visible) return null;
+
+    // ─── AI Accessibility: register canvas state for agent read-back ───
+    const officeState = useMemo(() => {
+        if (state.component === "office_preview") {
+            return {
+                type: "generic" as const,
+                component: "office" as const,
+                title: state.title || "Office Document",
+                fileType: (state.data as any)?.fileType || (state.data as any)?.ext || "xlsx",
+                filePath: (state.data as any)?.filePath || (state.data as any)?.file_path || "",
+                html: typeof state.data === "string" ? state.data : (state.data as any)?.html || "",
+            };
+        }
+        if (state.component === "markdown") {
+            return {
+                type: "generic" as const,
+                component: "markdown" as const,
+                title: state.title || "Markdown",
+                text: typeof state.data === "string" ? state.data : JSON.stringify(state.data),
+                html: typeof state.data === "string" ? renderMarkdownSafe(state.data) : "",
+            };
+        }
+        return {
+            type: "generic" as const,
+            component: state.component,
+            title: state.title || "Canvas",
+            data: state.data,
+        };
+    }, [state]);
+
+    useCanvasStateRegistration(canvasId, officeState as any);
 
     return (
         <div className="absolute top-4 right-4 bottom-4 w-[450px] bg-background border shadow-xl z-50 rounded-lg flex flex-col animate-in slide-in-from-right-10 overflow-hidden ring-1 ring-border/50">

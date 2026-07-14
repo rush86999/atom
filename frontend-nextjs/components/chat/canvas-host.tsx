@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
+import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 
 interface CanvasState {
     id?: string;
@@ -104,6 +105,70 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     const handleSendEmail = async () => {
         alert(`Sending email to ${emailMetadata.to}...`);
     };
+
+    // ─── AI Accessibility: register canvas state for agent read-back ───
+    // Every canvas type exposes its current state via window.atom.canvas.getState()
+    // so agents can "see" what's on screen. Uses the reusable registration hook.
+    const canvasId = state?.id || `canvas_${state?.component || 'generic'}`;
+    const canvasState = useMemo(() => {
+        if (!state?.visible) return null;
+
+        switch (state.component) {
+            case "sheet":
+                return {
+                    type: "sheets" as const,
+                    cells: sheetData,
+                    sheetName: state.title || "Sheet1",
+                    activeCell: null as string | null,
+                };
+            case "email":
+                return {
+                    type: "email" as const,
+                    to: emailMetadata.to,
+                    subject: emailMetadata.subject,
+                    body: localContentRef.current,
+                    draft: hasUnsavedChanges,
+                };
+            case "document":
+                return {
+                    type: "docs" as const,
+                    title: state.title || "Document",
+                    format: "docx" as const,
+                    sections: [{ heading: "Content", body: localContentRef.current }],
+                };
+            case "code":
+                return {
+                    type: "coding" as const,
+                    language: (state.data as any)?.language || "plaintext",
+                    code: localContentRef.current,
+                    filename: state.title || "untitled",
+                };
+            case "markdown":
+                return {
+                    type: "generic" as const,
+                    component: "markdown" as const,
+                    title: state.title || "Markdown",
+                    text: localContentRef.current,
+                    html: renderMarkdownSafe(localContentRef.current),
+                };
+            case "status_panel":
+                return {
+                    type: "generic" as const,
+                    component: "status_panel" as const,
+                    title: state.title || "Status",
+                    text: localContentRef.current,
+                };
+            default:
+                return {
+                    type: "generic" as const,
+                    component: state.component,
+                    title: state.title || "Canvas",
+                    data: state.data,
+                };
+        }
+    }, [state, sheetData, emailMetadata, hasUnsavedChanges]);
+
+    useCanvasStateRegistration(canvasId, canvasState as any);
 
     if (!state || !state.visible) return null;
 
