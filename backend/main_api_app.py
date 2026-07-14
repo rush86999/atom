@@ -1364,6 +1364,37 @@ if integration_memory_router:
 if "qstash_router" in globals() and qstash_router:
     app.include_router(qstash_router, prefix="/api/v1/worker", tags=["worker"])
 
+# --- Live dashboard APIs (frontend hooks depend on these) ---
+# These were orphaned router files that the frontend fetches from but were
+# never mounted — wiring them unbreaks the Command Center dashboards.
+try:
+    from core.automation_settings_endpoints import router as automation_settings_router
+    app.include_router(automation_settings_router)
+    logger.info("✓ Automation Settings mounted at /api/v1/settings/automations")
+except Exception as e:
+    logger.warning(f"Could not mount automation settings: {e}")
+
+try:
+    from integrations.atom_finance_live_api import router as atom_finance_live_router
+    app.include_router(atom_finance_live_router)
+    logger.info("✓ Finance Live API mounted at /api/atom/finance/live")
+except Exception as e:
+    logger.warning(f"Could not mount finance live API: {e}")
+
+try:
+    from integrations.atom_projects_live_api import router as atom_projects_live_router
+    app.include_router(atom_projects_live_router)
+    logger.info("✓ Projects Live API mounted at /api/atom/projects/live")
+except Exception as e:
+    logger.warning(f"Could not mount projects live API: {e}")
+
+try:
+    from integrations.atom_sales_live_api import router as atom_sales_live_router
+    app.include_router(atom_sales_live_router)
+    logger.info("✓ Sales Live API mounted at /api/atom/sales/live")
+except Exception as e:
+    logger.warning(f"Could not mount sales live API: {e}")
+
 
 # Health check consolidated at the end of file
 
