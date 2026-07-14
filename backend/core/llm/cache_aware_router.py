@@ -75,6 +75,11 @@ class CacheAwareRouter:
             "cached_cost_ratio": 1.0,    # No caching = full price
             "min_tokens": 0,
         },
+        "moonshot": {
+            "supports_cache": True,      # Kimi K2 supports context caching
+            "cached_cost_ratio": 0.20,   # Cached tokens cost ~20% of original
+            "min_tokens": 1024,
+        },
     }
 
     def __init__(self, pricing_fetcher):

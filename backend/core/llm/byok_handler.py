@@ -124,11 +124,11 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "gemini-3.5-flash",
         QueryComplexity.ADVANCED: "gemini-3-pro",
     },
-    "moonshot": {
-        QueryComplexity.SIMPLE: "qwen-3-7b",
-        QueryComplexity.MODERATE: "qwen-3-7b",
-        QueryComplexity.COMPLEX: "qwen-3-max",
-        QueryComplexity.ADVANCED: "qwen-3-max",
+    "moonshot": {  # Moonshot AI (Kimi family)
+        QueryComplexity.SIMPLE: "moonshot/kimi-k2-thinking",
+        QueryComplexity.MODERATE: "moonshot/kimi-k2-thinking",
+        QueryComplexity.COMPLEX: "kimi-k2.6",
+        QueryComplexity.ADVANCED: "kimi-k2.6",
     },
     "minimax": {
         QueryComplexity.SIMPLE: "MiniMax-M3-highspeed",
@@ -454,6 +454,8 @@ class BYOKHandler:
             # OpenRouter — unified gateway to 300+ models (OpenAI, Anthropic,
             # Google, Meta, …). OpenAI-compatible; one key → all models.
             "openrouter": {"base_url": "https://openrouter.ai/api/v1"},
+            # Zhipu AI GLM family — OpenAI-compatible API
+            "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4"},
         }
 
         # Separate sync and async clients
