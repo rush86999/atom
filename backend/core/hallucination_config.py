@@ -169,6 +169,9 @@ _FRONTIER_BY_PROVIDER: dict[str, str] = {
     "glm": "glm-5.2",  # Zhipu AI flagship (June 2026)
     "zhipu": "glm-5.2",  # alternate provider key used by learning router
     "moonshot": "kimi-k2.6",  # Moonshot AI (Kimi) flagship
+    "openrouter": "anthropic/claude-3.5-sonnet",  # OpenRouter cascade target
+    "mistral": "mistral-large-latest",
+    "groq": "llama-3.3-70b-versatile",
 }
 
 

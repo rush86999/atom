@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const AgentsDashboard = () => {
     const router = useRouter();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -98,7 +100,7 @@ const AgentsDashboard = () => {
             setError(null);
             console.log("Fetching agents with token:", token ? token.substring(0, 10) + "..." : "NONE");
             // Direct backend connection to bypass proxy issues
-            const res = await fetch('http://localhost:8000/api/agents/', {
+            const res = await fetch(`${API_BASE}/api/agents/`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -143,7 +145,7 @@ const AgentsDashboard = () => {
         setLogs([`Initializing agent: ${selectedAgentId}...`, "Connecting to real-time stream...", `Instructions: ${runInstructions || "Default behavior"}`]);
 
         try {
-            const res = await fetch(`http://localhost:8000/api/agents/${selectedAgentId}/run/`, {
+            const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}/run/`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -223,7 +225,7 @@ const AgentsDashboard = () => {
     const handleStepFeedback = async (stepId: string, score: number, comment?: string) => {
         try {
             // Internal path for single-tenant feedback
-            const res = await fetch(`http://localhost:8000/api/v1/agents/steps/feedback`, {
+            const res = await fetch(`${API_BASE}/api/v1/agents/steps/feedback`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

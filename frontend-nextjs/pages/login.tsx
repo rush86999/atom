@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function LoginPage() {
     const router = useRouter();
     const [isLogin, setIsLogin] = useState(true);
@@ -24,7 +26,7 @@ export default function LoginPage() {
         try {
             if (isLogin) {
                 // Login
-                const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ export default function LoginPage() {
                 router.push('/agents');
             } else {
                 // Register
-                const response = await fetch('http://127.0.0.1:8000/api/auth/register', {
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

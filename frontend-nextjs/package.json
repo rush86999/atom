@@ -155,6 +155,7 @@
     "react-gtm-module": "^2.0.11",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^4.8.0",
+    "react-json-view": "^1.21.3",
     "react-lite-youtube-embed": "^2.3.52",
     "react-modal": "^3.16.1",
     "react-native": "^0.71.4",

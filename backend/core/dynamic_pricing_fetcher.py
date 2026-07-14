@@ -159,6 +159,18 @@ class DynamicPricingFetcher:
                             "supports_cache": True,
                         }
 
+                # LUX Computer Use fallback (proprietary model, not in LiteLLM)
+                if "lux-1.0" not in pricing:
+                    pricing["lux-1.0"] = {
+                        "input_cost_per_token": 0.000003,
+                        "output_cost_per_token": 0.000015,
+                        "max_tokens": 200000,
+                        "litellm_provider": "lux",
+                        "mode": "chat",
+                        "source": "estimated",
+                        "supports_cache": False,
+                    }
+
                 logger.info(f"Fetched {len(pricing)} model prices from LiteLLM")
                 return pricing
 
@@ -393,6 +405,12 @@ class DynamicPricingFetcher:
             return "glm"
         elif "kimi" in model_lower or "moonshot" in model_lower:
             return "moonshot"
+        elif "mistral" in model_lower:
+            return "mistral"
+        elif "llama" in model_lower and "groq" not in model_lower:
+            return "groq"  # Groq serves Llama models
+        elif "lux" in model_lower:
+            return "lux"
         else:
             return "unknown"
 
