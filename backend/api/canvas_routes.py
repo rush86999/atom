@@ -157,6 +157,39 @@ async def delete_canvas(
     return result
 
 
+@router.get("/{canvas_id}/history")
+async def get_canvas_history(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get the version history (audit trail) for a canvas."""
+    from core.database import get_db_session
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    try:
+        with get_db_session() as db:
+            audits = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).order_by(desc(CanvasAudit.created_at)).limit(50).all()
+
+            history = [
+                {
+                    "audit_id": a.id,
+                    "canvas_id": a.canvas_id,
+                    "canvas_type": a.canvas_type,
+                    "action_type": a.action_type,
+                    "user_id": a.user_id,
+                    "details": a.details_json,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in audits
+            ]
+        return {"success": True, "canvas_id": canvas_id, "history": history, "count": len(history)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/")
 async def list_user_canvases(
     canvas_type: Optional[str] = None,
@@ -309,8 +342,27 @@ async def submit_canvas(
                 status_code=403
             )
 
-    # TODO: Process form submission, save to database, etc.
-    # For now, return success
+    # Persist the submission via the canvas audit trail.
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        with get_db_session() as db:
+            audit = CanvasAudit(
+                canvas_id=request.canvas_id,
+                canvas_type="form",
+                action_type="submit",
+                user_id=str(current_user.id) if current_user else "system",
+                details_json={
+                    "form_data": request.data if hasattr(request, 'data') else {},
+                    "agent_id": request.agent_id if hasattr(request, 'agent_id') else None,
+                    "submitted_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            db.add(audit)
+            db.commit()
+    except Exception as e:
+        logger.warning(f"Canvas submit persistence failed (non-fatal): {e}")
+
     return router.success_response(
         data={
             "canvas_id": request.canvas_id,

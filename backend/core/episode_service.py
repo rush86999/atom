@@ -125,7 +125,7 @@ def _get_canvas_summary_service(workspace_id: str):
          raise ValueError("workspace_id must be provided and cannot be 'default'")
     global _canvas_summary_service
     if _canvas_summary_service is None:
-        from core.canvas_summary_service import CanvasSummaryService
+        from core.llm.canvas_summary_service import CanvasSummaryService
         _canvas_summary_service = CanvasSummaryService(workspace_id)
     return _canvas_summary_service
 
