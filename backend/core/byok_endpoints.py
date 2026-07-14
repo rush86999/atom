@@ -333,14 +333,27 @@ class BYOKManager:
             AIProviderConfig(
                 id="glm",
                 name="Zhipu GLM",
-                description="GLM-4 and GLM-4.6 models",
+                description="GLM-4.6 and GLM-5.2 models (1M context, reasoning)",
                 api_key_env_var="GLM_API_KEY",
                 base_url="https://open.bigmodel.cn/api/paas/v4",
-                supported_tasks=["general", "chat", "analysis"],
-                cost_per_token=0.000005,
-                model="glm-4.6",
-                reasoning_level=3,
-                supports_structured_output=False
+                supported_tasks=["general", "chat", "analysis", "reasoning", "code"],
+                cost_per_token=0.000002,
+                model="glm-5.2",
+                reasoning_level=4,
+                supports_structured_output=True
+            ),
+            AIProviderConfig(
+                id="moonshot",
+                name="Moonshot (Kimi)",
+                description="Kimi K2 models — 256K context, vision, reasoning",
+                api_key_env_var="MOONSHOT_API_KEY",
+                base_url="https://api.moonshot.cn/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000001,
+                model="kimi-k2.6",
+                reasoning_level=4,
+                supports_structured_output=True,
+                supports_vision=True,
             ),
             AIProviderConfig(
                 id="qwen",
@@ -397,6 +410,19 @@ class BYOKManager:
                 cost_per_token=0.00000075,
                 model="MiniMax-M3",
                 reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="minimax",
+                name="MiniMax",
+                description="MiniMax M3 (512K context, OpenAI-compatible). Matches the client key in byok_handler.",
+                api_key_env_var="MINIMAX_API_KEY",
+                base_url="https://api.minimax.io/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.00000075,
+                model="MiniMax-M3",
+                reasoning_level=3,
+                supports_structured_output=True,
+                supports_vision=True,
             ),
             AIProviderConfig(
                 id="anthropic_opus_4_6",

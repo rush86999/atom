@@ -55,8 +55,11 @@ _BASELINE_EGRESS_HOSTS: Tuple[str, ...] = (
     "api.openai.com",
     "generativelanguage.googleapis.com",
     "api.deepseek.com",
-    "api.minimaxi.com",  # MiniMax
+    "api.minimax.io",  # MiniMax (correct domain — was api.minimaxi.com)
     "api.mistral.ai",
+    "open.bigmodel.cn",  # Zhipu AI (GLM family)
+    "api.moonshot.cn",  # Moonshot AI (Kimi)
+    "openrouter.ai",  # OpenRouter gateway
     # Package mirrors (required for any tool that pip-installs)
     "pypi.org",
     "files.pythonhosted.org",
@@ -74,8 +77,11 @@ _LLM_PROVIDER_HOSTS: Tuple[str, ...] = (
     "api.openai.com",
     "generativelanguage.googleapis.com",
     "api.deepseek.com",
-    "api.minimaxi.com",
+    "api.minimax.io",
     "api.mistral.ai",
+    "open.bigmodel.cn",
+    "api.moonshot.cn",
+    "openrouter.ai",
 )
 
 

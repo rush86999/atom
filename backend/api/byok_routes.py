@@ -275,12 +275,12 @@ class BYOKManager:
             AIProviderConfig(
                 id="minimax",
                 name="MiniMax",
-                description="MiniMax M2.5 Reasoning Model",
+                description="MiniMax M3 Flagship (512K context, image input)",
                 api_key_env_var="MINIMAX_API_KEY",
-                base_url="https://api.minimax.chat/v1",
-                supported_tasks=["general", "chat", "code", "reasoning", "agentic"],
-                cost_per_token=0.000001,
-                model="minimax-2.5",
+                base_url="https://api.minimax.io/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.00000075,
+                model="MiniMax-M3",
                 reasoning_level=4
             ),
             AIProviderConfig(

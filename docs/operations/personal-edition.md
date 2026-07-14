@@ -34,6 +34,9 @@ The Personal Edition is a simplified, streamlined version of Atom optimized for:
   - [Anthropic](https://console.anthropic.com/) (Claude 3.5 Sonnet) - **Best for complex tasks**
   - [DeepSeek](https://platform.deepseek.com/) (Affordable alternative)
   - [OpenRouter](https://openrouter.ai/keys) (Unified gateway — one key → 300+ models)
+  - [Zhipu GLM](https://open.bigmodel.cn/) (GLM-5.2 — 1M context, reasoning)
+  - [Moonshot/Kimi](https://platform.moonshot.cn/) (Kimi K2 — 256K context, vision)
+  - [MiniMax](https://api.minimax.io/) (M3 — 512K context, image input)
 
 ### System Requirements
 

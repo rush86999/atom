@@ -57,6 +57,17 @@ MODEL_QUALITY_SCORES = {
     "deepseek-chat": 80,
     "kimi-k1-5": 79,
     "qwen-3-7b": 82,
+
+    # Zhipu AI GLM family (2026)
+    "glm-5.2": 97,   # June 2026 flagship — 1M context, long-horizon reasoning
+    "glm-5": 96,
+    "glm-4.6": 90,
+    "glm-4.5": 88,
+
+    # Kimi K2 (Moonshot AI, 2026) — 256K context, vision
+    "kimi-k2.6": 93,
+    "kimi-k2-thinking": 91,
+    "kimi-k2": 89,
 }
 
 def get_quality_score(model_id: str) -> int:
