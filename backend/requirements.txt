@@ -167,3 +167,7 @@ ffmpeg-python>=0.2.0  # Pythonic FFmpeg wrapper for video/audio processing
 jinja2
 PyNaCl>=1.5.0
 defusedxml>=0.7.1  # XXE protection for XML parsing (SAML)
+
+# Skill parsing — imported at top level by core/openclaw_parser.py and
+# core/skill_parser.py. Required for the app and CI test collection to start.
+python-frontmatter>=1.0.0
