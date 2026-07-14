@@ -9,6 +9,8 @@
 
 ## 🚀 Recent Updates (July 2026)
 
+- **Workbook Runtime**: ✨ NEW - Excel engine replaced openpyxl-as-parser with a formula-evaluating runtime (`core/workbook_runtime.py`). LibreOffice headless primary (recalc + pixel-accurate HTML render + structural edits), `formulas` library fallback, openpyxl cached-values last resort. `office_service.py` write_cell now recalculates and returns computed values; render_to_html produces evaluated output with conditional formatting. See [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md).
+- **Integration Resilience Layer**: ✨ NEW - Universal HTTP wrapper (`core/integration_http.py`) for all third-party API calls: circuit breaker, rate limiting, 429 Retry-After parsing, exponential backoff, 401 token refresh, health monitoring. 89 calls across 13 services wired.
 - **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:
   - **Phase 2 (GraphRAG)**: Multi-hop scored expansion wired into `local_search`; `build_communities` populates the community table; `leidenalg` dependency added (with Louvain fallback).
   - **Phase 4 (Federation)**: New `api/routes/federation_routes.py` exposes DIDs, verifiable credentials, zero-trust verification, and security health/stats at `/api/federation/...` (the previously broken import in `main_api_app.py` now resolves).
@@ -17,8 +19,9 @@
   - **Bug fix**: Word-doc canvas→file sync was crashing (`office_sync_service.py` missing `import docx`).
 - **Learning LLM Router**: ✨ NEW - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes. A genuine end-to-end learning loop: the router observes response quality (truncation, schema failures, refusals), collects user feedback (thumbs up/down + regenerate), and re-ranks model candidates as data accumulates. Flag-gated (`ATOM_LEARNING_ROUTER`, default off). DB-persisted feedback (`llm_routing_feedback` table, migration `20260711`). Live `POST /api/chat/feedback` + `GET /api/chat/routing-stats` endpoints. Model visibility badge on chat messages + routing dashboard at `/settings/routing`.
   - [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md) - Architecture, the singleton registry, per-model predictors, quality assessment, the flag, the user journey, and honest limitations.
-- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents without native Office/LibreOffice dependencies.
-  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints.
+- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents. Excel workbooks run through a formula-evaluating workbook runtime (LibreOffice headless → `formulas` library → openpyxl fallback) so agents see computed values, not unevaluated formula strings.
+  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints, (e) formula evaluation + pixel-accurate rendering via the workbook runtime.
+  - [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md) - Excel engine architecture: LibreOffice headless (recalc + render + structural edits) → `formulas` library → openpyxl cached values.
   - Integrates directly with frontend `CanvasHost.tsx` for real-time bi-directional collaboration.
 
 ## 🚀 Recent Updates (June 2026)
