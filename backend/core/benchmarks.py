@@ -68,6 +68,22 @@ MODEL_QUALITY_SCORES = {
     "kimi-k2.6": 93,
     "kimi-k2-thinking": 91,
     "kimi-k2": 89,
+
+    # Mistral (OpenAI-compatible)
+    "mistral-large-latest": 90,
+    "mistral-large": 90,
+    "mistral-medium": 82,
+    "mistral-small": 78,
+    "mistral-nemo": 76,
+
+    # Groq (ultra-fast inference)
+    "llama-3.3-70b-versatile": 88,
+    "llama-3.1-70b-versatile": 87,
+    "llama-3.1-8b-instant": 75,
+    "mixtral-8x7b-32768": 84,
+
+    # Xiaomi
+    "xiaomi/mimo-v2.5-pro": 88,
 }
 
 def get_quality_score(model_id: str) -> int:

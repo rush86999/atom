@@ -54,6 +54,8 @@ interface DashboardData {
   }
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,7 +64,7 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch('http://localhost:8000/api/analytics/dashboard')
+      const response = await fetch(`${API_BASE}/api/analytics/dashboard`)
       const result = await response.json()
       setData(result)
     } catch (error) {
@@ -79,7 +81,7 @@ export default function AnalyticsPage() {
 
   const exportCSV = async (type: 'workflow' | 'integration') => {
     try {
-      const response = await fetch(`http://localhost:8000/api/analytics/export/csv?metric_type=${type}`)
+      const response = await fetch(`${API_BASE}/api/analytics/export/csv?metric_type=${type}`)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

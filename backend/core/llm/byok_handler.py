@@ -166,6 +166,18 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "glm-5",
         QueryComplexity.ADVANCED: "glm-5.2",  # Latest flagship (June 2026) — 1M ctx, reasoning
     },
+    "mistral": {
+        QueryComplexity.SIMPLE: "mistral-small",
+        QueryComplexity.MODERATE: "mistral-medium",
+        QueryComplexity.COMPLEX: "mistral-large-latest",
+        QueryComplexity.ADVANCED: "mistral-large-latest",
+    },
+    "groq": {  # Ultra-fast inference (Llama models)
+        QueryComplexity.SIMPLE: "llama-3.1-8b-instant",
+        QueryComplexity.MODERATE: "llama-3.1-8b-instant",
+        QueryComplexity.COMPLEX: "llama-3.3-70b-versatile",
+        QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
+    },
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
         QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
         QueryComplexity.MODERATE: "openai/gpt-4o-mini",
@@ -442,6 +454,7 @@ class BYOKHandler:
         # Initialize OpenAI-compatible clients for each provider
         providers_config = {
             "openai": {"base_url": None},
+            "anthropic": {"base_url": "https://api.anthropic.com/v1"},
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
@@ -456,6 +469,10 @@ class BYOKHandler:
             "openrouter": {"base_url": "https://openrouter.ai/api/v1"},
             # Zhipu AI GLM family — OpenAI-compatible API
             "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4"},
+            # Mistral — OpenAI-compatible API
+            "mistral": {"base_url": "https://api.mistral.ai/v1"},
+            # Groq — ultra-fast inference, OpenAI-compatible
+            "groq": {"base_url": "https://api.groq.com/openai/v1"},
         }
 
         # Separate sync and async clients

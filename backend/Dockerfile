@@ -65,19 +65,20 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder --chown=atomuser:atomuser /app /app
 
 # Set working directory and user.
-# WORKDIR is /app/backend so uvicorn finds main:app there.
+# WORKDIR is /app/backend so uvicorn finds main_api_app:app there.
 # PYTHONPATH includes /app (for `backend.api.*` imports) and /app/backend
 # (for bare imports like `advanced_workflow_orchestrator`).
 WORKDIR /app/backend
 ENV PYTHONPATH=/app:/app/backend
 USER atomuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
+# Health check — /alive is registered inline in both main.py and main_api_app.py
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/alive')" || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the full-featured app (all 80+ routers, middleware, background workers).
+# main_api_app:app is the production launcher; main:app is a minimal dev fallback.
+CMD ["uvicorn", "main_api_app:app", "--host", "0.0.0.0", "--port", "8000"]

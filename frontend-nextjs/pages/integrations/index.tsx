@@ -488,34 +488,55 @@ const IntegrationsPage: React.FC = () => {
 
   const checkIntegrationsHealth = async () => {
     try {
-      const healthChecks = await Promise.all([
-        fetch("/api/integrations/box/health"),
-        fetch("/api/integrations/dropbox/health"),
-        fetch("/api/integrations/gdrive/health"),
-        fetch("/api/integrations/slack/health"),
-        fetch("/api/integrations/gmail/health"),
-        fetch("/api/integrations/notion/health"),
-        fetch("/api/integrations/jira/health"),
-        fetch("/api/integrations/github/health"),
-        fetch("/api/nextjs/health"),
-        fetch("/api/integrations/stripe/health"),
-        fetch("/api/integrations/linear/health"),
-        fetch("/api/integrations/outlook/health"),
-        fetch("/api/integrations/asana/health"),
-        fetch("/api/integrations/quickbooks/health"),
-        fetch("/api/integrations/hubspot/health"),
-        fetch("/api/integrations/zendesk/health"),
-        fetch("/api/integrations/xero/health"),
-        fetch("/api/integrations/salesforce/health"),
-        fetch("/api/integrations/microsoft365/health"),
-        fetch("/api/integrations/azure/health"),
-        fetch("/api/integrations/teams/health"),
-        fetch("/api/zoho-workdrive/health"),
-      ]);
+      // Map integration IDs to their health-check URLs so results are keyed
+      // by ID, not by array position (which was causing misaligned status pills).
+      const healthUrls: Record<string, string> = {
+        box: "/api/integrations/box/health",
+        dropbox: "/api/integrations/dropbox/health",
+        "google-drive": "/api/integrations/gdrive/health",
+        gdrive: "/api/integrations/gdrive/health",
+        slack: "/api/integrations/slack/health",
+        gmail: "/api/integrations/gmail/health",
+        notion: "/api/integrations/notion/health",
+        jira: "/api/integrations/jira/health",
+        github: "/api/integrations/github/health",
+        nextjs: "/api/nextjs/health",
+        vercel: "/api/nextjs/health",
+        stripe: "/api/integrations/stripe/health",
+        linear: "/api/integrations/linear/health",
+        outlook: "/api/integrations/outlook/health",
+        asana: "/api/integrations/asana/health",
+        quickbooks: "/api/integrations/quickbooks/health",
+        hubspot: "/api/integrations/hubspot/health",
+        zendesk: "/api/integrations/zendesk/health",
+        xero: "/api/integrations/xero/health",
+        salesforce: "/api/integrations/salesforce/health",
+        "microsoft-365": "/api/integrations/microsoft365/health",
+        microsoft365: "/api/integrations/microsoft365/health",
+        azure: "/api/integrations/azure/health",
+        teams: "/api/integrations/teams/health",
+        "zoho-workdrive": "/api/zoho-workdrive/health",
+        zoho: "/api/zoho-workdrive/health",
+      };
 
-      const updatedIntegrations = integrationList.map((integration, index) => {
-        const healthResponse = healthChecks[index];
-        const isHealthy = healthResponse?.ok || false;
+      const healthResults: Record<string, boolean> = {};
+      const entries = Object.entries(healthUrls);
+      const responses = await Promise.all(
+        entries.map(async ([id, url]) => {
+          try {
+            const resp = await fetch(url);
+            return [id, resp.ok] as const;
+          } catch {
+            return [id, false] as const;
+          }
+        })
+      );
+      for (const [id, ok] of responses) {
+        healthResults[id] = ok;
+      }
+
+      const updatedIntegrations = integrationList.map((integration) => {
+        const isHealthy = healthResults[integration.id] ?? false;
         return {
           ...integration,
           connected: isHealthy,
