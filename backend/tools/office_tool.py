@@ -204,6 +204,123 @@ async def modify_pptx_slides(
         return {"success": False, "error": str(e)}
 
 
+# ============================================================================
+# Workbook Runtime Tools — formula evaluation, structural ops, rendering
+# ============================================================================
+
+async def get_excel_formula_result(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    cell: str
+) -> Dict[str, Any]:
+    """
+    Get the computed result of an Excel formula cell (evaluates if needed).
+
+    Unlike read_excel_cell which may show stale cached values, this tool
+    forces recalculation and returns the freshly computed result.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        cell: Cell coordinate (e.g. "A4")
+    """
+    try:
+        return await office_service.ExcelManager.get_evaluated_range(
+            file_path, f"/{sheet_name}/{cell}"
+        )
+    except Exception as e:
+        logger.error(f"Formula result tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def insert_excel_rows(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    row: int,
+    count: int = 1
+) -> Dict[str, Any]:
+    """
+    Insert rows into an Excel worksheet and recalculate formulas.
+
+    Formula references are automatically maintained by the workbook runtime
+    (LibreOffice when available, formulas lib as fallback).
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        row: Row number to insert at (1-based, existing rows shift down)
+        count: Number of rows to insert (default 1)
+    """
+    try:
+        result = await office_service.ExcelManager.insert_rows(
+            file_path, sheet_name, row, count
+        )
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Insert rows tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def insert_excel_columns(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    column: int,
+    count: int = 1
+) -> Dict[str, Any]:
+    """
+    Insert columns into an Excel worksheet and recalculate formulas.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        column: Column number to insert at (1-based, existing cols shift right)
+        count: Number of columns to insert (default 1)
+    """
+    try:
+        result = await office_service.ExcelManager.insert_columns(
+            file_path, sheet_name, column, count
+        )
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Insert columns tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def recalculate_excel(
+    user_id: str,
+    file_path: str
+) -> Dict[str, Any]:
+    """
+    Force recalculation of all formulas in an Excel workbook.
+
+    Uses LibreOffice headless when available (full evaluation of all Excel
+    functions) or the formulas Python library as a fallback. After this call,
+    all read operations return computed values instead of formula strings.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+    """
+    try:
+        result = await office_service.ExcelManager.recalculate(file_path)
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Recalculate tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def present_coedit_canvas(
     user_id: str,
     file_path: str,
