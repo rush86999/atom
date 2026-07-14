@@ -1,0 +1,482 @@
+{
+  "info": {
+    "name": "Atom API",
+    "_postman_id": "atom-api-collection-v1",
+    "description": "Atom platform API — chat, canvas CRUD, office automation, learning router, local models, federation, and health.\n\n## Setup\n1. Set the `baseUrl` collection variable to your Atom instance (default: `http://localhost:8000`).\n2. Run the **Login** request in the Auth folder — it auto-saves the `access_token` and `user_id` collection variables.\n3. All other requests use `{{access_token}}` in the Authorization header automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "default_user", "type": "string" },
+    { "key": "session_id", "value": "new", "type": "string" },
+    { "key": "canvas_id", "value": "demo_canvas", "type": "string" },
+    { "key": "excel_path", "value": "data/demo.xlsx", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    pm.collectionVariables.set('user_id', json.user_id || 'default_user');",
+                  "    console.log('Token saved for user: ' + (json.user_id || 'default_user'));",
+                  "}",
+                  "pm.test('Login returns 200 or 2FA prompt', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"user@example.com\",\n    \"password\": \"YourPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"SecurePass123!\",\n    \"full_name\": \"New User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Send Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.session_id) {",
+                  "    pm.collectionVariables.set('session_id', json.session_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/chat/message", "host": ["{{baseUrl}}"], "path": ["api", "chat", "message"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"message\": \"Help me analyze my sales data\",\n    \"user_id\": \"{{user_id}}\",\n    \"session_id\": \"{{session_id}}\",\n    \"context\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Feedback",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/chat/feedback", "host": ["{{baseUrl}}"], "path": ["api", "chat", "feedback"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"message_id\": \"msg_1\",\n    \"feedback\": \"thumbs_up\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Routing Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/chat/routing-stats", "host": ["{{baseUrl}}"], "path": ["api", "chat", "routing-stats"] }
+          }
+        },
+        {
+          "name": "Cancel In-Flight Message",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/chat/cancel/{{session_id}}", "host": ["{{baseUrl}}"], "path": ["api", "chat", "cancel", "{{session_id}}"] }
+          }
+        },
+        {
+          "name": "List Sessions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/chat/sessions?user_id={{user_id}}", "host": ["{{baseUrl}}"], "path": ["api", "chat", "sessions"], "query": [{ "key": "user_id", "value": "{{user_id}}" }] }
+          }
+        },
+        {
+          "name": "Get Session Details",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/chat/sessions/{{session_id}}?user_id={{user_id}}", "host": ["{{baseUrl}}"], "path": ["api", "chat", "sessions", "{{session_id}}"], "query": [{ "key": "user_id", "value": "{{user_id}}" }] }
+          }
+        },
+        {
+          "name": "Rename Session",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/chat/sessions/{{session_id}}", "host": ["{{baseUrl}}"], "path": ["api", "chat", "sessions", "{{session_id}}"] },
+            "body": { "mode": "raw", "raw": "{\n    \"title\": \"Sales Analysis\",\n    \"user_id\": \"{{user_id}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/chat/history/{{session_id}}?user_id={{user_id}}", "host": ["{{baseUrl}}"], "path": ["api", "chat", "history", "{{session_id}}"], "query": [{ "key": "user_id", "value": "{{user_id}}" }] }
+          }
+        },
+        {
+          "name": "Chat Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/chat/health", "host": ["{{baseUrl}}"], "path": ["api", "chat", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Canvas",
+      "item": [
+        {
+          "name": "List Canvases",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/canvas/?canvas_type=sheets", "host": ["{{baseUrl}}"], "path": ["api", "canvas", ""], "query": [{ "key": "canvas_type", "value": "sheets" }] }
+          }
+        },
+        {
+          "name": "List Canvas Types",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/canvas/types", "host": ["{{baseUrl}}"], "path": ["api", "canvas", "types"] }
+          }
+        },
+        {
+          "name": "Read Canvas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/canvas/{{canvas_id}}", "host": ["{{baseUrl}}"], "path": ["api", "canvas", "{{canvas_id}}"] }
+          }
+        },
+        {
+          "name": "Create / Update Canvas",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/canvas/{{canvas_id}}?canvas_type=sheets&title=Q4%20Budget",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "canvas", "{{canvas_id}}"],
+              "query": [
+                { "key": "canvas_type", "value": "sheets" },
+                { "key": "title", "value": "Q4 Budget" }
+              ]
+            },
+            "body": { "mode": "raw", "raw": "{\n    \"content\": [[\"Item\", \"Amount\"], [\"Rent\", \"3000\"], [\"Marketing\", \"5000\"]]\n}" }
+          }
+        },
+        {
+          "name": "Canvas History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/canvas/{{canvas_id}}/history", "host": ["{{baseUrl}}"], "path": ["api", "canvas", "{{canvas_id}}", "history"] }
+          }
+        },
+        {
+          "name": "Delete Canvas",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/canvas/{{canvas_id}}", "host": ["{{baseUrl}}"], "path": ["api", "canvas", "{{canvas_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Office / Excel",
+      "item": [
+        {
+          "name": "Write Cell",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel"] },
+            "body": { "mode": "raw", "raw": "{\n    \"file_path\": \"{{excel_path}}\",\n    \"cell_path\": \"/Sheet1/A1\",\n    \"value\": 100\n}" }
+          }
+        },
+        {
+          "name": "Write Formula",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel"] },
+            "body": { "mode": "raw", "raw": "{\n    \"file_path\": \"{{excel_path}}\",\n    \"cell_path\": \"/Sheet1/A3\",\n    \"value\": \"=SUM(A1:A2)\",\n    \"is_formula\": true\n}" }
+          }
+        },
+        {
+          "name": "Read Cell",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel?file_path={{excel_path}}&cell_path=/Sheet1/A1", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel"], "query": [{ "key": "file_path", "value": "{{excel_path}}" }, { "key": "cell_path", "value": "/Sheet1/A1" }] }
+          }
+        },
+        {
+          "name": "Get Formula Result",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel/formula-result?file_path={{excel_path}}&cell_path=/Sheet1/A3", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel", "formula-result"], "query": [{ "key": "file_path", "value": "{{excel_path}}" }, { "key": "cell_path", "value": "/Sheet1/A3" }] }
+          }
+        },
+        {
+          "name": "Recalculate",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel/recalculate?file_path={{excel_path}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel", "recalculate"], "query": [{ "key": "file_path", "value": "{{excel_path}}" }] }
+          }
+        },
+        {
+          "name": "Insert Rows",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel/insert-rows?file_path={{excel_path}}&sheet_name=Sheet1&row=2&count=1", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel", "insert-rows"], "query": [{ "key": "file_path", "value": "{{excel_path}}" }, { "key": "sheet_name", "value": "Sheet1" }, { "key": "row", "value": "2" }, { "key": "count", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Insert Columns",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/excel/insert-columns?file_path={{excel_path}}&sheet_name=Sheet1&column=2&count=1", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "excel", "insert-columns"], "query": [{ "key": "file_path", "value": "{{excel_path}}" }, { "key": "sheet_name", "value": "Sheet1" }, { "key": "column", "value": "2" }, { "key": "count", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Read Word Document",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/word?file_path=data/demo.docx", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "word"], "query": [{ "key": "file_path", "value": "data/demo.docx" }] }
+          }
+        },
+        {
+          "name": "Read PowerPoint",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/office/pptx?file_path=data/demo.pptx", "host": ["{{baseUrl}}"], "path": ["api", "v1", "office", "pptx"], "query": [{ "key": "file_path", "value": "data/demo.pptx" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Local Models",
+      "item": [
+        {
+          "name": "List Providers",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/local-models", "host": ["{{baseUrl}}"], "path": ["api", "local-models"] }
+          }
+        },
+        {
+          "name": "Register Provider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('provider_id', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/local-models", "host": ["{{baseUrl}}"], "path": ["api", "local-models"] },
+            "body": { "mode": "raw", "raw": "{\n    \"name\": \"My Ollama\",\n    \"provider_type\": \"ollama\",\n    \"base_url\": \"http://localhost:11434/v1\"\n}" }
+          }
+        },
+        {
+          "name": "Discover Models",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/local-models/{{provider_id}}/models", "host": ["{{baseUrl}}"], "path": ["api", "local-models", "{{provider_id}}", "models"] }
+          }
+        },
+        {
+          "name": "Get Capabilities",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/local-models/{{provider_id}}/capabilities", "host": ["{{baseUrl}}"], "path": ["api", "local-models", "{{provider_id}}", "capabilities"] }
+          }
+        },
+        {
+          "name": "Set Capabilities",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/local-models/{{provider_id}}/capabilities", "host": ["{{baseUrl}}"], "path": ["api", "local-models", "{{provider_id}}", "capabilities"] },
+            "body": { "mode": "raw", "raw": "{\n    \"model_id\": \"llama3:8b\",\n    \"supports_tools\": true,\n    \"quality_score\": 0.7,\n    \"speed_score\": 0.8,\n    \"context_window\": 8192\n}" }
+          }
+        },
+        {
+          "name": "Test Connection",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/local-models/{{provider_id}}/test", "host": ["{{baseUrl}}"], "path": ["api", "local-models", "{{provider_id}}", "test"] }
+          }
+        },
+        {
+          "name": "Delete Provider",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/local-models/{{provider_id}}", "host": ["{{baseUrl}}"], "path": ["api", "local-models", "{{provider_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Federation",
+      "item": [
+        {
+          "name": "Create DID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.did) { pm.collectionVariables.set('did', json.did); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/federation/dids", "host": ["{{baseUrl}}"], "path": ["api", "federation", "dids"] },
+            "body": { "mode": "raw", "raw": "{\n    \"entity_type\": \"agent\",\n    \"entity_id\": \"agent_001\"\n}" }
+          }
+        },
+        {
+          "name": "Resolve DID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/federation/dids/{{did}}", "host": ["{{baseUrl}}"], "path": ["api", "federation", "dids", "{{did}}"] }
+          }
+        },
+        {
+          "name": "Issue Credential",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/federation/credentials", "host": ["{{baseUrl}}"], "path": ["api", "federation", "credentials"] },
+            "body": { "mode": "raw", "raw": "{\n    \"issuer_did\": \"{{did}}\",\n    \"credential_type\": \"AgentIdentityCredential\",\n    \"subject_did\": \"{{did}}\",\n    \"claims\": {\n        \"name\": \"Test Agent\"\n    }\n}" }
+          }
+        },
+        {
+          "name": "Revoke Credential",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/federation/credentials/{{credential_id}}/revoke", "host": ["{{baseUrl}}"], "path": ["api", "federation", "credentials", "{{credential_id}}", "revoke"] }
+          }
+        },
+        {
+          "name": "Verify Request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/federation/verify", "host": ["{{baseUrl}}"], "path": ["api", "federation", "verify"] },
+            "body": { "mode": "raw", "raw": "{\n    \"method\": \"GET\",\n    \"path\": \"/api/resource\",\n    \"action\": \"read\",\n    \"resource_type\": \"generic\"\n}" }
+          }
+        },
+        {
+          "name": "Security Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/federation/security/health", "host": ["{{baseUrl}}"], "path": ["api", "federation", "security", "health"] }
+          }
+        },
+        {
+          "name": "Security Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/federation/security/stats", "host": ["{{baseUrl}}"], "path": ["api", "federation", "security", "stats"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Root Info",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/alive", "host": ["{{baseUrl}}"], "path": ["alive"] }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+  ]
+}
