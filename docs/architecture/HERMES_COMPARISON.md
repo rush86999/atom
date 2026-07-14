@@ -193,6 +193,8 @@ A condensed record of the architectural choices, for contributors:
 
 ## Benchmark evidence (where available)
 
+### Memory retrieval (Hermes)
+
 Hermes publishes LongMemEval-S results (60-case stratified subset):
 
 | Retrieval mode | Accuracy | Recall@5 |
@@ -202,7 +204,31 @@ Hermes publishes LongMemEval-S results (60-case stratified subset):
 | LanceDB hybrid + cross-encoder | 0.68 | 0.75 |
 | LanceDB hybrid + RRF | 0.61 | — (worse than pure vector) |
 
-Atom does not publish equivalent benchmarks yet. The FTS5 + Tier-1 SQL + Tier-2 vector stack maps to Hermes' first three rows; the reranker (row 3) is deferred.
+Atom's FTS5 + Tier-1 SQL + Tier-2 vector stack maps to Hermes' first three rows; the reranker (row 3) is deferred. Atom does not publish a directly comparable LongMemEval number because its memory is SQL-primary with vector as acceleration (a different retrieval contract than Hermes' vector-primary design), so a head-to-head on Hermes' benchmark would measure the vector layer in isolation rather than Atom's actual two-tier recall path.
+
+### Atom platform benchmarks
+
+Atom ships a reproducible benchmark runner covering the dimensions Atom controls (platform overhead, not upstream LLM latency). Run it with:
+
+```bash
+python benchmarks/run_benchmarks.py --username user@example.com --password '...' --write
+```
+
+| Benchmark | Category | Target (P50) | What it measures |
+|---|---|---|---|
+| `health_check` | latency | ≤ 50 ms | `GET /health` round-trip (liveness) |
+| `routing_stats_responsive` | routing | ≤ 500 ms | Learning-router stats endpoint |
+| `feedback_loop_writes` | routing | correctness | Feedback accepted by the learning loop |
+| `formula_eval_correctness` | formula | ≤ 2000 ms | `=SUM(A1:A2)` evaluates to `300` (workbook runtime) |
+| `canvas_crud_round_trip` | canvas | ≤ 1000 ms | Full create→read→update→delete cycle |
+| `canvas_list` | canvas | ≤ 200 ms | Paginated canvas listing |
+| `chat_round_trip` | latency | no target | End-to-end chat (dominated by upstream LLM; reported for trends) |
+
+Results and methodology are published in [`benchmarks/RESULTS.md`](../../benchmarks/RESULTS.md).
+The key distinction from Hermes' memory benchmarks: these measure **platform**
+overhead (routing, CRUD, formula evaluation, API latency) — the parts Atom
+controls — rather than retrieval accuracy, which depends on the vector backend
+and is where Hermes' published numbers already excel.
 
 ---
 
