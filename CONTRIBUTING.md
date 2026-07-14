@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Atom, the AI-powered business aut
 
 ### Development Setup
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for complete development setup instructions, including:
+See [docs/development/DEVELOPMENT_SETUP.md](docs/development/DEVELOPMENT_SETUP.md) for complete development setup instructions, including:
 - Security requirements
 - Testing procedures
 - Deployment guidelines
@@ -16,7 +16,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for complete development setup in
 
 ```bash
 # Clone the repository
-git clone https://github.com/rush8699/atom.git
+git clone https://github.com/rush86999/atom.git
 cd atom
 
 # Install backend dependencies
@@ -140,7 +140,7 @@ atom/
 ## Documentation
 
 - **[docs/INDEX.md](docs/INDEX.md)** - Complete documentation index
-- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup guide
+- **[docs/development/DEVELOPMENT_SETUP.md](docs/development/DEVELOPMENT_SETUP.md)** - Development setup guide
 - **[backend/docs/CONTRIBUTING_INTEGRATIONS.md](backend/docs/CONTRIBUTING_INTEGRATIONS.md)** - Integration contribution guide
 - **[CLAUDE.md](CLAUDE.md)** - Project architecture and context
 
@@ -170,7 +170,7 @@ We are committed to making participation in our community a harassment-free expe
 ### Resources
 
 - **Documentation**: [docs/INDEX.md](docs/INDEX.md)
-- **Issues**: [GitHub Issues](https://github.com/rush8699/atom/issues)
+- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
 - **Architecture**: See [CLAUDE.md](CLAUDE.md) for project context
 
 ### Asking Questions
