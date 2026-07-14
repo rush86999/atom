@@ -214,13 +214,28 @@ def safe_import_router(module_path: str, router_name: str = "router"):
         class APIRouter:
             pass  # Fallback for extremely broken environments
 
-    try:
-        import importlib
+    import importlib
+    import os as _os
 
+    _is_prod = _os.getenv("ENVIRONMENT", "").lower() == "production"
+
+    try:
         module = importlib.import_module(module_path)
         return getattr(module, router_name)
-    except (ImportError, TypeError, Exception) as e:
-        logger.warning(f"Fallback: Could not import {module_path} ({type(e).__name__}): {e}")
+    except ImportError as e:
+        # Module genuinely missing — log and return empty router (expected for
+        # optional integrations that aren't installed).
+        logger.info(f"Optional router not available: {module_path} ({e})")
+        return APIRouter()
+    except Exception as e:
+        # Real bug in the module (NameError, AttributeError, SyntaxError, etc.)
+        # In production, this must surface — otherwise broken routers vanish
+        # silently and produce 404s that are hard to diagnose.
+        msg = f"Failed to import {module_path} ({type(e).__name__}): {e}"
+        if _is_prod:
+            logger.error(msg)
+            raise
+        logger.warning(f"Fallback: {msg}")
         return APIRouter()
 
 
@@ -644,16 +659,16 @@ async def lifespan(app: FastAPI):
 
         get_webhook_worker().stop()
         logger.info("✓ Webhook Processing Worker stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Webhook worker shutdown: {e}")
 
     try:
         from ai.workflow_scheduler import workflow_scheduler
 
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Workflow scheduler shutdown: {e}")
 
     # Stop Distributed Debug System Aggregator
     try:
@@ -661,8 +676,8 @@ async def lifespan(app: FastAPI):
 
         await stop_aggregator()
         logger.info("✅ Debug System Aggregator stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Debug aggregator shutdown: {e}")
 
     # Stop Availability Background Worker (NEW - Supervision System)
     try:
@@ -670,32 +685,32 @@ async def lifespan(app: FastAPI):
 
         await stop_worker()
         logger.info("✓ Availability Background Worker stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Availability worker shutdown: {e}")
 
     try:
         from core.memory_maintenance import stop_memory_maintenance
 
         await stop_memory_maintenance()
         logger.info("✓ Memory Maintenance Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Memory maintenance shutdown: {e}")
 
     try:
         from core.agent_event_bus import get_agent_event_bus
 
         await get_agent_event_bus().stop()
         logger.info("✓ Postgres Event Bus listener stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Event bus shutdown: {e}")
 
     try:
         from api.routes.enhanced_ai_workflow_routes import ai_service
 
         await ai_service.cleanup_sessions()
         logger.info("✓ AI Workflow Service sessions cleaned up")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"AI workflow session cleanup: {e}")
 
     try:
         from api.routes.learning_routes import shutdown_learning_service
@@ -745,13 +760,13 @@ try:
         return {
             "status": "alive",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "debug_id": "v2.1.0-final-qa-1",  # Unique ID for this build
+            "debug_id": "v8.0.0",
         }
 
     @app.get("/", tags=["System"])
     async def root():
         """Root endpoint."""
-        return {"name": "ATOM Platform API", "version": "2.1.0", "status": "running"}
+        return {"name": "ATOM Platform API", "version": "8.0.0", "status": "running"}
 
     @app.get("/health", tags=["System"])
     @app.get("/api/health", tags=["System"])
@@ -774,7 +789,7 @@ try:
 
         health_status = {
             "status": health_data["status"],
-            "version": "2.1.0",
+            "version": "8.0.0",
             "deployed_sha": deployed_sha,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "database": health_data["services"]["database"],
