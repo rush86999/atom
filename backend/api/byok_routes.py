@@ -369,6 +369,17 @@ class BYOKManager:
                 cost_per_token=0.0,  # Per-request pricing varies
                 model="mcp-server",
                 reasoning_level=2
+            ),
+            AIProviderConfig(
+                id="openrouter",
+                name="OpenRouter",
+                description="Unified gateway to 300+ models (OpenAI, Anthropic, Google, Meta, and more). One API key.",
+                api_key_env_var="OPENROUTER_API_KEY",
+                base_url="https://openrouter.ai/api/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000003,  # Varies by model — rough floor
+                model="openai/gpt-4o-mini",
+                reasoning_level=4
             )
         ]
         
