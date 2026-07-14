@@ -10,7 +10,10 @@
 **Automate your workflows by talking to an AI — and let it remember, search, and handle tasks like a real assistant.**
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+[![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-204%2B-brightgreen)]()
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
+[![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
 
 </div>
 
