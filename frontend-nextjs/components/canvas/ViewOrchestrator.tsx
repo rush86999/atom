@@ -5,8 +5,9 @@
  * Coordinates view switching and provides contextual guidance for each view.
  */
 
-import React, { useState, useEffect } from 'react';
-import useWebSocket from '@/hooks/useWebSocket';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useCanvasStateRegistration } from '@/hooks/useCanvasStateRegistration';
 
 export interface View {
   view_id: string;
@@ -188,6 +189,21 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
         return 'flex-row space-x-4';
     }
   };
+
+  // ─── AI Accessibility: register orchestration state for agent read-back ───
+  const orchState = useMemo(() => ({
+    type: 'orchestration' as const,
+    layout: orchestration?.layout || 'single',
+    activeViews: orchestration?.active_views?.map(v => ({
+      viewId: v.view_id,
+      viewType: v.view_type,
+      title: v.title,
+    })) || [],
+    currentView: orchestration?.current_view || null,
+    canvasExpanded: canvasExpanded,
+  }), [orchestration, canvasExpanded]);
+
+  useCanvasStateRegistration('view_orchestrator', orchState as any);
 
   if (!orchestration || orchestration.active_views.length === 0) {
     return (
