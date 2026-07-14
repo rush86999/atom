@@ -32,6 +32,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# Install LibreOffice for the workbook runtime (formula evaluation + rendering)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice-calc \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Create non-root user for security (matching backend Dockerfile)
