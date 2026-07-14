@@ -148,7 +148,12 @@ class DynamicPricingFetcher:
                         "max_tokens": model.get("context_length", 0),
                         "name": model.get("name", model_id),
                         "description": model.get("description", ""),
-                        "source": "openrouter"
+                        "source": "openrouter",
+                        # Critical: set litellm_provider so the BPC ranker can
+                        # route these models to the openrouter client. Without
+                        # this, the substring match in byok_handler.get_ranked_providers
+                        # can't join OpenRouter models to a provider client.
+                        "litellm_provider": "openrouter",
                     }
                 
                 # Apply curated overrides in pricing shape

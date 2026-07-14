@@ -35,7 +35,7 @@ jobs:
           ENVIRONMENT: "development"
           PYTEST_CURRENT_TEST: "1"
         run: |
-          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py -q --tb=line
+          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py -q --tb=line
 
   frontend-typecheck:
     runs-on: ubuntu-latest

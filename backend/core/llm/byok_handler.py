@@ -166,6 +166,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "glm-5",
         QueryComplexity.ADVANCED: "glm-5.2",  # Latest flagship (June 2026) — 1M ctx, reasoning
     },
+    "openrouter": {  # OpenRouter — gateway to 300+ models via one key
+        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
+        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
+        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
+        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
+    },
 }
 
 
@@ -445,6 +451,9 @@ class BYOKHandler:
             "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
             "xiaomi": {"base_url": "https://api.xiaomi.com/v1"},
             "ollama": {"base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")},
+            # OpenRouter — unified gateway to 300+ models (OpenAI, Anthropic,
+            # Google, Meta, …). OpenAI-compatible; one key → all models.
+            "openrouter": {"base_url": "https://openrouter.ai/api/v1"},
         }
 
         # Separate sync and async clients
@@ -539,15 +548,20 @@ class BYOKHandler:
             # Initialize client if we have an API key
             if api_key:
                 try:
-                    self.clients[provider_id] = OpenAI(
-                        api_key=api_key,
-                        base_url=config["base_url"] # base_url can be None for OpenAI
-                    )
+                    # OpenRouter recommends HTTP-Referer + X-Title headers for
+                    # better rate-limit treatment. Other providers ignore them.
+                    client_kwargs = {
+                        "api_key": api_key,
+                        "base_url": config["base_url"],  # can be None for OpenAI
+                    }
+                    if provider_id == "openrouter":
+                        client_kwargs["default_headers"] = {
+                            "HTTP-Referer": os.getenv("OPENROUTER_REFERER", "https://atom.ai"),
+                            "X-Title": "Atom",
+                        }
+                    self.clients[provider_id] = OpenAI(**client_kwargs)
                     if AsyncOpenAI:
-                        self.async_clients[provider_id] = AsyncOpenAI(
-                            api_key=api_key,
-                            base_url=config["base_url"]
-                        )
+                        self.async_clients[provider_id] = AsyncOpenAI(**client_kwargs)
                     logger.info(f"Initialized {provider_id} client using {credential_source.upper()} credential")
                 except Exception as e:
                     logger.error(f"Failed to initialize {provider_id} client: {e}")

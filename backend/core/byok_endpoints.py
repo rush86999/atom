@@ -443,6 +443,20 @@ class BYOKManager:
                 supports_structured_output=True,
                 requires_encryption=False,
             ),
+            AIProviderConfig(
+                id="openrouter",
+                name="OpenRouter",
+                description="Unified gateway to 300+ models (OpenAI, Anthropic, Google, Meta, and more). One API key.",
+                api_key_env_var="OPENROUTER_API_KEY",
+                base_url="https://openrouter.ai/api/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000003,  # Varies by model — this is a rough floor
+                model="openai/gpt-4o-mini",
+                reasoning_level=4,
+                supports_structured_output=True,
+                supports_vision=True,
+                supports_tools=True,
+            ),
         ]
         
         for provider in defaults:
@@ -817,7 +831,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

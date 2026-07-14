@@ -33,6 +33,7 @@ The Personal Edition is a simplified, streamlined version of Atom optimized for:
   - [OpenAI](https://platform.openai.com/api-keys) (GPT-4/GPT-3.5) - **Recommended**
   - [Anthropic](https://console.anthropic.com/) (Claude 3.5 Sonnet) - **Best for complex tasks**
   - [DeepSeek](https://platform.deepseek.com/) (Affordable alternative)
+  - [OpenRouter](https://openrouter.ai/keys) (Unified gateway — one key → 300+ models)
 
 ### System Requirements
 
@@ -160,6 +161,12 @@ newgrp docker
 1. Visit https://platform.deepseek.com/
 2. Sign up for free account
 3. Get API key from dashboard
+
+**Option D: OpenRouter (Unified gateway)**
+1. Visit https://openrouter.ai/keys
+2. Sign up and add credits
+3. Create an API key
+4. One key gives access to 300+ models (OpenAI, Anthropic, Google, Meta, and more)
 
 ### Step 3: Configure Environment
 
