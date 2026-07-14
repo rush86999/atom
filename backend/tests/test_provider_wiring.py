@@ -266,3 +266,134 @@ class TestMiniMaxWiring:
         models = list(COST_EFFICIENT_MODELS["minimax"].values())
         for m in models:
             assert "M3" in m or "m3" in m.lower(), f"MiniMax tier maps to non-M3 model: {m}"
+
+
+# ---------------------------------------------------------------------------
+# Anthropic / Mistral / Groq (added in the production-readiness pass)
+# ---------------------------------------------------------------------------
+
+class TestAnthropicWiring:
+    """Anthropic is wired end-to-end (was missing from providers_config)."""
+
+    def test_anthropic_in_providers_config(self):
+        """The _initialize_clients method includes anthropic in providers_config."""
+        from core.llm.byok_handler import BYOKHandler
+
+        source = inspect.getsource(BYOKHandler._initialize_clients)
+        assert '"anthropic"' in source, (
+            "anthropic not in providers_config — Claude can never serve requests"
+        )
+        assert "api.anthropic.com" in source
+
+    def test_anthropic_has_cost_efficient_models(self):
+        """Anthropic has default models per complexity tier."""
+        from core.llm.byok_handler import COST_EFFICIENT_MODELS
+
+        assert "anthropic" in COST_EFFICIENT_MODELS
+
+    def test_anthropic_sandbox_egress(self):
+        """Sandboxed agents can reach the Anthropic API."""
+        from core.sandbox_egress_proxy import _BASELINE_EGRESS_HOSTS, _LLM_PROVIDER_HOSTS
+
+        assert "api.anthropic.com" in _BASELINE_EGRESS_HOSTS
+        assert "api.anthropic.com" in _LLM_PROVIDER_HOSTS
+
+
+class TestMistralWiring:
+    """Mistral is wired end-to-end (was missing from providers_config)."""
+
+    def test_mistral_in_providers_config(self):
+        from core.llm.byok_handler import BYOKHandler
+
+        source = inspect.getsource(BYOKHandler._initialize_clients)
+        assert '"mistral"' in source
+        assert "api.mistral.ai" in source
+
+    def test_mistral_cost_efficient_models(self):
+        from core.llm.byok_handler import COST_EFFICIENT_MODELS
+
+        assert "mistral" in COST_EFFICIENT_MODELS
+
+    def test_mistral_benchmark_scores(self):
+        from core.benchmarks import MODEL_QUALITY_SCORES
+
+        assert "mistral-large-latest" in MODEL_QUALITY_SCORES
+        assert MODEL_QUALITY_SCORES["mistral-large-latest"] >= 85
+
+    def test_mistral_hallucination_cascade(self):
+        from core.hallucination_config import _FRONTIER_BY_PROVIDER
+
+        assert _FRONTIER_BY_PROVIDER.get("mistral") == "mistral-large-latest"
+
+    def test_mistral_sandbox_egress(self):
+        from core.sandbox_egress_proxy import _BASELINE_EGRESS_HOSTS
+
+        assert "api.mistral.ai" in _BASELINE_EGRESS_HOSTS
+
+
+class TestGroqWiring:
+    """Groq is wired end-to-end (was missing from providers_config + egress)."""
+
+    def test_groq_in_providers_config(self):
+        from core.llm.byok_handler import BYOKHandler
+
+        source = inspect.getsource(BYOKHandler._initialize_clients)
+        assert '"groq"' in source
+        assert "api.groq.com" in source
+
+    def test_groq_cost_efficient_models(self):
+        from core.llm.byok_handler import COST_EFFICIENT_MODELS
+
+        assert "groq" in COST_EFFICIENT_MODELS
+
+    def test_groq_benchmark_scores(self):
+        from core.benchmarks import MODEL_QUALITY_SCORES
+
+        assert "llama-3.3-70b-versatile" in MODEL_QUALITY_SCORES
+        assert MODEL_QUALITY_SCORES["llama-3.3-70b-versatile"] >= 80
+
+    def test_groq_hallucination_cascade(self):
+        from core.hallucination_config import _FRONTIER_BY_PROVIDER
+
+        assert _FRONTIER_BY_PROVIDER.get("groq") == "llama-3.3-70b-versatile"
+
+    def test_groq_sandbox_egress(self):
+        from core.sandbox_egress_proxy import _BASELINE_EGRESS_HOSTS, _LLM_PROVIDER_HOSTS
+
+        assert "api.groq.com" in _BASELINE_EGRESS_HOSTS
+        assert "api.groq.com" in _LLM_PROVIDER_HOSTS
+
+
+class TestEgressCompleteness:
+    """All provider domains in providers_config have sandbox egress entries."""
+
+    def test_all_llm_provider_domains_allowed(self):
+        """Every provider base_url in providers_config has an egress entry."""
+        import os
+        from core.sandbox_egress_proxy import _BASELINE_EGRESS_HOSTS, _LLM_PROVIDER_HOSTS
+        from urllib.parse import urlparse
+
+        # Known provider domains (from providers_config + _load_local_providers)
+        expected_domains = [
+            "api.anthropic.com",
+            "api.openai.com",
+            "api.deepseek.com",
+            "api.moonshot.cn",
+            "api.deepinfra.com",
+            "api.minimax.io",
+            "dashscope-intl.aliyuncs.com",
+            "generativelanguage.googleapis.com",
+            "api.xiaomi.com",
+            "open.bigmodel.cn",
+            "api.mistral.ai",
+            "api.groq.com",
+            "openrouter.ai",
+        ]
+        for domain in expected_domains:
+            assert domain in _BASELINE_EGRESS_HOSTS, (
+                f"{domain} missing from _BASELINE_EGRESS_HOSTS — sandboxed agents blocked"
+            )
+            assert domain in _LLM_PROVIDER_HOSTS, (
+                f"{domain} missing from _LLM_PROVIDER_HOSTS"
+            )
+

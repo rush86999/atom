@@ -58,7 +58,7 @@ INTEGRATION_REGISTRY = {
     "trello": "integrations.trello_routes:router",
     "airtable": "integrations.airtable_routes:router",
     "obsidian": "integrations.obsidian_routes:router",
-    "clickup": "integrations.clickup_routes:router",
+    # clickup: no HTTP router exists — adapter only (core/integrations/adapters/clickup.py)
     "google_calendar": "integrations.google_calendar_routes:router",
     "calendly": "integrations.calendly_routes:router",
     
@@ -88,7 +88,7 @@ INTEGRATION_REGISTRY = {
     "intercom": "integrations.intercom_routes:router",
     
     # Finance & Commerce
-    "stripe": "integrations.stripe_routes:router",
+    # stripe: no HTTP router exists — service only (core/integrations/adapters/stripe.py)
     "shopify": "integrations.shopify_routes:router",
     "xero": "integrations.xero_routes:router",
     "quickbooks": "integrations.quickbooks_routes:router",
@@ -102,7 +102,7 @@ INTEGRATION_REGISTRY = {
     # Marketing & Social
     "mailchimp": "integrations.mailchimp_routes:router",
     "linkedin": "integrations.linkedin_routes:router",
-    "openai": "integrations.openai_routes:router",
+    # openai: no HTTP router exists — BYOK handles OpenAI at /api/ai/*
     "workday": "integrations.workday_routes:router",
     "okta": "integrations.okta_routes:router",
     "webex": "integrations.webex_routes:router",
@@ -145,7 +145,7 @@ INTEGRATION_REGISTRY = {
     "communication_ingestion": "integrations.atom_communication_apps_lancedb_integration:communication_ingestion_router",
     
     # OAuth & Auth
-    "oauth": "oauth_routes:router",
+    "oauth": "api.oauth_routes:router",
     "auth": "core.auth_endpoints:router",
     
     # Team Messaging
@@ -160,7 +160,7 @@ ESSENTIAL_INTEGRATIONS = [
     "oauth",
     "system_status",
     "service_health",
-    "openai",
+    # openai removed — no HTTP router file exists; OpenAI is handled via BYOK
     # Temporarily disabled - causing backend startup failures
     # "atom_agent",  # Agent chat functionality
     # "unified_calendar",  # Calendar endpoints

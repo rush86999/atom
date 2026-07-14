@@ -857,7 +857,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

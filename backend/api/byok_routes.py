@@ -230,6 +230,17 @@ class BYOKManager:
                 reasoning_level=3
             ),
             AIProviderConfig(
+                id="gemini",
+                name="Gemini (OpenAI-compatible)",
+                description="Google Gemini via the OpenAI-compatible endpoint",
+                api_key_env_var="GEMINI_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.000001,
+                model="gemini-3.5-flash",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
                 id="lux",
                 name="Lux Computer Use",
                 description="Lux Model for Computer Use Agents",
