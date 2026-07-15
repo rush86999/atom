@@ -38,13 +38,13 @@ def real_auth_client():
     from core.database import get_db
     from core.models import Base
     import main as main_module
+    import core.database as db_module
 
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
     TestSession = sessionmaker(bind=engine, expire_on_commit=False)
 
     def override_get_db():
@@ -60,25 +60,44 @@ def real_auth_client():
     # The enterprise auth service opens its OWN session via next(get_db())
     # instead of using the injected dependency. Patch it to use the test
     # session so the register/login round-trip works in-memory.
-    import core.database as db_module
     original_get_db = db_module.get_db
     db_module.get_db = override_get_db
 
+    # Repoint core.database.engine/SessionLocal at the in-memory engine. This
+    # mirrors tests/integration/conftest.py's db_session fixture and is
+    # required because the app's startup bootstrap (main._startup_bootstrap)
+    # calls Base.metadata.create_all(bind=<core.database.engine>). Without
+    # this, the bootstrap runs against the TESTING-mode test_integration.db,
+    # and the shared Base.metadata records the tables as "already created" —
+    # so our create_all below skips them and the in-memory DB ends up with a
+    # PARTIAL schema (e.g. canvas_audit missing its canvas_type column),
+    # causing OperationalError at query time.
+    original_engine = db_module.engine
+    original_sessionlocal = db_module.SessionLocal
+    db_module.engine = engine
+    db_module.SessionLocal = TestSession
+
     # Also patch any module that imports get_db directly (not via dependency).
     import api.enterprise_auth_endpoints as ent_auth
+    original_ent_get_db = getattr(ent_auth, "get_db", None)
     if hasattr(ent_auth, 'get_db'):
         ent_auth.get_db = override_get_db
 
-    # Patch trusted hosts to allow testserver.
-    original_allowed = getattr(app, "allowed_hosts", None)
+    # Build the FULL schema against the in-memory engine. Because we
+    # repointed db_module.engine above, the app's startup bootstrap will also
+    # create tables here — but create_all is idempotent, so this is safe and
+    # guarantees the complete schema is present before any request runs.
+    Base.metadata.create_all(bind=engine)
 
     with TestClient(app) as client:
         yield client
 
     app.dependency_overrides.clear()
     db_module.get_db = original_get_db
-    if hasattr(ent_auth, 'get_db'):
-        ent_auth.get_db = original_get_db
+    db_module.engine = original_engine
+    db_module.SessionLocal = original_sessionlocal
+    if original_ent_get_db is not None:
+        ent_auth.get_db = original_ent_get_db
     engine.dispose()
 
 

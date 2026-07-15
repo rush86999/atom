@@ -110,6 +110,60 @@ async def list_canvas_types(
 
 
 # ============================================================================
+# Recordings (list + detail)
+#
+# IMPORTANT: these static-path GET routes MUST be registered BEFORE the
+# parameterized GET /{canvas_id} route below. FastAPI matches routes in
+# registration order, so /{canvas_id} would otherwise shadow /recordings
+# (resolving canvas_id="recordings") and /recordings/{recording_id}. This
+# is the classic FastAPI route-shadowing bug.
+# ============================================================================
+@router.get("/recordings")
+async def list_recordings(
+    canvas_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List canvas recordings."""
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+
+    recordings = await service.list_recordings(
+        user_id=str(current_user.id),
+        agent_id=agent_id,
+        limit=limit
+    )
+
+    return router.success_response(data=recordings)
+
+
+@router.get("/recordings/{recording_id}")
+async def get_recording(
+    recording_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get recording details and timeline.
+
+    SECURITY: Verifies the recording belongs to the authenticated user
+    before returning data (prevents IDOR).
+    """
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+
+    recording = await service.get_recording(recording_id)
+    if not recording:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    # Ownership check — recording["user_id"] must match current_user.id
+    if str(recording.get("user_id", "")) != str(current_user.id):
+        # Return 404 (not 403) to avoid leaking existence of other users' recordings
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    return router.success_response(data=recording)
+
+
+# ============================================================================
 # Canvas CRUD — Read, Update, Delete (Create happens via agent tools)
 # ============================================================================
 
@@ -399,49 +453,9 @@ async def start_recording(
     )
 
 
-@router.get("/recordings")
-async def list_recordings(
-    canvas_id: Optional[str] = None,
-    agent_id: Optional[str] = None,
-    limit: int = 20,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """List canvas recordings."""
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
-    
-    recordings = await service.list_recordings(
-        user_id=str(current_user.id),
-        agent_id=agent_id,
-        limit=limit
-    )
-    
-    return router.success_response(data=recordings)
-
-
-@router.get("/recordings/{recording_id}")
-async def get_recording(
-    recording_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get recording details and timeline.
-
-    SECURITY: Verifies the recording belongs to the authenticated user
-    before returning data (prevents IDOR).
-    """
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
-
-    recording = await service.get_recording(recording_id)
-    if not recording:
-        raise HTTPException(status_code=404, detail="Recording not found")
-
-    # Ownership check — recording["user_id"] must match current_user.id
-    if str(recording.get("user_id", "")) != str(current_user.id):
-        # Return 404 (not 403) to avoid leaking existence of other users' recordings
-        raise HTTPException(status_code=404, detail="Recording not found")
-
-    return router.success_response(data=recording)
+# NOTE: GET /recordings and GET /recordings/{recording_id} are registered
+# earlier in this module (before GET /{canvas_id}) to avoid route shadowing.
+# See the "Recordings (list + detail)" section above.
 
 
 # ============================================================================
