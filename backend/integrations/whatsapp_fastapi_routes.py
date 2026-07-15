@@ -22,6 +22,12 @@ try:
 except ImportError as e:
     logging.warning(f"WhatsApp Business integration not available: {e}")
     WHATSAPP_AVAILABLE = False
+    # Define fallbacks so handlers that reference these names degrade
+    # gracefully (return a clear "not configured" error) instead of raising
+    # NameError -> 500.
+    universal_webhook_bridge = None
+    whatsapp_integration = None
+    whatsapp_service_manager = None
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +75,8 @@ router = APIRouter(prefix="/api/whatsapp", tags=["WhatsApp Business"])
 async def whatsapp_health():
     """Basic health check for WhatsApp Business integration"""
     try:
+        if not WHATSAPP_AVAILABLE:
+            raise HTTPException(status_code=503, detail="WhatsApp integration not available (missing optional dependency)")
         if whatsapp_service_manager.config:
             return {
                 "status": "healthy",
@@ -77,6 +85,8 @@ async def whatsapp_health():
             }
         else:
             raise HTTPException(status_code=503, detail="Service not configured")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"WhatsApp health check error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal error")
