@@ -36,16 +36,17 @@ def get_pdf_service(use_byok: bool = True) -> PDFOCRService:
     """Get or initialize the PDF OCR service."""
     global _pdf_service
     if _pdf_service is None:
-        # Initialize with environment variables or defaults
-        openai_api_key = None  # Could be loaded from environment
+        # Initialize with environment variables or defaults.
+        # NOTE: PDFOCRService.__init__ accepts tesseract_path,
+        # easyocr_languages, and tenant_id — NOT openai_api_key/use_byok
+        # (the service resolves keys internally via BYOK). Pass only the
+        # supported kwargs.
         tesseract_path = None  # Could be configured
         easyocr_languages = ["en"]  # Default to English
 
         _pdf_service = PDFOCRService(
-            openai_api_key=openai_api_key,
             tesseract_path=tesseract_path,
             easyocr_languages=easyocr_languages,
-            use_byok=use_byok,
         )
     return _pdf_service
 

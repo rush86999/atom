@@ -3234,7 +3234,7 @@ async def load_integration_endpoint(
 
 @app.get("/api/integrations/stats")
 async def get_all_integration_stats():
-    return circuit_breaker.get_all_stats()
+    return await circuit_breaker.get_all_stats()
 
 
 @app.post("/api/integrations/{integration_name}/reset")

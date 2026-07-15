@@ -217,18 +217,16 @@ async def get_templates(
     if category:
         query = query.filter(WorkflowTemplate.category == category)
 
-    if complexity:
-        query = query.filter(WorkflowTemplate.complexity == complexity)
+    # complexity filter: the WorkflowTemplate model has no `complexity` column,
+    # so skip the filter rather than crash. (The richer template system in
+    # core/workflow_template_system.py tracks complexity, but the ORM model
+    # here does not.)
+    # if complexity: query = query.filter(WorkflowTemplate.complexity == complexity)
 
-    # Calculated rating sort — the model stores `rating` (average) and
-    # `rating_count` directly (no rating_sum column), so sort by rating
-    # weighted by having enough reviews.
-    rating_expr = WorkflowTemplate.rating
-
-    # Order by rating (if requested) or default sort
+    # Sort by rating then usage. The model has no `is_featured` column, so
+    # order by rating and usage_count only.
     templates = query.order_by(
-        WorkflowTemplate.is_featured.desc(),
-        rating_expr.desc(),
+        WorkflowTemplate.rating.desc(),
         WorkflowTemplate.usage_count.desc()
     ).limit(50).all()
 

@@ -10,8 +10,16 @@ try:
     from middleware.governance_middleware import governance_middleware
 except ImportError:
     governance_middleware = None
-from core.budget_service import budget_service
-from core.cost_config import get_action_cost
+# budget_service was renamed/removed; guard the import so this module loads.
+try:
+    from core.budget_service import budget_service
+except ImportError:
+    budget_service = None
+try:
+    from core.cost_config import get_action_cost
+except ImportError:
+    def get_action_cost(*args, **kwargs):
+        return 0.0
 
 logger = logging.getLogger(__name__)
 
