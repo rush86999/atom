@@ -17,6 +17,26 @@ class WorkforceAnalyticsService:
     def __init__(self, db_session: Any = None):
         self.db = db_session
 
+    def _get_db(self):
+        """Return a usable Session.
+
+        get_db_session() returns a @contextmanager, not a Session — callers
+        that do ``db = self.db or get_db_session()`` end up with the context
+        manager object (which lacks .query). Enter it here so the rest of the
+        method gets a real Session.
+        """
+        if self.db is not None:
+            return self.db, None
+        cm = get_db_session()
+        # If it's a context manager, enter it; else assume it's a Session.
+        if hasattr(cm, "__enter__"):
+            return cm.__enter__(), cm
+        return cm, None
+
+    def _close_db(self, db, cm):
+        if cm is not None and hasattr(cm, "__exit__"):
+            cm.__exit__(None, None, None)
+
     def calculate_team_velocity(self, workspace_id: str, days: int = 30) -> Dict[str, Any]:
         """
         Calculates throughput (tasks completed) and average cycle time.
@@ -139,7 +159,7 @@ class WorkforceAnalyticsService:
         """
         Calculates the variance between planned and actual durations/hours for a user or workspace.
         """
-        db = self.db or get_db_session()
+        db, cm = self._get_db()
         try:
             query = db.query(ProjectTask).filter(ProjectTask.workspace_id == workspace_id).filter(ProjectTask.status == "completed")
             if user_id:
@@ -206,15 +226,19 @@ class WorkforceAnalyticsService:
         """
         Identifies missing competencies by comparing task requirements against team skills.
         """
-        db = self.db or get_db_session()
+        db, cm = self._get_db()
         try:
             # 1. Fetch all active users and their skills
             users = db.query(User).filter(User.status == "active").all()
             team_skills = {} # skill -> count
             user_skill_map = {} # user_id -> set(skills)
-            
+
             for u in users:
-                skills = set(s.strip().lower() for s in u.skills.split(",")) if u.skills else set()
+                # The User model's `skills` field is currently commented out
+                # (core/models.py:456). Degrade gracefully to "no skills
+                # recorded" instead of crashing on the missing attribute.
+                raw_skills = getattr(u, "skills", None)
+                skills = set(s.strip().lower() for s in raw_skills.split(",")) if raw_skills else set()
                 user_skill_map[u.id] = skills
                 for s in skills:
                     team_skills[s] = team_skills.get(s, 0) + 1

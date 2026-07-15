@@ -79,7 +79,7 @@ class PendingFeedbackResponse(BaseModel):
 # Endpoints
 # ============================================================================
 
-@router.post("/approve", response_model=BatchOperationResponse)
+@router.post("/approve")
 async def batch_approve_feedback(
     request: BatchOperationRequest,
     db: Session = Depends(get_db)
@@ -154,7 +154,7 @@ async def batch_approve_feedback(
     )
 
 
-@router.post("/reject", response_model=BatchOperationResponse)
+@router.post("/reject")
 async def batch_reject_feedback(
     request: BatchOperationRequest,
     db: Session = Depends(get_db)
@@ -226,7 +226,7 @@ async def batch_reject_feedback(
     )
 
 
-@router.post("/update-status", response_model=BatchOperationResponse)
+@router.post("/update-status")
 async def batch_update_feedback_status(
     request: BulkStatusUpdateRequest,
     db: Session = Depends(get_db)
@@ -308,7 +308,7 @@ async def batch_update_feedback_status(
     )
 
 
-@router.get("/pending", response_model=PendingFeedbackResponse)
+@router.get("/pending")
 async def get_pending_feedback(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
     feedback_type: Optional[str] = Query(None, description="Filter by feedback type"),
@@ -410,7 +410,7 @@ async def get_batch_operation_stats(
         AgentFeedback.feedback_type.isnot(None)
     ).distinct().all()
 
-    for (feedback_type,) in feedback_types:
+    for (feedback_type) in feedback_types:
         count = db.query(AgentFeedback).filter(
             AgentFeedback.feedback_type == feedback_type
         ).count()
@@ -424,7 +424,7 @@ async def get_batch_operation_stats(
         AgentFeedback.status == "pending"
     ).distinct().all()
 
-    for (agent_id,) in agents_with_pending:
+    for (agent_id) in agents_with_pending:
         count = db.query(AgentFeedback).filter(
             AgentFeedback.agent_id == agent_id,
             AgentFeedback.status == "pending"

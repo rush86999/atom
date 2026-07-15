@@ -18,6 +18,9 @@ from core.industry_workflow_templates import Industry, IndustryWorkflowEngine
 from core.workflow_engine import WorkflowEngine
 from core.workforce_analytics import WorkforceAnalyticsService
 
+# Module-level singletons used by the handlers below.
+burnout_engine = BurnoutDetectionEngine()
+
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 # Pydantic models
