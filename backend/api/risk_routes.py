@@ -7,7 +7,11 @@ from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
-from core.risk_prevention import customer_protection, early_warning, fraud_detection
+from core.risk_prevention import (
+    CustomerProtectionService,
+    EarlyWarningService,
+    FraudDetectionService,
+)
 
 router = BaseAPIRouter(prefix="/api/risk", tags=["Risk & Security"])
 
@@ -34,12 +38,11 @@ async def get_customer_protection_intel(
             "is_mock": True
         }
         
-    churn = await customer_protection.get_churn_risk(db, "default")
-    vips = await customer_protection.get_vip_opportunities(db, "default")
-    
+    churn = await CustomerProtectionService(db).predict_churn_risk("default")
+
     return {
         "churn_risk": churn,
-        "vip_opportunities": vips,
+        "vip_opportunities": [],
         "is_mock": False
     }
 
@@ -60,7 +63,7 @@ async def get_early_warning_alerts(
             "is_mock": True
         }
 
-    alerts = await early_warning.get_ar_alerts(db, "default")
+    alerts = await EarlyWarningService(db).detect_ar_delays("default")
     return {
         "ar_alerts": alerts,
         "is_mock": False
@@ -82,7 +85,7 @@ async def get_fraud_alerts(
             "is_mock": True
         }
 
-    anomalies = await fraud_detection.scan_for_anomalies(db, "default")
+    anomalies = await FraudDetectionService(db).detect_anomalies("default")
     return {
         "anomalies": anomalies,
         "is_mock": False

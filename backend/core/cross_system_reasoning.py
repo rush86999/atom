@@ -10,7 +10,7 @@ from core.database import get_db_session
 from core.financial_forensics import get_forensics_services
 
 # Import domain services
-from core.risk_prevention import customer_protection, early_warning
+from core.risk_prevention import CustomerProtectionService, EarlyWarningService
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ class CrossSystemReasoningEngine:
         try:
             # 1. Gather Signals
             # Risk Signals
-            churn_risk = await customer_protection.get_churn_risk(db, workspace_id)
-            ar_alerts = await early_warning.get_ar_alerts(db, workspace_id)
+            churn_risk = await CustomerProtectionService(db).predict_churn_risk(workspace_id)
+            ar_alerts = await EarlyWarningService(db).detect_ar_delays(workspace_id)
             
             # Financial Signals
             forensics = get_forensics_services(db)
