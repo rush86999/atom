@@ -230,24 +230,24 @@ async def get_templates(
         WorkflowTemplate.usage_count.desc()
     ).limit(50).all()
 
-    # Transform to match expected format
+    # Transform to match expected format — use only columns that exist on the
+    # WorkflowTemplate ORM model (core/models.py). Attributes like template_id,
+    # complexity, tags, steps_schema, is_featured are on the in-memory template
+    # system, NOT on this ORM model.
     result = []
     for template in templates:
         result.append({
-            "id": template.template_id,
+            "id": template.id,
             "name": template.name,
             "description": template.description,
             "category": template.category,
-            "complexity": template.complexity,
-            "icon": template.tags[0] if template.tags and isinstance(template.tags, list) else "workflow",
-            "steps": template.steps_schema or [],
-            "input_schema": template.inputs_schema or {},
+            "icon": template.icon or "workflow",
+            "steps": template.steps or [],
+            "input_schema": template.input_schema or {},
             "rating": template.rating,
             "usage_count": template.usage_count,
-            "is_featured": template.is_featured,
             "author_id": template.author_id,
             "version": template.version,
-            "tags": template.tags or []
         })
 
     return {
@@ -377,9 +377,9 @@ async def get_workflow_by_id(workflow_id: str, db: Session = Depends(get_db)):
                 return {"success": True, "workflow": w.dict()}
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
 
-    # Query database
+    # Query database — use .id (the ORM PK), not template_id.
     template = db.query(WorkflowTemplate).filter(
-        WorkflowTemplate.template_id == workflow_id
+        WorkflowTemplate.id == workflow_id
     ).first()
 
     if not template:
@@ -388,19 +388,17 @@ async def get_workflow_by_id(workflow_id: str, db: Session = Depends(get_db)):
     return {
         "success": True,
         "workflow": {
-            "id": template.template_id,
+            "id": template.id,
             "name": template.name,
             "description": template.description,
-            "steps": template.steps_schema or [],
-            "input_schema": template.inputs_schema or {},
+            "steps": template.steps or [],
+            "input_schema": template.input_schema or {},
             "created_at": template.created_at.isoformat() if template.created_at else None,
             "updated_at": template.updated_at.isoformat() if template.updated_at else None,
-            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "steps_count": len(template.steps) if template.steps else 0,
             "category": template.category,
-            "complexity": template.complexity,
             "rating": template.rating,
             "usage_count": template.usage_count,
-            "tags": template.tags or [],
             "version": template.version,
             "author_id": template.author_id
         }
