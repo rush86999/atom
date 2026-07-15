@@ -8,8 +8,10 @@ class is the source of truth; these endpoints delegate to it.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
+from core.database import get_db
 from core.media.spotify_service import SpotifyService
 
 logger = logging.getLogger(__name__)
@@ -17,9 +19,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/integrations/spotify", tags=["spotify"])
 
 
-def _get_service() -> SpotifyService:
-    """Build a SpotifyService instance from environment configuration."""
-    return SpotifyService()
+def _get_service(db: Session = None) -> SpotifyService:
+    """Build a SpotifyService instance."""
+    return SpotifyService(db)
 
 
 @router.get("/health")

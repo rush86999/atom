@@ -2,6 +2,7 @@
 Dashboard Data API Routes
 Provides real dashboard data by querying database models
 """
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +13,8 @@ from sqlalchemy import func, and_, or_
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
 from core.database import get_db
+
+logger = logging.getLogger(__name__)
 from core.models import (
     WorkflowExecution,
     ChatProcess,
@@ -119,7 +122,7 @@ def get_user_upcoming_events(db: Session, user_id: Optional[str], limit: int = 1
         return events
 
     except Exception as e:
-        # Return empty list on error
+        logger.warning("get_user_upcoming_events failed: %s", e, exc_info=True)
         return []
 
 
@@ -201,6 +204,7 @@ def get_user_tasks(db: Session, user_id: Optional[str], limit: int = 20) -> List
         return tasks[:limit]
 
     except Exception as e:
+        logger.warning("get_user_tasks failed: %s", e, exc_info=True)
         return []
 
 
@@ -241,6 +245,7 @@ def get_user_messages(db: Session, user_id: Optional[str], limit: int = 20) -> L
         return messages
 
     except Exception as e:
+        logger.warning("get_user_messages failed: %s", e, exc_info=True)
         return []
 
 

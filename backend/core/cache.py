@@ -318,7 +318,7 @@ class UniversalCacheService:
             try:
                 val = self.circuit_breaker.call(self.client.get, namespaced_key)
                 if val: return self._decode(val)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache async get failed: %s", _e, exc_info=True)
 
         # 2. Try Upstash REST
         if self.use_rest_api:
@@ -338,7 +338,7 @@ class UniversalCacheService:
             try:
                 val = self.circuit_breaker.call(self.client.get, namespaced_key)
                 if val: return self._decode(val)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
 
         if self.use_rest_api:
             val = self._rest_get(namespaced_key)
@@ -357,7 +357,7 @@ class UniversalCacheService:
         val_to_set = self._encode(value)
         if self.client:
             try: self.circuit_breaker.call(self.client.setex, namespaced_key, ttl, val_to_set)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
         
         if self.use_rest_api:
             self._rest_set(namespaced_key, val_to_set, ttl)
@@ -374,7 +374,7 @@ class UniversalCacheService:
         val_to_set = self._encode(value)
         if self.client:
             try: self.circuit_breaker.call(self.client.setex, namespaced_key, ttl, val_to_set)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
         
         if self.use_rest_api:
             self._rest_set(namespaced_key, val_to_set, ttl)
@@ -397,7 +397,7 @@ class UniversalCacheService:
 
         if self.client:
             try: self.client.delete(namespaced_key)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
 
         if self.use_rest_api:
             self._rest_delete(namespaced_key)
@@ -408,7 +408,7 @@ class UniversalCacheService:
         self.sync_local_cache.delete(namespaced_key)
         if self.client:
             try: self.client.delete(namespaced_key)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
         if self.use_rest_api:
             self._rest_delete(namespaced_key)
 
@@ -441,7 +441,7 @@ class UniversalCacheService:
                     try:
                         httpx.get(f"{self.rest_api_url}/expire/{namespaced_key}/{ttl}", 
                                  headers={"Authorization": f"Bearer {self.rest_api_token}"})
-                    except Exception: pass
+                    except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
                 return int(val)
 
         # 3. Local fallback (Simple non-atomic fallback)
@@ -462,7 +462,7 @@ class UniversalCacheService:
                 pattern = pattern_or_tenant_id if ":" in pattern_or_tenant_id else f"tenant:{pattern_or_tenant_id}:*"
                 keys = [k for k in self.client.scan_iter(match=pattern)]
                 if keys: return self.client.delete(*keys)
-            except Exception: pass
+            except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
 
         return 0
 

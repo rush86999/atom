@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/integrations/historical_sync", tags=["historical
 
 def _get_service() -> HistoricalSyncService:
     """Build a HistoricalSyncService instance from environment configuration."""
-    return HistoricalSyncService()
+    return HistoricalSyncService(tenant_id="default")
 
 
 @router.get("/health")

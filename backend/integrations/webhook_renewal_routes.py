@@ -8,8 +8,10 @@ class is the source of truth; these endpoints delegate to it.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
+from core.database import get_db
 from core.webhook_renewal_service import ScheduledWebhookRenewalService
 
 logger = logging.getLogger(__name__)
@@ -17,9 +19,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/integrations/webhook_renewal", tags=["webhook-renewal"])
 
 
-def _get_service() -> ScheduledWebhookRenewalService:
-    """Build a ScheduledWebhookRenewalService instance from environment configuration."""
-    return ScheduledWebhookRenewalService()
+def _get_service(db: Session = None) -> ScheduledWebhookRenewalService:
+    """Build a ScheduledWebhookRenewalService instance."""
+    return ScheduledWebhookRenewalService(db)
 
 
 @router.get("/health")

@@ -8,8 +8,10 @@ class is the source of truth; these endpoints delegate to it.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
+from core.database import get_db
 from core.integrations.adapters.stripe import StripeAdapter
 
 logger = logging.getLogger(__name__)
@@ -17,9 +19,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/integrations/stripe", tags=["stripe"])
 
 
-def _get_service() -> StripeAdapter:
-    """Build a StripeAdapter instance from environment configuration."""
-    return StripeAdapter()
+def _get_service(db: Session = None) -> StripeAdapter:
+    """Build a StripeAdapter instance."""
+    return StripeAdapter(db, workspace_id="default")
 
 
 @router.get("/health")

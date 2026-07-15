@@ -19,7 +19,8 @@ router = APIRouter(prefix="/api/integrations/telegram_chat", tags=["telegram-cha
 
 def _get_service() -> AtomTelegramIntegration:
     """Build a AtomTelegramIntegration instance from environment configuration."""
-    return AtomTelegramIntegration()
+    import os
+    return AtomTelegramIntegration(config={"bot_token": os.getenv("TELEGRAM_BOT_TOKEN", "")})
 
 
 @router.get("/health")
