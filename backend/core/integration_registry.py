@@ -189,6 +189,37 @@ class IntegrationRegistry:
 
         return service_class
 
+    async def execute_operation(
+        self,
+        connector_id: str,
+        tenant_id: str,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Resolve a connector's service class, instantiate it, and delegate
+        an operation. Used by webhook handlers that need to call into an
+        integration service via the registry.
+
+        Returns a dict with at least ``{"status": "ok"|"error"}``.
+        """
+        service_class = self.get_service_class(connector_id)
+        if service_class is None:
+            return {"status": "error", "error": f"No service registered for '{connector_id}'"}
+        try:
+            # Services accept tenant_id + config; pass minimal kwargs.
+            try:
+                service = service_class(tenant_id=tenant_id)
+            except TypeError:
+                service = service_class()
+            result = await service.execute_operation(
+                operation, parameters, context=context
+            )
+            return result if isinstance(result, dict) else {"status": "ok", "result": result}
+        except Exception as exc:
+            logger.warning(f"execute_operation failed for {connector_id}.{operation}: {exc}")
+            return {"status": "error", "error": str(exc)}
+
     def _get_service_class_path(
         self,
         connector_id: str
