@@ -3,6 +3,7 @@ Performance Optimization Middleware
 Provides caching, compression, and connection pooling
 """
 
+import datetime
 import asyncio
 import hashlib
 import json
