@@ -89,7 +89,7 @@ async def whatsapp_health():
         raise
     except Exception as e:
         logger.error(f"WhatsApp health check error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/service/health", summary="Enhanced WhatsApp service health")
@@ -101,7 +101,7 @@ async def whatsapp_service_health():
         return health_data
     except Exception as e:
         logger.error(f"WhatsApp service health check error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/service/metrics", summary="WhatsApp service metrics")
@@ -112,7 +112,7 @@ async def whatsapp_service_metrics():
         return metrics
     except Exception as e:
         logger.error(f"WhatsApp service metrics error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.post("/service/initialize", summary="Initialize WhatsApp service")
@@ -123,7 +123,7 @@ async def initialize_service():
         return result
     except Exception as e:
         logger.error(f"WhatsApp service initialization error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.post("/send", summary="Send WhatsApp message")
@@ -139,7 +139,7 @@ async def send_message(
         return result
     except Exception as e:
         logger.error(f"WhatsApp send message error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.post("/messages", summary="Send WhatsApp message (alias)")
@@ -158,7 +158,7 @@ async def send_message_alias(
         return result
     except Exception as e:
         logger.error(f"WhatsApp send message error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.post("/send/batch", summary="Send batch WhatsApp messages")
@@ -217,7 +217,7 @@ async def send_batch_messages(
 
     except Exception as e:
         logger.error(f"WhatsApp batch send error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/conversations", summary="Get WhatsApp conversations")
@@ -239,7 +239,7 @@ async def get_conversations(
         }
     except Exception as e:
         logger.error(f"WhatsApp conversations error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/conversations/search", summary="Search WhatsApp conversations")
@@ -323,7 +323,7 @@ async def search_conversations(
         raise
     except Exception as e:
         logger.error(f"WhatsApp search conversations error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/messages/{whatsapp_id}", summary="Get WhatsApp messages")
@@ -342,7 +342,7 @@ async def get_messages(
         }
     except Exception as e:
         logger.error(f"WhatsApp messages error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/messages", summary="Get WhatsApp messages (all)")
@@ -374,7 +374,7 @@ async def get_all_messages(
         }
     except Exception as e:
         logger.error(f"WhatsApp get messages error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.post("/templates", summary="Create WhatsApp template")
@@ -393,7 +393,7 @@ async def create_template(
         return result
     except Exception as e:
         logger.error(f"WhatsApp template creation error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/analytics", summary="Get WhatsApp analytics")
@@ -425,7 +425,7 @@ async def get_analytics(
         }
     except Exception as e:
         logger.error(f"WhatsApp analytics error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/analytics/export", summary="Export WhatsApp analytics")
@@ -494,7 +494,7 @@ async def export_analytics(
 
     except Exception as e:
         logger.error(f"WhatsApp analytics export error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/configuration/business-profile", summary="Get business profile")
@@ -509,7 +509,7 @@ async def get_business_profile():
         }
     except Exception as e:
         logger.error(f"WhatsApp get business profile error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.put("/configuration/business-profile", summary="Update business profile")
@@ -548,7 +548,7 @@ async def update_business_profile(
         raise
     except Exception as e:
         logger.error(f"WhatsApp update business profile error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 @router.get("/webhook", summary="WhatsApp webhook verification")
@@ -584,7 +584,7 @@ async def webhook_handler(webhook_data: Dict[str, Any]):
         return {"status": "received"}
     except Exception as e:
         logger.error(f"WhatsApp webhook handler error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
 
 
 # Export router for registration

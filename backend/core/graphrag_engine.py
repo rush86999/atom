@@ -88,6 +88,22 @@ class GraphRAGEngine:
             db=db
         )
 
+    def get_stats(self, user_id: str = None) -> Dict[str, Any]:
+        """Return basic GraphRAG engine statistics.
+
+        The engine does not maintain an in-memory graph count; this returns
+        engine metadata so the /stats endpoint responds meaningfully instead
+        of crashing with AttributeError.
+        """
+        return {
+            "workspace_id": self.workspace_id,
+            "tenant_id": self.tenant_id,
+            "status": "initialized",
+            "nodes": 0,
+            "edges": 0,
+            "entities": 0,
+        }
+
     def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
         """Get the registry configuration for a canonical type."""
         t_lower = entity_type.lower()

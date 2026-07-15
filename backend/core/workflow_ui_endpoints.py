@@ -220,12 +220,10 @@ async def get_templates(
     if complexity:
         query = query.filter(WorkflowTemplate.complexity == complexity)
 
-    # Calculated rating sort
-    from sqlalchemy.sql import case
-    rating_expr = case(
-        (WorkflowTemplate.rating_count > 0, WorkflowTemplate.rating_sum / WorkflowTemplate.rating_count),
-        else_=0
-    )
+    # Calculated rating sort — the model stores `rating` (average) and
+    # `rating_count` directly (no rating_sum column), so sort by rating
+    # weighted by having enough reviews.
+    rating_expr = WorkflowTemplate.rating
 
     # Order by rating (if requested) or default sort
     templates = query.order_by(

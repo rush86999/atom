@@ -800,7 +800,7 @@ async def byok_health_check(current_user: User = Depends(get_current_user)):
         "timestamp": datetime.now().isoformat()
     })
 
-@router.get("/api/ai/keys", response_model=Dict[str, Any])
+@router.get("/api/ai/keys")
 async def get_api_keys():
     """Get all configured API keys (masked)"""
     return ApiResponse(success=True, data={
@@ -812,7 +812,7 @@ async def get_api_keys():
         "count": 3
     })
 
-@router.post("/api/ai/keys", response_model=Dict[str, Any])
+@router.post("/api/ai/keys")
 async def add_api_key(key_data: Dict[str, str]):
     """Add a new API key"""
     provider = key_data.get("provider")
