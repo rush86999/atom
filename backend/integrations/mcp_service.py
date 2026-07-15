@@ -1860,7 +1860,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["salesforce", "hubspot", "zoho_crm", "intercom"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "create_crm_lead":
@@ -1910,7 +1912,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
                         try: results[p] = await service.execute(p, "list", {}, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "search_tasks":
@@ -1923,7 +1927,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "create_task":
@@ -2008,7 +2014,9 @@ class MCPService(IntegrationService):
                 results = {}
                 for p in platforms:
                     try: results[p] = await service.search(p, query, context=context)
-                    except: continue
+                    except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                 return results
 
             elif tool_name == "list_calendar_events":
@@ -2034,7 +2042,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["google_drive", "dropbox", "notion"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "list_files":
@@ -2115,7 +2125,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["zendesk", "freshdesk", "intercom"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "create_ticket":
@@ -2136,7 +2148,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["github", "gitlab"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "search_designs":
@@ -2159,7 +2173,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["stripe", "quickbooks", "xero", "zoho_books"]:
                         try: results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "finance_close_check":
@@ -2199,7 +2215,9 @@ class MCPService(IntegrationService):
                     results = {}
                     for p in ["tableau", "google_analytics"]:
                         try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        except Exception as _e:
+                            logger.debug("provider %s failed: %s", p, _e, exc_info=True)
+                            continue
                     return results
 
             elif tool_name == "whatsapp_send_message":

@@ -1435,8 +1435,7 @@ class BYOKHandler:
                     try:
                         latency_ms = (time.time() - request_start) * 1000
                         self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
-                    except:
-                        pass  # Don't let health monitoring errors affect primary flow
+                    except Exception:                         pass  # Don't let health monitoring errors affect primary flow
 
                     # Learning-router outcome observation for failures.
                     await self._record_outcome_feedback(
@@ -2455,8 +2454,7 @@ class BYOKHandler:
                 try:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
-                except:
-                    pass  # Don't let health monitoring errors affect primary flow
+                except Exception:                     pass  # Don't let health monitoring errors affect primary flow
 
                 # Learning-router outcome observation (streaming failure).
                 await self._record_outcome_feedback(

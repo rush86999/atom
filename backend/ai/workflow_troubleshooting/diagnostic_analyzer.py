@@ -425,8 +425,7 @@ class AIDiagnosticAnalyzer:
                 last = values[-1]
                 if first == 0: return 0.0
                 return (last - first) / first
-            except:
-                return 0.0
+            except Exception:                 return 0.0
 
         x = np.arange(len(values))
         y = np.array(values)
@@ -458,8 +457,7 @@ class AIDiagnosticAnalyzer:
         try:
             correlation = np.corrcoef(values1, values2)[0, 1]
             return correlation if not np.isnan(correlation) else 0.0
-        except:
-            return 0.0
+        except Exception:             return 0.0
 
     async def analyze_error_patterns(
         self, workflow_id: str, error_logs: List[str]

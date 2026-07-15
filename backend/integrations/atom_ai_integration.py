@@ -422,8 +422,7 @@ class AtomAIIntegration:
             try:
                 # Attempt to parse JSON from AI response
                 return json.loads(result)
-            except:
-                return {'analysis': result}
+            except Exception:                 return {'analysis': result}
             
         except Exception as e:
             logger.error(f"Error getting intelligent analytics: {e}")
@@ -680,8 +679,7 @@ class AtomAIIntegration:
                     'language': 'en',
                     'confidence': 0.8
                 }
-            except:
-                return {
+            except Exception:                 return {
                     'sentiment': 'neutral',
                     'sentiment_score': 0.0,
                     'key_topics': [],
@@ -887,8 +885,7 @@ class AIConversationManager:
             
             try:
                 return json.loads(result_text)
-            except:
-                return {'ok': True, 'response': result_text}
+            except Exception:                 return {'ok': True, 'response': result_text}
             
         except Exception as e:
             logger.error(f"Error processing command: {e}")
@@ -939,8 +936,7 @@ class IntelligentSearchManager:
             try:
                 ranked_data = json.loads(ranked_text)
                 return ranked_data.get('ranked_results', base_results)
-            except:
-                return base_results
+            except Exception:                 return base_results
             
         except Exception as e:
             logger.error(f"Error in intelligent search: {e}")
@@ -1047,8 +1043,7 @@ class WorkflowIntelligenceManager:
             try:
                 enhancement_data = json.loads(enhancement_text)
                 workflow_data['ai_enhancements'] = enhancement_data
-            except:
-                workflow_data['ai_enhancements'] = {"suggestions": enhancement_text}
+            except Exception:                 workflow_data['ai_enhancements'] = {"suggestions": enhancement_text}
             
             return workflow_data
             
@@ -1079,8 +1074,7 @@ class WorkflowIntelligenceManager:
                     try:
                         optimizations = json.loads(optimization_text)
                         await self._apply_optimizations(workflow, optimizations)
-                    except:
-                        pass
+                    except Exception:                         pass
 
             logger.info("Workflow optimization completed successfully")
         except Exception as e:
@@ -1174,8 +1168,7 @@ class CrossPlatformAIManager:
             
             try:
                 self.cross_platform_insights = json.loads(analysis_text)
-            except:
-                self.cross_platform_insights = {"analysis": analysis_text}
+            except Exception:                 self.cross_platform_insights = {"analysis": analysis_text}
             
         except Exception as e:
             logger.error(f"Error synchronizing AI insights: {e}")

@@ -112,7 +112,7 @@ class IntegrationHTTP:
             except httpx.HTTPStatusError:
                 raise
             except Exception:
-                pass  # Circuit breaker unavailable — proceed without it
+                logger.debug("circuit breaker check failed for %s, proceeding without", integration, exc_info=True)  # Circuit breaker unavailable — proceed without it
 
         # --- 2. Rate limiter check ---
         if rate_limiter:
@@ -122,7 +122,7 @@ class IntegrationHTTP:
                     logger.info(f"[{integration}] Rate limited — waiting {remaining}s")
                     await asyncio.sleep(remaining)
             except Exception:
-                pass  # Rate limiter unavailable — proceed
+                logger.debug("rate limiter check failed for %s, proceeding", integration, exc_info=True)  # Rate limiter unavailable
 
         # --- 3. Retry loop ---
         last_exc: Optional[Exception] = None
@@ -167,8 +167,8 @@ class IntegrationHTTP:
                     if circuit_breaker:
                         try:
                             await circuit_breaker.record_success(integration)
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logger.debug("integration_http op failed: %s", _e, exc_info=True)
                     if health:
                         health.record(integration, success=True, latency_ms=elapsed_ms)
                 else:
@@ -176,8 +176,8 @@ class IntegrationHTTP:
                     if circuit_breaker:
                         try:
                             await circuit_breaker.record_failure(integration)
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logger.debug("integration_http op failed: %s", _e, exc_info=True)
                     if health:
                         health.record(integration, success=False, latency_ms=elapsed_ms)
 
@@ -190,8 +190,8 @@ class IntegrationHTTP:
                 if circuit_breaker:
                     try:
                         await circuit_breaker.record_failure(integration)
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("integration_http op failed: %s", _e, exc_info=True)
                 if health:
                     health.record(integration, success=False, latency_ms=elapsed_ms)
 
