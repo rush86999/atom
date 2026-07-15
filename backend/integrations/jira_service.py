@@ -754,3 +754,26 @@ class JiraService(IntegrationService):
         if not result:
             raise Exception("Failed to add comment")
         return result
+
+
+# Module-level singleton + factory. Configured lazily from env vars so the
+# import never fails; returns None when Jira credentials are absent.
+_jira_service_singleton = None
+
+
+def get_jira_service():
+    """Return a configured JiraService singleton, or None if unconfigured."""
+    global _jira_service_singleton
+    if _jira_service_singleton is not None:
+        return _jira_service_singleton
+    token = os.getenv("JIRA_API_TOKEN") or os.getenv("JIRA_ACCESS_TOKEN")
+    cloud_id = os.getenv("JIRA_CLOUD_ID")
+    base_url = os.getenv("JIRA_BASE_URL") or os.getenv("JIRA_INSTANCE_URL")
+    if not (token and (cloud_id or base_url)):
+        return None
+    _jira_service_singleton = JiraService(config={
+        "access_token": token,
+        "cloud_id": cloud_id,
+        "instance_url": base_url,
+    })
+    return _jira_service_singleton

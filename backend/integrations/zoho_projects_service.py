@@ -21,6 +21,48 @@ class ZohoProjectsService(IntegrationService):
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
 
+    # ---- IntegrationService abstract-method implementations ----
+    # Satisfies the ABC contract from core.integration_service so the class
+    # can be instantiated by ServiceFactory / routers.
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the operations this Zoho service exposes."""
+        return {
+            "operations": ['get_portals', 'get_projects', 'get_tasks', 'create_task'],
+            "required_params": ["access_token"],
+            "optional_params": ["organization_id", "tenant_id"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": False,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Return a basic health snapshot (token presence + base URL)."""
+        from datetime import datetime, timezone
+        return {
+            "healthy": bool(getattr(self, "access_token", None)),
+            "message": "connected" if getattr(self, "access_token", None) else "no access token configured",
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "base_url": getattr(self, "base_url", None),
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Dispatch a named operation to the service's existing methods."""
+        try:
+            if operation == "get_portals":
+                return {"success": True, "result": await self.get_portals(parameters.get("access_token") or self.access_token)}
+            return {
+                "success": False,
+                "error": f"Unsupported operation: {operation}",
+                "supported": ['get_portals'],
+            }
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
+
     async def get_portals(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected Zoho Projects portals"""
         try:

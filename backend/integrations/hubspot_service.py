@@ -730,3 +730,20 @@ class HubSpotService(IntegrationService):
 # from core.integration_registry import IntegrationRegistry
 # registry = IntegrationRegistry(db)
 # hubspot_service = await registry.get_service_instance("hubspot", tenant_id)
+
+
+# Module-level singleton + factory. Configured lazily from env vars so the
+# import never fails; returns None when HubSpot credentials are absent.
+_hubspot_service_singleton = None
+
+
+def get_hubspot_service():
+    """Return a configured HubSpotService singleton, or None if unconfigured."""
+    global _hubspot_service_singleton
+    if _hubspot_service_singleton is not None:
+        return _hubspot_service_singleton
+    token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+    if not token:
+        return None
+    _hubspot_service_singleton = HubSpotService(config={"access_token": token})
+    return _hubspot_service_singleton

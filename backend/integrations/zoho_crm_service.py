@@ -19,6 +19,56 @@ class ZohoCRMService(IntegrationService):
         self.access_token = config.get("access_token") or os.getenv("ZOHO_CRM_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 
+    # ---- IntegrationService abstract-method implementations ----
+    # Satisfies the ABC contract from core.integration_service so the class
+    # can be instantiated by ServiceFactory / routers.
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the operations this Zoho service exposes."""
+        return {
+            "operations": ['get_leads', 'get_deals', 'get_modules', 'create_lead', 'create_record'],
+            "required_params": ["access_token"],
+            "optional_params": ["organization_id", "tenant_id"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": False,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Return a basic health snapshot (token presence + base URL)."""
+        from datetime import datetime, timezone
+        return {
+            "healthy": bool(getattr(self, "access_token", None)),
+            "message": "connected" if getattr(self, "access_token", None) else "no access token configured",
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "base_url": getattr(self, "base_url", None),
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Dispatch a named operation to the service's existing methods."""
+        try:
+            if operation == "get_leads":
+                return {"success": True, "result": await self.get_leads()}
+            if operation == "get_deals":
+                return {"success": True, "result": await self.get_deals()}
+            if operation == "get_modules":
+                return {"success": True, "result": await self.get_modules()}
+            if operation == "create_lead":
+                return {"success": True, "result": await self.create_lead(parameters)}
+            if operation == "create_record":
+                return {"success": True, "result": await self.create_record(parameters)}
+            return {
+                "success": False,
+                "error": f"Unsupported operation: {operation}",
+                "supported": ['get_leads', 'get_deals', 'get_modules', 'create_lead', 'create_record'],
+            }
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
+
     async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
         """Get a valid access token for the tenant, refreshing if necessary"""
         tid = tenant_id or self.tenant_id
