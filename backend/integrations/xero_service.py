@@ -109,6 +109,16 @@ class XeroService(IntegrationService):
             logger.error(f"Failed to get contacts: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the operations this Xero service exposes."""
+        return {
+            "operations": ["get_contacts", "get_invoices", "get_bank_transactions"],
+            "required_params": ["access_token", "xero_tenant_id"],
+            "optional_params": ["tenant_id"],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": False,
+        }
+
     def health_check(self) -> Dict[str, Any]:
         """Health check for Xero service"""
         return {
