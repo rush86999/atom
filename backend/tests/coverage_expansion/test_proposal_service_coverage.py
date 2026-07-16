@@ -242,11 +242,7 @@ class TestProposalServiceCoverage:
             proposal_type=ProposalType.ACTION.value,
             title="Test",
             description="Test",
-<<<<<<< Updated upstream
             proposal_data={},
-=======
-            proposal_data={"proposed_action": {}},
->>>>>>> Stashed changes
         )
         db_session.add(proposal)
         db_session.commit()

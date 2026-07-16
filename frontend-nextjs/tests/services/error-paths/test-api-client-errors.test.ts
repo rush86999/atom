@@ -177,10 +177,10 @@ describe('API Client Error Paths', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({}),
+        json: async (): Promise<any> => ({}),
       });
 
-      const result = await fetchWithErrorHandling('/test').catch(() => null);
+      const result = await fetchWithErrorHandling('/test').catch((): any => null);
       // Should handle gracefully
       expect(result).toBeNull();
     });
@@ -189,10 +189,10 @@ describe('API Client Error Paths', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => null,
+        json: async (): Promise<any> => null,
       });
 
-      const result = await fetchWithErrorHandling('/test').catch(() => null);
+      const result = await fetchWithErrorHandling('/test').catch((): any => null);
       expect(result).toBeNull();
     });
 
@@ -200,10 +200,10 @@ describe('API Client Error Paths', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => [],
+        json: async (): Promise<any> => [],
       });
 
-      const result = await fetchWithErrorHandling('/test').catch(() => null);
+      const result = await fetchWithErrorHandling('/test').catch((): any => null);
       expect(result).toBeNull();
     });
   });
@@ -381,14 +381,3 @@ describe('API Client Error Paths', () => {
   });
 });
 
-// Mock implementation
-async function fetchWithErrorHandling(url: string, options: any = {}) {
-  const response = await fetch(url, options);
-
-  if (!response.ok) {
-    const error = new Error(`HTTP ${response.status}`);
-    throw error;
-  }
-
-  return response.json();
-}

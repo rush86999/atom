@@ -17,8 +17,14 @@ from datetime import datetime, timedelta
 
 # Mock the missing modules and models BEFORE importing alert_service
 import sys
+orig_core_models = sys.modules.get('core.models')
+orig_integration_metrics = sys.modules.get('core.integration_metrics')
+orig_slack_service = sys.modules.get('integrations.slack_enhanced_service')
+orig_token_storage = sys.modules.get('core.token_storage')
+orig_email_service = sys.modules.get('core.email_service')
 
 # Mock core.models with AlertConfiguration
+from unittest.mock import MagicMock as MockMagic
 mock_models = MockMagic()
 mock_alert_config = MockMagic()
 mock_alert_config.tenant_id = "tenant-001"
@@ -70,6 +76,32 @@ from core.alert_service import (
     AlertEvaluationResult,
     AlertThresholdService
 )
+
+# Restore original modules in sys.modules to prevent test pollution
+if orig_core_models:
+    sys.modules['core.models'] = orig_core_models
+else:
+    del sys.modules['core.models']
+
+if orig_integration_metrics:
+    sys.modules['core.integration_metrics'] = orig_integration_metrics
+else:
+    del sys.modules['core.integration_metrics']
+
+if orig_slack_service:
+    sys.modules['integrations.slack_enhanced_service'] = orig_slack_service
+else:
+    del sys.modules['integrations.slack_enhanced_service']
+
+if orig_token_storage:
+    sys.modules['core.token_storage'] = orig_token_storage
+else:
+    del sys.modules['core.token_storage']
+
+if orig_email_service:
+    sys.modules['core.email_service'] = orig_email_service
+else:
+    del sys.modules['core.email_service']
 
 
 class TestAlertSeverity:

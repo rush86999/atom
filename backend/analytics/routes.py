@@ -1,5 +1,5 @@
 from typing import Any, Dict, List
-from analytics.models import WorkflowExecutionLog
+from core.models import WorkflowExecutionLog
 from analytics.optimizer import WorkflowOptimizer
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel

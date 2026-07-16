@@ -35,6 +35,10 @@ class UserRole(str, enum.Enum):
     SUPER_ADMIN = "super_admin"
 
 # Mock the problematic models import before importing router
+orig_core_models = sys.modules.get('core.models')
+orig_storage = sys.modules.get('core.storage')
+orig_extractor = sys.modules.get('core.policy_fact_extractor')
+
 mock_models = MagicMock()
 mock_models.UserRole = UserRole  # Use our real UserRole
 sys.modules['core.models'] = mock_models
@@ -79,6 +83,22 @@ sys.modules['core.policy_fact_extractor'] = mock_policy_extractor_module
 
 # Import business facts routes router
 from api.admin.business_facts_routes import router
+
+# Restore original modules in sys.modules to prevent test pollution
+if orig_core_models:
+    sys.modules['core.models'] = orig_core_models
+else:
+    del sys.modules['core.models']
+
+if orig_storage:
+    sys.modules['core.storage'] = orig_storage
+else:
+    del sys.modules['core.storage']
+
+if orig_extractor:
+    sys.modules['core.policy_fact_extractor'] = orig_extractor
+else:
+    del sys.modules['core.policy_fact_extractor']
 
 # Import BusinessFact from agent_world_model
 from core.agent_world_model import BusinessFact

@@ -75,9 +75,7 @@ def get_role_permissions() -> Dict[UserRole, Set[Permission]]:
     return _ROLE_PERMISSIONS_CACHE
 
 
-# Backwards compatibility - assign to module-level variable
-# This is set on first access to avoid circular import issues
-ROLE_PERMISSIONS: Dict[UserRole, Set[Permission]] = None
+ROLE_PERMISSIONS = get_role_permissions()
 
 class RBACService:
     @staticmethod
