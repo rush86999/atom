@@ -17,13 +17,19 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+# The chat orchestrator is a module-level singleton with tenant_id="default",
+# so BYOK outcome observations record feedback under this key. Explicit user
+# feedback and dashboard reads MUST use the same key, otherwise the dashboard
+# only sees thumbs feedback and misses the bulk of the signal.
+CHAT_ROUTING_TENANT_KEY = "default"
+
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()
 
 
 # Pydantic Models
 class ChatMessageRequest(BaseModel):
-    message: str = Field(..., description="Chat message from user")
+    message: str = Field(..., max_length=32000, description="Chat message from user")
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
@@ -40,6 +46,8 @@ class ChatMessageResponse(BaseModel):
     next_steps: list = Field(..., description="Suggested next steps")
     timestamp: str = Field(..., description="Response timestamp")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata and structured actions")
+    model: Optional[str] = Field(None, description="Which model produced the response")
+    provider: Optional[str] = Field(None, description="Which provider served the response")
 
 
 class ChatHistoryRequest(BaseModel):
@@ -66,6 +74,16 @@ class ChatMemoryResponse(BaseModel):
 class RenameSessionRequest(BaseModel):
     title: str = Field(..., description="New title for the session")
     user_id: str = Field(..., description="ID of the user performing the rename")
+
+
+class ChatFeedbackRequest(BaseModel):
+    """User feedback on a chat response (the previously-dead feedback loop)."""
+    message_id: str = Field(..., description="The message the feedback is about")
+    feedback: str = Field(..., description='"thumbs_up" or "thumbs_down"')
+    comment: Optional[str] = Field(None, description="Optional free-text feedback")
+    model: Optional[str] = Field(None, description="Which model produced the response")
+    provider: Optional[str] = Field(None, description="Which provider served the response")
+    session_id: Optional[str] = Field(None, description="Conversation session ID")
 
 
 @router.patch("/sessions/{session_id}")
@@ -201,6 +219,26 @@ async def send_chat_message(
             context=request.context
         )
 
+        # Detect the "no LLM provider configured" sentinel and surface it as a
+        # structured error so the frontend shows the recovery banner (linking
+        # to /settings/ai) instead of a junk assistant message. The orchestrator
+        # returns these sentinels as the message string when no provider key is
+        # configured.
+        response_msg = response.get("message", "") or ""
+        _NO_PROVIDER_MARKERS = (
+            "llm client not initialized",
+            "no api keys configured",
+            "no eligible llm providers",
+        )
+        if any(m in response_msg.lower() for m in _NO_PROVIDER_MARKERS):
+            return {
+                "success": False,
+                "error_code": "no_llm_provider",
+                "message": "You need an AI provider to use chat. Add an API key in Settings to get started.",
+                "recovery_url": "/settings/ai",
+                "session_id": request.session_id or "unknown",
+            }
+
         return ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),
@@ -211,7 +249,9 @@ async def send_chat_message(
             requires_confirmation=response.get("requires_confirmation", False),
             next_steps=response.get("next_steps", []),
             timestamp=response.get("timestamp", ""),
-            metadata=response.get("data", {}) # Map 'data' to 'metadata' for frontend
+            metadata=response.get("data", {}), # Map 'data' to 'metadata' for frontend
+            model=response.get("model"),
+            provider=response.get("provider"),
         )
 
     except Exception as e:
@@ -219,7 +259,122 @@ async def send_chat_message(
         raise HTTPException(status_code=500, detail="Chat processing failed")
 
 
-@router.get("/memory/{session_id}")
+@router.post("/cancel/{session_id}")
+async def cancel_chat(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Cancel an in-flight chat message for a session.
+
+    Marks the session as cancelled so the orchestrator returns early between
+    processing steps. Best-effort: if the LLM call is already in-flight, the
+    cancel takes effect after it returns. The frontend's AbortController drops
+    the connection immediately; this endpoint prevents the backend from
+    continuing unnecessary work (e.g. tool execution, follow-up steps).
+    """
+    chat_orchestrator.request_cancellation(session_id)
+    return {"cancelled": True, "session_id": session_id}
+
+
+def _learning_router_enabled() -> bool:
+    """Whether the learning router is enabled (flag-gated)."""
+    from core.llm.learning_router_registry import learning_router_enabled
+    return learning_router_enabled()
+
+
+def _get_learning_router():
+    """Return the process-wide learning router singleton (or None).
+
+    Uses the singleton registry so predictors accumulate across requests
+    instead of being trained into throwaway instances.
+    """
+    from core.llm.learning_router_registry import get_learning_router_instance
+    return get_learning_router_instance()
+
+
+@router.post("/feedback")
+async def submit_chat_feedback(
+    request: ChatFeedbackRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Submit feedback on a chat response.
+
+    This is the live feedback endpoint (replacing the dead /api/atom-agent/feedback
+    path). When the learning router is enabled, feedback is recorded as a
+    RoutingFeedback with the user's thumbs-up/down mapped to a satisfaction
+    signal, and persists to DB for predictor training. When disabled, it
+    returns 200 without recording (so the UI never errors).
+    """
+    feedback_val = request.feedback.lower().strip()
+    if feedback_val not in ("thumbs_up", "thumbs_down"):
+        raise HTTPException(status_code=422, detail="feedback must be 'thumbs_up' or 'thumbs_down'")
+
+    learning_router = _get_learning_router()
+    if learning_router is None:
+        # Disabled — acknowledge but don't record.
+        return {"success": True, "recorded": False, "reason": "learning_router_disabled"}
+
+    try:
+        from core.learning_llm_router import LearningBasedRouter
+        from core.llm.response_quality import ResponseQuality
+        import uuid
+
+        # Map explicit user feedback to a quality assessment. Thumbs-down with
+        # a comment is a stronger negative signal than a bare thumbs-down.
+        if feedback_val == "thumbs_up":
+            quality = ResponseQuality(
+                success=True, quality_satisfied=True,
+                quality_score=0.95, issues=[],
+            )
+        else:
+            score = 0.15 if request.comment else 0.3
+            quality = ResponseQuality(
+                success=True, quality_satisfied=False,
+                quality_score=score, issues=["user_thumbs_down"],
+            )
+
+        fb = LearningBasedRouter.build_feedback(
+            routing_result_id=request.message_id,
+            tenant_id=CHAT_ROUTING_TENANT_KEY,
+            model_id=request.model or "unknown",
+            task_type="question_answering",  # chat path default
+            quality=quality,
+        )
+        await learning_router.record_feedback(fb)
+        return {"success": True, "recorded": True}
+    except Exception as e:
+        logger.warning(f"Failed to record chat feedback (non-fatal): {e}")
+        return {"success": True, "recorded": False, "reason": str(e)}
+
+
+@router.get("/routing-stats")
+async def get_routing_stats(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Routing-learning statistics for the dashboard.
+
+    Returns per-model success rates, total feedback samples, and whether the
+    learning router is enabled. When disabled, returns the stats that exist
+    (possibly empty) with enabled=false so the dashboard can show an honest
+    'Learning Router is off' banner.
+    """
+    enabled = _learning_router_enabled()
+    if not enabled:
+        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+
+    learning_router = _get_learning_router()
+    if learning_router is None:
+        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+
+    try:
+        stats = await learning_router.get_routing_statistics(CHAT_ROUTING_TENANT_KEY)
+        return {"enabled": True, "stats": stats}
+    except Exception as e:
+        logger.warning(f"Failed to get routing stats: {e}")
+        return {"enabled": True, "stats": {"error": str(e)}}
+
+
+
 async def get_chat_memory(
     session_id: str,
     user_id: str,
@@ -294,9 +449,34 @@ async def get_chat_history(
             )
             raise HTTPException(status_code=403, detail="Access denied")
 
+        # Get history. Prefer in-memory; fall back to DB if empty (e.g. after
+        # a restart where in-memory state is lost but ChatMessage rows persist).
+        history = session.get("history", [])
+        if not history:
+            try:
+                from core.database import get_db_session
+                from core.models import ChatMessage as ChatMessageModel
+                with get_db_session() as db:
+                    rows = db.query(ChatMessageModel).filter(
+                        ChatMessageModel.conversation_id == session_id
+                    ).order_by(ChatMessageModel.created_at).all()
+                    # Convert DB rows to the in-memory history shape the frontend expects.
+                    history = [
+                        {
+                            "message": row.content if row.role == "user" else None,
+                            "response": {"message": row.content} if row.role == "assistant" else None,
+                            "timestamp": row.created_at.isoformat() if row.created_at else None,
+                        }
+                        for row in rows
+                    ]
+                    if history:
+                        logger.info(f"Loaded {len(history)} messages from DB for session {session_id}")
+            except Exception as db_err:
+                logger.warning(f"Could not load history from DB: {db_err}")
+
         return ChatHistoryResponse(
             session_id=session_id,
-            messages=session.get("history", []),
+            messages=history,
             timestamp=session.get("last_updated", "")
         )
 

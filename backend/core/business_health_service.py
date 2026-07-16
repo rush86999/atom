@@ -11,13 +11,23 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.models import AgentJob
-from integrations.ai_enhanced_service import (
-    AIModelType,
-    AIRequest,
-    AIServiceType,
-    AITaskType,
-    ai_enhanced_service,
-)
+
+# ai_enhanced_service is an optional dependency. When absent, the service
+# degrades gracefully (the `if ai_enhanced_service:` guards below handle None).
+try:
+    from integrations.ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+except ImportError:
+    AIModelType = None
+    AIRequest = None
+    AIServiceType = None
+    AITaskType = None
+    ai_enhanced_service = None
 
 logger = logging.getLogger(__name__)
 

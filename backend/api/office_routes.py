@@ -83,6 +83,57 @@ def write_excel(req: ExcelWriteRequest):
     return res
 
 
+@router.post("/excel/recalculate")
+async def recalculate_excel(
+    file_path: str = Query(..., description="Path to XLSX file")
+):
+    """Force recalculation of all formulas in the workbook."""
+    res = await office_service.ExcelManager.recalculate(file_path)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
+@router.post("/excel/insert-rows")
+async def insert_excel_rows(
+    file_path: str = Query(..., description="Path to XLSX file"),
+    sheet_name: str = Query(..., description="Worksheet name"),
+    row: int = Query(..., description="Row number to insert at (1-based)"),
+    count: int = Query(1, description="Number of rows to insert")
+):
+    """Insert rows and recalculate formulas to maintain references."""
+    res = await office_service.ExcelManager.insert_rows(file_path, sheet_name, row, count)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
+@router.post("/excel/insert-columns")
+async def insert_excel_columns(
+    file_path: str = Query(..., description="Path to XLSX file"),
+    sheet_name: str = Query(..., description="Worksheet name"),
+    column: int = Query(..., description="Column number to insert at (1-based)"),
+    count: int = Query(1, description="Number of columns to insert")
+):
+    """Insert columns and recalculate formulas."""
+    res = await office_service.ExcelManager.insert_columns(file_path, sheet_name, column, count)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
+@router.get("/excel/formula-result")
+async def get_formula_result(
+    file_path: str = Query(..., description="Path to XLSX file"),
+    cell_path: str = Query(..., description="DOM-like path, e.g. /Sheet1/A4")
+):
+    """Get the computed result of a formula cell (evaluates if needed)."""
+    res = await office_service.ExcelManager.get_evaluated_range(file_path, cell_path)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
 @router.get("/word")
 def read_word(file_path: str = Query(..., description="Path to DOCX file")):
     """Read contents of a Word document."""

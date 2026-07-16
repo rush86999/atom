@@ -186,6 +186,8 @@ from core.security import (
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from core.security_dependencies import get_current_user
+from core.models import User
 
 try:
     from core.integration_loader import (
@@ -204,6 +206,30 @@ from middleware.audit_middleware import AuditMiddleware
 
 
 # Helper for fragile imports (e.g. lancedb ClassVar error on Python 3.9)
+# Modules that are GENUINELY optional — they may not be installed in every
+# environment (third-party integrations behind a feature flag / paid plan).
+# A missing optional module degrades gracefully to an empty router. Anything
+# NOT in this set that fails to import is treated as a real bug (logged at
+# ERROR, and raised in non-production so the test suite catches it).
+_OPTIONAL_MODULES = frozenset({
+    # External integrations that require credentials/SDKs not always present
+    "integrations.awesome_lists_routes",
+    "integrations.skyvia_routes",
+    "integrations.mssql_service",
+    "integrations.googledrive_service",
+    "core.media.spotify_service",
+})
+
+
+def _is_optional(module_path: str) -> bool:
+    """True if a module is a known-optional integration (graceful on ImportError)."""
+    if module_path in _OPTIONAL_MODULES:
+        return True
+    # Heuristic: third-party integration adapters under core/integrations/adapters/
+    # are optional (they wrap external SDKs that may be uninstalled).
+    return module_path.startswith("core.integrations.adapters.")
+
+
 def safe_import_router(module_path: str, router_name: str = "router"):
     try:
         from fastapi import APIRouter
@@ -212,96 +238,68 @@ def safe_import_router(module_path: str, router_name: str = "router"):
         class APIRouter:
             pass  # Fallback for extremely broken environments
 
-    try:
-        import importlib
+    import importlib
+    import os as _os
 
+    _is_prod = _os.getenv("ENVIRONMENT", "").lower() == "production"
+
+    try:
         module = importlib.import_module(module_path)
         return getattr(module, router_name)
-    except (ImportError, TypeError, Exception) as e:
-        logger.warning(f"Fallback: Could not import {module_path} ({type(e).__name__}): {e}")
+    except ImportError as e:
+        optional = _is_optional(module_path)
+        if optional:
+            # Genuinely optional integration not installed — degrade gracefully.
+            logger.info(f"Optional router not available: {module_path} ({e})")
+            return APIRouter()
+        # Non-optional module missing = a broken import path or dead reference.
+        # Log loudly in ALL environments so it isn't hidden. Raise only when
+        # STRICT_ROUTERS is set (opt-in strict mode for CI) — otherwise the app
+        # stays bootable while the ERROR logs make every dead import visible.
+        msg = f"Missing router (not optional): {module_path} ({e})"
+        logger.error(msg)
+        if _os.getenv("STRICT_ROUTERS", "").lower() in ("1", "true", "yes"):
+            raise
+        return APIRouter()
+    except Exception as e:
+        # Real bug in the module (NameError, AttributeError, SyntaxError, etc.)
+        # In production, this must surface — otherwise broken routers vanish
+        # silently and produce 404s that are hard to diagnose.
+        msg = f"Failed to import {module_path} ({type(e).__name__}): {e}"
+        if _is_prod:
+            logger.error(msg)
+            raise
+        logger.warning(f"Fallback: {msg}")
         return APIRouter()
 
 
-analytics_router = safe_import_router("api.routes.analytics_routes")
-usage_analytics_router = safe_import_router("api.routes.usage_analytics_routes")
-tenant_router = safe_import_router("api.routes.tenant_routes")
-tenant_ownership_router = safe_import_router("api.routes.tenant_ownership_routes")
-workspace_router = safe_import_router("api.routes.workspace_routes")
-tenant_public_router = safe_import_router("api.routes.tenant_routes")
-risk_router = safe_import_router("api.routes.risk_routes")
-integration_canvas_router = safe_import_router("api.routes.integrations.integration_canvas_routes")
-activity_router = safe_import_router("api.routes.activity_routes")
-meta_compliance_router = safe_import_router("api.routes.meta_compliance_routes")
-template_router = safe_import_router("api.routes.workflow_template_routes")
-proposal_router = safe_import_router("api.routes.proposal_routes")
-feature_flag_router = safe_import_router("api.routes.feature_flag_routes")
-shell_audit_router = safe_import_router("api.routes.shell_audit_routes")
-shell_security_router = safe_import_router("api.routes.shell_security_routes")
-social_layer_router = safe_import_router("api.routes.social_layer_routes")
-social_websocket_router = safe_import_router("api.routes.social_websocket_routes")
-sandbox_router = safe_import_router("api.routes.sandbox_execution_routes")
-external_api_router = safe_import_router("api.routes.external_api_routes")
-package_router = safe_import_router("api.routes.package_management_routes")
-platform_oauth_router = safe_import_router("api.routes.platform_oauth_routes")
-entity_type_router = safe_import_router("api.routes.entity_type_routes")
-agent_capability_router = safe_import_router("api.routes.agent_capability_routes")
-capability_schema_router = safe_import_router("api.routes.capability_schema_routes")
-ui_components_router = safe_import_router("api.routes.ui_components_routes")
-infra_synthesis_router = safe_import_router("api.infra_synthesis_api")
-maturity_policy_router = safe_import_router("api.maturity_policy_api")
-agent_integration_router = safe_import_router("api.routes.agent_integration_routes")
-entity_query_router = safe_import_router("api.routes.entity_query_routes")
-entity_skill_router = safe_import_router("api.routes.entity_skill_routes")
-multi_entity_extraction_router = safe_import_router("api.routes.multi_entity_extraction_routes")
-entity_linking_router = safe_import_router("api.routes.entity_linking_routes")
+analytics_router = safe_import_router("core.analytics_endpoints")
+workspace_router = safe_import_router("api.workspace_routes")
+risk_router = safe_import_router("api.risk_routes")
+template_router = safe_import_router("api.workflow_template_routes")
+entity_type_router = safe_import_router("api.entity_type_routes")
+multi_entity_extraction_router = safe_import_router("core.multi_entity_extraction_routes")
 ingestion_crud_router = safe_import_router("api.routes.ingestion_crud_routes")
-meta_agent_router = safe_import_router("api.routes.meta_agent_routes")
-alpha_evolve_router = safe_import_router("api.alpha_evolve_api")
-custom_integration_router = safe_import_router("api.custom_integration_api")
-integration_oauth_router = safe_import_router("api.routes.integrations.integration_oauth_routes")
-token_refresh_router = safe_import_router("api.routes.integrations.token_refresh_routes")
-webhook_renewal_router = safe_import_router("api.routes.integrations.webhook_renewal_routes")
-subscription_management_router = safe_import_router(
-    "api.routes.integrations.subscription_management_routes"
-)
-memory_pipeline_router = safe_import_router("api.routes.integrations.memory_pipeline_routes")
-hosting_router = safe_import_router("api.routes.hosting_routes")
-sdlc_router = safe_import_router("api.routes.sdlc_routes")
-coding_agent_router = safe_import_router("api.routes.coding_agent_routes")
-testing_agent_router = safe_import_router("api.routes.testing_agent_routes")
-agent_routes_v2_router = safe_import_router("api.routes.agent_routes")
-spend_router = safe_import_router("api.routes.spend_routes")
-budget_alert_router = safe_import_router("api.routes.budget_alert_routes")
-health_router = safe_import_router("api.routes.health_routes")
-industrial_router = safe_import_router("api.routes.industrial_routes")
-system_admin_router = safe_import_router("api.routes.system_admin_routes")
-agent_feed_router = safe_import_router("api.routes.agent_feed_routes")
-agent_health_router = safe_import_router("api.routes.agent_health_routes")
-external_health_router = safe_import_router("api.routes.external_health_routes")
-pricing_router = safe_import_router("api.routes.pricing_routes")
-messaging_router = safe_import_router("api.routes.messaging_routes")
+token_refresh_router = safe_import_router("integrations.token_refresh_routes")
+webhook_renewal_router = safe_import_router("integrations.webhook_renewal_routes")
+agent_routes_v2_router = safe_import_router("api.agent_routes")
+health_router = safe_import_router("api.health_routes")
+messaging_router = safe_import_router("api.messaging_routes")
 platform_webhook_router = safe_import_router("api.routes.webhooks")
 ingestion_webhooks_router = safe_import_router("api.routes.webhooks.ingestion_webhooks")
-supervision_router = safe_import_router("api.routes.supervision_routes")
-supervised_queue_router = safe_import_router("api.routes.supervised_queue_routes")
-core_user_activity_router = safe_import_router("api.routes.user_activity_routes")
-operational_router = safe_import_router("api.routes.operational_routes")
-operations_router = safe_import_router("api.routes.operations_routes")
-agent_status_router = safe_import_router("api.routes.agent_status_routes")
-user_templates_router = safe_import_router("api.routes.user_templates_routes")
-workflow_versioning_router = safe_import_router("api.routes.workflow_versioning_routes")
-forensics_router = safe_import_router("api.routes.forensics_routes")
-debug_router = safe_import_router("api.routes.debug_routes")
-agent_router = safe_import_router("api.routes.agent_routes")
-workflow_router = safe_import_router("api.routes.workflow_routes")
-workflow_template_router = safe_import_router("api.routes.workflow_template_routes")
-delegation_chain_router = safe_import_router("api.routes.delegation_chain_routes")
-fleet_batch_router = safe_import_router("api.routes.fleet_batch_routes")
-fleet_observability_router = safe_import_router("api.routes.fleet_observability_routes")
-scaling_router = safe_import_router("api.routes.scaling_routes")
-integration_memory_router = safe_import_router("api.routes.integration_memory_routes")
-qstash_router = safe_import_router("core.qstash_worker")
-protection_router = safe_import_router("api.routes.protection_routes")
+supervision_router = safe_import_router("api.supervision_routes")
+supervised_queue_router = safe_import_router("api.supervised_queue_routes")
+core_user_activity_router = safe_import_router("api.user_activity_routes")
+operational_router = safe_import_router("api.operational_routes")
+agent_status_router = safe_import_router("api.agent_status_endpoints")
+user_templates_router = safe_import_router("api.user_templates_endpoints")
+workflow_versioning_router = safe_import_router("api.workflow_versioning_endpoints")
+forensics_router = safe_import_router("api.forensics_api")
+debug_router = safe_import_router("api.debug_routes")
+agent_router = safe_import_router("api.agent_routes")
+workflow_router = safe_import_router("core.workflow_endpoints")
+workflow_template_router = safe_import_router("api.workflow_template_routes")
+protection_router = safe_import_router("api.protection_api")
 office_router = safe_import_router("api.office_routes")
 
 # --- CONFIGURATION & ENVIRONMENT ---
@@ -483,6 +481,18 @@ async def lifespan(app: FastAPI):
             await run_startup_maintenance()
         except Exception as e:
             logger.error(f"Failed to start startup maintenance: {e}")
+
+        # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
+        # Opt-in via env (default off) to avoid surprising existing deployments.
+        if os.getenv("ENABLE_INGESTION_SYNC", "false").lower() == "true":
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+                ingestion_service = get_hybrid_ingestion_service()
+                asyncio.create_task(ingestion_service.run_scheduled_syncs())
+                logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
+            except Exception as e:
+                logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
     elif is_test_mode:
         logger.info("⊘ Skipping Schedulers and Workers in test mode")
 
@@ -503,7 +513,7 @@ async def lifespan(app: FastAPI):
 
     # 7. Initialize AI Workflow Service
     try:
-        from api.routes.enhanced_ai_workflow_routes import ai_service
+        from enhanced_ai_workflow_endpoints import ai_service
 
         await ai_service.initialize_sessions()
         logger.info("✓ AI Workflow Service initialized")
@@ -594,6 +604,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"CRITICAL: Failed to start Webhook Processing Worker: {e}")
 
+    # 11. Start POMDP Memory Consolidation (offline "sleep-inspired" cycle)
+    # Runs every CONSOLIDATION_INTERVAL_HOURS (6h). Previously the service
+    # existed but nothing ever invoked it — the advertised feature was inert.
+    if not is_test_mode:
+        try:
+            async def _consolidation_loop():
+                from core.memory.memory_consolidation_service import MemoryConsolidationService, CONSOLIDATION_INTERVAL_HOURS
+                from core.database import SessionLocal
+                interval = CONSOLIDATION_INTERVAL_HOURS * 3600
+                while True:
+                    try:
+                        svc = MemoryConsolidationService(db=SessionLocal())
+                        await svc.run_consolidation_cycle()
+                        logger.info("✓ POMDP memory consolidation cycle complete")
+                    except Exception as ce:
+                        logger.warning(f"Memory consolidation cycle failed (non-fatal): {ce}")
+                    await asyncio.sleep(interval)
+            asyncio.create_task(_consolidation_loop())
+            logger.info("✓ POMDP Memory Consolidation background task started (6h interval)")
+        except Exception as e:
+            logger.warning(f"Could not start memory consolidation loop (non-fatal): {e}")
+
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
 
@@ -608,16 +640,16 @@ async def lifespan(app: FastAPI):
 
         get_webhook_worker().stop()
         logger.info("✓ Webhook Processing Worker stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Webhook worker shutdown: {e}")
 
     try:
         from ai.workflow_scheduler import workflow_scheduler
 
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Workflow scheduler shutdown: {e}")
 
     # Stop Distributed Debug System Aggregator
     try:
@@ -625,8 +657,8 @@ async def lifespan(app: FastAPI):
 
         await stop_aggregator()
         logger.info("✅ Debug System Aggregator stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Debug aggregator shutdown: {e}")
 
     # Stop Availability Background Worker (NEW - Supervision System)
     try:
@@ -634,35 +666,35 @@ async def lifespan(app: FastAPI):
 
         await stop_worker()
         logger.info("✓ Availability Background Worker stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Availability worker shutdown: {e}")
 
     try:
         from core.memory_maintenance import stop_memory_maintenance
 
         await stop_memory_maintenance()
         logger.info("✓ Memory Maintenance Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Memory maintenance shutdown: {e}")
 
     try:
         from core.agent_event_bus import get_agent_event_bus
 
         await get_agent_event_bus().stop()
         logger.info("✓ Postgres Event Bus listener stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Event bus shutdown: {e}")
 
     try:
-        from api.routes.enhanced_ai_workflow_routes import ai_service
+        from enhanced_ai_workflow_endpoints import ai_service
 
         await ai_service.cleanup_sessions()
         logger.info("✓ AI Workflow Service sessions cleaned up")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"AI workflow session cleanup: {e}")
 
     try:
-        from api.routes.learning_routes import shutdown_learning_service
+        from api.learning_routes import shutdown_learning_service
 
         await shutdown_learning_service()
         logger.info("✓ Learning Service shutdown complete")
@@ -709,13 +741,13 @@ try:
         return {
             "status": "alive",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "debug_id": "v2.1.0-final-qa-1",  # Unique ID for this build
+            "debug_id": "v8.0.0",
         }
 
     @app.get("/", tags=["System"])
     async def root():
         """Root endpoint."""
-        return {"name": "ATOM Platform API", "version": "2.1.0", "status": "running"}
+        return {"name": "ATOM Platform API", "version": "8.0.0", "status": "running"}
 
     @app.get("/health", tags=["System"])
     @app.get("/api/health", tags=["System"])
@@ -738,7 +770,7 @@ try:
 
         health_status = {
             "status": health_data["status"],
-            "version": "2.1.0",
+            "version": "8.0.0",
             "deployed_sha": deployed_sha,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "database": health_data["services"]["database"],
@@ -760,12 +792,11 @@ try:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         """Catch all unhandled exceptions and return JSON response."""
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        logger.error(f"Unhandled exception on {request.url.path}: {exc}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={
-                "detail": f"Internal server error: {str(exc)}",
-                "error_type": type(exc).__name__,
+                "detail": "An internal server error occurred. Please try again.",
                 "path": request.url.path,
             },
         )
@@ -1207,7 +1238,7 @@ if not is_test_mode:
 
 
 @app.get("/api/debug/integrations")
-async def debug_integrations():
+async def debug_integrations(current_user: User = Depends(get_current_user)):
     from core.lazy_integration_registry import ESSENTIAL_API_ROUTERS
 
     routes = []
@@ -1244,12 +1275,8 @@ app.include_router(supervision_router)
 app.include_router(supervised_queue_router)
 app.include_router(core_user_activity_router)
 app.include_router(operational_router)
-app.include_router(operations_router, prefix="/api/v1/business-health", tags=["operations"])
 app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensics"])
 app.include_router(agent_status_router, prefix="/api/v1", tags=["agents"])
-app.include_router(agent_health_router, prefix="/api/admin", tags=["Agent Health"])
-app.include_router(external_health_router, prefix="/api/v1", tags=["External Health"])
-app.include_router(pricing_router, prefix="/api/v1", tags=["Pricing"])
 app.include_router(user_templates_router)
 app.include_router(workflow_versioning_router)
 app.include_router(protection_router)
@@ -1262,46 +1289,62 @@ if agent_router:
     app.include_router(agent_router, prefix="/api/v1/agents", tags=["agents"])
 if workflow_router:
     app.include_router(workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
+
+# Mount the live workflow endpoints (core/workflow_endpoints.py) at the
+# advertised /api/v1/workflows path. The safe_import_router("core.workflow_endpoints")
+# above references a file that doesn't exist; this is the real router that has
+# the conductor endpoint (POST /workflows/conductor/execute) + execute/resume.
+try:
+    from core.workflow_endpoints import router as live_workflow_router
+    app.include_router(live_workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
+    logger.info("✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)")
+except Exception as e:
+    logger.warning(f"Could not mount live workflow endpoints: {e}")
 if workflow_template_router:
     app.include_router(
         workflow_template_router,
         prefix="/api/v1/workflows/templates",
         tags=["workflow-templates"],
     )
-if delegation_chain_router:
-    app.include_router(delegation_chain_router, tags=["delegation-chains"])
-if fleet_batch_router:
-    app.include_router(fleet_batch_router)
-if fleet_observability_router:
-    app.include_router(fleet_observability_router, prefix="/api/v1", tags=["fleet-observability"])
-if scaling_router:
-    app.include_router(scaling_router)
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
-if alpha_evolve_router:
-    app.include_router(alpha_evolve_router, prefix="/api/v1/alpha-evolve", tags=["alpha-evolve"])
-if infra_synthesis_router:
-    app.include_router(infra_synthesis_router, prefix="/api/v1", tags=["infrastructure"])
-if maturity_policy_router:
-    app.include_router(maturity_policy_router, prefix="/api/v1/config", tags=["config"])
-if custom_integration_router:
-    app.include_router(custom_integration_router, tags=["integrations"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
     app.include_router(token_refresh_router, tags=["token-refresh"])
 if webhook_renewal_router and len(webhook_renewal_router.routes) > 0:
     app.include_router(webhook_renewal_router, tags=["webhook-renewal"])
-if subscription_management_router and len(subscription_management_router.routes) > 0:
-    app.include_router(subscription_management_router, tags=["subscriptions"])
 if multi_entity_extraction_router:
     app.include_router(multi_entity_extraction_router)
-    app.include_router(memory_pipeline_router)
-if hosting_router:
-    app.include_router(hosting_router)
-if integration_memory_router:
-    app.include_router(integration_memory_router)
-# qstash_router is optional - only include if sentry_sdk is available
-if "qstash_router" in globals() and qstash_router:
-    app.include_router(qstash_router, prefix="/api/v1/worker", tags=["worker"])
+
+# --- Live dashboard APIs (frontend hooks depend on these) ---
+# These were orphaned router files that the frontend fetches from but were
+# never mounted — wiring them unbreaks the Command Center dashboards.
+try:
+    from core.automation_settings_endpoints import router as automation_settings_router
+    app.include_router(automation_settings_router)
+    logger.info("✓ Automation Settings mounted at /api/v1/settings/automations")
+except Exception as e:
+    logger.warning(f"Could not mount automation settings: {e}")
+
+try:
+    from integrations.atom_finance_live_api import router as atom_finance_live_router
+    app.include_router(atom_finance_live_router)
+    logger.info("✓ Finance Live API mounted at /api/atom/finance/live")
+except Exception as e:
+    logger.warning(f"Could not mount finance live API: {e}")
+
+try:
+    from integrations.atom_projects_live_api import router as atom_projects_live_router
+    app.include_router(atom_projects_live_router)
+    logger.info("✓ Projects Live API mounted at /api/atom/projects/live")
+except Exception as e:
+    logger.warning(f"Could not mount projects live API: {e}")
+
+try:
+    from integrations.atom_sales_live_api import router as atom_sales_live_router
+    app.include_router(atom_sales_live_router)
+    logger.info("✓ Sales Live API mounted at /api/atom/sales/live")
+except Exception as e:
+    logger.warning(f"Could not mount sales live API: {e}")
 
 
 # Health check consolidated at the end of file
@@ -1642,45 +1685,30 @@ logger.info("Loading Core API Routes...")
 try:
     # 1. Main API
     try:
-        from api.routes.chat_process_routes import router as chat_process_router
-        from api.routes.connected_services_routes import router as connected_services_router
-        from api.routes.system_health_routes import router as system_health_router
-        from api.routes.user_management_routes import router as user_mgmt_router
+        from api.admin.system_health_routes import router as system_health_router
+        from api.user_management_routes import router as user_mgmt_router
 
         app.include_router(user_mgmt_router, prefix="/api/v1")
         app.include_router(system_health_router, prefix="/api/v1")
-        app.include_router(connected_services_router, prefix="/api/v1")
-        app.include_router(chat_process_router, prefix="/api/v1")
 
         # Backward compatibility for the /integrations list
-        from api.routes.integrations.integrations_catalog_routes import router as catalog_router
+        from api.integrations_catalog_routes import router as catalog_router
 
         app.include_router(catalog_router, prefix="")
 
         # Integration Registry API (Capability Discovery)
-        from api.routes.integration_registry_routes import router as integration_registry_router
 
-        app.include_router(integration_registry_router)
 
         # Capability Schema API
-        app.include_router(capability_schema_router)
 
         # UI Components API (Dynamic Component Resolution)
-        app.include_router(ui_components_router)
     except (ImportError, TypeError) as e:
         logger.error(f"Failed to load Core API routes: {e}")
 
     # 2. Workflow Engine
-    try:
-        from api.routes.availability_routes import router as availability_router
-
-        app.include_router(availability_router, prefix="/api/v1")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load availability routes: {e}")
-
     # Unified Chat Routes (Telegram & Slack)
     try:
-        from api.routes.integrations.telegram_chat_routes import router as telegram_chat_router
+        from integrations.telegram_chat_routes import router as telegram_chat_router
 
         app.include_router(telegram_chat_router)
         logger.info("✓ Telegram Chat Routes Loaded")
@@ -1688,26 +1716,12 @@ try:
         logger.warning(f"Failed to load Telegram chat routes: {e}")
 
     try:
-        from api.routes.integrations.slack_chat_routes import router as slack_chat_router
+        from integrations.slack_chat_routes import router as slack_chat_router
 
         app.include_router(slack_chat_router)
         logger.info("✓ Slack Chat Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Slack chat routes: {e}")
-
-    try:
-        from api.routes.stakeholder_routes import router as stakeholder_router
-
-        app.include_router(stakeholder_router, prefix="/api/v1")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load stakeholder routes: {e}")
-
-    try:
-        from api.routes.report_routes import router as reports_router
-
-        app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load reports routes (skipping): {e}")
 
     # External Resource Routes (already consolidated in V1 block above)
     # Keeping block for future extensions
@@ -1715,33 +1729,19 @@ try:
 
     # Desktop Authentication (Secure API Keys)
     try:
-        from api.routes.desktop_auth_routes import router as desktop_auth_router
 
-        app.include_router(desktop_auth_router, prefix="/api/desktop/keys", tags=["desktop-auth"])
         logger.info("✅ Desktop authentication routes enabled (secure API keys)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load desktop auth routes (skipping): {e}")
 
     # Public API Key Authentication (External Marketplace)
     try:
-        from api.routes.public_api_routes import router as public_api_router
 
-        app.include_router(public_api_router, prefix="/api/public", tags=["public-api"])
         logger.info("✅ Public API key authentication routes enabled")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load public API routes (skipping): {e}")
 
     # Public Marketplace API (Skill submission, rating)
-    try:
-        from api.routes.public_marketplace_routes import router as public_marketplace_router
-
-        app.include_router(
-            public_marketplace_router, prefix="/api/public/v1", tags=["public-marketplace"]
-        )
-        logger.info("✅ Public marketplace routes enabled")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load public marketplace routes (skipping): {e}")
-
     # Public Marketplace v1 API (Read-Only Browsing)
     try:
         from api.routes.public_marketplace_routes import public_v1_router
@@ -1753,39 +1753,23 @@ try:
 
     # Private Marketplace API (Tenant-Specific Skills)
     try:
-        from api.routes.private_marketplace_routes import router as private_marketplace_router
 
-        app.include_router(private_marketplace_router)
         logger.info("✅ Private marketplace routes enabled")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load private marketplace routes (skipping): {e}")
 
     # AI Training Period Configuration
-    try:
-        from api.routes.training_routes import router as training_router
-
-        app.include_router(training_router, tags=["agent-training"])
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load training routes (skipping): {e}")
-
     # Training Analytics & Monitoring
-    try:
-        from api.routes.training_analytics_routes import router as training_analytics_router
-
-        app.include_router(training_analytics_router, tags=["training-analytics"])
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load training analytics routes (skipping): {e}")
-
     # Enhanced Feedback System (from upstream)
     try:
-        from api.routes.feedback_enhanced_routes import router as feedback_enhanced_router
+        from api.feedback_enhanced import router as feedback_enhanced_router
 
         app.include_router(feedback_enhanced_router, tags=["feedback"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load enhanced feedback routes (skipping): {e}")
 
     try:
-        from api.routes.feedback_analytics_routes import router as feedback_analytics_router
+        from api.feedback_analytics import router as feedback_analytics_router
 
         app.include_router(feedback_analytics_router, tags=["feedback-analytics"])
     except (ImportError, TypeError) as e:
@@ -1793,14 +1777,14 @@ try:
 
     # Feedback Phase 2: Promotions & Batch Operations
     try:
-        from api.routes.feedback_phase2_routes import router as feedback_phase2_router
+        from api.feedback_phase2 import router as feedback_phase2_router
 
         app.include_router(feedback_phase2_router, tags=["feedback-phase2"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load feedback phase 2 routes (skipping): {e}")
 
     try:
-        from api.routes.feedback_batch_routes import router as feedback_batch_router
+        from api.feedback_batch import router as feedback_batch_router
 
         app.include_router(feedback_batch_router, tags=["feedback-batch"])
     except (ImportError, TypeError) as e:
@@ -1808,15 +1792,13 @@ try:
 
     # Deep Linking System (Phase 2)
     try:
-        from api.routes.deeplink_routes import router as deeplinks_router
 
-        app.include_router(deeplinks_router, prefix="/api/v1/deeplinks", tags=["deeplinks"])
         logger.info("✅ Deep linking system enabled")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load deeplinks routes (skipping): {e}")
 
     try:
-        from api.routes.workflow_template_routes import router as template_router
+        from api.workflow_template_routes import router as template_router
 
         app.include_router(
             template_router, prefix="/api/workflow-templates", tags=["workflow-templates"]
@@ -1826,9 +1808,7 @@ try:
 
     # Distributed Debug System (Phase 1)
     try:
-        from api.routes.debug_tenant_check import router as debug_tenant_check_router
 
-        app.include_router(debug_tenant_check_router, tags=["debug"])
         logger.info("✅ Debug tenant check system enabled")
     except Exception as e:
         import traceback
@@ -1837,7 +1817,7 @@ try:
         logger.error(traceback.format_exc())
 
     try:
-        from api.routes.notification_settings_routes import router as notification_router
+        from api.notification_settings_routes import router as notification_router
 
         app.include_router(
             notification_router, prefix="/api/notification-settings", tags=["notification-settings"]
@@ -1847,20 +1827,7 @@ try:
 
     # Notification Service Routes
     try:
-        from api.routes.notification_routes import router as notification_service_router
-
-        app.include_router(
-            notification_service_router, prefix="/api/v1/notifications", tags=["Notifications"]
-        )
-        app.include_router(
-            notification_service_router, prefix="/api/notifications", tags=["Notifications"]
-        )
-        logger.info("✓ Notification Service Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load notification service routes: {e}")
-
-    try:
-        from api.routes.analytics_routes import router as analytics_router
+        from core.analytics_endpoints import router as analytics_router
 
         app.include_router(analytics_router, prefix="", tags=["Workflows"])
     except (ImportError, TypeError) as e:
@@ -1879,15 +1846,13 @@ try:
 
     # Workflow Import/Export Routes
     try:
-        from api.routes.workflow_io_routes import router as workflow_io_router
 
-        app.include_router(workflow_io_router, tags=["workflow-io"])
         logger.info("✓ Workflow Import/Export Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load workflow I/O routes: {e}")
 
     try:
-        from api.routes.background_agent_routes import router as background_router
+        from api.background_agent_routes import router as background_router
 
         app.include_router(
             background_router, prefix="/api/background-agents", tags=["background-agents"]
@@ -1896,25 +1861,11 @@ try:
         logger.warning(f"Failed to load background agent routes: {e}")
 
     try:
-        from api.routes.financial_ops_routes import router as financial_router
+        from api.financial_ops_routes import router as financial_router
 
         app.include_router(financial_router, prefix="/api/financial", tags=["financial-ops"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load financial ops routes: {e}")
-
-    try:
-        from api.routes.intervention_routes import router as intervention_router
-
-        app.include_router(intervention_router, prefix="/api/v1", tags=["Governance"])
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load intervention routes: {e}")
-
-    try:
-        from api.routes.admin.governance_routes import router as admin_governance_router
-
-        app.include_router(admin_governance_router)
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load Admin Governance routes: {e}", exc_info=True)
 
     # Governance Verification Routes (Phase 169-03)
     try:
@@ -1929,24 +1880,20 @@ try:
 
     # Governance Manual Fact Entry Routes (Phase 167-05)
     try:
-        from api.routes.governance_routes import router as governance_manual_router
 
-        app.include_router(governance_manual_router, prefix="/api", tags=["Governance"])
         logger.info("✓ Governance Manual Fact Entry Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Governance Manual Fact Entry routes: {e}")
 
     # Queue Monitoring Routes
     try:
-        from api.routes.queue_monitoring_routes import router as queue_monitoring_router
 
-        app.include_router(queue_monitoring_router, tags=["queue"])
         logger.info("✓ Queue Monitoring Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load queue monitoring routes: {e}")
 
     try:
-        from api.routes.evolution_routes import router as evolution_router
+        from api.evolution_routes import router as evolution_router
 
         app.include_router(evolution_router, prefix="/api/evolution", tags=["Evolution"])
     except (ImportError, TypeError) as e:
@@ -1954,7 +1901,7 @@ try:
 
     # Canvas Skill Integration
     try:
-        from api.routes.canvas_skill_routes import router as canvas_skill_router
+        from api.canvas_skill_routes import router as canvas_skill_router
 
         app.include_router(canvas_skill_router, prefix="/api/v1", tags=["Canvas-Skill Integration"])
         logger.info("✓ Canvas Skill Integration Routes Loaded")
@@ -1962,7 +1909,7 @@ try:
         logger.warning(f"Failed to load canvas skill routes: {e}")
 
     try:
-        from api.routes.admin.system_health_routes import router as system_health_router
+        from api.admin.system_health_routes import router as system_health_router
 
         app.include_router(system_health_router)
         logger.info("✓ Admin System Health Routes Loaded")
@@ -1972,7 +1919,7 @@ try:
         logger.error(f"Error loading system health routes: {e}")
 
     try:
-        from api.routes.admin.business_facts_routes import router as business_facts_router
+        from api.admin.business_facts_routes import router as business_facts_router
 
         app.include_router(business_facts_router)
         logger.info("✓ Business Facts Routes Loaded")
@@ -1982,10 +1929,8 @@ try:
         logger.error(f"Error loading Business Facts routes: {e}")
 
     try:
-        from api.routes.admin.paused_tasks_routes import router as paused_tasks_router
         from api.routes.admin.paused_tasks_routes import scheduler_router
 
-        app.include_router(paused_tasks_router)
         app.include_router(scheduler_router)
         logger.info("✓ Paused Tasks Routes Loaded")
     except (ImportError, TypeError) as e:
@@ -1994,9 +1939,7 @@ try:
         logger.error(f"Error loading Paused Tasks routes: {e}")
 
     try:
-        from api.routes.admin.migration_routes import router as migration_router
 
-        app.include_router(migration_router)
         logger.info("✓ Migration Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Migration routes: {e}")
@@ -2004,9 +1947,7 @@ try:
         logger.error(f"Error loading Migration routes: {e}")
 
     try:
-        from api.routes.embedding_routes import router as embedding_router
 
-        app.include_router(embedding_router)
         logger.info("✓ Embedding Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Embedding routes: {e}")
@@ -2014,7 +1955,7 @@ try:
         logger.error(f"Error loading Embedding routes: {e}")
 
     try:
-        from api.routes.ai_accounting_routes import router as ai_accounting_router
+        from api.ai_accounting_routes import router as ai_accounting_router
 
         app.include_router(
             ai_accounting_router, prefix="/api/v1/accounting", tags=["ai-accounting"]
@@ -2023,7 +1964,7 @@ try:
         logger.warning(f"Failed to load AI accounting routes: {e}", exc_info=True)
 
     try:
-        from api.routes.reconciliation_routes import router as reconciliation_router
+        from api.reconciliation_routes import router as reconciliation_router
 
         app.include_router(
             reconciliation_router, prefix="/api/v1/reconciliation", tags=["reconciliation"]
@@ -2032,41 +1973,37 @@ try:
         logger.warning(f"Failed to load reconciliation routes: {e}")
 
     try:
-        from api.routes.apar_routes import router as apar_router
+        from api.apar_routes import router as apar_router
 
         app.include_router(apar_router, prefix="/api/v1/apar", tags=["ap-ar"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load AP/AR routes: {e}", exc_info=True)
 
     try:
-        from api.routes.graphrag_routes import router as graphrag_router
+        from api.graphrag_routes import router as graphrag_router
 
         app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
     try:
-        from api.routes.project_routes import router as projects_router
+        from api.project_routes import router as projects_router
 
         app.include_router(projects_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Project routes: {e}")
 
     try:
-        from api.routes.intelligence_routes import router as intelligence_router
+        from api.intelligence_routes import router as intelligence_router
 
         app.include_router(intelligence_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Intelligence routes: {e}")
 
     try:
-        from api.routes.tenant_routes import router as tenant_router
 
         # Double-mount tenant_router at /api/tenant and /api/v1/tenant
         # to ensure compatibility with all frontend/middleware paths
-        app.include_router(tenant_router, prefix="/api/tenant", tags=["Tenant Management"])
-        app.include_router(tenant_router, prefix="/api/v1/tenant", tags=["Tenant Management"])
-        app.include_router(tenant_ownership_router)
 
         logger.info("✓ Tenant Management Routes Loaded")
     except (ImportError, TypeError) as e:
@@ -2080,6 +2017,14 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Federation routes: {e}")
 
+    # Local Model Provider Routes (Ollama, LM Studio, vLLM, custom)
+    try:
+        from api.routes.local_model_routes import router as local_model_router
+        app.include_router(local_model_router)
+        logger.info("✓ Local Model Routes Loaded (/api/local-models)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load Local Model routes: {e}")
+
     try:
         from sales.routes import router as sales_router
 
@@ -2088,7 +2033,7 @@ try:
 
         app.include_router(deal_ingestion_router)
 
-        from api.routes.marketing_routes import router as marketing_router
+        from api.marketing_routes import router as marketing_router
 
         app.include_router(
             marketing_router, prefix="/api/marketing", tags=["Marketing Intelligence"]
@@ -2099,14 +2044,14 @@ try:
         logger.warning(f"Failed to load business intelligence routes: {e}")
 
     try:
-        from api.routes.workflow_routes import router as workflow_router
+        from core.workflow_endpoints import router as workflow_router
 
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
     except (ImportError, TypeError) as e:
         logger.error(f"Failed to load Core Workflow routes: {e}")
 
     try:
-        from api.routes.skill_routes import router as skill_router
+        from api.skill_routes import router as skill_router
 
         app.include_router(skill_router)
         logger.info("✓ Skill Management & Execution Routes Loaded")
@@ -2114,11 +2059,9 @@ try:
         logger.warning(f"Failed to load skill routes: {e}")
 
     try:
-        from api.admin_evolution_routes import router as admin_evolution_router
-        from api.routes.admin.skill_routes import router as admin_skill_router
+        from api.skill_routes import router as admin_skill_router
 
         app.include_router(admin_skill_router)
-        app.include_router(admin_evolution_router)
         logger.info("✓ Admin Skill & Evolution Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Admin Skill/Evolution routes: {e}", exc_info=True)
@@ -2127,7 +2070,7 @@ try:
     # Eagerly load this to ensure 404s don't happen silently
     try:
         # Use consolidated path for visual automations
-        from api.routes.workflow_ui_routes import router as workflow_ui_router
+        from core.workflow_ui_endpoints import router as workflow_ui_router
 
         app.include_router(workflow_ui_router, prefix="/api/v1/workflow-ui", tags=["Workflow UI"])
         logger.info("✓ Workflow UI Endpoints Loaded")
@@ -2137,11 +2080,11 @@ try:
 
     # 3b. AI Workflow Endpoints (Real NLU)
     try:
-        from api.routes.enhanced_ai_workflow_routes import router as ai_router
+        from enhanced_ai_workflow_endpoints import router as ai_router
 
         app.include_router(ai_router)
 
-        from api.routes.ai_workflow_routes import router as ai_workflow_simple_router
+        from ai_workflow_endpoints import router as ai_workflow_simple_router
 
         app.include_router(ai_workflow_simple_router)
 
@@ -2153,46 +2096,34 @@ try:
         except (ImportError, TypeError) as e:
             logger.warning(f"Test deployed routes not found: {e}")
 
-        from api.routes.advanced_workflow_routes import router as advanced_workflow_router
+        from advanced_workflow_api import router as advanced_workflow_router
 
         app.include_router(advanced_workflow_router)
 
-        from api.routes.case_studies_routes import router as case_studies_router
 
-        app.include_router(case_studies_router)
-
-        from api.routes.evidence_collection_routes import router as evidence_router
+        from evidence_collection_api import router as evidence_router
 
         app.include_router(evidence_router)
 
-        from api.routes.enterprise_security_routes import router as security_router
+        from core.enterprise_security import router as security_router
 
         app.include_router(security_router, prefix="/api/v1/security", tags=["Enterprise Security"])
 
-        from api.routes.team_messaging_routes import router as messaging_router
+        from core.team_messaging import router as messaging_router
 
         app.include_router(messaging_router)
 
-        from api.messaging_oauth_routes import router as messaging_oauth_router
 
-        app.include_router(messaging_oauth_router)
         logger.info("✓ Messaging OAuth (BYOK) Routes Loaded")
 
-        from api.routes.integrations.salesforce_enhanced_routes import router as sf_enhanced_router
-
-        app.include_router(sf_enhanced_router)
-
-        from api.routes.integrations.enterprise_integration_routes import router as ent_router
-
-        app.include_router(ent_router)
 
         # Outlook and Gmail are now handled via the dynamic registry above
-        # from api.routes.integrations.outlook_enhanced_routes import router as outlook_enh_router
+        # from integrations.outlook_enhanced_routes import router as outlook_enh_router
         # app.include_router(outlook_enh_router, prefix="/api/v1/integrations/outlook")
 
         # Legacy messaging routes replaced by batch 3 standardized routes
 
-        from api.routes.integrations.shopify_webhook_routes import router as shopify_wh_router
+        from integrations.shopify_webhooks import router as shopify_wh_router
 
         app.include_router(shopify_wh_router)
 
@@ -2216,92 +2147,89 @@ try:
 
         app.include_router(razorpay_router, prefix="/api/v1/integrations/razorpay")
 
-        from api.routes.integrations.onedrive_routes import onedrive_router
+        from integrations.onedrive_routes import onedrive_router
 
         app.include_router(onedrive_router, prefix="/api/v1/integrations/onedrive")
 
-        from api.routes.integrations.box_routes import box_router
+        from integrations.box_routes import box_router
 
         app.include_router(box_router, prefix="/api/v1/integrations/box", tags=["Box"])
 
-        from api.routes.integrations.google_drive_routes import google_drive_router
+        from integrations.google_drive_routes import google_drive_router
 
         app.include_router(
             google_drive_router, prefix="/api/v1/integrations/google-drive", tags=["Google Drive"]
         )
 
-        from api.routes.integrations.asana_routes import router as asana_router
+        from integrations.asana_routes import router as asana_router
 
         app.include_router(asana_router, prefix="/api/v1/integrations/asana")
 
-        from api.routes.integrations.slack_routes import router as slack_router
+        from integrations.slack_routes import router as slack_router
 
         app.include_router(slack_router, prefix="/api/v1/integrations/slack")
 
-        from api.routes.integrations.teams_routes import router as teams_router
+        from integrations.teams_routes import router as teams_router
 
         app.include_router(teams_router, prefix="/api/v1/integrations/teams")
 
-        from api.routes.integrations.telegram_routes import router as telegram_router
+        from integrations.telegram_routes import router as telegram_router
 
         app.include_router(telegram_router, prefix="/api/v1/integrations/telegram")
 
         # Legacy WhatsApp router removed - Consolidated into hardened router below
 
-        from api.routes.integrations.zendesk_routes import router as zendesk_router
+        from integrations.zendesk_routes import router as zendesk_router
 
         app.include_router(zendesk_router, prefix="/api/v1/integrations/zendesk")
 
-        from api.routes.integrations.github_routes import router as github_router
+        from integrations.github_routes import router as github_router
 
         app.include_router(github_router, prefix="/api/v1/integrations/github")
 
-        from api.routes.integrations.gmail_routes import router as gmail_router
+        from integrations.gmail_routes import router as gmail_router
 
         app.include_router(gmail_router, prefix="/api/v1/integrations/gmail")
 
-        from api.routes.integrations.salesforce_routes import router as salesforce_router
+        from integrations.salesforce_routes import router as salesforce_router
 
         app.include_router(salesforce_router, prefix="/api/v1/integrations/salesforce")
 
-        from api.routes.integrations.segment_routes import router as segment_router
 
-        app.include_router(segment_router, prefix="/api/v1/integrations/segment")
-
-        from api.routes.integrations.discord_routes import router as discord_router
+        from integrations.discord_routes import router as discord_router
 
         app.include_router(discord_router, prefix="/api/v1/integrations/discord")
 
-        from api.routes.integrations.trello_routes import router as trello_router
+        from integrations.trello_routes import router as trello_router
 
         app.include_router(trello_router, prefix="/api/v1/integrations/trello")
 
-        from api.routes.integrations.hubspot_routes import router as hubspot_router
+        from integrations.hubspot_routes import router as hubspot_router
 
         app.include_router(hubspot_router, prefix="/api/v1/integrations/hubspot")
 
         # Zoho Suite (Standardized)
-        from api.routes.integrations.zoho_workdrive_routes import router as zoho_router
+        from api.zoho_workdrive_routes import router as zoho_router
 
         app.include_router(zoho_router, prefix="/api/v1/integrations/zoho-workdrive")
 
-        from api.routes.integrations.zoho_crm_routes import router as zoho_crm_router
+        from integrations.zoho_crm_routes import router as zoho_crm_router
 
         app.include_router(zoho_crm_router, prefix="/api/v1/integrations/zoho-crm")
 
-        from api.routes.integrations.zoho_books_routes import router as zoho_books_router
+        from integrations.zoho_books_routes import router as zoho_books_router
 
         app.include_router(zoho_books_router, prefix="/api/v1/integrations/zoho-books")
 
-        from api.routes.integrations.zoho_inventory_routes import router as zoho_inventory_router
+        from integrations.zoho_inventory_routes import router as zoho_inventory_router
 
         app.include_router(zoho_inventory_router, prefix="/api/v1/integrations/zoho-inventory")
 
-        from api.routes.integrations.zoho_projects_routes import router as zoho_projects_router
+        from integrations.zoho_projects_routes import router as zoho_projects_router
 
         app.include_router(zoho_projects_router, prefix="/api/v1/integrations/zoho-projects")
 
-        from api.routes.integrations.zoho_mail_routes import router as zoho_mail_router
+        from integrations.zoho_mail_routes import router as zoho_mail_router
 
         app.include_router(zoho_mail_router, prefix="/api/v1/integrations/zoho-mail")
 
@@ -2311,101 +2239,6 @@ try:
         app.include_router(sagehr_router, prefix="/api/v1/integrations/sagehr")
 
         # Batch 2 Integrations
-        try:
-            from api.routes.integrations.airtable_routes import router as airtable_router
-
-            app.include_router(
-                airtable_router, prefix="/api/v1/integrations/airtable", tags=["Airtable"]
-            )
-
-            from api.routes.integrations.notion_routes import router as notion_router
-
-            app.include_router(notion_router, prefix="/api/v1/integrations/notion", tags=["Notion"])
-
-            from api.routes.integrations.dropbox_routes import router as dropbox_router
-
-            app.include_router(
-                dropbox_router, prefix="/api/v1/integrations/dropbox", tags=["Dropbox"]
-            )
-
-            from api.routes.integrations.jira_routes import router as jira_router
-
-            app.include_router(jira_router, prefix="/api/v1/integrations/jira", tags=["Jira"])
-
-            from api.routes.integrations.linear_routes import router as linear_router
-
-            app.include_router(linear_router, prefix="/api/v1/integrations/linear", tags=["Linear"])
-
-            from api.routes.integrations.stripe_routes import router as stripe_router
-
-            app.include_router(stripe_router, prefix="/api/v1/integrations/stripe", tags=["Stripe"])
-
-            from api.routes.integrations.shopify_routes import router as shopify_router
-
-            app.include_router(
-                shopify_router, prefix="/api/v1/integrations/shopify", tags=["Shopify"]
-            )
-
-            from api.routes.integrations.xero_routes import router as xero_router
-
-            app.include_router(
-                xero_router, prefix="/api/v1/integrations/xero", tags=["Xero Accounting"]
-            )
-
-            from api.routes.integrations.yodlee_routes import router as yodlee_router
-
-            app.include_router(
-                yodlee_router, prefix="/api/v1/integrations/yodlee", tags=["Yodlee Financial"]
-            )
-
-            from api.routes.integrations.calendly_routes import router as calendly_router
-
-            app.include_router(
-                calendly_router, prefix="/api/v1/integrations/calendly", tags=["Calendly"]
-            )
-
-            from api.routes.integrations.clickup_routes import router as clickup_router
-
-            app.include_router(
-                clickup_router, prefix="/api/v1/integrations/clickup", tags=["ClickUp"]
-            )
-
-            from api.routes.integrations.quickbooks_routes import router as quickbooks_router
-
-            app.include_router(
-                quickbooks_router, prefix="/api/v1/integrations/quickbooks", tags=["QuickBooks"]
-            )
-
-            from api.routes.integrations.plaid_routes import router as plaid_router
-
-            app.include_router(plaid_router, prefix="/api/v1/integrations/plaid", tags=["Plaid"])
-
-            from api.routes.integrations.twilio_routes import router as twilio_router
-
-            app.include_router(twilio_router, prefix="/api/v1/integrations/twilio", tags=["Twilio"])
-
-            from api.routes.integrations.zoom_routes import router as zoom_router
-
-            app.include_router(zoom_router, prefix="/api/v1/integrations/zoom", tags=["Zoom"])
-
-            from api.routes.integrations.azure_devops_routes import router as azure_devops_router
-
-            app.include_router(
-                azure_devops_router,
-                prefix="/api/v1/integrations/azure-devops",
-                tags=["Azure DevOps"],
-            )
-
-            from api.routes.integrations.spotify_routes import router as spotify_router
-
-            app.include_router(
-                spotify_router, prefix="/api/v1/integrations/spotify", tags=["Spotify"]
-            )
-
-            logger.info("✓ Batch 2 Standardized Integrations Loaded")
-        except (ImportError, TypeError) as e:
-            logger.warning(f"Batch 2 integration endpoints not found: {e}")
-
         # 3b. Standardized Webhooks (Phase 12)
         try:
             logger.info("Loading Slack webhooks...")
@@ -2438,15 +2271,15 @@ try:
 
     # 4. Auth Routes (Standard Login)
     try:
-        from api.routes.auth_routes import router as auth_router
+        from api.auth_routes import router as auth_router
 
         app.include_router(auth_router)  # Already has prefix="/api/auth"
     except (ImportError, TypeError) as e:
         logger.warning(f"Auth endpoints not found, skipping: {e}")
 
     try:
-        from api.routes.admin.user_management_routes import router as admin_user_management_router
-        from api.routes.admin_routes import router as admin_router
+        from api.user_management_routes import router as admin_user_management_router
+        from api.admin_routes import router as admin_router
 
         app.include_router(admin_router)
         app.include_router(admin_user_management_router)
@@ -2457,7 +2290,7 @@ try:
 
     try:
         # 4a. 2FA Routes
-        from api.routes.auth_2fa_routes import router as auth_2fa_router
+        from api.auth_2fa_routes import router as auth_2fa_router
 
         app.include_router(auth_2fa_router)  # Already has prefix="/api/auth/2fa"
         logger.info("✓ 2FA Routes Loaded")
@@ -2466,7 +2299,7 @@ try:
 
     # 4b. Onboarding Routes
     try:
-        from api.routes.onboarding_routes import router as onboarding_router
+        from api.onboarding_routes import router as onboarding_router
 
         app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
     except (ImportError, TypeError) as e:
@@ -2490,23 +2323,16 @@ try:
 
     # 4c. Reasoning & Feedback Routes
     try:
-        from api.routes.reasoning_routes import router as reasoning_router
+        from api.reasoning_routes import router as reasoning_router
 
         app.include_router(reasoning_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Reasoning routes not found: {e}")
 
     # 5. OAuth (Critical for login)
-    try:
-        from api.routes.platform_oauth_routes import router as platform_oauth_router
-
-        app.include_router(platform_oauth_router, prefix="/api/v1/auth", tags=["Auth"])
-    except (ImportError, TypeError):
-        logger.warning("OAuth routes not found, skipping.")
-
     # 4. WebSockets (Real-time features)
     try:
-        from api.routes.websocket_routes import router as ws_router
+        from api.websocket_routes import router as ws_router
 
         app.include_router(ws_router, tags=["WebSockets"])
     except (ImportError, TypeError):
@@ -2514,7 +2340,7 @@ try:
 
     # 6. MCP Routes (Web Search & Web Access for Agents)
     try:
-        from api.routes.integrations.mcp_routes import router as mcp_router
+        from integrations.mcp_routes import router as mcp_router
 
         app.include_router(mcp_router, tags=["MCP"])
         logger.info("✓ MCP Routes Loaded")
@@ -2524,31 +2350,25 @@ try:
 
     # 7. Supervision System Routes (NEW)
     try:
-        from api.routes.availability_routes import router as availability_router
 
-        app.include_router(availability_router)
         logger.info("✓ Availability Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Availability routes: {e}", exc_info=True)
 
     try:
-        from api.routes.proposal_routes import router as proposal_router
 
-        app.include_router(proposal_router)
         logger.info("✓ Proposal Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Proposal routes: {e}")
 
     try:
-        from api.routes.supervision_learning_routes import router as supervision_learning_router
 
-        app.include_router(supervision_learning_router)
         logger.info("✓ Supervision-Learning Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Supervision-Learning routes: {e}")
 
     try:
-        from api.routes.integrations.integrations_catalog_routes import router as catalog_router
+        from api.integrations_catalog_routes import router as catalog_router
 
         app.include_router(catalog_router)
         logger.info("✓ Integrations Catalog Routes Loaded")
@@ -2556,7 +2376,7 @@ try:
         logger.warning(f"Integrations catalog routes not found: {e}")
 
     try:
-        from api.routes.dynamic_options_routes import router as dynamic_options_router
+        from api.dynamic_options_routes import router as dynamic_options_router
 
         app.include_router(dynamic_options_router)
         logger.info("✓ Dynamic Options Routes Loaded")
@@ -2565,7 +2385,7 @@ try:
 
     # Webhook Routes (New Native Webhooks)
     try:
-        from api.routes.webhook_routes import router as webhook_router
+        from api.webhook_routes import router as webhook_router
 
         app.include_router(webhook_router)
         logger.info("✓ Webhook Routes Loaded")
@@ -2574,9 +2394,7 @@ try:
 
     # Consolidated Stripe Webhook Routes
     try:
-        from api.routes.stripe_webhook_routes import router as stripe_webhook_router
 
-        app.include_router(stripe_webhook_router, prefix="/api")
 
         # Legacy webhook URL support (adds backward compatibility for /api/billing/webhook)
         from api.routes.stripe_webhook_routes import stripe_webhook
@@ -2592,7 +2410,7 @@ try:
         logger.warning(f"Consolidated Stripe webhook routes not found: {e}")
 
     try:
-        from api.routes.integrations.universal.routes import router as universal_auth_router
+        from integrations.universal.routes import router as universal_auth_router
 
         app.include_router(universal_auth_router)
         logger.info("✓ Universal Auth Routes Loaded")
@@ -2600,16 +2418,14 @@ try:
         logger.warning(f"Universal auth routes not found: {e}")
 
     try:
-        from api.routes.meta_compliance_routes import router as meta_compliance_router
 
-        app.include_router(meta_compliance_router)
         logger.info("✓ Meta Compliance Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Meta compliance routes not found: {e}")
 
     # WhatsApp Handlers (Consolidated Hardened Flow)
     try:
-        from api.routes.integrations.whatsapp.router import router as whatsapp_oauth_router
+        from integrations.whatsapp_fastapi_routes import router as whatsapp_oauth_router
         from api.routes.webhooks.whatsapp_webhooks import router as whatsapp_webhook_router
 
         app.include_router(
@@ -2622,7 +2438,7 @@ try:
         logger.warning(f"Hardened WhatsApp routes not found: {e}")
 
     try:
-        from api.routes.integrations.bridge.external_integration_routes import router as ext_router
+        from integrations.bridge.external_integration_routes import router as ext_router
 
         app.include_router(ext_router)
         logger.info("✓ External Integration Routes Loaded")
@@ -2631,7 +2447,7 @@ try:
 
     # Register Connection routes
     try:
-        from api.routes.connection_routes import router as conn_router
+        from api.connection_routes import router as conn_router
 
         app.include_router(conn_router)
         logger.info("✓ Connection Management Routes Loaded")
@@ -2639,17 +2455,21 @@ try:
         logger.warning(f"Connection routes not found: {e}")
 
     # 7. Chat Orchestrator Routes (Critical for chat functionality)
+    # The chat router lives at integrations/chat_routes.py (prefix /api/chat
+    # already set on the router itself). The old import path
+    # (api.routes.integrations.chat_routes) didn't exist and silently failed,
+    # leaving /api/chat/feedback and /api/chat/routing-stats unmounted.
     try:
-        from api.routes.integrations.chat_routes import router as chat_router
+        from integrations.chat_routes import router as chat_router
 
-        app.include_router(chat_router, prefix="/api/v1", tags=["Chat"])
-        logger.info("✓ Chat Routes Loaded")
+        app.include_router(chat_router, tags=["Chat"])
+        logger.info("✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Chat routes not found: {e}")
 
     # 8. Agent Governance Routes
     try:
-        from api.routes.agent_governance_routes import router as gov_router
+        from api.agent_governance_routes import router as gov_router
 
         app.include_router(gov_router)
         logger.info("✓ Agent Governance Routes Loaded")
@@ -2658,34 +2478,28 @@ try:
 
     # 8b. HITL Approval Routes (Phase 256-06)
     try:
-        from api.routes.hitl_routes import router as hitl_router
 
-        app.include_router(hitl_router)
         logger.info("✓ HITL Approval Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"HITL approval routes not found: {e}")
 
     # 8c. AWS SES Integration Routes
     try:
-        from api.routes.integrations.aws_ses_routes import router as aws_ses_router
 
-        app.include_router(aws_ses_router)
         logger.info("✓ AWS SES Integration Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"AWS SES integration routes not found: {e}")
 
     # 8b. Graduation Exam Routes (Episodic Memory & Graduation)
     try:
-        from api.routes.graduation_routes import router as graduation_router
 
-        app.include_router(graduation_router)
         logger.info("✓ Graduation Exam Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Graduation exam routes not found: {e}")
 
     # 8c. Protection & Security Routes
     try:
-        from api.routes.protection_routes import router as protection_router
+        from api.protection_api import router as protection_router
 
         app.include_router(protection_router)
         logger.info("✓ Protection API Routes Loaded (Skill Scanner)")
@@ -2694,7 +2508,7 @@ try:
 
     # 8d. User Preferences & Multimodal Chat
     try:
-        from api.routes.user_preference_routes import router as user_pref_router
+        from core.user_preference_routes import router as user_pref_router
 
         app.include_router(user_pref_router, prefix="/api/v1/preferences")
         logger.info("✓ User Preference Routes Loaded")
@@ -2702,9 +2516,7 @@ try:
         logger.warning(f"User preference routes failed to load: {e}")
 
     try:
-        from api.routes.multimodal_chat_routes import router as multimodal_router
 
-        app.include_router(multimodal_router, prefix="/api/v1/chat/multimodal")
         logger.info("✓ Multimodal Chat Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Multimodal chat routes failed to load: {e}")
@@ -2713,7 +2525,7 @@ try:
 
     # 8b. Universal Canvas Routes (Terminal, Browser, Desktop Automation)
     try:
-        from api.routes.canvas_terminal_routes import router as canvas_terminal_router
+        from api.canvas_terminal_routes import router as canvas_terminal_router
 
         app.include_router(canvas_terminal_router)
         logger.info("✓ Canvas Terminal Routes Loaded")
@@ -2721,31 +2533,25 @@ try:
         logger.warning(f"Canvas terminal routes not found: {e}")
 
     try:
-        from api.routes.canvas_browser_routes import router as canvas_browser_router
 
-        app.include_router(canvas_browser_router)
         logger.info("✓ Canvas Browser Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas browser routes not found: {e}")
 
     try:
-        from api.routes.canvas_action_routes import router as canvas_action_router
 
-        app.include_router(canvas_action_router)
         logger.info("✓ Canvas Action Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas action routes not found: {e}")
 
     try:
-        from api.routes.canvas_context_routes import router as canvas_context_router
 
-        app.include_router(canvas_context_router)
         logger.info("✓ Canvas Context Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas context routes not found: {e}")
 
     try:
-        from api.routes.canvas_recording_routes import router as canvas_recording_router
+        from api.canvas_recording_routes import router as canvas_recording_router
 
         app.include_router(canvas_recording_router)
         logger.info("✓ Canvas Recording Routes Loaded")
@@ -2754,63 +2560,42 @@ try:
 
     # --- PORTED FEATURES ---
     try:
-        from api.routes.canvas_routes import router as canvas_router
+        from api.canvas_routes import router as canvas_router
 
         app.include_router(canvas_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas routes not found: {e}")
 
     try:
-        from api.routes.canvas_collaboration_routes import router as canvas_collab_router
-
-        app.include_router(canvas_collab_router)
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas collab routes not found: {e}")
-
-    try:
-        from api.routes.collaboration_routes import router as collaboration_router
-
-        app.include_router(collaboration_router)
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Collaboration routes not found: {e}")
-
-    try:
-        from api.routes.comment_routes import router as comment_router
-
-        app.include_router(comment_router)
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Comment routes not found: {e}")
-
-    try:
-        from api.routes.canvas_coding_routes import router as canvas_coding_router
+        from api.canvas_coding_routes import router as canvas_coding_router
 
         app.include_router(canvas_coding_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas coding routes not found: {e}")
 
     try:
-        from api.routes.canvas_docs_routes import router as canvas_docs_router
+        from api.canvas_docs_routes import router as canvas_docs_router
 
         app.include_router(canvas_docs_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas docs routes not found: {e}")
 
     try:
-        from api.routes.canvas_sheets_routes import router as canvas_sheets_router
+        from api.canvas_sheets_routes import router as canvas_sheets_router
 
         app.include_router(canvas_sheets_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas sheets routes not found: {e}")
 
     try:
-        from api.routes.agent_control_routes import router as agent_control_router
+        from api.agent_control_routes import router as agent_control_router
 
         app.include_router(agent_control_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent control routes not found: {e}")
 
     try:
-        from api.routes.analytics_dashboard_routes import router as analytics_dashboard_router
+        from api.analytics_dashboard_routes import router as analytics_dashboard_router
 
         # Backward compatibility for analytics/dashboard if moved
         app.include_router(analytics_dashboard_router)
@@ -2818,45 +2603,34 @@ try:
         logger.warning(f"Analytics dashboard routes not found: {e}")
 
     try:
-        from api.routes.research_analytics_routes import router as research_analytics_router
-
-        # Research analytics dashboard endpoints
-        app.include_router(
-            research_analytics_router, prefix="/api/research/analytics", tags=["research-analytics"]
-        )
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Research analytics routes not found: {e}")
-
-    try:
         # Usage analytics routes already have prefix in router definition
-        app.include_router(usage_analytics_router, tags=["research-usage"])
         logger.info("✓ Usage Analytics Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Usage analytics routes not found: {e}")
 
     try:
-        from api.routes.dashboard_data_routes import router as dashboard_router
+        from api.dashboard_data_routes import router as dashboard_router
 
         app.include_router(dashboard_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Dashboard data routes not found: {e}")
 
     try:
-        from api.routes.agent_guidance_routes import router as agent_guidance_router
+        from api.agent_guidance_routes import router as agent_guidance_router
 
         app.include_router(agent_guidance_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent guidance routes not found: {e}")
 
     try:
-        from api.routes.health_monitoring_routes import router as health_monitoring_router
+        from api.health_monitoring_routes import router as health_monitoring_router
 
         app.include_router(health_monitoring_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Health monitoring routes not found: {e}")
 
     try:
-        from api.routes.health_routes import router as health_router
+        from api.health_routes import router as health_router
 
         app.include_router(health_router)
         logger.info("✓ Health Monitoring Routes Loaded")
@@ -2864,7 +2638,7 @@ try:
         logger.warning(f"Health monitoring routes not found: {e}")
 
     try:
-        from api.routes.project_health_routes import router as project_health_router
+        from api.project_health_routes import router as project_health_router
 
         app.include_router(project_health_router)
     except (ImportError, TypeError) as e:
@@ -2874,16 +2648,14 @@ try:
 
     # 8b. Governance Analytics & Remediation (Phase 10)
     try:
-        from api.routes.governance_analytics_routes import router as gov_analytics_router
 
-        app.include_router(gov_analytics_router)
         logger.info("✓ Governance Analytics & Remediation Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Governance Analytics routes not found: {e}")
 
     # 9. Memory/Document Routes
     try:
-        from api.routes.memory_routes import router as memory_router
+        from api.memory_routes import router as memory_router
 
         app.include_router(memory_router, prefix="/api/v1/memory", tags=["Memory"])
         logger.info("✓ Memory Routes Loaded")
@@ -2892,18 +2664,14 @@ try:
 
     # 9b. Memory Management Routes (Consolidation, Archival, Recovery)
     try:
-        from api.routes.memory_management_routes import router as memory_management_router
 
-        app.include_router(memory_management_router)
         logger.info("✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Memory Management routes not found: {e}")
 
     # 9c. Memory Add-on Routes (Stripe Billing)
     try:
-        from api.routes.memory_addon_routes import router as memory_addon_router
 
-        app.include_router(memory_addon_router, prefix="/api/v1", tags=["Billing", "Memory"])
         logger.info("✓ Memory Add-on Routes Loaded (Stripe Billing)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Memory Add-on routes not found: {e}")
@@ -2919,11 +2687,11 @@ try:
     try:
         # Ingestion routes
 
-        from api.routes.document_ingestion_routes import router as doc_ingest_router
+        from api.document_ingestion_routes import router as doc_ingest_router
 
         app.include_router(doc_ingest_router)  # Prefix defined in router
 
-        from api.routes.data_ingestion_routes import router as data_ingest_router
+        from api.data_ingestion_routes import router as data_ingest_router
 
         app.include_router(data_ingest_router)  # Prefix defined in router
 
@@ -2933,9 +2701,7 @@ try:
 
     # 11b. Document Hub Routes
     try:
-        from api.routes.document_hub_routes import router as document_hub_router
 
-        app.include_router(document_hub_router)
         logger.info("✓ Document Hub Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Document Hub routes not found: {e}")
@@ -2945,29 +2711,14 @@ try:
 
     # 13. Test Routes (Internal only, for E2E)
     try:
-        from api.routes.backfill_routes import router as backfill_router
-        from api.routes.error_test_routes import router as error_test_router
-        from api.routes.test_auth_routes import router as test_auth_router
-        from api.routes.test_cleanup_routes import router as test_cleanup_router
 
-        try:
-            from api.routes.test_social_routes import router as test_social_router
-
-            app.include_router(test_social_router, tags=["Test-Social"])
-        except (ImportError, TypeError):
-            logger.info("  ! Test social routes not found, skipping registration")
-
-        app.include_router(test_auth_router, prefix="/api/test", tags=["Test-Auth"])
-        app.include_router(test_cleanup_router, prefix="/api/test/cleanup", tags=["Test-Cleanup"])
-        app.include_router(error_test_router, tags=["Test-Errors"])
-        app.include_router(backfill_router, prefix="/api/admin", tags=["Admin-Backfill"])
         logger.info("✓ Test Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.error(f"Test routes NOT available: {e}", exc_info=True)
 
     # 13. AI Workflows Routes (NLU Parse, Completion)
     try:
-        from api.routes.ai_workflows_routes import router as ai_wf_router
+        from api.ai_workflows_routes import router as ai_wf_router
 
         app.include_router(ai_wf_router, tags=["AI Workflows"])
         logger.info("✓ AI Workflows Routes Loaded")
@@ -2976,7 +2727,7 @@ try:
 
     # 14. Background Agent Routes
     try:
-        from api.routes.background_agent_routes import router as bg_agent_router
+        from api.background_agent_routes import router as bg_agent_router
 
         app.include_router(bg_agent_router, tags=["Background Agents"])
         logger.info("✓ Background Agent Routes Loaded")
@@ -2986,10 +2737,10 @@ try:
     # 15. Integration Data Routes (production implementations)
     try:
         # PDF Processing
-        from api.routes.integrations.pdf_processing.pdf_ocr_routes import router as pdf_ocr_router
+        from integrations.pdf_processing.pdf_ocr_routes import router as pdf_ocr_router
 
         app.include_router(pdf_ocr_router)
-        from api.routes.integrations.pdf_processing.pdf_memory_routes import (
+        from integrations.pdf_processing.pdf_memory_routes import (
             router as pdf_memory_router,
         )
 
@@ -3005,11 +2756,11 @@ try:
 
     # 15.1. Integration Health Stubs
     try:
-        from api.routes.integrations.integration_health_routes import router as health_stubs_router
+        from integration_health_endpoints import router as health_stubs_router
 
         app.include_router(health_stubs_router, tags=["Integration Health"])
 
-        from api.routes.service_health_routes import router as service_health_router
+        from service_health_endpoints import router as service_health_router
 
         app.include_router(service_health_router, tags=["Service Health"])
 
@@ -3019,7 +2770,7 @@ try:
 
     # 15.2. Historical Sync Routes
     try:
-        from api.routes.integrations.historical_sync_routes import router as historical_sync_router
+        from integrations.historical_sync_routes import router as historical_sync_router
 
         app.include_router(historical_sync_router, tags=["Historical Sync"])
         logger.info("✓ Historical Sync Routes Loaded")
@@ -3028,24 +2779,20 @@ try:
 
     # 15.3. Worker Routes (Background job processing health checks)
     try:
-        from api.routes.worker_routes import router as worker_router
 
-        app.include_router(worker_router, tags=["Workers"])
         logger.info("✓ Worker Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Worker Routes not found: {e}")
 
     # 15.2 Collaborative Canvas Routes (Component marketplace, multi-agent coordination)
     try:
-        from api.routes.component_routes import router as component_router
 
-        app.include_router(component_router, prefix="/api/v1", tags=["Component Marketplace"])
         logger.info("✓ Component Marketplace Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Component marketplace routes not found: {e}")
 
     try:
-        from api.routes.agent_coordination_routes import router as agent_coordination_router
+        from api.agent_coordination_routes import router as agent_coordination_router
 
         app.include_router(agent_coordination_router, prefix="", tags=["Agent Coordination"])
         logger.info("✓ Agent Coordination Routes Loaded")
@@ -3054,25 +2801,7 @@ try:
 
     # Canvas Marketplace & Canvas-Skill Integration Routes
     try:
-        from api.routes.canvas_marketplace_routes import router as canvas_marketplace_router
-
-        app.include_router(
-            canvas_marketplace_router, prefix="/api/canvas-marketplace", tags=["Canvas Marketplace"]
-        )
-        app.include_router(
-            canvas_marketplace_router,
-            prefix="/api/v1/canvas-marketplace",
-            tags=["Canvas Marketplace"],
-        )
-        app.include_router(
-            canvas_marketplace_router, prefix="/api/marketplace", tags=["Canvas Marketplace"]
-        )
-        logger.info("✓ Canvas Marketplace Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas marketplace routes not found: {e}")
-
-    try:
-        from api.routes.canvas_skill_routes import router as canvas_skill_router
+        from api.canvas_skill_routes import router as canvas_skill_router
 
         app.include_router(canvas_skill_router, tags=["Canvas Skills"])
         logger.info("✓ Canvas-Skill Integration Routes Loaded")
@@ -3081,57 +2810,47 @@ try:
 
     # OpenClaw Skill Integration Routes (Phase 42)
     try:
-        from api.routes.openclaw_skill_routes import router as openclaw_skill_router
 
-        app.include_router(openclaw_skill_router, tags=["OpenClaw Skills"])
         logger.info("✓ OpenClaw Skill Integration Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"OpenClaw skill integration routes not found: {e}")
 
     # OpenClaw Scan Integration Routes (Phase 43)
     try:
-        from api.routes.openclaw_scan_routes import router as openclaw_scan_router
 
-        app.include_router(openclaw_scan_router, tags=["OpenClaw Scan"])
         logger.info("✓ OpenClaw Scan Integration Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"OpenClaw scan integration routes not found: {e}")
 
     # OpenClaw Governance Integration Routes (Phase 45)
     try:
-        from api.routes.openclaw_governance_routes import router as openclaw_governance_router
 
-        app.include_router(openclaw_governance_router, tags=["OpenClaw Governance"])
         logger.info("✓ OpenClaw Governance Integration Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"OpenClaw governance integration routes not found: {e}")
 
     # Skill Composition Routes (Phase 60)
     try:
-        from api.routes.skill_composition_routes import router as skill_composition_router
 
-        app.include_router(skill_composition_router, tags=["Skill Compositions"])
         logger.info("✓ Skill Composition Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Skill composition routes not found: {e}")
 
     # 15.3 Atom Agent Streaming Routes
-    try:
-        from api.routes.atom_agent_routes import router as atom_agent_router
-
-        app.include_router(atom_agent_router, prefix="", tags=["Atom Agent"])
-        logger.info("✓ Atom Agent Streaming Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Atom Agent routes not found: {e}")
+    # NOTE: The real atom-agent endpoints live at core/atom_agent_endpoints.py
+    # and are mounted via the lazy integration registry (lazy_integration_registry.py).
+    # The old api/routes/atom_agent_routes.py re-export shim never existed and
+    # always failed to import, logging a spurious warning on every startup.
+    # Removed to avoid the noise; the lazy-registry path is the source of truth.
 
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
-        from api.routes.integrations.atom_communication_live_routes import (
+        from integrations.atom_communication_live_api import (
             router as comm_live_router,
         )
-        from api.routes.integrations.atom_finance_live_routes import router as finance_live_router
-        from api.routes.integrations.atom_projects_live_routes import router as projects_live_router
-        from api.routes.integrations.atom_sales_live_routes import router as sales_live_router
+        from integrations.atom_finance_live_api import router as finance_live_router
+        from integrations.atom_projects_live_api import router as projects_live_router
+        from integrations.atom_sales_live_api import router as sales_live_router
 
         app.include_router(comm_live_router)
         app.include_router(sales_live_router)
@@ -3143,9 +2862,7 @@ try:
 
     # 17. External Scheduler Routes (Upstash QStash)
     try:
-        from api.routes.scheduler_trigger_routes import router as scheduler_trigger_router
 
-        app.include_router(scheduler_trigger_router, prefix="/api/scheduler", tags=["Scheduler"])
         logger.info("✓ Scheduler Routes Loaded (QStash Ready)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Scheduler routes not found: {e}")
@@ -3153,10 +2870,8 @@ try:
     # 18. Desktop Bridge Routes (Cloud Brain to Local Hands)
     logger.debug("Attempting to import desktop_routes")
     try:
-        from api.routes.desktop_routes import router as desktop_router
 
         logger.debug("Desktop routes imported, including router")
-        app.include_router(desktop_router, prefix="/api/v1/desktop", tags=["Desktop Bridge"])
         logger.info("✓ Desktop Bridge Routes Loaded")
         logger.debug("Desktop routes successfully registered")
     except (ImportError, TypeError) as e:
@@ -3168,7 +2883,7 @@ try:
 
     # 19. Satellite Routes (Local Node Link)
     try:
-        from api.routes.satellite_routes import router as satellite_router
+        from api.satellite_routes import router as satellite_router
 
         app.include_router(satellite_router)
         logger.info("✓ Satellite Routes Loaded")
@@ -3177,110 +2892,77 @@ try:
 
     # 19b. Mobile Routes (Remote Control)
     try:
-        from api.routes.mobile_routes import router as mobile_router
 
-        app.include_router(mobile_router)
         logger.info("✓ Mobile Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Mobile routes not found: {e}")
 
     # 19c. Integration Canvas Routes
-    try:
-        from api.routes.integrations.integration_canvas_routes import (
-            router as integration_canvas_router,
-        )
-
-        app.include_router(integration_canvas_router, prefix="/api/v1", tags=["Integration Canvas"])
-        logger.info("✓ Integration Canvas Routes Loaded")
-    except Exception as e:
-        logger.warning(f"Integration Canvas routes failed to load: {e}")
-
     # 20. User Invitation Routes (Phase 23)
     try:
-        from api.routes.invitation_routes import router as invitation_router
 
-        app.include_router(invitation_router, prefix="/api/tenant", tags=["Tenant Management"])
-        app.include_router(invitation_router, prefix="/api/v1/tenant", tags=["Tenant Management"])
         logger.info("✓ Invitation Routes Loaded")
     except Exception as e:
         logger.warning(f"Invitation routes failed to load: {e}")
 
     try:
-        from api.routes.support_routes import router as support_router
 
-        app.include_router(support_router)
         logger.info("✓ Support Ticketing Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Support routes not found: {e}")
 
     try:
-        from api.routes.bug_triage_routes import router as bug_triage_router
 
-        app.include_router(bug_triage_router)
         logger.info("✓ Bug Triage Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Bug triage routes not found: {e}")
 
     # 20c. Communication Hub Routes
     try:
-        from api.routes.communication_hub_routes import router as comm_hub_router
 
-        app.include_router(comm_hub_router)
         logger.info("✓ Communication Hub Routes Loaded")
-        from api.routes.scim_routes import router as scim_api_router
 
-        app.include_router(scim_api_router, prefix="/api/v1", tags=["SCIM"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Communication Hub routes not found: {e}")
 
     # 20e. Universal Communication Routes (New)
     try:
-        from api.routes.communication_routes import router as universal_comm_router
 
-        app.include_router(universal_comm_router)
         logger.info("✓ Universal Communication Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Universal Communication routes not found: {e}")
 
     # 20d. Document Hub Routes (Phase 39)
     try:
-        from api.routes.document_hub_routes import router as doc_hub_router
 
-        app.include_router(doc_hub_router)
         logger.info("✓ Document Hub Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Document Hub routes not found: {e}")
 
     # 20b. Admin Retention Routes (Phase 73)
     try:
-        from api.routes.admin.retention_routes import router as retention_router
 
-        app.include_router(retention_router)
         logger.info("✓ Admin Retention Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Admin retention routes not found: {e}")
 
     # 21. Billing Routes (Phase 25)
     try:
-        from api.routes.billing_routes import router as billing_router
 
-        app.include_router(billing_router)  # Prefix defined in router as /api/billing
         logger.info("✓ Billing Routes Loaded")
     except Exception as e:
         logger.warning(f"Billing routes failed to load: {e}")
 
     # 21a. Public Pricing Routes (reads Stripe env vars at runtime)
     try:
-        from api.routes.public_pricing_routes import router as public_pricing_router
 
-        app.include_router(public_pricing_router, tags=["Public"])
         logger.info("✓ Public Pricing Routes Loaded")
     except Exception as e:
         logger.warning(f"Public pricing routes failed to load: {e}")
 
     # 22. Social Media Routes (Week 2-3)
     try:
-        from api.routes.social_media_routes import router as social_media_router
+        from api.social_media_routes import router as social_media_router
 
         app.include_router(
             social_media_router, prefix="/api/v1/social-media", tags=["Social Media"]
@@ -3293,23 +2975,15 @@ try:
 
     # 21b. Audit Routes (Phase 75)
     try:
-        from api.routes.audit_routes import router as audit_api_router
 
-        app.include_router(audit_api_router)
-        from api.routes.admin.audit_routes import router as admin_audit_router
 
-        app.include_router(admin_audit_router)
         logger.info("✓ Audit Log Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Audit routes not found: {e}")
 
     # 22. Shell Security Routes (Phase 40)
     try:
-        from api.routes.shell_audit_routes import router as shell_audit_router
-        from api.routes.shell_security_routes import router as shell_security_router
 
-        app.include_router(shell_audit_router)
-        app.include_router(shell_security_router)
         logger.info("✓ Shell Security Routes Loaded")
     except Exception as e:
         logger.warning(f"Shell security routes failed to load: {e}")
@@ -3317,13 +2991,13 @@ try:
     # 23. Consolidated Core Routes (Phase 2)
     try:
         # These are already included above, removing duplicates to prevent conflicts
-        # from api.routes.project_routes import router as project_routes_router
-        from api.routes.intelligence_routes import router as intelligence_routes_router
+        # from api.project_routes import router as project_routes_router
+        from api.intelligence_routes import router as intelligence_routes_router
 
         # from sales.routes import router as sales_routes_router
-        from api.routes.marketing_routes import router as marketing_routes_router
-        from api.routes.memory_routes import router as memory_routes_router
-        from api.routes.skill_routes import router as skill_routes_router
+        from api.marketing_routes import router as marketing_routes_router
+        from api.memory_routes import router as memory_routes_router
+        from api.skill_routes import router as skill_routes_router
 
         # app.include_router(project_routes_router)
         app.include_router(intelligence_routes_router)
@@ -3338,52 +3012,44 @@ try:
 
     # 24. BYOK API Routes (Phase 51)
     try:
-        from api.routes.byok_api_routes import router as byok_router
+        from api.byok_routes import router as byok_router
 
-        app.include_router(byok_router, prefix="/api/v1", tags=["BYOK"])
+        app.include_router(byok_router, tags=["BYOK"])
         logger.info("✓ BYOK API Routes Loaded")
     except Exception as e:
         logger.warning(f"BYOK API routes failed to load: {e}")
 
     # 25. SSO API Routes (Phase 76)
     try:
-        from api.routes.sso_routes import router as sso_api_router
 
-        app.include_router(sso_api_router, prefix="/api/v1", tags=["SSO"])
         logger.info("✓ SSO API Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"SSO routes not found: {e}")
 
     # 24. Feature Flag Routes (Phase 37)
     try:
-        from api.routes.feature_flag_routes import router as feature_flag_router
 
-        app.include_router(feature_flag_router)
         logger.info("✓ Feature Flag Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Feature flag routes not found: {e}")
 
     # 25. Sandbox Execution Routes (Phase 44)
     try:
-        from api.routes.sandbox_execution_routes import router as sandbox_router
 
-        app.include_router(sandbox_router)
         logger.info("✓ Sandbox Execution Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Sandbox execution routes failed to load: {e}")
 
     # 26. External API Routes (Phase 48)
     try:
-        from api.routes.external_api_routes import router as external_api_router
 
-        app.include_router(external_api_router)
         logger.info("✓ External API Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"External API routes failed to load: {e}")
 
     # 27. Entity Type Routes (Phase 171)
     try:
-        from api.routes.entity_type_routes import router as entity_type_router
+        from api.entity_type_routes import router as entity_type_router
 
         app.include_router(entity_type_router)
         logger.info("✓ Entity Type Routes Loaded")
@@ -3392,18 +3058,14 @@ try:
 
     # 28. Entity Query Routes (Phase 194)
     try:
-        from api.routes.entity_query_routes import router as entity_query_router
 
-        app.include_router(entity_query_router)
         logger.info("✓ Entity Query Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Entity query routes failed to load: {e}")
 
     # 28.5. Entity Linking Routes (Phase 2: Automated Linking Agent)
     try:
-        from api.routes.entity_linking_routes import router as entity_linking_router
 
-        app.include_router(entity_linking_router)
         logger.info("✓ Entity Linking Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Entity linking routes failed to load: {e}")
@@ -3419,142 +3081,74 @@ try:
 
     # 29. Entity Skill Routes (Phase 197)
     try:
-        from api.routes.entity_skill_routes import router as entity_skill_router
 
-        app.include_router(entity_skill_router)
         logger.info("✓ Entity Skill Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Entity skill routes failed to load: {e}")
 
     # 30. Agent Integration Routes (Phase 204)
     try:
-        from api.routes.agent_integration_routes import router as agent_integration_router
 
-        app.include_router(agent_integration_router)
         logger.info("✓ Agent Integration Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Entity skill routes failed to load: {e}")
 
     # 30. Meta Agent Routes (Phase 177)
     try:
-        from api.routes.meta_agent_routes import router as meta_agent_router
 
-        app.include_router(meta_agent_router)
         logger.info("✓ Meta Agent Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Meta agent routes failed to load: {e}")
 
     # 31. Admin Integration Catalog Routes (Phase 217)
     try:
-        from api.routes.admin_integration_routes import router as admin_integration_router
 
-        app.include_router(admin_integration_router)
         logger.info("✓ Admin Integration Catalog Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Admin integration catalog routes failed to load: {e}")
 
     # 32. Agent Capability Routes (Phase 222)
-    try:
-        from api.routes.agent_capability_routes import router as agent_capability_router
-
-        app.include_router(
-            agent_capability_router, prefix="/api/v1/agents", tags=["Agent Capabilities"]
-        )
-        logger.info("✓ Agent Capability Routes Loaded")
-    except (ImportError, NameError) as e:
-        logger.warning(f"Agent capability routes failed to load: {e}")
-
     # --- COMMERCIAL MARKETPLACE CONSOLIDATION (Phase 247) ---
-    try:
-        from api.agent_marketplace_routes import router as agent_mkt_router
-        from api.routes.canvas_marketplace_routes import router as component_mkt_router
-        from api.routes.domain_marketplace_routes import router as domain_mkt_router
-        from api.routes.public_marketplace_routes import router as skill_mkt_router
-
-        # Unified V1 Commercial Marketplace API (Standardized for satellites)
-        # Using a clean prefix structure for the satellite client
-        app.include_router(
-            skill_mkt_router, prefix="/api/v1/marketplace", tags=["Marketplace (Commercial)"]
-        )
-        app.include_router(
-            agent_mkt_router, prefix="/api/v1/marketplace/agents", tags=["Marketplace (Commercial)"]
-        )
-        app.include_router(
-            domain_mkt_router,
-            prefix="/api/v1/marketplace/domains",
-            tags=["Marketplace (Commercial)"],
-        )
-        app.include_router(
-            component_mkt_router,
-            prefix="/api/v1/marketplace/components",
-            tags=["Marketplace (Commercial)"],
-        )
-
-        logger.info("✅ Consolidated Commercial Marketplace APIs Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to consolidate marketplace routes: {e}")
-
     # 33. Domain Marketplace Routes (Phase 247)
     try:
-        from api.routes.domain_marketplace_routes import router as domain_marketplace_router
 
-        app.include_router(domain_marketplace_router)
         logger.info("✓ Domain Marketplace Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Domain marketplace routes failed to load: {e}")
 
     # 34. Agent-Domain Routes (Phase 247-11)
     try:
-        from api.routes.agent_domain_routes import router as agent_domain_router
 
-        app.include_router(agent_domain_router)
         logger.info("✓ Agent-Domain Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Agent-domain routes failed to load: {e}")
 
     # Agent Marketplace & Federation Routes
     try:
-        from api.agent_marketplace_routes import router as agent_marketplace_router
-        from api.federation_routes import router as federation_router
-
-        app.include_router(agent_marketplace_router)
-        app.include_router(federation_router)
-        logger.info("✓ Agent Marketplace & Federation Routes Loaded")
+        # NOTE: federation routes are loaded at line ~2110 via
+        # api.routes.federation_routes (prefix="/api"), not here.
+        logger.info("✓ Agent Marketplace Routes Loaded")
     except Exception as e:
         logger.warning(f"Agent Marketplace routes failed to load: {e}")
 
     # 35. Domain-Aware Graduation Routes (Phase 247-14)
     try:
-        from api.routes.domain_aware_graduation_routes import router as domain_graduation_router
 
-        app.include_router(domain_graduation_router)
         logger.info("✓ Domain-Aware Graduation Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Domain-aware graduation routes failed to load: {e}")
 
     # 36. Capability Matrix Routes (Phase 247-14)
     try:
-        from api.routes.capability_matrix_routes import router as capability_matrix_router
 
-        app.include_router(capability_matrix_router)
         logger.info("✓ Capability Matrix Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Capability matrix routes failed to load: {e}")
 
     # 37. Document Generation Routes (Phase 223)
-    try:
-        from api.routes.document_generation_routes import router as document_generation_router
-
-        app.include_router(
-            document_generation_router, prefix="/api/v1/documents", tags=["Document Generation"]
-        )
-        logger.info("✓ Document Generation Routes Loaded")
-    except (ImportError, NameError) as e:
-        logger.warning(f"Document generation routes failed to load: {e}")
-
     # 38. Learning & Adaptation Routes (Unified Learning System)
     try:
-        from api.routes.learning_routes import router as learning_router
+        from api.learning_routes import router as learning_router
 
         app.include_router(learning_router)
         logger.info("✓ Learning & Adaptation Routes Loaded")
@@ -3573,7 +3167,7 @@ except (ImportError, TypeError) as e:
 # silently skipping downstream registrations.
 # ============================================================================
 try:
-    from api.routes.integrations.microsoft365_routes import router as microsoft365_router
+    from integrations.microsoft365_routes import microsoft365_router
 
     app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365")
     logger.info("✓ Microsoft 365 Routes Loaded (isolated)")
@@ -3587,7 +3181,7 @@ except Exception as e:
 
 
 @app.get("/api/integrations")
-async def list_integrations():
+async def list_integrations(current_user: User = Depends(get_current_user)):
     """List all available integrations and their status"""
     return {
         "total": len(get_integration_list()),
@@ -3599,6 +3193,7 @@ async def list_integrations():
 @app.post("/api/integrations/{integration_name}/load")
 async def load_integration_endpoint(
     integration_name: str,
+    current_user: User = Depends(get_current_user),
     tenant_id: str | None = None,  # Optional if passed in header or body
     db: Session = Depends(get_db),
 ):
@@ -3639,11 +3234,11 @@ async def load_integration_endpoint(
 
 @app.get("/api/integrations/stats")
 async def get_all_integration_stats():
-    return circuit_breaker.get_all_stats()
+    return await circuit_breaker.get_all_stats()
 
 
 @app.post("/api/integrations/{integration_name}/reset")
-async def reset_integration(integration_name: str):
+async def reset_integration(integration_name: str, current_user: User = Depends(get_current_user)):
     circuit_breaker.reset(integration_name)
     return {"status": "reset", "integration": integration_name}
 
@@ -3652,27 +3247,13 @@ async def reset_integration(integration_name: str):
 # DEBUG ENDPOINTS (For troubleshooting - remove in production)
 # ============================================================================
 try:
-    from api.routes.debug_password_check import router as debug_password_check_router
-    from api.routes.debug_password_reset import router as debug_password_router
-    from api.routes.debug_rls_check import router as debug_rls_check_router
-    from api.routes.debug_tenant_check import router as debug_tenant_router
-    from api.routes.debug_user_check import router as debug_user_router
 
-    app.include_router(debug_tenant_router)
-    app.include_router(debug_user_router)
-    app.include_router(debug_password_router)
-    app.include_router(debug_password_check_router)
-    app.include_router(debug_rls_check_router)
 
     # Debug endpoint for entity type diagnostics
-    from api.routes.debug_entity_types import router as debug_entity_types_router
 
-    app.include_router(debug_entity_types_router)
 
     # Admin endpoint for entity type management
-    from api.routes.admin_entity_routes import router as admin_entity_router
 
-    app.include_router(admin_entity_router)
     logger.info("✅ Debug endpoints enabled")
 except (ImportError, TypeError) as e:
     logger.warning(f"Debug routes not available: {e}")

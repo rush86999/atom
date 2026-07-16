@@ -1,6 +1,6 @@
 # Atom Documentation Index
 
-> **Last Updated**: April 10, 2026
+> **Last Updated**: July 12, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 **📚 [Back to Documentation Hub](README.md)** - Browse by category (Agents, Intelligence, Integration, Platform)
@@ -9,8 +9,19 @@
 
 ## 🚀 Recent Updates (July 2026)
 
-- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents without native Office/LibreOffice dependencies.
-  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints.
+- **Workbook Runtime**: ✨ NEW - Excel engine replaced openpyxl-as-parser with a formula-evaluating runtime (`core/workbook_runtime.py`). LibreOffice headless primary (recalc + pixel-accurate HTML render + structural edits), `formulas` library fallback, openpyxl cached-values last resort. `office_service.py` write_cell now recalculates and returns computed values; render_to_html produces evaluated output with conditional formatting. See [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md).
+- **Integration Resilience Layer**: ✨ NEW - Universal HTTP wrapper (`core/integration_http.py`) for all third-party API calls: circuit breaker, rate limiting, 429 Retry-After parsing, exponential backoff, 401 token refresh, health monitoring. 89 calls across 13 services wired.
+- **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:
+  - **Phase 2 (GraphRAG)**: Multi-hop scored expansion wired into `local_search`; `build_communities` populates the community table; `leidenalg` dependency added (with Louvain fallback).
+  - **Phase 4 (Federation)**: New `api/routes/federation_routes.py` exposes DIDs, verifiable credentials, zero-trust verification, and security health/stats at `/api/federation/...` (the previously broken import in `main_api_app.py` now resolves).
+  - **Phase 5 (Orchestration)**: EventBus lifecycle events published by every live workflow; Conductor Agent endpoint at `POST /api/v1/workflows/conductor/execute` with 5 execution strategies; state-machine + rollback integrated.
+  - **Phase 1 (Memory)**: POMDP-backed consolidation service now wired correctly (was importing the legacy class) and scheduled on a 6-hour background loop (was never invoked).
+  - **Bug fix**: Word-doc canvas→file sync was crashing (`office_sync_service.py` missing `import docx`).
+- **Learning LLM Router**: ✨ NEW - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes. A genuine end-to-end learning loop: the router observes response quality (truncation, schema failures, refusals), collects user feedback (thumbs up/down + regenerate), and re-ranks model candidates as data accumulates. Flag-gated (`ATOM_LEARNING_ROUTER`, default off). DB-persisted feedback (`llm_routing_feedback` table, migration `20260711`). Live `POST /api/chat/feedback` + `GET /api/chat/routing-stats` endpoints. Model visibility badge on chat messages + routing dashboard at `/settings/routing`.
+  - [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md) - Architecture, the singleton registry, per-model predictors, quality assessment, the flag, the user journey, and honest limitations.
+- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents. Excel workbooks run through a formula-evaluating workbook runtime (LibreOffice headless → `formulas` library → openpyxl fallback) so agents see computed values, not unevaluated formula strings.
+  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints, (e) formula evaluation + pixel-accurate rendering via the workbook runtime.
+  - [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md) - Excel engine architecture: LibreOffice headless (recalc + render + structural edits) → `formulas` library → openpyxl cached values.
   - Integrates directly with frontend `CanvasHost.tsx` for real-time bi-directional collaboration.
 
 ## 🚀 Recent Updates (June 2026)
@@ -33,7 +44,7 @@
   - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
   - Phase 1: POMDP Memory Framework - Experience-driven agent learning
   - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
-  - Phase 3: Learning-Based LLM Routing - RouteLLM with 15% cost savings
+  - Phase 3: Learning-Based LLM Routing - per-model predictors, DB persistence, live feedback, quality signals, re-ranking. See [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md). Flag-gated (`ATOM_LEARNING_ROUTER`).
   - Phase 4: Zero-Trust Federation Identity - DID/VC with mTLS
   - Phase 5: Enhanced Orchestration - Conductor Agent, workflow state machine
 - **Canvas Integration**: ✅ COMPLETE - Canvas system integrated with Phase 1-5 features
@@ -55,7 +66,7 @@
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
   - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
   - [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
-- **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills
+- **Commercial Marketplace**: ✨ NEW - Mothership architecture with atomagentos.com - Proprietary marketplace for agents, domains, components, skills
 - **Phase 234**: E2E Testing Infrastructure - 486 E2E test functions with API-first authentication
 - **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
 - **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection
@@ -384,9 +395,9 @@
 | [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
 **Test Suite Summary**:
-- 495+ tests (unit, integration, E2E, bug discovery)
-- 99%+ pass rate (TQ-02 standard)
-- 17-27% overall coverage (expanding to 80%)
+- 27,000+ test functions (unit, integration, E2E, bug discovery, regression)
+- Pass rate: targeted 100% before merge (CI-enforced)
+- ~17-27% overall line coverage (expanding; new code requires ≥70%)
 - 60-70% coverage for MCP service
 - <60min full suite execution time
 - <30s per test performance target

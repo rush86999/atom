@@ -260,6 +260,10 @@ class CognitiveTierService:
             return "moonshot"
         elif model.startswith("minimax"):
             return "minimax"
+        elif model.startswith("glm"):
+            return "glm"
+        elif model.startswith("kimi"):
+            return "moonshot"
         else:
             return "unknown"
 

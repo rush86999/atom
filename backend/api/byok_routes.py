@@ -230,6 +230,17 @@ class BYOKManager:
                 reasoning_level=3
             ),
             AIProviderConfig(
+                id="gemini",
+                name="Gemini (OpenAI-compatible)",
+                description="Google Gemini via the OpenAI-compatible endpoint",
+                api_key_env_var="GEMINI_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.000001,
+                model="gemini-3.5-flash",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
                 id="lux",
                 name="Lux Computer Use",
                 description="Lux Model for Computer Use Agents",
@@ -275,12 +286,12 @@ class BYOKManager:
             AIProviderConfig(
                 id="minimax",
                 name="MiniMax",
-                description="MiniMax M2.5 Reasoning Model",
+                description="MiniMax M3 Flagship (512K context, image input)",
                 api_key_env_var="MINIMAX_API_KEY",
-                base_url="https://api.minimax.chat/v1",
-                supported_tasks=["general", "chat", "code", "reasoning", "agentic"],
-                cost_per_token=0.000001,
-                model="minimax-2.5",
+                base_url="https://api.minimax.io/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.00000075,
+                model="MiniMax-M3",
                 reasoning_level=4
             ),
             AIProviderConfig(
@@ -369,6 +380,17 @@ class BYOKManager:
                 cost_per_token=0.0,  # Per-request pricing varies
                 model="mcp-server",
                 reasoning_level=2
+            ),
+            AIProviderConfig(
+                id="openrouter",
+                name="OpenRouter",
+                description="Unified gateway to 300+ models (OpenAI, Anthropic, Google, Meta, and more). One API key.",
+                api_key_env_var="OPENROUTER_API_KEY",
+                base_url="https://openrouter.ai/api/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000003,  # Varies by model — rough floor
+                model="openai/gpt-4o-mini",
+                reasoning_level=4
             )
         ]
         
@@ -778,7 +800,7 @@ async def byok_health_check(current_user: User = Depends(get_current_user)):
         "timestamp": datetime.now().isoformat()
     })
 
-@router.get("/api/ai/keys", response_model=Dict[str, Any])
+@router.get("/api/ai/keys")
 async def get_api_keys():
     """Get all configured API keys (masked)"""
     return ApiResponse(success=True, data={
@@ -790,7 +812,7 @@ async def get_api_keys():
         "count": 3
     })
 
-@router.post("/api/ai/keys", response_model=Dict[str, Any])
+@router.post("/api/ai/keys")
 async def add_api_key(key_data: Dict[str, str]):
     """Add a new API key"""
     provider = key_data.get("provider")

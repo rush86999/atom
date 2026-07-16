@@ -279,8 +279,7 @@ class DebugStreamingService:
         finally:
             try:
                 pubsub.close()
-            except:
-                pass
+            except Exception:                 pass
 
 
 # Global streaming service instance

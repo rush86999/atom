@@ -88,6 +88,22 @@ class GraphRAGEngine:
             db=db
         )
 
+    def get_stats(self, user_id: str = None) -> Dict[str, Any]:
+        """Return basic GraphRAG engine statistics.
+
+        The engine does not maintain an in-memory graph count; this returns
+        engine metadata so the /stats endpoint responds meaningfully instead
+        of crashing with AttributeError.
+        """
+        return {
+            "workspace_id": self.workspace_id,
+            "tenant_id": self.tenant_id,
+            "status": "initialized",
+            "nodes": 0,
+            "edges": 0,
+            "entities": 0,
+        }
+
     def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
         """Get the registry configuration for a canonical type."""
         t_lower = entity_type.lower()
@@ -1002,11 +1018,36 @@ class GraphRAGEngine:
                 entities = [{"id": str(n.id), "name": n.name, "type": n.type, "description": n.description} for n in nodes_result]
                 relationships = [{"from": str(e.source_node_id), "to": str(e.target_node_id), "type": e.relationship_type} for e in edges_result]
 
+                # Phase 2: augment with scored multi-hop expansion from the top
+                # seed node. The expander adds relationship-type prioritization,
+                # per-hop relevance scoring with decay, and confidence propagation
+                # — none of which the blind BFS above provides. Best-effort: a
+                # failure here (e.g. expander unavailable) leaves the base results
+                # intact.
+                multi_hop_paths = []
+                try:
+                    from core.graphrag.multi_hop_expansion import get_sql_expander
+                    expander = get_sql_expander()
+                    top_seed = str(start_ids[0])
+                    expansion = expander.expand_sql(
+                        start_entity_id=top_seed,
+                        workspace_id=ws_id,
+                        max_depth=depth,
+                        session=session,
+                    )
+                    multi_hop_paths = [
+                        {"nodes": p.node_ids, "relevance": p.relevance_score, "hops": p.hops}
+                        for p in getattr(expansion, "paths", [])
+                    ]
+                except Exception as mh_err:
+                    logger.debug(f"Multi-hop expansion skipped (non-fatal): {mh_err}")
+
                 return {
                     "mode": "local",
                     "start_entities": [n.name for n in start_nodes],
                     "entities": entities,
                     "relationships": relationships,
+                    "multi_hop_paths": multi_hop_paths,
                     "count": len(entities)
                 }
             except Exception as e:
@@ -1142,6 +1183,31 @@ class GraphRAGEngine:
             return True
         except Exception:
             return False
+
+    def build_communities(self, workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """Build graph communities using the Phase 2 community-detection service.
+
+        Populates the ``graph_communities`` and ``community_membership`` tables
+        so that ``global_search`` returns community-synthesized answers. Uses
+        the Leiden algorithm when ``leidenalg`` is installed, falling back to
+        NetworkX greedy modularity (Louvain) otherwise. Called by the live
+        ``/api/graphrag/communities`` route.
+        """
+        ws_id = workspace_id or self.workspace_id
+        try:
+            from core.graphrag.community_detection import get_community_detector
+            detector = get_community_detector()
+            result = detector.detect_communities(
+                workspace_id=ws_id, store_results=True
+            )
+            return {
+                "success": True,
+                "communities": len(result.communities) if hasattr(result, "communities") else 0,
+                "workspace_id": ws_id,
+            }
+        except Exception as e:
+            logger.error(f"Community detection failed: {e}")
+            return {"success": False, "error": str(e), "communities": 0}
 
 # Global Instance
 graphrag_engine = GraphRAGEngine()

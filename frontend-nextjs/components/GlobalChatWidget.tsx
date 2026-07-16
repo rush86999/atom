@@ -108,13 +108,13 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const fetchUrl = `/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
-            const response = await fetch(fetchUrl);
+            // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`);
+            const data = (response as any).data || response;
 
-            if (response.ok) {
+            if (data && data.messages) {
                 try {
-                    const data = await response.json();
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
                         const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => ({
@@ -133,8 +133,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setMessages([welcomeMsg]);
                 }
             } else {
-                // Clear stale session so next open creates a fresh one
-                localStorage.removeItem('atom_chat_session_id');
+                // No messages or error — show welcome
                 setMessages([welcomeMsg]);
             }
         } catch (error) {
@@ -157,25 +156,23 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const response = await fetch(`/api/chat/message`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: text,
-                    user_id: userId,
-                    session_id: sessionId,
-                    context: {
-                        current_page: router.asPath, // Send current page context
-                        conversation_history: messages.slice(-10).map(msg => ({
-                            role: msg.type === "user" ? "user" : "assistant",
-                            content: msg.content,
-                        })),
-                    }
-                }),
+            // Use apiClient (sends the Authorization header) — raw fetch 401s
+            // for logged-in users since /api/chat/message requires auth.
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.post("/api/chat/message", {
+                message: text,
+                user_id: userId,
+                session_id: sessionId,
+                context: {
+                    current_page: router.asPath, // Send current page context
+                    conversation_history: messages.slice(-10).map(msg => ({
+                        role: msg.type === "user" ? "user" : "assistant",
+                        content: msg.content,
+                    })),
+                }
             });
 
-            const data = await response.json();
+            const data = (response as any).data || response;
 
             if (data.success) {
                 const assistantMessage: ChatMessageData = {
@@ -184,7 +181,9 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     content: data.message, // Backend 'message' field
                     timestamp: new Date(),
                     // Backend returns suggested_actions, map them if needed
-                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'suggested' })) || [],
+                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'view_template' as const })) || [],
+                    model: data.model,
+                    provider: data.provider,
                 };
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
@@ -236,14 +235,13 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         // Implement specific action logic here (execute workflow, etc.)
         // For now, we'll just simulate a response
         if (action.type === 'execute' && action.workflowId) {
-            // Call execute API
+            // Call execute API (use apiClient for auth)
             try {
-                const response = await fetch("/api/atom-agent/execute-generated", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ workflow_id: action.workflowId, input_data: {} }),
-                });
-                const data = await response.json();
+                const { apiClient } = await import('../lib/api-client');
+                const response = await apiClient.post("/api/atom-agent/execute-generated", {
+                    workflow_id: action.workflowId, input_data: {},
+                }) as any;
+                const data = response.data || response;
                 if (data.success) {
                     toast({ title: "Workflow Started", description: `Execution ID: ${data.execution_id}`, variant: "default" });
                 } else {
@@ -270,12 +268,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
     const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
         try {
-            const response = await fetch(`/api/agents/approvals/${actionId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ decision }),
-            });
-            const data = await response.json();
+            const { apiClient } = await import('../lib/api-client');
+            const response = await apiClient.post(`/api/agents/approvals/${actionId}`, {
+                decision,
+            }) as any;
+            const data = response.data || response;
             if (data.success) {
                 toast({ title: `Action ${decision}`, description: `Decision recorded.`, variant: "default" });
                 setPendingApproval(null);
@@ -289,27 +286,60 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
     const handleMessageFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
+            // Repointed to the live learning-router feedback endpoint (was
+            // /api/reasoning/feedback, which is a different feedback store with
+            // no model identity). Carries model/provider so the router can tie
+            // feedback to the routing decision. Uses apiClient for auth.
+            const ratedMessage = messages.find(m => m.id === messageId);
+            const { apiClient } = await import('../lib/api-client');
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: type,
+                comment: comment,
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+                session_id: sessionId,
+            });
+            // Fire the toast AFTER the POST resolves so the user isn't told
+            // "thanks" if the feedback actually failed.
             toast({
                 title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
                 description: comment ? "We'll use this to improve." : "Thanks for your feedback!",
             });
-
-            // Send to backend (using the same endpoint but with context identifying it as a message)
-            await fetch('/api/reasoning/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    agent_id: "universal_assistant", // Mapping to global assistant
-                    run_id: sessionId,
-                    step_index: -1, // -1 indicates final output feedback
-                    step_content: { thought: "Final Assistant Output", output: messages.find(m => m.id === messageId)?.content },
-                    feedback_type: type,
-                    comment: comment
-                })
-            });
         } catch (e) {
             console.error("Feedback failed", e);
         }
+    };
+
+    const handleRegenerate = async (messageId: string) => {
+        // Find the assistant message being regenerated and the user message
+        // that preceded it, so we can re-send the original prompt.
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx < 0 || isLoading) return;
+        let userIdx = idx - 1;
+        while (userIdx >= 0 && messages[userIdx].type !== 'user') userIdx -= 1;
+        if (userIdx < 0) return;
+        const originalPrompt = messages[userIdx].content;
+
+        // Record an implicit negative signal for the response being regenerated.
+        try {
+            const ratedMessage = messages[idx];
+            const { apiClient } = await import('../lib/api-client');
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: "thumbs_down",
+                comment: "regenerated",
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+                session_id: sessionId,
+            });
+        } catch {
+            // Non-fatal.
+        }
+
+        // Remove the old exchange and re-send the original prompt.
+        setMessages(prev => prev.slice(0, userIdx));
+        await handleSendMessage(originalPrompt);
     };
 
     return (
@@ -353,6 +383,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                                     message={msg}
                                     onActionClick={handleActionClick}
                                     onFeedback={handleMessageFeedback}
+                                    onRegenerate={handleRegenerate}
                                 />
                             ))}
                             {isLoading && (

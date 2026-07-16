@@ -235,12 +235,19 @@ class ServiceFactory:
 
     @classmethod
     def get_memory_consolidation_service(cls, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
-        """Get or create MemoryConsolidationService instance."""
+        """Get or create the POMDP-backed MemoryConsolidationService instance.
+
+        This uses the POMDP-backed consolidation service
+        (core.memory.memory_consolidation_service), which implements the
+        offline "sleep-inspired" consolidation advertised in the docs — NOT the
+        legacy archival service (core.memory_consolidation) which moves rows
+        from Postgres to LanceDB (still importable directly when needed).
+        """
         if not hasattr(cls._thread_local, 'memory_consolidation_service'):
-            from core.memory_consolidation import MemoryConsolidationService
+            from core.database import SessionLocal
+            from core.memory.memory_consolidation_service import MemoryConsolidationService
             cls._thread_local.memory_consolidation_service = MemoryConsolidationService(
-                workspace_id=workspace_id, 
-                tenant_id=tenant_id
+                db=SessionLocal(),
             )
         return cls._thread_local.memory_consolidation_service
 

@@ -478,7 +478,7 @@ describe('Navigation Components', () => {
             <DialogContent className="custom-class">
               <DialogHeader>
                 <DialogTitle>Title</DialogTitle>
-                <DialogDescription>Description</Description>
+                <DialogDescription>Description</DialogDescription>
               </DialogHeader>
             </DialogContent>
           </Dialog>

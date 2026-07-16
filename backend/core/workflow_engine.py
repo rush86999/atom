@@ -56,20 +56,53 @@ class WorkflowEngine:
         self.semaphore = asyncio.Semaphore(max_concurrent_steps)
         self.cancellation_requests = set()
 
+    def _publish_orchestration_event(self, event_type_name: str, workflow_id: str,
+                                     execution_id: str, step_id: str = "",
+                                     data: Dict[str, Any] = None) -> None:
+        """Publish a Phase-5 EventBus event for workflow lifecycle observability.
+
+        Best-effort: a failure (e.g. EventBus unavailable) is logged and swallowed
+        so it never affects the workflow execution itself. This makes every live
+        workflow feed the Phase-5 EventBus, enabling event-driven triggers
+        (``create_workflow_trigger``) — the marketed "event-driven workflow
+        triggering with pub/sub."
+        """
+        try:
+            from core.orchestration.event_bus import get_event_bus, EventType
+            event_bus = get_event_bus()
+            event_type = getattr(EventType, event_type_name, None)
+            if event_type is None:
+                return
+            event_bus.publish(
+                event_type=event_type,
+                source=execution_id,
+                data={"workflow_id": workflow_id, "execution_id": execution_id,
+                      "step_id": step_id, **(data or {})},
+                source_type="workflow",
+            )
+        except Exception as e:
+            logger.debug(f"Orchestration event publish skipped (non-fatal): {e}")
+
     async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
         """Start a new workflow execution"""
         # Convert graph to steps if needed
         if "steps" not in workflow and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
-            
+
         execution_id = await self.state_manager.create_execution(workflow["id"], input_data)
-        
+
+        # Phase 5: publish a WORKFLOW_STARTED event for the EventBus.
+        self._publish_orchestration_event(
+            "WORKFLOW_STARTED", workflow["id"], execution_id,
+            data={"step_count": len(workflow.get("steps", []))},
+        )
+
         # Run execution in background
         if background_tasks:
             background_tasks.add_task(self._run_execution, execution_id, workflow)
         else:
             asyncio.create_task(self._run_execution(execution_id, workflow))
-        
+
         return execution_id
 
     def _convert_nodes_to_steps(self, workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -640,6 +673,11 @@ class WorkflowEngine:
                         logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
                 # --- END SAAS GOVERNANCE INTERLOCK ---
 
+                # Phase 5: publish STEP_STARTED for EventBus observability.
+                self._publish_orchestration_event(
+                    "STEP_STARTED", workflow.get("id", "unknown"), execution_id, step_id,
+                )
+
                 # Create step execution record
                 with get_db_session() as db:
                     try:
@@ -712,12 +750,27 @@ class WorkflowEngine:
                     
                     # Update in-memory state for next steps
                     state = await self.state_manager.get_execution_state(execution_id)
-                    
+
+                    # Phase 5: publish STEP_COMPLETED for EventBus observability.
+                    self._publish_orchestration_event(
+                        "STEP_COMPLETED", workflow.get("id", "unknown"), execution_id, step_id,
+                    )
+
                 except Exception as e:
                     logger.error(f"Step {step_id} failed: {e}")
                     await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
                     await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(e))
                     await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e), "step_id": step_id})
+
+                    # Phase 5: publish STEP_FAILED + WORKFLOW_FAILED for EventBus.
+                    self._publish_orchestration_event(
+                        "STEP_FAILED", workflow.get("id", "unknown"), execution_id, step_id,
+                        data={"error": str(e)},
+                    )
+                    self._publish_orchestration_event(
+                        "WORKFLOW_FAILED", workflow.get("id", "unknown"), execution_id,
+                        data={"error": str(e), "step_id": step_id},
+                    )
                     
                     # Send failure notification
                     asyncio.create_task(notifier.notify_failure(
@@ -750,7 +803,12 @@ class WorkflowEngine:
 
             await self.state_manager.update_execution_status(execution_id, "COMPLETED")
             await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
-            
+
+            # Phase 5: publish WORKFLOW_COMPLETED for EventBus observability.
+            self._publish_orchestration_event(
+                "WORKFLOW_COMPLETED", workflow.get("id", "unknown"), execution_id,
+            )
+
             # Send completion notification
             asyncio.create_task(notifier.notify_completion(
                 workflow_id=workflow.get("id", "unknown"),

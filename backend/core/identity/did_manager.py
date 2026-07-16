@@ -301,6 +301,9 @@ class DIDManager:
         self._did_documents[did] = doc
         self._keys[key_id] = key
 
+        # Persist to DB (write-through; best-effort).
+        self._persist_did(did, entity_type, doc, key)
+
         logger.info(f"Created DID document for {did}")
         return doc
 
@@ -633,6 +636,73 @@ class DIDManager:
             "federation_instances": len(self._federation_registry),
             "cache_size": len(self._resolution_cache)
         }
+
+    # ------------------------------------------------------------------
+    # DB persistence (write-through + load-on-init)
+    # ------------------------------------------------------------------
+
+    def _persist_did(self, did: str, entity_type: DIDType, doc: DIDDocument, key: DIDKey) -> None:
+        """Write-through a DID document to the DB so it survives restarts."""
+        try:
+            from core.database import get_db_session
+            from core.models import FederationDID
+            with get_db_session() as db:
+                existing = db.query(FederationDID).filter(FederationDID.did == did).first()
+                doc_data = {
+                    "id": doc.id,
+                    "verification_method": [vm.__dict__ for vm in (doc.verification_method or [])],
+                    "authentication": doc.authentication,
+                    "created": doc.created.isoformat() if doc.created else None,
+                    "updated": doc.updated.isoformat() if doc.updated else None,
+                    "version_id": doc.version_id,
+                }
+                if existing:
+                    existing.entity_type = entity_type.value
+                    existing.document_json = doc_data
+                    existing.public_key_pem = key.public_key_base58
+                else:
+                    row = FederationDID(
+                        did=did,
+                        entity_type=entity_type.value,
+                        entity_id=did.split(":")[-1] if ":" in did else did,
+                        document_json=doc_data,
+                        public_key_pem=key.public_key_base58,
+                    )
+                    db.add(row)
+        except Exception as e:
+            logger.debug(f"DID DB persist skipped (non-fatal): {e}")
+
+    def load_dids_from_db(self) -> int:
+        """Load persisted DIDs from the DB into in-memory state.
+
+        Call on startup so identity state survives restarts. Returns count.
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import FederationDID
+            with get_db_session() as db:
+                rows = db.query(FederationDID).filter(FederationDID.is_active == True).all()  # noqa: E712
+                loaded = 0
+                for row in rows:
+                    if row.did not in self._did_documents and row.document_json:
+                        # Reconstruct a minimal DIDDocument from stored data.
+                        doc_data = row.document_json
+                        doc = DIDDocument(
+                            id=doc_data.get("id", row.did),
+                            verification_method=[],
+                            authentication=doc_data.get("authentication", []),
+                            created=datetime.fromisoformat(doc_data["created"]) if doc_data.get("created") else datetime.now(),
+                            updated=datetime.now(),
+                            version_id=doc_data.get("version_id", "1"),
+                        )
+                        self._did_documents[row.did] = doc
+                        loaded += 1
+                if loaded:
+                    logger.info(f"Loaded {loaded} DIDs from DB")
+                return loaded
+        except Exception as e:
+            logger.debug(f"DID DB load skipped (non-fatal): {e}")
+            return 0
 
 
 # ============================================================================

@@ -51,6 +51,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         handleStop,
         handleTitleSave,
         handleFeedback,
+        handleRegenerate,
         uploadFile,
         toast,
         providerError,
@@ -62,9 +63,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     // P1.4: clicking an example prompt sends it as a new user message.
     const handleExamplePromptClick = (prompt: string) => {
-        setInput(prompt);
-        // Defer to next tick so state update lands before send fires.
-        setTimeout(() => handleSend(), 0);
+        // Pass the prompt directly to handleSend — using setInput + setTimeout
+        // races the stale input closure (setState is async, so handleSend()
+        // reads the old empty value and no-ops).
+        handleSend(prompt);
     };
 
     const showEmptyState = messages.length === 0 && !providerError;
@@ -153,6 +155,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 messagesEndRef={messagesEndRef}
                 handleActionClick={handleActionClick}
                 handleFeedback={handleFeedback}
+                handleRegenerate={handleRegenerate}
             />
 
             <ChatInput

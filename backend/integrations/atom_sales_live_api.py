@@ -114,7 +114,6 @@ async def get_live_pipeline(
     # Validate limit to prevent SOQL injection
     if limit < 1 or limit > 200:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 200")
-    """
     deals = []
     providers_status = {"salesforce": False, "hubspot": False, "zoho": False, "dynamics": False}
     

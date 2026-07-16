@@ -37,6 +37,12 @@ from core.llm.routing.routellm_trainer import (
     get_router_evaluator,
 )
 
+from core.llm.routing.per_model_router import (
+    PerModelRouter,
+    PredictorStats,
+    get_per_model_router,
+)
+
 from core.llm.routing.cache_optimizer import (
     CacheOptimizer,
     CacheWarmer,
@@ -71,6 +77,11 @@ __all__ = [
     "FeatureExtractor",
     "get_router_trainer",
     "get_router_evaluator",
+
+    # Per-model predictors
+    "PerModelRouter",
+    "PredictorStats",
+    "get_per_model_router",
 
     # Cache optimizer
     "CacheOptimizer",

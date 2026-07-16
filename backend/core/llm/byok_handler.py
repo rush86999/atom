@@ -124,11 +124,11 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "gemini-3.5-flash",
         QueryComplexity.ADVANCED: "gemini-3-pro",
     },
-    "moonshot": {
-        QueryComplexity.SIMPLE: "qwen-3-7b",
-        QueryComplexity.MODERATE: "qwen-3-7b",
-        QueryComplexity.COMPLEX: "qwen-3-max",
-        QueryComplexity.ADVANCED: "qwen-3-max",
+    "moonshot": {  # Moonshot AI (Kimi family)
+        QueryComplexity.SIMPLE: "moonshot/kimi-k2-thinking",
+        QueryComplexity.MODERATE: "moonshot/kimi-k2-thinking",
+        QueryComplexity.COMPLEX: "kimi-k2.6",
+        QueryComplexity.ADVANCED: "kimi-k2.6",
     },
     "minimax": {
         QueryComplexity.SIMPLE: "MiniMax-M3-highspeed",
@@ -165,6 +165,24 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "glm-4.6",
         QueryComplexity.COMPLEX: "glm-5",
         QueryComplexity.ADVANCED: "glm-5.2",  # Latest flagship (June 2026) — 1M ctx, reasoning
+    },
+    "mistral": {
+        QueryComplexity.SIMPLE: "mistral-small",
+        QueryComplexity.MODERATE: "mistral-medium",
+        QueryComplexity.COMPLEX: "mistral-large-latest",
+        QueryComplexity.ADVANCED: "mistral-large-latest",
+    },
+    "groq": {  # Ultra-fast inference (Llama models)
+        QueryComplexity.SIMPLE: "llama-3.1-8b-instant",
+        QueryComplexity.MODERATE: "llama-3.1-8b-instant",
+        QueryComplexity.COMPLEX: "llama-3.3-70b-versatile",
+        QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
+    },
+    "openrouter": {  # OpenRouter — gateway to 300+ models via one key
+        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
+        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
+        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
+        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
     },
 }
 
@@ -271,6 +289,17 @@ class BYOKHandler:
         from core.provider_health_monitor import get_provider_health_monitor
         self.health_monitor = get_provider_health_monitor()
         self.async_clients = self.async_clients or {} # Ensure it exists if _initialize_clients failed
+
+        # Last concrete (model, provider) selected by BPC and actually called.
+        # generate_response returns only the text, so callers (LLMService.
+        # generate_completion) read these to surface the real model in the
+        # response and key feedback correctly (instead of the "auto" input).
+        self._last_used_model: Optional[str] = None
+        self._last_used_provider: Optional[str] = None
+        # routing_result_id stashed by _rerank_with_learning when it computed
+        # per-decision prompt features, so the outcome hook can recover them
+        # (train/serve consistency). None when re-ranking didn't fire.
+        self._pending_routing_result_id: Optional[str] = None
 
         # Thread safety for lazy embedding init
         self._embedding_initialized = False
@@ -425,6 +454,7 @@ class BYOKHandler:
         # Initialize OpenAI-compatible clients for each provider
         providers_config = {
             "openai": {"base_url": None},
+            "anthropic": {"base_url": "https://api.anthropic.com/v1"},
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
@@ -434,6 +464,15 @@ class BYOKHandler:
             "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"},
             "xiaomi": {"base_url": "https://api.xiaomi.com/v1"},
             "ollama": {"base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")},
+            # OpenRouter — unified gateway to 300+ models (OpenAI, Anthropic,
+            # Google, Meta, …). OpenAI-compatible; one key → all models.
+            "openrouter": {"base_url": "https://openrouter.ai/api/v1"},
+            # Zhipu AI GLM family — OpenAI-compatible API
+            "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4"},
+            # Mistral — OpenAI-compatible API
+            "mistral": {"base_url": "https://api.mistral.ai/v1"},
+            # Groq — ultra-fast inference, OpenAI-compatible
+            "groq": {"base_url": "https://api.groq.com/openai/v1"},
         }
 
         # Separate sync and async clients
@@ -528,20 +567,102 @@ class BYOKHandler:
             # Initialize client if we have an API key
             if api_key:
                 try:
-                    self.clients[provider_id] = OpenAI(
-                        api_key=api_key,
-                        base_url=config["base_url"] # base_url can be None for OpenAI
-                    )
+                    # OpenRouter recommends HTTP-Referer + X-Title headers for
+                    # better rate-limit treatment. Other providers ignore them.
+                    client_kwargs = {
+                        "api_key": api_key,
+                        "base_url": config["base_url"],  # can be None for OpenAI
+                    }
+                    if provider_id == "openrouter":
+                        client_kwargs["default_headers"] = {
+                            "HTTP-Referer": os.getenv("OPENROUTER_REFERER", "https://atom.ai"),
+                            "X-Title": "Atom",
+                        }
+                    self.clients[provider_id] = OpenAI(**client_kwargs)
                     if AsyncOpenAI:
-                        self.async_clients[provider_id] = AsyncOpenAI(
-                            api_key=api_key,
-                            base_url=config["base_url"]
-                        )
+                        self.async_clients[provider_id] = AsyncOpenAI(**client_kwargs)
                     logger.info(f"Initialized {provider_id} client using {credential_source.upper()} credential")
                 except Exception as e:
                     logger.error(f"Failed to initialize {provider_id} client: {e}")
             else:
                 logger.debug(f"No credential available for {provider_id}, skipping initialization")
+
+        # Load user-registered local model providers (Ollama, LM Studio, vLLM,
+        # etc.) from the DB and create OpenAI-compatible clients for each.
+        # Their models become eligible for BPC ranking alongside cloud models.
+        self._load_local_providers()
+
+    def _load_local_providers(self) -> None:
+        """Load registered local model providers from the DB into self.clients.
+
+        Each provider gets a client keyed by ``local_{id}``. Their models are
+        injected into the pricing cache so BPC ranking and capability detection
+        work without special-casing. Best-effort: a DB failure or no providers
+        registered is a clean no-op.
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import LocalModelProvider, LocalModelCapabilities
+
+            with get_db_session() as db:
+                ws_id = self.workspace_id or "default"
+                providers = db.query(LocalModelProvider).filter(
+                    LocalModelProvider.workspace_id == ws_id,
+                    LocalModelProvider.is_active == True,  # noqa: E712
+                ).all()
+
+                if not providers:
+                    return
+
+                fetcher = get_pricing_fetcher()
+
+                for provider in providers:
+                    provider_key = f"local_{provider.id[:8]}"
+                    api_key = provider.api_key or "local"
+                    base_url = provider.base_url.rstrip("/")
+
+                    try:
+                        self.clients[provider_key] = OpenAI(api_key=api_key, base_url=base_url)
+                        self.async_clients[provider_key] = AsyncOpenAI(api_key=api_key, base_url=base_url)
+                        logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
+                    except Exception as e:
+                        logger.warning(f"Could not create client for local provider '{provider.name}': {e}")
+                        continue
+
+                    # Inject the provider's models into the pricing cache.
+                    caps = db.query(LocalModelCapabilities).filter(
+                        LocalModelCapabilities.provider_id == provider.id
+                    ).all()
+
+                    if caps:
+                        for cap in caps:
+                            fetcher.pricing_cache[cap.model_id] = {
+                                "model_id": cap.model_id,
+                                "litellm_provider": provider.provider_type,
+                                "input_cost": 0.0,
+                                "output_cost": 0.0,
+                                "max_input_tokens": cap.context_window or 8192,
+                                "supports_tools": cap.supports_tools,
+                                "supports_vision": cap.supports_vision,
+                                "supports_reasoning": cap.supports_reasoning,
+                                "quality_score": cap.quality_score,
+                            }
+                    else:
+                        # No capabilities configured — register a generic entry
+                        # so the model at least appears in BPC with defaults.
+                        fetcher.pricing_cache[f"{provider.provider_type}_default"] = {
+                            "model_id": f"{provider.provider_type}_default",
+                            "litellm_provider": provider.provider_type,
+                            "input_cost": 0.0,
+                            "output_cost": 0.0,
+                            "max_input_tokens": 8192,
+                            "supports_tools": True,
+                            "supports_vision": False,
+                            "supports_reasoning": False,
+                            "quality_score": 0.5,
+                        }
+        except Exception as e:
+            logger.debug(f"Could not load local providers (non-fatal): {e}")
 
     def get_context_window(self, model_name: str) -> int:
         """
@@ -1119,6 +1240,16 @@ class BYOKHandler:
                 turn_index=turn_index
             )
 
+            # --- Learning-router re-ranking (flag-gated, phase 2 of rollout) ---
+            # When enabled and a trained predictor exists for this tenant/task,
+            # re-order BPC's already-filtered candidate list using the learned
+            # satisfaction signal. Never adds/removes candidates — only re-orders
+            # — so the live pricing-cache (not the router's stale registry)
+            # remains the source of truth for which models are eligible. Cold
+            # start (no predictor) leaves BPC order untouched. Best-effort: any
+            # error falls back to BPC order so the hot path never breaks.
+            options = await self._rerank_with_learning(options, prompt, task_type)
+
             # --- Phase 14.5: Coordinated Vision Logic ---
             if requires_vision:
                 # Check if the primary ranked model supports vision natively
@@ -1204,7 +1335,9 @@ class BYOKHandler:
                     )
                     
                     result = response.choices[0].message.content
-                    
+                    finish_reason = getattr(response.choices[0], "finish_reason", None)
+                    observed_cost = None  # set below if usage attribution succeeds
+
                     # --- Dynamic Cost Attribution (Phase 47) ---
                     usage = getattr(response, 'usage', None)
                     if usage:
@@ -1243,6 +1376,7 @@ class BYOKHandler:
                                     is_managed_service=is_managed
                                 )
                                 logger.info(f"LLM Cost Attributed ({'Managed' if is_managed else 'BYOK'}): {model} - ${cost:.6f} (Saved: ${savings_usd:.6f})")
+                            observed_cost = cost
                         except Exception as cost_err:
                             logger.warning(f"Could not attribute LLM cost: {cost_err}")
 
@@ -1273,6 +1407,24 @@ class BYOKHandler:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
 
+                    # Learning-router outcome observation (flag-gated, best-effort).
+                    # Feeds real response quality (truncation, empty, etc.) into the
+                    # per-model predictors so they learn from outcomes, not just
+                    # "did the API return". No-op when ATOM_LEARNING_ROUTER is off.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=result, finish_reason=finish_reason,
+                        success=True, cost=observed_cost, latency_ms=latency_ms,
+                        routing_result_id=self._pending_routing_result_id,
+                    )
+                    self._pending_routing_result_id = None  # consume
+
+                    # Stash the concrete model/provider so generate_completion
+                    # can surface the real model (not the "auto" input) in its
+                    # return dict — for the model badge and correct feedback keying.
+                    self._last_used_model = model
+                    self._last_used_provider = provider_id
+
                     return result
 
                 except Exception as attempt_err:
@@ -1283,15 +1435,202 @@ class BYOKHandler:
                     try:
                         latency_ms = (time.time() - request_start) * 1000
                         self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
-                    except:
-                        pass  # Don't let health monitoring errors affect primary flow
+                    except Exception:                         pass  # Don't let health monitoring errors affect primary flow
+
+                    # Learning-router outcome observation for failures.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=None, finish_reason=None,
+                        success=False, cost=None, latency_ms=latency_ms,
+                        exception=attempt_err,
+                        routing_result_id=self._pending_routing_result_id,
+                    )
+                    self._pending_routing_result_id = None  # consume
                     continue # Try next provider
             
-            return f"All providers failed. Last error: {str(last_error)}"
-            
+            logger.error(f"All providers failed. Last error: {last_error}")
+            return "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
+
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
-            return f"Error generating response: {str(e)}"
+            logger.error(f"LLM Generation failed: {e}", exc_info=True)
+            return "I'm sorry, an error occurred while generating a response. Please try again."
+
+    async def _record_outcome_feedback(
+        self,
+        model: str,
+        provider_id: str,
+        task_type: Optional[str],
+        content: Optional[str],
+        finish_reason: Optional[str],
+        success: bool,
+        cost: Optional[float],
+        latency_ms: float,
+        exception: Optional[Exception] = None,
+        schema_error: bool = False,
+        routing_result_id: Optional[str] = None,
+    ) -> None:
+        """Best-effort outcome observation for the learning router.
+
+        Assess response quality from observable signals (finish_reason, content,
+        exception, schema validation) and record it as feedback so per-model
+        predictors learn from real outcomes. No-op when
+        ``ATOM_LEARNING_ROUTER`` is off or when the router can't be
+        instantiated. Never raises — failures are logged and swallowed so the
+        hot generation path is unaffected.
+
+        ``routing_result_id``: when provided (stashed by _rerank_with_learning),
+        the feedback carries the id so record_feedback recovers the real
+        per-decision prompt features — eliminating train/serve skew. When None,
+        a random id is used (feedback falls back to task-level feature defaults).
+        """
+        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+            return
+        try:
+            from core.llm.response_quality import assess_response_quality
+            from core.learning_llm_router import LearningBasedRouter
+            from core.llm.learning_router_registry import get_learning_router_instance
+            import uuid
+
+            learning_router = get_learning_router_instance()
+            if learning_router is None:
+                return
+
+            quality = assess_response_quality(
+                content=content,
+                finish_reason=finish_reason,
+                schema_error=schema_error,
+                exception=exception,
+            )
+            # Use the stashed decision id when available so feedback recovers
+            # the real prompt features (train/serve consistency). Fall back to
+            # a random id (task-level feature defaults) when re-ranking didn't fire.
+            decision_id = routing_result_id or str(uuid.uuid4())
+            fb = LearningBasedRouter.build_feedback(
+                routing_result_id=decision_id,
+                tenant_id=self.tenant_id or "default",
+                model_id=model,
+                task_type=self._adapt_task_type(task_type),
+                quality=quality,
+                actual_cost=cost,
+                actual_latency_ms=latency_ms,
+            )
+            await learning_router.record_feedback(fb)
+        except Exception as e:
+            logger.debug(f"Learning-router outcome observation skipped: {e}")
+
+    @staticmethod
+    def _adapt_task_type(task_type: Optional[str]) -> str:
+        """Map the live path's ad-hoc task_type strings to the router vocabulary."""
+        if not task_type:
+            return "general"
+        mapping = {
+            "chat": "question_answering",
+            "reasoning": "reasoning",
+            "agentic": "tool_use",
+            "extraction": "extraction",
+            "pdf_ocr": "extraction",
+            "code": "code_generation",
+            "meta_orchestration": "tool_use",
+        }
+        return mapping.get(task_type.lower().strip(), "general")
+
+    async def _rerank_with_learning(
+        self,
+        options: list,
+        prompt: str,
+        task_type: Optional[str],
+    ) -> list:
+        """Re-rank BPC's candidate list using the learned satisfaction signal.
+
+        Only re-orders the existing list — never adds or removes candidates.
+        Returns the original list unchanged when the learning router is off,
+        when no predictor exists for this tenant/task (cold start), or on any
+        error. ``options`` is a list of ``(provider_id, model)`` tuples from
+        ``get_ranked_providers``.
+        """
+        if not options or len(options) <= 1:
+            # Re-ranking needs at least 2 candidates to matter. Single-provider
+            # setups yield 1 — log so operators can diagnose why learning had
+            # no effect (it's expected, not a bug).
+            if options and os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true":
+                logger.debug(
+                    f"[LearningRouter] Only {len(options)} BPC candidate(s) — "
+                    f"nothing to re-rank (configure multiple provider keys to "
+                    f"give the learning router candidates to choose among)"
+                )
+            return options
+        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+            return options
+        try:
+            from core.llm.learning_router_registry import get_learning_router_instance
+            learning_router = get_learning_router_instance()
+            if learning_router is None:
+                return options
+
+            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}"
+            per_model = learning_router._per_model_routers.get(cache_key)
+            if per_model is None:
+                return options  # cold start — no predictor for this tenant/task
+
+            # Build the prompt features once (the 10-feature contract).
+            estimated_tokens = max(1, len(prompt) // 4)
+            features = learning_router._extract_request_features(
+                type("RR", (), {
+                    "task_type": self._adapt_task_type(task_type),
+                    "estimated_tokens": estimated_tokens,
+                    "requires_reasoning": False,
+                })()
+            )
+
+            # Score each candidate by learned satisfaction, blended by confidence.
+            # Candidates without a predictor keep their BPC-implied position
+            # (score 0 so they sort below learned-favored models but above none).
+            scored = []
+            learned_any = False
+            for idx, (provider_id, model) in enumerate(options):
+                satisfaction = per_model.predict_satisfaction(model, features)
+                if satisfaction is None:
+                    # No predictor for this model — keep BPC order via a small
+                    # negative score so it sorts after learned-positive models.
+                    scored.append((-(idx * 0.001), provider_id, model))
+                else:
+                    blend = per_model.confidence(model)
+                    score = blend * satisfaction
+                    scored.append((score, provider_id, model))
+                    if blend > 0:
+                        learned_any = True
+
+            if not learned_any:
+                return options  # no predictor had enough data to influence
+
+            # Stable sort by learned score descending (ties keep BPC order).
+            scored.sort(key=lambda t: -t[0])
+            reranked = [(pid, mdl) for _, pid, mdl in scored]
+
+            # Mint a routing_result_id and stash the prompt features under it
+            # so the outcome-observation hook can recover the REAL features
+            # (not task-level defaults) when feedback arrives. This closes the
+            # train/serve-skew gap: predictors train on the same features used
+            # to make the decision.
+            import uuid as _uuid
+            decision_id = str(_uuid.uuid4())
+            learning_router._routing_decisions[decision_id] = features
+            # Bound the decision store (R17-2 pattern).
+            if len(learning_router._routing_decisions) > learning_router._max_routing_decisions:
+                _overflow = len(learning_router._routing_decisions) - learning_router._max_routing_decisions
+                for _stale in list(learning_router._routing_decisions.keys())[:_overflow]:
+                    del learning_router._routing_decisions[_stale]
+            self._pending_routing_result_id = decision_id
+
+            logger.info(
+                f"[LearningRouter] Re-ranked {len(reranked)} candidates for "
+                f"{cache_key} (learned signal applied, decision_id={decision_id[:8]})"
+            )
+            return reranked
+        except Exception as e:
+            logger.debug(f"Learning-router re-rank skipped (non-fatal): {e}")
+            return options
 
     async def generate_with_cognitive_tier(
         self,
@@ -1723,7 +2062,14 @@ class BYOKHandler:
                                 )
                     except Exception as cost_err:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
-                        
+
+                    # Learning-router outcome observation (structured success).
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=str(result), finish_reason="stop",
+                        success=True, cost=None, latency_ms=0.0,
+                        schema_error=False,
+                    )
                     return result
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
@@ -1743,6 +2089,17 @@ class BYOKHandler:
                         or "validation" in str(attempt_err).lower()
                     )
                     last_was_schema_error = is_schema_err
+                    # Learning-router outcome observation (structured failure).
+                    # schema_error=True tells assess_response_quality this was a
+                    # validation failure (not a transient provider error), so the
+                    # predictor learns model X fails structured output for this task.
+                    await self._record_outcome_feedback(
+                        model=model, provider_id=provider_id, task_type=task_type,
+                        content=None, finish_reason=None,
+                        success=not is_schema_err, cost=None, latency_ms=0.0,
+                        schema_error=is_schema_err,
+                        exception=attempt_err if not is_schema_err else None,
+                    )
                     # Fall through to the cascade check below (no continue).
 
                 # ========================================================
@@ -1975,7 +2332,8 @@ class BYOKHandler:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
-        db = None
+        db = None,
+        task_type: Optional[str] = "chat",
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -2078,6 +2436,13 @@ class BYOKHandler:
                 latency_ms = (time.time() - request_start) * 1000
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
 
+                # Learning-router outcome observation (streaming success).
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                    content="(streamed)", finish_reason="stop",
+                    success=True, cost=None, latency_ms=latency_ms,
+                )
+
                 # Success! Return from the function
                 return
 
@@ -2089,8 +2454,15 @@ class BYOKHandler:
                 try:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
-                except:
-                    pass  # Don't let health monitoring errors affect primary flow
+                except Exception:                     pass  # Don't let health monitoring errors affect primary flow
+
+                # Learning-router outcome observation (streaming failure).
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                    content=None, finish_reason=None,
+                    success=False, cost=None, latency_ms=0.0,
+                    exception=e,
+                )
 
                 # If this is not the last provider, try the next one
                 if attempt_provider_id != provider_order[-1]:

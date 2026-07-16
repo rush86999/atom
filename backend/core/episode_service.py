@@ -13,7 +13,7 @@ This service handles:
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any, Literal
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, text, update, cast, String
+from sqlalchemy import func, and_, or_, text, update, cast, String, Float
 import logging
 import asyncio
 import uuid
@@ -22,7 +22,7 @@ from enum import Enum
 
 from core.models import (
     AgentEpisode, AgentExecution, AgentRegistry, EpisodeOutcome,
-    AgentStatus, GraduationExam
+    AgentStatus, GraduationExam, EpisodeFeedback
 )
 from core.database import get_db
 from core.lancedb_service import LanceDBService
@@ -125,7 +125,7 @@ def _get_canvas_summary_service(workspace_id: str):
          raise ValueError("workspace_id must be provided and cannot be 'default'")
     global _canvas_summary_service
     if _canvas_summary_service is None:
-        from core.canvas_summary_service import CanvasSummaryService
+        from core.llm.canvas_summary_service import CanvasSummaryService
         _canvas_summary_service = CanvasSummaryService(workspace_id)
     return _canvas_summary_service
 
@@ -313,10 +313,52 @@ class EpisodeService:
             ).first()
 
             if not execution or not execution.metadata_json:
+                # Still try to capture canvas actions by session/time range.
+                from core.models import CanvasAudit
+                from sqlalchemy import desc
+                session_id = execution.session_id if execution else None
+                if session_id:
+                    canvas_audits = self.db.query(CanvasAudit).filter(
+                        CanvasAudit.session_id == session_id,
+                        CanvasAudit.created_at >= execution.created_at,
+                    ).order_by(desc(CanvasAudit.created_at)).limit(10).all()
+                    if canvas_audits:
+                        return {
+                            "canvas_action_ids": [a.id for a in canvas_audits],
+                            "canvas_action_count": len(canvas_audits),
+                            "canvas_snapshots": [
+                                {"canvas_id": a.canvas_id, "type": a.canvas_type,
+                                 "action": a.action_type,
+                                 "details": (a.details_json or {}) if i < 5 else None}
+                                for i, a in enumerate(canvas_audits)
+                            ],
+                            "presentation_summary": f"Canvas interactions: {len(canvas_audits)} actions across {len(set(a.canvas_id for a in canvas_audits))} canvases",
+                        }
                 return {}
 
             canvas_id = execution.metadata_json.get("canvas_id")
             if not canvas_id:
+                # Fall back to session-based canvas capture (same as segmentation path).
+                from core.models import CanvasAudit
+                from sqlalchemy import desc
+                session_id = execution.session_id if execution else None
+                if session_id:
+                    canvas_audits = self.db.query(CanvasAudit).filter(
+                        CanvasAudit.session_id == session_id,
+                        CanvasAudit.created_at >= execution.created_at,
+                    ).order_by(desc(CanvasAudit.created_at)).limit(10).all()
+                    if canvas_audits:
+                        return {
+                            "canvas_action_ids": [a.id for a in canvas_audits],
+                            "canvas_action_count": len(canvas_audits),
+                            "canvas_snapshots": [
+                                {"canvas_id": a.canvas_id, "type": a.canvas_type,
+                                 "action": a.action_type,
+                                 "details": (a.details_json or {}) if i < 5 else None}
+                                for i, a in enumerate(canvas_audits)
+                            ],
+                            "presentation_summary": f"Canvas interactions: {len(canvas_audits)} actions across {len(set(a.canvas_id for a in canvas_audits))} canvases",
+                        }
                 return {}
 
             # Fetch canvas context for counts (cached in CanvasContextProvider)

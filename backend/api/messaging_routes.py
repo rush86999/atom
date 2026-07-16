@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
-from core.database import get_db_session
+from core.database import get_db
 from core.models import ProactiveMessage
 # ProactiveMessageStatus may not be defined in all deployments; import defensively
 try:  # pragma: no cover
@@ -86,7 +86,7 @@ class RejectMessageRequest(BaseModel):
 async def send_proactive_message(
     request: CreateProactiveMessageRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Send a proactive message from an agent.
@@ -117,7 +117,7 @@ async def send_proactive_message(
 @router.post("/proactive/schedule", response_model=ProactiveMessageResponse)
 async def schedule_proactive_message(
     request: CreateProactiveMessageRequest,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Schedule a proactive message for later delivery.
@@ -152,7 +152,7 @@ async def get_pending_messages(
     platform: Optional[str] = None,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Get all pending messages awaiting approval or sending.
@@ -176,7 +176,7 @@ async def approve_proactive_message(
     request: ApproveMessageRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Approve a pending proactive message (for INTERN agents).
@@ -197,7 +197,7 @@ async def approve_proactive_message(
 async def reject_proactive_message(
     message_id: str,
     request: RejectMessageRequest,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Reject a pending proactive message.
@@ -218,7 +218,7 @@ async def reject_proactive_message(
 @router.delete("/proactive/cancel/{message_id}", response_model=ProactiveMessageResponse)
 async def cancel_proactive_message(
     message_id: str,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Cancel a scheduled or pending message.
@@ -240,7 +240,7 @@ async def get_message_history(
     message_status: Optional[str] = None,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Get message history with optional filters.
@@ -267,7 +267,7 @@ async def get_message_history(
 @router.get("/proactive/{message_id}", response_model=ProactiveMessageResponse)
 async def get_proactive_message(
     message_id: str,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """Get a specific proactive message by ID."""
     service = ProactiveMessagingService(db)
@@ -283,7 +283,7 @@ async def get_proactive_message(
 @router.post("/proactive/_send_scheduled")
 async def send_scheduled_messages(
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db),
 ):
     """
     Internal endpoint to send scheduled messages.

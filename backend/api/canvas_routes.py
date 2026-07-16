@@ -110,6 +110,155 @@ async def list_canvas_types(
 
 
 # ============================================================================
+# Recordings (list + detail)
+#
+# IMPORTANT: these static-path GET routes MUST be registered BEFORE the
+# parameterized GET /{canvas_id} route below. FastAPI matches routes in
+# registration order, so /{canvas_id} would otherwise shadow /recordings
+# (resolving canvas_id="recordings") and /recordings/{recording_id}. This
+# is the classic FastAPI route-shadowing bug.
+# ============================================================================
+@router.get("/recordings")
+async def list_recordings(
+    canvas_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List canvas recordings."""
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+
+    recordings = await service.list_recordings(
+        user_id=str(current_user.id),
+        agent_id=agent_id,
+        limit=limit
+    )
+
+    return router.success_response(data=recordings)
+
+
+@router.get("/recordings/{recording_id}")
+async def get_recording(
+    recording_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get recording details and timeline.
+
+    SECURITY: Verifies the recording belongs to the authenticated user
+    before returning data (prevents IDOR).
+    """
+    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+
+    recording = await service.get_recording(recording_id)
+    if not recording:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    # Ownership check — recording["user_id"] must match current_user.id
+    if str(recording.get("user_id", "")) != str(current_user.id):
+        # Return 404 (not 403) to avoid leaking existence of other users' recordings
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    return router.success_response(data=recording)
+
+
+# ============================================================================
+# Canvas CRUD — Read, Update, Delete (Create happens via agent tools)
+# ============================================================================
+
+@router.get("/{canvas_id}")
+async def read_canvas_content(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Read the current content of a canvas by ID (from the audit trail)."""
+    from tools.canvas_crud_tool import read_canvas
+    result = await read_canvas(str(current_user.id), canvas_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error"))
+    return result
+
+
+@router.put("/{canvas_id}")
+async def update_canvas_content(
+    canvas_id: str,
+    content: Dict[str, Any],
+    canvas_type: str = "generic",
+    title: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Update the content of an existing canvas."""
+    from tools.canvas_crud_tool import update_canvas_content as update_fn
+    result = await update_fn(
+        str(current_user.id), canvas_id, content, canvas_type, title
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.delete("/{canvas_id}")
+async def delete_canvas(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete (close) a specific canvas by ID."""
+    from tools.canvas_crud_tool import delete_canvas as delete_fn
+    result = await delete_fn(str(current_user.id), canvas_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.get("/{canvas_id}/history")
+async def get_canvas_history(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get the version history (audit trail) for a canvas."""
+    from core.database import get_db_session
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    try:
+        with get_db_session() as db:
+            audits = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).order_by(desc(CanvasAudit.created_at)).limit(50).all()
+
+            history = [
+                {
+                    "audit_id": a.id,
+                    "canvas_id": a.canvas_id,
+                    "canvas_type": a.canvas_type,
+                    "action_type": a.action_type,
+                    "user_id": a.user_id,
+                    "details": a.details_json,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in audits
+            ]
+        return {"success": True, "canvas_id": canvas_id, "history": history, "count": len(history)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/")
+async def list_user_canvases(
+    canvas_type: Optional[str] = None,
+    include_deleted: bool = False,
+    current_user: User = Depends(get_current_user)
+):
+    """List all canvases for the current user."""
+    from tools.canvas_crud_tool import list_canvases
+    result = await list_canvases(
+        str(current_user.id), canvas_type, include_deleted
+    )
+    return result
+
+
+# ============================================================================
 # Context Management (Memory & Learning)
 # ============================================================================
 
@@ -247,8 +396,27 @@ async def submit_canvas(
                 status_code=403
             )
 
-    # TODO: Process form submission, save to database, etc.
-    # For now, return success
+    # Persist the submission via the canvas audit trail.
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        with get_db_session() as db:
+            audit = CanvasAudit(
+                canvas_id=request.canvas_id,
+                canvas_type="form",
+                action_type="submit",
+                user_id=str(current_user.id) if current_user else "system",
+                details_json={
+                    "form_data": request.data if hasattr(request, 'data') else {},
+                    "agent_id": request.agent_id if hasattr(request, 'agent_id') else None,
+                    "submitted_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            db.add(audit)
+            db.commit()
+    except Exception as e:
+        logger.warning(f"Canvas submit persistence failed (non-fatal): {e}")
+
     return router.success_response(
         data={
             "canvas_id": request.canvas_id,
@@ -285,49 +453,9 @@ async def start_recording(
     )
 
 
-@router.get("/recordings")
-async def list_recordings(
-    canvas_id: Optional[str] = None,
-    agent_id: Optional[str] = None,
-    limit: int = 20,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """List canvas recordings."""
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
-    
-    recordings = await service.list_recordings(
-        user_id=str(current_user.id),
-        agent_id=agent_id,
-        limit=limit
-    )
-    
-    return router.success_response(data=recordings)
-
-
-@router.get("/recordings/{recording_id}")
-async def get_recording(
-    recording_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get recording details and timeline.
-
-    SECURITY: Verifies the recording belongs to the authenticated user
-    before returning data (prevents IDOR).
-    """
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
-
-    recording = await service.get_recording(recording_id)
-    if not recording:
-        raise HTTPException(status_code=404, detail="Recording not found")
-
-    # Ownership check — recording["user_id"] must match current_user.id
-    if str(recording.get("user_id", "")) != str(current_user.id):
-        # Return 404 (not 403) to avoid leaking existence of other users' recordings
-        raise HTTPException(status_code=404, detail="Recording not found")
-
-    return router.success_response(data=recording)
+# NOTE: GET /recordings and GET /recordings/{recording_id} are registered
+# earlier in this module (before GET /{canvas_id}) to avoid route shadowing.
+# See the "Recordings (list + detail)" section above.
 
 
 # ============================================================================

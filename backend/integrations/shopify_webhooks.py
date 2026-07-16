@@ -32,7 +32,7 @@ async def get_workspace_id(shop_domain: str, db: Session) -> str:
     """Resolve workspace_id from shop domain"""
     store = db.query(EcommerceStore).filter(EcommerceStore.shop_domain == shop_domain).first()
     if store:
-        return store.workspace_id
+        return store.tenant_id
     
     # Fallback/Default for testing if not found
     logger.warning(f"No store found for domain {shop_domain}, using 'default'")
@@ -54,22 +54,27 @@ async def shopify_order_created(
 
     payload = json.loads(data)
     shop_domain = x_shopify_shop_domain or payload.get("domain")
-    
+
+    # Validate required fields before DB access so malformed payloads get a
+    # clean 400 instead of an IntegrityError 500.
+    shopify_cust = payload.get("customer", {})
+    if not shopify_cust.get("email"):
+        raise HTTPException(status_code=400, detail="Missing customer.email in webhook payload")
+
     # 1. Identity Resolution
     workspace_id = await get_workspace_id(shop_domain, db)
-    
+
     resolver = CustomerResolutionEngine(db)
-    shopify_cust = payload.get("customer", {})
     customer = resolver.resolve_customer(
         workspace_id,
         shopify_cust.get("email"),
         shopify_cust.get("first_name"),
         shopify_cust.get("last_name")
     )
-    
+
     # 2. Persist Order
     existing_order = db.query(EcommerceOrder).filter(
-        EcommerceOrder.workspace_id == workspace_id,
+        EcommerceOrder.tenant_id == workspace_id,
         EcommerceOrder.external_id == str(payload.get("id"))
     ).first()
     
@@ -139,7 +144,7 @@ async def shopify_order_updated(
     workspace_id = await get_workspace_id(shop_domain, db)
     
     order = db.query(EcommerceOrder).filter(
-        EcommerceOrder.workspace_id == workspace_id,
+        EcommerceOrder.tenant_id == workspace_id,
         EcommerceOrder.external_id == str(payload.get("id"))
     ).first()
     
@@ -188,7 +193,7 @@ async def shopify_refund_created(
     
     order_id = str(payload.get("order_id"))
     order = db.query(EcommerceOrder).filter(
-        EcommerceOrder.workspace_id == workspace_id,
+        EcommerceOrder.tenant_id == workspace_id,
         EcommerceOrder.external_id == order_id
     ).first()
     

@@ -217,8 +217,7 @@ async def search_documents(
              if isinstance(meta, str):
                   try:
                        meta = json.loads(meta)
-                  except:
-                       meta = {}
+                  except Exception:                        meta = {}
              
              results.append(SearchResult(
                   id=str(r.get("id", uuid.uuid4())), # Fallback ID if not in result

@@ -55,8 +55,16 @@ _BASELINE_EGRESS_HOSTS: Tuple[str, ...] = (
     "api.openai.com",
     "generativelanguage.googleapis.com",
     "api.deepseek.com",
-    "api.minimaxi.com",  # MiniMax
+    "api.minimax.io",  # MiniMax (correct domain — was api.minimaxi.com)
     "api.mistral.ai",
+    "open.bigmodel.cn",  # Zhipu AI (GLM family)
+    "api.moonshot.cn",  # Moonshot AI (Kimi)
+    "openrouter.ai",  # OpenRouter gateway
+    "api.groq.com",  # Groq (ultra-fast inference)
+    "api.deepinfra.com",  # DeepInfra
+    "dashscope-intl.aliyuncs.com",  # Alibaba DashScope (Qwen)
+    "dashscope.aliyuncs.com",  # Alibaba DashScope (China)
+    "api.xiaomi.com",  # Xiaomi
     # Package mirrors (required for any tool that pip-installs)
     "pypi.org",
     "files.pythonhosted.org",
@@ -74,8 +82,16 @@ _LLM_PROVIDER_HOSTS: Tuple[str, ...] = (
     "api.openai.com",
     "generativelanguage.googleapis.com",
     "api.deepseek.com",
-    "api.minimaxi.com",
+    "api.minimax.io",
     "api.mistral.ai",
+    "open.bigmodel.cn",
+    "api.moonshot.cn",
+    "openrouter.ai",
+    "api.groq.com",
+    "api.deepinfra.com",
+    "dashscope-intl.aliyuncs.com",
+    "dashscope.aliyuncs.com",
+    "api.xiaomi.com",
 )
 
 

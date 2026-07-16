@@ -12,7 +12,7 @@ interface ChatInputProps {
     isUploading: boolean;
     activeAttachments: any[];
     setActiveAttachments: React.Dispatch<React.SetStateAction<any[]>>;
-    handleSend: () => Promise<void>;
+    handleSend: (overrideText?: string) => Promise<void>;
     handleStop: () => void;
     setIsVoiceModeOpen: (isOpen: boolean) => void;
     uploadFile: (file: File) => Promise<any>;

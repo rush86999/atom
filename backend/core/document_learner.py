@@ -10,7 +10,16 @@ from core.knowledge_extractor import KnowledgeExtractor
 
 logger = logging.getLogger(__name__)
 
-import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
+# pypdf is the current package name; PyPDF2 is the legacy name (same maintainers).
+# Support both so the learner works regardless of which is installed.
+try:
+    import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
+except ImportError:  # pragma: no cover - depends on installed package
+    try:
+        import PyPDF2  # type: ignore
+    except ImportError:
+        PyPDF2 = None  # type: ignore
+        logger.warning("Neither pypdf nor PyPDF2 is installed; PDF learning will be unavailable")
 
 
 class DocumentLifecycleLearner:
@@ -88,6 +97,9 @@ class DocumentLifecycleLearner:
 
     def _parse_pdf(self, file_path: str) -> str:
         """Parses PDF document into text."""
+        if PyPDF2 is None:
+            logger.warning(f"Cannot parse PDF {file_path}: no PDF library installed")
+            return ""
         try:
             text = []
             with open(file_path, "rb") as f:

@@ -120,6 +120,37 @@ async def register_user(
             )
         db.refresh(user)
 
+        # Create a default tenant + workspace so the new user has context for
+        # every downstream feature (chat, agents, accounting). Without this,
+        # tenant_id/workspace_id are None and first-use silently breaks.
+        try:
+            from core.models import Tenant, Workspace, PlanType
+            import uuid as _uuid
+            tenant = Tenant(
+                id=str(_uuid.uuid4()),
+                name=f"{user_data.first_name or user.email}'s Workspace",
+                subdomain=f"user-{user.id[:8]}",
+                plan_type=PlanType.FREE.value,
+                edition="personal",
+            )
+            db.add(tenant)
+            db.flush()
+
+            workspace = Workspace(
+                id=str(_uuid.uuid4()),
+                name="Default",
+                tenant_id=tenant.id,
+            )
+            db.add(workspace)
+            db.flush()
+
+            user.tenant_id = tenant.id
+            user.workspace_id = workspace.id
+            db.commit()
+            db.refresh(user)
+        except Exception as ctx_err:
+            logger.warning(f"Could not create default tenant/workspace for user {user.id}: {ctx_err}")
+
         logger.info(f"User registered: {user.email}")
 
         return router.success_response(
@@ -363,6 +394,8 @@ async def get_current_user(
                 "last_name": user.last_name,
                 "role": user.role,
                 "status": user.status,
+                "workspace_id": user.workspace_id,
+                "tenant_id": user.tenant_id,
                 "created_at": user.created_at.isoformat() if user.created_at else None,
                 "last_login": user.last_login.isoformat() if user.last_login else None
             },

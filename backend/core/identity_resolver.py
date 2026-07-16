@@ -21,13 +21,13 @@ class CustomerResolutionEngine:
         """
         # 1. Check if EcommerceCustomer exists
         customer = self.db.query(EcommerceCustomer).filter(
-            EcommerceCustomer.workspace_id == workspace_id,
+            EcommerceCustomer.tenant_id == workspace_id,
             EcommerceCustomer.email == email
         ).first()
 
         if not customer:
             customer = EcommerceCustomer(
-                workspace_id=workspace_id,
+                tenant_id=workspace_id,
                 email=email,
                 first_name=first_name,
                 last_name=last_name
@@ -42,7 +42,7 @@ class CustomerResolutionEngine:
         # Link to CRM (Lead/Contact)
         if not customer.crm_contact_id:
             lead = self.db.query(Lead).filter(
-                Lead.workspace_id == workspace_id,
+                Lead.tenant_id == workspace_id,
                 Lead.email == email
             ).first()
             if lead:

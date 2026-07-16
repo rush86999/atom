@@ -10,7 +10,10 @@
 **Automate your workflows by talking to an AI — and let it remember, search, and handle tasks like a real assistant.**
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+[![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-204%2B-brightgreen)]()
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
+[![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
 
 </div>
 
@@ -222,9 +225,9 @@ Durable-fact extraction layer that survives context compression — the agent re
 
 ### 🔍 Knowledge Graph & GraphRAG ✨ Enhanced 2026
 Recursive knowledge retrieval via BFS traversal, canonical anchoring to database records, bidirectional sync, and D3-powered visual explorer
-- **Multi-Hop Expansion**: Cue-driven activation for entity relationships
+- **Multi-Hop Expansion**: Cue-driven activation for entity relationships — wired into the production `local_search` path (scored, prioritized multi-hop paths via `SQLMultiHopExpander`)
 - **Dynamic Graph Construction**: Incremental updates without full rebuilds
-- **Enhanced Community Detection**: Leiden algorithm clustering
+- **Enhanced Community Detection**: Leiden algorithm clustering (with Louvain fallback) — wired into `GraphRAGEngine.build_communities`, populating the `graph_communities` table for global search
 
 [GraphRAG Documentation →](docs/intelligence/graphrag.md)
 
@@ -256,23 +259,26 @@ Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major
 - Enhanced community detection (Leiden algorithm)
 
 **Phase 3: Learning-Based LLM Routing** ✅ Complete
-- RouteLLM training from user preferences
-- Predictive cache warming and optimization
-- Additional 15% cost reduction on top of cache savings
+- Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes
+- DB-persisted feedback (`llm_routing_feedback`), live `/api/chat/feedback`, quality signals
+- Model visibility badge on chat responses + routing dashboard at `/settings/routing`
+- Flag-gated (`ATOM_LEARNING_ROUTER`, default off) — augments, doesn't replace, the Cognitive Tier System
+- See [docs/architecture/LEARNING_LLM_ROUTER.md](docs/architecture/LEARNING_LLM_ROUTER.md)
 
 **Phase 4: Zero-Trust Federation Identity** ✅ Complete
-- DID (Decentralized Identifiers) for cryptographic identity
-- Verifiable Credentials (VCs) for signed claims
-- Zero-trust security framework with per-request verification
+- DID (Decentralized Identifiers) for cryptographic identity — reachable via `POST /api/federation/dids`
+- Verifiable Credentials (VCs) for signed claims — reachable via `POST /api/federation/credentials`
+- Zero-trust security framework with per-request verification — reachable via `POST /api/federation/verify`
 - Automatic credential rotation (90-day)
+- Note: identity/federation state is in-memory (resets on restart); DB persistence is a documented follow-up
 
 **Phase 5: Enhanced Orchestration Patterns** ✅ Complete
-- Conductor Agent (5 execution strategies)
+- Conductor Agent (5 execution strategies: SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE) — wired into the live workflow engine; reachable via `POST /api/v1/workflows/conductor/execute`
 - Workflow State Machine (validated transitions with rollback)
-- Event Bus (pub/sub event-driven triggering)
-- Workflow Templates & Composition (8 primitives)
+- Event Bus (pub/sub event-driven triggering) — every live workflow publishes lifecycle events (WORKFLOW_STARTED/STEP_STARTED/STEP_COMPLETED/STEP_FAILED/WORKFLOW_COMPLETED)
+- Workflow Templates & Composition (9 primitives: SEQUENCE, PARALLEL, CHOICE, MERGE, SPLIT, JOIN, LOOP, TRY_CATCH, COMPENSATE)
 
-**Performance**: 193 tests passing, comprehensive validation metrics documented
+**Performance**: 27,000+ tests across unit, integration, E2E, and regression suites; comprehensive validation metrics documented
 
 [Enhancement Plan →](archive/root_files/ATOM_ENHANCEMENT_PLAN.md) | [Validation Metrics →](backend/docs/VALIDATION_METRICS.md)
 
@@ -330,7 +336,7 @@ Commercial marketplace for agents, domains, components, and skills at [atomagent
 
 ## Security & Privacy
 
-Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, **5-phase execution sandbox layer** (filesystem scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge — Rounds 43-47), comprehensive testing (495+ tests), AI-enhanced bug discovery, and stress testing
+Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, **5-phase execution sandbox layer** (filesystem scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge — Rounds 43-47), comprehensive testing (27,000+ tests across unit, integration, E2E, and regression suites), AI-enhanced bug discovery, and stress testing
 
 [Security Documentation →](docs/security/) | [Sandbox Layer →](docs/architecture/SANDBOX_LAYER.md) | [Testing Guide →](backend/tests/e2e_ui/README.md)
 
@@ -407,7 +413,7 @@ See [Quality Assurance Guide](docs/testing/QUALITY_ASSURANCE.md) for details.
 
 <div align="center">
 
-**Built with** [ActivePieces](https://www.activepieces.com/) **|** [LangChain](https://langchain.com/) **|** [FastAPI](https://fastapi.tiangolo.com/) **|** [Next.js](https://nextjs.org/)
+**Built with** [FastAPI](https://fastapi.tiangolo.com/) **|** [SQLAlchemy](https://www.sqlalchemy.org/) **|** [LangChain](https://langchain.com/) **|** [Playwright](https://playwright.dev/) **|** [Next.js](https://nextjs.org/)
 
 **Experience the future of self-hosted AI automation.**
 

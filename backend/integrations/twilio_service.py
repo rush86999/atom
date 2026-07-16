@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import httpx
+from core.integration_http import IntegrationHTTP
 from fastapi import HTTPException
 import base64
 
@@ -25,6 +26,7 @@ class TwilioService(IntegrationService):
         self.phone_number = config.get("phone_number") or os.getenv("TWILIO_PHONE_NUMBER")
         self.base_url = f"https://api.twilio.com/2010-04-01"
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -65,7 +67,7 @@ class TwilioService(IntegrationService):
             
             url = f"{self.base_url}/Accounts/{self.account_sid}/Messages.json"
             
-            response = await self.client.post(url, headers=headers, data=data)
+            response = await self.http.post("twilio", url, headers=headers, data=data)
             response.raise_for_status()
             
             return response.json()
@@ -97,7 +99,7 @@ class TwilioService(IntegrationService):
             
             url = f"{self.base_url}/Accounts/{self.account_sid}/Messages.json"
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("twilio", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -134,7 +136,7 @@ class TwilioService(IntegrationService):
             
             url = f"{self.base_url}/Accounts/{self.account_sid}/Calls.json"
             
-            response = await self.client.post(url, headers=headers, data=data)
+            response = await self.http.post("twilio", url, headers=headers, data=data)
             response.raise_for_status()
             
             return response.json()
@@ -166,7 +168,7 @@ class TwilioService(IntegrationService):
             
             url = f"{self.base_url}/Accounts/{self.account_sid}/Calls.json"
             
-            response = await self.client.get(url, headers=headers, params=params)
+            response = await self.http.get("twilio", url, headers=headers, params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -187,7 +189,7 @@ class TwilioService(IntegrationService):
             headers = self._get_headers()
             url = f"{self.base_url}/Accounts/{self.account_sid}.json"
             
-            response = await self.client.get(url, headers=headers)
+            response = await self.http.get("twilio", url, headers=headers)
             response.raise_for_status()
             
             return response.json()

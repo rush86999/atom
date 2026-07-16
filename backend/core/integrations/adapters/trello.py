@@ -265,8 +265,7 @@ class TrelloAdapter:
                                     "color": label
                                 }
                             )
-                        except:
-                            pass  # Ignore label errors
+                        except Exception:                             pass  # Ignore label errors
 
                 logger.info(f"Created Trello card {card.get('id')} for workspace {self.workspace_id}")
                 return card

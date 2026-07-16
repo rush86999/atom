@@ -141,11 +141,14 @@ FRONTIER_MODELS: set[str] = {
     # DeepSeek
     "deepseek-reasoner",
     # MiniMax
+    "MiniMax-M3",  # Latest flagship (512K context)
     "minimax-m2.7",
     "minimax-m2",
     # Zhipu AI (GLM family) — GLM-5.2 is the June 2026 flagship
     "glm-5.2",
     "glm-5",
+    # Moonshot AI (Kimi family) — Kimi K2.6 is the 2026 flagship
+    "kimi-k2.6",
 }
 
 # Per-provider flagship for cascade escalation. The escalation target MUST
@@ -156,7 +159,7 @@ _FRONTIER_BY_PROVIDER: dict[str, str] = {
     "anthropic": "claude-3-5-sonnet",
     "deepseek": "deepseek-reasoner",
     "gemini": "gemini-1.5-pro",
-    "minimax": "minimax-m2.7",
+    "minimax": "MiniMax-M3",  # Latest flagship (was minimax-m2.7 — stale)
     "mistral": "mistral-large-latest",
     "qwen": "qwen-max",
     "groq": "llama-3.3-70b-versatile",
@@ -165,6 +168,10 @@ _FRONTIER_BY_PROVIDER: dict[str, str] = {
     "lux": "gpt-4o",  # Lux joins OpenAI family for escalation
     "glm": "glm-5.2",  # Zhipu AI flagship (June 2026)
     "zhipu": "glm-5.2",  # alternate provider key used by learning router
+    "moonshot": "kimi-k2.6",  # Moonshot AI (Kimi) flagship
+    "openrouter": "anthropic/claude-3.5-sonnet",  # OpenRouter cascade target
+    "mistral": "mistral-large-latest",
+    "groq": "llama-3.3-70b-versatile",
 }
 
 

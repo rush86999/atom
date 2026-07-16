@@ -162,11 +162,7 @@ async def login_for_access_token(
         logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500,
-            content={
-                "detail": "Internal Server Error", 
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
+            content={"detail": "An internal error occurred during login. Please try again."}
         )
 
 @router.post("/register", response_model=Token)
@@ -184,10 +180,41 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         role=user_data.role or "member",
         status=UserStatus.ACTIVE
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Create a default tenant + workspace so the new user has context for
+    # every downstream feature (chat, agents, accounting). Without this,
+    # tenant_id/workspace_id are None and first-use silently breaks.
+    try:
+        from core.models import Tenant, Workspace, PlanType
+        import uuid as _uuid
+        tenant = Tenant(
+            id=str(_uuid.uuid4()),
+            name=f"{user_data.first_name or user_data.email}'s Workspace",
+            subdomain=f"user-{new_user.id[:8]}",
+            plan_type=PlanType.FREE.value,
+            edition="personal",
+        )
+        db.add(tenant)
+        db.flush()
+
+        workspace = Workspace(
+            id=str(_uuid.uuid4()),
+            name="Default",
+            tenant_id=tenant.id,
+        )
+        db.add(workspace)
+        db.flush()
+
+        new_user.tenant_id = tenant.id
+        new_user.workspace_id = workspace.id
+        db.commit()
+        db.refresh(new_user)
+    except Exception as ctx_err:
+        logger.warning(f"Could not create default tenant/workspace for user {new_user.id}: {ctx_err}")
     
     # Generate token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

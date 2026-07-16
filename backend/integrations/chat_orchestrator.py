@@ -155,6 +155,9 @@ class ChatOrchestrator:
         self.platform_connectors = {}
         self.ai_engines = {}
         self.tenant_id = tenant_id
+        # Cancellation registry: session_ids that have been cancelled by the user.
+        # Checked between processing steps so a long generation can be halted.
+        self._cancelled_sessions: set = set()
         
         # Initialize LLMService (Unified interface replaces direct clients)
         self.llm_service = None
@@ -326,10 +329,20 @@ class ChatOrchestrator:
             history = session.get("history", [])[-6:]  # Last 3 turns
 
             # 1. Try Qwen AI conversational response first (real AI reply)
-            ai_message = await self._get_qwen_response(message, history)
+            ai_response = await self._get_qwen_response(message, history)
+
+            # Check for cancellation between steps.
+            if self._is_cancelled(session_id):
+                return {"success": False, "message": "Request cancelled by user.",
+                        "session_id": session_id, "cancelled": True}
 
             # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
+
+            # Check for cancellation between steps.
+            if self._is_cancelled(session_id):
+                return {"success": False, "message": "Request cancelled by user.",
+                        "session_id": session_id, "cancelled": True}
 
             # 3. Route to appropriate feature handlers (for data lookups)
             feature_responses = await self._route_to_features(
@@ -337,10 +350,21 @@ class ChatOrchestrator:
             )
 
             # 4. If AI gave a real response, use it; otherwise use template
-            if ai_message:
-                main_message = ai_message
+            #    Carry model/provider through so the UI can surface which model
+            #    answered and feedback can be tied to a routing decision.
+            used_model = None
+            used_provider = None
+            if ai_response:
+                main_message = ai_response["content"]
+                used_model = ai_response.get("model")
+                used_provider = ai_response.get("provider")
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
+                # The response came from a template, not an LLM. Label it
+                # honestly so the badge renders ("template") rather than
+                # silently absent, and feedback records a real model id.
+                used_model = "template"
+                used_provider = "template"
 
             # Build combined data from feature responses
             combined_data = {}
@@ -361,7 +385,9 @@ class ChatOrchestrator:
                 "suggested_actions": suggested_actions[:5],
                 "requires_confirmation": False,
                 "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "model": used_model,
+                "provider": used_provider,
             }
 
             # Update session with new context
@@ -373,8 +399,13 @@ class ChatOrchestrator:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
 
-    async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
-        """Get a real conversational AI response using unified LLMService."""
+    async def _get_qwen_response(self, message: str, history: list) -> Optional[Dict[str, Any]]:
+        """Get a real conversational AI response using unified LLMService.
+
+        Returns ``{"content": str, "model": str, "provider": str}`` on success
+        (so model identity can be surfaced to the UI and tied to feedback), or
+        ``None`` on failure.
+        """
         if not self.llm_service:
             return None
 
@@ -413,8 +444,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             )
             
             if response_data.get("success"):
-                return response_data.get("content", "").strip()
-            
+                return {
+                    "content": response_data.get("content", "").strip(),
+                    "model": response_data.get("model"),
+                    "provider": response_data.get("provider"),
+                }
+
             return None
         except Exception as e:
             logger.warning(f"Unified conversational response failed: {e}")
@@ -1162,13 +1197,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return {"success": True, "data": {"message": "Ecommerce logic here"}}
 
     def _get_or_create_session(self, user_id: str, session_id: str) -> Dict[str, Any]:
-        if session_id not in self.conversation_sessions:
-            self.conversation_sessions[session_id] = {
-                "id": session_id,
-                "user_id": user_id,
-                "created_at": datetime.now().isoformat(),
-                "history": []
-            }
+        # Security: verify ownership — if the session exists but belongs to a
+        # different user, reject (prevents cross-user session IDOR).
+        if session_id in self.conversation_sessions:
+            existing = self.conversation_sessions[session_id]
+            if existing.get("user_id") and str(existing["user_id"]) != str(user_id):
+                # Don't reveal the session exists — just create a fresh one.
+                session_id = str(uuid.uuid4())
+                self.conversation_sessions[session_id] = {
+                    "id": session_id,
+                    "user_id": user_id,
+                    "created_at": datetime.now().isoformat(),
+                    "history": []
+                }
+            return self.conversation_sessions[session_id]
+
+        # New session — create in-memory AND persist the ChatSession row.
+        self.conversation_sessions[session_id] = {
+            "id": session_id,
+            "user_id": user_id,
+            "created_at": datetime.now().isoformat(),
+            "history": []
+        }
+        # Persist the session row so it survives restarts and appears in the
+        # session list sidebar.
+        try:
+            if self.session_manager:
+                self.session_manager.create_session(
+                    user_id=str(user_id),
+                    session_id=session_id,
+                )
+        except Exception as e:
+            logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
         return self.conversation_sessions[session_id]
 
     def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
@@ -1178,6 +1238,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "intent": intent,
             "timestamp": datetime.now().isoformat()
         })
+
+        # Persist to DB so chat history survives restarts. Previously this was
+        # in-memory only — every server restart silently deleted all conversations.
+        # Uses the ChatMessage model: conversation_id (not session_id), tenant_id
+        # (required), created_at (server-default, no timestamp kwarg).
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+            session_id = session.get("id")
+            tenant_id = self.tenant_id or "default"
+            if session_id:
+                with get_db_session() as db:
+                    # Store the user message.
+                    db.add(ChatMessageModel(
+                        conversation_id=session_id,
+                        tenant_id=tenant_id,
+                        role="user",
+                        content=message,
+                    ))
+                    # Store the assistant response.
+                    resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
+                    if resp_content:
+                        db.add(ChatMessageModel(
+                            conversation_id=session_id,
+                            tenant_id=tenant_id,
+                            role="assistant",
+                            content=resp_content,
+                        ))
+        except Exception as e:
+            logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
 
     def _generate_error_response(self, error: str, session_id: str) -> Dict[str, Any]:
         return {
@@ -1232,6 +1322,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "error": "agent_request_failed",
                 "feature": "agent"
             }
+
+    def request_cancellation(self, session_id: str) -> None:
+        """Mark a session's in-flight processing as cancelled.
+
+        Called by the POST /api/chat/cancel/{session_id} endpoint. The
+        orchestrator checks _is_cancelled between processing steps and
+        returns early if set. Best-effort: if the LLM call is already
+        in-flight, the cancel takes effect after it returns.
+        """
+        self._cancelled_sessions.add(session_id)
+
+    def _is_cancelled(self, session_id: str) -> bool:
+        """Check if a session has been cancelled and clear the flag."""
+        if session_id in self._cancelled_sessions:
+            self._cancelled_sessions.discard(session_id)
+            return True
+        return False
+
 
 # Global Chat Orchestrator Instance
 chat_orchestrator = ChatOrchestrator()

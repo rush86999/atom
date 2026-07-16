@@ -247,7 +247,7 @@ class BackfillJobQueue:
                 try:
                     import json
                     job_data[key] = json.loads(value)
-                except:
+                except Exception:
                     job_data[key] = value
             else:
                 job_data[key] = value

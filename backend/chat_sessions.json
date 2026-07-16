@@ -3804,5 +3804,14 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "test_empty_history_001",
+    "user_id": "e46a9fb7-6179-4bb7-b072-d40b3d0f616c",
+    "created_at": "2026-07-13T13:48:08.354488",
+    "last_active": "2026-07-13T13:48:08.354488",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

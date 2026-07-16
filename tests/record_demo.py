@@ -1,15 +1,28 @@
 import time
 import os
+from pathlib import Path
 import cv2
 import numpy as np
 import requests
 from selenium import webdriver
 
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-output_dir = r"C:\Users\Mannan Bajaj\.gemini\antigravity\brain\a4cfcbdf-5faa-4879-9494-18629dcea59e"
+
+# Output directory: override via DEMO_OUTPUT_DIR env var, otherwise default to a
+# repo-local ./demo/recordings/ that works on any OS (was previously a hardcoded
+# Windows path that only worked on one developer's machine).
+_output_env = os.getenv("DEMO_OUTPUT_DIR")
+if _output_env:
+    output_dir = _output_env
+else:
+    output_dir = str(Path(__file__).resolve().parents[1] / "demo" / "recordings")
+os.makedirs(output_dir, exist_ok=True)
+
+# Frontend base URL: override via FRONTEND_URL (default Next.js dev port 3000).
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 try:
-    print("Launching Chrome in background...")
+    print(f"Launching Chrome in background... (output: {output_dir})")
     options = webdriver.ChromeOptions()
     options.add_argument('--window-size=1920,1080')
     options.add_argument('--headless=new')
@@ -32,7 +45,7 @@ try:
     ]
 
     for route in routes:
-        url = f"http://localhost:3000{route['url']}"
+        url = f"{frontend_url}{route['url']}"
         print(f"\nPre-warming {url} to trigger Next.js cache...")
         try:
             # We hit the endpoint with requests first so Webpack handles the long SSR compilation.

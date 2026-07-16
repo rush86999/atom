@@ -40,8 +40,20 @@ except (ImportError, KeyError):
     pyautogui = None
 
 from pathlib import Path
-import cv2
 import numpy as np
+
+# cv2 (OpenCV) is an optional dependency used only by some computer-vision
+# helpers in this module. It is NOT used by any code path below (no `cv2.`
+# references exist here), but importing it unconditionally breaks the whole
+# chat/agent/automation import chain on systems where OpenCV isn't installed
+# (chat_routes → chat_orchestrator → agent_service → lux_model → cv2).
+# Guard it like the PIL/pyautogui optional imports above.
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except (ImportError, KeyError):
+    CV2_AVAILABLE = False
+    cv2 = None
 
 from core.lux_config import lux_config
 

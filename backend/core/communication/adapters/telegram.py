@@ -103,7 +103,7 @@ class TelegramAdapter(PlatformAdapter):
                 file_path = res.json().get("result", {}).get("file_path")
                 if not file_path:
                     return None
-                
+
                 # 2. Download
                 download_url = f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
                 media_res = await client.get(download_url)
@@ -112,3 +112,31 @@ class TelegramAdapter(PlatformAdapter):
         except Exception as e:
             logger.error(f"Telegram media download failed: {e}")
             return None
+
+    async def get_updates(
+        self, limit: int = 100, offset: Optional[int] = None, timeout: int = 0
+    ) -> list:
+        """Fetch recent bot updates via getUpdates (used for ingestion polling).
+
+        Args:
+            limit: Max number of updates to retrieve (1-100).
+            offset: Identifier of the first update to return (confirms prior ones).
+            timeout: Long-polling timeout in seconds (0 = no wait).
+
+        Returns:
+            List of raw Telegram update dicts, or an empty list on failure.
+        """
+        if not self.bot_token:
+            logger.warning("Telegram get_updates skipped: no bot token configured")
+            return []
+        try:
+            params: Dict[str, Any] = {"limit": min(max(limit, 1), 100), "timeout": timeout}
+            if offset is not None:
+                params["offset"] = offset
+            async with httpx.AsyncClient(timeout=timeout + 10.0) as client:
+                res = await client.get(f"{self.api_base}/getUpdates", params=params)
+                res.raise_for_status()
+                return res.json().get("result", [])
+        except Exception as e:
+            logger.error(f"Telegram getUpdates failed: {e}")
+            return []

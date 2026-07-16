@@ -122,6 +122,55 @@ class DynamicPricingFetcher:
                             "supports_cache": False,
                         }
 
+                # Zhipu AI GLM family fallback if not in LiteLLM yet
+                _glm_models = {
+                    "glm-5.2": {"input": 0.000002, "output": 0.000002, "ctx": 1000000},
+                    "glm-5": {"input": 0.0000015, "output": 0.0000015, "ctx": 200000},
+                    "glm-4.6": {"input": 0.0000005, "output": 0.0000005, "ctx": 128000},
+                    "glm-4.5": {"input": 0.0000005, "output": 0.0000005, "ctx": 128000},
+                }
+                for _glm, _ginfo in _glm_models.items():
+                    if _glm not in pricing:
+                        pricing[_glm] = {
+                            "input_cost_per_token": _ginfo["input"],
+                            "output_cost_per_token": _ginfo["output"],
+                            "max_tokens": _ginfo["ctx"],
+                            "litellm_provider": "glm",
+                            "mode": "chat",
+                            "source": "estimated",
+                            "supports_cache": False,
+                        }
+
+                # Kimi K2 (Moonshot AI) fallback if not in LiteLLM yet
+                _kimi_models = {
+                    "kimi-k2.6": {"input": 0.000001, "output": 0.000003, "ctx": 256000},
+                    "kimi-k2-thinking": {"input": 0.000001, "output": 0.000003, "ctx": 256000},
+                    "kimi-k2": {"input": 0.0000007, "output": 0.0000025, "ctx": 128000},
+                }
+                for _kimi, _kinfo in _kimi_models.items():
+                    if _kimi not in pricing:
+                        pricing[_kimi] = {
+                            "input_cost_per_token": _kinfo["input"],
+                            "output_cost_per_token": _kinfo["output"],
+                            "max_tokens": _kinfo["ctx"],
+                            "litellm_provider": "moonshot",
+                            "mode": "chat",
+                            "source": "estimated",
+                            "supports_cache": True,
+                        }
+
+                # LUX Computer Use fallback (proprietary model, not in LiteLLM)
+                if "lux-1.0" not in pricing:
+                    pricing["lux-1.0"] = {
+                        "input_cost_per_token": 0.000003,
+                        "output_cost_per_token": 0.000015,
+                        "max_tokens": 200000,
+                        "litellm_provider": "lux",
+                        "mode": "chat",
+                        "source": "estimated",
+                        "supports_cache": False,
+                    }
+
                 logger.info(f"Fetched {len(pricing)} model prices from LiteLLM")
                 return pricing
 
@@ -148,7 +197,12 @@ class DynamicPricingFetcher:
                         "max_tokens": model.get("context_length", 0),
                         "name": model.get("name", model_id),
                         "description": model.get("description", ""),
-                        "source": "openrouter"
+                        "source": "openrouter",
+                        # Critical: set litellm_provider so the BPC ranker can
+                        # route these models to the openrouter client. Without
+                        # this, the substring match in byok_handler.get_ranked_providers
+                        # can't join OpenRouter models to a provider client.
+                        "litellm_provider": "openrouter",
                     }
                 
                 # Apply curated overrides in pricing shape
@@ -347,6 +401,16 @@ class DynamicPricingFetcher:
             return "google"
         elif "minimax" in model_lower:
             return "minimax"
+        elif "glm" in model_lower:
+            return "glm"
+        elif "kimi" in model_lower or "moonshot" in model_lower:
+            return "moonshot"
+        elif "mistral" in model_lower:
+            return "mistral"
+        elif "llama" in model_lower and "groq" not in model_lower:
+            return "groq"  # Groq serves Llama models
+        elif "lux" in model_lower:
+            return "lux"
         else:
             return "unknown"
 

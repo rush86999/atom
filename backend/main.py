@@ -112,6 +112,34 @@ app.include_router(shell_router)             # /api/shell/* (auth required)
 if chat_router is not None:
     app.include_router(chat_router)          # /api/chat/* (message, history, sessions)
 
+# BYOK routes (API key management)
+try:
+    from api.byok_routes import router as byok_router
+    app.include_router(byok_router)
+except Exception as e:
+    print(f"BYOK routes not loaded: {e}")
+
+# Federation routes (Phase 4 — DID/VC/zero-trust)
+try:
+    from api.routes.federation_routes import router as federation_router
+    app.include_router(federation_router, prefix="/api")
+except Exception as e:
+    print(f"Federation routes not loaded: {e}")
+
+# Local model routes (Ollama, LM Studio, vLLM)
+try:
+    from api.routes.local_model_routes import router as local_model_router
+    app.include_router(local_model_router)
+except Exception as e:
+    print(f"Local model routes not loaded: {e}")
+
+# Live workflow endpoints (incl. conductor)
+try:
+    from core.workflow_endpoints import router as live_workflow_router
+    app.include_router(live_workflow_router, prefix="/api")
+except Exception as e:
+    print(f"Live workflow endpoints not loaded: {e}")
+
 
 @app.on_event("startup")
 def _startup_bootstrap() -> None:

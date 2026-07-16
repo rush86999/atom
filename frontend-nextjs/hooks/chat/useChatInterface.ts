@@ -23,6 +23,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    // AbortController for cancelling the in-flight POST (handleStop).
+    const abortControllerRef = useRef<AbortController | null>(null);
+    // Safety-net timeout so isProcessing never gets permanently stuck if
+    // streaming:complete is missed or the id mismatches.
+    const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Dedupe guard: set true when the REST path appends the assistant message,
+    // so the WebSocket streaming:complete path doesn't append a duplicate.
+    const _restFulfilledRef = useRef(false);
 
     const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
@@ -87,6 +95,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             }
         } catch (error) {
             console.error("Failed to load history:", error);
+            toast({
+                title: "Could not load history",
+                description: "Failed to load conversation history. Starting fresh.",
+                variant: "warning",
+            });
         } finally {
             setIsProcessing(false);
         }
@@ -99,12 +112,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
 
         try {
-            const response = await fetch(`/api/chat/sessions/${sessionId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: tempTitle, user_id: "default_user" }),
-            });
-            const data = await response.json();
+            const { apiClient } = await import('../../lib/api-client');
+            const response = await apiClient.patch(`/api/chat/sessions/${sessionId}`, {
+                title: tempTitle,
+                user_id: "default_user",
+            }) as any;
+            const data = response.data || response;
             if (data.success) {
                 setSessionTitle(tempTitle);
                 toast({ title: "Renamed", description: "Session renamed successfully." });
@@ -119,8 +132,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    const handleSend = async (overrideText?: string) => {
+        // overrideText is used by handleRegenerate to re-send the original
+        // prompt (input is empty at that point). Without it, regenerate would
+        // silently delete the exchange and produce nothing.
+        const currentInput = (overrideText ?? input).trim();
+        if (!currentInput) return;
 
         // Clear any prior provider-error banner before attempting another send.
         setProviderError(null);
@@ -128,18 +145,26 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         const userMsg: ChatMessageData = {
             id: Date.now().toString(),
             type: "user",
-            content: input,
+            content: currentInput,
             timestamp: new Date(),
         };
 
         setMessages(prev => [...prev, userMsg]);
-        const currentInput = input;
         setInput("");
         setIsProcessing(true);
         setStatusMessage("Agent is thinking...");
+        _restFulfilledRef.current = false;
 
         try {
             const { apiClient } = await import('../../lib/api-client');
+            // Create an AbortController so handleStop can cancel this request.
+            abortControllerRef.current = new AbortController();
+            // Safety-net: reset isProcessing after 30s if no response/stream-complete.
+            if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
+            processingTimeoutRef.current = setTimeout(() => {
+                setIsProcessing(false);
+            }, 30000);
+
             const response = await apiClient.post("/api/chat/message", {
                 message: currentInput,
                 session_id: sessionId,
@@ -153,7 +178,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     })),
                     attachments: activeAttachments
                 }
-            }) as any;
+            }, { signal: abortControllerRef.current.signal }) as any;
 
             setActiveAttachments([]);
             const data = response.data;
@@ -175,6 +200,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 return;
             }
 
+            // Clear the safety-net timeout on any successful resolution.
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+            }
+
             if (data.success && data.message) {
                 if (data.session_id && data.session_id !== sessionId && data.session_id !== "new") {
                     onSessionCreated?.(data.session_id);
@@ -186,8 +217,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     content: data.message,
                     timestamp: new Date(),
                     actions: data.metadata?.actions || data.suggested_actions || [],
+                    model: data.model,
+                    provider: data.provider,
                 };
                 setMessages(prev => [...prev, agentMsg]);
+                // Mark this generation as REST-fulfilled so the WebSocket
+                // streaming:complete path doesn't append a duplicate.
+                _restFulfilledRef.current = true;
             } else {
                 throw new Error(data.error || "Failed to process request");
             }
@@ -207,11 +243,15 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     const handleFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.post("/api/atom-agent/feedback", {
+            // Look up the message so feedback carries which model produced it —
+            // this closes the loop for learning-based routing.
+            const ratedMessage = messages.find(m => m.id === messageId);
+            const response = await apiClient.post("/api/chat/feedback", {
                 message_id: messageId,
                 feedback: type,
                 comment: comment,
-                workspace_id: "default"
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
             });
 
             const data = (response as any).data || response;
@@ -234,7 +274,71 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleStop = () => {
+    const handleRegenerate = async (messageId: string) => {
+        // Find the assistant message being regenerated and the user message
+        // that preceded it, so we can re-send the original prompt.
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx < 0) return;
+        // Walk back to the previous user message.
+        let userIdx = idx - 1;
+        while (userIdx >= 0 && messages[userIdx].type !== 'user') userIdx -= 1;
+        if (userIdx < 0) return;
+        const originalPrompt = messages[userIdx].content;
+
+        // Record an implicit negative signal for the response being regenerated
+        // (the user asked for a different answer = the previous one wasn't good).
+        try {
+            const { apiClient } = await import('../../lib/api-client');
+            const ratedMessage = messages[idx];
+            await apiClient.post("/api/chat/feedback", {
+                message_id: messageId,
+                feedback: "thumbs_down",
+                comment: "regenerated",
+                model: ratedMessage?.model,
+                provider: ratedMessage?.provider,
+            });
+        } catch {
+            // Non-fatal — the regenerate still proceeds.
+        }
+
+        // Remove everything from the user message onward (the old exchange)
+        // and re-send the original prompt to get a fresh response. Save the
+        // original messages so we can restore them if the regenerate fails.
+        const originalMessages = [...messages];
+        setMessages(prev => prev.slice(0, userIdx));
+        try {
+            await handleSend(originalPrompt);
+        } catch {
+            // Regenerate failed — restore the original exchange so the user
+            // doesn't lose their conversation.
+            setMessages(originalMessages);
+            toast({
+                title: "Regenerate failed",
+                description: "Could not generate a new response. Your original exchange is preserved.",
+                variant: "error",
+            });
+        }
+    };
+
+    const handleStop = async () => {
+        // Abort the in-flight POST so the backend connection is dropped and
+        // a late response doesn't append after the "stopped" message.
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+            processingTimeoutRef.current = null;
+        }
+        // Best-effort: tell the backend to cancel the in-flight processing
+        // so it stops consuming tokens / executing tools. Non-blocking — the
+        // frontend proceeds regardless.
+        if (sessionId) {
+            import('../../lib/api-client').then(({ apiClient }) => {
+                apiClient.post(`/api/chat/cancel/${sessionId}`).catch(() => {});
+            });
+        }
         setIsProcessing(false);
         const stopMsg: ChatMessageData = {
             id: Date.now().toString(),
@@ -248,11 +352,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     useEffect(() => {
         if (sessionId && sessionId !== "new") {
             loadSessionHistory(sessionId);
-            fetch(`/api/chat/sessions/${sessionId}?user_id=default_user`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.title) setSessionTitle(data.title);
-                }).catch(e => console.log("Bg fetch title error", e));
+            // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
+            import('../../lib/api-client').then(({ apiClient }) => {
+                apiClient.get(`/api/chat/sessions/${sessionId}?user_id=default_user`)
+                    .then((resp: any) => {
+                        const data = resp.data || resp;
+                        if (data.title) setSessionTitle(data.title);
+                    }).catch((e: any) => console.log("Bg fetch title error", e));
+            });
         } else {
             setMessages([
                 {
@@ -318,16 +425,28 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
 
         if (msg.type === "streaming:complete" && msg.id === currentStreamId) {
-            const agentMsg: ChatMessageData = {
-                id: msg.id,
-                type: "assistant",
-                content: msg.content,
-                timestamp: new Date(),
-                actions: [],
-            };
-            setMessages(prev => [...prev, agentMsg]);
+            // Dedupe guard: skip if the REST path already appended the message.
+            if (!_restFulfilledRef.current) {
+                const agentMsg: ChatMessageData = {
+                    id: msg.id,
+                    type: "assistant",
+                    content: msg.content,
+                    timestamp: new Date(),
+                    actions: [],
+                };
+                setMessages(prev => [...prev, agentMsg]);
+            }
             setCurrentStreamId(null);
             setIsProcessing(false);
+            if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
+        }
+
+        // Safety-net: if streaming:complete arrives with a mismatched id (or
+        // currentStreamId is null because streaming:start was missed), still
+        // reset isProcessing so the spinner never gets permanently stuck.
+        if (msg.type === "streaming:complete" && msg.id !== currentStreamId) {
+            setIsProcessing(false);
+            if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
         }
 
         if (msg.type === "streaming:start") {
@@ -358,6 +477,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         handleStop,
         handleTitleSave,
         handleFeedback,
+        handleRegenerate,
         uploadFile,
         toast,
         providerError,

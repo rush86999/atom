@@ -6,6 +6,7 @@ Implements SCALE-08: Overage handling with explicit user approval
 and time-limited auto-contraction.
 """
 import logging
+import os
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
@@ -54,7 +55,7 @@ class OverageService:
     async def approve_overage(
         self,
         chain_id: str,
-        
+        tenant_id: str,
         proposed_size: int,
         user_id: str,
         duration_hours: Optional[int] = None
@@ -252,7 +253,7 @@ class OverageService:
 
     async def _send_overage_notification(
         self,
-        
+        tenant_id: str,
         user_id: str,
         chain_id: str,
         base_limit: int,
@@ -281,7 +282,7 @@ To extend, please submit a new scaling proposal before expiration.""",
 
     async def _send_expiry_notification(
         self,
-        
+        tenant_id: str,
         chain_id: str,
         base_limit: int,
         previous_size: int

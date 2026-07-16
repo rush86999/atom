@@ -3,31 +3,46 @@ import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
-import boto3
-from botocore.exceptions import ClientError
 
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)
 
+
+def _import_boto3():
+    """Lazy-import boto3 — only needed when actually sending via AWS SES."""
+    try:
+        import boto3
+        from botocore.exceptions import ClientError
+        return boto3, ClientError
+    except ImportError:
+        logger.debug("boto3 not installed — AWS SES email adapter unavailable")
+        return None, Exception  # Exception as a no-op catch-all when boto3 absent
+
+
 class EmailAdapter(PlatformAdapter):
     """
     Adapter for Email via AWS SES.
-    
+
     Handlers Inbound (via SNS Notification or Webhook):
     - Parses AWS SES JSON notification format.
-    
+
     Outbound:
     - Uses boto3 sesv2 client to send emails.
     """
-    
+
     def __init__(self, region_name: str = "us-east-1", source_email: str = None):
         self.region_name = region_name
         self.source_email = source_email or os.getenv("SES_SOURCE_EMAIL", "support@atom.ai")
-        try:
-            self.ses_client = boto3.client("sesv2", region_name=self.region_name)
-        except Exception as e:
-            logger.warning(f"Failed to initialize SES client: {e}")
+        self.ses_client = None
+        self._client_error = Exception  # fallback; replaced when boto3 loads
+        boto3, client_error = _import_boto3()
+        if boto3 is not None:
+            self._client_error = client_error
+            try:
+                self.ses_client = boto3.client("sesv2", region_name=self.region_name)
+            except Exception as e:
+                logger.warning(f"Failed to initialize SES client: {e}")
             self.ses_client = None
 
     def verify_request(self, headers: Dict, body: str) -> bool:
@@ -164,7 +179,7 @@ class EmailAdapter(PlatformAdapter):
             )
             logger.info(f"Sent email to {recipient}, MessageId: {response.get('MessageId')}")
             return True
-        except ClientError as e:
+        except self._client_error as e:
             logger.error(f"Failed to send email via SES: {e}")
             return False
         except Exception as e:

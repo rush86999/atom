@@ -55,7 +55,9 @@ python3-saml>=1.14.0  # SAML 2.0 SSO support
 # Data Processing & Utilities
 pandas>=1.5.0,<3.0.0
 numpy>=1.24.0,<2.0.0
+scikit-learn>=1.3.0,<2.0.0
 openpyxl>=3.1.0,<4.0.0
+formulas>=1.2.0
 python-dotenv>=1.0.0,<2.0.0
 click>=8.1.0,<9.0.0
 colorama>=0.4.6,<1.0.0
@@ -150,6 +152,10 @@ pytest-xdist==3.6.1
 faker==22.7.0
 instructor>=1.0.0
 networkx>=3.0
+# Phase 2 GraphRAG: Leiden community detection (optional — falls back to
+# NetworkX Louvain when not installed, but these give the marketed algorithm).
+leidenalg>=0.10.0
+igraph>=0.11.0
 
 # Smart Home Control (Phase 66)
 python-hue-v2>=0.20.0  # Philips Hue API v2 integration
@@ -161,3 +167,7 @@ ffmpeg-python>=0.2.0  # Pythonic FFmpeg wrapper for video/audio processing
 jinja2
 PyNaCl>=1.5.0
 defusedxml>=0.7.1  # XXE protection for XML parsing (SAML)
+
+# Skill parsing — imported at top level by core/openclaw_parser.py and
+# core/skill_parser.py. Required for the app and CI test collection to start.
+python-frontmatter>=1.0.0

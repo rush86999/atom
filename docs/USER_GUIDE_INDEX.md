@@ -64,7 +64,8 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Office & Document Automation
 
 - **[Office Automation & Co-Editing](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)**
-  - Direct Word, Excel, PowerPoint editing without Office dependencies
+  - Direct Word, Excel, PowerPoint editing (no Microsoft Office required)
+  - Excel runs through a formula-evaluating workbook runtime (LibreOffice → `formulas` lib → openpyxl)
   - Interactive Canvas co-editing with real-time sync
   - CLI and REST API integration tools
 

@@ -450,6 +450,82 @@ class ToolRegistry:
             tags=["canvas", "update", "dynamic", "bidirectional", "NEW"]
         )
 
+        # read_canvas
+        self.register(
+            name="read_canvas",
+            function=self._get_function("tools.canvas_crud_tool", "read_canvas"),
+            version="1.0.0",
+            description="Read the current content of a canvas by ID (any canvas type)",
+            category="canvas",
+            complexity=1,
+            maturity_required="STUDENT",
+            dependencies=[],
+            parameters={
+                "user_id": {"type": "str", "description": "User requesting the action"},
+                "canvas_id": {"type": "str", "description": "Canvas ID to read"},
+            },
+            author="Atom Team",
+            tags=["canvas", "read", "crud", "NEW"]
+        )
+
+        # update_canvas_content
+        self.register(
+            name="update_canvas_content",
+            function=self._get_function("tools.canvas_crud_tool", "update_canvas_content"),
+            version="1.0.0",
+            description="Update the content of an existing canvas (any type: sheets, email, docs, etc.)",
+            category="canvas",
+            complexity=2,
+            maturity_required="INTERN",
+            dependencies=["websockets"],
+            parameters={
+                "user_id": {"type": "str", "description": "User requesting the action"},
+                "canvas_id": {"type": "str", "description": "Canvas ID to update"},
+                "content": {"type": "any", "description": "New content"},
+                "canvas_type": {"type": "str", "optional": True, "description": "Canvas type"},
+                "title": {"type": "str", "optional": True, "description": "New title"},
+            },
+            author="Atom Team",
+            tags=["canvas", "update", "crud", "NEW"]
+        )
+
+        # delete_canvas
+        self.register(
+            name="delete_canvas",
+            function=self._get_function("tools.canvas_crud_tool", "delete_canvas"),
+            version="1.0.0",
+            description="Delete (close) a specific canvas by ID",
+            category="canvas",
+            complexity=1,
+            maturity_required="STUDENT",
+            dependencies=["websockets"],
+            parameters={
+                "user_id": {"type": "str", "description": "User requesting the action"},
+                "canvas_id": {"type": "str", "description": "Canvas ID to delete"},
+            },
+            author="Atom Team",
+            tags=["canvas", "delete", "crud", "NEW"]
+        )
+
+        # list_canvases
+        self.register(
+            name="list_canvases",
+            function=self._get_function("tools.canvas_crud_tool", "list_canvases"),
+            version="1.0.0",
+            description="List all canvases for a user, optionally filtered by type",
+            category="canvas",
+            complexity=1,
+            maturity_required="STUDENT",
+            dependencies=[],
+            parameters={
+                "user_id": {"type": "str", "description": "User requesting the action"},
+                "canvas_type": {"type": "str", "optional": True, "description": "Filter by type"},
+                "include_deleted": {"type": "bool", "optional": True, "description": "Include deleted"},
+            },
+            author="Atom Team",
+            tags=["canvas", "list", "crud", "NEW"]
+        )
+
     def _register_browser_tools(self):
         """Register browser automation tools with metadata."""
 

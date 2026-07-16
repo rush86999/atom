@@ -104,7 +104,7 @@ class FeedbackTrend(BaseModel):
 # Endpoints
 # ============================================================================
 
-@router.post("/submit", response_model=FeedbackSubmitResponse)
+@router.post("/submit")
 async def submit_enhanced_feedback(
     request: FeedbackSubmitRequest,
     current_user: User = Depends(get_current_user),
@@ -212,7 +212,7 @@ async def submit_enhanced_feedback(
     )
 
 
-@router.get("/agent/{agent_id}", response_model=FeedbackSummary)
+@router.get("/agent/{agent_id}")
 async def get_agent_feedback(
     agent_id: str,
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
@@ -302,7 +302,7 @@ async def get_agent_feedback(
     )
 
 
-@router.get("/analytics", response_model=FeedbackAnalytics)
+@router.get("/analytics")
 async def get_feedback_analytics(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     limit: int = Query(10, ge=1, le=100, description="Limit for top/bottom agents"),
@@ -439,7 +439,7 @@ async def get_feedback_analytics(
     )
 
 
-@router.get("/trends", response_model=List[FeedbackTrend])
+@router.get("/trends")
 async def get_feedback_trends(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     db: Session = Depends(get_db)

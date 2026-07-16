@@ -13,7 +13,7 @@ import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
 
-const TauriHooks = () => {
+const TauriHooks: React.FC = () => {
   useCliHandler();
   return null;
 };

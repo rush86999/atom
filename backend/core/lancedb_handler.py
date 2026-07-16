@@ -875,8 +875,7 @@ class LanceDBHandler:
             if isinstance(metadata, str):
                 try:
                     metadata = json.loads(metadata)
-                except:
-                    metadata = {}
+                except Exception:                     metadata = {}
             elif metadata is None:
                 metadata = {}
 
@@ -926,8 +925,7 @@ class LanceDBHandler:
                 if isinstance(metadata, str):
                     try:
                         metadata = json.loads(metadata)
-                    except:
-                        metadata = {}
+                    except Exception:                         metadata = {}
                 elif metadata is None:
                     metadata = {}
 

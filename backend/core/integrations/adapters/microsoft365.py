@@ -39,7 +39,7 @@ class Microsoft365Adapter:
 
         # Token storage
         self._access_token: Optional[str] = None
-        _refresh_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
 
     async def get_oauth_url(self) -> str:
@@ -103,7 +103,7 @@ class Microsoft365Adapter:
 
                 # Store tokens
                 self._access_token = token_data.get("access_token")
-                _refresh_token = token_data.get("refresh_token")
+                self._refresh_token = token_data.get("refresh_token")
 
                 # Calculate token expiration
                 if "expires_in" in token_data:
@@ -117,6 +117,50 @@ class Microsoft365Adapter:
         except httpx.HTTPStatusError as e:
             logger.error(f"Microsoft 365 token exchange failed: {e}")
             raise
+
+    async def refresh_access_token(self) -> Optional[str]:
+        """
+        Refresh the Microsoft 365 access token using the stored refresh token.
+
+        Returns:
+            New access token string, or None if refresh failed / no refresh token.
+        """
+        if not self._refresh_token:
+            logger.warning("Cannot refresh Microsoft 365 token: no refresh token stored")
+            return None
+        if not self.client_id or not self.client_secret:
+            logger.error("Cannot refresh Microsoft 365 token: OAuth credentials not configured")
+            return None
+
+        token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "scope": "Mail.ReadWrite Mail.Send Calendars.ReadWrite Tasks.ReadWrite "
+                     "Files.ReadWrite.All offline_access User.Read",
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, data=data)
+                response.raise_for_status()
+                token_data = response.json()
+
+                self._access_token = token_data.get("access_token")
+                new_refresh = token_data.get("refresh_token")
+                if new_refresh:
+                    self._refresh_token = new_refresh
+                if "expires_in" in token_data:
+                    self._token_expires_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=token_data["expires_in"]
+                    )
+                logger.info(f"Refreshed Microsoft 365 access token for workspace {self.workspace_id}")
+                return self._access_token
+        except Exception as e:
+            logger.error(f"Failed to refresh Microsoft 365 access token: {e}")
+            return None
 
     async def test_connection(self) -> bool:
         """

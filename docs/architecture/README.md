@@ -15,7 +15,11 @@ System architecture, design patterns, and technical specifications.
 - **[BYOK V6 Migration Guide](BYOK_V6_MIGRATION_GUIDE.md)** - Migration to v6.0
 
 ### Cognitive Systems
-- **[Cognitive Tier System](COGNITIVE_TIER_SYSTEM.md)** - 5-tier LLM routing
+- **[Cognitive Tier System](COGNITIVE_TIER_SYSTEM.md)** - 5-tier LLM routing (rule-based)
+- **[Learning LLM Router](LEARNING_LLM_ROUTER.md)** - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes; DB-persisted feedback, live `/api/chat/feedback`, quality signals, flag-gated ✨
+
+### Document Runtime
+- **[Workbook Runtime](WORKBOOK_RUNTIME.md)** ✨ - Excel engine: LibreOffice headless (recalc + pixel-accurate render + structural edits) → `formulas` library → openpyxl cached values; replaces openpyxl-as-parser so agents see computed results
 
 ### Memory & Context
 - **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨

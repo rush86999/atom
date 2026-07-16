@@ -11,6 +11,7 @@ import httpx
 from fastapi import HTTPException
 
 from core.integration_service import IntegrationService
+from core.integration_http import IntegrationHTTP
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ class HubSpotService(IntegrationService):
         self.access_token = config.get("access_token")
         self.refresh_token = config.get("refresh_token")
         self.client = httpx.AsyncClient(timeout=30.0)
+        # IntegrationHTTP wrapper for resilient API calls (circuit breaker,
+        # rate limiting, retries, health monitoring).
+        self.http = IntegrationHTTP(client=self.client)
 
     async def close(self):
         await self.client.aclose()
@@ -196,7 +200,7 @@ class HubSpotService(IntegrationService):
                 "code": code,
             }
 
-            response = await self.client.post(token_url, data=data)
+            response = await self.http.post("hubspot", token_url, data=data)
             response.raise_for_status()
 
             token_data = response.json()
@@ -231,7 +235,7 @@ class HubSpotService(IntegrationService):
             if offset > 0:
                 params["after"] = offset
 
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/contacts",
                 headers=headers,
                 params=params,
@@ -263,7 +267,7 @@ class HubSpotService(IntegrationService):
             if offset > 0:
                 params["after"] = offset
 
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/companies",
                 headers=headers,
                 params=params,
@@ -295,7 +299,7 @@ class HubSpotService(IntegrationService):
             if offset > 0:
                 params["after"] = offset
 
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/deals", headers=headers, params=params
             )
             response.raise_for_status()
@@ -322,7 +326,7 @@ class HubSpotService(IntegrationService):
             if offset > 0:
                 params["offset"] = offset
 
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/marketing/v3/campaigns",
                 headers=headers,
                 params=params,
@@ -357,7 +361,7 @@ class HubSpotService(IntegrationService):
                 "properties": ["email", "firstname", "lastname", "company", "phone"],
             }
 
-            response = await self.client.post(search_url, headers=headers, json=payload)
+            response = await self.http.post("hubspot", search_url, headers=headers, json=payload)
             response.raise_for_status()
 
             return response.json()
@@ -390,7 +394,7 @@ class HubSpotService(IntegrationService):
                 "properties": {k: v for k, v in properties.items() if v is not None}
             }
 
-            response = await self.client.post(
+            response = await self.http.post("hubspot", 
                 f"{self.base_url}/crm/v3/objects/contacts",
                 headers=headers,
                 json=payload,
@@ -426,7 +430,7 @@ class HubSpotService(IntegrationService):
                 "properties": {k: v for k, v in properties.items() if v is not None}
             }
 
-            response = await self.client.post(
+            response = await self.http.post("hubspot", 
                 f"{self.base_url}/crm/v3/objects/companies",
                 headers=headers,
                 json=payload,
@@ -477,7 +481,7 @@ class HubSpotService(IntegrationService):
                     }
                 ]
 
-            response = await self.client.post(
+            response = await self.http.post("hubspot", 
                 f"{self.base_url}/crm/v3/objects/deals",
                 headers=headers,
                 json=payload,
@@ -512,7 +516,7 @@ class HubSpotService(IntegrationService):
                 raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {"Authorization": f"Bearer {active_token}"}
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/{object_type}/{object_id}",
                 headers=headers
             )
@@ -542,7 +546,7 @@ class HubSpotService(IntegrationService):
 
             payload = {"properties": properties}
 
-            response = await self.client.patch(
+            response = await self.http.patch("hubspot", 
                 f"{self.base_url}/crm/v3/objects/{object_type}/{object_id}",
                 headers=headers,
                 json=payload,
@@ -573,7 +577,7 @@ class HubSpotService(IntegrationService):
             # Fetch contacts count
             # HubSpot search API can give total count
             headers = {"Authorization": f"Bearer {active_token}"}
-            contact_response = await self.client.post(
+            contact_response = await self.http.post("hubspot", 
                 f"{self.base_url}/crm/v3/objects/contacts/search",
                 headers=headers,
                 json={"limit": 1}
@@ -598,7 +602,7 @@ class HubSpotService(IntegrationService):
                 raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {"Authorization": f"Bearer {active_token}"}
-            response = await self.client.get(
+            response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/properties/{object_type}",
                 headers=headers
             )
@@ -726,3 +730,20 @@ class HubSpotService(IntegrationService):
 # from core.integration_registry import IntegrationRegistry
 # registry = IntegrationRegistry(db)
 # hubspot_service = await registry.get_service_instance("hubspot", tenant_id)
+
+
+# Module-level singleton + factory. Configured lazily from env vars so the
+# import never fails; returns None when HubSpot credentials are absent.
+_hubspot_service_singleton = None
+
+
+def get_hubspot_service():
+    """Return a configured HubSpotService singleton, or None if unconfigured."""
+    global _hubspot_service_singleton
+    if _hubspot_service_singleton is not None:
+        return _hubspot_service_singleton
+    token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+    if not token:
+        return None
+    _hubspot_service_singleton = HubSpotService(config={"access_token": token})
+    return _hubspot_service_singleton

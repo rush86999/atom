@@ -47,12 +47,12 @@ async def get_price_drift(db: Session = Depends(get_db)):
     Detects vendor and ad-spend price drift.
     """
     try:
-        from core.financial_forensics import MOCK_MODE, VendorIntelligence
-        service = VendorIntelligence(db)
+        from core.financial_forensics import VendorIntelligenceService
+        service = VendorIntelligenceService(db)
         data = await service.detect_price_drift("default")
         return router.success_response(
             data=data,
-            metadata={"is_mock": MOCK_MODE}
+            metadata={"is_mock": False}
         )
     except Exception as e:
         logger.error(f"Error fetching price drift: {e}")
@@ -64,12 +64,12 @@ async def get_pricing_advice(db: Session = Depends(get_db)):
     Provides margin protection and underpricing recommendations.
     """
     try:
-        from core.financial_forensics import MOCK_MODE, PricingAdvisor
-        service = PricingAdvisor(db)
+        from core.financial_forensics import PricingAdvisorService
+        service = PricingAdvisorService(db)
         data = await service.get_pricing_recommendations("default")
         return router.success_response(
             data=data,
-            metadata={"is_mock": MOCK_MODE}
+            metadata={"is_mock": False}
         )
     except Exception as e:
         logger.error(f"Error fetching pricing advice: {e}")
@@ -81,12 +81,12 @@ async def get_subscription_waste(db: Session = Depends(get_db)):
     Identifies SaaS waste and zombie subscriptions.
     """
     try:
-        from core.financial_forensics import MOCK_MODE, SubscriptionWasteService
+        from core.financial_forensics import SubscriptionWasteService
         service = SubscriptionWasteService(db)
         data = await service.find_zombie_subscriptions("default")
         return router.success_response(
             data=data,
-            metadata={"is_mock": MOCK_MODE}
+            metadata={"is_mock": False}
         )
     except Exception as e:
         # Graceful fallback if checking is_mock fails

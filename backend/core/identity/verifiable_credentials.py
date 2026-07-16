@@ -334,6 +334,9 @@ class VerifiableCredentialManager:
         self._credentials[credential_id] = vc
         self._status_list[credential_id] = VCStatus.VALID
 
+        # Persist to DB (write-through; best-effort).
+        self._persist_credential(vc)
+
         logger.info(f"Created VC: {credential_id} of type {credential_type.value}")
         return vc
 
@@ -504,6 +507,9 @@ class VerifiableCredentialManager:
 
         self._revocation_list.add(credential_id)
         self._status_list[credential_id] = VCStatus.REVOKED
+
+        # Persist revocation to DB.
+        self._persist_credential(vc, revoked=True, revocation_reason=reason)
 
         logger.info(f"Revoked VC: {credential_id}" + (f" - Reason: {reason}" if reason else ""))
         return True
@@ -712,6 +718,75 @@ class VerifiableCredentialManager:
             ]
 
         return credentials
+
+    # ------------------------------------------------------------------
+    # DB persistence (write-through + load-on-init)
+    # ------------------------------------------------------------------
+
+    def _persist_credential(self, vc, revoked: bool = False, revocation_reason: Optional[str] = None) -> None:
+        """Write-through a verifiable credential to the DB."""
+        try:
+            from core.database import get_db_session
+            from core.models import FederationCredential
+            from datetime import timezone as _tz
+            with get_db_session() as db:
+                existing = db.query(FederationCredential).filter(
+                    FederationCredential.credential_id == vc.id
+                ).first()
+
+                claims_data = {}
+                if hasattr(vc, 'credential_subject') and vc.credential_subject:
+                    claims_data = vc.credential_subject if isinstance(vc.credential_subject, dict) else {"value": str(vc.credential_subject)}
+
+                status = "revoked" if revoked else "active"
+                if revoked:
+                    from datetime import datetime as _dt
+                    revoked_at = _dt.now(_tz.utc)
+                else:
+                    revoked_at = None
+
+                if existing:
+                    existing.status = status
+                    existing.claims_json = claims_data
+                    if revoked:
+                        existing.revoked_at = revoked_at
+                        existing.revocation_reason = revocation_reason
+                else:
+                    row = FederationCredential(
+                        credential_id=vc.id,
+                        issuer_did=vc.issuer if hasattr(vc, 'issuer') else "unknown",
+                        subject_did=str(vc.credential_subject.get('id', '')) if isinstance(claims_data, dict) else "unknown",
+                        credential_type=str(vc.type) if hasattr(vc, 'type') else "unknown",
+                        claims_json=claims_data,
+                        status=status,
+                        expires_at=vc.expiration_date if hasattr(vc, 'expiration_date') else None,
+                        revoked_at=revoked_at,
+                        revocation_reason=revocation_reason,
+                    )
+                    db.add(row)
+        except Exception as e:
+            logger.debug(f"VC DB persist skipped (non-fatal): {e}")
+
+    def load_credentials_from_db(self) -> int:
+        """Load persisted credentials from the DB into in-memory state."""
+        try:
+            from core.database import get_db_session
+            from core.models import FederationCredential
+            with get_db_session() as db:
+                rows = db.query(FederationCredential).all()
+                loaded = 0
+                for row in rows:
+                    if row.credential_id not in self._status_list:
+                        self._status_list[row.credential_id] = row.status or "active"
+                        if row.status == "revoked":
+                            self._revocation_list.add(row.credential_id)
+                        loaded += 1
+                if loaded:
+                    logger.info(f"Loaded {loaded} VCs from DB")
+                return loaded
+        except Exception as e:
+            logger.debug(f"VC DB load skipped (non-fatal): {e}")
+            return 0
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get VC manager statistics"""

@@ -6,7 +6,7 @@ Provides endpoints for message analytics, cross-platform correlation, and predic
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import Query, Depends
+from fastapi import Query, Depends, HTTPException
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
@@ -307,6 +307,8 @@ async def get_unified_timeline(
             message="Timeline retrieved successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise router.internal_error(message="Internal error")
 
@@ -468,6 +470,8 @@ async def get_user_patterns(
             message="User patterns retrieved successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise router.internal_error(message="Internal error")
 

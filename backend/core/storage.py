@@ -1,30 +1,44 @@
 import logging
 import os
-import boto3
-from botocore.config import Config
 
 logger = logging.getLogger(__name__)
 
+
+def _import_boto3():
+    """Lazy-import boto3 — only needed when StorageService is instantiated."""
+    try:
+        import boto3
+        from botocore.config import Config
+        return boto3, Config
+    except ImportError:
+        logger.debug("boto3 not installed — S3/R2 storage adapter unavailable")
+        return None, None
+
+
 class StorageService:
     _instance = None
-    
+
     def __init__(self):
         self.s3 = self._get_s3_client()
         self.bucket = os.getenv('AWS_S3_BUCKET') or os.getenv('AWS_S3_BUCKET_NAME') or "atom-saas"
 
     def _get_s3_client(self):
         """Initialize S3/R2 client based on environment variables"""
+        boto3, Config = _import_boto3()
+        if boto3 is None:
+            return None
+
         s3_endpoint = os.getenv('S3_ENDPOINT') or os.getenv('AWS_ENDPOINT_URL')
-        
+
         # Prioritize specified storage credentials
         access_key_id = os.getenv('STORAGE_AWS_ACCESS_KEY_ID') or \
                         os.getenv('R2_ACCESS_KEY_ID') or \
                         os.getenv('AWS_ACCESS_KEY_ID')
-                        
+
         secret_access_key = os.getenv('STORAGE_AWS_SECRET_ACCESS_KEY') or \
                             os.getenv('R2_SECRET_ACCESS_KEY') or \
                             os.getenv('AWS_SECRET_ACCESS_KEY')
-                            
+
         region = os.getenv('STORAGE_AWS_REGION') or os.getenv('AWS_REGION', 'us-east-1')
 
         kwargs = {
@@ -32,12 +46,12 @@ class StorageService:
             'aws_access_key_id': access_key_id,
             'aws_secret_access_key': secret_access_key
         }
-        
+
         if s3_endpoint:
             kwargs['endpoint_url'] = s3_endpoint
             # R2 often requires path-style addressing depending on config
             kwargs['config'] = Config(s3={'addressing_style': 'path'})
-            
+
         return boto3.client('s3', **kwargs)
 
     def upload_file(self, file_obj, key: str, content_type: str = None) -> str:

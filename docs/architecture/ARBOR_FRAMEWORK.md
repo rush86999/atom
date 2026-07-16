@@ -283,10 +283,10 @@ if not tree.add_node(node):
 - **Multi-Hop Analysis**: Trace relationships between failed code patterns
 
 ### Phase 3: Learning-Based LLM Routing
-- **Model Selection**: RouteLLM selects optimal LLM for hypothesis generation
+- **Model Selection**: The Learning-Based Router (`core/learning_llm_router.py`, flag `ATOM_LEARNING_ROUTER`) re-ranks BPC candidates from observed outcomes; Arbor's `RoutingHypothesisNode` can model routing sequences against these cost/quality tiers
 - **Cost Optimization**: Tree search respects LLM routing cost tiers
 
-**See Also**: Cognitive Tier System - Routing optimization with RoutingHypothesisNode
+**See Also**: [Learning LLM Router](LEARNING_LLM_ROUTER.md) — the as-built per-model predictor design (supersedes the earlier "train a RouteLLM" framing)
 
 ### Phase 5: Enhanced Orchestration
 - **Conductor Agent**: Uses workflow hypothesis nodes for optimization

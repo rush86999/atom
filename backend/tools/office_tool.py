@@ -3,8 +3,13 @@ Office Document Automation Tools
 
 Exposes agent-native tools for reading, writing, and rendering Office documents.
 These tools are auto-discovered by the Atom Tool Registry.
+
+After any agent write (Excel cell / Word document / PowerPoint slide), the
+updated file content is ingested into Atom memory so the agent remembers the
+quotes, POs, price lists, and invoices it generates.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, Optional
 from core.office_service import OfficeService
@@ -12,6 +17,31 @@ from core.office_sync_service import OfficeSyncService
 
 logger = logging.getLogger(__name__)
 office_service = OfficeService()
+
+
+async def _ingest_after_write(file_path: str, user_id: str) -> None:
+    """Fire-and-forget: ingest an Office file's content into Atom memory.
+
+    Best-effort; failures are logged at debug level and never surface to the
+    caller so a write tool always returns its document result.
+    """
+    try:
+        from core.auto_document_ingestion import AutoDocumentIngestionService
+
+        ingestor = AutoDocumentIngestionService()
+        from pathlib import Path
+        with open(file_path, "rb") as f:
+            content = f.read()
+        if not content:
+            return
+        await ingestor.process_file_bytes(
+            content=content,
+            file_name=Path(file_path).name,
+            source="office_tool",
+            user_id=user_id,
+        )
+    except Exception as e:
+        logger.debug(f"Office write→memory ingestion skipped for {file_path}: {e}")
 
 
 async def read_excel_cell(
@@ -59,6 +89,8 @@ async def write_excel_cell(
             value=value,
             is_formula=is_formula
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Excel write tool failed: {e}")
@@ -111,6 +143,8 @@ async def modify_word_document(
             content=content,
             options=options
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Word modify tool failed: {e}")
@@ -162,9 +196,128 @@ async def modify_pptx_slides(
             action=action,
             options=options
         )
+        if res.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"PowerPoint modify tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# ============================================================================
+# Workbook Runtime Tools — formula evaluation, structural ops, rendering
+# ============================================================================
+
+async def get_excel_formula_result(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    cell: str
+) -> Dict[str, Any]:
+    """
+    Get the computed result of an Excel formula cell (evaluates if needed).
+
+    Unlike read_excel_cell which may show stale cached values, this tool
+    forces recalculation and returns the freshly computed result.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        cell: Cell coordinate (e.g. "A4")
+    """
+    try:
+        return await office_service.ExcelManager.get_evaluated_range(
+            file_path, f"/{sheet_name}/{cell}"
+        )
+    except Exception as e:
+        logger.error(f"Formula result tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def insert_excel_rows(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    row: int,
+    count: int = 1
+) -> Dict[str, Any]:
+    """
+    Insert rows into an Excel worksheet and recalculate formulas.
+
+    Formula references are automatically maintained by the workbook runtime
+    (LibreOffice when available, formulas lib as fallback).
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        row: Row number to insert at (1-based, existing rows shift down)
+        count: Number of rows to insert (default 1)
+    """
+    try:
+        result = await office_service.ExcelManager.insert_rows(
+            file_path, sheet_name, row, count
+        )
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Insert rows tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def insert_excel_columns(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    column: int,
+    count: int = 1
+) -> Dict[str, Any]:
+    """
+    Insert columns into an Excel worksheet and recalculate formulas.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Worksheet name (e.g. "Sheet1")
+        column: Column number to insert at (1-based, existing cols shift right)
+        count: Number of columns to insert (default 1)
+    """
+    try:
+        result = await office_service.ExcelManager.insert_columns(
+            file_path, sheet_name, column, count
+        )
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Insert columns tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def recalculate_excel(
+    user_id: str,
+    file_path: str
+) -> Dict[str, Any]:
+    """
+    Force recalculation of all formulas in an Excel workbook.
+
+    Uses LibreOffice headless when available (full evaluation of all Excel
+    functions) or the formulas Python library as a fallback. After this call,
+    all read operations return computed values instead of formula strings.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+    """
+    try:
+        result = await office_service.ExcelManager.recalculate(file_path)
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Recalculate tool failed: {e}")
         return {"success": False, "error": str(e)}
 
 

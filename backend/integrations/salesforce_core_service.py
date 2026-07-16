@@ -17,6 +17,9 @@ from enum import Enum
 
 import asyncpg
 
+# SOQL single-quote escaping (defends against SOQL injection).
+from integrations.salesforce_service import escape_soql_string
+
 logger = logging.getLogger(__name__)
 
 class SalesforceEnvironment(Enum):
@@ -186,7 +189,7 @@ class SalesforceCoreService:
                     error_data = response.json()
                     error_message = error_data.get('error_description', error_data.get('error', 'Unknown error'))
                     error_code = error_data.get('error_code', 'UNKNOWN_ERROR')
-                except:
+                except Exception:
                     error_message = response.text
                     error_code = 'HTTP_ERROR'
                 
@@ -449,17 +452,17 @@ class SalesforceCoreService:
             # Build WHERE clause
             conditions = []
             if account_id:
-                conditions.append(f"AccountId = '{account_id}'")
+                conditions.append(f"AccountId = '{escape_soql_string(account_id)}'")
             if query:
                 conditions.append(query)
-            
+
             where_clause = ""
             if conditions:
                 where_clause = f"WHERE {' AND '.join(conditions)}"
-            
+
             soql = f"""
-                SELECT {', '.join(query_fields)} 
-                FROM Contact 
+                SELECT {', '.join(query_fields)}
+                FROM Contact
                 {where_clause}
                 ORDER BY CreatedDate DESC 
                 LIMIT {limit} OFFSET {offset}
@@ -549,9 +552,9 @@ class SalesforceCoreService:
             # Build WHERE clause
             conditions = []
             if account_id:
-                conditions.append(f"AccountId = '{account_id}'")
+                conditions.append(f"AccountId = '{escape_soql_string(account_id)}'")
             if stage:
-                conditions.append(f"StageName = '{stage}'")
+                conditions.append(f"StageName = '{escape_soql_string(stage)}'")
             if query:
                 conditions.append(query)
             

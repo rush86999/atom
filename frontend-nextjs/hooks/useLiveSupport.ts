@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export interface Ticket {
     id: string;
     subject: string;
@@ -12,23 +14,22 @@ export interface Ticket {
 export function useLiveSupport() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchTickets = useCallback(async () => {
         try {
             setIsLoading(true);
-            // In a real implementation, we would fetch from a Live API
-            // For now, mirroring the existing mock logic but in a hook
-            const mockTickets: Ticket[] = [
-                { id: 'TKT-991', subject: 'Cloud Sync Failed for Org #55', status: 'Open', priority: 'High', platform: 'zendesk', customer: 'Acme Corp' },
-                { id: 'FR-22', subject: 'Billing Inquiry: Overcharged', status: 'Pending', priority: 'Medium', platform: 'freshdesk', customer: 'Bob Smith' },
-                { id: 'IC-451', subject: 'How do I add a team member?', status: 'Closed', priority: 'Low', platform: 'intercom', customer: 'Sarah Lane' }
-            ];
-
-            // Artificial delay to simulate network
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setTickets(mockTickets);
-        } catch (error) {
-            console.error('Failed to fetch support tickets:', error);
+            setError(null);
+            const response = await fetch(`${API_BASE}/api/atom/communication/live/support/tickets`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            setTickets(data.tickets || data || []);
+        } catch (err) {
+            console.error('Failed to fetch support tickets:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load');
+            setTickets([]); // empty state — no mock data
         } finally {
             setIsLoading(false);
         }
@@ -41,6 +42,7 @@ export function useLiveSupport() {
     return {
         tickets,
         isLoading,
+        error,
         refresh: fetchTickets
     };
 }

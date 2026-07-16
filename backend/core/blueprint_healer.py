@@ -107,5 +107,6 @@ DIRECTIVE:"""
                 ]
             )
             return content or "Improve architectural robustness for the failing node type."
-        except:
+        except Exception as e:
+            logger.warning("Blueprint healing failed, using fallback: %s", e, exc_info=True)
             return "Refine dependencies for failed node types."

@@ -14,8 +14,6 @@ try:
 except ImportError:
     Image = None
     PIL_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("PIL (Pillow) not available - image processing features will be limited")
 
 try:
     import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
@@ -36,6 +34,32 @@ try:
     LLM_SERVICE_AVAILABLE = True
 except ImportError:
     LLM_SERVICE_AVAILABLE = False
+
+# Optional Docling import for advanced document understanding.
+# DOCLING_AVAILABLE and get_docling_processor are referenced in _init_ocr_readers;
+# guard them so the module loads when docling isn't installed.
+try:
+    from integrations.pdf_processing.docling_processor import get_docling_processor
+    DOCLING_AVAILABLE = True
+except ImportError:
+    DOCLING_AVAILABLE = False
+    get_docling_processor = None
+
+# Optional pytesseract import for OCR.
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    pytesseract = None
+    TESSERACT_AVAILABLE = False
+
+# Optional easyocr import.
+try:
+    import easyocr
+    EASYOCR_AVAILABLE = True
+except ImportError:
+    easyocr = None
+    EASYOCR_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 

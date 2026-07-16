@@ -22,9 +22,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -68,28 +69,20 @@ class TrainingConfig:
     """Configuration for router training"""
     # Model selection
     model_type: ModelType = ModelType.RANDOM_FOREST
-    use_ensemble: bool = False
 
     # Training parameters
     test_size: float = 0.2  # Train/test split
     random_seed: int = 42
     min_samples: int = 100  # Minimum samples to train
-    max_samples: int = 100000  # Maximum samples for training
 
     # Model hyperparameters
     n_estimators: int = 100  # For random forest
     max_depth: int = 10
-    learning_rate: float = 0.001
-    epochs: int = 10
-
-    # Evaluation
-    min_accuracy: float = 0.7  # Minimum accuracy to deploy
-    cross_validation: bool = True
-    cv_folds: int = 5
+    learning_rate: float = 0.001  # For NEURAL_NETWORK (MLPClassifier)
+    epochs: int = 10  # For NEURAL_NETWORK (MLPClassifier max_iter)
 
     # Persistence
     model_path: str = "data/router_models"
-    model_version: str = "latest"
 
     # A/B testing
     ab_test_confidence: float = 0.95  # Confidence threshold for A/B test
@@ -144,7 +137,7 @@ class FeatureExtractor:
             Feature matrix X of shape (n_samples, n_features)
         """
         if not examples:
-            return np.array([])
+            return np.zeros((0, len(self.feature_names)))
 
         features = []
         for example in examples:
@@ -261,17 +254,18 @@ class RouteLLMTrainer:
             if len(X) == 0 or len(y) == 0:
                 raise ValueError("No features extracted from examples")
 
-            # Train/test split
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
+            # Train/test split (split weights alongside so they stay paired)
+            splits = train_test_split(
+                X, y, weights,
                 test_size=self.config.test_size,
                 random_state=self.config.random_seed,
                 stratify=y if len(np.unique(y)) > 1 else None
             )
+            X_train, X_test, y_train, y_test, weights_train, _weights_test = splits
 
             # Train model
             self.model = self._create_model()
-            self.model.fit(X_train, y_train, sample_weight=weights[:len(X_train)])
+            self.model.fit(X_train, y_train, sample_weight=weights_train)
 
             # Evaluate
             y_pred = self.model.predict(X_test)
@@ -289,6 +283,7 @@ class RouteLLMTrainer:
                 result.precision = precision_score(y_test, y_pred)
                 result.recall = recall_score(y_test, y_pred)
                 result.f1_score = f1_score(y_test, y_pred)
+                result.confusion_matrix = confusion_matrix(y_test, y_pred)
             except Exception as e:
                 logger.warning(f"Could not calculate precision/recall: {e}")
 
@@ -314,7 +309,12 @@ class RouteLLMTrainer:
         return result
 
     def _create_model(self):
-        """Create model instance based on configuration"""
+        """Create model instance based on configuration.
+
+        All estimators are CPU-only scikit-learn. NEURAL_NETWORK is a small
+        MLPClassifier; ENSEMBLE is a soft-vote over RandomForest + Logistic
+        Regression.
+        """
         if self.config.model_type == ModelType.RANDOM_FOREST:
             return RandomForestClassifier(
                 n_estimators=self.config.n_estimators,
@@ -326,6 +326,33 @@ class RouteLLMTrainer:
             return LogisticRegression(
                 random_state=self.config.random_seed,
                 max_iter=1000
+            )
+        elif self.config.model_type == ModelType.NEURAL_NETWORK:
+            # Small MLP — CPU-only. learning_rate/epochs come from config so
+            # those fields are not dead.
+            return MLPClassifier(
+                hidden_layer_sizes=(64, 32),
+                learning_rate_init=self.config.learning_rate,
+                max_iter=self.config.epochs,
+                random_state=self.config.random_seed,
+            )
+        elif self.config.model_type == ModelType.ENSEMBLE:
+            # Soft-vote over RF + LR. predict_proba is delegated so predict()
+            # in this trainer still works.
+            return VotingClassifier(
+                estimators=[
+                    ("rf", RandomForestClassifier(
+                        n_estimators=self.config.n_estimators,
+                        max_depth=self.config.max_depth,
+                        random_state=self.config.random_seed,
+                        n_jobs=-1,
+                    )),
+                    ("lr", LogisticRegression(
+                        random_state=self.config.random_seed,
+                        max_iter=1000,
+                    )),
+                ],
+                voting="soft",
             )
         else:
             raise ValueError(f"Unsupported model type: {self.config.model_type}")
@@ -397,7 +424,11 @@ class RouteLLMTrainer:
         # Predict probability of satisfaction
         if hasattr(self.model, 'predict_proba'):
             proba = self.model.predict_proba(feature_vector)
-            return proba[0][1] if proba.shape[1] > 1 else proba[0][0]
+            if proba.shape[1] > 1:
+                return float(proba[0][1])
+            # Single-class case: the one column is P(class 0) = P(not satisfied),
+            # so invert it to get the satisfaction score.
+            return float(1.0 - proba[0][0])
         else:
             prediction = self.model.predict(feature_vector)
             return float(prediction[0])
@@ -426,20 +457,29 @@ class RouteLLMTrainer:
         best_score = -1
         best_result = None
 
+        # Preserve the caller's config so the comparison loop has no side effects.
+        original_type = self.config.model_type
+
         for model_type in model_types:
-            # Temporarily change config
-            original_type = self.config.model_type
             self.config.model_type = model_type
 
             result = self.train(examples)
 
-            # Restore original config
-            self.config.model_type = original_type
-
-            if result.accuracy > best_score:
+            if result.status == TrainingStatus.COMPLETED and result.accuracy > best_score:
                 best_score = result.accuracy
                 best_model = model_type
                 best_result = result
+
+        # Point self at the winner (train() leaves self.model on whichever
+        # type ran last, which is not necessarily the best one). Also persist
+        # the winning model type on config so future predict()/retrain calls
+        # stay consistent.
+        if best_result is not None:
+            self.config.model_type = best_model
+            self.load_model(best_result.model_id)
+        else:
+            # Nothing trained successfully; restore the caller's config.
+            self.config.model_type = original_type
 
         return best_model, best_result
 
@@ -494,7 +534,8 @@ class RouterEvaluator:
         improvement = learning_mean - control_mean
 
         # Statistical test
-        if len(control_outcomes) >= 30 and len(learning_outcomes) >= 30:
+        min_n = self.config.min_ab_samples
+        if len(control_outcomes) >= min_n and len(learning_outcomes) >= min_n:
             t_stat, p_value = stats.ttest_ind(learning_outcomes, control_outcomes)
             significant = p_value < (1 - self.config.ab_test_confidence)
         else:

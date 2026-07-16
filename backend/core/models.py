@@ -10575,3 +10575,153 @@ from core.models_board import (  # noqa: E402,F401
     BoardColumn,
     BoardTask,
 )
+
+
+# ============================================================================
+# LLM Routing — feedback persistence for learning-based routing
+# ============================================================================
+
+class LLMRoutingFeedback(Base):
+    """Persisted routing feedback for the learning-based LLM router.
+
+    Each row is one observed outcome of a routing decision, used to train
+    per-model satisfaction predictors. Survives process restarts so learned
+    data is not lost (the in-memory ``_preference_data`` is hydrated from this
+    table on startup). The ``prompt_features`` column stores the 10 features
+    captured at route time so training can reproduce them without relying on
+    the transient ``_routing_decisions`` map.
+    """
+
+    __tablename__ = "llm_routing_feedback"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    routing_result_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    task_type = Column(String, nullable=False, index=True)
+    model_id = Column(String, nullable=False, index=True)
+
+    # Outcome
+    success = Column(Boolean, nullable=False)
+    quality_satisfied = Column(Boolean, nullable=False)
+    cost_within_budget = Column(Boolean, nullable=False)
+
+    # Optional metrics
+    user_satisfaction = Column(Float, nullable=True)
+    actual_cost = Column(Float, nullable=True)
+    actual_latency_ms = Column(Float, nullable=True)
+
+    # Prompt features captured at decision time (the 10-feature vector). Stored
+    # as JSON so training reproduces the exact features the decision used.
+    prompt_features = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_llm_routing_fb_tenant_task", "tenant_id", "task_type", "created_at"),
+    )
+
+
+# ============================================================================
+# Local Model Providers — user-registered local LLM backends
+# ============================================================================
+
+class LocalModelProvider(Base):
+    """A user-registered local LLM provider (Ollama, LM Studio, vLLM, etc.).
+
+    Each provider is an OpenAI-compatible endpoint the user configures via
+    the /api/local-models settings page. Models served by the provider are
+    auto-discovered (GET {base_url}/models) and become eligible for BPC
+    ranking, cognitive tier assignment, and learning-router re-ranking —
+    just like cloud models, but at zero cost.
+    """
+
+    __tablename__ = "local_model_providers"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    name = Column(String, nullable=False)  # User-friendly label
+    provider_type = Column(String, nullable=False, default="custom")  # ollama|lm_studio|vllm|localai|custom
+    base_url = Column(String, nullable=False)  # e.g. http://localhost:11434/v1
+    api_key = Column(String, nullable=True)  # Optional — some local backends require a key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_local_model_provider_workspace", "workspace_id"),
+    )
+
+
+class LocalModelCapabilities(Base):
+    """User-specified capabilities for a model served by a local provider.
+
+    Local models aren't in the dynamic pricing cache, so the user tells the
+    system what each model can do. These feed into BPC capability filtering,
+    cognitive tier assignment, and the learning router's model registry.
+    """
+
+    __tablename__ = "local_model_capabilities"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_id = Column(String, ForeignKey("local_model_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(String, nullable=False)  # e.g. "llama3:8b"
+    supports_tools = Column(Boolean, default=False)
+    supports_vision = Column(Boolean, default=False)
+    supports_reasoning = Column(Boolean, default=False)
+    quality_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
+    speed_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
+    context_window = Column(Integer, default=4096)  # Max context length in tokens
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_local_model_caps_provider_model", "provider_id", "model_id"),
+        Index("ix_local_model_caps_workspace", "workspace_id"),
+    )
+
+
+# ============================================================================
+# Federation Identity Persistence — DB-backed DID/VC storage
+# ============================================================================
+
+class FederationDID(Base):
+    """Persisted DID document for zero-trust federation identity.
+
+    Previously DIDManager used in-memory dicts that reset on restart. This
+    table provides durable storage so identity state survives process restarts.
+    """
+
+    __tablename__ = "federation_dids"
+
+    did = Column(String, primary_key=True)  # The DID string itself
+    entity_type = Column(String, nullable=False)  # agent | instance | workspace | user
+    entity_id = Column(String, nullable=False, index=True)
+    document_json = Column(JSONColumn, nullable=True)  # Full DID document
+    public_key_pem = Column(Text, nullable=True)  # PEM-encoded public key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class FederationCredential(Base):
+    """Persisted verifiable credential for zero-trust federation.
+
+    Previously VerifiableCredentialManager used in-memory dicts. This table
+    provides durable storage so credentials survive restarts.
+    """
+
+    __tablename__ = "federation_credentials"
+
+    credential_id = Column(String, primary_key=True)
+    issuer_did = Column(String, nullable=False, index=True)
+    subject_did = Column(String, nullable=False, index=True)
+    credential_type = Column(String, nullable=False)
+    claims_json = Column(JSONColumn, nullable=True)
+    status = Column(String, default="active")  # active | revoked | expired
+    issued_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revocation_reason = Column(Text, nullable=True)

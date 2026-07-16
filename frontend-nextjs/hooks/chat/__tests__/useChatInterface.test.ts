@@ -14,7 +14,7 @@ import { setupServer } from 'msw/node';
 
 // Mock dependencies
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => ({
+  useWebSocket: (): any => ({
     isConnected: false,
     lastMessage: null,
     streamingContent: '',

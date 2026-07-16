@@ -871,8 +871,7 @@ def _get_storage(db: Session) -> HybridDebugStorage:
     try:
         config = get_config()
         redis_client = Redis.from_url(config.redis_url)
-    except:
-        redis_client = None
+    except Exception:         redis_client = None
 
     return HybridDebugStorage(db_session=db, redis_client=redis_client)
 

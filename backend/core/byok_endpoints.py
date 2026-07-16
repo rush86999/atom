@@ -381,14 +381,27 @@ class BYOKManager:
             AIProviderConfig(
                 id="glm",
                 name="Zhipu GLM",
-                description="GLM-4 and GLM-4.6 models",
+                description="GLM-4.6 and GLM-5.2 models (1M context, reasoning)",
                 api_key_env_var="GLM_API_KEY",
                 base_url="https://open.bigmodel.cn/api/paas/v4",
-                supported_tasks=["general", "chat", "analysis"],
-                cost_per_token=0.000005,
-                model="glm-4.6",
-                reasoning_level=3,
-                supports_structured_output=False
+                supported_tasks=["general", "chat", "analysis", "reasoning", "code"],
+                cost_per_token=0.000002,
+                model="glm-5.2",
+                reasoning_level=4,
+                supports_structured_output=True
+            ),
+            AIProviderConfig(
+                id="moonshot",
+                name="Moonshot (Kimi)",
+                description="Kimi K2 models — 256K context, vision, reasoning",
+                api_key_env_var="MOONSHOT_API_KEY",
+                base_url="https://api.moonshot.cn/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000001,
+                model="kimi-k2.6",
+                reasoning_level=4,
+                supports_structured_output=True,
+                supports_vision=True,
             ),
             AIProviderConfig(
                 id="qwen",
@@ -447,6 +460,19 @@ class BYOKManager:
                 reasoning_level=3
             ),
             AIProviderConfig(
+                id="minimax",
+                name="MiniMax",
+                description="MiniMax M3 (512K context, OpenAI-compatible). Matches the client key in byok_handler.",
+                api_key_env_var="MINIMAX_API_KEY",
+                base_url="https://api.minimax.io/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "vision"],
+                cost_per_token=0.00000075,
+                model="MiniMax-M3",
+                reasoning_level=3,
+                supports_structured_output=True,
+                supports_vision=True,
+            ),
+            AIProviderConfig(
                 id="anthropic_opus_4_6",
                 name="Anthropic Claude Opus 4.6",
                 description="Advanced Reasoning and Analysis",
@@ -490,6 +516,20 @@ class BYOKManager:
                 reasoning_level=3,
                 supports_structured_output=True,
                 requires_encryption=False,
+            ),
+            AIProviderConfig(
+                id="openrouter",
+                name="OpenRouter",
+                description="Unified gateway to 300+ models (OpenAI, Anthropic, Google, Meta, and more). One API key.",
+                api_key_env_var="OPENROUTER_API_KEY",
+                base_url="https://openrouter.ai/api/v1",
+                supported_tasks=["general", "chat", "code", "reasoning", "analysis", "vision"],
+                cost_per_token=0.000003,  # Varies by model — this is a rough floor
+                model="openai/gpt-4o-mini",
+                reasoning_level=4,
+                supports_structured_output=True,
+                supports_vision=True,
+                supports_tools=True,
             ),
         ]
         
@@ -879,7 +919,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

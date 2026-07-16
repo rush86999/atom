@@ -5,6 +5,7 @@ Provides comprehensive health status for all 33+ service integrations
 """
 
 import asyncio
+import datetime
 import time
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException

@@ -58,7 +58,7 @@ function Error({ statusCode, err }) {
         </button>
       </div>
 
-      {process.env.NODE_ENV === 'development' && err && (
+      {process.env.NODE_ENV === 'development' && err && typeof err === 'object' && err.stack && (
         <details style={{ marginTop: '30px', textAlign: 'left', maxWidth: '600px' }}>
           <summary style={{ cursor: 'pointer', color: '#e53e3e' }}>
             Error Details (Development Only)
@@ -70,7 +70,7 @@ function Error({ statusCode, err }) {
             overflow: 'auto',
             fontSize: '0.9rem'
           }}>
-            {err.stack}
+            {String(err.stack)}
           </pre>
         </details>
       )}
@@ -79,8 +79,11 @@ function Error({ statusCode, err }) {
 }
 
 Error.getInitialProps = ({ res, err }) => {
-  const statusCode = res ? res.statusCode : err ? err.statusCode : 404;
-  return { statusCode, err };
+  const statusCode = res ? res.statusCode : (err && err.statusCode) ? err.statusCode : 404;
+  // Only pass err if it's a real Error object with a stack — avoids crashes
+  // when Next.js strips the error or passes a non-Error value.
+  const safeErr = (err && typeof err === 'object' && typeof err.stack === 'string') ? err : undefined;
+  return { statusCode, err: safeErr };
 };
 
 export default Error;

@@ -156,16 +156,74 @@ class ExcelManager:
             ws[coordinate] = value
             wb.save(file_path)
 
+            # Recalculate via the workbook runtime so the agent sees computed
+            # results immediately (not stale formula strings). Best-effort:
+            # a runtime failure doesn't break the write.
+            computed_value = value
+            try:
+                from core.workbook_runtime import get_workbook_runtime
+                runtime = get_workbook_runtime()
+                if runtime.can_evaluate and is_formula:
+                    # Run recalc synchronously (write_cell is a sync method).
+                    import asyncio
+                    try:
+                        loop = asyncio.new_event_loop()
+                        loop.run_until_complete(runtime.recalculate(file_path))
+                        loop.close()
+                    except Exception:
+                        pass  # Recalc failed — keep the formula as the value.
+                    # Read the now-computed value.
+                    wb2 = openpyxl.load_workbook(file_path, data_only=True)
+                    ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
+                    computed_value = ws2[coordinate].value
+            except Exception as recalc_err:
+                logger.debug(f"Recalc after write skipped (non-fatal): {recalc_err}")
+
             return {
                 "success": True,
                 "sheet_name": sheet_name,
                 "coordinate": coordinate,
-                "value": value,
+                "value": computed_value,
+                "formula": value if is_formula else None,
                 "message": f"Updated {sheet_name}!{coordinate} successfully"
             }
         except Exception as e:
             logger.error(f"Error writing Excel cell: {e}")
             return {"success": False, "error": str(e)}
+
+    @staticmethod
+    async def insert_rows(file_path: str, sheet_name: str, row: int, count: int = 1) -> Dict[str, Any]:
+        """Insert rows and recalculate formulas to maintain references."""
+        from core.workbook_runtime import get_workbook_runtime
+        runtime = get_workbook_runtime()
+        return await runtime.insert_rows(file_path, sheet_name, row, count)
+
+    @staticmethod
+    async def insert_columns(file_path: str, sheet_name: str, col: int, count: int = 1) -> Dict[str, Any]:
+        """Insert columns and recalculate formulas to maintain references."""
+        from core.workbook_runtime import get_workbook_runtime
+        runtime = get_workbook_runtime()
+        return await runtime.insert_cols(file_path, sheet_name, col, count)
+
+    @staticmethod
+    async def get_evaluated_range(file_path: str, cell_path: str) -> Dict[str, Any]:
+        """Read a range with freshly evaluated formula results."""
+        from core.workbook_runtime import get_workbook_runtime
+        runtime = get_workbook_runtime()
+        sheet_name, cell_range = ExcelManager.parse_path(cell_path)
+        parts = cell_range.split(":") if ":" in cell_range else [cell_range]
+        start = parts[0] if parts else "A1"
+        end = parts[1] if len(parts) > 1 else None
+        return await runtime.get_evaluated_range(file_path, sheet_name, start, end)
+
+    @staticmethod
+    async def recalculate(file_path: str) -> Dict[str, Any]:
+        """Force recalculation of all formulas in the workbook."""
+        from core.workbook_runtime import get_workbook_runtime
+        from pathlib import Path
+        runtime = get_workbook_runtime()
+        await runtime.recalculate(Path(file_path))
+        return {"success": True, "engine": runtime.engine}
 
 
 class WordManager:
@@ -357,16 +415,27 @@ class DocumentRenderer:
                 return {"success": False, "error": f"Failed rendering Word to HTML: {str(e)}"}
 
         elif ext == ".xlsx":
-            if not XLSX2HTML_AVAILABLE:
-                return {"success": False, "error": "xlsx2html library not installed"}
+            # Use the workbook runtime for pixel-accurate rendering (LibreOffice
+            # when available — includes conditional formatting, charts, and
+            # evaluated formulas). Falls back to a basic openpyxl HTML table.
             try:
-                # Use xlsx2html to convert spreadsheet to HTML table
-                out_stream = io.StringIO()
-                xlsx2html.xlsx2html(file_path, out_stream)
-                html_val = out_stream.getvalue()
+                from core.workbook_runtime import get_workbook_runtime
+                import asyncio as _asyncio
+                runtime = get_workbook_runtime()
+                try:
+                    loop = _asyncio.get_event_loop()
+                    if loop.is_running():
+                        # We're in an async context — can't await here directly.
+                        # Fall back to basic render (the sync path).
+                        html_val = runtime._render_html_basic(Path(file_path))
+                    else:
+                        html_val = loop.run_until_complete(runtime.render_to_html(file_path))
+                except RuntimeError:
+                    html_val = runtime._render_html_basic(Path(file_path))
                 return {
                     "success": True,
-                    "html": f"<div class='office-excel-preview'>{html_val}</div>"
+                    "html": f"<div class='office-excel-preview'>{html_val}</div>",
+                    "engine": runtime.engine,
                 }
             except Exception as e:
                 return {"success": False, "error": f"Failed rendering Excel to HTML: {str(e)}"}
