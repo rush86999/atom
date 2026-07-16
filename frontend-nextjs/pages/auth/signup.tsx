@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { signIn, getSession } from "next-auth/react";
+﻿import React, { useState, useEffect } from "react";
+import { getSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,45 +34,66 @@ export default function SignUp() {
     setIsLoading(true);
     setError("");
 
-    // Validation
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       setIsLoading(false);
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
       setIsLoading(false);
       return;
     }
 
     try {
-      // In a real app, you would call your registration API here
-      // For demo purposes, we'll auto-create the account and sign in
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        process.env.API_BASE_URL ||
+        process.env.PYTHON_BACKEND_URL ||
+        "http://localhost:8000";
+
+      const nameParts = name.trim().split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ");
+
+      const response = await fetch(`${apiBase}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          first_name: firstName,
+          last_name: lastName,
+          role: "member",
+        }),
       });
 
-      if (result?.error) {
-        // If sign in fails, it means the user doesn't exist
-        // In a real app, you would create the user here
-        toast({
-          title: "Account created successfully!",
-          description: "Please sign in with your new credentials",
-        });
-        router.push("/auth/signin");
-      } else {
-        toast({
-          title: "Welcome to ATOM!",
-          description: "Your account has been created successfully.",
-        });
-        router.push("/");
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message =
+          data?.detail?.message ||
+          data?.message ||
+          data?.detail ||
+          "Failed to create account";
+        throw new Error(message);
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
+
+      toast({
+        title: "Account created successfully!",
+        description: "Please sign in with your new credentials",
+      });
+      router.push("/auth/signin");
+    } catch (err: any) {
+      const message = err?.message || "An unexpected error occurred";
+      if (message.toLowerCase().includes("already exists")) {
+        setError("An account with this email already exists");
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +102,6 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="w-full max-w-md space-y-8">
-        {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
             Create Account
@@ -91,7 +111,6 @@ export default function SignUp() {
           </p>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -139,7 +158,7 @@ export default function SignUp() {
                 className="h-12"
               />
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Must be at least 6 characters
+                Must be at least 8 characters
               </p>
             </div>
 

@@ -43,6 +43,7 @@ class UserCreate(BaseModel):
     password: str
     first_name: str
     last_name: str
+    role: str = "member"
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -94,7 +95,10 @@ async def login_for_access_token(
             raise HTTPException(status_code=400, detail="Inactive user")
 
         # Check for 2FA
-        if user.two_factor_enabled:
+        two_factor_enabled = bool(getattr(user, "two_factor_enabled", False))
+        two_factor_secret = getattr(user, "two_factor_secret", None)
+
+        if two_factor_enabled:
             if not login_data.totp_code:
                 return JSONResponse(
                     status_code=status.HTTP_200_OK,
@@ -107,7 +111,10 @@ async def login_for_access_token(
                 )
             
             # Verify TOTP code
-            totp = pyotp.TOTP(user.two_factor_secret)
+            if not two_factor_secret:
+                raise HTTPException(status_code=400, detail="2FA is enabled but no secret is configured")
+
+            totp = pyotp.TOTP(two_factor_secret)
             if not totp.verify(login_data.totp_code):
                 audit_service.log_event(
                     db,
@@ -174,6 +181,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         hashed_password=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
+        role=user_data.role or "member",
         status=UserStatus.ACTIVE
     )
     
@@ -328,4 +336,3 @@ async def get_user_profile(current_user: User = Depends(get_current_user)):
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "last_login": current_user.last_login.isoformat() if current_user.last_login else None
     }
-
