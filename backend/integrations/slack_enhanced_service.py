@@ -262,7 +262,15 @@ class SlackEnhancedService(IntegrationService):
         
         # Encryption for tokens
         self.encryption_key = config.get('encryption_key') or os.getenv('ENCRYPTION_KEY')
-        self.cipher = Fernet(self.encryption_key.encode()) if self.encryption_key else None
+        self.cipher = None
+        if self.encryption_key:
+            try:
+                self.cipher = Fernet(self.encryption_key.encode())
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    "Invalid ENCRYPTION_KEY for SlackEnhancedService; continuing without token encryption: %s",
+                    e,
+                )
         
         # Rate limiter
         self.rate_limiter = SlackRateLimiter(self.redis_client)
