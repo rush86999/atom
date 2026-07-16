@@ -39,11 +39,23 @@ from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
 
-try:
-    from sentence_transformers import SentenceTransformer
-except (ImportError, Exception) as e:
-    SentenceTransformer = None
-    logger.warning(f"sentence_transformers not available (error: {e}), embeddings will be disabled")
+SentenceTransformer = None
+_sentence_transformer_checked = False
+
+
+def _get_sentence_transformer():
+    global SentenceTransformer, _sentence_transformer_checked
+    if _sentence_transformer_checked:
+        return SentenceTransformer
+    _sentence_transformer_checked = True
+    try:
+        from sentence_transformers import SentenceTransformer as _SentenceTransformer
+
+        SentenceTransformer = _SentenceTransformer
+    except (ImportError, Exception) as e:
+        SentenceTransformer = None
+        logger.warning(f"sentence_transformers not available (error: {e}), embeddings will be disabled")
+    return SentenceTransformer
 
 class CommunicationAppType(Enum):
     """Supported communication apps for ingestion"""
@@ -124,9 +136,10 @@ class LanceDBMemoryManager:
             
             # Initialize embedding model
             try:
-                if SentenceTransformer:
+                sentence_transformer = _get_sentence_transformer()
+                if sentence_transformer:
                     logger.info("Loading embedding model (all-mpnet-base-v2)...")
-                    self.model = SentenceTransformer('all-mpnet-base-v2')
+                    self.model = sentence_transformer('all-mpnet-base-v2')
                     logger.info("Embedding model loaded successfully")
                 else:
                     logger.warning("Embedding model skipped (library missing)")
