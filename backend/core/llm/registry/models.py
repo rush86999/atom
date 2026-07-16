@@ -183,7 +183,9 @@ class LLMModel(Base):
         # Partial index on is_deprecated (only index FALSE values for efficient filtering)
         Index('idx_llm_models_deprecated_partial',
               'is_deprecated',
-              postgresql_where=text('is_deprecated = FALSE')))
+              postgresql_where=text('is_deprecated = FALSE')),
+        {'extend_existing': True}
+    )
 
     # Common capabilities that have dedicated hybrid columns
     HYBRID_CAPABILITIES = {'vision', 'tools', 'function_calling', 'audio', 'computer_use'}

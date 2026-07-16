@@ -31,7 +31,7 @@ class TestTelegramCallbackRouting:
         # Import here to avoid import errors
         import sys
         import os
-        sys.path.insert(0, os.path.dirname(__file__))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
         # Mock the imports that might fail
         with patch.dict('sys.modules', {
