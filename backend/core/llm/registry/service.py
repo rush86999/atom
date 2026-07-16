@@ -479,8 +479,9 @@ class LLMRegistryService:
             for cap in capabilities:
                 query = query.filter(LLMModel.capabilities.contains([cap]))
         else:
-            # Match ANY capability (use overlap operator)
-            query = query.filter(LLMModel.capabilities.overlap(capabilities))
+            # Match ANY capability
+            from sqlalchemy import or_
+            query = query.filter(or_(*(LLMModel.capabilities.contains([cap]) for cap in capabilities)))
 
         return query.all()
 
@@ -940,7 +941,7 @@ class LLMRegistryService:
         logger.info(f"Updating quality scores for tenant {tenant_id} from LMSYS")
 
         # Get existing models for tenant
-        existing_models = self.list_models(
+        existing_models = await self.list_models(
             tenant_id,
             include_deprecated=False,
             use_cache=False

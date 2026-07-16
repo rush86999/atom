@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any, List, Union, Type, AsyncGenerator
 from enum import Enum
 
 from pydantic import BaseModel
-from core.llm.byok_handler import BYOKHandler, QueryComplexity
+from core.llm.byok_handler import BYOKHandler, QueryComplexity, AwaitableResult
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm.context.token_counter import TokenCounter, ContextValidator
 from core.llm_usage_tracker import llm_usage_tracker
@@ -609,7 +609,7 @@ class LLMService:
         """Check if LLM service is available."""
         return len(self.handler.clients) > 0 if hasattr(self, 'handler') and self.handler else False
 
-    async def get_optimal_provider(
+    def get_optimal_provider(
         self,
         complexity: str = "moderate",
         task_type: Optional[str] = None,
@@ -621,7 +621,7 @@ class LLMService:
         turn_index: int = 0
     ) -> tuple[str, str]:
         """
-        Get the optimal provider and model for a given complexity level (Async).
+        Get the optimal provider and model for a given complexity level.
         
         Args:
             complexity: Query complexity level
@@ -642,7 +642,7 @@ class LLMService:
         }
         complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
 
-        return await self.handler.get_optimal_provider(
+        result = self.handler.get_optimal_provider(
             complexity=complexity_enum,
             task_type=task_type,
             prefer_cost=prefer_cost,
@@ -652,8 +652,9 @@ class LLMService:
             requires_structured=requires_structured,
             turn_index=turn_index
         )
+        return AwaitableResult(result)
 
-    async def get_ranked_providers(
+    def get_ranked_providers(
         self,
         complexity: str = "moderate",
         task_type: Optional[str] = None,
@@ -687,7 +688,7 @@ class LLMService:
             }
             cognitive_tier_enum = tier_map.get(cognitive_tier.lower())
 
-        return await self.handler.get_ranked_providers(
+        result = self.handler.get_ranked_providers(
             complexity=complexity_enum,
             task_type=task_type,
             prefer_cost=prefer_cost,
@@ -700,6 +701,7 @@ class LLMService:
             cognitive_tier=cognitive_tier_enum,
             turn_index=turn_index
         )
+        return AwaitableResult(result)
 
     def get_available_providers(self) -> List[str]:
         """

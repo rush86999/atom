@@ -177,7 +177,7 @@ class TestTokenCountingAndCognitiveClassification:
                 mock_pricing = Mock()
                 mock_pricing.get_model_price.return_value = {"max_input_tokens": 128000}
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_fetcher.return_value = mock_pricing
 
                     context = handler.get_context_window("gpt-4o")
@@ -192,7 +192,7 @@ class TestTokenCountingAndCognitiveClassification:
                 handler.workspace_id = "default"
                 handler.cache_router = Mock()
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_fetcher.return_value.get_model_price.return_value = None
 
                     context = handler.get_context_window("gpt-4o")
@@ -208,7 +208,7 @@ class TestTokenCountingAndCognitiveClassification:
                 handler.workspace_id = "default"
                 handler.cache_router = Mock()
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_fetcher.return_value.get_model_price.return_value = None
 
                     context = handler.get_context_window("unknown-model")
@@ -483,7 +483,7 @@ class TestErrorHandlingAndFallback:
                 mock_ws.trial_ended = True
                 mock_db.query.return_value.filter.return_value.first.return_value = mock_ws
 
-                with patch('core.database.get_db_session') as mock_get_db:
+                with patch('core.llm.byok_handler.get_db_session') as mock_get_db:
                     mock_get_db.return_value.__enter__.return_value = mock_db
 
                     is_restricted = handler._is_trial_restricted()
@@ -502,7 +502,7 @@ class TestErrorHandlingAndFallback:
                 mock_ws.trial_ended = False
                 mock_db.query.return_value.filter.return_value.first.return_value = mock_ws
 
-                with patch('core.database.get_db_session') as mock_get_db:
+                with patch('core.llm.byok_handler.get_db_session') as mock_get_db:
                     mock_get_db.return_value.__enter__.return_value = mock_db
 
                     is_restricted = handler._is_trial_restricted()
@@ -519,7 +519,7 @@ class TestErrorHandlingAndFallback:
                 mock_db = Mock()
                 mock_db.query.side_effect = Exception("DB error")
 
-                with patch('core.database.get_db_session') as mock_get_db:
+                with patch('core.llm.byok_handler.get_db_session') as mock_get_db:
                     mock_get_db.return_value.__enter__.return_value = mock_db
 
                     is_restricted = handler._is_trial_restricted()
@@ -536,7 +536,7 @@ class TestErrorHandlingAndFallback:
                 handler.cache_router = Mock()
 
                 with patch.object(handler, 'get_optimal_provider', return_value=("deepseek", "deepseek-chat")):
-                    with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                    with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                         mock_pricing = Mock()
                         mock_pricing.get_model_price.return_value = {"max_input_tokens": 16000}
                         mock_fetcher.return_value.get_model_price.return_value = mock_pricing
@@ -650,7 +650,7 @@ class TestFallbackLogic:
 
                 # Mock BPC failure
                 with patch('core.benchmarks.get_quality_score', side_effect=Exception("BPC failed")):
-                    with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                    with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                         mock_fetcher.return_value.pricing_cache = {}
 
                         ranked = handler.get_ranked_providers(QueryComplexity.SIMPLE)
@@ -668,7 +668,7 @@ class TestFallbackLogic:
                 handler.cache_router = Mock()
 
                 with patch('core.benchmarks.get_quality_score', return_value=90):
-                    with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                    with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                         # Mock a pricing cache with models
                         mock_fetcher.return_value.pricing_cache = {
                             "deepseek-chat": {
@@ -1342,7 +1342,7 @@ class TestProviderComparisonAndPricing:
                 handler = BYOKHandler.__new__(BYOKHandler)
                 handler.workspace_id = "default"
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher', side_effect=Exception("Pricing unavailable")):
+                with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception("Pricing unavailable")):
                     comparison = handler.get_provider_comparison()
 
                     # Should return static fallback
@@ -1359,7 +1359,7 @@ class TestProviderComparisonAndPricing:
                 handler = BYOKHandler.__new__(BYOKHandler)
                 handler.workspace_id = "default"
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher', side_effect=Exception("Pricing unavailable")):
+                with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception("Pricing unavailable")):
                     models = handler.get_cheapest_models(limit=5)
 
                     assert models == []
@@ -1377,7 +1377,7 @@ class TestProviderComparisonAndPricing:
                     {"model": "model2", "cost": 0.002}
                 ]
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher', return_value=mock_fetcher):
+                with patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_fetcher):
                     models = handler.get_cheapest_models(limit=5)
 
                     mock_fetcher.get_cheapest_models.assert_called_once_with(limit=5)
@@ -1393,7 +1393,7 @@ class TestProviderComparisonAndPricing:
                 mock_fetcher = Mock()
                 mock_fetcher.get_cheapest_models.return_value = []
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher', return_value=mock_fetcher):
+                with patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_fetcher):
                     handler.get_cheapest_models()
 
                     # Should be called with default limit of 5
@@ -1410,7 +1410,7 @@ class TestProviderComparisonAndPricing:
                 async def mock_refresh(force=False):
                     return {"model1": {"price": 0.001}}
 
-                with patch('core.dynamic_pricing_fetcher.refresh_pricing_cache', side_effect=mock_refresh):
+                with patch('core.llm.byok_handler.refresh_pricing_cache', side_effect=mock_refresh):
                     result = await handler.refresh_pricing(force=True)
 
                     assert result["status"] == "success"
@@ -1427,7 +1427,7 @@ class TestProviderComparisonAndPricing:
                 async def mock_refresh_error(force=False):
                     raise Exception("Pricing refresh failed")
 
-                with patch('core.dynamic_pricing_fetcher.refresh_pricing_cache', side_effect=mock_refresh_error):
+                with patch('core.llm.byok_handler.refresh_pricing_cache', side_effect=mock_refresh_error):
                     result = await handler.refresh_pricing(force=False)
 
                     assert result["status"] == "error"
@@ -1569,7 +1569,7 @@ class TestContextWindowManagement:
                 handler.workspace_id = "default"
                 handler.cache_router = Mock()
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_pricing = Mock()
                     mock_pricing.get_model_price.return_value = {"max_input_tokens": 128000}
                     mock_fetcher.return_value = mock_pricing
@@ -1586,7 +1586,7 @@ class TestContextWindowManagement:
                 handler.workspace_id = "default"
                 handler.cache_router = Mock()
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_pricing = Mock()
                     mock_pricing.get_model_price.return_value = {"max_input_tokens": 200000}
                     mock_fetcher.return_value = mock_pricing
@@ -1603,7 +1603,7 @@ class TestContextWindowManagement:
                 handler.workspace_id = "default"
                 handler.cache_router = Mock()
 
-                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
                     mock_pricing = Mock()
                     mock_pricing.get_model_price.return_value = None
                     mock_fetcher.return_value = mock_pricing

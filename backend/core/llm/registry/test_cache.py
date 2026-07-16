@@ -40,7 +40,7 @@ async def test_concurrent_swap_prevention():
         # Verify lock was acquired (check first call to set_async)
         assert mock_set.call_count > 0
         first_call = mock_set.call_args_list[0]
-        assert first_call[0][0] == SWAP_LOCK_KEY  # First argument is lock key
+        assert first_call[0][0] == f"{tenant_id}:{SWAP_LOCK_KEY}"  # First argument is lock key
         assert first_call[0][1] == "swapping"
 
 
@@ -99,8 +99,7 @@ async def test_cache_consistency_during_swap():
         # Verify lock was released
         mock_delete.assert_called_once()
         delete_call_args = mock_delete.call_args[0]
-        assert delete_call_args[0] == SWAP_LOCK_KEY
-        assert delete_call_args[1] == tenant_id
+        assert delete_call_args[0] == f"{tenant_id}:{SWAP_LOCK_KEY}"
 
 
 @pytest.mark.asyncio
@@ -113,15 +112,15 @@ async def test_lock_timeout_behavior():
     # Mock cache that simulates lock timeout
     lock_acquired = False
 
-    async def mock_get(key, tenant):
-        if key == SWAP_LOCK_KEY and lock_acquired:
+    async def mock_get(key, tenant=None):
+        if SWAP_LOCK_KEY in key and lock_acquired:
             # Simulate lock timeout on second check
             return None
         return "swapping" if lock_acquired else None
 
-    async def mock_set(key, value, ttl, tenant):
+    async def mock_set(key, value, ttl=None, tenant=None):
         nonlocal lock_acquired
-        if key == SWAP_LOCK_KEY:
+        if SWAP_LOCK_KEY in key:
             lock_acquired = True
         return True
 
@@ -146,9 +145,9 @@ async def test_swap_error_handling():
     # Mock cache that fails during set (after lock is acquired)
     call_count = [0]
 
-    async def mock_set_with_error(key, value, ttl, tenant):
+    async def mock_set_with_error(key, value, ttl=None, tenant=None):
         call_count[0] += 1
-        if key != SWAP_LOCK_KEY:  # Fail on model set, not lock set
+        if SWAP_LOCK_KEY not in key:  # Fail on model set, not lock set
             raise Exception("Redis error")
         return True
 
@@ -167,8 +166,7 @@ async def test_swap_error_handling():
         # Verify lock was still released despite errors
         mock_delete.assert_called_once()
         delete_call_args = mock_delete.call_args[0]
-        assert delete_call_args[0] == SWAP_LOCK_KEY
-        assert delete_call_args[1] == tenant_id
+        assert delete_call_args[0] == f"{tenant_id}:{SWAP_LOCK_KEY}"
 
 
 @pytest.mark.asyncio
