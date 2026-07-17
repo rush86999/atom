@@ -65,8 +65,8 @@ export default function LoginPage() {
 
                 const data = await response.json();
                 console.log("Register Success. Token:", data.access_token);
-                localStorage.removeItem(''atom_explicit_logout'');
-                localStorage.setItem(''auth_token'', data.access_token);
+                localStorage.removeItem('atom_explicit_logout');
+                localStorage.setItem('auth_token', data.access_token);
                 // Set cookie for proxy compatibility
                 document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
                 router.push('/dashboard');
