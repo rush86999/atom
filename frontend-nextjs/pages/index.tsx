@@ -51,6 +51,54 @@ interface DashboardFeed {
 
 const Home = () => {
   const router = useRouter();
+  useEffect(() => {
+    const hasAuth = () => {
+      const token = localStorage.getItem('token');
+      const sessionToken = localStorage.getItem('auth_token');
+      const cookieToken = typeof document !== 'undefined'
+        ? document.cookie.includes('next-auth.session-token=') || document.cookie.includes('auth_token=')
+        : false;
+      return Boolean(token || sessionToken || cookieToken);
+    };
+
+    const runBootstrap = async () => {
+      if (typeof window === 'undefined') return;
+
+      if (hasAuth()) {
+        router.replace('/dashboard');
+        return;
+      }
+
+      const explicitLogout = localStorage.getItem('atom_explicit_logout') === '1';
+      if (explicitLogout) {
+        router.replace('/login');
+        return;
+      }
+
+      const host = window.location.hostname;
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+      if (!isLocalHost) return;
+
+      try {
+        const response = await fetch('/api/dev/bootstrap-session');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data?.access_token) return;
+
+        localStorage.removeItem('atom_explicit_logout');
+        localStorage.setItem('auth_token', data.access_token);
+        document.cookie = `auth_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+        router.replace('/dashboard');
+      } catch (error) {
+        console.error('Dev bootstrap failed:', error);
+      }
+    };
+
+    runBootstrap();
+  }, [router]);
+
   const [showWizard, setShowWizard] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [feed, setFeed] = useState<DashboardFeed | null>(null);
@@ -338,3 +386,5 @@ const Home = () => {
 };
 
 export default Home;
+
+

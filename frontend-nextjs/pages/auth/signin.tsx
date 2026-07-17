@@ -16,12 +16,13 @@ export default function SignIn() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const session = await getSession();
-      if (session) {
-        router.push("/");
-      }
-    };
+      const checkSession = async () => {
+        const session = await getSession();
+        if (session) {
+          localStorage.removeItem('atom_explicit_logout');
+          router.push("/dashboard");
+        }
+      };
     checkSession();
   }, [router]);
 
@@ -55,7 +56,7 @@ export default function SignIn() {
           title: "Successfully signed in!",
           variant: "success",
         });
-        router.push("/");
+        localStorage.removeItem('atom_explicit_logout');`r`n        router.push("/dashboard");
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -172,7 +173,7 @@ export default function SignIn() {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => signIn('google', { callbackUrl: '/' })}
+                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
                 className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">🔍</span>
@@ -181,7 +182,7 @@ export default function SignIn() {
 
               <button
                 type="button"
-                onClick={() => signIn('github', { callbackUrl: '/' })}
+                onClick={() => signIn('github', { callbackUrl: '/dashboard' })}
                 className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">⚫</span>
@@ -203,3 +204,5 @@ export default function SignIn() {
     </div>
   );
 }
+
+

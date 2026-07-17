@@ -43,10 +43,11 @@ export default function LoginPage() {
 
                 const data = await response.json();
                 console.log("Login Success. Token:", data.access_token);
+                localStorage.removeItem('atom_explicit_logout');
                 localStorage.setItem('auth_token', data.access_token);
                 // Set cookie for proxy compatibility (legacy)
                 document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-                router.push('/agents');
+                router.push('/dashboard');
             } else {
                 // Register
                 const response = await fetch(`${API_BASE}/api/auth/register`, {
@@ -64,10 +65,11 @@ export default function LoginPage() {
 
                 const data = await response.json();
                 console.log("Register Success. Token:", data.access_token);
-                localStorage.setItem('auth_token', data.access_token);
+                localStorage.removeItem(''atom_explicit_logout'');
+                localStorage.setItem(''auth_token'', data.access_token);
                 // Set cookie for proxy compatibility
                 document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-                router.push('/agents');
+                router.push('/dashboard');
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred');
@@ -197,3 +199,6 @@ export default function LoginPage() {
         </div>
     );
 }
+
+
+
