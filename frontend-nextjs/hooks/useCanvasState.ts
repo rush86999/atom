@@ -29,17 +29,13 @@ function verifyCanvasAPI(api: CanvasStateAPI | undefined): api is CanvasStateAPI
     return false;
   }
 
-  // Check if API methods are functional (not just stubs)
-  const testState = api.getState('test-canvas-verification');
-  const allStates = api.getAllStates();
-
-  // If API returns only null/empty, it might not be properly initialized
-  if (testState === null && allStates.length === 0) {
-    // This could mean no canvases are registered yet, which is OK on first render
-    return true;
-  }
-
-  return true;
+  // Check if API methods are present
+  return (
+    typeof api.getState === 'function' &&
+    typeof api.getAllStates === 'function' &&
+    typeof api.subscribe === 'function' &&
+    typeof api.subscribeAll === 'function'
+  );
 }
 
 /**
@@ -146,7 +142,7 @@ export function useCanvasState(canvasId?: string) {
 
       // Load all initial states
       const initialStates = api.getAllStates();
-      if (initialStates.length > 0) {
+      if (initialStates && initialStates.length > 0) {
         setAllStates(initialStates);
         // Track all initially registered canvases
         initialStates.forEach(({ canvas_id }) => registeredCanvases.add(canvas_id));

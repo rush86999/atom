@@ -2032,43 +2032,6 @@ export const integrationHandlers = [
 ];
 
 // ============================================================================
-// All Handlers Combined
-// ============================================================================
-
-/**
- * All default handlers for successful API responses.
- * Error handlers are exported separately and should be used as needed.
- */
-export const allHandlers = [
-  ...commonHandlers,
-  ...agentHandlers,
-  ...canvasHandlers,
-  ...deviceHandlers,
-  ...formSubmissionHandlers,  // Phase 109
-  ...integrationHandlers,     // Phase 130
-  ...communicationHandlers,   // Phase 299-11
-  ...taskHandlers,            // Phase 299-11
-];
-
-/**
- * All error scenario handlers for testing robustness.
- * These are not included in allHandlers by default.
- * Import and use specific error scenarios as needed in tests.
- *
- * Example:
- * ```typescript
- * import { agentErrorHandlers } from '@/tests/mocks/handlers';
- * server.use(...agentErrorHandlers.serviceUnavailable);
- * ```
- */
-export const allErrorHandlers = {
-  agent: agentErrorHandlers,
-  canvas: canvasErrorHandlers,
-  device: deviceErrorHandlers,
-  integration: integrationErrorHandlers,
-};
-
-// ============================================================================
 // Communication & Task Handlers (Phase 299-11)
 // ============================================================================
 
@@ -2204,3 +2167,41 @@ export const taskHandlers = [
     );
   }),
 ];
+
+// ============================================================================
+// All Handlers Combined
+// ============================================================================
+
+/**
+ * All default handlers for successful API responses.
+ * Error handlers are exported separately and should be used as needed.
+ */
+export const allHandlers = [
+  ...commonHandlers,
+  ...agentHandlers,
+  ...canvasHandlers,
+  ...deviceHandlers,
+  ...formSubmissionHandlers,  // Phase 109
+  ...integrationHandlers,     // Phase 130
+  ...communicationHandlers,   // Phase 299-11
+  ...taskHandlers,            // Phase 299-11
+];
+
+/**
+ * All error scenario handlers for testing robustness.
+ * These are not included in allHandlers by default.
+ * Import and use specific error scenarios as needed in tests.
+ *
+ * Example:
+ * ```typescript
+ * import { agentErrorHandlers } from '@/tests/mocks/handlers';
+ * server.use(...agentErrorHandlers.serviceUnavailable);
+ * ```
+ */
+export const allErrorHandlers = {
+  agent: agentErrorHandlers,
+  canvas: canvasErrorHandlers,
+  device: deviceErrorHandlers,
+  integration: integrationErrorHandlers,
+};
+

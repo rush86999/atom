@@ -3,6 +3,21 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 
+// Mock next-auth
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: {
+      user: {
+        name: 'Test User',
+        email: 'test@example.com'
+      }
+    },
+    status: 'authenticated',
+  }),
+  signOut: jest.fn(),
+  SessionProvider: ({ children }: any) => <>{children}</>,
+}));
+
 // Extend Jest with jest-axe matcher
 expect.extend(toHaveNoViolations);
 
@@ -157,7 +172,7 @@ describe('Workflow accessibility', () => {
       expect(status).toHaveTextContent('Loading...');
 
       // Simulate dynamic update
-      const { rerender } = renderWithProviders(
+      renderWithProviders(
         <div>
           <div aria-live="polite" aria-atomic="true" data-testid="status">
             Content loaded successfully
@@ -167,7 +182,7 @@ describe('Workflow accessibility', () => {
       );
 
       await waitFor(() => {
-        expect(status).toHaveTextContent('Content loaded successfully');
+        expect(screen.getByTestId('status')).toHaveTextContent('Content loaded successfully');
       });
     });
 
@@ -563,7 +578,7 @@ describe('Workflow accessibility', () => {
       expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
       // Simulate panel opening
-      const { rerender } = renderWithProviders(
+      renderWithProviders(
         <div>
           <button aria-expanded="true" aria-controls="panel">
             Toggle Panel
@@ -576,7 +591,7 @@ describe('Workflow accessibility', () => {
       );
 
       await waitFor(() => {
-        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: 'Toggle Panel' })).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByRole('button', { name: 'Panel Button' })).toBeInTheDocument();
       });
     });

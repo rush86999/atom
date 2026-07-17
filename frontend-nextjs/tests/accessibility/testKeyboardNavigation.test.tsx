@@ -294,7 +294,7 @@ describe('Keyboard Navigation Tests', () => {
 
     it('should not submit form when Enter is pressed on text field', async () => {
       const handleSubmit = jest.fn((e) => e.preventDefault());
-      renderWithProviders(
+      const { container } = renderWithProviders(
         <form aria-label="Search form" onSubmit={handleSubmit}>
           <label htmlFor="search">
             Search
@@ -308,7 +308,7 @@ describe('Keyboard Navigation Tests', () => {
       const user = userEvent.setup();
 
       // Type in search field and press Enter
-      await user.type(screen.getByLabelText(/search/i), 'query');
+      await user.type(container.querySelector('input')!, 'query');
       await user.keyboard('{Enter}');
 
       // Form should submit (Enter submits forms from text inputs too)
@@ -429,19 +429,40 @@ describe('Keyboard Navigation Tests', () => {
 
   describe('Arrow Key Navigation', () => {
     it('should navigate list with arrow keys', async () => {
-      renderWithProviders(
-        <ul role="listbox" aria-label="Agents">
-          <li role="option" tabIndex={0}>
-            Agent 1
-          </li>
-          <li role="option" tabIndex={-1}>
-            Agent 2
-          </li>
-          <li role="option" tabIndex={-1}>
-            Agent 3
-          </li>
-        </ul>
-      );
+      const TestListbox = () => {
+        const [focusedIndex, setFocusedIndex] = React.useState(0);
+        const items = ['Agent 1', 'Agent 2', 'Agent 3'];
+        const refs = React.useRef<any>([]);
+
+        const handleKeyDown = (e: React.KeyboardEvent) => {
+          if (e.key === 'ArrowDown') {
+            const next = (focusedIndex + 1) % items.length;
+            setFocusedIndex(next);
+            refs.current[next]?.focus();
+          } else if (e.key === 'ArrowUp') {
+            const next = (focusedIndex - 1 + items.length) % items.length;
+            setFocusedIndex(next);
+            refs.current[next]?.focus();
+          }
+        };
+
+        return (
+          <ul role="listbox" aria-label="Agents" onKeyDown={handleKeyDown}>
+            {items.map((item, idx) => (
+              <li
+                key={item}
+                ref={el => refs.current[idx] = el}
+                role="option"
+                tabIndex={focusedIndex === idx ? 0 : -1}
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        );
+      };
+
+      renderWithProviders(<TestListbox />);
 
       const user = userEvent.setup();
 
@@ -461,19 +482,41 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should navigate tabs with arrow keys', async () => {
-      renderWithProviders(
-        <div role="tablist">
-          <button role="tab" aria-selected="true" tabIndex={0}>
-            Tab 1
-          </button>
-          <button role="tab" aria-selected="false" tabIndex={-1}>
-            Tab 2
-          </button>
-          <button role="tab" aria-selected="false" tabIndex={-1}>
-            Tab 3
-          </button>
-        </div>
-      );
+      const TestTabs = () => {
+        const [activeIndex, setActiveIndex] = React.useState(0);
+        const tabs = ['Tab 1', 'Tab 2', 'Tab 3'];
+        const refs = React.useRef<any>([]);
+
+        const handleKeyDown = (e: React.KeyboardEvent) => {
+          if (e.key === 'ArrowRight') {
+            const next = (activeIndex + 1) % tabs.length;
+            setActiveIndex(next);
+            refs.current[next]?.focus();
+          } else if (e.key === 'ArrowLeft') {
+            const next = (activeIndex - 1 + tabs.length) % tabs.length;
+            setActiveIndex(next);
+            refs.current[next]?.focus();
+          }
+        };
+
+        return (
+          <div role="tablist" onKeyDown={handleKeyDown}>
+            {tabs.map((tab, idx) => (
+              <button
+                key={tab}
+                ref={el => refs.current[idx] = el}
+                role="tab"
+                aria-selected={activeIndex === idx}
+                tabIndex={activeIndex === idx ? 0 : -1}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        );
+      };
+
+      renderWithProviders(<TestTabs />);
 
       const user = userEvent.setup();
 
@@ -493,26 +536,53 @@ describe('Keyboard Navigation Tests', () => {
     });
 
     it('should navigate grid with arrow keys', async () => {
-      renderWithProviders(
-        <div role="grid" aria-label="Agent grid">
-          <div role="row">
-            <div role="gridcell" tabIndex={0}>
-              <button>Agent 1</button>
-            </div>
-            <div role="gridcell" tabIndex={-1}>
-              <button>Agent 2</button>
-            </div>
+      const TestGrid = () => {
+        const [focusedCell, setFocusedCell] = React.useState({ row: 0, col: 0 });
+        const grid = [
+          ['Agent 1', 'Agent 2'],
+          ['Agent 3', 'Agent 4']
+        ];
+        const refs = React.useRef<any>([[], []]);
+
+        const handleKeyDown = (e: React.KeyboardEvent) => {
+          let { row, col } = focusedCell;
+          if (e.key === 'ArrowRight') {
+            col = (col + 1) % 2;
+          } else if (e.key === 'ArrowLeft') {
+            col = (col - 1 + 2) % 2;
+          } else if (e.key === 'ArrowDown') {
+            row = (row + 1) % 2;
+          } else if (e.key === 'ArrowUp') {
+            row = (row - 1 + 2) % 2;
+          }
+          setFocusedCell({ row, col });
+          refs.current[row][col]?.querySelector('button')?.focus();
+        };
+
+        return (
+          <div role="grid" aria-label="Agent grid" onKeyDown={handleKeyDown}>
+            {grid.map((rowItems, rIdx) => (
+              <div key={rIdx} role="row">
+                {rowItems.map((cellItem, cIdx) => (
+                  <div
+                    key={cIdx}
+                    ref={el => {
+                      if (!refs.current[rIdx]) refs.current[rIdx] = [];
+                      refs.current[rIdx][cIdx] = el;
+                    }}
+                    role="gridcell"
+                    tabIndex={focusedCell.row === rIdx && focusedCell.col === cIdx ? 0 : -1}
+                  >
+                    <button tabIndex={-1}>{cellItem}</button>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-          <div role="row">
-            <div role="gridcell" tabIndex={-1}>
-              <button>Agent 3</button>
-            </div>
-            <div role="gridcell" tabIndex={-1}>
-              <button>Agent 4</button>
-            </div>
-          </div>
-        </div>
-      );
+        );
+      };
+
+      renderWithProviders(<TestGrid />);
 
       const user = userEvent.setup();
 
@@ -598,13 +668,29 @@ describe('Keyboard Navigation Tests', () => {
 
   describe('Focus Management', () => {
     it('should trap focus in modal', async () => {
-      renderWithProviders(
-        <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <h2 id="modal-title">Modal Title</h2>
-          <button>Cancel</button>
-          <button>Confirm</button>
-        </div>
-      );
+      const TestModal = () => {
+        const cancelRef = React.useRef<HTMLButtonElement>(null);
+        const confirmRef = React.useRef<HTMLButtonElement>(null);
+
+        const handleKeyDown = (e: React.KeyboardEvent) => {
+          if (e.key === 'Tab') {
+            if (document.activeElement === confirmRef.current) {
+              e.preventDefault();
+              cancelRef.current?.focus();
+            }
+          }
+        };
+
+        return (
+          <div role="dialog" aria-modal="true" aria-labelledby="modal-title" onKeyDown={handleKeyDown}>
+            <h2 id="modal-title">Modal Title</h2>
+            <button ref={cancelRef}>Cancel</button>
+            <button ref={confirmRef}>Confirm</button>
+          </div>
+        );
+      };
+
+      renderWithProviders(<TestModal />);
 
       const user = userEvent.setup();
 

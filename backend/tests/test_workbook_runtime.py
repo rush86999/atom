@@ -137,3 +137,49 @@ class TestExcelManagerIntegration:
             "Renderer should use the workbook runtime, not xlsx2html"
         assert "xlsx2html" not in source, \
             "Renderer should NOT use xlsx2html (replaced with runtime)"
+
+    @pytest.mark.asyncio
+    async def test_add_pivot_table(self, tmp_path):
+        """test programmatic creation of pivot table"""
+        from core.workbook_runtime import get_workbook_runtime
+        from openpyxl import Workbook
+        
+        # Create a sample sheet with columns: Product, Region, Sales
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "DataSheet"
+        ws.append(["Product", "Region", "Sales"])
+        ws.append(["Apple", "North", 100])
+        ws.append(["Apple", "South", 150])
+        ws.append(["Banana", "North", 200])
+        ws.append(["Banana", "South", 250])
+        
+        file_path = tmp_path / "sales.xlsx"
+        wb.save(file_path)
+        
+        runtime = get_workbook_runtime()
+        result = await runtime.add_pivot_table(
+            file_path=file_path,
+            sheet_name="DataSheet",
+            pivot_sheet_name="PivotSheet",
+            data_range="A1:C5",
+            rows=["Product"],
+            columns=["Region"],
+            values=[{"field": "Sales", "function": "sum"}]
+        )
+        assert result["success"] is True
+        assert result["pivot_sheet"] == "PivotSheet"
+
+    @pytest.mark.asyncio
+    async def test_run_macro_fails_safely_when_no_macro_present(self, tmp_path):
+        """test that run_macro fails gracefully when macro name standard subroutine not found"""
+        from core.workbook_runtime import get_workbook_runtime
+        from openpyxl import Workbook
+        wb = Workbook()
+        file_path = tmp_path / "macro_test.xlsx"
+        wb.save(file_path)
+        
+        runtime = get_workbook_runtime()
+        # Should return success=False gracefully or not crash
+        res = await runtime.run_macro(file_path, "NonExistentMacro")
+        assert res["success"] is False

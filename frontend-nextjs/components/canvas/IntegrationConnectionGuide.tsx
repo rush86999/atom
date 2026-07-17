@@ -61,7 +61,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
 }) => {
   const [guideData, setGuideData] = useState<IntegrationGuideData | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [expandedPermission, setExpandedPermission] = useState<number | null>(null);
+  const [expandedPermissions, setExpandedPermissions] = useState<Record<number, boolean>>({});
   const { socket, connected } = useWebSocket();
 
   const steps = [
@@ -165,7 +165,8 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           <div className="h-4 bg-gray-300 rounded w-48"></div>
         </div>
         {/* Accessibility Tree - Loading state */}
-        <div
+        <script
+          type="application/json"
           role="log"
           aria-live="polite"
           aria-label="Integration connection guide"
@@ -174,7 +175,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           data-status="loading"
         >
           {JSON.stringify({ status: 'loading', message: 'Waiting for integration data...' })}
-        </div>
+        </script>
       </div>
     );
   }
@@ -182,7 +183,8 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
   return (
     <>
       {/* Accessibility Tree - Hidden integration state for AI agents */}
-      <div
+      <script
+        type="application/json"
         role="log"
         aria-live="polite"
         aria-label="Integration connection guide"
@@ -207,7 +209,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           total_steps: steps.length,
           progress_percentage: Math.round((currentStepIndex / (steps.length - 1)) * 100)
         })}
-      </div>
+      </script>
 
       <div className={`integration-connection-guide bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden ${className}`}>
       {/* Header */}
@@ -294,7 +296,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
             {guideData.permissions.map((permission, index) => (
               <div key={index} className="border rounded-lg overflow-hidden">
                 <button
-                  onClick={() => setExpandedPermission(expandedPermission === index ? null : index)}
+                  onClick={() => setExpandedPermissions(prev => ({ ...prev, [index]: !prev[index] }))}
                   className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center space-x-3">
@@ -303,10 +305,10 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
                     </span>
                     <span className="font-medium text-gray-900 dark:text-gray-100">{permission.scope}</span>
                   </div>
-                  <span>{expandedPermission === index ? '▼' : '▶'}</span>
+                  <span>{expandedPermissions[index] ? '▼' : '▶'}</span>
                 </button>
 
-                {expandedPermission === index && (
+                {expandedPermissions[index] && (
                   <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t">
                     <p className="text-sm text-gray-700 dark:text-gray-300">{permission.why_needed}</p>
                   </div>

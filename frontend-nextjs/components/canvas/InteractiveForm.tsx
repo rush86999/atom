@@ -37,7 +37,11 @@ export function InteractiveForm({
     const [formData, setFormData] = useState<Record<string, any>>(() => {
         const initial: Record<string, any> = {};
         fields.forEach(field => {
-            initial[field.name] = field.defaultValue || '';
+            if (field.type === 'checkbox') {
+                initial[field.name] = field.defaultValue !== undefined ? field.defaultValue : false;
+            } else {
+                initial[field.name] = field.defaultValue !== undefined ? field.defaultValue : '';
+            }
         });
         return initial;
     });
@@ -109,20 +113,40 @@ export function InteractiveForm({
     }, [formData, fields, errors, isSubmitting, submitted, canvasId]);
 
     const validateField = (field: FormField, value: any): string | null => {
-        if (field.required && !value) {
+        const isEmpty = value === undefined || value === null || (typeof value === 'string' ? value.trim() === '' : value === '') || (field.type === 'number' && isNaN(parseFloat(value)));
+        
+        if (field.required && (field.type === 'checkbox' ? value === undefined : isEmpty)) {
             return `${field.label} is required`;
         }
 
-        if (field.validation) {
-            if (field.validation.pattern && !RegExp(field.validation.pattern).test(value)) {
-                return field.validation.custom || `${field.label} format is invalid`;
+        if (field.type === 'email' && value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value) || value.endsWith('.')) {
+                return 'Invalid email';
             }
-            if (field.type === 'number') {
-                if (field.validation.min && value < field.validation.min) {
+        }
+
+        if (field.validation) {
+            if (field.validation.pattern) {
+                const regex = new RegExp(`^(?:${field.validation.pattern})$`);
+                if (!regex.test(value || '')) {
+                    return field.validation.custom || `${field.label} format is invalid`;
+                }
+            }
+            if (field.type === 'number' && !isEmpty) {
+                const numVal = parseFloat(value);
+                if (field.validation.min !== undefined && numVal < field.validation.min) {
                     return `${field.label} must be at least ${field.validation.min}`;
                 }
-                if (field.validation.max && value > field.validation.max) {
+                if (field.validation.max !== undefined && numVal > field.validation.max) {
                     return `${field.label} must be at most ${field.validation.max}`;
+                }
+            } else if ((field.type === 'text' || field.type === 'email') && value !== undefined && value !== null) {
+                if (field.validation.min !== undefined && value.length < field.validation.min) {
+                    return `${field.label} must be at least ${field.validation.min} chars`;
+                }
+                if (field.validation.max !== undefined && value.length > field.validation.max) {
+                    return `${field.label} must be at most ${field.validation.max} chars`;
                 }
             }
         }
@@ -150,9 +174,17 @@ export function InteractiveForm({
             return;
         }
 
+        const coercedData = { ...formData };
+        fields.forEach(field => {
+            if (field.type === 'number') {
+                const val = parseFloat(coercedData[field.name]);
+                coercedData[field.name] = isNaN(val) ? '' : val;
+            }
+        });
+
         setIsSubmitting(true);
         try {
-            await onSubmit(formData);
+            await onSubmit(coercedData);
             setSubmitted(true);
             setTimeout(() => setSubmitted(false), 3000);
         } catch (error) {
@@ -172,7 +204,7 @@ export function InteractiveForm({
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {title && <h3 className="text-sm font-semibold">{title}</h3>}
 
             {fields.map((field) => (
@@ -211,12 +243,9 @@ export function InteractiveForm({
                             type={field.type}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                             placeholder={field.placeholder}
-                            value={formData[field.name] || ''}
+                            value={formData[field.name] !== undefined && formData[field.name] !== null ? formData[field.name] : ''}
                             onChange={(e) => {
-                                const value = field.type === 'number'
-                                    ? parseFloat(e.target.value)
-                                    : e.target.value;
-                                setFormData({ ...formData, [field.name]: value });
+                                setFormData({ ...formData, [field.name]: e.target.value });
                             }}
                         />
                     )}

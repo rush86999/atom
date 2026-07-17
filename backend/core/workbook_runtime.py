@@ -190,6 +190,106 @@ class WorkbookRuntime:
             return file_path
 
     # ------------------------------------------------------------------
+    # Macros and VBA
+    # ------------------------------------------------------------------
+
+    async def run_macro(self, file_path: str | Path, macro_name: str) -> Dict[str, Any]:
+        """Run a macro/VBA script in the workbook via Firecracker sandbox."""
+        file_path = Path(file_path)
+        if not file_path.exists():
+            return {"success": False, "error": f"Workbook not found: {file_path}"}
+
+        if not self._soffice:
+            return {"success": False, "error": "Macro execution requires LibreOffice runtime engine"}
+
+        from core.firecracker_sandbox import get_sandbox
+        sandbox = get_sandbox()
+
+        # Command to trigger macro execution in LibreOffice Calc standard libraries
+        command = [
+            self._soffice,
+            "--headless",
+            "--invisible",
+            f"macro:///Standard.Module1.{macro_name}",
+            str(file_path)
+        ]
+
+        success = await sandbox.execute_in_sandbox(command, file_path, file_path.parent)
+        if success:
+            await self.recalculate(file_path)
+            return {"success": True, "macro": macro_name}
+        return {"success": False, "error": "Macro execution failed inside sandbox"}
+
+    # ------------------------------------------------------------------
+    # Pivot Tables
+    # ------------------------------------------------------------------
+
+    async def add_pivot_table(
+        self, file_path: str | Path, sheet_name: str, pivot_sheet_name: str,
+        data_range: str, rows: List[str], columns: List[str],
+        values: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Generate a pivot table sheet using pandas data analytics and write to workbook."""
+        try:
+            import pandas as pd
+            from openpyxl import load_workbook
+            from openpyxl.utils.dataframe import dataframe_to_rows
+
+            file_path = Path(file_path)
+            wb = load_workbook(file_path)
+            if sheet_name not in wb.sheetnames:
+                return {"success": False, "error": f"Source sheet '{sheet_name}' not found"}
+
+            # Load sheet data into DataFrame
+            ws_src = wb[sheet_name]
+            
+            # Read source range or whole sheet if range is not fully defined
+            # We convert sheet cells to a list of dicts/lists for pandas
+            data = []
+            for row in ws_src.iter_rows(values_only=True):
+                data.append(row)
+            
+            if not data:
+                return {"success": False, "error": f"Source sheet '{sheet_name}' has no data"}
+                
+            headers = data[0]
+            df = pd.DataFrame(data[1:], columns=headers)
+
+            # Map aggregator functions
+            agg_funcs = {}
+            for v in values:
+                field = v.get("field")
+                func = v.get("function", "sum").lower()
+                agg_funcs[field] = func
+
+            # Pivot computation using pandas
+            pivot_df = pd.pivot_table(
+                df,
+                index=rows,
+                columns=columns,
+                values=[v.get("field") for v in values],
+                aggfunc=agg_funcs
+            )
+
+            # Write back pivot summary sheet
+            if pivot_sheet_name in wb.sheetnames:
+                del wb[pivot_sheet_name]
+            ws_pivot = wb.create_sheet(pivot_sheet_name)
+
+            # Write styled header and dataframe to worksheet
+            for r in dataframe_to_rows(pivot_df, index=True, header=True):
+                ws_pivot.append(r)
+
+            wb.save(file_path)
+            await self.recalculate(file_path)
+
+            logger.info(f"Created pivot table in sheet {pivot_sheet_name} from {sheet_name}")
+            return {"success": True, "pivot_sheet": pivot_sheet_name}
+        except Exception as e:
+            logger.error(f"Failed to generate pivot table: {e}")
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
     # Render
     # ------------------------------------------------------------------
 

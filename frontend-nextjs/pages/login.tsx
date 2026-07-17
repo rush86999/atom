@@ -65,8 +65,8 @@ export default function LoginPage() {
 
                 const data = await response.json();
                 console.log("Register Success. Token:", data.access_token);
-                localStorage.removeItem(''atom_explicit_logout'');
-                localStorage.setItem(''auth_token'', data.access_token);
+                localStorage.removeItem('atom_explicit_logout');
+                localStorage.setItem('auth_token', data.access_token);
                 // Set cookie for proxy compatibility
                 document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
                 router.push('/dashboard');
@@ -104,10 +104,11 @@ export default function LoginPage() {
                         {!isLogin && (
                             <>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         First Name
                                     </label>
                                     <input
+                                        id="first_name"
                                         type="text"
                                         required
                                         value={formData.first_name}
@@ -117,10 +118,11 @@ export default function LoginPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Last Name
                                     </label>
                                     <input
+                                        id="last_name"
                                         type="text"
                                         required
                                         value={formData.last_name}
@@ -133,12 +135,13 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Email
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
+                                    id="email"
                                     type="email"
                                     required
                                     value={formData.email}
@@ -150,12 +153,13 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Password
                             </label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
+                                    id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     required
                                     value={formData.password}
@@ -166,6 +170,7 @@ export default function LoginPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
                                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
                                 >
                                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

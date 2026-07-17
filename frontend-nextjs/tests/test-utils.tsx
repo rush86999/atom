@@ -8,6 +8,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SessionProvider } from 'next-auth/react';
 
 // Lazy load BrowserRouter to avoid module not found errors in tests that don't need routing
 let BrowserRouter: any = null;
@@ -66,6 +67,9 @@ export function renderWithProviders(
     if (router && BrowserRouter) {
       wrapped = <BrowserRouter>{wrapped}</BrowserRouter>;
     }
+
+    // Wrap with SessionProvider for next-auth compatibility
+    wrapped = <SessionProvider session={null}>{wrapped}</SessionProvider>;
 
     return <>{wrapped}</>;
   }

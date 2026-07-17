@@ -29,6 +29,21 @@ class ExcelWriteRequest(BaseModel):
     is_formula: bool = False
 
 
+class ExcelPivotTableRequest(BaseModel):
+    file_path: str
+    sheet_name: str
+    pivot_sheet_name: str
+    data_range: str
+    rows: List[str]
+    columns: List[str]
+    values: List[Dict[str, str]]
+
+
+class ExcelRunMacroRequest(BaseModel):
+    file_path: str
+    macro_name: str
+
+
 class WordModifyRequest(BaseModel):
     file_path: str
     action: str  # 'append' or 'replace'
@@ -129,6 +144,27 @@ async def get_formula_result(
 ):
     """Get the computed result of a formula cell (evaluates if needed)."""
     res = await office_service.ExcelManager.get_evaluated_range(file_path, cell_path)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
+@router.post("/excel/pivot-table")
+async def create_excel_pivot_table(req: ExcelPivotTableRequest):
+    """Create a styled pivot table in the Excel workbook."""
+    res = await office_service.ExcelManager.add_pivot_table(
+        req.file_path, req.sheet_name, req.pivot_sheet_name,
+        req.data_range, req.rows, req.columns, req.values
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+
+@router.post("/excel/run-macro")
+async def run_excel_macro(req: ExcelRunMacroRequest):
+    """Run an Excel VBA/Basic macro inside a sandboxed environment."""
+    res = await office_service.ExcelManager.run_excel_macro(req.file_path, req.macro_name)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res

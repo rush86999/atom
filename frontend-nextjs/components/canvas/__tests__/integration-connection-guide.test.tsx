@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import IntegrationConnectionGuide, {
   Permission,
@@ -39,7 +39,7 @@ jest.mock('@/hooks/useWebSocket', () => ({
 
 // Helper function to create mock guide data
 const createMockGuideData = (overrides: Partial<IntegrationGuideData> = {}): IntegrationGuideData => ({
-  integration_id: 'test-integration-123',
+  integration_id: 'test-integration',
   integration_name: 'Slack',
   stage: 'initiating',
   agent_guidance: {
@@ -56,18 +56,26 @@ const createMockGuideData = (overrides: Partial<IntegrationGuideData> = {}): Int
   ...overrides
 });
 
+let queuedMessages: MessageEvent[] = [];
+
 // Helper to simulate WebSocket message
 const simulateWebSocketMessage = (data: IntegrationGuideData) => {
+  const msg = {
+    data: JSON.stringify({
+      type: 'canvas:update',
+      data: {
+        component: 'integration_connection_guide',
+        data: data
+      }
+    })
+  } as MessageEvent;
+
   if (wsMessageHandler) {
-    wsMessageHandler({
-      data: JSON.stringify({
-        type: 'canvas:update',
-        data: {
-          component: 'integration_connection_guide',
-          data: data
-        }
-      })
-    } as MessageEvent);
+    act(() => {
+      wsMessageHandler!(msg);
+    });
+  } else {
+    queuedMessages.push(msg);
   }
 };
 
@@ -75,17 +83,26 @@ describe('IntegrationConnectionGuide', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     wsMessageHandler = null;
+    queuedMessages = [];
 
     // Capture message handler when addEventListener is called
     (mockSocket.addEventListener as jest.Mock).mockImplementation((event, handler) => {
       if (event === 'message') {
         wsMessageHandler = handler as (event: MessageEvent) => void;
+        // Flush any queued messages
+        act(() => {
+          while (queuedMessages.length > 0) {
+            const msg = queuedMessages.shift();
+            if (msg) wsMessageHandler!(msg);
+          }
+        });
       }
     });
   });
 
   afterEach(() => {
     wsMessageHandler = null;
+    queuedMessages = [];
   });
 
   // ============================================================================
@@ -321,7 +338,7 @@ describe('IntegrationConnectionGuide', () => {
     simulateWebSocketMessage(createMockGuideData({ stage: 'complete' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Complete/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Complete$/)).toBeInTheDocument();
       expect(screen.getByText(/Integration Complete/i)).toBeInTheDocument();
     });
   });
@@ -603,9 +620,9 @@ describe('IntegrationConnectionGuide', () => {
     }));
 
     await waitFor(() => {
-      expect(screen.getByText(/LOW/i)).toBeInTheDocument();
-      expect(screen.getByText(/MEDIUM/i)).toBeInTheDocument();
-      expect(screen.getByText(/HIGH/i)).toBeInTheDocument();
+      expect(screen.getByText(/^low$/i)).toBeInTheDocument();
+      expect(screen.getByText(/^medium$/i)).toBeInTheDocument();
+      expect(screen.getByText(/^high$/i)).toBeInTheDocument();
     });
   });
 
@@ -1042,7 +1059,7 @@ describe('IntegrationConnectionGuide', () => {
     render(
       <IntegrationConnectionGuide
         userId="test-user"
-        integrationId="test-integration"
+        integrationId="integration-123"
         onComplete={onComplete}
       />
     );

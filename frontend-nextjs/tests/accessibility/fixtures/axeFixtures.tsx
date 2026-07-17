@@ -1,6 +1,7 @@
 import { render, RenderResult } from '@testing-library/react';
 import { axe, toHaveNoViolations, AxeResults, Violation } from 'jest-axe';
 import React, { ReactElement } from 'react';
+import { SessionProvider } from 'next-auth/react';
 
 // Extend Jest with jest-axe matcher
 expect.extend(toHaveNoViolations);
@@ -222,7 +223,7 @@ export async function authenticatedAxeRender(
     })
   ) as jest.Mock;
 
-  return render(ui, options);
+  return render(<SessionProvider session={null}>{ui}</SessionProvider>, options);
 }
 
 /**

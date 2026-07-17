@@ -321,6 +321,64 @@ async def recalculate_excel(
         return {"success": False, "error": str(e)}
 
 
+async def add_excel_pivot_table(
+    user_id: str,
+    file_path: str,
+    sheet_name: str,
+    pivot_sheet_name: str,
+    data_range: str,
+    rows: List[str],
+    columns: List[str],
+    values: List[Dict[str, str]]
+) -> Dict[str, Any]:
+    """
+    Create a styled pivot table in the Excel workbook.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        sheet_name: Name of the sheet containing raw data
+        pivot_sheet_name: Target sheet name for the pivot table
+        data_range: Cell range containing data (e.g. A1:D100)
+        rows: Fields to use as rows
+        columns: Fields to use as columns
+        values: Fields to aggregate with aggregation configuration (e.g. [{"field": "Sales", "function": "SUM"}])
+    """
+    try:
+        result = await office_service.ExcelManager.add_pivot_table(
+            file_path, sheet_name, pivot_sheet_name, data_range, rows, columns, values
+        )
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Add pivot table tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def run_excel_macro(
+    user_id: str,
+    file_path: str,
+    macro_name: str
+) -> Dict[str, Any]:
+    """
+    Run an Excel VBA/Basic macro inside a sandboxed environment.
+
+    Args:
+        user_id: User requesting the action
+        file_path: Absolute path to the Excel file
+        macro_name: Name of the macro Standard module subroutine to execute (e.g., 'FormatData')
+    """
+    try:
+        result = await office_service.ExcelManager.run_excel_macro(file_path, macro_name)
+        if result.get("success"):
+            asyncio.create_task(_ingest_after_write(file_path, user_id))
+        return result
+    except Exception as e:
+        logger.error(f"Run macro tool failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def present_coedit_canvas(
     user_id: str,
     file_path: str,

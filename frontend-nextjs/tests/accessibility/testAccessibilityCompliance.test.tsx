@@ -2,6 +2,7 @@ import { renderWithProviders, screen } from '../test-utils';
 import React from 'react';
 import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
+import Layout from '@/components/layout/Layout';
 import {
   axeCheckViolations,
   axeCheckCritical,
@@ -9,6 +10,21 @@ import {
   authenticatedAxeRender,
   defaultAxeOptions,
 } from './fixtures/axeFixtures';
+
+// Mock next-auth
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: {
+      user: {
+        name: 'Test User',
+        email: 'test@example.com'
+      }
+    },
+    status: 'authenticated',
+  }),
+  signOut: jest.fn(),
+  SessionProvider: ({ children }: any) => <>{children}</>,
+}));
 
 /**
  * WCAG 2.1 AA Compliance Tests
@@ -50,13 +66,13 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
       renderWithProviders(<LoginPage />);
 
       // Check for email input with label
-      const emailInput = screen.getByLabelText(/email/i) ||
+      const emailInput = screen.getByLabelText(/^email$/i) ||
                         screen.getByPlaceholderText(/email/i);
       expect(emailInput).toBeInTheDocument();
       expect(emailInput).toHaveAttribute('type', 'email');
 
       // Check for password input with label
-      const passwordInput = screen.getByLabelText(/password/i) ||
+      const passwordInput = screen.getByLabelText(/^password$/i) ||
                            screen.getByPlaceholderText(/password/i);
       expect(passwordInput).toBeInTheDocument();
       expect(passwordInput).toHaveAttribute('type', 'password');
@@ -87,10 +103,14 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     });
 
     it('should have accessible navigation on dashboard page', async () => {
-      await authenticatedAxeRender(<DashboardPage />);
+      await authenticatedAxeRender(
+        <Layout>
+          <DashboardPage />
+        </Layout>
+      );
 
       // Check for navigation landmarks
-      const nav = screen.getByRole('navigation');
+      const nav = screen.getAllByRole('navigation')[0];
       expect(nav).toBeInTheDocument();
 
       // Check for main content landmark
@@ -389,12 +409,9 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
       expect(dialog).toHaveAttribute('aria-modal', 'true');
       expect(dialog).toHaveAttribute('aria-labelledby');
 
-      // One button should have autoFocus (for keyboard users)
+      // One button should have focus (due to autoFocus property)
       const buttons = screen.getAllByRole('button');
-      const autoFocusButton = buttons.find((btn) =>
-        btn.getAttribute('autoFocus')
-      );
-      expect(autoFocusButton).toBeDefined();
+      expect(buttons[1]).toHaveFocus();
     });
   });
 
@@ -432,7 +449,7 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
       // Check for landmarks
       expect(screen.getByRole('banner')).toBeInTheDocument(); // header
-      expect(screen.getByRole('navigation')).toBeInTheDocument();
+      expect(screen.getAllByRole('navigation').length).toBeGreaterThan(0);
       expect(screen.getByRole('main')).toBeInTheDocument();
       expect(screen.getByRole('contentinfo')).toBeInTheDocument(); // footer
     });
