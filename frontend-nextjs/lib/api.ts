@@ -317,3 +317,67 @@ function generateRequestId(): string {
 
 // Export the main API client for custom requests
 export default apiClient;
+
+export interface FetchOptions extends RequestInit {
+  retries?: number;
+}
+
+export async function fetchWithErrorHandling(url: string, options: FetchOptions = {}): Promise<any> {
+  const { retries = 0, ...fetchOptions } = options;
+  let attempts = 0;
+  const maxAttempts = retries + 1;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const response = await fetch(url, fetchOptions);
+
+      // Check for abort signal aborting before or during request
+      if (fetchOptions.signal?.aborted) {
+        throw new Error("Request aborted");
+      }
+
+      if (!response.ok) {
+        // Only retry on 5xx status codes, not on 4xx
+        if (response.status >= 500 && attempts < maxAttempts) {
+          continue;
+        }
+        const error = new Error(`HTTP ${response.status}`);
+        (error as any).noRetry = true;
+        throw error;
+      }
+
+      if (response.status === 204) {
+        return {};
+      }
+
+      const data = await response.json();
+
+      if (data === null || data === undefined) {
+        throw new Error("Null or undefined response");
+      }
+
+      if (Array.isArray(data)) {
+        throw new Error("Array response when object expected");
+      }
+
+      if (typeof data === "object" && Object.keys(data).length === 0) {
+        throw new Error("Missing response fields");
+      }
+
+      return data;
+    } catch (error: any) {
+      // If request was aborted or marked as noRetry, propagate the error immediately without retry
+      if (error.noRetry || fetchOptions.signal?.aborted || error.name === 'AbortError') {
+        throw error;
+      }
+      
+      // If we have remaining attempts, retry on network errors (non-HTTP errors)
+      if (attempts < maxAttempts) {
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+

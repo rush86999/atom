@@ -431,7 +431,7 @@ class TestModelCrud:
         result = await service.get_model('tenant-123', 'openai', 'gpt-4')
 
         # Verify cache was checked and DB was not queried
-        mock_cache.get_model.assert_called_once_with('openai', 'gpt-4')
+        mock_cache.get_model.assert_called_once_with('tenant-123', 'openai', 'gpt-4')
         assert result is not None
         assert result.model_name == 'gpt-4'
         assert result.provider == 'openai'
@@ -508,7 +508,7 @@ class TestModelCrud:
             return sample_model
 
         with patch.object(service, 'get_model', side_effect=mock_get_model):
-            result = service.delete_model('tenant-123', 'openai', 'gpt-4')
+            result = await service.delete_model('tenant-123', 'openai', 'gpt-4')
 
             assert result is True
             mock_db.delete.assert_called_once_with(sample_model)
@@ -520,7 +520,7 @@ class TestModelCrud:
             return None
 
         with patch.object(service, 'get_model', side_effect=mock_get_model):
-            result = service.delete_model('tenant-123', 'openai', 'gpt-4')
+            result = await service.delete_model('tenant-123', 'openai', 'gpt-4')
 
             assert result is False
 
@@ -700,7 +700,7 @@ class TestDeprecation:
             return sample_model
 
         with patch.object(service, 'get_model', side_effect=mock_get_model):
-            result = service.mark_model_deprecated('tenant-123', 'openai', 'gpt-4', 'removed_from_api')
+            result = await service.mark_model_deprecated('tenant-123', 'openai', 'gpt-4', 'removed_from_api')
 
             assert result == sample_model
             assert result.is_deprecated is True

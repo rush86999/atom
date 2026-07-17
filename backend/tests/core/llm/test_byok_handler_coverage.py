@@ -637,7 +637,13 @@ class TestQueryComplexityAnalysis:
         complexity_without = handler.analyze_query_complexity("print hello")
 
         # Code blocks should increase complexity
-        assert complexity_with_code.value >= complexity_without.value
+        ranks = {
+            QueryComplexity.SIMPLE: 1,
+            QueryComplexity.MODERATE: 2,
+            QueryComplexity.COMPLEX: 3,
+            QueryComplexity.ADVANCED: 4
+        }
+        assert ranks[complexity_with_code] >= ranks[complexity_without]
 
 
 class TestGetOptimalProvider:

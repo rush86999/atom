@@ -10568,6 +10568,30 @@ class UnifiedWorkspace(Base):
     __table_args__ = (
         Index("ix_unified_workspaces_user_updated", "user_id", "updated_at"),
     )
+
+
+class WorkspaceSyncLog(Base):
+    """Log of workspace synchronization operations across platforms.
+
+    Referenced by ``integrations/workspace_sync_service.py`` to log
+    sync status, operation type, duration, and error details.
+    """
+
+    __tablename__ = "workspace_sync_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    unified_workspace_id = Column(String, nullable=False, index=True)
+    operation = Column(String, nullable=False)
+    source_platform = Column(String, nullable=False)
+    target_platforms = Column(JSONColumn, nullable=True)
+    change_type = Column(String, nullable=False)
+    change_data = Column(JSONColumn, nullable=True)
+    status = Column(String(50), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+
 # These live in core/models_board.py for file-size sanity; importing here so
 # Alembic metadata discovers them.
 from core.models_board import (  # noqa: E402,F401

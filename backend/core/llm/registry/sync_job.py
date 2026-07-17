@@ -53,7 +53,7 @@ class ModelSyncJob:
         self.registry_service = LLMRegistryService(db, use_cache=True)
         self.logger = logging.getLogger(__name__)
 
-    async def run(self= 'default') -> Dict[str, Any]:
+    async def run(self, tenant_id: str = 'default') -> Dict[str, Any]:
         """
         Execute the sync job for a tenant.
 

@@ -12,7 +12,7 @@ import type {
   components,
   paths,
   operations
-} from '../../types/api-generated';
+} from '../../src/types/api-generated';
 
 // Extract commonly used types for convenience
 type AgentResponse = components['schemas']['AgentResponse'];

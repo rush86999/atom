@@ -353,15 +353,18 @@ class SemanticBugClusterer:
         # Get error messages for bugs in cluster
         bug_map = {bug.test_name: bug for bug in bugs}
 
-        error_messages = "\n".join([
-            f"- {bug_map.get(bug_id, BugReport(
-                discovery_method='property',
-                test_name=bug_id,
-                error_message='Unknown error',
-                error_signature='unknown'
-            )).error_message[:200]}"
-            for bug_id in bug_ids[:5]  # Top 5 for context
-        ])
+        lines = []
+        for bug_id in bug_ids[:5]:
+            bug = bug_map.get(bug_id)
+            if not bug:
+                bug = BugReport(
+                    discovery_method='property',
+                    test_name=bug_id,
+                    error_message='Unknown error',
+                    error_signature='unknown'
+                )
+            lines.append(f"- {bug.error_message[:200]}")
+        error_messages = "\n".join(lines)
 
         prompt = f"""Analyze these bug error messages and generate a short theme label (3-5 words).
 

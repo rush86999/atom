@@ -94,31 +94,24 @@ class CacheAwareRouter:
         # This is sufficient for initial implementation. Can be persisted to DB later.
         self.cache_hit_history = {}
 
-    async def calculate_effective_cost(
+    def calculate_effective_cost(
         self,
         model: str,
         provider: str,
         estimated_input_tokens: int,
-        turn_index: int = 0
+        turn_index: int = 0,
+        cache_hit_probability: Optional[float] = None,
+        workspace_id: str = "default",
+        prompt_hash: Optional[str] = None
     ) -> float:
         """
-        Calculate effective cost accounting for prompt caching (Deterministic Mode).
-
-        In agentic workflows, Turn 0 creates the cache (full price) and
-        Turn 1..N reuse the cache (10% price).
-
-        Args:
-            model: Model name
-            provider: Provider name
-            estimated_input_tokens: Estimated input token count
-            turn_index: Current interaction index (0 = cache creation, >0 = cache reuse)
-
-        Returns:
-            Effective cost per token (float)
+        Calculate effective cost accounting for prompt caching.
+        Supports both deterministic turn-based mode and probabilistic mode.
         """
         pricing = self.pricing_fetcher.get_model_price(model)
         if not pricing:
-            return float("inf")
+            from core.llm.byok_handler import AwaitableResult
+            return AwaitableResult(float("inf"))
 
         input_cost = pricing.get("input_cost_per_token", 0)
         output_cost = pricing.get("output_cost_per_token", 0)
@@ -126,21 +119,36 @@ class CacheAwareRouter:
         # Get provider cache capabilities
         cache_info = self.get_provider_cache_capability(provider)
 
-        # Logic: Turn 1+ is deterministic cache reuse IF tokens > min_tokens and provider supports it
+        # Check cache eligibility (token length threshold check)
         is_cache_eligible = (
             cache_info["supports_cache"] and 
-            estimated_input_tokens >= cache_info["min_tokens"] and
-            turn_index > 0
+            estimated_input_tokens >= cache_info["min_tokens"]
         )
 
-        if not is_cache_eligible:
-            return (input_cost + output_cost) / 2
+        from core.llm.byok_handler import AwaitableResult
 
-        # Effective input cost for cache reuse
-        cached_ratio = cache_info["cached_cost_ratio"]
-        effective_input_cost = input_cost * cached_ratio
+        # 1. Deterministic Turn-based Mode (if turn_index > 0 or explicitly set and no probability given)
+        if is_cache_eligible and cache_hit_probability is None and turn_index > 0:
+            effective_input_cost = input_cost * cache_info["cached_cost_ratio"]
+            return AwaitableResult((effective_input_cost + output_cost) / 2)
 
-        return (effective_input_cost + output_cost) / 2
+        # 2. Probabilistic Mode (if probability is provided or predicted)
+        if cache_info["supports_cache"] and estimated_input_tokens >= cache_info["min_tokens"]:
+            if cache_hit_probability is None:
+                if prompt_hash:
+                    cache_hit_probability = self.predict_cache_hit_probability(prompt_hash, workspace_id)
+                else:
+                    cache_hit_probability = 0.5
+            
+            # Boundary enforcement: clamp to [0.0, 1.0]
+            cache_hit_probability = max(0.0, min(1.0, cache_hit_probability))
+
+            cached_ratio = cache_info["cached_cost_ratio"]
+            discounted_ratio = cache_hit_probability * cached_ratio + (1 - cache_hit_probability)
+            effective_input_cost = input_cost * discounted_ratio
+            return AwaitableResult((effective_input_cost + output_cost) / 2)
+
+        return AwaitableResult((input_cost + output_cost) / 2)
 
     def predict_cache_hit_probability(self, prompt_hash: str, workspace_id: str) -> float:
         """

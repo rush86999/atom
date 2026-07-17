@@ -35,12 +35,20 @@ class UserRole(str, enum.Enum):
 
 # Mock the problematic models import before importing router
 import sys
+orig_core_models = sys.modules.get('core.models')
+
 mock_models = MagicMock()
 mock_models.UserRole = UserRole  # Use our real UserRole
 sys.modules['core.models'] = mock_models
 
 # Import business facts routes router
 from api.admin.business_facts_routes import router
+
+# Restore original core.models in sys.modules to prevent test pollution
+if orig_core_models:
+    sys.modules['core.models'] = orig_core_models
+else:
+    del sys.modules['core.models']
 
 # Import BusinessFact from agent_world_model
 from core.agent_world_model import BusinessFact

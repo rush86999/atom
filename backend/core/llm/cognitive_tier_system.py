@@ -112,7 +112,7 @@ class CognitiveClassifier:
     TASK_TYPE_ADJUSTMENTS = {
         "code": 2,
         "analysis": 2,
-        "reasoning": 3,
+        "reasoning": 2,
         "agentic": 2,
         "chat": -1,
         "general": 0,

@@ -627,6 +627,38 @@ async def get_pricing_fetcher_initialized(
     return fetcher
 
 
+def get_pricing_fetcher_initialized_sync(
+    auto_refresh: bool = True,
+    force_refresh: bool = False
+) -> DynamicPricingFetcher:
+    """Get pricing fetcher with lazy synchronous initialization."""
+    global _pricing_fetcher, _pricing_initialized
+
+    fetcher = get_pricing_fetcher()
+
+    needs_init = (
+        not _pricing_initialized or
+        force_refresh or
+        (auto_refresh and not fetcher.pricing_cache)
+    )
+
+    if needs_init:
+        logger.info("Auto-populating pricing cache synchronously...")
+        import asyncio
+        import concurrent.futures
+        try:
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.submit(lambda: asyncio.run(fetcher.refresh_pricing(force=force_refresh))).result()
+        except RuntimeError:
+            asyncio.run(fetcher.refresh_pricing(force=force_refresh))
+        _pricing_initialized = True
+        logger.info(f"Pricing cache populated with {len(fetcher.pricing_cache)} models")
+
+    return fetcher
+
+
+
 async def refresh_pricing_cache(force: bool = False) -> Dict[str, Any]:
     """Convenience function to refresh pricing cache"""
     fetcher = get_pricing_fetcher()

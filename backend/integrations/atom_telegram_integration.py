@@ -1067,8 +1067,20 @@ class AtomTelegramIntegration:
                 )
                 return
 
-            action_name = parts[1]
-            params = parts[2:] if len(parts) > 2 else []
+            # Reconstruct to handle multi-word actions
+            full_action_string = '_'.join(parts[1:])
+            if full_action_string.startswith("approve_request_") or full_action_string == "approve_request":
+                action_name = "approve_request"
+                params = full_action_string[len("approve_request_"):].split('_') if len(full_action_string) > len("approve_request") else []
+            elif full_action_string.startswith("deny_request_") or full_action_string == "deny_request":
+                action_name = "deny_request"
+                params = full_action_string[len("deny_request_"):].split('_') if len(full_action_string) > len("deny_request") else []
+            elif full_action_string.startswith("execute_workflow_") or full_action_string == "execute_workflow":
+                action_name = "execute_workflow"
+                params = full_action_string[len("execute_workflow_"):].split('_') if len(full_action_string) > len("execute_workflow") else []
+            else:
+                action_name = parts[1]
+                params = parts[2:] if len(parts) > 2 else []
 
             logger.info(f"Handling action callback: action={action_name}, params={params}, user={user_id}")
 
