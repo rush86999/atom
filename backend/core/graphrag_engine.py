@@ -1209,5 +1209,99 @@ class GraphRAGEngine:
             logger.error(f"Community detection failed: {e}")
             return {"success": False, "error": str(e), "communities": 0}
 
+    async def discover_failed_hypotheses_patterns(
+        self,
+        tenant_id: str,
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Scan completed hypothesis trees for failed/pruned hypotheses using GraphRAG's LLM
+        to identify common failure patterns and extract recurring negative constraints.
+        """
+        from core.database import get_db_session
+
+        if self.db:
+            return await self._discover_patterns_with_session(self.db, tenant_id, limit)
+
+        with get_db_session() as session:
+            return await self._discover_patterns_with_session(session, tenant_id, limit)
+
+    async def _discover_patterns_with_session(
+        self,
+        session: Session,
+        tenant_id: str,
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """Internal helper executing pattern discovery over a given active DB session."""
+        from core.auto_dev.models import HypothesisTreeRecord
+
+        # Query recent trees with pruned nodes or failures
+        records = (
+            session.query(HypothesisTreeRecord)
+            .filter(HypothesisTreeRecord.tenant_id == tenant_id)
+            .filter(HypothesisTreeRecord.pruned_nodes > 0)
+            .order_by(HypothesisTreeRecord.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        if not records:
+            return {
+                "success": True,
+                "patterns": [],
+                "summary": "No failed hypotheses recorded for this tenant yet."
+            }
+
+        # Collect constraints and task descriptions
+        failed_contexts = []
+        aggregated_constraints = set()
+        for r in records:
+            failed_contexts.append(
+                f"Task: {r.task_description}\n"
+                f"Type: {r.task_type}\n"
+                f"Nodes explored: {r.total_nodes}, Pruned: {r.pruned_nodes}\n"
+                f"Constraints learned: {r.negative_constraints or 'None'}"
+            )
+            if r.negative_constraints:
+                aggregated_constraints.update(r.negative_constraints)
+
+        # Use LLM to synthesize patterns if enabled and available
+        context_text = "\n\n---\n\n".join(failed_contexts)
+        summary = "LLM synthesis skipped."
+        
+        if GRAPHRAG_LLM_ENABLED:
+            try:
+                system_prompt = (
+                    "You are the GraphRAG Hypothesis Analyzer. Review these records of "
+                    "failed or pruned optimization branches and synthesize the key recurring "
+                    "failure patterns or negative constraints to avoid."
+                )
+                user_prompt = (
+                    f"Here are {len(records)} recent failed/pruned HTR optimization sessions:\n\n"
+                    f"{context_text}\n\n"
+                    "Synthesize the patterns now:"
+                )
+                
+                response = await self.llm_service.generate_completion(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    model=GRAPHRAG_LLM_MODEL,
+                    task_type="reasoning"
+                )
+                summary = response.get("content", "Failed to generate synthesis.")
+            except Exception as e:
+                logger.error(f"Failed to synthesize patterns via LLM: {e}")
+                summary = f"Synthesis error: {e}"
+
+        return {
+            "success": True,
+            "sessions_analyzed": len(records),
+            "aggregated_constraints": list(aggregated_constraints),
+            "summary": summary
+        }
+
+
 # Global Instance
 graphrag_engine = GraphRAGEngine()

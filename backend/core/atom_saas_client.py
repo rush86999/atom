@@ -407,14 +407,73 @@ class AtomAgentOSMarketplaceClient:
         """
         Connect to Atom SaaS WebSocket for real-time updates.
 
-        message_handler: Async callback for incoming messages
+        Opens a persistent WebSocket connection to the Atom SaaS mothership
+        and dispatches every inbound message to ``message_handler`` (an async
+        callable accepting the decoded JSON payload). The connection is stored
+        on ``self._ws_connection`` and can be torn down via
+        :meth:`disconnect_websocket`.
 
-        NOTE: This is a placeholder for future Atom SaaS WebSocket integration.
-        The actual WebSocket implementation will be added when Atom SaaS API is available.
+        Args:
+            message_handler: Async callback invoked for each incoming message
+                with the decoded payload (dict).
+
+        Raises:
+            RuntimeError: If the WebSocket dependency or API token is missing,
+                or the connection cannot be established.
         """
-        # TODO: Implement WebSocket connection when Atom SaaS API is ready
-        logger.warning("WebSocket connection not yet implemented - Atom SaaS API integration pending")
-        raise NotImplementedError("Atom SaaS WebSocket integration pending")
+        try:
+            import websockets
+        except ImportError:
+            raise RuntimeError(
+                "The 'websockets' package is required for Atom SaaS WebSocket "
+                "integration (pip install websockets)"
+            )
+
+        if not self.config.api_token:
+            raise RuntimeError("ATOM_SAAS_API_TOKEN is not set - cannot connect WebSocket")
+
+        if self._connected and self._ws_connection is not None:
+            logger.warning("WebSocket already connected")
+            return
+
+        # Append the token as a query parameter (mirrors atom_saas_websocket.py
+        # which passes ?token=... to satisfy the mothership handshake).
+        ws_url = self.config.ws_url
+        separator = "&" if "?" in ws_url else "?"
+        ws_url = f"{ws_url}{separator}token={self.config.api_token}"
+
+        try:
+            self._ws_connection = await websockets.connect(
+                ws_url,
+                max_size=2 ** 23,  # 8 MiB max message size
+                ping_interval=20,
+                ping_timeout=20,
+                close_timeout=10,
+            )
+            self._connected = True
+            logger.info(f"Connected to Atom SaaS WebSocket at {self.config.ws_url}")
+        except Exception as e:
+            self._connected = False
+            logger.error(f"Failed to connect Atom SaaS WebSocket: {e}")
+            raise RuntimeError(f"Atom SaaS WebSocket connection failed: {e}") from e
+
+        # Dispatch loop - runs until the connection is closed.
+        try:
+            async for raw in self._ws_connection:
+                try:
+                    payload = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Received non-JSON WebSocket message: {raw!r}")
+                    payload = raw
+                try:
+                    await message_handler(payload)
+                except Exception as handler_err:
+                    logger.error(f"WebSocket message handler raised: {handler_err}")
+        except websockets.exceptions.ConnectionClosed:
+            logger.info("Atom SaaS WebSocket connection closed by server")
+        finally:
+            self._connected = False
+            self._ws_connection = None
 
     async def disconnect_websocket(self):
         """Disconnect from Atom SaaS WebSocket."""

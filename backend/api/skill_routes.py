@@ -373,6 +373,7 @@ async def promote_skill(
 @router.delete("/{skill_id}")
 async def delete_skill(
     skill_id: str,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """
@@ -389,13 +390,19 @@ async def delete_skill(
         DELETE /api/skills/abc-123-def
     """
     try:
-        # Note: This would need to be implemented in SkillRegistryService
-        # For now, return a not implemented error
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Delete operation not yet implemented"
+        result = service.delete_skill(skill_id)
+
+        return router.success_response(
+            data=result,
+            message=result["message"]
         )
 
+    except ValueError as e:
+        logger.error(f"Delete validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Internal error"
+        )
     except HTTPException:
         raise
     except Exception as e:

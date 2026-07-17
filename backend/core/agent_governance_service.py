@@ -30,6 +30,89 @@ from core.policy_search_service import PGPolicySearchService
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Arbor code-quality gate helper
+# ---------------------------------------------------------------------------
+# Actions that carry executable code in their details dict.
+_CODE_WRITE_ACTIONS = frozenset({
+    "write_code_file",
+    "execute",
+    "shell_build",
+    "shell_write",
+    "deploy",
+})
+
+
+def _arbor_validate_code(code: str, language: str = "python") -> dict:
+    """
+    Run a lightweight Arbor CodeHypothesisNode quality gate on proposed code.
+
+    Creates a CodeHypothesisNode, performs ast.parse (for Python) to detect
+    syntax errors, calculates a basic complexity estimate, and returns a
+    pass/fail verdict so the governance service can block problematic code
+    *before* it reaches the sandbox.
+
+    Returns:
+        {"passed": bool, "reason": str | None, "node_id": str, "promise_score": float}
+    """
+    import ast as _ast
+
+    try:
+        from core.hypothesis_tree import CodeHypothesisNode, NodeMetrics, PruningReason
+    except ImportError:
+        # Arbor not importable — skip gate gracefully
+        return {"passed": True, "reason": None, "node_id": "", "promise_score": 1.0}
+
+    lint_errors = 0
+    cyclomatic_complexity = 1  # base
+    lines = code.splitlines()
+
+    if language == "python":
+        try:
+            tree = _ast.parse(code)
+            # Count branching nodes as a rough cyclomatic proxy
+            for node in _ast.walk(tree):
+                if isinstance(node, (_ast.If, _ast.For, _ast.While, _ast.ExceptHandler,
+                                     _ast.With, _ast.Assert, _ast.BoolOp)):
+                    cyclomatic_complexity += 1
+        except SyntaxError as exc:
+            lint_errors = 1
+            node_obj = CodeHypothesisNode(
+                hypothesis=code[:500],
+                description="Governance pre-flight lint check",
+                language=language,
+                cyclomatic_complexity=0,
+                metrics=NodeMetrics(lint_errors=1, lines_changed=len(lines)),
+            )
+            node_obj.pruning_reason = PruningReason.LINT_FAILED
+            return {
+                "passed": False,
+                "reason": f"SyntaxError in proposed code: {exc}",
+                "node_id": node_obj.id,
+                "promise_score": 0.0,
+            }
+
+    node_obj = CodeHypothesisNode(
+        hypothesis=code[:500],
+        description="Governance pre-flight quality check",
+        language=language,
+        cyclomatic_complexity=cyclomatic_complexity,
+        metrics=NodeMetrics(lint_errors=lint_errors, lines_changed=len(lines)),
+    )
+    promise = node_obj.calculate_promise_score()
+
+    # Block if cyclomatic complexity is dangerously high (>= 50)
+    if cyclomatic_complexity >= 50:
+        node_obj.pruning_reason = PruningReason.RESOURCE_EXCEEDED
+        return {
+            "passed": False,
+            "reason": f"Code complexity too high ({cyclomatic_complexity} branches). Refactor before approval.",
+            "node_id": node_obj.id,
+            "promise_score": promise,
+        }
+
+    return {"passed": True, "reason": None, "node_id": node_obj.id, "promise_score": promise}
+
 class AgentGovernanceService:
     # Action complexity levels - higher = more complex/risky
     # Reconciled from SaaS Phase 204
@@ -411,6 +494,40 @@ class AgentGovernanceService:
             "confidence": agent.confidence_score or 0.5
         }
 
+    def get_agent_capabilities(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        """Return the governance capabilities/maturity for an agent.
+
+        Used by callers (e.g. SkillRegistryService) that need a lightweight
+        maturity lookup without the full complexity-based enforcement of
+        :meth:`can_perform_action`.
+
+        Args:
+            agent_id: Agent registry ID (or "system" for system-level calls).
+
+        Returns:
+            Dict with ``maturity_level`` (AgentStatus value, lowercase) and
+            ``confidence_score``, or ``None`` if the agent is not registered.
+        """
+        if not agent_id or agent_id == "system":
+            # System-level execution defaults to INTERN maturity.
+            return {
+                "maturity_level": AgentStatus.INTERN.value,
+                "confidence_score": 0.5,
+            }
+
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id,
+        ).first()
+
+        if not agent:
+            return None
+
+        return {
+            "maturity_level": agent.status,
+            "confidence_score": agent.confidence_score or 0.5,
+        }
+
     def enforce_action(
         self,
         agent_id: str,
@@ -418,14 +535,53 @@ class AgentGovernanceService:
         action_details: Optional[Dict] = None,
         chain_id: Optional[str] = None # NEW Phase 10
     ) -> Dict[str, Any]:
-        """Main entry point for action enforcement including guardrails"""
+        """Main entry point for action enforcement including guardrails.
+
+        For code-writing actions (write_code_file, execute, shell_build, etc.)
+        an Arbor CodeHypothesisNode quality gate is applied *before* guardrails
+        to catch syntax errors and runaway complexity early.
+        """
         check = self.can_perform_action(agent_id, action_type, chain_id=chain_id)
-        
+
         if not check["allowed"]:
             return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
-        
+
         if check["requires_approval"]:
             return {"proceed": True, "status": "PENDING_APPROVAL", "reason": "Requires oversight", "action_required": "WAIT_FOR_APPROVAL"}
+
+        # -----------------------------------------------------------------
+        # Arbor code quality gate — runs for code-writing level-4 actions
+        # -----------------------------------------------------------------
+        action_lower = action_type.lower()
+        if any(code_action in action_lower for code_action in _CODE_WRITE_ACTIONS):
+            proposed_code = ""
+            language = "python"
+            if isinstance(action_details, dict):
+                proposed_code = (
+                    action_details.get("code", "")
+                    or action_details.get("content", "")
+                    or action_details.get("script", "")
+                )
+                language = action_details.get("language", "python")
+            if proposed_code:
+                arbor_result = _arbor_validate_code(proposed_code, language=language)
+                if not arbor_result["passed"]:
+                    logger.warning(
+                        "[Arbor/Governance] Code quality gate BLOCKED agent=%s action=%s reason=%s node=%s",
+                        agent_id, action_type, arbor_result["reason"], arbor_result["node_id"],
+                    )
+                    return {
+                        "proceed": False,
+                        "status": "BLOCKED_BY_ARBOR",
+                        "reason": arbor_result["reason"],
+                        "action_required": "HUMAN_APPROVAL",
+                        "arbor_node_id": arbor_result["node_id"],
+                        "promise_score": arbor_result["promise_score"],
+                    }
+                logger.debug(
+                    "[Arbor/Governance] Code quality gate PASSED agent=%s action=%s promise=%.3f",
+                    agent_id, action_type, arbor_result["promise_score"],
+                )
 
         # Autonomous Guardrails
         if check["agent_status"] == AgentStatus.AUTONOMOUS.value:

@@ -1699,6 +1699,10 @@ class LearningBasedRouter:
         Explores different routing strategies (model sequences, caching,
         fallback patterns) to find optimal cost/quality tradeoffs.
 
+        Uses RoutingHypothesisNode + OptimizationTree (Phase 2026-06-19)
+        so each candidate config is a proper domain node with promise scoring
+        and budget-aware pruning via PruningReason.
+
         Args:
             tenant_id: Tenant ID for multi-tenancy
             task_type: Task type to optimize routing for
@@ -1709,20 +1713,27 @@ class LearningBasedRouter:
         Returns:
             Optimization result with best routing configuration
         """
-        from core.hypothesis_tree import HypothesisTree
+        from core.hypothesis_tree import (
+            NodeMetrics,
+            NodeStatus,
+            OptimizationTree,
+            PruningReason,
+            RoutingHypothesisNode,
+            TaskType,
+        )
 
         optimization_goals = optimization_goals or ["cost", "quality"]
 
-        # Build an in-memory hypothesis tree to structure the exploration.
-        # (HypothesisTree is a plain dataclass, not an ORM model — this method
-        # computes and returns a recommendation; it does not persist a row.)
+        # Build an OptimizationTree with ROUTING domain so per-domain budget
+        # limits apply (12 nodes for routing vs 8 for solo coding).
         tree_id = str(uuid.uuid4())
-        tree = HypothesisTree(
+        tree = OptimizationTree(
             id=tree_id,
             task_id=task_type,
             task_description=f"Routing optimization for {task_type}",
             complexity_level="standard",
             tier=tier,
+            task_type=TaskType.ROUTING,
         )
 
         # Generate routing hypotheses
@@ -1732,45 +1743,89 @@ class LearningBasedRouter:
             optimization_goals,
         )
 
-        # Validate each hypothesis
+        # Validate each hypothesis and represent it as a RoutingHypothesisNode
         best_config = None
         best_score = -1.0
+        best_node_id: str = ""
         nodes_created = 0
         pruning_events = []
+
+        max_cost = requirements.get("max_cost_per_1k", 0.10)
+        max_latency = requirements.get("max_latency_ms", 5000)
 
         for hypothesis in hypotheses:
             if nodes_created >= self._get_tier_limit(tier):
                 break
 
-            # Validate routing hypothesis
-            validation = await self._validate_routing_hypothesis(
-                hypothesis,
-                requirements,
+            # Build domain-specific node from hypothesis dict
+            model_seq = []
+            config = hypothesis.get("config", {})
+            if config.get("primary_model"):
+                model_seq.append(config["primary_model"])
+            model_seq.extend(config.get("models", []))
+            if config.get("fallback"):
+                model_seq.append(config["fallback"])
+
+            node = RoutingHypothesisNode(
+                depth=nodes_created,
+                hypothesis=hypothesis.get("description", ""),
+                description=hypothesis.get("description", ""),
+                model_sequence=model_seq,
+                caching_enabled=bool(config.get("caching_enabled")),
+                streaming_enabled=bool(config.get("streaming_enabled")),
+                accuracy_score=float(hypothesis.get("estimated_quality", 0.0)),
+                cost_per_1k_tokens=float(hypothesis.get("estimated_cost", 0.0)),
+                p95_latency_ms=float(hypothesis.get("estimated_latency", 5000.0)),
+                metrics=NodeMetrics(tokens_used=0),
+                session_id=tenant_id,
             )
 
+            budget_ok = tree.add_node(node)
+            if not budget_ok:
+                logger.info(
+                    "[RoutingOptimizer] Tree budget exhausted after %d nodes", nodes_created
+                )
+                break
+
+            # Validate hypothesis against requirements
+            validation = await self._validate_routing_hypothesis(hypothesis, requirements)
+
             if validation["passed"]:
-                score = validation["score"]
+                node.status = NodeStatus.SUCCESS
+                score = node.calculate_promise_score()
                 if score > best_score:
                     best_score = score
                     best_config = validation["config"]
+                    best_node_id = node.id
             else:
+                reason_map = {
+                    "cost_exceeded": PruningReason.RESOURCE_EXCEEDED,
+                    "latency_exceeded": PruningReason.LATENCY_REGRESSION,
+                    "quality_insufficient": PruningReason.LOW_PROMISE,
+                }
+                prune_reason = reason_map.get(
+                    validation.get("reason", ""), PruningReason.LOW_PROMISE
+                )
+                tree.prune_branch(node.id, prune_reason)
                 pruning_events.append({
-                    "hypothesis": hypothesis.description,
+                    "hypothesis": hypothesis.get("description", ""),
                     "reason": validation.get("reason", "unknown"),
                     "details": validation.get("details", ""),
                 })
 
             nodes_created += 1
 
-        # Update tree with results
+        # Record winning path
+        if best_node_id:
+            tree.winning_path = tree.get_path_to_root(best_node_id)
         tree.completed_at = datetime.now(timezone.utc)
         tree.total_nodes_expanded = nodes_created
         tree.total_tokens_used = 0  # Routing uses minimal tokens
-        tree.winning_path = []
 
         logger.info(
-            f"[RoutingOptimizer] Optimized {task_type} routing: "
-            f"explored {nodes_created} hypotheses, best_score={best_score:.2f}"
+            "[RoutingOptimizer] Optimized %s routing: explored %d hypotheses, "
+            "best_score=%.2f, winning_node=%s",
+            task_type, nodes_created, best_score, best_node_id,
         )
 
         return {
@@ -1781,6 +1836,8 @@ class LearningBasedRouter:
             "nodes_explored": nodes_created,
             "pruning_events": pruning_events,
             "optimization_score": best_score,
+            "winning_path": tree.winning_path,
+            "tree_stats": tree.get_domain_statistics(),
         }
 
     async def _generate_routing_hypotheses(

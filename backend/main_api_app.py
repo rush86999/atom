@@ -1346,6 +1346,17 @@ try:
 except Exception as e:
     logger.warning(f"Could not mount sales live API: {e}")
 
+try:
+    from core.hypothesis_tree_endpoints import router as hypothesis_tree_router
+    app.include_router(
+        hypothesis_tree_router,
+        prefix="/api/v1/hypothesis-tree",
+        tags=["arbor"],
+    )
+    logger.info("✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree")
+except Exception as e:
+    logger.warning(f"Could not mount Arbor HTR endpoints: {e}")
+
 
 # Health check consolidated at the end of file
 

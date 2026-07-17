@@ -73,22 +73,21 @@ async def get_memory_stats(workspace_id: str = "default"):
 
             lancedb = get_lancedb_handler(workspace_id)
 
-            # Query LanceDB for stats (implementation depends on LanceDBHandler)
-            # For now, return placeholder stats
+            # Query LanceDB for stats across the documents table.
+            # Documents store their source integration in metadata.integration_id.
+            docs = lancedb.list_documents("documents", limit=10000)
+
+            by_integration: Dict[str, int] = {}
+            for doc in docs:
+                integration = (doc.get("metadata") or {}).get("integration_id", "unknown")
+                by_integration[integration] = by_integration.get(integration, 0) + 1
+
             stats = {
-                "total_entities": 0,
-                "by_integration": {},
+                "total_entities": len(docs),
+                "by_integration": by_integration,
                 "by_entity_type": {},
                 "last_updated": datetime.now().isoformat()
             }
-
-            # TODO: Implement actual stats query
-            # Example:
-            # all_docs = lancedb.get_all_documents()
-            # stats["total_entities"] = len(all_docs)
-            # for doc in all_docs:
-            #     integration = doc.metadata.get("integration", "unknown")
-            #     stats["by_integration"][integration] = stats["by_integration"].get(integration, 0) + 1
 
         except ImportError:
             # LanceDB not available, return empty stats

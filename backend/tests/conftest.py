@@ -210,7 +210,7 @@ def worker_database():
 
     # For SQLite: use in-memory (no worker isolation needed)
     if DATABASE_URL.startswith('sqlite'):
-        from core.models import Base
+        from core.models_registration import Base
         from sqlalchemy.pool import StaticPool
         # Use in-memory database for tests to ensure clean slate with StaticPool to prevent database deletion on connection close
         engine = create_engine('sqlite:///:memory:', connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -244,7 +244,7 @@ def worker_database():
     system_engine.dispose()
 
     # Create engine for worker database
-    from core.models import Base
+    from core.models_registration import Base
     worker_engine = create_engine(
         f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/{worker_db_name}",
         echo=False
@@ -374,7 +374,7 @@ def shared_metadata():
     This prevents 'Table already defined for this MetaData instance' errors
     that occur when multiple test files import the same models.
     """
-    from core.models import Base as CoreBase
+    from core.models_registration import Base as CoreBase
     return CoreBase.metadata
 
 

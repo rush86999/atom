@@ -7,8 +7,15 @@ fitness signals — allowing agents to iteratively improve their tools.
 
 This is the upstream equivalent of the SaaS AlphaEvolveOrchestrator,
 designed to work with any sandbox implementing SandboxProtocol.
+
+Arbor Integration (2026-06-19):
+    run_arbor_experiment() wraps the mutation loop with HypothesisTree /
+    CodeHypothesisNode tracking so that each iteration is treated as a
+    searchable hypothesis.  Failed mutations are pruned from the tree;
+    the winning code is set as the tree's success node.
 """
 
+import ast
 import logging
 import uuid
 from typing import Any
@@ -330,6 +337,190 @@ class AlphaEvolverEngine(BaseLearningEngine):
                 current_code = mutation.mutated_code
 
         return results
+
+    # --- Arbor HTR Integration ---
+
+    async def run_arbor_experiment(
+        self,
+        tenant_id: str,
+        base_code: str,
+        research_goal: str,
+        iterations: int = 3,
+        inputs: dict[str, Any] | None = None,
+        tier: str = "solo",
+        language: str = "python",
+    ) -> dict[str, Any]:
+        """
+        Arbor-tracked research experiment.
+
+        Wraps run_research_experiment() so that every mutation iteration is
+        represented as a CodeHypothesisNode inside a HypothesisTree.  Failed
+        mutations are pruned (LINT_FAILED for syntax errors, TEST_FAILED for
+        sandbox failures).  The first successful mutation is marked SUCCESS and
+        its node ID recorded as the winning path.
+
+        Args:
+            tenant_id:      Tenant performing the experiment.
+            base_code:      Starting Python code to evolve.
+            research_goal:  Natural-language mutation objective.
+            iterations:     Max mutation iterations (capped by tier budget).
+            inputs:         Optional sandbox input params for validation.
+            tier:           Pricing tier (free | solo | enterprise) — controls
+                            the HypothesisTree node budget.
+            language:       Language label stored on CodeHypothesisNode.
+
+        Returns:
+            Dict with 'iterations' (list of per-iteration results) and
+            'tree' (HypothesisTree statistics + winning_path).
+        """
+        from core.hypothesis_tree import (
+            CodeHypothesisNode,
+            HypothesisTree,
+            NodeMetrics,
+            NodeStatus,
+            PruningReason,
+        )
+
+        tree_id = str(uuid.uuid4())
+        tree = HypothesisTree(
+            id=tree_id,
+            task_description=research_goal,
+            tier=tier,
+        )
+
+        results: list[dict[str, Any]] = []
+        current_code = base_code
+        parent_node_id: str | None = None
+        winning_node_id: str | None = None
+
+        effective_iterations = min(iterations, tree.max_nodes)
+
+        for i in range(effective_iterations):
+            logger.info(
+                "[Arbor/AlphaEvolver] Iteration %d/%d for tenant %s",
+                i + 1, effective_iterations, tenant_id,
+            )
+
+            # --- 1. Generate mutation ---
+            mutation = await self.generate_tool_mutation(
+                tenant_id=tenant_id,
+                tool_name=f"arbor_exp_{tree_id[:8]}_{i}",
+                parent_tool_id=None,
+                base_code=current_code,
+                mutation_prompt=research_goal,
+            )
+
+            mutated_code = mutation.mutated_code
+
+            # --- 2. Syntax check (fast lint before sandbox) ---
+            syntax_ok = True
+            lint_errors = 0
+            try:
+                ast.parse(mutated_code)
+            except SyntaxError as exc:
+                syntax_ok = False
+                lint_errors = 1
+                logger.warning(
+                    "[Arbor/AlphaEvolver] Syntax error in mutation %s: %s",
+                    mutation.id, exc,
+                )
+
+            # --- 3. Build CodeHypothesisNode ---
+            node = CodeHypothesisNode(
+                parent_id=parent_node_id,
+                depth=i,
+                hypothesis=mutated_code[:500],          # store a preview
+                description=f"Iteration {i + 1}: {research_goal[:120]}",
+                code_diff=mutated_code,
+                language=language,
+                metrics=NodeMetrics(
+                    lint_errors=lint_errors,
+                    lines_changed=len(mutated_code.splitlines()),
+                ),
+                session_id=tenant_id,
+            )
+
+            budget_ok = tree.add_node(node)
+            if not budget_ok:
+                logger.info(
+                    "[Arbor/AlphaEvolver] Tree budget exhausted at iteration %d", i + 1,
+                )
+                break
+
+            parent_node_id = node.id
+
+            # --- 4. Prune immediately on lint failure ---
+            if not syntax_ok:
+                tree.prune_branch(node.id, PruningReason.LINT_FAILED)
+                results.append({
+                    "iteration": i + 1,
+                    "mutation_id": mutation.id,
+                    "node_id": node.id,
+                    "success": False,
+                    "pruned": True,
+                    "prune_reason": "lint_failed",
+                    "output": "SyntaxError in generated code",
+                    "code_preview": mutated_code[:200] + "...",
+                })
+                continue
+
+            # --- 5. Run in sandbox ---
+            exec_result = await self.sandbox_execute_mutation(
+                mutation_id=mutation.id,
+                tenant_id=tenant_id,
+                inputs=inputs or {},
+            )
+
+            sandbox_passed = exec_result.get("success", False)
+            execution_ms = (
+                exec_result.get("proxy_signals", {}).get("execution_latency_ms", 0.0)
+            )
+
+            # Update node metrics with sandbox results
+            node.metrics.execution_time_ms = execution_ms
+            node.metrics.test_pass_rate = 1.0 if sandbox_passed else 0.0
+
+            if sandbox_passed:
+                node.status = NodeStatus.SUCCESS
+                node.promise_score = node.calculate_promise_score()
+                if winning_node_id is None:
+                    winning_node_id = node.id
+                    tree.winning_path = tree.get_path_to_root(node.id)
+                # Progressive evolution: keep the winning code as base
+                current_code = mutated_code
+            else:
+                tree.prune_branch(node.id, PruningReason.TEST_FAILED)
+
+            results.append({
+                "iteration": i + 1,
+                "mutation_id": mutation.id,
+                "node_id": node.id,
+                "success": sandbox_passed,
+                "pruned": not sandbox_passed,
+                "prune_reason": "test_failed" if not sandbox_passed else None,
+                "output": exec_result.get("output"),
+                "execution_ms": execution_ms,
+                "promise_score": node.promise_score,
+                "code_preview": mutated_code[:200] + "...",
+            })
+
+        tree.total_nodes_expanded = len(results)
+        stats = tree.get_statistics()
+        stats["winning_path"] = tree.winning_path
+
+        logger.info(
+            "[Arbor/AlphaEvolver] Experiment complete: tree=%s winning_node=%s "
+            "total_iterations=%d successful=%d",
+            tree_id, winning_node_id, len(results),
+            sum(1 for r in results if r["success"]),
+        )
+
+        return {
+            "tree_id": tree_id,
+            "winning_node_id": winning_node_id,
+            "iterations": results,
+            "tree": stats,
+        }
 
     # --- Internal helpers ---
 

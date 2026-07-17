@@ -254,13 +254,14 @@ class SkillRegistryService:
 
         result = []
         for skill in skills:
+            created_at = skill.created_at.isoformat() if skill.created_at else None
             result.append({
                 "skill_id": skill.id,
                 "skill_name": skill.input_params.get("skill_name", "Unknown"),
                 "skill_type": skill.input_params.get("skill_type", "unknown"),
                 "status": skill.status,
                 "risk_level": skill.security_scan_result.get("risk_level", "UNKNOWN") if skill.security_scan_result else "UNKNOWN",
-                "created_at": skill.created_at.isoformat(),
+                "created_at": created_at,
                 "sandbox_enabled": skill.sandbox_enabled
             })
 
@@ -302,7 +303,7 @@ class SkillRegistryService:
             "status": skill.status,
             "security_scan_result": skill.security_scan_result,
             "sandbox_enabled": skill.sandbox_enabled,
-            "created_at": skill.created_at.isoformat()
+            "created_at": skill.created_at.isoformat() if skill.created_at else None
         }
 
     async def execute_skill(
@@ -353,7 +354,7 @@ class SkillRegistryService:
         if not agent_caps:
             logger.warning(f"Agent not found: {agent_id}, executing as system")
         else:
-            agent_maturity = agent_caps.get("maturity_level", "STUDENT")
+            agent_maturity = str(agent_caps.get("maturity_level", "student")).upper()
             if agent_maturity == "STUDENT" and skill_type == "python_code":
                 raise ValueError(
                     f"STUDENT agents cannot execute Python skills. "
@@ -826,9 +827,9 @@ class SkillRegistryService:
             PermissionError: If governance check fails
             SecurityError: If malicious scripts detected
         """
-        from core.npm_package_installer import NpmPackageInstaller
         from core.npm_script_analyzer import NpmScriptAnalyzer
         from core.audit_service import audit_service
+        from core.sql_validator import SecurityError
 
         # Step 1: Check governance permissions with audit logging
         logger.info(f"Checking npm governance permissions for {len(node_packages)} packages")
@@ -836,14 +837,22 @@ class SkillRegistryService:
         for pkg in node_packages:
             name, version = self._parse_npm_package(pkg)
 
-            permission = self._governance.check_package_permission(
-                agent_id, name, version, package_type="npm", db=db
+            from core.package_governance_service import PackageGovernanceService
+
+            governance = PackageGovernanceService()
+            permission = governance.check_package_permission(
+                agent_id=agent_id,
+                package_name=name,
+                version=version,
+                package_type="npm",
+                db=db
             )
 
             # Log governance decision to audit trail
             audit_service.create_package_audit(
                 db=db,
                 agent_id=agent_id,
+                agent_execution_id=None,
                 user_id=agent_id,  # Agent as user
                 action="governance_decision",
                 package_name=name,
@@ -883,6 +892,8 @@ class SkillRegistryService:
             logger.warning(f"Suspicious npm scripts detected: {script_warnings['warnings']}")
 
         # Step 3: Install packages with audit logging
+        from core.npm_package_installer import NpmPackageInstaller
+
         installer = NpmPackageInstaller()
         install_result = installer.install_packages(
             skill_id=skill_id,
@@ -897,6 +908,7 @@ class SkillRegistryService:
             audit_service.create_package_audit(
                 db=db,
                 agent_id=agent_id,
+                agent_execution_id=None,
                 user_id=agent_id,
                 action="install",
                 package_name=name,
@@ -1212,4 +1224,47 @@ class SkillRegistryService:
             "status": "Active",
             "previous_status": previous_status,
             "message": f"Skill promoted from {previous_status} to Active"
+        }
+
+    def delete_skill(self, skill_id: str) -> Dict[str, Any]:
+        """
+        Delete a community skill from the registry.
+
+        Removes the SkillExecution record (and any related execution history)
+        for the given community skill. Skills imported from the marketplace
+        (skill_source='cloud') are not managed by this registry and are skipped.
+
+        Args:
+            skill_id: Skill ID to delete
+
+        Returns:
+            Dict with deletion confirmation
+
+        Raises:
+            ValueError: If skill not found
+
+        Example:
+            result = service.delete_skill("abc-123-def")
+            # {"skill_id": "abc-123-def", "skill_name": "My Skill", "deleted": True}
+        """
+        skill = self.db.query(SkillExecution).filter(
+            SkillExecution.id == skill_id,
+            SkillExecution.skill_source == "community"
+        ).first()
+
+        if not skill:
+            raise ValueError(f"Skill not found: {skill_id}")
+
+        skill_name = skill.input_params.get("skill_name", "Unknown")
+
+        self.db.delete(skill)
+        self.db.commit()
+
+        logger.info(f"Deleted community skill '{skill_name}' ({skill_id})")
+
+        return {
+            "skill_id": skill_id,
+            "skill_name": skill_name,
+            "deleted": True,
+            "message": f"Skill '{skill_name}' deleted successfully"
         }

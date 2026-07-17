@@ -5,12 +5,13 @@ SQLAlchemy models for the self-evolving agent system:
 - ToolMutation: Tracks code mutations and lineage for AlphaEvolver
 - WorkflowVariant: Tracks workflow variations with fitness scores
 - SkillCandidate: Memento-generated skill proposals awaiting validation
+- HypothesisTreeRecord: Persisted Arbor HTR sessions (tree snapshots)
 """
 
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Float, Index, JSON, String, Text
+from sqlalchemy import Column, DateTime, Float, Index, Integer, JSON, String, Text
 
 from core.database import Base
 
@@ -92,4 +93,56 @@ class SkillCandidate(Base):
 
     __table_args__ = (
         Index("ix_skill_candidates_tenant_status", "tenant_id", "validation_status"),
+    )
+
+
+class HypothesisTreeRecord(Base):
+    """
+    Arbor HTR: Persisted snapshot of a completed hypothesis tree session.
+
+    Trees are written to the DB when they reach a terminal state (SUCCESS,
+    budget exhausted, or explicit DELETE via the REST API).  The full node
+    graph is stored as a JSON snapshot in ``tree_snapshot`` so the tree can
+    be replayed or inspected offline without a running in-memory session.
+
+    Useful for:
+    - Cross-session learning (feeding winning paths and negative constraints
+      into new trees via the ``/create`` endpoint's ``learning_insights`` field)
+    - Auditing which hypotheses were explored for a given task
+    - Analytics: pruning rate, budget utilisation, winning strategy patterns
+
+    Lifecycle: in-memory (HypothesisTree) → persist on completion → query via API
+    """
+
+    __tablename__ = "hypothesis_trees"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), nullable=False, index=True)
+
+    # Human-readable task info
+    task_description = Column(Text, nullable=False)
+    task_type = Column(String(50), nullable=False, default="coding")  # coding|workflow|routing
+    tier = Column(String(20), nullable=False, default="solo")          # free|solo|enterprise
+    session_id = Column(String(36), nullable=True, index=True)
+
+    # Outcome summary (denormalised for fast queries / analytics)
+    total_nodes = Column(Integer, default=0)
+    successful_nodes = Column(Integer, default=0)
+    pruned_nodes = Column(Integer, default=0)
+    total_tokens_used = Column(Integer, default=0)
+    total_cost_usd = Column(Float, default=0.0)
+    optimization_score = Column(Float, nullable=True)    # best promise_score achieved
+    winning_path = Column(JSON, nullable=True)            # list[str] of node IDs
+    negative_constraints = Column(JSON, nullable=True)    # constraints learned from failures
+
+    # Full serialised tree (nodes + metadata) for replay / deep inspection
+    tree_snapshot = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_hypothesis_trees_tenant_type", "tenant_id", "task_type"),
+        Index("ix_hypothesis_trees_tenant_tier", "tenant_id", "tier"),
+        Index("ix_hypothesis_trees_session", "session_id"),
     )

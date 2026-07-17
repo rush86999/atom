@@ -2443,6 +2443,141 @@ Use the available tools as needed to complete the action. Return your response i
         else:
             raise ValueError(f"Unknown goal_management action: {action}")
 
+    async def run_workflow_with_arbor_refinement(
+        self,
+        tenant_id: str,
+        workflow: Dict[str, Any],
+        input_data: Dict[str, Any],
+        tier: str = "solo",
+        previous_tree_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a workflow under the Arbor Hypothesis Tree Refinement (HTR) framework.
+
+        Tracks the workflow execution structure, creates a WorkflowHypothesisNode to measure
+        parallelizability, throughput, cost-savings potential, and latency. Failed workflow
+        runs are pruned from the optimization tree (TEST_FAILED/LATENCY_REGRESSION), while the
+        optimal configurations are recorded on SUCCESS nodes and persisted to the database.
+        """
+        from core.hypothesis_tree import (
+            OptimizationTree,
+            WorkflowHypothesisNode,
+            NodeMetrics,
+            NodeStatus,
+            PruningReason,
+            TaskType
+        )
+        from core.database import get_db_session
+        from core.hypothesis_tree_endpoints import _persist_tree
+
+        tree_id = str(uuid.uuid4())
+        tree = OptimizationTree(
+            id=tree_id,
+            task_description=f"Workflow refinement: {workflow.get('name', 'Untitled')}",
+            tier=tier,
+            task_type=TaskType.WORKFLOW
+        )
+
+        # Inherit negative constraints from previous runs if provided
+        if previous_tree_id:
+            with get_db_session() as db:
+                from core.auto_dev.models import HypothesisTreeRecord
+                prev_record = db.query(HypothesisTreeRecord).filter(HypothesisTreeRecord.id == previous_tree_id).first()
+                if prev_record and prev_record.negative_constraints:
+                    tree.negative_constraints = list(prev_record.negative_constraints)
+
+        logger.info(f"[Arbor/Workflow] Initialized Workflow OptimizationTree={tree_id} tier={tier}")
+
+        # Measure parallelizable nodes vs sequential nodes
+        steps = workflow.get("steps", [])
+        total_steps = len(steps)
+        parallelizable_count = 0
+        
+        # Simple heuristic to identify parallel steps based on lack of direct step requirements
+        dependency_map = {}
+        for s in steps:
+            reqs = s.get("config", {}).get("requires", [])
+            dependency_map[s["id"]] = reqs
+            if not reqs:
+                parallelizable_count += 1
+                
+        parallel_ratio = (parallelizable_count / max(1, total_steps))
+
+        node = WorkflowHypothesisNode(
+            depth=0,
+            hypothesis=f"Execute {workflow.get('name', 'Workflow')} layout",
+            description=f"Workflow Execution with parallelizable ratio: {parallel_ratio:.2f}",
+            parallelizable_ratio=parallel_ratio,
+            cost_optimization_potential=0.15 if parallel_ratio > 0.3 else 0.05,
+            estimated_throughput_rps=10.0 * (1.0 + parallel_ratio),
+            estimated_latency_ms=250.0 * total_steps,
+            metrics=NodeMetrics(tokens_used=0),
+            session_id=tenant_id
+        )
+
+        tree.add_node(node)
+
+        # Execute the workflow
+        try:
+            start_time = datetime.now()
+            execution_id = await self.start_workflow(workflow, input_data)
+            
+            # Simple polling wait for completeness
+            success = False
+            error_msg = None
+            for _ in range(600):  # max 5 mins
+                state = await self.state_manager.get_execution_state(execution_id)
+                if not state:
+                    break
+                status = state.get("status")
+                if status in ["COMPLETED", "SUCCESS"]:
+                    success = True
+                    break
+                elif status in ["FAILED", "ERROR"]:
+                    error_msg = state.get("error", "Failed")
+                    break
+                await asyncio.sleep(0.5)
+
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000.0
+            node.metrics.execution_time_ms = duration_ms
+
+            if success:
+                node.status = NodeStatus.SUCCESS
+                node.promise_score = node.calculate_promise_score()
+                tree.winning_path = tree.get_path_to_root(node.id)
+                tree.completed_at = datetime.now(timezone.utc)
+                logger.info(f"[Arbor/Workflow] Workflow execution SUCCESS. Node promise={node.promise_score:.2f}")
+            else:
+                tree.prune_branch(node.id, PruningReason.TEST_FAILED)
+                tree.completed_at = datetime.now(timezone.utc)
+                logger.warning(f"[Arbor/Workflow] Workflow execution FAILED: {error_msg}")
+
+            # Persist the tree to DB
+            with get_db_session() as db:
+                _persist_tree(db, tree_id, tree, tenant_id, "workflow")
+
+            return {
+                "tree_id": tree_id,
+                "node_id": node.id,
+                "execution_id": execution_id,
+                "success": success,
+                "duration_ms": duration_ms,
+                "parallel_ratio": parallel_ratio,
+                "promise_score": node.promise_score if success else 0.0,
+                "tree_stats": tree.get_domain_statistics()
+            }
+        except Exception as e:
+            logger.error(f"[Arbor/Workflow] HTR execution wrapper failed: {e}")
+            tree.prune_branch(node.id, PruningReason.MANUAL)
+            tree.completed_at = datetime.now(timezone.utc)
+            with get_db_session() as db:
+                try:
+                    _persist_tree(db, tree_id, tree, tenant_id, "workflow")
+                except Exception:
+                    pass
+            raise e
+
+
 class MissingInputError(Exception):
     def __init__(self, message: str, missing_var: str):
         super().__init__(message)
