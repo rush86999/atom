@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { getSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export default function SignUp() {
     const checkSession = async () => {
       const session = await getSession();
       if (session) {
-        router.push("/");
+        router.push("/dashboard");
       }
     };
     checkSession();
@@ -207,3 +207,5 @@ export default function SignUp() {
     </div>
   );
 }
+
+

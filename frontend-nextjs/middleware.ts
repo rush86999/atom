@@ -5,6 +5,7 @@ import { getToken } from 'next-auth/jwt';
 
 // Define public routes that don't require authentication
 const publicRoutes = [
+  '/login',
   '/auth/signin',
   '/auth/signup',
   '/auth/error',
@@ -15,6 +16,7 @@ const publicRoutes = [
 const publicApiRoutes = [
   '/api/auth',
   '/api/health',
+  '/api/dev',
   '/api/hubspot/oauth/start',
   '/api/integrations/hubspot/callback',
   '/api/integrations/zoom/auth/start',
@@ -74,3 +76,6 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+
+
+

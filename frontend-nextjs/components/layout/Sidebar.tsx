@@ -43,6 +43,17 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
+    const handleSignOut = () => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("atom_explicit_logout", "1");
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("token");
+            document.cookie = "auth_token=; path=/; max-age=0";
+            document.cookie = "next-auth.session-token=; path=/; max-age=0";
+        }
+        signOut({ callbackUrl: "/auth/signin" });
+    };
+
     // Handle responsive behavior
     useEffect(() => {
         const handleResize = () => {
@@ -221,7 +232,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Sign out"
-                            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                            onClick={handleSignOut}
                         >
                             <LogOut className="h-4 w-4" />
                         </Button>
@@ -238,7 +249,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                                 <User className="h-5 w-5" />
                             </div>
                             <button
-                                onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                                onClick={handleSignOut}
                                 title="Sign out"
                                 className="mx-auto h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                             >
@@ -271,3 +282,5 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 };
 
 export default Sidebar;
+
+
