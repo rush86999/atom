@@ -115,3 +115,146 @@ def journey_api_headers(journey_user_credentials: Dict[str, str]) -> Dict[str, s
         "Authorization": f"Bearer {journey_user_credentials['access_token']}",
         "Content-Type": "application/json",
     }
+
+
+# ============================================================================
+# Role-based fixtures (all 8 UserRole values)
+# ============================================================================
+#
+# The backend reads the user's role from the DB at request time (the JWT only
+# carries the user id), so we register a user and then UPDATE its role in the
+# SQLite DB directly. The next request with that user's token sees the new role.
+#
+# Roles (backend/core/models.py UserRole): super_admin, owner, admin,
+# workspace_admin, team_lead, member, viewer, guest.
+#
+# RBAC (backend/core/rbac_service.py): only guest/member/team_lead/
+# workspace_admin/super_admin have explicit permission mappings. owner/admin/
+# viewer fall through to an EMPTY permission set — likely a bug, surfaced by
+# these fixtures. The parametrized permission-matrix journey will document it.
+
+ALL_ROLES = [
+    "super_admin",
+    "owner",
+    "admin",
+    "workspace_admin",
+    "team_lead",
+    "member",
+    "viewer",
+    "guest",
+]
+
+
+def _set_user_role(email: str, role: str) -> None:
+    """Update a user's role directly in the SQLite DB.
+
+    Resolves the active atom_dev.db the SAME way the backend does: honor
+    DATABASE_URL when it points at sqlite, otherwise default to the
+    repo-root atom_dev.db (the backend runs with cwd = repo root).
+    """
+    import sqlite3
+    from urllib.parse import urlparse
+
+    db_url = os.getenv("DATABASE_URL", "")
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
+
+    db_path = None
+    if db_url.startswith("sqlite:///"):
+        raw = db_url[len("sqlite:///"):]
+        path_only = raw.split("?")[0]
+        db_path = path_only if os.path.isabs(path_only) else os.path.join(repo_root, path_only)
+
+    if not db_path or not os.path.exists(db_path):
+        # Backend default when DATABASE_URL is unset/relative: repo-root atom_dev.db
+        db_path = os.path.join(repo_root, "atom_dev.db")
+
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE users SET role = ? WHERE email = ?", (role, email))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _register_role_user(role: str) -> Dict[str, Any]:
+    """Register a user, set its role, and return credentials with a token."""
+    email = f"role_{role}_{uuid.uuid4().hex[:8]}@example.com"
+    requests.post(
+        f"{BACKEND_URL}/api/auth/register",
+        json={"email": email, "password": DEFAULT_PASSWORD, "first_name": role.title(), "last_name": "Role"},
+        timeout=15,
+    ).raise_for_status()
+    _set_user_role(email, role)
+    login = requests.post(
+        f"{BACKEND_URL}/api/auth/login",
+        json={"username": email, "password": DEFAULT_PASSWORD},
+        timeout=15,
+    )
+    login.raise_for_status()
+    return {"email": email, "password": DEFAULT_PASSWORD, "access_token": login.json()["access_token"], "role": role}
+
+
+@pytest.fixture(scope="function")
+def role_credentials(request) -> Dict[str, Any]:
+    """Parametrized: create a user with the role set by `request.param`.
+
+    Usage:
+        @pytest.mark.parametrize("role_credentials", ALL_ROLES, indirect=True)
+        def test_x(role_credentials): ...
+    """
+    return _register_role_user(request.param)
+
+
+def role_headers_factory(role: str) -> Dict[str, Any]:
+    """Factory used by tests that need an ad-hoc role's headers (no fixture)."""
+    return _register_role_user(role)
+
+
+@pytest.fixture(scope="function")
+def all_role_headers() -> Dict[str, Dict[str, str]]:
+    """Create ONE user per role and return {role: Authorization headers}.
+
+    Expensive (8 registrations) but lets a single permission-matrix test hit
+    every role without per-param fixture setup overhead.
+    """
+    result: Dict[str, Dict[str, str]] = {}
+    for role in ALL_ROLES:
+        creds = _register_role_user(role)
+        result[role] = {
+            "Authorization": f"Bearer {creds['access_token']}",
+            "Content-Type": "application/json",
+        }
+    return result
+
+
+@pytest.fixture(scope="function")
+def role_authed_page(browser: Browser, role_credentials: Dict[str, Any]) -> Page:
+    """A Playwright page logged in as the parametrized role.
+
+    Pairs with the `role_credentials` indirect fixture:
+        @pytest.mark.parametrize("role_credentials", ALL_ROLES, indirect=True)
+        def test_x(role_credentials, role_authed_page): ...
+
+    Performs a real UI login so both localStorage auth_token AND the next-auth
+    session cookie are established for the role's user.
+    """
+    creds = role_credentials
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(f"{FRONTEND_URL}/login", wait_until="domcontentloaded")
+    try:
+        page.wait_for_selector("[data-testid='login-email-input']", timeout=10000)
+    except Exception:
+        page.wait_for_selector("input#email", timeout=10000)
+    page.locator("[data-testid='login-email-input'], input#email").first.fill(creds["email"])
+    page.locator("[data-testid='login-password-input'], input#password").first.fill(creds["password"])
+    page.locator("[data-testid='login-submit-button'], button[type='submit']").first.click()
+    try:
+        page.wait_for_url("**/dashboard**", timeout=20000)
+    except Exception:
+        pass
+    yield page
+    try:
+        context.close()
+    except Exception:
+        pass

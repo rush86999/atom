@@ -24,19 +24,33 @@ class Permission(str, Enum):
 
 
 # Mapping Roles to Permissions (lazy initialization to avoid circular import)
+#
+# Role hierarchy (least → most privilege):
+#   guest < viewer < member < team_lead < admin < workspace_admin < owner < super_admin
+#
+# Previously owner/admin/viewer were ABSENT from this map, so they silently got
+# an EMPTY permission set (worse than guest). That broke the UI for those roles
+# (e.g. /agents enforces AGENT_VIEW → owner got 403). They now have sensible
+# ladders. super_admin is handled implicitly in check_permission (returns True).
 def _get_role_permissions() -> Dict[UserRole, Set[Permission]]:
     """Get role permissions mapping (lazy initialization)."""
     return {
         UserRole.GUEST: {
             Permission.AGENT_VIEW,
-            Permission.WORKFLOW_VIEW
+            Permission.WORKFLOW_VIEW,
+        },
+        # viewer: read-only across the board — can look but not run/manage.
+        UserRole.VIEWER: {
+            Permission.AGENT_VIEW,
+            Permission.WORKFLOW_VIEW,
+            Permission.USER_VIEW,
         },
         UserRole.MEMBER: {
             Permission.AGENT_VIEW,
             Permission.AGENT_RUN,
             Permission.WORKFLOW_VIEW,
             Permission.WORKFLOW_RUN,
-            Permission.USER_VIEW
+            Permission.USER_VIEW,
         },
         UserRole.TEAM_LEAD: {
             Permission.AGENT_VIEW,
@@ -44,7 +58,17 @@ def _get_role_permissions() -> Dict[UserRole, Set[Permission]]:
             Permission.WORKFLOW_VIEW,
             Permission.WORKFLOW_RUN,
             Permission.WORKFLOW_MANAGE,
-            Permission.USER_VIEW
+            Permission.USER_VIEW,
+        },
+        # admin: team_lead + agent management.
+        UserRole.ADMIN: {
+            Permission.AGENT_VIEW,
+            Permission.AGENT_RUN,
+            Permission.AGENT_MANAGE,
+            Permission.WORKFLOW_VIEW,
+            Permission.WORKFLOW_RUN,
+            Permission.WORKFLOW_MANAGE,
+            Permission.USER_VIEW,
         },
         UserRole.WORKSPACE_ADMIN: {
             Permission.AGENT_VIEW,
@@ -54,12 +78,24 @@ def _get_role_permissions() -> Dict[UserRole, Set[Permission]]:
             Permission.WORKFLOW_RUN,
             Permission.WORKFLOW_MANAGE,
             Permission.USER_VIEW,
-            Permission.USER_MANAGE
+            Permission.USER_MANAGE,
+        },
+        # owner: workspace_admin + user management (full workspace control,
+        # short of platform-wide system:admin reserved for super_admin).
+        UserRole.OWNER: {
+            Permission.AGENT_VIEW,
+            Permission.AGENT_RUN,
+            Permission.AGENT_MANAGE,
+            Permission.WORKFLOW_VIEW,
+            Permission.WORKFLOW_RUN,
+            Permission.WORKFLOW_MANAGE,
+            Permission.USER_VIEW,
+            Permission.USER_MANAGE,
         },
         UserRole.SUPER_ADMIN: {
-            # Super admin has all permissions implicitly
-            Permission.SYSTEM_ADMIN
-        }
+            # Super admin has all permissions implicitly (see check_permission).
+            Permission.SYSTEM_ADMIN,
+        },
     }
 
 
