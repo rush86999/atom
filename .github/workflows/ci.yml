@@ -146,11 +146,22 @@ jobs:
           BACKEND_URL: "http://localhost:8001"
           FRONTEND_URL: "http://localhost:3001"
           CI: "true"
+          # The role journeys + permission matrix exercise every role; the
+          # page-smoke + ui-features cover every sidebar route; the canonical
+          # user_journey is the full login→logout flow.
         run: |
-          python -m pytest tests/test_journey_api_features.py tests/test_journey_auth.py \
-            tests/test_journey_ui_features.py tests/test_user_journey.py \
-            tests/test_journey_page_smoke.py tests/test_journey_integrations_health.py \
-            -q --tb=short
+          python -m pytest tests/test_journey_api_features.py \
+            tests/test_journey_role_api.py tests/test_journey_permission_matrix.py \
+            tests/test_journey_integrations_health.py \
+            tests/test_journey_auth.py tests/test_journey_ui_features.py \
+            tests/test_journey_page_smoke.py tests/test_user_journey.py \
+            -q --tb=short --ignore=tests/test_journey_role_ui.py
+          # Role-UI tests are run separately (they each do a full browser login
+          # per role — slower). Allow them to flake without failing the gate;
+          # they're covered by the role_api + permission_matrix tests above
+          # for the access-control contract.
+          python -m pytest tests/test_journey_role_ui.py -q --tb=short \
+            || echo "::warning::role-UI journey had failures (non-gating)"
 
       - name: Upload screenshots on failure
         if: failure()

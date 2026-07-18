@@ -320,7 +320,12 @@ def pytest_runtest_makereport(item, call):
 
             # Save video if in CI environment
             if is_ci_environment():
-                video_path = page.video.path()
+                # page.video is None when the browser context was created
+                # without record_video_dir (e.g. by the journey authed_page
+                # fixtures, which build their own context). Guard against that
+                # so a missing video can't crash pytest's own reporting hook.
+                video = getattr(page, "video", None)
+                video_path = video.path() if video is not None else None
                 if video_path and os.path.exists(video_path):
                     # Rename video with test name and timestamp
                     video_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
