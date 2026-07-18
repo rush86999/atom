@@ -136,23 +136,44 @@ cd ..
 cp backend/.env.example backend/.env
 # Edit backend/.env — generate SECRET_KEY with: openssl rand -base64 48
 
-# Launch backend (FROM REPO ROOT — main.py uses backend.* imports)
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+# Point the frontend at the backend (port 8001 in the commands below)
+cat > frontend-nextjs/.env.local <<'EOF'
+NEXT_PUBLIC_API_URL=http://localhost:8001
+NEXT_PUBLIC_USE_BACKEND_API=true
+EOF
+
+# ▶️ Launch the FULL app (recommended — all 40+ routers, the real feature
+#    surface used in production and by the E2E suite). Run from the repo root.
+PYTHONPATH=$PWD:$PWD/backend \
+  DISABLE_AUTH_RATE_LIMIT=1 \
+  ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 
 # In a second terminal: frontend
-cd frontend-nextjs && npm run dev
+cd frontend-nextjs && npm run dev -- -p 3001
 ```
 
-- **Frontend (UI)**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API docs (Swagger)**: http://localhost:8000/docs
-- **Admin password**: auto-generated at `backend/logs/bootstrap_admin_password.txt` (mode 0600)
+- **Frontend (UI)**: http://localhost:3001
+- **Backend API**: http://localhost:8001
+- **API docs (Swagger)**: http://localhost:8001/docs
+- **Health check**: http://localhost:8001/alive
+
+`DISABLE_AUTH_RATE_LIMIT=1` only lifts the registration rate-limit so you can
+create test users freely; it does **not** change the database. Remove it for
+any shared/production deployment.
+
+> **Minimal app (smoke only):** `main.py` boots a ~125-route subset for fast
+> checks — `uvicorn main:app --port 8000`. It lacks skills, marketplace,
+> workflows, canvas, integrations, etc. Use `main_api_app:app` (above) to
+> actually use Atom.
 
 That's it! 🚀
 
 **Choose your edition:**
 - **Personal Edition** (default) — Free, single-user, SQLite, zero external services
 - **Enterprise Edition** — Multi-user, PostgreSQL, monitoring (set `DATABASE_URL` to a Postgres DSN)
+
+**Verify your setup** with the E2E journey suite (boots both apps and walks the
+full UI + API): see [`backend/tests/e2e_ui/JOURNEY_TESTS.md`](backend/tests/e2e_ui/JOURNEY_TESTS.md).
 
 For alternative paths (Docker, DigitalOcean 1-click) and the full walkthrough, see:
 - **[Quick Start (verified)](docs/getting_started/quick-start.md)** ⭐ — step-by-step with troubleshooting

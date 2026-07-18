@@ -1,3 +1,19 @@
+"""
+Atom Backend - Full Application Entry Point (canonical)
+
+This is the real application: all 40+ routers (auth, agents, skills, marketplace,
+workflows, canvas, integrations, finance, governance, ...), middleware, the
+scheduler, and the full feature surface used in production and by the E2E
+user-journey suite. Docker and CI build/run this module.
+
+Launch locally:
+    cd /Users/rushiparikh/projects/atom
+    PYTHONPATH=$PWD:$PWD/backend \
+        ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
+
+The minimal `main.py` exists as a fast dev bootstrap (~125 routes) for quick
+smoke checks; new users should start here instead.
+"""
 from __future__ import annotations
 
 import asyncio
