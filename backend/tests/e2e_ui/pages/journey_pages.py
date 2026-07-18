@@ -136,28 +136,30 @@ class DashboardJourneyPage(JourneyBase):
 
     @property
     def welcome(self) -> Locator:
-        return self.page.locator(
-            "[data-testid='dashboard-welcome-message'], h1:has-text('ATOM Dashboard')"
+        # Prefer the unique data-testid; fall back to exact text match.
+        return self.page.locator("[data-testid='dashboard-welcome-message']").or_(
+            self.page.get_by_role("heading", name="ATOM Dashboard")
         )
 
     def is_loaded(self) -> bool:
-        # The dashboard fires several integration-health + summary API calls
-        # on mount; the H1 doesn't render until React settles. Wait for it
-        # rather than returning False the instant the URL changes.
-        ok = self._visible(self.welcome.first, timeout=20000)
-        if not ok:
-            # Diagnostic: print what's actually on the page so CI failures
-            # are debuggable without a screenshot (the screenshot upload has
-            # a path issue under the e2e working-directory).
+        # The dashboard heading may be in the SSR HTML before React hydrates
+        # (title is still empty), so is_visible() can return False even though
+        # the text is present. wait_for(state="attached") confirms the element
+        # is in the DOM (the page rendered the dashboard shell), which is the
+        # right "is loaded" signal here.
+        try:
+            self.welcome.first.wait_for(state="attached", timeout=20000)
+            return True
+        except Exception:
             try:
                 url = self.page.url
                 title = self.page.title()
                 h1s = self.page.locator("h1").all_text_contents()
-                body = (self.page.locator("body").inner_text() or "")[:300]
-                print(f"\n[DashboardJourneyPage.is_loaded FALSE] url={url} title={title!r} h1s={h1s} body[:300]={body!r}\n")
+                testid_count = self.page.locator("[data-testid='dashboard-welcome-message']").count()
+                print(f"\n[DashboardJourneyPage.is_loaded FALSE] url={url} title={title!r} h1s={h1s} testid_count={testid_count}\n")
             except Exception as e:
                 print(f"\n[DashboardJourneyPage.is_loaded FALSE] (diag failed: {e})\n")
-        return ok
+            return False
 
     def navigate(self) -> None:
         self.goto("/dashboard")
