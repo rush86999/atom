@@ -108,7 +108,10 @@ const AgentsDashboard = () => {
             });
 
             if (res.ok) {
-                const data = await res.json();
+                const json = await res.json();
+                // The backend wraps responses as { success, data, ... }.
+                // Accept either the wrapped shape or a bare array for safety.
+                const data = Array.isArray(json) ? json : (json.data ?? []);
                 setAgents(data);
             } else if (res.status === 401 || res.status === 403) {
                 setError("Unauthorized: Session expired. Redirecting...");

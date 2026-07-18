@@ -90,7 +90,7 @@ class SkillRegistryService:
             self._sandbox = HazardSandbox()
         return self._sandbox
 
-    def import_skill(
+    async def import_skill(
         self,
         source: str,
         content: str,
@@ -164,7 +164,7 @@ class SkillRegistryService:
             )
 
             # Step 2: Security scan
-            scan_result = self._scanner.scan_skill(skill_name, skill_body)
+            scan_result = await self._scanner.scan_skill(skill_name, skill_body)
 
             logger.info(f"Security scan result: {scan_result['risk_level']}")
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import { signIn } from 'next-auth/react';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -25,28 +26,39 @@ export default function LoginPage() {
 
         try {
             if (isLogin) {
-                // Login
-                const response = await fetch(`${API_BASE}/api/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: formData.email,
-                        password: formData.password
-                    })
+                // Establish a real next-auth session via the Credentials provider.
+                // The provider's authorize() callback hits the backend /api/auth/login
+                // and returns the JWT, which next-auth stores as a proper session
+                // (so session-gated pages like /chat stop redirecting to /login).
+                const result = await signIn('credentials', {
+                    redirect: false,
+                    email: formData.email,
+                    password: formData.password,
                 });
 
-                if (!response.ok) {
-                    throw new Error('Invalid credentials');
+                if (!result || result.error) {
+                    throw new Error(result?.error || 'Invalid credentials');
                 }
 
-                const data = await response.json();
-                console.log("Login Success. Token:", data.access_token);
-                localStorage.removeItem('atom_explicit_logout');
-                localStorage.setItem('auth_token', data.access_token);
-                // Set cookie for proxy compatibility (legacy)
-                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                // Also keep the raw JWT in localStorage for pages/components that
+                // read auth_token directly (agents, chat composer, etc.). Fetch it
+                // from the backend so the value matches the session token.
+                try {
+                    const response = await fetch(`${API_BASE}/api/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: formData.email, password: formData.password })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        localStorage.removeItem('atom_explicit_logout');
+                        localStorage.setItem('auth_token', data.access_token);
+                    }
+                } catch (e) {
+                    // Non-fatal: the next-auth session is the source of truth.
+                    console.warn('Could not mirror token to localStorage:', e);
+                }
+
                 router.push('/dashboard');
             } else {
                 // Register
@@ -67,8 +79,13 @@ export default function LoginPage() {
                 console.log("Register Success. Token:", data.access_token);
                 localStorage.removeItem('atom_explicit_logout');
                 localStorage.setItem('auth_token', data.access_token);
-                // Set cookie for proxy compatibility
-                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+
+                // Establish a next-auth session for the freshly registered user.
+                await signIn('credentials', {
+                    redirect: false,
+                    email: formData.email,
+                    password: formData.password,
+                });
                 router.push('/dashboard');
             }
         } catch (err: any) {
@@ -94,7 +111,7 @@ export default function LoginPage() {
 
                     {/* Error Message */}
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+                        <div data-testid="login-error-message" className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
                             {error}
                         </div>
                     )}
@@ -107,11 +124,12 @@ export default function LoginPage() {
                                     <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         First Name
                                     </label>
-                                    <input
-                                        id="first_name"
-                                        type="text"
-                                        required
-                                        value={formData.first_name}
+                                <input
+                                    id="first_name"
+                                    type="text"
+                                    required
+                                    data-testid="login-first-name-input"
+                                    value={formData.first_name}
                                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                                         placeholder="John"
@@ -121,11 +139,12 @@ export default function LoginPage() {
                                     <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Last Name
                                     </label>
-                                    <input
-                                        id="last_name"
-                                        type="text"
-                                        required
-                                        value={formData.last_name}
+                                <input
+                                    id="last_name"
+                                    type="text"
+                                    required
+                                    data-testid="login-last-name-input"
+                                    value={formData.last_name}
                                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                                         placeholder="Doe"
@@ -144,6 +163,7 @@ export default function LoginPage() {
                                     id="email"
                                     type="email"
                                     required
+                                    data-testid="login-email-input"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -162,6 +182,7 @@ export default function LoginPage() {
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     required
+                                    data-testid="login-password-input"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                     className="w-full pl-10 pr-12 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -181,6 +202,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
+                            data-testid="login-submit-button"
                             className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
@@ -190,6 +212,7 @@ export default function LoginPage() {
                     {/* Toggle Login/Register */}
                     <div className="mt-6 text-center">
                         <button
+                            data-testid="login-toggle-mode"
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 setError('');

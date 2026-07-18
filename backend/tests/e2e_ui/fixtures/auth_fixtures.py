@@ -48,10 +48,13 @@ def test_user(db_session: Session) -> User:
     unique_id = str(uuid.uuid4())[:8]
     email = f"test_{unique_id}@example.com"
 
-    # Create user with hashed password
+    # Create user with hashed password and required fields
     user = User(
         email=email,
         hashed_password=get_password_hash("TestPassword123!"),
+        first_name="Test",
+        last_name="User",
+        role="workspace_admin",
         status="active",
         created_at=datetime.utcnow()
     )

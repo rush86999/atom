@@ -26,7 +26,8 @@ export const authOptions: NextAuthOptions = {
         async authorize(credentials) {
           // Use Backend API for authentication (avoids direct DB access from frontend)
           try {
-            const res = await fetch("http://127.0.0.1:8000/api/auth/login", {
+            const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+            const res = await fetch(`${backendUrl}/api/auth/login`, {
               method: 'POST',
               headers: {
                 "Content-Type": "application/json",

@@ -129,7 +129,7 @@ async def import_skill(
         }
     """
     try:
-        result = service.import_skill(
+        result = await service.import_skill(
             source=request.source,
             content=request.content,
             metadata=request.metadata

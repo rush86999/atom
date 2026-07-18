@@ -215,7 +215,7 @@ const DashboardPage: React.FC = () => {
       <div className="max-w-[1400px] mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          <h1 data-testid="dashboard-welcome-message" className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
             ATOM Dashboard
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400">

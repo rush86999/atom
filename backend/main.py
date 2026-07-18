@@ -78,14 +78,14 @@ app = FastAPI(
 # --- CORS (permissive for local dev; tighten via ALLOWED_ORIGINS in prod) ---
 _allowed = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000",
 ).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _allowed if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["*"],
 )
 
 # --- Security headers middleware ---

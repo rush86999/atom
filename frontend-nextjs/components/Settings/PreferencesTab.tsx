@@ -19,7 +19,7 @@ const DEFAULT_PREFS: PreferenceState = {
     email_frequency: "daily"
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const USER_ID = "default_user";
 const WORKSPACE_ID = "default";
 

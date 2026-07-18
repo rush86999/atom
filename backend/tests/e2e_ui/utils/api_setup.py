@@ -232,57 +232,47 @@ def set_authenticated_session(page, token: str) -> None:
 
 def create_test_project(client: APIClient, name: str, description: str = "", token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Create a test project via API.
+    Create a test project task via the unified-tasks API.
+
+    The backend exposes project work as unified tasks at POST /api/projects/unified-tasks.
+    This creates a task representing the "project" for the test.
 
     Args:
         client: APIClient instance
-        name: Project name
-        description: Project description (default: "")
+        name: Project/task name (sent as 'summary')
+        description: Project description (appended to summary)
         token: Optional JWT token (uses client token if not provided)
 
     Returns:
-        Project data response from API
+        Task creation response from API
 
     Raises:
-        requests.HTTPError: If project creation fails
+        requests.HTTPError: If creation fails
     """
+    body = {"summary": name, "description": description or name}
     if token:
         original_token = client.token
         client.set_token(token)
         try:
-            response = client.post(
-                "/api/v1/projects/",
-                json={
-                    "name": name,
-                    "description": description,
-                    "color": "#3182CE"
-                }
-            )
+            response = client.post("/api/projects/unified-tasks", json=body)
         finally:
             client.token = original_token
     else:
-        response = client.post(
-            "/api/v1/projects/",
-            json={
-                "name": name,
-                "description": description,
-                "color": "#3182CE"
-            }
-        )
+        response = client.post("/api/projects/unified-tasks", json=body)
 
     return response
 
 
 def get_test_projects(client: APIClient, token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Get all test projects via API.
+    Get all unified tasks (projects) via API.
 
     Args:
         client: APIClient instance
         token: Optional JWT token (uses client token if not provided)
 
     Returns:
-        Projects data response from API
+        Tasks data response from API
 
     Raises:
         requests.HTTPError: If request fails
@@ -291,25 +281,22 @@ def get_test_projects(client: APIClient, token: Optional[str] = None) -> Dict[st
         original_token = client.token
         client.set_token(token)
         try:
-            response = client.get("/api/v1/projects/")
+            response = client.get("/api/projects/unified-tasks")
         finally:
             client.token = original_token
     else:
-        response = client.get("/api/v1/projects/")
+        response = client.get("/api/projects/unified-tasks")
 
     return response
 
 
 def delete_test_project(client: APIClient, project_id: str, token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Delete a test project via API.
-
-    Note: This endpoint may not exist in the current implementation.
-    Projects are typically stored in memory and cleared between test runs.
+    Delete a test project task via API.
 
     Args:
         client: APIClient instance
-        project_id: Project ID to delete
+        project_id: Project/task ID to delete
         token: Optional JWT token (uses client token if not provided)
 
     Returns:
@@ -322,11 +309,11 @@ def delete_test_project(client: APIClient, project_id: str, token: Optional[str]
         original_token = client.token
         client.set_token(token)
         try:
-            response = client.delete(f"/api/v1/projects/{project_id}")
+            response = client.delete(f"/api/v1/tasks/{project_id}")
         finally:
             client.token = original_token
     else:
-        response = client.delete(f"/api/v1/projects/{project_id}")
+        response = client.delete(f"/api/v1/tasks/{project_id}")
 
     return response
 
@@ -335,53 +322,78 @@ def delete_test_project(client: APIClient, project_id: str, token: Optional[str]
 # Skill Setup Functions
 # ============================================================================
 
-def install_test_skill(client: APIClient, skill_id: str, agent_id: str = "test-agent", token: Optional[str] = None) -> Dict[str, Any]:
+def import_test_skill(
+    client: APIClient,
+    name: str,
+    description: str = "E2E test skill",
+    body: str = "Test skill body.",
+    token: Optional[str] = None,
+) -> Dict[str, Any]:
     """
-    Install a test skill via API.
+    Import a test skill via the skills registry API (POST /api/skills/import).
+
+    Skills are authored as SKILL.md (YAML frontmatter + markdown body).
 
     Args:
         client: APIClient instance
-        skill_id: Skill ID to install
-        agent_id: Agent ID that will use the skill (default: "test-agent")
+        name: Skill name
+        description: Skill description
+        body: Markdown body content
         token: Optional JWT token (uses client token if not provided)
 
     Returns:
-        Installation response data
+        Import response data (contains skill_id, status, scan_result)
 
     Raises:
-        requests.HTTPError: If installation fails
+        requests.HTTPError: If import fails
     """
+    content = f"---\nname: {name}\ndescription: {description}\n---\n\n{body}"
+    payload = {"source": "raw_content", "content": content, "metadata": {"author": "e2e"}}
+
     if token:
         original_token = client.token
         client.set_token(token)
         try:
-            response = client.post(
-                f"/marketplace/skills/{skill_id}/install",
-                json={
-                    "agent_id": agent_id,
-                    "auto_install_deps": True
-                }
-            )
+            response = client.post("/api/skills/import", json=payload)
         finally:
             client.token = original_token
     else:
-        response = client.post(
-            f"/marketplace/skills/{skill_id}/install",
-            json={
-                "agent_id": agent_id,
-                "auto_install_deps": True
-            }
-        )
+        response = client.post("/api/skills/import", json=payload)
 
     return response
 
 
+# Backward-compatible alias for tests that called install_test_skill.
+def install_test_skill(client: APIClient, skill_id: str, agent_id: str = "test-agent", token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Install/register a test skill.
+
+    The backend models skills as imported entities (POST /api/skills/import)
+    rather than install-from-marketplace. This helper imports a uniquely-named
+    skill and returns the import result (which includes the skill_id).
+
+    Args:
+        client: APIClient instance
+        skill_id: Ignored — kept for backward compat. A unique name is generated.
+        agent_id: Ignored — kept for backward compat.
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Import response data
+    """
+    import uuid
+    unique = uuid.uuid4().hex[:8]
+    return import_test_skill(
+        client,
+        name=f"E2E Skill {unique}",
+        description=f"Auto-imported by E2E suite ({skill_id})",
+        token=token,
+    )
+
+
 def get_installed_skills(client: APIClient, token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Get installed skills via API.
-
-    Note: This endpoint may need to be implemented.
-    Currently, the marketplace provides search and installation endpoints.
+    Get all imported skills via GET /api/skills/list.
 
     Args:
         client: APIClient instance
@@ -397,44 +409,38 @@ def get_installed_skills(client: APIClient, token: Optional[str] = None) -> Dict
         original_token = client.token
         client.set_token(token)
         try:
-            # Search all marketplace skills
-            response = client.get("/marketplace/skills")
+            response = client.get("/api/skills/list")
         finally:
             client.token = original_token
     else:
-        response = client.get("/marketplace/skills")
+        response = client.get("/api/skills/list")
 
     return response
 
 
 def uninstall_test_skill(client: APIClient, skill_id: str, token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Uninstall a test skill via API.
-
-    Note: This endpoint may need to be implemented.
-    Skills are typically managed through the skill adapter service.
+    Uninstall (delete) a skill via DELETE /api/skills/{skill_id}.
 
     Args:
         client: APIClient instance
-        skill_id: Skill ID to uninstall
+        skill_id: Skill ID to delete
         token: Optional JWT token (uses client token if not provided)
 
     Returns:
         Response data
 
     Raises:
-        requests.HTTPError: If uninstallation fails
+        requests.HTTPError: If deletion fails
     """
-    # Note: Uninstall endpoint may not exist in current implementation
-    # This is a placeholder for future implementation
     if token:
         original_token = client.token
         client.set_token(token)
         try:
-            response = client.delete(f"/marketplace/skills/{skill_id}")
+            response = client.delete(f"/api/skills/{skill_id}")
         finally:
             client.token = original_token
     else:
-        response = client.delete(f"/marketplace/skills/{skill_id}")
+        response = client.delete(f"/api/skills/{skill_id}")
 
     return response
