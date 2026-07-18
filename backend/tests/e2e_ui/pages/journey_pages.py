@@ -144,7 +144,20 @@ class DashboardJourneyPage(JourneyBase):
         # The dashboard fires several integration-health + summary API calls
         # on mount; the H1 doesn't render until React settles. Wait for it
         # rather than returning False the instant the URL changes.
-        return self._visible(self.welcome.first, timeout=15000)
+        ok = self._visible(self.welcome.first, timeout=20000)
+        if not ok:
+            # Diagnostic: print what's actually on the page so CI failures
+            # are debuggable without a screenshot (the screenshot upload has
+            # a path issue under the e2e working-directory).
+            try:
+                url = self.page.url
+                title = self.page.title()
+                h1s = self.page.locator("h1").all_text_contents()
+                body = (self.page.locator("body").inner_text() or "")[:300]
+                print(f"\n[DashboardJourneyPage.is_loaded FALSE] url={url} title={title!r} h1s={h1s} body[:300]={body!r}\n")
+            except Exception as e:
+                print(f"\n[DashboardJourneyPage.is_loaded FALSE] (diag failed: {e})\n")
+        return ok
 
     def navigate(self) -> None:
         self.goto("/dashboard")

@@ -175,7 +175,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-screenshots
-          path: backend/tests/e2e_ui/artifacts/screenshots/
+          # Absolute path — upload-artifact runs at workspace root, not the
+          # job's working-directory, so a relative path resolves wrong.
+          path: ${{ github.workspace }}/backend/tests/e2e_ui/artifacts/screenshots/
           if-no-files-found: ignore
 
   # -------------------------------------------------------------------
