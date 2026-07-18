@@ -7,12 +7,83 @@ on:
     branches: [main]
 
 jobs:
+  # -------------------------------------------------------------------
+  # Fast: does the full app even import + boot? (guards against the
+  # historical "main_api_app is broken" regression)
+  # -------------------------------------------------------------------
+  full-app-boots:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boot the full app (main_api_app) and hit /alive
+        env:
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          DISABLE_AUTH_RATE_LIMIT: "1"
+        run: |
+          # Import first — surfaces any router/middleware error loudly.
+          python -c "import main_api_app; print('import OK')"
+          # Boot in the background and probe the health endpoint.
+          python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 &
+          BACKEND_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1; then
+              echo "Backend alive"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to boot"; kill $BACKEND_PID 2>/dev/null || true; exit 1
+
+  # -------------------------------------------------------------------
+  # Backend unit tests (unchanged set, fast feedback)
+  # -------------------------------------------------------------------
   backend-tests:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run backend tests
+        env:
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          PYTEST_CURRENT_TEST: "1"
+        run: |
+          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py -q --tb=line
 
+  # -------------------------------------------------------------------
+  # End-to-end user-journey suite: boots full app + frontend, runs
+  # Playwright tests against them.
+  # -------------------------------------------------------------------
+  e2e-journey:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/tests/e2e_ui
     steps:
       - uses: actions/checkout@v4
 
@@ -23,29 +94,6 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run backend tests
-        env:
-          DATABASE_URL: "sqlite:///test_ci.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-          PYTEST_CURRENT_TEST: "1"
-        run: |
-          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py -q --tb=line
-
-  frontend-typecheck:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend-nextjs
-
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,9 +101,82 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-nextjs/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Install frontend dependencies
+        working-directory: frontend-nextjs
         run: npm install --legacy-peer-deps
 
+      - name: Start full backend (main_api_app) on :8001
+        working-directory: backend
+        env:
+          DATABASE_URL: "sqlite:///test_e2e.db"
+          SECRET_KEY: "ci-e2e-secret-key"
+          ENVIRONMENT: "development"
+          DISABLE_AUTH_RATE_LIMIT: "1"
+          ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001"
+        run: |
+          python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 40); do
+            curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "Backend did not become healthy:"; cat /tmp/backend.log | tail -40; exit 1
+
+      - name: Start frontend on :3001
+        working-directory: frontend-nextjs
+        env:
+          NEXT_PUBLIC_API_URL: "http://localhost:8001"
+          NEXT_PUBLIC_USE_BACKEND_API: "true"
+        run: |
+          npm run dev -- -p 3001 > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fs http://127.0.0.1:3001 > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "Frontend did not become healthy:"; cat /tmp/frontend.log | tail -40; exit 1
+
+      - name: Run journey tests
+        env:
+          BACKEND_URL: "http://localhost:8001"
+          FRONTEND_URL: "http://localhost:3001"
+          CI: "true"
+        run: |
+          python -m pytest tests/test_journey_api_features.py tests/test_journey_auth.py \
+            tests/test_journey_ui_features.py tests/test_user_journey.py \
+            tests/test_journey_page_smoke.py tests/test_journey_integrations_health.py \
+            -q --tb=short
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: backend/tests/e2e_ui/artifacts/screenshots/
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------
+  # Frontend type check (best-effort; pre-existing errors don't block)
+  # -------------------------------------------------------------------
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-nextjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-nextjs/package-lock.json
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
       - name: Type check
         run: npx tsc --noEmit --skipLibCheck
         continue-on-error: true  # Pre-existing errors; don't block PRs yet

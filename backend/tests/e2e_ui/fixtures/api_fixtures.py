@@ -221,9 +221,13 @@ def setup_test_skill(authenticated_api_client: APIClient, test_skill_data: Dict[
         agent_id=test_skill_data["agent_id"]
     )
 
+    # The import response wraps data under "data"; extract the real skill_id.
+    data = response.get("data", response) if isinstance(response, dict) else {}
+    real_skill_id = data.get("skill_id", test_skill_data["skill_id"])
+
     return {
         "result": response,
-        "skill_id": test_skill_data["skill_id"],
+        "skill_id": real_skill_id,
         "agent_id": test_skill_data["agent_id"]
     }
 

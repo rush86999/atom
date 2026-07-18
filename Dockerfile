@@ -6,6 +6,13 @@ WORKDIR /app
 COPY frontend-nextjs/package.json frontend-nextjs/package-lock.json* ./
 RUN npm install --legacy-peer-deps
 COPY frontend-nextjs/ .
+# NEXT_PUBLIC_* vars are baked into the Next.js build at compile time, so they
+# must be passed as build-args (not runtime env). Default to the in-container
+# backend on port 8000 (the dual-app image serves backend on 8000).
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_USE_BACKEND_API=true
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_USE_BACKEND_API=$NEXT_PUBLIC_USE_BACKEND_API
 RUN npm run build
 
 # ==========================================

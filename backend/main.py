@@ -1,18 +1,24 @@
 """
-Atom Backend - Application Entry Point
+Atom Backend - Minimal Entry Point (fast dev bootstrap)
 
 Launch locally:
     cd /Users/rushiparikh/projects/atom
-    PYTHONPATH=/Users/rushiparikh/projects/atom:/Users/rushiparikh/projects/atom/backend \
+    PYTHONPATH=$PWD:$PWD/backend \
         ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
 
-This module is intentionally minimal but functional: it loads environment
-variables, wires the core routers (health, auth, agents, workflow, canvas),
-bootstraps an admin user on startup, and enables permissive CORS for local
-frontend development.
+This module is intentionally minimal: it loads environment variables, wires a
+small set of core routers (health, auth, agents, workflow, canvas), bootstraps
+an admin user on startup, and enables permissive CORS. It boots fast and is
+useful for quick smoke checks, but it only exposes ~125 of the app's routes.
 
-For the full-featured launcher (all 40+ routers, middleware, scheduler), see
-main_api_app.py — note that file is mid-refactor and currently broken.
+>>> For the REAL application (all 40+ routers, middleware, scheduler, the full
+>>> feature surface used in production and by the E2E suite), run main_api_app:
+>>>
+>>>     PYTHONPATH=$PWD:$PWD/backend \
+>>>         ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
+>>>
+>>> main_api_app:app is what Docker and CI use, and what the README quickstart
+>>> recommends. New users should start there.
 """
 import logging
 import os
@@ -78,14 +84,14 @@ app = FastAPI(
 # --- CORS (permissive for local dev; tighten via ALLOWED_ORIGINS in prod) ---
 _allowed = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000",
 ).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _allowed if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["*"],
 )
 
 # --- Security headers middleware ---
