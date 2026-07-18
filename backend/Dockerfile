@@ -72,7 +72,7 @@ WORKDIR /app/backend
 ENV PYTHONPATH=/app:/app/backend
 USER atomuser
 
-# Health check — /alive is registered inline in both main.py and main_api_app.py
+# Health check — /alive is registered inline in both minimal_app.py and main_api_app.py
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/alive')" || exit 1
 
@@ -80,5 +80,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 EXPOSE 8000
 
 # Run the full-featured app (all 80+ routers, middleware, background workers).
-# main_api_app:app is the production launcher; main:app is a minimal dev fallback.
+# main_api_app:app is the production launcher; minimal_app:app is a minimal dev fallback.
 CMD ["uvicorn", "main_api_app:app", "--host", "0.0.0.0", "--port", "8000"]

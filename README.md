@@ -161,10 +161,10 @@ cd frontend-nextjs && npm run dev -- -p 3001
 create test users freely; it does **not** change the database. Remove it for
 any shared/production deployment.
 
-> **Minimal app (smoke only):** `main.py` boots a ~125-route subset for fast
-> checks — `uvicorn main:app --port 8000`. It lacks skills, marketplace,
-> workflows, canvas, integrations, etc. Use `main_api_app:app` (above) to
-> actually use Atom.
+> **Minimal app (smoke only):** `minimal_app.py` boots a ~125-route subset for
+> fast checks — `uvicorn minimal_app:app --port 8000`. It lacks skills,
+> marketplace, workflows, canvas, integrations, etc. Use `main_api_app:app`
+> (above) to actually use Atom.
 
 That's it! 🚀
 
@@ -199,7 +199,7 @@ make help           # list every target
 
 ```
 atom/
-├── backend/            # FastAPI app — run main_api_app:app (full) or main:app (minimal smoke)
+├── backend/            # FastAPI app — run main_api_app:app (full) or minimal_app:app (smoke)
 ├── frontend-nextjs/    # Next.js web UI
 ├── mobile/             # React Native (Expo) companion app
 ├── menubar/            # Tauri macOS menubar companion
@@ -216,7 +216,7 @@ atom/
 
 The **full app** (`backend/main_api_app.py`) is the canonical entrypoint — all
 40+ routers, the real feature surface, what Docker/CI/the E2E suite use. The
-minimal `backend/main.py` (~125 routes) exists only as a fast smoke bootstrap.
+minimal `backend/minimal_app.py` (~125 routes) exists only as a fast smoke bootstrap.
 
 ---
 

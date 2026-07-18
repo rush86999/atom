@@ -22,7 +22,9 @@ cd backend
 if [ -d "venv" ]; then
     source venv/bin/activate
 fi
-PYTHONPATH=..:. python -m uvicorn main:app --reload --port 8000 &
+# NOTE: this launches the MINIMAL app (~125 routes, fast smoke bootstrap).
+# For the full app (all features), use `make backend` or run main_api_app:app.
+PYTHONPATH=..:. python -m uvicorn minimal_app:app --reload --port 8000 &
 BACKEND_PID=$!
 cd ..
 

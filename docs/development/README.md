@@ -37,7 +37,7 @@ cd frontend-nextjs
 npm install
 
 # Start development servers
-# Backend: cd backend && python -m uvicorn main:app --reload
+# Backend: cd backend && python -m uvicorn minimal_app:app --reload
 # Frontend: cd frontend-nextjs && npm run dev
 ```
 

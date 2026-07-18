@@ -11,8 +11,9 @@ Launch locally:
     PYTHONPATH=$PWD:$PWD/backend \
         ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
 
-The minimal `main.py` exists as a fast dev bootstrap (~125 routes) for quick
-smoke checks; new users should start here instead.
+The minimal `minimal_app.py` (renamed from main.py to avoid confusion) exists
+as a fast dev bootstrap (~125 routes) for quick smoke checks; new users should
+start here (main_api_app) instead.
 """
 from __future__ import annotations
 

@@ -1,10 +1,13 @@
 """
 Atom Backend - Minimal Entry Point (fast dev bootstrap)
 
+This is the MINIMAL app (renamed from main.py to avoid confusion with the
+full app). It exposes only ~125 routes for quick smoke checks.
+
 Launch locally:
     cd /Users/rushiparikh/projects/atom
     PYTHONPATH=$PWD:$PWD/backend \
-        ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+        ./backend/venv/bin/python -m uvicorn minimal_app:app --reload --port 8000
 
 This module is intentionally minimal: it loads environment variables, wires a
 small set of core routers (health, auth, agents, workflow, canvas), bootstraps
