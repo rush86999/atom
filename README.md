@@ -182,6 +182,42 @@ For alternative paths (Docker, DigitalOcean 1-click) and the full walkthrough, s
 - **[Full Installation Guide](docs/getting_started/INSTALLATION.md)** — all installation variants
 - **[Development Setup](docs/development/DEVELOPMENT_SETUP.md)** — for contributors
 
+### Common tasks (`make`)
+
+A `Makefile` wraps the canonical commands so you don't have to remember them:
+
+```bash
+make setup          # one-shot dev bootstrap (venv, deps, .env, frontend install)
+make backend        # run the full backend (main_api_app) on :8001
+make frontend       # run the frontend dev server on :3001
+make test-e2e       # run the E2E journey suite (needs both apps running)
+make docker-build   # build the dual-app Docker image
+make help           # list every target
+```
+
+### Repository layout
+
+```
+atom/
+├── backend/            # FastAPI app — run main_api_app:app (full) or main:app (minimal smoke)
+├── frontend-nextjs/    # Next.js web UI
+├── mobile/             # React Native (Expo) companion app
+├── menubar/            # Tauri macOS menubar companion
+├── scripts/            # ~6 canonical scripts (quickstart, dev, e2e stack, docker entrypoint)
+├── infra/              # deployment recipes (terraform, aws, reference compose files)
+├── installer/          # bare-metal native install scripts
+├── docs/               # project documentation
+├── examples/           # standalone demo scripts
+├── archive/            # superseded files (kept for history; nothing here is referenced)
+├── Dockerfile          # dual-app image (backend + frontend) — what CI builds
+├── docker-compose.yml  # local/prod stack (postgres + backend + frontend + piece-engine)
+└── Makefile            # common tasks (start here)
+```
+
+The **full app** (`backend/main_api_app.py`) is the canonical entrypoint — all
+40+ routers, the real feature surface, what Docker/CI/the E2E suite use. The
+minimal `backend/main.py` (~125 routes) exists only as a fast smoke bootstrap.
+
 ---
 
 ## Key Features
