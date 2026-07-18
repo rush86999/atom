@@ -133,7 +133,10 @@ class DashboardJourneyPage(JourneyBase):
         )
 
     def is_loaded(self) -> bool:
-        return self.welcome.first.is_visible()
+        # The dashboard fires several integration-health + summary API calls
+        # on mount; the H1 doesn't render until React settles. Wait for it
+        # rather than returning False the instant the URL changes.
+        return self._visible(self.welcome.first, timeout=15000)
 
     def navigate(self) -> None:
         self.goto("/dashboard")
