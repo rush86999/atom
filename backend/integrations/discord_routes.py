@@ -5,20 +5,40 @@ Uses the real discord_service.py for all operations
 
 from datetime import datetime
 import logging
+import os
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from .discord_service import discord_service
-from core.messaging_action_dispatcher import MessagingActionDispatcher, RateLimiter
+from core.messaging_action_dispatcher import MessagingActionDispatcher
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/discord", tags=["discord"])
 
+
+# Simple rate limiter (RateLimiter was never defined in messaging_action_dispatcher).
+class _RateLimiter:
+    def __init__(self, limit: int = 30, window: int = 60):
+        self.limit = limit
+        self.window = window
+        self._hits: dict = {}
+
+    def check(self, key: str) -> bool:
+        import time
+        now = time.time()
+        cutoff = now - self.window
+        self._hits = {k: v for k, v in self._hits.items() if v > cutoff}
+        if len(self._hits.get(key, [])) >= self.limit:
+            return False
+        self._hits.setdefault(key, []).append(now)
+        return True
+
+
 # Discord Actions Dispatcher and Sentinel Rate Limiter
-discord_dispatcher = MessagingActionDispatcher(platform="discord")
-discord_rate_limiter = RateLimiter(limit=30, window=60)
+discord_dispatcher = MessagingActionDispatcher()
+discord_rate_limiter = _RateLimiter(limit=30, window=60)
 DISCORD_PUBLIC_KEY = os.getenv("DISCORD_PUBLIC_KEY", "")
 
 

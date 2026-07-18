@@ -6,10 +6,13 @@ import sys
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
-# Add the parent directory to the path to import from python-api-service
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "python-api-service"))
-
-from trello_enhanced_service import TrelloEnhancedService
+# trello_enhanced_service is an optional external module that may not be
+# installed. Fall back to TrelloService (always available) so the routes
+# load and degrade gracefully.
+try:
+    from trello_enhanced_service import TrelloEnhancedService
+except ImportError:
+    TrelloEnhancedService = None
 
 # Import TrelloService for health check compliance
 from .trello_service import TrelloService
@@ -48,7 +51,7 @@ async def handle_oauth_callback(token: str):
     }
 
 # Service instances
-trello_service = TrelloEnhancedService()
+trello_service = TrelloEnhancedService() if TrelloEnhancedService else TrelloService()
 
 
 @router.get("/health")

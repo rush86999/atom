@@ -9,13 +9,34 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from core.messaging_action_dispatcher import MessagingActionDispatcher, RateLimiter
+from core.messaging_action_dispatcher import MessagingActionDispatcher
 
 logger = logging.getLogger(__name__)
 
+
+# Simple rate limiter for Teams webhook endpoints. RateLimiter was previously
+# imported from core.messaging_action_dispatcher but was never defined there.
+class _RateLimiter:
+    """Token-bucket rate limiter with a check() method."""
+    def __init__(self, limit: int = 30, window: int = 60):
+        self.limit = limit
+        self.window = window
+        self._hits: dict = {}
+
+    def check(self, key: str) -> bool:
+        import time
+        now = time.time()
+        cutoff = now - self.window
+        self._hits = {k: v for k, v in self._hits.items() if v > cutoff}
+        if len(self._hits.get(key, [])) >= self.limit:
+            return False
+        self._hits.setdefault(key, []).append(now)
+        return True
+
+
 # Teams Actions Dispatcher and Sentinel Rate Limiter
-teams_dispatcher = MessagingActionDispatcher(platform="teams")
-teams_rate_limiter = RateLimiter(limit=30, window=60)
+teams_dispatcher = MessagingActionDispatcher()
+teams_rate_limiter = _RateLimiter(limit=30, window=60)
 TEAMS_WEBHOOK_SECRET = os.getenv("TEAMS_WEBHOOK_SECRET", "")
 
 # Auth Type: OAuth2
