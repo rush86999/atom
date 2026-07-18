@@ -52,6 +52,7 @@ from backend.api.enterprise_auth_endpoints import router as enterprise_auth_rout
 from backend.api.health_routes import router as health_router
 from backend.api.shell_routes import router as shell_router
 from backend.api.user_management_routes import router as user_mgmt_router
+from core.user_preference_routes import router as user_pref_router
 from backend.api.workflow_debugging import router as workflow_router
 from backend.api.board_routes import router as board_router
 from backend.api.board_comment_routes import router as board_comment_router
@@ -108,6 +109,7 @@ app.include_router(health_router)
 app.include_router(enterprise_auth_router)  # /api/auth/login, /api/auth/register
 app.include_router(auth_router)              # /api/auth/mobile/*
 app.include_router(user_mgmt_router)        # /api/users/*
+app.include_router(user_pref_router, prefix="/api/v1/preferences")
 app.include_router(agent_router)
 app.include_router(workflow_router)
 app.include_router(canvas_router)
@@ -163,6 +165,7 @@ def _startup_bootstrap() -> None:
     try:
         from backend.core.database import engine
         from backend.core.models import Base
+        from core.user_preference_service import UserPreference
 
         # create_all is idempotent (checkfirst=True by default) — only
         # creates tables that don't exist. Some model classes share table
@@ -173,6 +176,14 @@ def _startup_bootstrap() -> None:
         logger.info("Database schema verified (create_all idempotent)")
     except Exception as exc:
         logger.warning("Schema create_all skipped (tables likely exist): %s", exc)
+
+    try:
+        from backend.core.database import engine
+        from core.user_preference_service import UserPreference
+        UserPreference.__table__.create(bind=engine, checkfirst=True)
+        logger.info("user_preferences table verified/created")
+    except Exception as exc:
+        logger.warning("Failed to verify/create user_preferences table: %s", exc)
 
     try:
         from backend.core.admin_bootstrap import ensure_admin_user
