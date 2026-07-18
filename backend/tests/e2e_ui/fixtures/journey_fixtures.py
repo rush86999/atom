@@ -96,7 +96,7 @@ def authed_page(browser: Browser, journey_user_credentials: Dict[str, str]) -> P
     page.locator("[data-testid='login-password-input'], input#password").first.fill(creds["password"])
     page.locator("[data-testid='login-submit-button'], button[type='submit']").first.click()
     try:
-        page.wait_for_url("**/dashboard**", timeout=20000)
+        page.wait_for_url("**/dashboard**", timeout=30000)
     except Exception:
         # If login didn't redirect, the test assertions will surface the real
         # problem; don't fail at fixture setup.
@@ -240,7 +240,7 @@ def role_authed_page(browser: Browser, role_credentials: Dict[str, Any]) -> Page
     page.locator("[data-testid='login-password-input'], input#password").first.fill(creds["password"])
     page.locator("[data-testid='login-submit-button'], button[type='submit']").first.click()
     try:
-        page.wait_for_url("**/dashboard**", timeout=20000)
+        page.wait_for_url("**/dashboard**", timeout=30000)
     except Exception:
         pass
     yield page

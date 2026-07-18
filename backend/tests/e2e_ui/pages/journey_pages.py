@@ -108,7 +108,9 @@ class AuthPage(JourneyBase):
         self.password_input.first.fill(password)
         self.submit_button.first.click()
         if expect_redirect:
-            self.page.wait_for_url("**/dashboard**", timeout=20000)
+            # 30s: the login flow does signIn() + getSession() + router.push,
+            # which on a cold CI runner can take longer than the default.
+            self.page.wait_for_url("**/dashboard**", timeout=30000)
 
     def switch_to_register(self) -> None:
         self.toggle_mode_button.first.click()

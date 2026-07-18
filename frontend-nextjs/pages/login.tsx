@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -40,19 +40,17 @@ export default function LoginPage() {
                     throw new Error(result?.error || 'Invalid credentials');
                 }
 
-                // Also keep the raw JWT in localStorage for pages/components that
-                // read auth_token directly (agents, chat composer, etc.). Fetch it
-                // from the backend so the value matches the session token.
+                // Mirror the backend JWT into localStorage for pages/components
+                // that read auth_token directly (agents, chat composer, etc.).
+                // Pull it from the next-auth session we just established — no
+                // second login round-trip needed (the jwt callback exposes it as
+                // backendToken).
                 try {
-                    const response = await fetch(`${API_BASE}/api/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: formData.email, password: formData.password })
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
+                    const session = await getSession();
+                    const token = (session as any)?.backendToken;
+                    if (token) {
                         localStorage.removeItem('atom_explicit_logout');
-                        localStorage.setItem('auth_token', data.access_token);
+                        localStorage.setItem('auth_token', token);
                     }
                 } catch (e) {
                     // Non-fatal: the next-auth session is the source of truth.
