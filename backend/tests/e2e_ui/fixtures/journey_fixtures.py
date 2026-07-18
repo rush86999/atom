@@ -146,34 +146,24 @@ ALL_ROLES = [
 
 
 def _set_user_role(email: str, role: str) -> None:
-    """Update a user's role directly in the SQLite DB.
+    """Update a user's role using the backend's OWN database layer.
 
-    Resolves the active atom_dev.db the SAME way the backend does: honor
-    DATABASE_URL when it points at sqlite, otherwise default to the
-    repo-root atom_dev.db (the backend runs with cwd = repo root).
+    Importing core.database and using its engine guarantees we write to the
+    exact DB the running backend reads from — no path guessing. The backend's
+    DB resolution (DATABASE_URL, cwd, sqlite path anchoring) is applied
+    identically here because we use the same code path, not a re-implementation.
     """
-    import sqlite3
-    from urllib.parse import urlparse
+    # core.database is importable because tests run with PYTHONPATH including
+    # the backend dir (CI sets working-directory: backend).
+    from core.database import SessionLocal
+    from core.models import User
 
-    db_url = os.getenv("DATABASE_URL", "")
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-
-    db_path = None
-    if db_url.startswith("sqlite:///"):
-        raw = db_url[len("sqlite:///"):]
-        path_only = raw.split("?")[0]
-        db_path = path_only if os.path.isabs(path_only) else os.path.join(repo_root, path_only)
-
-    if not db_path or not os.path.exists(db_path):
-        # Backend default when DATABASE_URL is unset/relative: repo-root atom_dev.db
-        db_path = os.path.join(repo_root, "atom_dev.db")
-
-    conn = sqlite3.connect(db_path)
+    session = SessionLocal()
     try:
-        conn.execute("UPDATE users SET role = ? WHERE email = ?", (role, email))
-        conn.commit()
+        session.query(User).filter(User.email == email).update({"role": role})
+        session.commit()
     finally:
-        conn.close()
+        session.close()
 
 
 def _register_role_user(role: str) -> Dict[str, Any]:

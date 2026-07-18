@@ -115,12 +115,16 @@ jobs:
       - name: Start full backend (main_api_app) on :8001
         working-directory: backend
         env:
-          DATABASE_URL: "sqlite:///test_e2e.db"
+          # ABSOLUTE path so the test step (different cwd) resolves the same DB.
+          # The role fixtures write to this DB via the backend's SessionLocal,
+          # so both processes must agree on the file location.
+          DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
           SECRET_KEY: "ci-e2e-secret-key"
           ENVIRONMENT: "development"
           DISABLE_AUTH_RATE_LIMIT: "1"
           ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001"
         run: |
+          rm -f /tmp/atom_e2e.db
           python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
           for i in $(seq 1 40); do
             curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1 && exit 0
@@ -145,10 +149,13 @@ jobs:
         env:
           BACKEND_URL: "http://localhost:8001"
           FRONTEND_URL: "http://localhost:3001"
+          # MUST match the backend's DATABASE_URL (absolute path) so the role
+          # fixtures' SessionLocal writes to the same DB the backend reads.
+          DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
+          # backend/ on PYTHONPATH so `from core.database import SessionLocal`
+          # works in the role fixtures. $GITHUB_WORKSPACE is repo root.
+          PYTHONPATH: "${{ github.workspace }}/backend"
           CI: "true"
-          # The role journeys + permission matrix exercise every role; the
-          # page-smoke + ui-features cover every sidebar route; the canonical
-          # user_journey is the full login→logout flow.
         run: |
           python -m pytest tests/test_journey_api_features.py \
             tests/test_journey_role_api.py tests/test_journey_permission_matrix.py \
