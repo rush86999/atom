@@ -114,6 +114,29 @@ git push origin --force --all
 - **Tests**: Maintain test coverage above 80%
 - **Documentation**: Update relevant docs in `docs/` directory
 
+#### Conventions learned from past bugs
+
+These come from real defects found by the user-journey suite (full stories in
+[`docs/architecture/BUGS_FOUND_AND_FIXED.md`](docs/architecture/BUGS_FOUND_AND_FIXED.md)).
+Following them prevents the most common regressions:
+
+- **Never `include_router(...)` with a prefix the router already declares.**
+  If a router has `APIRouter(prefix="/api/foo")`, include it bare — otherwise
+  the path doubles (`/api/v1/foo/api/foo/...`) and every endpoint 404s.
+- **Backend response shape is `{success, data, ...}`** (the `BaseAPIRouter`
+  wrapper). Frontend code that expects a bare array/object must unwrap `.data`.
+- **`async` methods must be awaited.** A sync caller of an `async` scanner/LLM
+  call gets a coroutine object and fails far from the call site
+  (`'coroutine' object is not subscriptable`).
+- **New roles added to `UserRole` must be added to
+  `_get_role_permissions()`** in `core/rbac_service.py` — otherwise they get
+  an empty permission set (worse than guest). A regression guard enforces this.
+- **E2E `is_loaded()` checks should use `wait_for(state="attached")` or
+  `wait_for_selector`, not bare `is_visible()`.** SSR content is in the DOM
+  before hydration; visibility can lag and produce false negatives.
+- **Don't guess the DB path from tests.** Use the backend's own
+  `core.database.SessionLocal`, and in CI use an absolute `DATABASE_URL`.
+
 ### Areas Where We Need Help
 
 - **Core Features**: Agent governance, episodic memory, canvas system

@@ -98,6 +98,13 @@ Role fixtures live in `fixtures/journey_fixtures.py`:
    by `test_known_gap_permission_is_never_enforced` (will fail when enforcement
    is added, prompting wiring-up of matrix cases).
 
+> The full catalog of bugs found and fixed via the journey suite (router
+> double-prefixes, async/await defects, frontend response-shape mismatches,
+> CI/Docker flakiness, etc.) lives in
+> [`docs/architecture/BUGS_FOUND_AND_FIXED.md`](../../../docs/architecture/BUGS_FOUND_AND_FIXED.md).
+> Each entry has symptom → root cause → fix → commit. Read it before
+> debugging a regression, and add to it when this suite surfaces a new defect.
+
 ### Coverage note
 
 Measured coverage of `api/`+`core/`+`integrations/` is **~10%** (baseline:
