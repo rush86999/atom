@@ -108,9 +108,17 @@ class AuthPage(JourneyBase):
         self.password_input.first.fill(password)
         self.submit_button.first.click()
         if expect_redirect:
-            # 30s: the login flow does signIn() + getSession() + router.push,
-            # which on a cold CI runner can take longer than the default.
-            self.page.wait_for_url("**/dashboard**", timeout=30000)
+            # 45s: the login flow does signIn() + getSession() + router.push,
+            # and on a cold CI runner the Next.js dev server may still be
+            # compiling /dashboard on first hit. wait_for_url only confirms
+            # the navigation started; the page then needs to finish rendering.
+            self.page.wait_for_url("**/dashboard**", timeout=45000)
+            # Give the just-compiled page a moment to mount before callers
+            # assert on its contents.
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
 
     def switch_to_register(self) -> None:
         self.toggle_mode_button.first.click()

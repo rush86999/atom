@@ -298,9 +298,11 @@ def pytest_runtest_makereport(item, call):
             screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
             os.makedirs(screenshot_dir, exist_ok=True)
 
-            # Generate descriptive filename
+            # Generate descriptive filename. Strip bracket chars (e.g. the
+            # "[chromium]" suffix Playwright adds) so the path doesn't break
+            # glob-based tooling like actions/upload-artifact.
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+            test_name = item.name.replace("::", "_").replace("/", "_").replace("[", "").replace("]", "")[:100]
             screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
 
             # Capture full page screenshot
