@@ -18,6 +18,21 @@ The Episodic Memory system provides AI agents with the ability to remember, retr
 
 ---
 
+## Why This Exists
+
+### ❌ The Problem
+As AI agent interactions progress over multi-turn sessions, context windows quickly bloat with chat histories. If we pass the raw, uncompressed transcript to the model, or rely on simple full-session summarization, key constraints and context are lost.
+
+### 🎯 The Impact
+Large context windows suffer from "lost-in-the-middle" attention degradation. Passing redundant tokens increases latency, inflates inference costs, and dilutes the model's focus, causing it to hallucinate, repeat failures, or miss critical business invariants.
+
+### 🛡️ Our Solution
+A **hybrid memory architecture** combining:
+1. **Durable-Fact Extraction (Hermes-style)**: Real-time per-turn extraction of strict rules, implicit preferences, and task dependencies before session compression.
+2. **Episodic Segmentation**: Auto-partitioning of chats into discrete "episodes" stored in a hybrid PostgreSQL (hot metadata) + LanceDB ONNX (cold semantic vectors) database for low-latency ($<50$ms) neighborhood recall.
+
+---
+
 ## Architecture
 
 ### Storage Strategy: Hybrid PostgreSQL + LanceDB

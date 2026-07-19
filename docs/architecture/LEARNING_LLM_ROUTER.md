@@ -8,33 +8,18 @@
 > outcomes, collects feedback, and re-ranks model candidates using learned
 > per-model satisfaction predictors.
 
-## The Problem
+## Why This Exists
 
-The Cognitive Tier System (see [`COGNITIVE_TIER_SYSTEM.md`](./COGNITIVE_TIER_SYSTEM.md))
-selects models via a static, rule-based 5-tier classifier (BPC: Benchmark-Price-Capability
-scoring). It's good, but it can't learn from observed outcomes: if model A
-reliably truncates long prompts, or model B refuses a certain task type, the
-rule-based router keeps picking them. There was no feedback loop.
+### ❌ The Problem
+Static, rule-based routing strategies (like Benchmark-Price-Capability) select models on fixed benchmark scores. However, they cannot adapt to real-world outcomes: if a model consistently refutes a task type, generates invalid schemas, or experiences latency spikes, the rule-based router continues selecting it.
 
-A `LearningBasedRouter` existed in the codebase but was completely orphaned —
-never imported by any production code path (confirmed via git history: it was
-always aspirational, never wired in). Its predictors were trained into
-throwaway instances on every call, so even when "enabled" it couldn't
-accumulate learning. Feedback from the chat UI hit a dead endpoint that 404'd
-silently. Users couldn't see which model answered.
+### 🎯 The Impact
+Probabilistic routing models can degrade during runtime due to API outages, API schema changes, or model drift. Blindly routing tasks based on static benchmark profiles increases API token costs and exposes multi-step workflows to cascade failures.
 
-## The Fix
-
-A learning layer that **augments** (not replaces) the live BPC selection,
-behind a flag. It runs in two phases:
-
-1. **Observe** (always on when flag is set): every LLM response — text,
-   structured, and streamed — generates a real outcome sample assessed from
-   `finish_reason`, content quality, schema validation, and exceptions.
-2. **Influence** (once enough data accumulates): re-rank BPC's already-filtered
-   candidate list using learned per-model satisfaction, so routing decisions
-   change with feedback. Never adds or removes candidates — only re-orders —
-   so the live pricing cache remains the source of truth.
+### 🛡️ Our Solution
+A hybrid re-ranking system that combines:
+1. **Per-Model Predictors (ML-driven)**: Sklearn estimators that predict user satisfaction based on prompt features, dynamically re-ordering the candidate pool as user feedback accumulates.
+2. **EMA-Guided Protocol Routing (Metric-driven)**: A running Exponential Moving Average of latency, cost, and execution success, instantly routing traffic around outages or rate-limits without token overhead.
 
 ```
                 ┌─────────────────────────────────────────┐

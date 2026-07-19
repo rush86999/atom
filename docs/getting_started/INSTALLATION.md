@@ -7,6 +7,22 @@ This document describes all verified setup options for the Atom platform, includ
 
 ---
 
+## Why This Exists
+
+### ❌ The Problem
+Running multi-agent frameworks locally often requires configuring complex system dependencies (compilers, local databases, node modules, python packages, ONNX runtimes). A single version conflict or mismatch can render the entire system inoperable.
+
+### 🎯 The Impact
+Manual, un-containerized configurations slow down developer onboarding, lead to hard-to-debug library conflicts (e.g. SQLite version mismatch, python-venv collision), and complicate the transition from local testing to high-availability production clusters.
+
+### 🛡️ Our Solution
+Atom provides three independent, structured installation options to match execution goals:
+1. **Docker-First (Stable/Production)**: One-command containerized services bundling PostgreSQL, Redis, and SQLite for conflict-free isolation.
+2. **Git Clone & venv (Development/HTR)**: Step-by-step local bootstrap setup for active codebase modifications and E2E QA testing.
+3. **Automated Shell Installer**: One-shot script resolving local system tools, setting up virtual environments, and migrating database tables automatically.
+
+---
+
 ## 🛠️ Installation Methods
 
 ### Method 1: Docker Compose (Personal & Enterprise)

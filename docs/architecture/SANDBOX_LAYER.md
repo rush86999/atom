@@ -13,6 +13,19 @@
 
 ---
 
+## Why This Exists
+
+### ❌ The Problem
+When AI agents run arbitrary tools, they are vulnerable to **prompt injection attacks** and compromised software dependencies. Because LLMs process instructions and data uniformly, an attacker can trick the model into executing unintended code or modifying critical system settings.
+
+### 🎯 The Impact
+Probabilistic guardrails (such as system prompts or LLM alignment fine-tuning) can be bypassed by creative prompt engineering. Without hard boundaries, a hijacked agent can exfiltrate sensitive files, inject malicious cron jobs, or escalate host privileges, turning the automation platform into a security vulnerability.
+
+### 🛡️ Our Solution
+A **system-level deterministic sandbox** that enforces isolation outside of the LLM's reasoning engine. The sandbox enforces strict filesystem containment, AST-level code parsing, network proxies, and resource limits, blocking disallowed actions at the code execution level regardless of the AI's internal confidence or instruction state.
+
+---
+
 ## What this is
 
 The deterministic blast-radius layer that CLAUDE.md §"Tier is routing, not
