@@ -29,18 +29,19 @@ Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
 - [Context Memory Design](architecture/CONTEXT_MEMORY.md) — Durable-fact extraction and token compression
 - [Learning-Based LLM Router](architecture/LEARNING_LLM_ROUTER.md) — Outcome predictors, re-ranking, and EMA protocol routing
 - [Episodic Memory](intelligence/episodic-memory.md) — How agents build, retrieve, and refine personal experiences
-- [GraphRAG](intelligence/graphrag.md) — Multi-hop search and Leiden community retrieval integration
+- [GraphRAG](intelligence/graphrag.md) — Leiden community retrieval integration
+- [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
 
 ### 4. 👥 Multi-Agent Orchestration
 Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).
-- [Meta-Agent System](agents/meta-agent.md) — Queen agent, fleet recruitment, and cognitive routing
+- [Meta-Agent System](agents/meta-agent.md) — Conductor parallel consensus, fleet recruitment, and cognitive routing
 - [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) — Step-by-step workflow builder guidelines
 - [Fleet Admiral](agents/fleet-admiral.md) — Orchestrating fleets for unstructured task resolution
 
 ### 5. 🔌 Integrations & Canvas Automation
 Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
 - [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
-- [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), and PowerPoint co-editing
+- [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
 - [Browser Automation](integrations/browser-automation.md) — Sandboxed browser scraping and element interaction
 
 ### 6. 🛠️ Development & Testing

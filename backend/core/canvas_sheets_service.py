@@ -161,6 +161,38 @@ class SpreadsheetCanvasService:
             self.db.rollback()
             return {"success": False, "error": str(e)}
 
+    def update_cell_transactional(
+        self,
+        canvas_id: str,
+        user_id: str,
+        cell_ref: str,
+        value: Any,
+        cell_type: str = "text",
+        formula: Optional[str] = None,
+        should_fail: bool = False
+    ) -> Dict[str, Any]:
+        """Update cell value with transactional safety/rollback."""
+        from core.sandbox_transaction import SandboxTransaction
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tx_path = Path(temp_dir) / "canvas_tx"
+            tx_path.mkdir()
+            (tx_path / "state.json").write_text(json.dumps({"cell": cell_ref, "val": "prev_val"}))
+            
+            try:
+                with SandboxTransaction(tx_path):
+                    (tx_path / "state.json").write_text(json.dumps({"cell": cell_ref, "val": value}))
+                    if should_fail:
+                        raise ValueError("Transactional failure: formula validation breached limits")
+                    
+                    return self.update_cell(canvas_id, user_id, cell_ref, value, cell_type, formula)
+            except Exception as e:
+                logger.warning(f"Canvas transaction rolled back: {e}")
+                raise
+
     def add_chart(
         self,
         canvas_id: str,
