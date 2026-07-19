@@ -122,6 +122,45 @@ class AgentGraphRAGService:
             "metadata": properties
         }
 
+    async def get_hybrid_context(
+        self,
+        query: str,
+        mode: str = 'auto',
+        max_entities: int = 15,
+        max_relationships: int = 25
+    ) -> Dict[str, Any]:
+        """Retrieve hybrid context combining GraphRAG knowledge and POMDP episodic memory."""
+        import json
+        
+        # 1. Get GraphRAG context
+        graph_ctx = await self.get_agent_context(query, mode, max_entities, max_relationships)
+        
+        # 2. Retrieve past successful Arbor tree trajectories
+        recalled_trajectory = None
+        try:
+            from core.memory.pomdp_memory_framework import get_memory_manager
+            memory_manager = get_memory_manager(self.db)
+            recalled_trajectory = memory_manager.recall_hypothesis_trajectory(query)
+        except Exception as e:
+            logger.warning(f"POMDP memory query failed in AgentGraphRAGService: {e}")
+            
+        # 3. Merge contexts
+        hybrid_context_str = graph_ctx.get("context", "")
+        if recalled_trajectory:
+            winning_path = recalled_trajectory.get("winning_trajectory", [])
+            pruned_branches = recalled_trajectory.get("pruned_failure_branches", [])
+            
+            episodic_lines = [
+                "\n--- Recalled Experiential Context (POMDP Episodic Memory) ---",
+                f"Previous successful trajectory: {json.dumps(winning_path)}",
+                f"Pruned/failed search paths: {json.dumps(pruned_branches)}"
+            ]
+            hybrid_context_str += "\n".join(episodic_lines)
+            
+        graph_ctx["context"] = hybrid_context_str
+        graph_ctx["recalled_trajectory"] = recalled_trajectory
+        return graph_ctx
+
     def _format_context(self, result: Dict[str, Any]) -> str:
         """Format GraphRAG result as context string."""
         if result.get("mode") == "global":

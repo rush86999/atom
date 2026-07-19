@@ -26,10 +26,10 @@ Deterministic execution isolation, permission tiers, and code analysis boundarie
 
 ### 3. 🧠 Memory & Routing Intelligence
 Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
-- [Context Memory Design](architecture/CONTEXT_MEMORY.md) — Durable-fact extraction and token compression
+- [Context Memory Design](architecture/CONTEXT_MEMORY.md) — Durable-fact extraction, token compression, and graduation memory consolidation
 - [Learning-Based LLM Router](architecture/LEARNING_LLM_ROUTER.md) — Outcome predictors, re-ranking, and EMA protocol routing
 - [Episodic Memory](intelligence/episodic-memory.md) — How agents build, retrieve, and refine personal experiences
-- [GraphRAG](intelligence/graphrag.md) — Leiden community retrieval integration
+- [GraphRAG](intelligence/graphrag.md) — Leiden community summaries and hybrid graph-episodic search routing
 - [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
 
 ### 4. 👥 Multi-Agent Orchestration
