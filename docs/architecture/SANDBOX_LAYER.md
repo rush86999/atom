@@ -350,6 +350,20 @@ Per phase:
 
 ---
 
+## Expanded AST Tripwires & Resource Caps
+
+### Expanded AST Invariant Checking (`sandbox_tripwire.py`)
+In addition to standard command regexes, string arguments pass through AST validation:
+- **Python Reflection & Dynamic Imports**: AST parsing blocks `importlib`, dynamic module loading (`__import__`), reflection attribute access (`getattr(os, ...)`), dangerous built-ins (`eval`, `exec`, `open`), and sensitive path reads (`/etc/shadow`, `~/.ssh`).
+- **JavaScript/TypeScript Static Analysis**: Non-Python string arguments are scanned for unsafe Node/JS execution patterns (`eval()`, `Function()`, `child_process`, `process.env.SECRET`).
+
+### Transactional Resource Caps (`sandbox_transaction.py`)
+Level 5 DMM transactional sandboxes enforce strict runtime and disk utilization boundaries:
+- **CPU Time-outs (`timeout_seconds`)**: If a tool execution block exceeds the maximum allowed time, the context manager automatically aborts execution and rolls back the workspace to its exact pre-execution snapshot.
+- **Disk Allocation Caps (`max_bytes`)**: Monitors total directory byte size during execution. Any payload that attempts a fork-bomb or massive file write breaches the cap, triggering an immediate rollback.
+
+---
+
 ## Research grounding
 
 - [Anthropic — How we contain Claude across products](https://www.anthropic.com/engineering/how-we-contain-claude)

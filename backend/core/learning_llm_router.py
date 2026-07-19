@@ -19,6 +19,7 @@ Success Criteria:
 - <50ms routing decision latency
 """
 from __future__ import annotations
+import os
 import uuid
 import asyncio
 import hashlib
@@ -1620,6 +1621,20 @@ class LearningBasedRouter:
                 stats["model_success_rates"][model_id] = (
                     counts["success"] / counts["total"]
                 )
+
+        stats["ema_enabled"] = os.environ.get("ATOM_EMA_ROUTER_ENABLED", "false").lower() == "true"
+        ema_out = {}
+        for key, data in getattr(self, "_ema_scores", {}).items():
+            parts = key.split(":")
+            model_id = parts[-1] if len(parts) >= 3 else key
+            ema_out[model_id] = {
+                "score": round(data.get("success", 0.5), 4),
+                "success_rate": round(data.get("success", 1.0), 4),
+                "avg_latency_ms": round(data.get("latency", 0.0), 2),
+                "avg_cost": round(data.get("cost", 0.0), 6),
+                "samples": data.get("samples", 1),
+            }
+        stats["ema_scores"] = ema_out
 
         return stats
 

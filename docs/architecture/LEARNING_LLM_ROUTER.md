@@ -248,6 +248,18 @@ has learned works.
   RandomForest/LogisticRegression). Runs on any end-user laptop. Sub-50ms
   routing latency, sub-second retraining.
 
+## EMA Protocol Telemetry & Administrative Dashboard
+
+When `ATOM_EMA_ROUTER_ENABLED=true` is active, real-time performance telemetry is exposed via `GET /api/chat/routing-stats` and rendered visually in the administrative UI at `/settings/routing`.
+
+**Exposed Telemetry Metrics**:
+- **EMA Score**: Decayed overall suitability score combining success rate, latency, and cost.
+- **Success Rate**: Exponentially decayed success ratio ($S_{t+1} = \alpha S_{\text{new}} + (1 - \alpha) S_t$).
+- **Avg Latency (ms)**: Real-time execution response latency.
+- **Avg Cost ($)**: Decayed average token expenditure per model call.
+
+---
+
 ## References
 
 - RouteLLM: Learning to Route (arXiv:2406.18665)

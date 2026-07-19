@@ -9,15 +9,26 @@ import { Badge } from '@/components/ui/badge';
 import { Activity, RefreshCw, AlertCircle, TrendingUp, Database } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
 
+interface EmaModelScore {
+    score: number;
+    success_rate: number;
+    avg_latency_ms: number;
+    avg_cost: number;
+    samples: number;
+}
+
 interface RoutingStats {
     feedback_samples: number;
     model_success_rates: Record<string, number>;
+    ema_enabled?: boolean;
+    ema_scores?: Record<string, EmaModelScore>;
     cached_weights?: number;
     total_models?: number;
 }
 
 interface RoutingStatsResponse {
     enabled: boolean;
+    ema_enabled?: boolean;
     stats: RoutingStats | { error?: string };
 }
 
@@ -35,7 +46,7 @@ const RoutingDashboardPage: React.FC = () => {
             setData(result);
         } catch (err) {
             console.error('Failed to load routing stats:', err);
-            setData({ enabled: false, stats: { feedback_samples: 0, model_success_rates: {} } });
+            setData({ enabled: false, ema_enabled: false, stats: { feedback_samples: 0, model_success_rates: {}, ema_scores: {} } });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -46,8 +57,10 @@ const RoutingDashboardPage: React.FC = () => {
 
     const stats = data?.stats as RoutingStats | undefined;
     const enabled = data?.enabled ?? false;
+    const emaEnabled = data?.ema_enabled ?? stats?.ema_enabled ?? false;
     const samples = stats?.feedback_samples ?? 0;
     const successRates = stats?.model_success_rates ?? {};
+    const emaScores = stats?.ema_scores ?? {};
 
     return (
         <Layout>
@@ -56,28 +69,28 @@ const RoutingDashboardPage: React.FC = () => {
             </Head>
             <Container maxW="container.xl" py={8}>
                 <Box mb={8}>
-                    <Heading as="h1" size="xl" mb={2}>Routing &amp; Learning</Heading>
-                    <Text color="gray.500">How Atom learns to pick the right model for each request.</Text>
+                    <Heading as="h1" size="xl" mb={2}>Routing &amp; Telemetry</Heading>
+                    <Text color="gray.500">How Atom dynamically scores, ranks, and learns to route requests to optimal models.</Text>
                 </Box>
 
-                {!enabled && (
+                {!enabled && !emaEnabled && (
                     <Card className="mb-6 border-amber-300 bg-amber-50">
                         <CardContent className="flex items-start gap-3 pt-6">
                             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                             <div>
-                                <p className="font-medium text-amber-900">Learning Router is off</p>
+                                <p className="font-medium text-amber-900">Learning &amp; EMA Routers are off</p>
                                 <p className="text-sm text-amber-700 mt-1">
-                                    The learning router observes model performance and learns from feedback,
-                                    but it&apos;s currently disabled. Enable it by setting the
+                                    Adaptive routing is currently disabled. Enable ML predictors via
                                     <code className="mx-1 px-1 py-0.5 rounded bg-amber-100">ATOM_LEARNING_ROUTER=true</code>
-                                    environment variable. Feedback you submit still lands here when enabled.
+                                    or real-time telemetry via
+                                    <code className="mx-1 px-1 py-0.5 rounded bg-amber-100">ATOM_EMA_ROUTER_ENABLED=true</code>.
                                 </p>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                <div className="grid gap-4 md:grid-cols-3 mb-8">
+                <div className="grid gap-4 md:grid-cols-4 mb-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium">Feedback Samples</CardTitle>
@@ -95,24 +108,79 @@ const RoutingDashboardPage: React.FC = () => {
                             <Activity className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{Object.keys(successRates).length}</div>
-                            <p className="text-xs text-muted-foreground mt-1">Models with outcome data</p>
+                            <div className="text-2xl font-bold">{Object.keys(successRates).length || Object.keys(emaScores).length}</div>
+                            <p className="text-xs text-muted-foreground mt-1">Models with active telemetry</p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Learning Status</CardTitle>
+                            <CardTitle className="text-sm font-medium">ML Predictor Status</CardTitle>
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{enabled ? 'Active' : 'Off'}</div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {enabled ? 'Collecting real outcome data' : 'Flag-gated, currently disabled'}
+                                {enabled ? 'Learning from feedback' : 'ATOM_LEARNING_ROUTER=false'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">EMA Telemetry</CardTitle>
+                            <Activity className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{emaEnabled ? 'Active' : 'Off'}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {emaEnabled ? 'Real-time latency &amp; cost decay' : 'ATOM_EMA_ROUTER_ENABLED=false'}
                             </p>
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* EMA Scores Table */}
+                {Object.keys(emaScores).length > 0 && (
+                    <Card className="mb-6">
+                        <CardHeader>
+                            <CardTitle>EMA Protocol Telemetry (Real-Time)</CardTitle>
+                            <CardDescription>
+                                Exponential Moving Average of latency, cost, and success rate per candidate model.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm border-collapse">
+                                    <thead>
+                                        <tr className="border-b font-medium text-muted-foreground">
+                                            <th className="py-2 px-3">Model ID</th>
+                                            <th className="py-2 px-3">EMA Score</th>
+                                            <th className="py-2 px-3">Success Rate</th>
+                                            <th className="py-2 px-3">Avg Latency</th>
+                                            <th className="py-2 px-3">Avg Cost</th>
+                                            <th className="py-2 px-3">Samples</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(emaScores)
+                                            .sort(([, a], [, b]) => b.score - a.score)
+                                            .map(([model, metrics]) => (
+                                                <tr key={model} className="border-b last:border-0 hover:bg-muted/50">
+                                                    <td className="py-2 px-3 font-mono">{model}</td>
+                                                    <td className="py-2 px-3 font-semibold">{(metrics.score * 100).toFixed(1)}%</td>
+                                                    <td className="py-2 px-3">{(metrics.success_rate * 100).toFixed(0)}%</td>
+                                                    <td className="py-2 px-3">{metrics.avg_latency_ms.toFixed(0)} ms</td>
+                                                    <td className="py-2 px-3">${metrics.avg_cost.toFixed(4)}</td>
+                                                    <td className="py-2 px-3">{metrics.samples}</td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card className="mb-6">
                     <CardHeader className="flex flex-row items-center justify-between">

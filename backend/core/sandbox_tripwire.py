@@ -283,23 +283,26 @@ def check_python_ast(code: str) -> Optional[str]:
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return None
+        return check_js_ast(code)
         
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for name in node.names:
-                if name.name in {"os", "sys", "subprocess", "shutil", "socket", "pty"}:
+                if name.name in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
                     return f"AST violation: Forbidden import of module '{name.name}'"
         elif isinstance(node, ast.ImportFrom):
-            if node.module in {"os", "sys", "subprocess", "shutil", "socket", "pty"}:
+            if node.module in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
                 return f"AST violation: Forbidden import from module '{node.module}'"
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id in {"eval", "exec", "open", "compile"}:
+                if node.func.id in {"eval", "exec", "open", "compile", "__import__"}:
                     return f"AST violation: Forbidden built-in call '{node.func.id}()'"
+                if node.func.id == "getattr":
+                    if node.args and isinstance(node.args[0], ast.Name) and node.args[0].id in {"os", "sys", "subprocess", "shutil", "socket"}:
+                        return f"AST violation: Forbidden reflection getattr() on module '{node.args[0].id}'"
             elif isinstance(node.func, ast.Attribute):
                 if isinstance(node.func.value, ast.Name):
-                    if node.func.value.id in {"os", "sys", "subprocess", "shutil"}:
+                    if node.func.value.id in {"os", "sys", "subprocess", "shutil", "importlib"}:
                         return f"AST violation: Forbidden system attribute call '{node.func.value.id}.{node.func.attr}()'"
         elif isinstance(node, ast.Subscript):
             if isinstance(node.value, ast.Attribute):
@@ -308,6 +311,20 @@ def check_python_ast(code: str) -> Optional[str]:
                         key = node.slice.value.upper()
                         if any(k in key for k in ["SECRET", "TOKEN", "API_KEY", "PASSWORD", "AWS"]):
                             return f"AST violation: Access to secret-bearing environment variable '{node.slice.value}'"
+    return check_js_ast(code)
+
+
+def check_js_ast(code: str) -> Optional[str]:
+    """Scan string arguments for dangerous JavaScript/TypeScript patterns."""
+    js_patterns = [
+        (r"eval\s*\(", "eval() execution"),
+        (r"Function\s*\(", "Function constructor execution"),
+        (r"child_process", "child_process execution"),
+        (r"process\.env\.(SECRET|TOKEN|API_KEY|PASSWORD|AWS)", "process.env secret access"),
+    ]
+    for pattern, desc in js_patterns:
+        if re.search(pattern, code, re.IGNORECASE):
+            return f"JS/TS AST violation: Forbidden {desc}"
     return None
 
 
