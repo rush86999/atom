@@ -89,10 +89,12 @@ regardless of OS-level symlink targets (`/private/etc`, `/private/tmp`).
 **RESTRICTED recovery**: callers can use `rewrite_path_to_sandbox()` to remap
 an out-of-scope absolute path into the per-run tmpfs.
 
-### Phase C — Tripwires + caps + KillRun (`sandbox_tripwire.py`, `sandbox_caps.py`, `sandbox_killrun.py`)
+### Phase C — Tripwires + caps + KillRun (`sandbox_tripwire.py`, `sandbox_caps.py`, `sandbox_killrun.py`, `sandbox_transaction.py`)
 
-**Tripwire registry**: 21 compiled regex patterns across 6 categories plus
-exfil detection:
+**AST Pre-Evaluation Invariant Validator**: 
+Before executing Python/code payloads, the sandbox evaluates code strings using the `ast` module. This deterministic check blocks unsafe execution syntax, forbidden module imports (`os`, `sys`, `subprocess`, `pty`), dangerous calls (`exec()`, `eval()`), and credentials leaked through env var access (`os.environ["AWS_SECRET_ACCESS_KEY"]`), triggering an instant `BLOCKED` decision.
+
+**Tripwire registry**: 21 compiled regex patterns across 6 categories plus exfil detection:
 
 | Category | Examples |
 |----------|----------|
@@ -104,11 +106,14 @@ exfil detection:
 | REVERSE_SHELL | `bash -i`, `nc -e`, `socat EXEC`, `/dev/tcp/`, raw `socket.socket()` |
 | EXFIL | `curl`/`wget` to non-allowlisted host |
 
+**Level 5 DMM Transactional Rollbacks (`sandbox_transaction.py`)**:
+When `ATOM_DMM_LEVEL5_ENABLED=true`, file-modifying tools execute within a copy-on-write context manager. The system clones the workspace state to a temporary snapshot dir. If the agent completes successfully, the changes are committed. If the task fails, raises a security tripwire, or throws an exception, the workspace is automatically rolled back to its exact pre-execution state.
+
 **Resource caps**: per-run counters for `tool_calls`, `exec_seconds`,
 `bytes_written`, `cost_usd`. Check-before-increment so the call that would
 exceed is denied.
 
-**KillRun state machine**: tripwire fires → `_KillRunState` recorded in
+**KillRun state machine**: tripwire or AST violation fires → `_KillRunState` recorded in
 `KillRunRegistry` singleton → `AgentExecution.status` updated to
 `killed_sandbox` (best-effort DB write) → subsequent `guard(run_id)` calls
 raise `KillRunAborted` which propagates up through the tool-dispatch loop.

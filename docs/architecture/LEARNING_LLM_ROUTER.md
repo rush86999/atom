@@ -210,6 +210,31 @@ re-rank only re-orders BPC's already-filtered list.
 | `frontend-nextjs/hooks/chat/useChatInterface.ts` | `handleFeedback` + `handleRegenerate` |
 | `frontend-nextjs/pages/settings/routing.tsx` | Routing dashboard |
 
+## EMA-Guided Protocol Routing (Round 48)
+
+To address potential high-variance loops in pure LLM or ML-based routing, the router supports an optional **Exponential Moving Average (EMA)** protocol routing mode, enabled by setting the environment flag:
+
+```bash
+ATOM_EMA_ROUTER_ENABLED=true
+```
+
+### The Mechanism
+
+When enabled, candidate re-ranking uses a running EMA of model execution performance rather than raw neural/voters predictors. For each `(tenant, task, model)` combination, the router tracks:
+1. **Success rate** (based on quality verification and completion signals).
+2. **Execution latency** (response speed).
+3. **Token/execution cost**.
+
+The fitness score is computed as:
+
+$$S_{t+1}(m, k) = \alpha \cdot \text{Score}_t(m, k) + (1 - \alpha) \cdot S_t(m, k)$$
+
+Where:
+- $\alpha = 0.2$ is the smoothing weight prioritizing recent outcomes.
+- $\text{Score}_t$ is calculated dynamically from weighted combinations of success, normalized cost, and normalized latency.
+
+This provides zero-token overhead routing decisions based strictly on historical empirical evidence, optimizing overall workflow determinism.
+
 ## Relationship to the Cognitive Tier System
 
 The two systems are complementary, not competing:
