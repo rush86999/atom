@@ -193,6 +193,9 @@ class LearningBasedRouter:
         # append→retrain window, corrupting list state.
         self._state_lock = asyncio.Lock()
 
+        # Incremental EMA performance scores tracking {tenant_id}:{task_type}:{model_id} -> {metric -> value}
+        self._ema_scores: Dict[str, Dict[str, float]] = defaultdict(dict)
+
         # Initialize model registry
         self._initialize_model_registry()
 
@@ -828,10 +831,26 @@ class LearningBasedRouter:
         change as feedback accumulates. Cold start (no predictor) leaves the
         rule-based score untouched.
         """
-        scores = []
-
         # Get learned preference weights for this task type
         weights = self._get_learned_weights(request.task_type, request.tenant_id)
+
+        # If EMA routing is enabled, route via the EMA router scoring mechanism
+        import os
+        if os.getenv("ATOM_EMA_ROUTER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
+            quality_weight = weights.get("quality", 0.4)
+            if request.requires_quality:
+                quality_weight *= 1.2
+            cost_weight = weights.get("cost", 0.3)
+            if request.budget_limit:
+                cost_weight *= 1.5
+            speed_weight = weights.get("speed", 0.2)
+            if request.max_latency_ms:
+                speed_weight *= 1.5
+            return self._score_candidates_with_ema(
+                candidates, request, weights, quality_weight, cost_weight, speed_weight
+            )
+
+        scores = []
 
         # Look up the per-model predictors for this tenant/task (may be absent).
         cache_key = f"{request.tenant_id}:{request.task_type}"
@@ -891,6 +910,105 @@ class LearningBasedRouter:
         # Sort by score (descending)
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores
+
+    def _score_candidates_with_ema(
+        self,
+        candidates: List[ModelSpec],
+        request: RoutingRequest,
+        weights: Dict[str, float],
+        quality_weight: float,
+        cost_weight: float,
+        speed_weight: float,
+    ) -> List[Tuple[ModelSpec, float]]:
+        scores = []
+        
+        # Collect EMA latency and cost for normalization across candidates
+        latencies = []
+        costs = []
+        for model in candidates:
+            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+            ema_data = self._ema_scores.get(key, {})
+            # Use historical EMA or fall back to static spec values for norm collection
+            latencies.append(ema_data.get("latency", 1000.0 * (1.0 - model.speed_score + 0.1)))
+            costs.append(ema_data.get("cost", model.cost_per_million))
+            
+        max_latency = max(latencies) if latencies else 1.0
+        max_cost = max(costs) if costs else 1.0
+        if max_latency == 0:
+            max_latency = 1.0
+        if max_cost == 0:
+            max_cost = 1.0
+            
+        for model in candidates:
+            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+            ema_data = self._ema_scores.get(key, {})
+            
+            # --- Quality / Success Component ---
+            # If no history exists, use model's static quality_score
+            success_score = ema_data.get("success", model.quality_score)
+            
+            # --- Latency Component ---
+            # Lower latency is better
+            if "latency" in ema_data:
+                latency_score = 1.0 - (ema_data["latency"] / max_latency)
+                latency_score = max(0.0, min(1.0, latency_score))
+            else:
+                latency_score = model.speed_score
+                
+            # --- Cost Component ---
+            # Lower cost is better
+            if "cost" in ema_data:
+                cost_score = 1.0 - (ema_data["cost"] / max_cost)
+                cost_score = max(0.0, min(1.0, cost_score))
+            else:
+                cost_score = 1.0 - (model.cost_per_million / max_cost)
+                cost_score = max(0.0, min(1.0, cost_score))
+                
+            score = (
+                success_score * quality_weight
+                + latency_score * speed_weight
+                + cost_score * cost_weight
+            )
+            
+            # Capabilities / Preference overrides still apply
+            if ModelCapability.LONG_CONTEXT in model.capabilities and request.estimated_tokens > 50000:
+                score += 0.1
+            tenant_pref = request.user_preferences.get("preferred_model")
+            if tenant_pref and tenant_pref in model.model_name.lower():
+                score += 0.15
+                
+            scores.append((model, score))
+            
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores
+
+    def _update_ema_scores(self, feedback: RoutingFeedback) -> None:
+        """Update the Exponential Moving Average for accuracy, latency, and cost."""
+        key = f"{feedback.tenant_id}:{feedback.task_type}:{feedback.model_id}"
+        alpha = 0.2  # Smoothing factor
+        
+        # 1. Success rate (satisfaction)
+        current_success = 1.0 if (feedback.success and feedback.quality_satisfied) else 0.0
+        if "success" not in self._ema_scores[key]:
+            self._ema_scores[key]["success"] = current_success
+        else:
+            self._ema_scores[key]["success"] = alpha * current_success + (1.0 - alpha) * self._ema_scores[key]["success"]
+
+        # 2. Latency
+        if feedback.actual_latency_ms is not None:
+            current_latency = float(feedback.actual_latency_ms)
+            if "latency" not in self._ema_scores[key]:
+                self._ema_scores[key]["latency"] = current_latency
+            else:
+                self._ema_scores[key]["latency"] = alpha * current_latency + (1.0 - alpha) * self._ema_scores[key]["latency"]
+
+        # 3. Cost
+        if feedback.actual_cost is not None:
+            current_cost = float(feedback.actual_cost)
+            if "cost" not in self._ema_scores[key]:
+                self._ema_scores[key]["cost"] = current_cost
+            else:
+                self._ema_scores[key]["cost"] = alpha * current_cost + (1.0 - alpha) * self._ema_scores[key]["cost"]
 
     def _get_learned_weights(
         self, task_type: str, tenant_id: str
@@ -1046,6 +1164,9 @@ class LearningBasedRouter:
             # remains authoritative for reads).
             recovered_features = getattr(feedback, "_prompt_features", None)
             self._persist_feedback(feedback, recovered_features)
+
+            # Update EMA scores in memory
+            self._update_ema_scores(feedback)
 
             # Trigger retraining once there's enough feedback for a per-model
             # predictor (the lowest learning threshold). _retrain_router internally
@@ -1230,6 +1351,23 @@ class LearningBasedRouter:
             for key, fbs in by_key.items():
                 # rows are most-recent-first; keep the most recent within cap.
                 self._preference_data[key] = fbs[: self._max_preference_data_per_key]
+
+            # Process historical rows oldest-to-newest to rebuild EMA values in memory
+            for row in reversed(rows):
+                fb = RoutingFeedback(
+                    routing_result_id=row.routing_result_id,
+                    tenant_id=row.tenant_id,
+                    model_id=row.model_id,
+                    task_type=row.task_type,
+                    success=row.success,
+                    quality_satisfied=row.quality_satisfied,
+                    cost_within_budget=row.cost_within_budget,
+                    user_satisfaction=row.user_satisfaction,
+                    actual_cost=row.actual_cost,
+                    actual_latency_ms=row.actual_latency_ms,
+                    timestamp=row.created_at,
+                )
+                self._update_ema_scores(fb)
         except Exception as e:
             logger.warning(
                 f"Could not load routing feedback from DB (non-fatal, "
