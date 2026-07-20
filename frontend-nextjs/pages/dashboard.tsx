@@ -133,12 +133,28 @@ const DashboardPage: React.FC = () => {
 
       // 2. Fetch Business Intelligence Summary (Phase 12)
       const [finRes, salesRes] = await Promise.all([
-        fetch(`/api/v1/accounting/dashboard/summary?workspace_id=${workspaceId}`),
-        fetch(`/api/sales/dashboard/summary?workspace_id=${workspaceId}`)
+        fetch(`/api/v1/accounting/dashboard/summary?workspace_id=${workspaceId}`).catch(() => null),
+        fetch(`/api/sales/dashboard/summary?workspace_id=${workspaceId}`).catch(() => null)
       ]);
 
-      if (finRes.ok) setFinancials(await finRes.json());
-      if (salesRes.ok) setSales(await salesRes.json());
+      const safeParseJson = async (res: Response | null) => {
+        if (!res || !res.ok) return null;
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            return await res.json();
+          }
+        } catch (e) {
+          console.warn("JSON parse error:", e);
+        }
+        return null;
+      };
+
+      const finData = await safeParseJson(finRes);
+      if (finData) setFinancials(finData);
+
+      const salesData = await safeParseJson(salesRes);
+      if (salesData) setSales(salesData);
 
     } catch (error) {
       console.error("Dashboard refresh failed:", error);

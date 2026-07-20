@@ -63,6 +63,7 @@ function Toast({ title, description, variant = "default", onDismiss }: ToastProp
         default: "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100",
         success: "bg-green-50 border-green-200 text-green-900",
         error: "bg-red-50 border-red-200 text-red-900",
+        destructive: "bg-red-50 border-red-200 text-red-900",
         warning: "bg-yellow-50 border-yellow-200 text-yellow-900",
     }
 

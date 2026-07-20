@@ -38,7 +38,7 @@ export const NotificationsBell: React.FC = () => {
 
     const fetchUnread = useCallback(async () => {
         try {
-            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
             const res = await fetch(`${API_BASE}/api/notifications?limit=10`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
@@ -71,7 +71,7 @@ export const NotificationsBell: React.FC = () => {
 
     const markRead = useCallback(async (id: string) => {
         try {
-            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
             await fetch(`${API_BASE}/api/notifications/${id}/read`, {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -84,7 +84,7 @@ export const NotificationsBell: React.FC = () => {
     const markAllRead = useCallback(async () => {
         setLoading(true);
         try {
-            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
             await fetch(`${API_BASE}/api/notifications/read-all`, {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},

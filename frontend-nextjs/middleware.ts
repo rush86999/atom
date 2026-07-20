@@ -50,6 +50,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check if pathname is an API route - API routes should NEVER redirect to /login HTML page
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Client-side route protection: check for the auth_token cookie (set on
   // login by lib/auth.ts). This is a first-line gate — the real security
   // enforcement is API-level (Depends(get_current_user) on every backend
