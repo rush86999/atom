@@ -31,7 +31,7 @@ export const GraduationCelebration: React.FC = () => {
 
     const poll = useCallback(async () => {
         try {
-            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
             const res = await fetch(
                 `${API_BASE}/api/notifications?unread_only=true&type=agent_graduated&limit=5`,
                 { headers: token ? { Authorization: `Bearer ${token}` } : {} },
@@ -58,7 +58,7 @@ export const GraduationCelebration: React.FC = () => {
     const dismiss = useCallback(async (id: string) => {
         setItems(prev => prev.filter(n => n.id !== id));
         try {
-            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
             await fetch(`${API_BASE}/api/notifications/${id}/read`, {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
