@@ -51,6 +51,9 @@ export default function LoginPage() {
                     if (token) {
                         localStorage.removeItem('atom_explicit_logout');
                         localStorage.setItem('auth_token', token);
+                        localStorage.setItem('token', token);
+                        document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+                        document.cookie = `next-auth.session-token=${token}; path=/; max-age=86400; SameSite=Lax`;
                     }
                 } catch (e) {
                     // Non-fatal: the next-auth session is the source of truth.
@@ -77,6 +80,9 @@ export default function LoginPage() {
                 console.log("Register Success. Token:", data.access_token);
                 localStorage.removeItem('atom_explicit_logout');
                 localStorage.setItem('auth_token', data.access_token);
+                localStorage.setItem('token', data.access_token);
+                document.cookie = `auth_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
 
                 // Establish a next-auth session for the freshly registered user.
                 await signIn('credentials', {

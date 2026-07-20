@@ -106,7 +106,7 @@ const Home = () => {
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
         // Only check if we have a token (logged in)
         if (token) {
           const res = await fetch(`${API_BASE}/api/onboarding/status`, {
@@ -135,7 +135,7 @@ const Home = () => {
     // failure leaves feed=null and the static feature grid still renders.
     const loadFeed = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
         if (!token) return;
         const res = await fetch(`${API_BASE}/api/dashboard/feed`, {
           headers: { "Authorization": `Bearer ${token}` },

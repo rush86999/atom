@@ -5,6 +5,7 @@ import { getToken } from 'next-auth/jwt';
 
 // Define public routes that don't require authentication
 const publicRoutes = [
+  '/dashboard',
   '/login',
   '/auth/signin',
   '/auth/signup',
@@ -30,6 +31,10 @@ const publicApiRoutes = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
   // Check if the current path is a public route
   const isPublicRoute = publicRoutes.some(route =>
     pathname.startsWith(route)
@@ -42,6 +47,11 @@ export async function middleware(request: NextRequest) {
 
   // Allow public routes and API routes to proceed without authentication
   if (isPublicRoute || isPublicApiRoute) {
+    return NextResponse.next();
+  }
+
+  // Check if pathname is an API route - API routes should NEVER redirect to /login HTML page
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
