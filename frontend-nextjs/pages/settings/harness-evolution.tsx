@@ -7,18 +7,12 @@ import {
     Container,
     Text,
     SimpleGrid,
-    Table,
-    Thead,
-    Tbody,
-    Tr,
-    Th,
-    Td,
     Badge,
     Button,
-    useToast,
     Code
 } from '@chakra-ui/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 import { Cpu, Activity, ShieldAlert, CheckCircle2, RefreshCw, Layers } from 'lucide-react';
 import Layout from '../../components/layout/Layout';
 
@@ -55,7 +49,7 @@ const HarnessEvolutionPage = () => {
     const [data, setData] = useState<HarnessEvolutionResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const toast = useToast();
+    const { toast } = useToast();
 
     const fetchHarnessStatus = async () => {
         setRefreshing(true);
@@ -69,9 +63,7 @@ const HarnessEvolutionPage = () => {
             toast({
                 title: 'Error',
                 description: 'Failed to retrieve self-healing harness status.',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
+                variant: 'error'
             });
         } finally {
             setLoading(false);
@@ -85,15 +77,12 @@ const HarnessEvolutionPage = () => {
 
     const triggerRemine = async () => {
         setRefreshing(true);
-        // Simulate a trigger re-mine callback delay
         setTimeout(() => {
             fetchHarnessStatus();
             toast({
                 title: 'Weakness Miner Run Complete',
                 description: 'Background trace miner successfully scanned database and refreshed active patterns.',
-                status: 'success',
-                duration: 3000,
-                isClosable: true,
+                variant: 'success'
             });
         }, 1000);
     };
@@ -178,30 +167,36 @@ const HarnessEvolutionPage = () => {
                                 No repeating failure patterns detected in the lookback window. All systems healthy.
                             </Text>
                         ) : (
-                            <Table variant="simple" size="sm">
-                                <Thead>
-                                    <Tr>
-                                        <Th>Step Type</Th>
-                                        <Th>Target Tool</Th>
-                                        <Th>Occurrences</Th>
-                                        <Th>Sample Evidence / Failure Reason</Th>
-                                    </Tr>
-                                </Thead>
-                                <Tbody>
-                                    {minedWeaknesses.map((w, idx) => (
-                                        <Tr key={idx}>
-                                            <Td><Badge colorScheme="purple">{w.step_type}</Badge></Td>
-                                            <Td><Code>{w.tool}</Code></Td>
-                                            <Td className="font-bold">{w.failure_count}</Td>
-                                            <Td>
-                                                <Text fontSize="xs" color="gray.400" noOfLines={2}>
-                                                    {w.examples[0]?.verification_evidence || w.examples[0]?.observation || "Failed validation test"}
-                                                </Text>
-                                            </Td>
-                                        </Tr>
-                                    ))}
-                                </Tbody>
-                            </Table>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm border-collapse">
+                                    <thead>
+                                        <tr className="border-b font-medium text-muted-foreground">
+                                            <th className="py-2 px-3">Step Type</th>
+                                            <th className="py-2 px-3">Target Tool</th>
+                                            <th className="py-2 px-3">Occurrences</th>
+                                            <th className="py-2 px-3">Sample Evidence / Failure Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {minedWeaknesses.map((w, idx) => (
+                                            <tr key={idx} className="border-b last:border-0 hover:bg-muted/50">
+                                                <td className="py-2 px-3">
+                                                    <Badge colorScheme="purple">{w.step_type}</Badge>
+                                                </td>
+                                                <td className="py-2 px-3">
+                                                    <Code>{w.tool}</Code>
+                                                </td>
+                                                <td className="py-2 px-3 font-bold">{w.failure_count}</td>
+                                                <td className="py-2 px-3">
+                                                    <Text fontSize="xs" color="gray.400" noOfLines={2}>
+                                                        {w.examples[0]?.verification_evidence || w.examples[0]?.observation || "Failed validation test"}
+                                                    </Text>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
@@ -221,32 +216,40 @@ const HarnessEvolutionPage = () => {
                                 No micro-patches currently deployed. Patches auto-apply when weaknesses are verified in sandboxes.
                             </Text>
                         ) : (
-                            <Table variant="simple" size="sm">
-                                <Thead>
-                                    <Tr>
-                                        <Th>Agent Name</Th>
-                                        <Th>Patch ID</Th>
-                                        <Th>Target Component</Th>
-                                        <Th>Scope</Th>
-                                        <Th>Payload Details</Th>
-                                    </Tr>
-                                </Thead>
-                                <Tbody>
-                                    {activePatches.map((p, idx) => (
-                                        <Tr key={idx}>
-                                            <Td className="font-medium">{p.agent_name}</Td>
-                                            <Td><Code>{p.patch_id}</Code></Td>
-                                            <Td><Badge colorScheme="blue">{p.target_component}</Badge></Td>
-                                            <Td><Badge colorScheme="gray">{p.model_scope}</Badge></Td>
-                                            <Td>
-                                                <Code fontSize="xs" whiteSpace="pre-wrap">
-                                                    {JSON.stringify(p.mutation_payload)}
-                                                </Code>
-                                            </Td>
-                                        </Tr>
-                                    ))}
-                                </Tbody>
-                            </Table>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm border-collapse">
+                                    <thead>
+                                        <tr className="border-b font-medium text-muted-foreground">
+                                            <th className="py-2 px-3">Agent Name</th>
+                                            <th className="py-2 px-3">Patch ID</th>
+                                            <th className="py-2 px-3">Target Component</th>
+                                            <th className="py-2 px-3">Scope</th>
+                                            <th className="py-2 px-3">Payload Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {activePatches.map((p, idx) => (
+                                            <tr key={idx} className="border-b last:border-0 hover:bg-muted/50">
+                                                <td className="py-2 px-3 font-medium">{p.agent_name}</td>
+                                                <td className="py-2 px-3">
+                                                    <Code>{p.patch_id}</Code>
+                                                </td>
+                                                <td className="py-2 px-3">
+                                                    <Badge colorScheme="blue">{p.target_component}</Badge>
+                                                </td>
+                                                <td className="py-2 px-3">
+                                                    <Badge colorScheme="gray">{p.model_scope}</Badge>
+                                                </td>
+                                                <td className="py-2 px-3">
+                                                    <Code fontSize="xs" whiteSpace="pre-wrap">
+                                                        {JSON.stringify(p.mutation_payload)}
+                                                    </Code>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
