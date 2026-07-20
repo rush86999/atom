@@ -139,10 +139,13 @@ class TestOrchestrationWiring:
         assert conductor is not None
 
     def test_conductor_has_5_strategies(self):
-        """ExecutionStrategy has exactly the 5 marketed strategies."""
+        """ExecutionStrategy has the expected marketed strategies (now 6 with parallel_consensus)."""
         from core.orchestration.conductor_agent import ExecutionStrategy
         strategies = {s.value for s in ExecutionStrategy}
-        assert strategies == {"sequential", "parallel", "hybrid", "adaptive", "rollback_safe"}
+        assert strategies == {
+            "sequential", "parallel", "hybrid", "adaptive",
+            "rollback_safe", "parallel_consensus"
+        }
 
     def test_composer_has_9_primitives(self):
         """CompositionPrimitive has 9 primitives (was miscounted as 8 in docs)."""
@@ -155,5 +158,5 @@ class TestOrchestrationWiring:
         from core.workflow_endpoints import router
         paths = {r.path for r in router.routes if hasattr(r, "path")}
         assert "/workflows/conductor/execute" in paths, (
-            "Conductor endpoint must be registered for the marketed 5 strategies to be reachable"
+            "Conductor endpoint must be registered for the marketed 6 strategies to be reachable"
         )
