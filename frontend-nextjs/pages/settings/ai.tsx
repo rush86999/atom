@@ -24,6 +24,13 @@ const AISettingsPage = () => {
                     </Link>
                 </Box>
                 <Box mt={4}>
+                    <Link href="/settings/harness-evolution">
+                        <Text color="blue.500" _hover={{ textDecoration: 'underline' }} cursor="pointer">
+                            Self-Evolving Harness Dashboard →
+                        </Text>
+                    </Link>
+                </Box>
+                <Box mt={4}>
                     <Link href="/settings/local-models">
                         <Text color="blue.500" _hover={{ textDecoration: 'underline' }} cursor="pointer">
                             Local Models (Ollama, LM Studio, vLLM) →
