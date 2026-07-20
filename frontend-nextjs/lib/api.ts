@@ -29,8 +29,10 @@ const apiClient = axios.create({
 // Request interceptor for adding auth tokens if available
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    const token = localStorage.getItem("auth_token");
+    // Add auth token if available (check both auth_token and token)
+    const token = typeof window !== "undefined"
+      ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
+      : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -59,20 +61,12 @@ apiClient.interceptors.response.use(
       url: originalRequest?.url,
     });
 
-    // Don't retry if no config or request already marked to not retry
-    if (!originalRequest || originalRequest.__isRetryRequest === true) {
-      // Enhance error with user-friendly properties before rejecting
-      return Promise.reject(enhanceError(error));
-    }
-
-    // Check if retry is explicitly disabled
-    if (originalRequest.retry === false) {
-      // Enhance error with user-friendly properties before rejecting
+    // Don't retry if no config, request already marked to not retry, or error is permanent/non-retryable (401, 403, 404, etc.)
+    if (!originalRequest || originalRequest.__isRetryRequest === true || originalRequest.retry === false || !isRetryableError(error)) {
       return Promise.reject(enhanceError(error));
     }
 
     // Mark the request to bypass this interceptor to prevent infinite loop
-    // This allows @lifeomic/attempt to handle retries without going through the interceptor again
     originalRequest.__isRetryRequest = true;
 
     // Use @lifeomic/attempt retry for exponential backoff and jitter
@@ -89,12 +83,10 @@ apiClient.interceptors.response.use(
           minDelay: 500,
           maxDelay: 10000,
           timeout: API_TIMEOUT,
-          handleError: (attemptError: any, attemptContext: any) => {
-            // Use isRetryableError from error-mapping for consistent retry logic
+          handleError: (attemptError: any) => {
             return isRetryableError(attemptError);
           },
           beforeAttempt: (context: any) => {
-            // Log retry attempts for debugging (context.attemptNum is 1-indexed)
             if (context.attemptNum > 1) {
               console.log(`Retry attempt ${context.attemptNum} of ${MAX_RETRIES}`);
             }
@@ -104,25 +96,24 @@ apiClient.interceptors.response.use(
 
       return response;
     } catch (retryError) {
-      // Enhance retry error with user-friendly properties before rejecting
       return Promise.reject(enhanceError(retryError));
     }
   },
 );
 
-// Response interceptor: redirect to login on 401 (token expired / invalid).
-// Without this, a token expiry mid-session silently produces error toasts with
-// no re-login path — the user is stuck on a page that keeps failing.
+// Response interceptor: handle 401 cleanly without forcing browser page reload on background API calls
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
-      // Avoid redirect loop if already on a login/auth page.
       const path = typeof window !== "undefined" ? window.location.pathname : "";
-      if (!path.startsWith("/login") && !path.startsWith("/auth/")) {
-        // Clear the stale token and redirect.
+      const isAuthPage = path.startsWith("/login") || path.startsWith("/auth/");
+      const isExplicitLogout = typeof window !== "undefined" && localStorage.getItem("atom_explicit_logout") === "1";
+
+      if (isExplicitLogout && !isAuthPage) {
         if (typeof window !== "undefined") {
           localStorage.removeItem("auth_token");
+          localStorage.removeItem("token");
           window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
         }
       }

@@ -78,19 +78,19 @@ const DashboardPage: React.FC = () => {
 
       // 1. Health Checks
       const healthChecks = await Promise.all([
-        fetch("/api/integrations/box/health"),
-        fetch("/api/integrations/dropbox/health"),
-        fetch("/api/integrations/gdrive/health"),
-        fetch("/api/integrations/slack/health"),
-        fetch("/api/integrations/gmail/health"),
-        fetch("/api/integrations/notion/health"),
-        fetch("/api/integrations/jira/health"),
-        fetch("/api/integrations/github/health"),
-        fetch("/api/nextjs/health"),
-        fetch("/api/integrations/stripe/health"),
-        fetch("/api/integrations/linear/health"),
-        fetch("/api/integrations/outlook/health"),
-        fetch("/api/integrations/asana/health"),
+        fetch("/api/integrations/box/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/dropbox/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/gdrive/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/slack/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/gmail/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/notion/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/jira/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/github/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/nextjs/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/stripe/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/linear/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/outlook/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/integrations/asana/health").catch(() => ({ ok: false } as Response)),
       ]);
 
       const integrationList = [

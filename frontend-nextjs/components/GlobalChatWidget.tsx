@@ -110,10 +110,12 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             setIsLoading(true);
             // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
             const { apiClient } = await import('../lib/api-client');
-            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`);
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`, {
+                validateStatus: (status) => status < 500, // Treat 401/404 as valid HTTP responses to prevent AxiosError popups
+            });
             const data = (response as any).data || response;
 
-            if (data && data.messages) {
+            if (response.status === 200 && data && data.messages) {
                 try {
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
@@ -133,7 +135,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setMessages([welcomeMsg]);
                 }
             } else {
-                // No messages or error — show welcome
+                // No messages or 401/404 — show welcome message
                 setMessages([welcomeMsg]);
             }
         } catch (error) {
@@ -170,6 +172,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         content: msg.content,
                     })),
                 }
+            }, {
+                validateStatus: (status) => status < 500,
             });
 
             const data = (response as any).data || response;
