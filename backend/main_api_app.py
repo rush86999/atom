@@ -346,10 +346,13 @@ def load_env():
         logger.warning("No .env file found in any expected location. Realizing on system env vars.")
 
     # Sync Zoho variable names to prevent 'None' during auth
-    if os.getenv("ZOHO_CRM_CLIENT_ID") and not os.getenv("ZOHO_CLIENT_ID"):
-        os.environ["ZOHO_CLIENT_ID"] = os.getenv("ZOHO_CRM_CLIENT_ID")
-    if os.getenv("ZOHO_CRM_CLIENT_SECRET") and not os.getenv("ZOHO_CLIENT_SECRET"):
-        os.environ["ZOHO_CLIENT_SECRET"] = os.getenv("ZOHO_CRM_CLIENT_SECRET")
+    zoho_crm_id = os.getenv("ZOHO_CRM_CLIENT_ID")
+    if zoho_crm_id and not os.getenv("ZOHO_CLIENT_ID"):
+        os.environ["ZOHO_CLIENT_ID"] = zoho_crm_id
+
+    zoho_crm_secret = os.getenv("ZOHO_CRM_CLIENT_SECRET")
+    if zoho_crm_secret and not os.getenv("ZOHO_CLIENT_SECRET"):
+        os.environ["ZOHO_CLIENT_SECRET"] = zoho_crm_secret
 
 
 load_env()
