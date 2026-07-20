@@ -49,13 +49,14 @@ export default function DocumentsPage() {
 
     const fetchDocuments = async () => {
         try {
-            const response = await api.get('/api/documents');
-            if (response.data.success) {
-                setDocuments(response.data.data);
+            const response = await api.get('/api/documents', {
+                validateStatus: (status) => status < 500,
+            });
+            if (response.status === 200 && response.data?.success) {
+                setDocuments(response.data.data || []);
             }
         } catch (error) {
             console.error("Failed to fetch documents", error);
-            toast.error("Failed to load documents");
         } finally {
             setLoadingDocs(false);
         }
@@ -74,15 +75,23 @@ export default function DocumentsPage() {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
+                validateStatus: (status) => status < 500,
             });
 
-            setUploadStatus({
-                type: 'success',
-                message: `Successfully uploaded "${file.name}". It is now searchable.`
-            });
-            toast.success("Document uploaded successfully");
-            fetchDocuments(); // Refresh list
-
+            if (response.status < 300) {
+                setUploadStatus({
+                    type: 'success',
+                    message: `Successfully uploaded "${file.name}". It is now searchable.`
+                });
+                toast.success("Document uploaded successfully");
+                fetchDocuments(); // Refresh list
+            } else {
+                setUploadStatus({
+                    type: 'error',
+                    message: response.data?.detail || "Failed to upload document."
+                });
+                toast.error("Upload failed");
+            }
         } catch (error: any) {
             console.error("Upload failed", error);
             setUploadStatus({

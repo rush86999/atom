@@ -2719,7 +2719,8 @@ try:
 
     # 11b. Document Hub Routes
     try:
-
+        from api.document_routes import router as doc_hub_router
+        app.include_router(doc_hub_router)
         logger.info("✓ Document Hub Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Document Hub routes not found: {e}")
