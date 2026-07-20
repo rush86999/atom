@@ -376,6 +376,55 @@ async def get_routing_stats(
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
 
 
+@router.get("/harness-evolution")
+async def get_harness_evolution_status(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Retrieve weakness mining patterns and active harness patches for the agent registry."""
+    from sqlalchemy.orm import Session
+    from core.database import get_db
+    from core.harness_evolution_service import HarnessEvolutionService
+    from core.models import AgentRegistry
+    
+    # Resolve DB session
+    db_gen = get_db()
+    db: Session = next(db_gen)
+    
+    tenant_id = current_user.tenant_id or "default"
+    service = HarnessEvolutionService(db)
+    
+    # 1. Mine weaknesses dynamically (last 48 hours)
+    try:
+        patterns = await service.mine_weaknesses(tenant_id=tenant_id, lookback_hours=48)
+    except Exception as e:
+        logger.warning(f"Failed to mine weaknesses in API: {e}")
+        patterns = []
+        
+    # 2. Get active deployed patches from Agent Registry
+    active_patches = []
+    try:
+        agents = db.query(AgentRegistry).filter(AgentRegistry.tenant_id == tenant_id).all()
+        for a in agents:
+            if a.configuration and "harness_patches" in a.configuration:
+                for patch in a.configuration["harness_patches"]:
+                    active_patches.append({
+                        "agent_id": a.id,
+                        "agent_name": a.name,
+                        "patch_id": patch.get("patch_id"),
+                        "target_component": patch.get("target_component"),
+                        "mutation_payload": patch.get("mutation_payload"),
+                        "model_scope": patch.get("model_scope")
+                    })
+    except Exception as e:
+        logger.warning(f"Failed to retrieve active patches in API: {e}")
+        
+    return {
+        "success": True,
+        "mined_weaknesses": patterns,
+        "active_patches": active_patches
+    }
+
+
 
 async def get_chat_memory(
     session_id: str,

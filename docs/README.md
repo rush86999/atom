@@ -31,6 +31,7 @@ Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
 - [Episodic Memory](intelligence/episodic-memory.md) — How agents build, retrieve, and refine personal experiences
 - [GraphRAG](intelligence/graphrag.md) — Leiden community summaries and hybrid graph-episodic search routing
 - [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
+- [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) — Offline trace analysis, weakness mining, and auto-mutation patches
 
 ### 4. 👥 Multi-Agent Orchestration
 Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).

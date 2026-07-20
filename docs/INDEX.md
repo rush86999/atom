@@ -43,6 +43,7 @@
   - Shadow mode default — computation + audit always on, gating off (`MATCH_CONFIDENCE_FORCE_PROPOSAL=false`)
 - **2026 Enhancement Plan**: ✅ COMPLETE - All 5 phases delivered with validation metrics
   - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
+  - [HARNESS_EVOLUTION.md](architecture/HARNESS_EVOLUTION.md) - **✨ NEW: Self-Evolving Harness & Weakness Mining** - Offline trace analysis, weakness mining, and auto-mutation patches
   - Phase 1: POMDP Memory Framework - Experience-driven agent learning
   - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
   - Phase 3: Learning-Based LLM Routing - per-model predictors, DB persistence, live feedback, quality signals, re-ranking. See [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md). Flag-gated (`ATOM_LEARNING_ROUTER`).

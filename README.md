@@ -112,6 +112,11 @@ Intelligent CHAT/WORKFLOW/TASK routing with governance checks and dynamic fleet 
 
 [Meta-Agent Guide →](docs/agents/meta-agent.md)
 
+### Self-Healing & Harness Evolution 🛡️
+Offline weakness mining scans execution traces to identify model-specific failure profiles, validation gating runs regression tests inside temporary copy-on-write sandboxes, and commits auto-mutated patches (AST tripwire rules, prompt guidance, context bounds) directly to agent configurations.
+
+[Self-Evolving Harness Guide →](docs/architecture/HARNESS_EVOLUTION.md)
+
 ---
 
 ## Quick Start
