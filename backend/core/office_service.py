@@ -225,6 +225,26 @@ class ExcelManager:
         await runtime.recalculate(Path(file_path))
         return {"success": True, "engine": runtime.engine}
 
+    @staticmethod
+    async def add_pivot_table(
+        file_path: str, sheet_name: str, pivot_sheet_name: str,
+        data_range: str, rows: List[str], columns: List[str],
+        values: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Create a styled pivot table summary sheet."""
+        from core.workbook_runtime import get_workbook_runtime
+        runtime = get_workbook_runtime()
+        return await runtime.add_pivot_table(
+            file_path, sheet_name, pivot_sheet_name, data_range, rows, columns, values
+        )
+
+    @staticmethod
+    async def run_excel_macro(file_path: str, macro_name: str) -> Dict[str, Any]:
+        """Run macro inside workbook via sandboxed execution."""
+        from core.workbook_runtime import get_workbook_runtime
+        runtime = get_workbook_runtime()
+        return await runtime.run_macro(file_path, macro_name)
+
 
 class WordManager:
     """Manages Word document operations using python-docx."""

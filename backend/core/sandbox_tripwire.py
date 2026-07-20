@@ -277,6 +277,80 @@ def all_patterns() -> Tuple[TripwirePattern, ...]:
 # ===========================================================================
 
 
+def check_python_ast(code: str) -> Optional[str]:
+    """Analyze python code using AST. Returns validation error message or None if safe."""
+    import ast
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return check_js_ast(code)
+        
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                if name.name in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
+                    return f"AST violation: Forbidden import of module '{name.name}'"
+        elif isinstance(node, ast.ImportFrom):
+            if node.module in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
+                return f"AST violation: Forbidden import from module '{node.module}'"
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id in {"eval", "exec", "open", "compile", "__import__"}:
+                    return f"AST violation: Forbidden built-in call '{node.func.id}()'"
+                if node.func.id == "getattr":
+                    if node.args and isinstance(node.args[0], ast.Name) and node.args[0].id in {"os", "sys", "subprocess", "shutil", "socket"}:
+                        return f"AST violation: Forbidden reflection getattr() on module '{node.args[0].id}'"
+            elif isinstance(node.func, ast.Attribute):
+                if isinstance(node.func.value, ast.Name):
+                    if node.func.value.id in {"os", "sys", "subprocess", "shutil", "importlib"}:
+                        return f"AST violation: Forbidden system attribute call '{node.func.value.id}.{node.func.attr}()'"
+        elif isinstance(node, ast.Subscript):
+            if isinstance(node.value, ast.Attribute):
+                if isinstance(node.value.value, ast.Name) and node.value.value.id == "os" and node.value.attr == "environ":
+                    if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+                        key = node.slice.value.upper()
+                        if any(k in key for k in ["SECRET", "TOKEN", "API_KEY", "PASSWORD", "AWS"]):
+                            return f"AST violation: Access to secret-bearing environment variable '{node.slice.value}'"
+    return check_js_ast(code)
+
+
+def check_js_ast(code: str) -> Optional[str]:
+    """Scan string arguments for dangerous JavaScript/TypeScript patterns."""
+    js_patterns = [
+        (r"eval\s*\(", "eval() execution"),
+        (r"Function\s*\(", "Function constructor execution"),
+        (r"child_process", "child_process execution"),
+        (r"process\.env\.(SECRET|TOKEN|API_KEY|PASSWORD|AWS)", "process.env secret access"),
+    ]
+    for pattern, desc in js_patterns:
+        if re.search(pattern, code, re.IGNORECASE):
+            return f"JS/TS AST violation: Forbidden {desc}"
+    return None
+
+
+def _check_ast_violations(args: Dict[str, Any]) -> Optional[str]:
+    """Scan string arguments for valid Python code and analyze via AST."""
+    def _walk(obj: Any) -> Optional[str]:
+        if isinstance(obj, str):
+            if len(obj.strip()) > 5:
+                violation = check_python_ast(obj)
+                if violation:
+                    return violation
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                violation = _walk(v)
+                if violation:
+                    return violation
+        elif isinstance(obj, (list, tuple)):
+            for v in obj:
+                violation = _walk(v)
+                if violation:
+                    return violation
+        return None
+        
+    return _walk(args or {})
+
+
 def check(
     *,
     tool_name: str,
@@ -292,6 +366,25 @@ def check(
         ``enforced`` flag reflects shadow-mode state.
     """
     try:
+        # Check AST violations first
+        ast_violation = _check_ast_violations(args)
+        if ast_violation:
+            return SandboxDecision(
+                decision=BLOCKED,
+                phase="C",
+                violation_type=VT_TRIPWIRE,
+                violation_detail=ast_violation,
+                tool_name=tool_name,
+                args_hash=args_hash,
+                enforced=sandbox_config.is_sandbox_force_enforce_enabled(),
+                killrun_triggered=True,
+                metadata_json={
+                    "tripwire_id": "ast_violation",
+                    "category": "AST_INVARIANT",
+                    "description": ast_violation,
+                },
+            )
+
         hit = match(args)
         if hit is None:
             return SandboxDecision(

@@ -13,6 +13,19 @@
 
 ---
 
+## Why This Exists
+
+### ❌ The Problem
+When AI agents run arbitrary tools, they are vulnerable to **prompt injection attacks** and compromised software dependencies. Because LLMs process instructions and data uniformly, an attacker can trick the model into executing unintended code or modifying critical system settings.
+
+### 🎯 The Impact
+Probabilistic guardrails (such as system prompts or LLM alignment fine-tuning) can be bypassed by creative prompt engineering. Without hard boundaries, a hijacked agent can exfiltrate sensitive files, inject malicious cron jobs, or escalate host privileges, turning the automation platform into a security vulnerability.
+
+### 🛡️ Our Solution
+A **system-level deterministic sandbox** that enforces isolation outside of the LLM's reasoning engine. The sandbox enforces strict filesystem containment, AST-level code parsing, network proxies, and resource limits, blocking disallowed actions at the code execution level regardless of the AI's internal confidence or instruction state.
+
+---
+
 ## What this is
 
 The deterministic blast-radius layer that CLAUDE.md §"Tier is routing, not
@@ -89,10 +102,12 @@ regardless of OS-level symlink targets (`/private/etc`, `/private/tmp`).
 **RESTRICTED recovery**: callers can use `rewrite_path_to_sandbox()` to remap
 an out-of-scope absolute path into the per-run tmpfs.
 
-### Phase C — Tripwires + caps + KillRun (`sandbox_tripwire.py`, `sandbox_caps.py`, `sandbox_killrun.py`)
+### Phase C — Tripwires + caps + KillRun (`sandbox_tripwire.py`, `sandbox_caps.py`, `sandbox_killrun.py`, `sandbox_transaction.py`)
 
-**Tripwire registry**: 21 compiled regex patterns across 6 categories plus
-exfil detection:
+**AST Pre-Evaluation Invariant Validator**: 
+Before executing Python/code payloads, the sandbox evaluates code strings using the `ast` module. This deterministic check blocks unsafe execution syntax, forbidden module imports (`os`, `sys`, `subprocess`, `pty`), dangerous calls (`exec()`, `eval()`), and credentials leaked through env var access (`os.environ["AWS_SECRET_ACCESS_KEY"]`), triggering an instant `BLOCKED` decision.
+
+**Tripwire registry**: 21 compiled regex patterns across 6 categories plus exfil detection:
 
 | Category | Examples |
 |----------|----------|
@@ -104,11 +119,14 @@ exfil detection:
 | REVERSE_SHELL | `bash -i`, `nc -e`, `socat EXEC`, `/dev/tcp/`, raw `socket.socket()` |
 | EXFIL | `curl`/`wget` to non-allowlisted host |
 
+**Level 5 DMM Transactional Rollbacks (`sandbox_transaction.py`)**:
+When `ATOM_DMM_LEVEL5_ENABLED=true`, file-modifying tools execute within a copy-on-write context manager. The system clones the workspace state to a temporary snapshot dir. If the agent completes successfully, the changes are committed. If the task fails, raises a security tripwire, or throws an exception, the workspace is automatically rolled back to its exact pre-execution state.
+
 **Resource caps**: per-run counters for `tool_calls`, `exec_seconds`,
 `bytes_written`, `cost_usd`. Check-before-increment so the call that would
 exceed is denied.
 
-**KillRun state machine**: tripwire fires → `_KillRunState` recorded in
+**KillRun state machine**: tripwire or AST violation fires → `_KillRunState` recorded in
 `KillRunRegistry` singleton → `AgentExecution.status` updated to
 `killed_sandbox` (best-effort DB write) → subsequent `guard(run_id)` calls
 raise `KillRunAborted` which propagates up through the tool-dispatch loop.
@@ -329,6 +347,20 @@ Per phase:
    - Each defense layer fires independently; defense in depth verified
 5. **Staging shadow-mode soak** — 7 days between phases; operators observe
    violation-rate distributions before flipping `FORCE_ENFORCE=true`.
+
+---
+
+## Expanded AST Tripwires & Resource Caps
+
+### Expanded AST Invariant Checking (`sandbox_tripwire.py`)
+In addition to standard command regexes, string arguments pass through AST validation:
+- **Python Reflection & Dynamic Imports**: AST parsing blocks `importlib`, dynamic module loading (`__import__`), reflection attribute access (`getattr(os, ...)`), dangerous built-ins (`eval`, `exec`, `open`), and sensitive path reads (`/etc/shadow`, `~/.ssh`).
+- **JavaScript/TypeScript Static Analysis**: Non-Python string arguments are scanned for unsafe Node/JS execution patterns (`eval()`, `Function()`, `child_process`, `process.env.SECRET`).
+
+### Transactional Resource Caps (`sandbox_transaction.py`)
+Level 5 DMM transactional sandboxes enforce strict runtime and disk utilization boundaries:
+- **CPU Time-outs (`timeout_seconds`)**: If a tool execution block exceeds the maximum allowed time, the context manager automatically aborts execution and rolls back the workspace to its exact pre-execution snapshot.
+- **Disk Allocation Caps (`max_bytes`)**: Monitors total directory byte size during execution. Any payload that attempts a fork-bomb or massive file write breaches the cap, triggering an immediate rollback.
 
 ---
 

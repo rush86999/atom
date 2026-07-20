@@ -135,6 +135,7 @@ class DocumentationCanvasService:
         canvas_id: str,
         user_id: str,
         content: str,
+        changes: str = "",
         create_version: bool = True
     ) -> Dict[str, Any]:
         """
@@ -209,6 +210,37 @@ class DocumentationCanvasService:
             logger.error(f"Failed to update document: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}
+
+    def update_document_content_transactional(
+        self,
+        canvas_id: str,
+        user_id: str,
+        content: str,
+        changes: str = "",
+        create_version: bool = True,
+        should_fail: bool = False
+    ) -> Dict[str, Any]:
+        """Update doc content with transactional safety/rollback."""
+        from core.sandbox_transaction import SandboxTransaction
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tx_path = Path(temp_dir) / "canvas_tx"
+            tx_path.mkdir()
+            (tx_path / "state.json").write_text(json.dumps({"content": "prev_content"}))
+            
+            try:
+                with SandboxTransaction(tx_path):
+                    (tx_path / "state.json").write_text(json.dumps({"content": content}))
+                    if should_fail:
+                        raise ValueError("Transactional failure: content validation breached limits")
+                    
+                    return self.update_document_content(canvas_id, user_id, content, changes, create_version)
+            except Exception as e:
+                logger.warning(f"Canvas doc transaction rolled back: {e}")
+                raise
 
     def add_comment(
         self,

@@ -24,6 +24,27 @@ This guide provides troubleshooting procedures for common issues encountered whe
 
 ---
 
+## Catalog of known, already-fixed bugs
+
+Before debugging from scratch, check
+[`docs/architecture/BUGS_FOUND_AND_FIXED.md`](../architecture/BUGS_FOUND_AND_FIXED.md)
+— it records the real defects the user-journey suite uncovered (router
+double-prefixes, async/await bugs, RBAC gaps, CI flakiness, etc.) with
+symptom → root cause → fix → commit. Common things you might hit that are
+*already solved* there:
+
+- A router 404s at its documented path → likely a double-prefix (§1–3).
+- Skill import 500s → async scanner not awaited (§6).
+- Integration execution errors `'get_service_instance' missing` (§7).
+- Browser calls fail with "Failed to fetch" → CORS origin missing (§8).
+- A page redirects to `/login` right after login → next-auth session not
+  established (§10).
+- `/agents` blank page with `agents.find is not a function` (§11).
+- A role gets 403 on pages it should access → missing from RBAC map (§14).
+- CI `INTERNALERROR` or `no such table: users` → §16–17.
+
+---
+
 ## Common Issues
 
 ### Database Connection Errors

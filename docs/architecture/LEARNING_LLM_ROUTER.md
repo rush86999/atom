@@ -8,33 +8,18 @@
 > outcomes, collects feedback, and re-ranks model candidates using learned
 > per-model satisfaction predictors.
 
-## The Problem
+## Why This Exists
 
-The Cognitive Tier System (see [`COGNITIVE_TIER_SYSTEM.md`](./COGNITIVE_TIER_SYSTEM.md))
-selects models via a static, rule-based 5-tier classifier (BPC: Benchmark-Price-Capability
-scoring). It's good, but it can't learn from observed outcomes: if model A
-reliably truncates long prompts, or model B refuses a certain task type, the
-rule-based router keeps picking them. There was no feedback loop.
+### ❌ The Problem
+Static, rule-based routing strategies (like Benchmark-Price-Capability) select models on fixed benchmark scores. However, they cannot adapt to real-world outcomes: if a model consistently refutes a task type, generates invalid schemas, or experiences latency spikes, the rule-based router continues selecting it.
 
-A `LearningBasedRouter` existed in the codebase but was completely orphaned —
-never imported by any production code path (confirmed via git history: it was
-always aspirational, never wired in). Its predictors were trained into
-throwaway instances on every call, so even when "enabled" it couldn't
-accumulate learning. Feedback from the chat UI hit a dead endpoint that 404'd
-silently. Users couldn't see which model answered.
+### 🎯 The Impact
+Probabilistic routing models can degrade during runtime due to API outages, API schema changes, or model drift. Blindly routing tasks based on static benchmark profiles increases API token costs and exposes multi-step workflows to cascade failures.
 
-## The Fix
-
-A learning layer that **augments** (not replaces) the live BPC selection,
-behind a flag. It runs in two phases:
-
-1. **Observe** (always on when flag is set): every LLM response — text,
-   structured, and streamed — generates a real outcome sample assessed from
-   `finish_reason`, content quality, schema validation, and exceptions.
-2. **Influence** (once enough data accumulates): re-rank BPC's already-filtered
-   candidate list using learned per-model satisfaction, so routing decisions
-   change with feedback. Never adds or removes candidates — only re-orders —
-   so the live pricing cache remains the source of truth.
+### 🛡️ Our Solution
+A hybrid re-ranking system that combines:
+1. **Per-Model Predictors (ML-driven)**: Sklearn estimators that predict user satisfaction based on prompt features, dynamically re-ordering the candidate pool as user feedback accumulates.
+2. **EMA-Guided Protocol Routing (Metric-driven)**: A running Exponential Moving Average of latency, cost, and execution success, instantly routing traffic around outages or rate-limits without token overhead.
 
 ```
                 ┌─────────────────────────────────────────┐
@@ -210,6 +195,31 @@ re-rank only re-orders BPC's already-filtered list.
 | `frontend-nextjs/hooks/chat/useChatInterface.ts` | `handleFeedback` + `handleRegenerate` |
 | `frontend-nextjs/pages/settings/routing.tsx` | Routing dashboard |
 
+## EMA-Guided Protocol Routing (Round 48)
+
+To address potential high-variance loops in pure LLM or ML-based routing, the router supports an optional **Exponential Moving Average (EMA)** protocol routing mode, enabled by setting the environment flag:
+
+```bash
+ATOM_EMA_ROUTER_ENABLED=true
+```
+
+### The Mechanism
+
+When enabled, candidate re-ranking uses a running EMA of model execution performance rather than raw neural/voters predictors. For each `(tenant, task, model)` combination, the router tracks:
+1. **Success rate** (based on quality verification and completion signals).
+2. **Execution latency** (response speed).
+3. **Token/execution cost**.
+
+The fitness score is computed as:
+
+$$S_{t+1}(m, k) = \alpha \cdot \text{Score}_t(m, k) + (1 - \alpha) \cdot S_t(m, k)$$
+
+Where:
+- $\alpha = 0.2$ is the smoothing weight prioritizing recent outcomes.
+- $\text{Score}_t$ is calculated dynamically from weighted combinations of success, normalized cost, and normalized latency.
+
+This provides zero-token overhead routing decisions based strictly on historical empirical evidence, optimizing overall workflow determinism.
+
 ## Relationship to the Cognitive Tier System
 
 The two systems are complementary, not competing:
@@ -237,6 +247,18 @@ has learned works.
 - **CPU-only, lightweight.** All training/inference is scikit-learn (small
   RandomForest/LogisticRegression). Runs on any end-user laptop. Sub-50ms
   routing latency, sub-second retraining.
+
+## EMA Protocol Telemetry & Administrative Dashboard
+
+When `ATOM_EMA_ROUTER_ENABLED=true` is active, real-time performance telemetry is exposed via `GET /api/chat/routing-stats` and rendered visually in the administrative UI at `/settings/routing`.
+
+**Exposed Telemetry Metrics**:
+- **EMA Score**: Decayed overall suitability score combining success rate, latency, and cost.
+- **Success Rate**: Exponentially decayed success ratio ($S_{t+1} = \alpha S_{\text{new}} + (1 - \alpha) S_t$).
+- **Avg Latency (ms)**: Real-time execution response latency.
+- **Avg Cost ($)**: Decayed average token expenditure per model call.
+
+---
 
 ## References
 

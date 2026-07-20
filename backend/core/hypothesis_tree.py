@@ -910,19 +910,21 @@ class OptimizationTree(HypothesisTree):
             base_stats.update(workflow_stats)
 
         elif self.task_type == TaskType.ROUTING:
+            routing_nodes = [n for n in self.nodes.values() if isinstance(n, RoutingHypothesisNode)]
             routing_stats = {
                 "models_evaluated": list(set(
                     m
-                    for n in self.nodes.values()
-                    if isinstance(n, RoutingHypothesisNode)
+                    for n in routing_nodes
                     for m in n.model_sequence
                 )),
-                "avg_cost_savings": sum(
-                    n.cost_optimization_potential
-                    for n in self.nodes.values()
-                    if isinstance(n, RoutingHypothesisNode)
-                ) / max(1, len([n for n in self.nodes.values()
-                               if isinstance(n, RoutingHypothesisNode)])),
+                "avg_cost_per_1k_tokens": (
+                    sum(n.cost_per_1k_tokens for n in routing_nodes)
+                    / max(1, len(routing_nodes))
+                ),
+                "avg_p95_latency_ms": (
+                    sum(n.p95_latency_ms for n in routing_nodes)
+                    / max(1, len(routing_nodes))
+                ),
             }
             base_stats.update(routing_stats)
 

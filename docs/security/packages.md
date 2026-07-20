@@ -727,3 +727,46 @@ assert result.malicious == True
 - Resource exhaustion protection active
 - Network isolation enforced
 - Malicious pattern detection operational
+
+---
+
+## Technical Architecture & Core Components
+
+1. **Package Governance Service** (`backend/core/package_governance_service.py`)
+   - Manages package permissions and approval workflows.
+   - Enforces maturity-based access control.
+   - Tracks package usage across skills.
+
+2. **Package Dependency Scanner** (`backend/core/package_dependency_scanner.py`)
+   - Scans skill requirements for Python and npm packages.
+   - Detects dependency conflicts before installation.
+   - Validates package compatibility.
+
+3. **Package Installer** (`backend/core/package_installer.py`)
+   - Installs approved packages in skill-specific Docker images or environments.
+   - Runs vulnerability scans using `pip-audit` and `safety`.
+   - Implements rollback on failure.
+
+---
+
+## Production Deployment Checklist
+
+### Pre-Deployment Verification
+Ensure the following binaries and Python packages are installed:
+- [ ] **pip-audit 2.17+**
+  ```bash
+  pip-audit --version
+  ```
+- [ ] **safety 3.0+**
+  ```bash
+  safety --version
+  ```
+- [ ] **pipdeptree 2.13+**
+  ```bash
+  pipdeptree --version
+  ```
+
+### Post-Deployment Verification
+Ensure the sandbox enforcement controls are verified:
+- [ ] **Verify sandbox path restrictions**: Confirm paths containing `..` or home credentials (`~/.ssh`, `~/.aws`, `.env`) are blocked.
+- [ ] **Verify network isolation**: Confirm Egress controls block unauthorized outgoing calls.

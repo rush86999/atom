@@ -403,6 +403,7 @@ Meta-Agent now integrates with the **Conductor Agent** for advanced execution st
 | **HYBRID** | Mixed sequential/parallel | Complex fleet coordination |
 | **ADAPTIVE** | Strategy adjustment based on context | Dynamic task requirements |
 | **ROLLBACK_SAFE** | Automatic rollback on failure | Critical operations |
+| **PARALLEL_CONSENSUS** | Parallel execution with voting consensus | High-confidence decision workflows |
 
 **Usage:**
 ```python

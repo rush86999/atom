@@ -18,6 +18,21 @@ The Episodic Memory system provides AI agents with the ability to remember, retr
 
 ---
 
+## Why This Exists
+
+### ❌ The Problem
+As AI agent interactions progress over multi-turn sessions, context windows quickly bloat with chat histories. If we pass the raw, uncompressed transcript to the model, or rely on simple full-session summarization, key constraints and context are lost.
+
+### 🎯 The Impact
+Large context windows suffer from "lost-in-the-middle" attention degradation. Passing redundant tokens increases latency, inflates inference costs, and dilutes the model's focus, causing it to hallucinate, repeat failures, or miss critical business invariants.
+
+### 🛡️ Our Solution
+A **hybrid memory architecture** combining:
+1. **Durable-Fact Extraction (Hermes-style)**: Real-time per-turn extraction of strict rules, implicit preferences, and task dependencies before session compression.
+2. **Episodic Segmentation**: Auto-partitioning of chats into discrete "episodes" stored in a hybrid PostgreSQL (hot metadata) + LanceDB ONNX (cold semantic vectors) database for low-latency ($<50$ms) neighborhood recall.
+
+---
+
 ## Architecture
 
 ### Storage Strategy: Hybrid PostgreSQL + LanceDB
@@ -1020,3 +1035,32 @@ optimal_action = winning_path[-1]
 - **Observation Learning**: Validation results form POMDP observations
 - **Reward Optimization**: Winning path maximizes cumulative reward
 - **Constraint Learning**: Negative constraints from failed actions improve future episodes
+
+---
+
+## Vector Embeddings Setup (FastEmbed)
+
+Atom utilizes **FastEmbed** as the default embedding generation engine for Personal and Local dev setups:
+- **Model**: `BAAI/bge-small-en-v1.5` (384 dimensions).
+- **Execution**: Runs locally via ONNX Runtime, offering low latency (10-20ms per document) and zero API dependency.
+- **LanceDB Vector Storage**: Generates and persists embeddings locally in embedded LanceDB databases (`./data/lancedb`).
+
+---
+
+## AI World Model Retrieval & Governance
+
+Every task execution (success or failure) generates an `AgentExperience` object in the `agent_experience` database. 
+
+### Retrieval Pipeline (`recall_experiences`)
+When a new task is initiated:
+1. **Graph Neighborhood Search**: Traverses connected entities (documents, people, projects) in PostgreSQL using recursive CTEs.
+2. **Role Scoping**: Filters historical experiences by agent role (`agent_role`).
+3. **Quality Gating**: Prioritizes successful outcomes; retrieves failures only if confidence is high (used as warning precedents).
+4. **Context Injection**: Combines experience context with hard-coded business rules and math formulas.
+
+### Governance & HITL
+The `GovernanceEngine` calculates a confidence score for proposed actions:
+$$ \text{Score} = \frac{\text{Similar Approved Actions}}{\text{Total Similar Actions}} $$
+
+- **Learning Phase**: Workspaces with `learning_phase_completed = false` restrict autonomous actions. If confidence is below $0.9$, the agent pauses for Human-in-the-Loop (HITL) approval.
+- **Autonomy**: Once graduated, agents execute actions with high confidence autonomously. Human approvals/rejections dynamically update the confidence scores of recalled experiences.

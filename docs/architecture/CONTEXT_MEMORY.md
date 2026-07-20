@@ -246,11 +246,15 @@ This is the standard hybrid-retrieval pattern: structured discriminator as prefi
   - `verified` — tool actively confirmed the world changed (returned evidence)
   - `unverified` (default) — tool self-reported success without evidence
   - `failed_verification` — an explicit verify() step rejected the result
-- Parsed at the ReAct loop observation site and persisted on `AgentReasoningStep.verified` + `verification_evidence`
+- Persisted at the ReAct loop observation site and persisted on `AgentReasoningStep.verified` + `verification_evidence`
 - `CapabilityGraduationService.record_usage` now gates on `verified='verified'` — only verified successes increment the graduation counter. Unverified successes still count in the denominator (they *lower* the success ratio), so silent no-ops cannot inflate capability stats.
 - Backward-compatible: existing tools returning a plain string or `{success: true}` without a `verified` key default to `unverified` — no contract break, they just stop being able to graduate capabilities alone.
 
-Also fixed a pre-existing bug surfaced by this work: `CapabilityGraduationService` referenced `agent.properties` which doesn't exist on `AgentRegistry` — it now uses the real `configuration` JSON column with `flag_modified`.
+### Graduation-Triggered Semantic Memory Consolidation
+
+When an agent matures to a higher status tier (e.g., JUNIOR, SUPERVISED, or AUTONOMOUS) through the `promote_agent` call in the `AgentGraduationService`, it triggers offline episodic memory consolidation:
+- **Association Strengthening**: Candidates with a high access count are compressed into long-term semantic clusters.
+- **Context Space Optimization**: Prunes low-level step logs to prevent prompt context bloat during future agent runs.
 
 ---
 

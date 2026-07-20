@@ -14,6 +14,7 @@ from core.database import Base
 
 # 2. Import all models to ensure they are registered with the Base
 import core.models
+import core.auto_dev.models
 
 # 3. Optional model modules - only import in production (NOT during tests)
 # This prevents recursion during test initialization

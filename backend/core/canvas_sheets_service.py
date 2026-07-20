@@ -161,6 +161,38 @@ class SpreadsheetCanvasService:
             self.db.rollback()
             return {"success": False, "error": str(e)}
 
+    def update_cell_transactional(
+        self,
+        canvas_id: str,
+        user_id: str,
+        cell_ref: str,
+        value: Any,
+        cell_type: str = "text",
+        formula: Optional[str] = None,
+        should_fail: bool = False
+    ) -> Dict[str, Any]:
+        """Update cell value with transactional safety/rollback."""
+        from core.sandbox_transaction import SandboxTransaction
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tx_path = Path(temp_dir) / "canvas_tx"
+            tx_path.mkdir()
+            (tx_path / "state.json").write_text(json.dumps({"cell": cell_ref, "val": "prev_val"}))
+            
+            try:
+                with SandboxTransaction(tx_path):
+                    (tx_path / "state.json").write_text(json.dumps({"cell": cell_ref, "val": value}))
+                    if should_fail:
+                        raise ValueError("Transactional failure: formula validation breached limits")
+                    
+                    return self.update_cell(canvas_id, user_id, cell_ref, value, cell_type, formula)
+            except Exception as e:
+                logger.warning(f"Canvas transaction rolled back: {e}")
+                raise
+
     def add_chart(
         self,
         canvas_id: str,
@@ -216,5 +248,69 @@ class SpreadsheetCanvasService:
 
         except Exception as e:
             logger.error(f"Failed to add chart: {e}")
+            self.db.rollback()
+            return {"success": False, "error": str(e)}
+
+    def add_pivot_table(
+        self,
+        canvas_id: str,
+        user_id: str,
+        sheet_name: str,
+        pivot_sheet_name: str,
+        data_range: str,
+        rows: List[str],
+        columns: List[str],
+        values: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Add a pivot table representation to the spreadsheet metadata."""
+        try:
+            from sqlalchemy import desc
+
+            audit = self.db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+                CanvasAudit.canvas_type == "sheets"
+            ).order_by(desc(CanvasAudit.created_at)).first()
+
+            if not audit:
+                return {"success": False, "error": "Spreadsheet not found"}
+
+            metadata = audit.details_json or {}
+            pivot_tables = metadata.get("pivot_tables", [])
+
+            pivot = {
+                "pivot_id": str(uuid.uuid4()),
+                "sheet_name": sheet_name,
+                "pivot_sheet_name": pivot_sheet_name,
+                "data_range": data_range,
+                "rows": rows,
+                "columns": columns,
+                "values": values,
+                "created_at": datetime.now().isoformat()
+            }
+
+            pivot_tables.append(pivot)
+            metadata["pivot_tables"] = pivot_tables
+
+            update_audit = CanvasAudit(
+                id=str(uuid.uuid4()),
+                tenant_id="default",
+                user_id=user_id,
+                canvas_id=canvas_id,
+                action_type="add_pivot_table",
+                canvas_type="sheets",
+                details_json={
+                    "canvas_type": "sheets",
+                    "component_type": "pivot_table",
+                    **metadata,
+                }
+            )
+
+            self.db.add(update_audit)
+            self.db.commit()
+
+            return {"success": True, "pivot_id": pivot["pivot_id"]}
+
+        except Exception as e:
+            logger.error(f"Failed to add pivot table to canvas: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}

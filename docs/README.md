@@ -1,271 +1,56 @@
-# Atom Documentation
+# ⚛️ Atom Documentation Hub
 
-Welcome to the Atom documentation hub. This guide helps you find relevant information quickly.
+Welcome to the Atom developer and user documentation center. Atom is a self-hosted, multi-agent AI automation platform designed for reliable, governed execution.
 
-**📑 [View Complete Documentation Index](INDEX.md)** - Comprehensive alphabetical index of all documentation
-
----
-
-## 📚 **Quick Navigation**
-
-**New to Atom?** Start here:
-- **[📖 User Guide Index](USER_GUIDE_INDEX.md)** ⭐ **START HERE** - Complete user documentation
-- Getting Started - Get Atom running in 15 minutes
-- Installation Guide - Complete setup instructions
-
-**Documentation by Category:**
-- **[🤖 Agent System](agents/)** - Governance, graduation, and orchestration
-- **[🧠 Intelligence & Memory](intelligence/)** - AI capabilities, knowledge management
-- **[🎨 Canvas & Presentations](canvas/)** - Visual presentations and AI accessibility
-- **[🔌 Integrations](integrations/)** - Platform integrations and automation
-- **[🏪 Marketplace](marketplace/)** - Community skills marketplace
-- **[🧪 Testing](testing/)** - Testing guides and quality assurance
-- **[🚀 Operations](operations/)** - Deployment, monitoring, and performance
-- **[💻 Platform](platform/)** - Architecture and technical overview
-- **[🔌 API](api/)** - REST API reference
-- **[🛠️ Development](development/)** - Setup and coding standards
-- **[🔒 Security](security/)** - Package security and best practices
-- **[✨ Features](features/)** - Feature comparisons and use cases
+> [!NOTE]
+> Are you setting up Atom for the first time? See the [🚀 Quick Start Guide](getting_started/quick-start.md) or follow the [📖 User Guide Index](USER_GUIDE_INDEX.md).
 
 ---
 
-## 📖 **Core Documentation**
+## 🗺️ Navigation Index
 
-### Agent System 🤖
-- **[Agent Overview](agents/overview.md)** - Complete agent documentation
-- [Agent Governance](agents/governance.md) - Maturity levels and permissions
-- [Agent Graduation](agents/graduation.md) - Learning and promotion framework
-- [Student Training](agents/training.md) - Training workflow for student agents
-- [Meta-Agent Routing](agents/meta-agent.md) - Intent classification and orchestration
-- Queen Agent (Queen Hive) - **Structured workflow automation** ✨ NEW
-- [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) - **Complete guide to Queen Agent** ✨ NEW
-- [Fleet Admiral](agents/fleet-admiral.md) - Multi-agent orchestration for unstructured tasks
-- [Unstructured Tasks](agents/unstructured-tasks.md) - Intent classification and fleet coordination
-- [Queen vs Fleet Admiral Comparison](guides/QUEEN_VS_FLEET_ADMIRAL.md) - **Which orchestrator to use?** ✨ NEW
-- [Auto-Dev Module](guides/AUTO_DEV_USER_GUIDE.md) - **Self-evolving agent capabilities** ✨ NEW
+To keep configuration and reference material easily discoverable, the documentation is organized into six core pillars:
 
-### Intelligence & Memory 🧠
-- **[Intelligence Overview](intelligence/overview.md)** - Complete intelligence documentation
-- [Episodic Memory](intelligence/episodic-memory.md) - Agent learning system
-- [GraphRAG & Entity Types](intelligence/graphrag.md) - Graph-based intelligence
-- [World Model & JIT Facts](intelligence/world-model-guide.md) - Knowledge management
-- [Vector Embeddings](intelligence/vector-embeddings.md) - Vector database and search
+### 1. 🚀 Getting Started & Operations
+Steps to boot, deploy, configure, and maintain Atom instances in production.
+- [Quick Start Guide](getting_started/quick-start.md) — 15-minute quick start guide
+- [Installation Guide](getting_started/INSTALLATION.md) — Complete setup options (Local, Docker, Cloud)
+- [Production Readiness](operations/production-readiness.md) — Pre-flight checklist for staging and production
+- [Monitoring & Health](operations/monitoring.md) — Prometheus integration, health checks, and alerts
 
-### Canvas & Presentations 🎨
-- [Canvas AI Accessibility](canvas/ai-accessibility.md) - AI-readable canvas state
-- [LLM Canvas Summaries](canvas/llm-summaries.md) - Enhanced memory integration
-- [Canvas Reference](canvas/reference.md) - Complete canvas reference guide
-- [Agent Learning Integration](canvas/agent-learning.md) - Canvas-based learning
-- [Feedback & Memory](canvas/feedback-memory.md) - Feedback integration
+### 2. 🛡️ Sandbox & Security Layer
+Deterministic execution isolation, permission tiers, and code analysis boundaries.
+- [Execution Sandbox Layer](architecture/SANDBOX_LAYER.md) — FS scope, Firecracker microVMs, egress, and AST invariants
+- [Sandbox Policy Design](architecture/GOVERNANCE_STANDARDIZATION.md) — Detailed governance standards and enforcement rules
+- [Package Security](security/packages.md) — Vulnerability scanning and package isolation systems (PyPI, npm)
 
-### Integrations & Automation 🔌
-- **[Integrations Overview](integrations/OVERVIEW.md)** - Complete integration documentation
-- [Browser Automation](integrations/browser-automation.md) - Web scraping and automation
-- [Community Skills](integrations/community-skills.md) - 5,000+ community skills
-- [Advanced Skill Execution](integrations/advanced-skills.md) - Skill composition engine
-- [CLI Skills Guide](guides/ATOM_CLI_SKILLS_GUIDE.md) - Atom CLI skills (daemon, status, start, stop, execute, config)
-- Device Capabilities - Device access controls
+### 3. 🧠 Memory & Routing Intelligence
+Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
+- [Context Memory Design](architecture/CONTEXT_MEMORY.md) — Durable-fact extraction, token compression, and graduation memory consolidation
+- [Learning-Based LLM Router](architecture/LEARNING_LLM_ROUTER.md) — Outcome predictors, re-ranking, and EMA protocol routing
+- [Episodic Memory](intelligence/episodic-memory.md) — How agents build, retrieve, and refine personal experiences
+- [GraphRAG](intelligence/graphrag.md) — Leiden community summaries and hybrid graph-episodic search routing
+- [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
 
-### Marketplace 🏪
-- [Marketplace Connection](marketplace/connection.md) - Connect to public marketplace
-- [Marketplace Quick Start](guides/MARKETPLACE_QUICKSTART.md) - **5-minute marketplace setup** ✨ NEW
-- [Skill Marketplace](marketplace/skills.md) - Browse and install skills
-- [Marketplace Analytics](marketplace/analytics.md) - Analytics and synchronization
-- [Update Summary](archive/reports/update-summary.md) - Recent marketplace updates
+### 4. 👥 Multi-Agent Orchestration
+Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).
+- [Meta-Agent System](agents/meta-agent.md) — Conductor parallel consensus, fleet recruitment, and cognitive routing
+- [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) — Step-by-step workflow builder guidelines
+- [Fleet Admiral](agents/fleet-admiral.md) — Orchestrating fleets for unstructured task resolution
 
-### Federation & Multi-Instance 🌐
-- [Federation & Instance Identity](guides/FEDERATION_INSTANCE_IDENTITY.md) - **Multi-instance communication** ✨ NEW
+### 5. 🔌 Integrations & Canvas Automation
+Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
+- [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
+- [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
+- [Browser Automation](integrations/browser-automation.md) — Sandboxed browser scraping and element interaction
+
+### 6. 🛠️ Development & Testing
+Contribution standards, debugging procedures, and testing frameworks.
+- [Development Setup](development/setup.md) — Venv configuration, local DB seeding, and code style
+- [Testing Index](testing/index.md) — Testing patterns (E2E journey tests, property-based tests, stress tests)
+- [Bugs Found and Fixed](architecture/BUGS_FOUND_AND_FIXED.md) — Defect analysis log from E2E integration test runs
 
 ---
 
-## 🏗️ **Development Guides**
-
-### Getting Started
-- Quick Start - 15-minute quick start
-- Installation Guide - Complete installation
-- Installation Options - Installation variants
-- Mac Mini Install - Mac mini setup
-- Install Script Guide - Automated installation
-
-### Development
-- **[Development Overview](development/overview.md)** - Complete development documentation
-- [Development Setup](development/setup.md) - Local development environment
-- [Code Quality Guide](development/code-quality.md) - Testing and style guidelines
-- [Build Guide](development/build.md) - Build and compilation
-
-### Testing 🧪
-- **[Testing Index](testing/index.md)** - Complete testing documentation
-- [Testing Onboarding](testing/onboarding.md) - 15-minute testing quick start
-- E2E Testing - End-to-end testing guide
-- [Mobile Testing](testing/mobile-archive.md) - Mobile-specific testing
-- [Desktop Testing](testing/desktop.md) - Desktop application testing
-- [Cross-Platform Testing](testing/cross-platform.md) - Cross-platform coverage
-- [Property Testing](testing/property-testing.md) - Property-based testing
-
----
-
-## 🚀 **Operations & Deployment**
-
-### Deployment
-- [Deployment Guide](operations/deployment.md) - Production deployment
-- [Personal Edition](operations/personal-edition.md) - Local Docker setup
-- [Production Readiness](operations/production-readiness.md) - Deployment checklist
-- [Rollback Procedure](operations/rollback.md) - Emergency rollback
-
-### Monitoring & Performance
-- [Monitoring Guide](operations/monitoring.md) - Health checks and metrics
-- [Performance Tuning](operations/performance.md) - Optimization strategies
-- [Performance Monitoring](operations/perf-monitoring.md) - Performance monitoring setup
-- [Health Monitoring](operations/health-monitoring.md) - Health check system
-- [Task Queue Guide](operations/task-queue.md) - Async task management
-
-### Production Operations
-- [Error Handling](operations/error-handling.md) - Error handling guidelines
-- [Integration Health](operations/integration-health.md) - Integration monitoring
-- [PostgreSQL Production](operations/postgresql-production.md) - Database setup
-
----
-
-## 📱 **Platform-Specific**
-
-### Desktop
-- [MenuBar Guide](archive/menubar/MENUBAR_GUIDE.md) - macOS menu bar app
-- [MenuBar Deployment](archive/menubar/MENUBAR_DEPLOYMENT.md) - Menubar deployment
-- [MenuBar Complete](archive/menubar/MENUBAR_COMPLETE_FINAL.md) - Menubar implementation
-
-### Mobile
-- [Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md) - React Native setup
-- [Mobile Deployment](archive/mobile/MOBILE_DEPLOYMENT.md) - Mobile deployment
-- [Mobile User Guide](archive/mobile/MOBILE_USER_GUIDE.md) - Mobile features
-- [React Native Architecture](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) - Mobile architecture
-
----
-
-## 🔧 **Reference**
-
-### API Reference
-- **[API Overview](api/OVERVIEW.md)** - REST API reference
-- API Index - Complete API documentation
-- Type Generation - API type generation
-- Frontend to Backend API - Frontend-backend API
-
-### Security
-- **[Security Overview](security/packages.md)** - Package security
-- [Python Packages](security/python-packages.md) - Python package support
-- [npm Packages](security/npm-packages.md) - npm package support
-- [Package Governance](security/package-governance.md) - Package governance system
-
-### Features
-- [Atom vs OpenClaw](features/atom-vs-openclaw.md) - Feature comparison
-- Use Cases - Real-world examples
-- Feature Matrix - Capability comparison
-
----
-
-## 🗄️ **Archived Documentation**
-
-Legacy documentation has been moved to [`archive/`](archive/). These files are kept for historical reference but may contain outdated information.
-
-**Archived Topics:**
-- Phase-specific completion reports
-- Implementation notes
-- Deprecated features
-- Historical bug reports
-- Legacy platform-specific docs (menubar, mobile, oauth)
-
----
-
-## 🔍 **Finding Information**
-
-### By Role
-
-**Developers**:
-- [Development Overview](development/overview.md)
-- [API Documentation](api/OVERVIEW.md)
-- [Testing Index](testing/index.md)
-
-**System Administrators**:
-- [Deployment Guide](operations/deployment.md)
-- [Monitoring Guide](operations/monitoring.md)
-- [Performance Tuning](operations/performance.md)
-
-**Product Managers**:
-- Feature Matrix
-- Use Cases
-
-**End Users**:
-- [User Guide Index](USER_GUIDE_INDEX.md)
-- Quick Start
-
-### By Task
-
-**Setting up Atom**:
-1. Quick Start
-2. Installation Guide
-3. [Development Setup](development/setup.md)
-
-**Building Agents**:
-1. [Agent Overview](agents/overview.md)
-2. [Agent Governance](agents/governance.md)
-3. [Agent Graduation](agents/graduation.md)
-4. [Meta-Agent Routing](agents/meta-agent.md)
-
-**Integrating Systems**:
-1. [Integrations Overview](integrations/OVERVIEW.md)
-2. [Browser Automation](integrations/browser-automation.md)
-3. [Marketplace Connection](marketplace/connection.md)
-
-**Deploying to Production**:
-1. [Production Readiness](operations/production-readiness.md)
-2. [Deployment Guide](operations/deployment.md)
-3. [Monitoring Guide](operations/monitoring.md)
-
----
-
-## 📝 **Documentation Standards**
-
-### Writing Style
-- **Concise**: Get to the point quickly
-- **Actionable**: Provide examples and commands
-- **Structured**: Use consistent formatting and headings
-- **Up-to-date**: Update docs when code changes
-
-### Recent Updates
-
-**April 2026** - Major Documentation Reorganization:
-- Reorganized 141+ root files into 28 topical directories
-- Consolidated redundant documentation (22 → 16 files)
-- Archived legacy implementation docs
-- Added Meta-Agent routing documentation
-- Updated all cross-references
-
-**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](archive/plans/DOCUMENTATION_REORGANIZATION_PLAN.md)
-
----
-
-## 🤝 **Contributing**
-
-When adding new features:
-1. Update relevant documentation
-2. Add code comments for complex logic
-3. Update [CLAUDE.md](../CLAUDE.md) with key changes
-4. Archive outdated docs
-
----
-
-## 🔗 **Quick Links**
-
-- **Main Project**: [GitHub Repository](https://github.com/rush86999/atom)
-- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/rush86999/atom/discussions)
-
----
-
-**Need Help?**
-- Check the [Troubleshooting](../README.md#troubleshooting) guide
-- Review FAQ
-- Search [GitHub Issues](https://github.com/rush86999/atom/issues)
-
----
-
-*Last Updated: April 10, 2026*
+## 📑 Complete Document Index
+For a comprehensive list of all documentation files in alphabetical order, see the **[Atom Alphabetical Index](INDEX.md)**.

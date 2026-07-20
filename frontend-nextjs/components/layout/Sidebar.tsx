@@ -137,7 +137,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     };
 
     return (
-        <div
+        <aside
+            aria-label="Sidebar"
             className={cn(
                 "relative flex flex-col h-screen bg-background border-r border-border transition-all duration-300 ease-in-out z-40 backdrop-blur-xl bg-opacity-80",
                 isCollapsed ? "w-20" : "w-64",
@@ -159,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             </div>
 
             {/* Navigation Categories */}
-            <div className="flex-1 overflow-y-auto py-6 space-y-6 px-3 scrollbar-hide">
+            <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-6 space-y-6 px-3 scrollbar-hide">
                 {categories.map((category) => (
                     <div key={category.name} className="space-y-1">
                         {!isCollapsed && (
@@ -214,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                         </div>
                     </div>
                 ))}
-            </div>
+            </nav>
 
             {/* Footer / User Profile & Toggle */}
             <div className="p-3 border-t border-border bg-secondary/20 space-y-3">
@@ -277,7 +278,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                     )}
                 </div>
             </div>
-        </div>
+        </aside>
     );
 };
 

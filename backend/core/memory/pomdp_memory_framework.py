@@ -265,10 +265,50 @@ class MemoryManager:
         self._write_queue: List[MemoryEntry] = []
         self._consolidation_queue: List[MemoryEntry] = []
 
-        # Configuration
         self.working_memory_capacity = 100  # items
         self.episodic_retention_days = 90  # days before auto-cleanup
         self.consolidation_threshold = 5  # accesses before consolidation
+
+    # ========================================================================
+    # Arbor HTR Tree Trajectory Cumulative Learning Persistence
+    # ========================================================================
+
+    def save_hypothesis_trajectory(
+        self,
+        task_query: str,
+        winning_trajectory: List[Dict[str, Any]],
+        pruned_failure_branches: List[str]
+    ) -> None:
+        """Store a successful coding strategy trajectory and failed branches in episodic/semantic memory."""
+        key = hashlib.sha256(task_query.strip().lower().encode("utf-8")).hexdigest()
+        entry = MemoryEntry(
+            id=key,
+            memory_type=MemoryType.SEMANTIC,
+            content=json.dumps({
+                "task_query": task_query,
+                "winning_trajectory": winning_trajectory,
+                "pruned_failure_branches": pruned_failure_branches
+            }),
+            access_count=1,
+            reward=1.0
+        )
+        self._semantic_memory[key] = entry
+        logger.info(f"Saved successful Arbor hypothesis trajectory for: {task_query[:40]}...")
+
+    def recall_hypothesis_trajectory(
+        self,
+        task_query: str
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve past successful Arbor tree trajectories for the task query."""
+        key = hashlib.sha256(task_query.strip().lower().encode("utf-8")).hexdigest()
+        entry = self._semantic_memory.get(key)
+        if entry:
+            entry.access_count += 1
+            try:
+                return json.loads(entry.content)
+            except Exception:
+                return None
+        return None
 
     # ========================================================================
     # WRITE Phase: Capture memories during agent interactions

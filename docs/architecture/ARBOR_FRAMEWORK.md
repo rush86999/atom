@@ -203,18 +203,21 @@ print(f"Solution found in {len(winning_path)} iterations")
 
 ### Cumulative Learning
 
-```python
-# Tree learns from previous sessions
-tree.add_negative_constraint("avoid async/await in Python")
-tree.learning_insights = [
-    "prefer context managers for resource cleanup",
-    "type hints improve validation success rate"
-]
+Arbor tree trajectories and pruned branches are persisted across agent runs using the `MemoryManager` POMDP semantic/episodic memory system:
 
-# Future searches avoid these patterns
-if tree.violates_constraint(hypothesis="async def authenticate"):
-    # Skip this hypothesis
-    pass
+```python
+# Save winning trajectory and failure constraints to POMDP memory
+memory_manager.save_hypothesis_trajectory(
+    task_query="optimize sort algorithm",
+    winning_trajectory=[{"step": 1, "action": "quicksort"}],
+    pruned_failure_branches=["bubblesort"]
+)
+
+# Recall trajectory to bypass failed search paths in subsequent runs
+recalled = memory_manager.recall_hypothesis_trajectory("optimize sort algorithm")
+if recalled:
+    winning_path = recalled["winning_trajectory"]
+    avoid_branches = recalled["pruned_failure_branches"]
 ```
 
 ### Multi-Domain Optimization

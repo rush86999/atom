@@ -444,3 +444,6 @@ class BoxService(IntegrationService):
 
 # Service instance removed - use IntegrationRegistry instead
 # box_service = BoxService(tenant_id="system", config={})
+
+# Module-level singleton (routes import this as box_service)
+box_service = BoxService()

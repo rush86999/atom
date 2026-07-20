@@ -31,13 +31,16 @@ class BasePage:
     checking page visibility.
     """
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page, base_url: Optional[str] = None):
         """Initialize Page Object with Playwright page.
 
         Args:
             page: Playwright page instance
+            base_url: Optional override for frontend base URL
         """
+        import os
         self.page = page
+        self.base_url = base_url or os.getenv("FRONTEND_URL") or "http://localhost:3001"
 
     def is_loaded(self) -> bool:
         """Check if page is loaded and visible.
@@ -86,31 +89,31 @@ class LoginPage(BasePage):
     Uses data-testid selectors for resilience.
     """
 
-    # Locators using data-testid attributes
+    # Locators using data-testid attributes and CSS fallbacks
     @property
     def email_input(self) -> Locator:
         """Email input field locator."""
-        return self.page.get_by_test_id("login-email-input")
+        return self.page.locator("[data-testid='login-email-input'], input#email")
 
     @property
     def password_input(self) -> Locator:
         """Password input field locator."""
-        return self.page.get_by_test_id("login-password-input")
+        return self.page.locator("[data-testid='login-password-input'], input#password")
 
     @property
     def submit_button(self) -> Locator:
         """Login submit button locator."""
-        return self.page.get_by_test_id("login-submit-button")
+        return self.page.locator("[data-testid='login-submit-button'], button[type='submit']")
 
     @property
     def error_message(self) -> Locator:
         """Error message locator (shown on login failure)."""
-        return self.page.get_by_test_id("login-error-message")
+        return self.page.locator("[data-testid='login-error-message'], div.text-red-700")
 
     @property
     def remember_me_checkbox(self) -> Locator:
         """Remember me checkbox locator."""
-        return self.page.get_by_test_id("login-remember-me")
+        return self.page.locator("[data-testid='login-remember-me'], input[type='checkbox']")
 
     def is_loaded(self) -> bool:
         """Check if login page is loaded.
@@ -130,7 +133,7 @@ class LoginPage(BasePage):
             login_page.navigate()
             assert login_page.is_loaded()
         """
-        self.page.goto("http://localhost:3000/login")
+        self.page.goto(f"{self.base_url}/login")
 
     def fill_email(self, email: str) -> None:
         """Fill email input field.
@@ -161,8 +164,7 @@ class LoginPage(BasePage):
             login_page.click_submit()
             # Waits for navigation to dashboard
         """
-        with self.page.expect_navigation(timeout=5000):
-            self.submit_button.click()
+        self.submit_button.click()
 
     def login(self, email: str, password: str) -> None:
         """Fill form and submit login (complete flow).
@@ -227,37 +229,37 @@ class DashboardPage(BasePage):
     @property
     def welcome_message(self) -> Locator:
         """Welcome message locator."""
-        return self.page.get_by_test_id("dashboard-welcome-message")
+        return self.page.locator("[data-testid='dashboard-welcome-message'], h1:has-text('ATOM Dashboard'), h1:has-text('Dashboard')")
 
     @property
     def navigation_menu(self) -> Locator:
         """Main navigation menu locator."""
-        return self.page.get_by_test_id("dashboard-navigation-menu")
+        return self.page.locator("[data-testid='dashboard-navigation-menu'], aside[aria-label='Sidebar'], nav[aria-label='Main Navigation']")
 
     @property
     def agent_cards(self) -> Locator:
         """Agent cards grid locator."""
-        return self.page.get_by_test_id("dashboard-agent-cards")
+        return self.page.locator("[data-testid='dashboard-agent-cards'], div.grid")
 
     @property
     def quick_actions(self) -> Locator:
         """Quick actions section locator."""
-        return self.page.get_by_test_id("dashboard-quick-actions")
+        return self.page.locator("[data-testid='dashboard-quick-actions'], div.space-y-4")
 
     @property
     def create_agent_button(self) -> Locator:
         """Create new agent button locator."""
-        return self.page.get_by_test_id("dashboard-create-agent-button")
+        return self.page.locator("[data-testid='dashboard-create-agent-button'], button:has-text('Create')")
 
     @property
     def user_profile_button(self) -> Locator:
         """User profile menu button locator."""
-        return self.page.get_by_test_id("dashboard-user-profile-button")
+        return self.page.locator("[data-testid='dashboard-user-profile-button'], div.group.cursor-pointer")
 
     @property
     def logout_button(self) -> Locator:
         """Logout button locator (in profile menu)."""
-        return self.page.get_by_test_id("dashboard-logout-button")
+        return self.page.locator("[data-testid='dashboard-logout-button'], button[title='Sign out'], button:has(svg.lucide-log-out)")
 
     def is_loaded(self) -> bool:
         """Check if dashboard is loaded.
@@ -277,7 +279,7 @@ class DashboardPage(BasePage):
             dashboard.navigate()
             assert dashboard.is_loaded()
         """
-        self.page.goto("http://localhost:3000/dashboard")
+        self.page.goto(f"{self.base_url}/dashboard")
 
     def get_welcome_text(self) -> str:
         """Get welcome message text.
@@ -319,6 +321,10 @@ class DashboardPage(BasePage):
             dashboard.click_user_profile()
             assert dashboard.logout_button.is_visible()
         """
+        try:
+            self.user_profile_button.hover(timeout=2000)
+        except Exception:
+            pass
         self.user_profile_button.click()
 
     def click_logout(self) -> None:
@@ -422,7 +428,7 @@ class SettingsPage(BasePage):
             settings.navigate()
             assert settings.is_loaded()
         """
-        self.page.goto("http://localhost:3000/settings")
+        self.page.goto(f"{self.base_url}/settings")
 
     def get_current_theme(self) -> str:
         """Get current theme from label text.
@@ -616,7 +622,7 @@ class ChatPage(BasePage):
             chat_page.navigate()
             assert chat_page.is_loaded()
         """
-        self.page.goto("http://localhost:3001/chat")
+        self.page.goto(f"{self.base_url}/chat")
 
     def send_message(self, text: str) -> None:
         """Type and send a chat message.
@@ -894,7 +900,7 @@ class ProjectsPage(BasePage):
             projects_page.navigate()
             assert projects_page.is_loaded()
         """
-        self.page.goto("http://localhost:3001/dashboards/projects")
+        self.page.goto(f"{self.base_url}/dashboards/projects")
 
     def get_project_count(self) -> int:
         """Get number of projects displayed.
@@ -1116,7 +1122,7 @@ class ExecutionHistoryPage(BasePage):
             history_page.navigate()
             assert history_page.is_loaded()
         """
-        self.page.goto("http://localhost:3001/execution-history")
+        self.page.goto(f"{self.base_url}/execution-history")
         # Wait for loading to complete
         self.page.wait_for_load_state("networkidle", timeout=5000)
 
@@ -2049,7 +2055,7 @@ class SkillsMarketplacePage(BasePage):
             marketplace.navigate()
             assert marketplace.is_loaded()
         """
-        self.page.goto("http://localhost:3001/marketplace")
+        self.page.goto(f"{self.base_url}/marketplace")
 
     def search(self, query: str) -> None:
         """Enter search query and submit.

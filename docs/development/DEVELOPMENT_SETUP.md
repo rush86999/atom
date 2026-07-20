@@ -77,7 +77,7 @@ OLLAMA_MODEL=llama3:8b
 
 ```bash
 # From repo root — NOT from backend/
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn minimal_app:app --reload --port 8000
 ```
 
 The `--reload` flag watches for file changes and restarts automatically.
@@ -86,7 +86,7 @@ The `--reload` flag watches for file changes and restarts automatically.
 
 ```bash
 # ~/.zshrc or ~/.bashrc
-alias atom-dev='cd /path/to/atom && PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000'
+alias atom-dev='cd /path/to/atom && PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn minimal_app:app --reload --port 8000'
 alias atom-fe='cd /path/to/atom/frontend-nextjs && npm run dev'
 ```
 
@@ -226,7 +226,9 @@ export DATABASE_URL="postgresql://user:pass@localhost:5432/atom_dev"
 ### Add a new API route
 
 1. Create the route file in `backend/api/your_routes.py`
-2. Register it in `backend/main.py` (search for `app.include_router`)
+2. Register it in `backend/main_api_app.py` (search for `app.include_router`) —
+   that's the full app; registering in `minimal_app.py` won't expose the route
+   in production.
 3. Add auth via `Depends(get_current_user)` — see
    `CLAUDE.md` § Database Session Patterns
 4. Write tests in `backend/tests/unit/api/test_your_routes.py`

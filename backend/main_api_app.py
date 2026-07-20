@@ -1,3 +1,20 @@
+"""
+Atom Backend - Full Application Entry Point (canonical)
+
+This is the real application: all 40+ routers (auth, agents, skills, marketplace,
+workflows, canvas, integrations, finance, governance, ...), middleware, the
+scheduler, and the full feature surface used in production and by the E2E
+user-journey suite. Docker and CI build/run this module.
+
+Launch locally:
+    cd /Users/rushiparikh/projects/atom
+    PYTHONPATH=$PWD:$PWD/backend \
+        ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
+
+The minimal `minimal_app.py` (renamed from main.py to avoid confusion) exists
+as a fast dev bootstrap (~125 routes) for quick smoke checks; new users should
+start here (main_api_app) instead.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -349,7 +366,7 @@ ALLOWED_HOSTS = os.getenv(
 # Ensure custom domain is allowed in CORS
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://atomagentos.com,https://app.atomagentos.com,https://admin.atomagentos.com,https://api.atomagentos.com,http://localhost:3000,http://127.0.0.1:3000",
+    "https://atomagentos.com,https://app.atomagentos.com,https://admin.atomagentos.com,https://api.atomagentos.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
 ).split(",")
 # Add any extra origins from env
 extra_origins = os.getenv("ADDITIONAL_ALLOWED_ORIGINS")
@@ -1285,15 +1302,18 @@ app.include_router(ingestion_webhooks_router, prefix="/api", tags=["webhooks-ing
 app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 
 # --- V1 RESOURCE ROUTES (Migrated from lifespan) ---
+# agent_routes.py and user_management_routes.py define their own in-router
+# prefixes (/api/agents, /api/users) which match what the frontend calls.
+# Do NOT add an include prefix here — that would double the path
+# (e.g. /api/v1/agents/api/agents/...).
 if agent_router:
-    app.include_router(agent_router, prefix="/api/v1/agents", tags=["agents"])
+    app.include_router(agent_router, tags=["agents"])
 if workflow_router:
     app.include_router(workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
 
 # Mount the live workflow endpoints (core/workflow_endpoints.py) at the
-# advertised /api/v1/workflows path. The safe_import_router("core.workflow_endpoints")
-# above references a file that doesn't exist; this is the real router that has
-# the conductor endpoint (POST /workflows/conductor/execute) + execute/resume.
+# advertised /api/v1/workflows path. These provide the conductor endpoint
+# (POST /workflows/conductor/execute) + execute/resume.
 try:
     from core.workflow_endpoints import router as live_workflow_router
     app.include_router(live_workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
@@ -1301,11 +1321,9 @@ try:
 except Exception as e:
     logger.warning(f"Could not mount live workflow endpoints: {e}")
 if workflow_template_router:
-    app.include_router(
-        workflow_template_router,
-        prefix="/api/v1/workflows/templates",
-        tags=["workflow-templates"],
-    )
+    # workflow_template_routes.py defines its own prefix /api/workflow-templates,
+    # which is what marketplace.tsx and workflows/builder.tsx call. Include bare.
+    app.include_router(workflow_template_router, tags=["workflow-templates"])
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
@@ -1345,6 +1363,17 @@ try:
     logger.info("✓ Sales Live API mounted at /api/atom/sales/live")
 except Exception as e:
     logger.warning(f"Could not mount sales live API: {e}")
+
+try:
+    from core.hypothesis_tree_endpoints import router as hypothesis_tree_router
+    app.include_router(
+        hypothesis_tree_router,
+        prefix="/api/v1/hypothesis-tree",
+        tags=["arbor"],
+    )
+    logger.info("✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree")
+except Exception as e:
+    logger.warning(f"Could not mount Arbor HTR endpoints: {e}")
 
 
 # Health check consolidated at the end of file
@@ -1688,8 +1717,11 @@ try:
         from api.admin.system_health_routes import router as system_health_router
         from api.user_management_routes import router as user_mgmt_router
 
-        app.include_router(user_mgmt_router, prefix="/api/v1")
-        app.include_router(system_health_router, prefix="/api/v1")
+        # Both routers define their own in-router prefixes (/api/users,
+        # /api/admin/health). Do not add an include prefix — that doubles
+        # the path (e.g. /api/v1/api/users/me).
+        app.include_router(user_mgmt_router)
+        app.include_router(system_health_router)
 
         # Backward compatibility for the /integrations list
         from api.integrations_catalog_routes import router as catalog_router
@@ -1743,13 +1775,9 @@ try:
 
     # Public Marketplace API (Skill submission, rating)
     # Public Marketplace v1 API (Read-Only Browsing)
-    try:
-        from api.routes.public_marketplace_routes import public_v1_router
-
-        app.include_router(public_v1_router, tags=["public-marketplace-v1"])
-        logger.info("✅ Public marketplace v1 read-only API routes enabled")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load public marketplace v1 routes (skipping): {e}")
+    # NOTE: api.routes.public_marketplace_routes does not exist in the repo;
+    # the previous try/except silently swallowed the ImportError every startup.
+    # If/when that module is added, mount it here.
 
     # Private Marketplace API (Tenant-Specific Skills)
     try:
@@ -1797,14 +1825,10 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load deeplinks routes (skipping): {e}")
 
-    try:
-        from api.workflow_template_routes import router as template_router
-
-        app.include_router(
-            template_router, prefix="/api/workflow-templates", tags=["workflow-templates"]
-        )
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load workflow template routes: {e}")
+    # NOTE: workflow_template_routes is mounted once at module level (see
+    # workflow_template_router include above). Previously it was re-mounted
+    # here with prefix="/api/workflow-templates", which combined with the
+    # router's own in-router prefix to produce /api/workflow-templates/api/workflow-templates.
 
     # Distributed Debug System (Phase 1)
     try:
@@ -1908,15 +1932,8 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load canvas skill routes: {e}")
 
-    try:
-        from api.admin.system_health_routes import router as system_health_router
-
-        app.include_router(system_health_router)
-        logger.info("✓ Admin System Health Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load system health routes: {e}")
-    except Exception as e:
-        logger.error(f"Error loading system health routes: {e}")
+    # NOTE: api.admin.system_health_routes was already mounted earlier in the
+    # main API try-block above. The duplicate mount here is removed.
 
     try:
         from api.admin.business_facts_routes import router as business_facts_router
@@ -2043,12 +2060,10 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load business intelligence routes: {e}")
 
-    try:
-        from core.workflow_endpoints import router as workflow_router
+    # NOTE: core.workflow_endpoints is already mounted at /api/v1/workflows
+    # earlier in this module (live_workflow_router). This block previously
+    # re-mounted it at /api/v1, duplicating every route. Removed.
 
-        app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
-    except (ImportError, TypeError) as e:
-        logger.error(f"Failed to load Core Workflow routes: {e}")
 
     try:
         from api.skill_routes import router as skill_router
@@ -2800,13 +2815,8 @@ try:
         logger.warning(f"Agent coordination routes not found: {e}")
 
     # Canvas Marketplace & Canvas-Skill Integration Routes
-    try:
-        from api.canvas_skill_routes import router as canvas_skill_router
-
-        app.include_router(canvas_skill_router, tags=["Canvas Skills"])
-        logger.info("✓ Canvas-Skill Integration Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas skill integration routes not found: {e}")
+    # NOTE: api.canvas_skill_routes is already mounted at /api/v1/canvas-skills
+    # above. Removed the duplicate bare mount here.
 
     # OpenClaw Skill Integration Routes (Phase 42)
     try:

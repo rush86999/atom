@@ -598,6 +598,64 @@ class TestHealthCheck:
             assert result is False
 
 
+class TestWebSocketConnection:
+    """Test Atom SaaS WebSocket connection (previously a NotImplementedError stub)."""
+
+    @pytest.mark.asyncio
+    async def test_connect_dispatches_messages_and_sets_state(self):
+        """connect_websocket opens a connection, dispatches messages, sets state."""
+        handler = AsyncMock()
+
+        # Fake WebSocket connection that yields two messages then closes.
+        class FakeWS:
+            def __init__(self, messages):
+                self._messages = messages
+                self.closed = False
+
+            def __aiter__(self):
+                async def gen():
+                    for m in self._messages:
+                        yield m
+                return gen()
+
+            async def close(self):
+                self.closed = True
+
+        fake_ws = FakeWS(['{"type": "ping"}', '{"type": "skill_update"}'])
+
+        with patch('core.atom_saas_client.websockets.connect', return_value=fake_ws):
+            client = AtomAgentOSMarketplaceClient(
+                config=AtomSaaSConfig(
+                    ws_url="wss://test.com/api",
+                    api_url="https://test.com/api",
+                    api_token="test-token",
+                    instance_id="instance-123"
+                )
+            )
+
+            # connect_websocket runs the receive loop until the connection closes.
+            await client.connect_websocket(handler)
+
+        assert client._connected is False  # reset after loop ends
+        assert handler.await_count == 2
+        handler.assert_any_await({"type": "ping"})
+        handler.assert_any_await({"type": "skill_update"})
+
+    @pytest.mark.asyncio
+    async def test_connect_raises_without_token(self):
+        """connect_websocket raises RuntimeError when no API token is set."""
+        client = AtomAgentOSMarketplaceClient(
+            config=AtomSaaSConfig(
+                ws_url="wss://test.com/api",
+                api_url="https://test.com/api",
+                api_token=""  # missing
+            )
+        )
+
+        with pytest.raises(RuntimeError, match="ATOM_SAAS_API_TOKEN"):
+            await client.connect_websocket(AsyncMock())
+
+
 class TestInstanceRegistration:
     """Test instance registration and analytics."""
 

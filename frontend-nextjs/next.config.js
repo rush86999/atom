@@ -1,4 +1,19 @@
 const path = require('path');
+const fs = require('fs');
+
+let nextPublicApiUrl = "http://127.0.0.1:8000";
+try {
+  const envLocalPath = path.resolve(__dirname, '.env.local');
+  if (fs.existsSync(envLocalPath)) {
+    const envLocal = fs.readFileSync(envLocalPath, 'utf8');
+    const match = envLocal.match(/NEXT_PUBLIC_API_URL=(.+)/);
+    if (match && match[1]) {
+      nextPublicApiUrl = match[1].trim();
+    }
+  }
+} catch (e) {
+  // Ignore
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -36,7 +51,8 @@ const nextConfig = {
   // Silence Turbopack + webpack config conflict
   turbopack: {},
   async rewrites() {
-    return [
+    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || nextPublicApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
+    const rawRewrites = [
       {
         source: "/api/sales/:path*",
         destination: "http://127.0.0.1:8000/api/sales/:path*",
@@ -182,6 +198,10 @@ const nextConfig = {
       }
       */
     ];
+    return rawRewrites.map(rewrite => ({
+      ...rewrite,
+      destination: rewrite.destination.replace("http://127.0.0.1:8000", backendUrl)
+    }));
   },
 };
 

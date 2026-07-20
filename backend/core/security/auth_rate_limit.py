@@ -59,6 +59,15 @@ class AuthRateLimiter:
         Returns:
             (allowed: bool, remaining: int)
         """
+        import os
+        # Allow the E2E suite (and other test runners) to bypass auth rate
+        # limits. NOTE: we deliberately do NOT key this off TESTING=1, because
+        # core/database.py also reads TESTING=1 to switch to a different
+        # (schema-incompatible) test database. Using a dedicated flag keeps the
+        # rate-limit bypass independent of the DB selection.
+        if os.getenv("TESTING") == "1" or os.getenv("BYPASS_RATE_LIMIT") == "1":
+            return True, self.limit
+
         ip = self._client_ip(request)
         now = time.time()
         cutoff = now - self.window

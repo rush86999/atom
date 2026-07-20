@@ -158,6 +158,13 @@ The system uses LLMService to extract entities and relationships from unstructur
 - Automatically detects custom entity types
 - Handles unstructured text (documents, emails, messages)
 
+
+#### 5. AgentGraphRAGService (`backend/core/agent_graphrag_service.py`)
+**Purpose**: Agent-specific GraphRAG querying and verification.
+- **`get_agent_context(query)`**: Retrieves local workspace entities and relationships.
+- **`get_hybrid_context(query)`**: Combines Leiden entity graphs with recalled POMDP episodic trajectories, giving the agent both relational and historical execution outcomes.
+- **`validate_entity_relationship(node_a, node_b)`**: Enforces fail-fast validation to verify direct edges exist before generating agent reasoning steps.
+
 ---
 
 ## Database Schema

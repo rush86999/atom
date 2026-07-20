@@ -189,6 +189,37 @@ class IntegrationRegistry:
 
         return service_class
 
+    async def get_service_instance(self, connector_id: str, tenant_id: str = "default"):
+        """Resolve and instantiate a service for a connector.
+
+        ``integrations.universal_integration_service`` calls this to obtain a
+        ready-to-use service instance (e.g. ``JiraService(tenant_id=...)``).
+        Services are constructed with ``(tenant_id, config=None)``.
+
+        Args:
+            connector_id: Integration identifier (e.g., "slack", "jira").
+            tenant_id: Tenant/workspace identifier.
+
+        Returns:
+            Instantiated service, or None if the connector/class is unknown.
+        """
+        service_class = self.get_service_class(connector_id)
+        if service_class is None:
+            logger.warning(f"get_service_instance: no class for '{connector_id}'")
+            return None
+        try:
+            return service_class(tenant_id=tenant_id)
+        except TypeError:
+            # Some services don't accept tenant_id; retry with no args.
+            try:
+                return service_class()
+            except Exception as e:
+                logger.error(f"Failed to instantiate {connector_id}: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to instantiate {connector_id}: {e}")
+            return None
+
     async def execute_operation(
         self,
         connector_id: str,

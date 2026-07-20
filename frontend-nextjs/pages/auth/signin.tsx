@@ -56,7 +56,8 @@ export default function SignIn() {
           title: "Successfully signed in!",
           variant: "success",
         });
-        localStorage.removeItem('atom_explicit_logout');`r`n        router.push("/dashboard");
+        localStorage.removeItem('atom_explicit_logout');
+        router.push("/dashboard");
       }
     } catch (err) {
       setError("An unexpected error occurred");

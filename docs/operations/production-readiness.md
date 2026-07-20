@@ -63,7 +63,7 @@ PORT=8000
 ### **3. Backend Deployment**
 ```bash
 # Using deployment script
-./scripts/deploy.sh backend
+make backend
 
 # Or manually
 cd backend
@@ -76,7 +76,7 @@ python main_api_app.py
 ### **4. Frontend Deployment**
 ```bash
 # Using deployment script
-./scripts/deploy.sh frontend
+make frontend
 
 # Or manually
 cd frontend-nextjs
@@ -284,7 +284,7 @@ cd frontend-nextjs && npm test
 ### **Production**
 ```bash
 # Full deployment
-./scripts/deploy.sh deploy
+make docker-build
 
 # Docker deployment
 docker-compose up -d

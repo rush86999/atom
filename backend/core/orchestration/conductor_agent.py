@@ -41,6 +41,7 @@ class ExecutionStrategy(Enum):
     HYBRID = "hybrid"  # Mix of sequential and parallel
     ADAPTIVE = "adaptive"  # Adapt based on runtime conditions
     ROLLBACK_SAFE = "rollback_safe"  # Execute with rollback support
+    PARALLEL_CONSENSUS = "parallel_consensus"  # Parallel execution with voting consensus
 
 
 class ExecutionStatus(Enum):
@@ -361,6 +362,8 @@ class ConductorAgent:
                 await self._execute_hybrid(context, result)
             elif strategy == ExecutionStrategy.ADAPTIVE:
                 await self._execute_adaptive(context, result)
+            elif strategy == ExecutionStrategy.PARALLEL_CONSENSUS:
+                await self._execute_parallel_consensus(context, result)
             else:
                 await self._execute_rollback_safe(context, result)
 
@@ -593,6 +596,61 @@ class ConductorAgent:
                 current_id = next_steps[0].step_id
             else:
                 current_id = None
+
+    async def _execute_parallel_consensus(
+        self,
+        context: WorkflowExecutionContext,
+        result: OrchestrationResult
+    ) -> None:
+        """Execute AGENT steps in parallel branches and use majority voting for consensus selection"""
+        ready_steps = context.get_ready_steps()
+        while ready_steps and not context.is_complete():
+            tasks = []
+            for step in ready_steps:
+                if step.step_type == StepType.AGENT:
+                    async def run_consensus_step(s=step):
+                        branch_tasks = [
+                            asyncio.create_task(self._execute_step(s, context))
+                            for _ in range(3)
+                        ]
+                        branch_results = await asyncio.gather(*branch_tasks, return_exceptions=True)
+                        valid_results = [r for r in branch_results if not isinstance(r, Exception)]
+                        if not valid_results:
+                            raise RuntimeError(f"All parallel branches failed for step {s.step_id}")
+                            
+                        from collections import Counter
+                        formatted_options = [json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r) for r in valid_results]
+                        counts = Counter(formatted_options)
+                        majority_str, count = counts.most_common(1)[0]
+                        
+                        for r in valid_results:
+                            val_str = json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
+                            if val_str == majority_str:
+                                return r
+                        return valid_results[0]
+
+                    async def track_consensus(s=step):
+                        s.status = ExecutionStatus.RUNNING
+                        s.started_at = datetime.now()
+                        try:
+                            res = await run_consensus_step(s)
+                            s.status = ExecutionStatus.COMPLETED
+                            s.completed_at = datetime.now()
+                            s.result = res
+                            context.completed_steps.add(s.step_id)
+                            result.completed_steps += 1
+                        except Exception as e:
+                            s.status = ExecutionStatus.FAILED
+                            s.error = str(e)
+                            result.failed_steps += 1
+                            result.errors.append(f"Consensus step {s.step_id} failed: {e}")
+
+                    tasks.append(asyncio.create_task(track_consensus(step)))
+                else:
+                    tasks.append(asyncio.create_task(self._execute_and_track(step, context, result)))
+            
+            await asyncio.gather(*tasks, return_exceptions=True)
+            ready_steps = context.get_ready_steps()
 
     async def _execute_step(
         self,

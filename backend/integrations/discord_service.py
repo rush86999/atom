@@ -275,3 +275,5 @@ class DiscordService(IntegrationService):
         else:
             raise NotImplementedError(f"Operation {operation} not supported")
 
+# Module-level singleton (routes import this as discord_service)
+discord_service = DiscordService()

@@ -9,6 +9,7 @@
 
 ## 🚀 Recent Updates (July 2026)
 
+- **Bugs Found and Fixed via User-Journey Testing**: ✨ NEW - catalog of the real defects the end-to-end suite uncovered (router double-prefixes, async/await bugs, frontend response-shape mismatches, RBAC gaps, CI/Docker flakiness), each with symptom → root cause → fix → commit. Read before debugging a regression. See [BUGS_FOUND_AND_FIXED.md](architecture/BUGS_FOUND_AND_FIXED.md).
 - **Workbook Runtime**: ✨ NEW - Excel engine replaced openpyxl-as-parser with a formula-evaluating runtime (`core/workbook_runtime.py`). LibreOffice headless primary (recalc + pixel-accurate HTML render + structural edits), `formulas` library fallback, openpyxl cached-values last resort. `office_service.py` write_cell now recalculates and returns computed values; render_to_html produces evaluated output with conditional formatting. See [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md).
 - **Integration Resilience Layer**: ✨ NEW - Universal HTTP wrapper (`core/integration_http.py`) for all third-party API calls: circuit breaker, rate limiting, 429 Retry-After parsing, exponential backoff, 401 token refresh, health monitoring. 89 calls across 13 services wired.
 - **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:
@@ -111,9 +112,7 @@
 | [security/TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) | **Trust tier ≠ security boundary** - Why maturity routing needs a sandbox | Jun 27, 2026 |
 | [security/PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md) | **Prompt injection defense plan** - ✅ Implemented (Rounds 43-47) | Jun 30, 2026 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | **Security guidelines** - NEVER commit .claude/, .env, secrets, credentials | Apr 23, 2026 |
-| [security/SECURITY_OVERVIEW.md](security/SECURITY_OVERVIEW.md) | Security audit report (A- rating) | Oct 19, 2025 |
-| [security/python-packages.md](security/python-packages.md) | Python package security & vulnerability scanning | Feb 19, 2026 |
-| [security/packages.md](security/packages.md) | Package supply chain security | Feb 19, 2026 |
+| [security/packages.md](security/packages.md) | Package security, Python package scanning, & vulnerability checks | July 19, 2026 |
 | [guides/ADMINISTRATORS/SECURITY_CONFIG.md](guides/ADMINISTRATORS/SECURITY_CONFIG.md) | Security configuration for administrators | - |
 
 ---
@@ -140,10 +139,7 @@
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
 | MARKETPLACE_CONNECTION_GUIDE.md | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
-| [PYTHON_PACKAGES.md](security/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
-| PACKAGE_GOVERNANCE.md | Maturity-based access control and approval workflow | Feb 19, 2026 |
-| [PACKAGE_SECURITY.md](security/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
-| PYTHON_PACKAGES_DEPLOYMENT.md | Production deployment and monitoring | Feb 19, 2026 |
+| [security/packages.md](security/packages.md) | **Package Governance & Security (Vulnerability scanning & sandbox controls)** | July 19, 2026 |
 | [NPM_PACKAGE_SUPPORT.md](security/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
 | [ADVANCED_SKILL_EXECUTION.md](integrations/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
 | SKILL_MARKETPLACE_GUIDE.md | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
@@ -203,9 +199,8 @@
 | [architecture/HERMES_COMPARISON.md](architecture/HERMES_COMPARISON.md) | **Atom vs. Hermes Agent** - Capability matrix, decision log, what was deliberately deferred | Jun 24, 2026 |
 | [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ Self-Evolution & Reflection Pool** - Critique-based learning and Auto-Dev | Apr 12, 2026 |
 | [intelligence/graphrag.md](intelligence/graphrag.md) | **GraphRAG & Entity Types** - Knowledge graph and entity extraction | Mar 24, 2026 |
-| [intelligence/world-model-guide.md](intelligence/world-model-guide.md) | **World Model & Business Facts** - Knowledge management and JIT provision | Apr 7, 2026 |
+| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory, Embeddings & World Model** - Semantic memory & FastEmbed search | July 19, 2026 |
 | [intelligence/jit-facts.md](intelligence/jit-facts.md) | **JIT Fact Provision** - Real-time fact verification with citations | Apr 7, 2026 |
-| [intelligence/vector-embeddings.md](intelligence/vector-embeddings.md) | **Vector Embeddings** - Semantic search infrastructure (FastEmbed, OpenAI) | Feb 16, 2026 |
 | [intelligence/memory-integration.md](intelligence/memory-integration.md) | Memory integration guide | Feb 4, 2026 |
 | EPISODIC_MEMORY_QUICK_START.md | Episodic memory quick start guide | Feb 4, 2026 |
 | CANVAS_FEEDBACK_EPISODIC_MEMORY.md | **Canvas presentations in episodes** | Feb 4, 2026 |

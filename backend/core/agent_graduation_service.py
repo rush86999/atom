@@ -694,6 +694,17 @@ class AgentGraduationService:
                     agent_id, notif_exc,
                 )
 
+            # Trigger Memory Consolidation on graduation
+            if POMDP_AVAILABLE:
+                try:
+                    memory_manager = get_memory_manager(self.db)
+                    from core.memory.pomdp_memory_framework import MemoryConsolidation
+                    consolidator = MemoryConsolidation(memory_manager)
+                    consolidated_count = await consolidator.consolidate_memories(agent_id)
+                    logger.info(f"POMDP Memory consolidation on graduation complete: consolidated {consolidated_count} memories.")
+                except Exception as mem_exc:
+                    logger.warning(f"POMDP memory consolidation failed on graduation: {mem_exc}")
+
             return True
         except Exception as e:
             logger.error(f"Database error during promotion of agent {agent_id}: {e}")

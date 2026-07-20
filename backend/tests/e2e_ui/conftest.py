@@ -29,11 +29,24 @@ from .fixtures import auth_fixtures
 from .fixtures import database_fixtures
 from .fixtures import api_fixtures
 from .fixtures import test_data_factory  # Factory functions module
+from .fixtures import journey_fixtures  # Realistic user-journey suite fixtures
 
 # Re-export commonly used fixtures for backward compatibility
 from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user
-from .fixtures.database_fixtures import db_session
+from .fixtures.database_fixtures import db_session, worker_schema, create_worker_schema, get_engine, drop_worker_schema, is_sqlite, init_db
 from .fixtures.api_fixtures import setup_test_user, setup_test_project, api_client, api_base_url, test_user_data
+# Journey-suite fixtures must be re-exported here so pytest registers them as
+# session-level fixtures (importing the module alone is not enough).
+from .fixtures.journey_fixtures import (
+    journey_user_credentials,
+    journey_user,
+    authed_page,
+    journey_api_headers,
+    ALL_ROLES,
+    role_credentials,
+    role_authed_page,
+    all_role_headers,
+)
 
 
 @pytest.fixture(scope="session")
@@ -285,9 +298,11 @@ def pytest_runtest_makereport(item, call):
             screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
             os.makedirs(screenshot_dir, exist_ok=True)
 
-            # Generate descriptive filename
+            # Generate descriptive filename. Strip bracket chars (e.g. the
+            # "[chromium]" suffix Playwright adds) so the path doesn't break
+            # glob-based tooling like actions/upload-artifact.
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+            test_name = item.name.replace("::", "_").replace("/", "_").replace("[", "").replace("]", "")[:100]
             screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
 
             # Capture full page screenshot
@@ -307,7 +322,12 @@ def pytest_runtest_makereport(item, call):
 
             # Save video if in CI environment
             if is_ci_environment():
-                video_path = page.video.path()
+                # page.video is None when the browser context was created
+                # without record_video_dir (e.g. by the journey authed_page
+                # fixtures, which build their own context). Guard against that
+                # so a missing video can't crash pytest's own reporting hook.
+                video = getattr(page, "video", None)
+                video_path = video.path() if video is not None else None
                 if video_path and os.path.exists(video_path):
                     # Rename video with test name and timestamp
                     video_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

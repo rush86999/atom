@@ -359,19 +359,21 @@ async def get_routing_stats(
     'Learning Router is off' banner.
     """
     enabled = _learning_router_enabled()
-    if not enabled:
-        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+    ema_enabled = os.environ.get("ATOM_EMA_ROUTER_ENABLED", "false").lower() == "true"
+    
+    if not enabled and not ema_enabled:
+        return {"enabled": False, "ema_enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}, "ema_scores": {}}}
 
     learning_router = _get_learning_router()
     if learning_router is None:
-        return {"enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}}}
+        return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"feedback_samples": 0, "model_success_rates": {}, "ema_scores": {}}}
 
     try:
         stats = await learning_router.get_routing_statistics(CHAT_ROUTING_TENANT_KEY)
-        return {"enabled": True, "stats": stats}
+        return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": stats}
     except Exception as e:
         logger.warning(f"Failed to get routing stats: {e}")
-        return {"enabled": True, "stats": {"error": str(e)}}
+        return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
 
 
 

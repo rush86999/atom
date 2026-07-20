@@ -1,18 +1,27 @@
 """
-Atom Backend - Application Entry Point
+Atom Backend - Minimal Entry Point (fast dev bootstrap)
+
+This is the MINIMAL app (renamed from main.py to avoid confusion with the
+full app). It exposes only ~125 routes for quick smoke checks.
 
 Launch locally:
     cd /Users/rushiparikh/projects/atom
-    PYTHONPATH=/Users/rushiparikh/projects/atom:/Users/rushiparikh/projects/atom/backend \
-        ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+    PYTHONPATH=$PWD:$PWD/backend \
+        ./backend/venv/bin/python -m uvicorn minimal_app:app --reload --port 8000
 
-This module is intentionally minimal but functional: it loads environment
-variables, wires the core routers (health, auth, agents, workflow, canvas),
-bootstraps an admin user on startup, and enables permissive CORS for local
-frontend development.
+This module is intentionally minimal: it loads environment variables, wires a
+small set of core routers (health, auth, agents, workflow, canvas), bootstraps
+an admin user on startup, and enables permissive CORS. It boots fast and is
+useful for quick smoke checks, but it only exposes ~125 of the app's routes.
 
-For the full-featured launcher (all 40+ routers, middleware, scheduler), see
-main_api_app.py — note that file is mid-refactor and currently broken.
+>>> For the REAL application (all 40+ routers, middleware, scheduler, the full
+>>> feature surface used in production and by the E2E suite), run main_api_app:
+>>>
+>>>     PYTHONPATH=$PWD:$PWD/backend \
+>>>         ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
+>>>
+>>> main_api_app:app is what Docker and CI use, and what the README quickstart
+>>> recommends. New users should start there.
 """
 import logging
 import os
@@ -46,6 +55,7 @@ from backend.api.enterprise_auth_endpoints import router as enterprise_auth_rout
 from backend.api.health_routes import router as health_router
 from backend.api.shell_routes import router as shell_router
 from backend.api.user_management_routes import router as user_mgmt_router
+from core.user_preference_routes import router as user_pref_router
 from backend.api.workflow_debugging import router as workflow_router
 from backend.api.board_routes import router as board_router
 from backend.api.board_comment_routes import router as board_comment_router
@@ -78,14 +88,14 @@ app = FastAPI(
 # --- CORS (permissive for local dev; tighten via ALLOWED_ORIGINS in prod) ---
 _allowed = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000",
 ).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _allowed if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["*"],
 )
 
 # --- Security headers middleware ---
@@ -102,6 +112,7 @@ app.include_router(health_router)
 app.include_router(enterprise_auth_router)  # /api/auth/login, /api/auth/register
 app.include_router(auth_router)              # /api/auth/mobile/*
 app.include_router(user_mgmt_router)        # /api/users/*
+app.include_router(user_pref_router, prefix="/api/v1/preferences")
 app.include_router(agent_router)
 app.include_router(workflow_router)
 app.include_router(canvas_router)
@@ -157,6 +168,7 @@ def _startup_bootstrap() -> None:
     try:
         from backend.core.database import engine
         from backend.core.models import Base
+        from core.user_preference_service import UserPreference
 
         # create_all is idempotent (checkfirst=True by default) — only
         # creates tables that don't exist. Some model classes share table
@@ -167,6 +179,14 @@ def _startup_bootstrap() -> None:
         logger.info("Database schema verified (create_all idempotent)")
     except Exception as exc:
         logger.warning("Schema create_all skipped (tables likely exist): %s", exc)
+
+    try:
+        from backend.core.database import engine
+        from core.user_preference_service import UserPreference
+        UserPreference.__table__.create(bind=engine, checkfirst=True)
+        logger.info("user_preferences table verified/created")
+    except Exception as exc:
+        logger.warning("Failed to verify/create user_preferences table: %s", exc)
 
     try:
         from backend.core.admin_bootstrap import ensure_admin_user

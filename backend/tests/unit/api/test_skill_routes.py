@@ -53,8 +53,10 @@ class TestSkillManagement:
         assert response.status_code in [200, 400, 401, 403, 404, 422, 500]
 
     def test_delete_skill(self, client):
+        # Endpoint now requires auth and is implemented (no longer 501).
+        # Without auth it should be rejected; with auth it resolves to 200/404.
         response = client.delete("/api/skills/skill-001")
-        assert response.status_code in [200, 400, 401, 403, 404, 500, 501]
+        assert response.status_code in [200, 401, 403, 404, 500]
 
 
 class TestSkillOperations:

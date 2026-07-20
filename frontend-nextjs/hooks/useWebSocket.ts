@@ -29,6 +29,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // Use deep comparison key for channels array to avoid ref instability
     const channelKey = JSON.stringify(options.initialChannels || []);
 
+    // Derive the default WebSocket host from NEXT_PUBLIC_API_URL so the client
+    // talks to the same backend the REST API uses (and respects wss in prod).
+    const resolveWsBase = (): string => {
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+        return apiBase.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
+    };
+
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -46,12 +53,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             return;
         }
 
-        let socketUrl = `ws://localhost:8000/ws`;
+        const wsBase = resolveWsBase();
+        let socketUrl = `${wsBase}/ws`;
         if (url) {
             if (url.startsWith("ws://") || url.startsWith("wss://")) {
                 socketUrl = url;
             } else {
-                socketUrl = `ws://localhost:8000${url.startsWith("/") ? "" : "/"}${url}`;
+                socketUrl = `${wsBase}${url.startsWith("/") ? "" : "/"}${url}`;
             }
         }
 

@@ -12,12 +12,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
           tags: atom:test
+          load: true
           build-args: |
             BYOK_ENCRYPTION_KEY=dummy-key-for-ci
             JWT_SECRET_KEY=dummy-jwt-for-ci
+            # Baked into the Next.js build at compile time so the frontend
+            # talks to the right backend host.
+            NEXT_PUBLIC_API_URL=http://localhost:8000
+
+      - name: Smoke-test the image (backend /alive + frontend /)
+        run: |
+          # Run the dual-app image and wait for both ports.
+          docker run -d --name atom-smoke -p 3000:3000 -p 8000:8000 \
+            -e DATABASE_URL="sqlite:///smoke.db" \
+            -e SECRET_KEY="smoke-secret" \
+            -e ENVIRONMENT="development" \
+            -e DISABLE_AUTH_RATE_LIMIT="1" \
+            atom:test
+
+          for i in $(seq 1 45); do
+            if curl -fs http://127.0.0.1:8000/alive > /dev/null 2>&1; then
+              echo "Backend /alive OK"; break
+            fi
+            sleep 2
+          done
+
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:3000 > /dev/null 2>&1; then
+              echo "Frontend OK"; break
+            fi
+            sleep 2
+          done
+
+          # Final assertion: both endpoints must respond.
+          curl -fs http://127.0.0.1:8000/alive | grep -q alive
+          curl -fsI http://127.0.0.1:3000 | grep -qi "HTTP"
+
+          docker logs atom-smoke | tail -20
+          docker rm -f atom-smoke

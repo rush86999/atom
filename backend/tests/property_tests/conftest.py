@@ -14,7 +14,7 @@ from main import app
 from core.database import get_db
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def db_engine():
     """
     Create a file-based SQLite database engine for testing.
@@ -39,6 +39,10 @@ def db_engine():
 
     # Create all tables
     Base.metadata.create_all(engine)
+
+    # Reconfigure SessionLocal to bind to the test engine
+    import core.database
+    core.database.SessionLocal.configure(bind=engine)
 
     yield engine
 

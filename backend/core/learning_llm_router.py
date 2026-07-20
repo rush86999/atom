@@ -19,6 +19,7 @@ Success Criteria:
 - <50ms routing decision latency
 """
 from __future__ import annotations
+import os
 import uuid
 import asyncio
 import hashlib
@@ -192,6 +193,9 @@ class LearningBasedRouter:
         # two concurrent record_feedback calls can interleave during the
         # append→retrain window, corrupting list state.
         self._state_lock = asyncio.Lock()
+
+        # Incremental EMA performance scores tracking {tenant_id}:{task_type}:{model_id} -> {metric -> value}
+        self._ema_scores: Dict[str, Dict[str, float]] = defaultdict(dict)
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -828,10 +832,26 @@ class LearningBasedRouter:
         change as feedback accumulates. Cold start (no predictor) leaves the
         rule-based score untouched.
         """
-        scores = []
-
         # Get learned preference weights for this task type
         weights = self._get_learned_weights(request.task_type, request.tenant_id)
+
+        # If EMA routing is enabled, route via the EMA router scoring mechanism
+        import os
+        if os.getenv("ATOM_EMA_ROUTER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
+            quality_weight = weights.get("quality", 0.4)
+            if request.requires_quality:
+                quality_weight *= 1.2
+            cost_weight = weights.get("cost", 0.3)
+            if request.budget_limit:
+                cost_weight *= 1.5
+            speed_weight = weights.get("speed", 0.2)
+            if request.max_latency_ms:
+                speed_weight *= 1.5
+            return self._score_candidates_with_ema(
+                candidates, request, weights, quality_weight, cost_weight, speed_weight
+            )
+
+        scores = []
 
         # Look up the per-model predictors for this tenant/task (may be absent).
         cache_key = f"{request.tenant_id}:{request.task_type}"
@@ -891,6 +911,105 @@ class LearningBasedRouter:
         # Sort by score (descending)
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores
+
+    def _score_candidates_with_ema(
+        self,
+        candidates: List[ModelSpec],
+        request: RoutingRequest,
+        weights: Dict[str, float],
+        quality_weight: float,
+        cost_weight: float,
+        speed_weight: float,
+    ) -> List[Tuple[ModelSpec, float]]:
+        scores = []
+        
+        # Collect EMA latency and cost for normalization across candidates
+        latencies = []
+        costs = []
+        for model in candidates:
+            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+            ema_data = self._ema_scores.get(key, {})
+            # Use historical EMA or fall back to static spec values for norm collection
+            latencies.append(ema_data.get("latency", 1000.0 * (1.0 - model.speed_score + 0.1)))
+            costs.append(ema_data.get("cost", model.cost_per_million))
+            
+        max_latency = max(latencies) if latencies else 1.0
+        max_cost = max(costs) if costs else 1.0
+        if max_latency == 0:
+            max_latency = 1.0
+        if max_cost == 0:
+            max_cost = 1.0
+            
+        for model in candidates:
+            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+            ema_data = self._ema_scores.get(key, {})
+            
+            # --- Quality / Success Component ---
+            # If no history exists, use model's static quality_score
+            success_score = ema_data.get("success", model.quality_score)
+            
+            # --- Latency Component ---
+            # Lower latency is better
+            if "latency" in ema_data:
+                latency_score = 1.0 - (ema_data["latency"] / max_latency)
+                latency_score = max(0.0, min(1.0, latency_score))
+            else:
+                latency_score = model.speed_score
+                
+            # --- Cost Component ---
+            # Lower cost is better
+            if "cost" in ema_data:
+                cost_score = 1.0 - (ema_data["cost"] / max_cost)
+                cost_score = max(0.0, min(1.0, cost_score))
+            else:
+                cost_score = 1.0 - (model.cost_per_million / max_cost)
+                cost_score = max(0.0, min(1.0, cost_score))
+                
+            score = (
+                success_score * quality_weight
+                + latency_score * speed_weight
+                + cost_score * cost_weight
+            )
+            
+            # Capabilities / Preference overrides still apply
+            if ModelCapability.LONG_CONTEXT in model.capabilities and request.estimated_tokens > 50000:
+                score += 0.1
+            tenant_pref = request.user_preferences.get("preferred_model")
+            if tenant_pref and tenant_pref in model.model_name.lower():
+                score += 0.15
+                
+            scores.append((model, score))
+            
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores
+
+    def _update_ema_scores(self, feedback: RoutingFeedback) -> None:
+        """Update the Exponential Moving Average for accuracy, latency, and cost."""
+        key = f"{feedback.tenant_id}:{feedback.task_type}:{feedback.model_id}"
+        alpha = 0.2  # Smoothing factor
+        
+        # 1. Success rate (satisfaction)
+        current_success = 1.0 if (feedback.success and feedback.quality_satisfied) else 0.0
+        if "success" not in self._ema_scores[key]:
+            self._ema_scores[key]["success"] = current_success
+        else:
+            self._ema_scores[key]["success"] = alpha * current_success + (1.0 - alpha) * self._ema_scores[key]["success"]
+
+        # 2. Latency
+        if feedback.actual_latency_ms is not None:
+            current_latency = float(feedback.actual_latency_ms)
+            if "latency" not in self._ema_scores[key]:
+                self._ema_scores[key]["latency"] = current_latency
+            else:
+                self._ema_scores[key]["latency"] = alpha * current_latency + (1.0 - alpha) * self._ema_scores[key]["latency"]
+
+        # 3. Cost
+        if feedback.actual_cost is not None:
+            current_cost = float(feedback.actual_cost)
+            if "cost" not in self._ema_scores[key]:
+                self._ema_scores[key]["cost"] = current_cost
+            else:
+                self._ema_scores[key]["cost"] = alpha * current_cost + (1.0 - alpha) * self._ema_scores[key]["cost"]
 
     def _get_learned_weights(
         self, task_type: str, tenant_id: str
@@ -1046,6 +1165,9 @@ class LearningBasedRouter:
             # remains authoritative for reads).
             recovered_features = getattr(feedback, "_prompt_features", None)
             self._persist_feedback(feedback, recovered_features)
+
+            # Update EMA scores in memory
+            self._update_ema_scores(feedback)
 
             # Trigger retraining once there's enough feedback for a per-model
             # predictor (the lowest learning threshold). _retrain_router internally
@@ -1230,6 +1352,23 @@ class LearningBasedRouter:
             for key, fbs in by_key.items():
                 # rows are most-recent-first; keep the most recent within cap.
                 self._preference_data[key] = fbs[: self._max_preference_data_per_key]
+
+            # Process historical rows oldest-to-newest to rebuild EMA values in memory
+            for row in reversed(rows):
+                fb = RoutingFeedback(
+                    routing_result_id=row.routing_result_id,
+                    tenant_id=row.tenant_id,
+                    model_id=row.model_id,
+                    task_type=row.task_type,
+                    success=row.success,
+                    quality_satisfied=row.quality_satisfied,
+                    cost_within_budget=row.cost_within_budget,
+                    user_satisfaction=row.user_satisfaction,
+                    actual_cost=row.actual_cost,
+                    actual_latency_ms=row.actual_latency_ms,
+                    timestamp=row.created_at,
+                )
+                self._update_ema_scores(fb)
         except Exception as e:
             logger.warning(
                 f"Could not load routing feedback from DB (non-fatal, "
@@ -1483,6 +1622,20 @@ class LearningBasedRouter:
                     counts["success"] / counts["total"]
                 )
 
+        stats["ema_enabled"] = os.environ.get("ATOM_EMA_ROUTER_ENABLED", "false").lower() == "true"
+        ema_out = {}
+        for key, data in getattr(self, "_ema_scores", {}).items():
+            parts = key.split(":")
+            model_id = parts[-1] if len(parts) >= 3 else key
+            ema_out[model_id] = {
+                "score": round(data.get("success", 0.5), 4),
+                "success_rate": round(data.get("success", 1.0), 4),
+                "avg_latency_ms": round(data.get("latency", 0.0), 2),
+                "avg_cost": round(data.get("cost", 0.0), 6),
+                "samples": data.get("samples", 1),
+            }
+        stats["ema_scores"] = ema_out
+
         return stats
 
     def get_available_models(
@@ -1699,6 +1852,10 @@ class LearningBasedRouter:
         Explores different routing strategies (model sequences, caching,
         fallback patterns) to find optimal cost/quality tradeoffs.
 
+        Uses RoutingHypothesisNode + OptimizationTree (Phase 2026-06-19)
+        so each candidate config is a proper domain node with promise scoring
+        and budget-aware pruning via PruningReason.
+
         Args:
             tenant_id: Tenant ID for multi-tenancy
             task_type: Task type to optimize routing for
@@ -1709,20 +1866,27 @@ class LearningBasedRouter:
         Returns:
             Optimization result with best routing configuration
         """
-        from core.hypothesis_tree import HypothesisTree
+        from core.hypothesis_tree import (
+            NodeMetrics,
+            NodeStatus,
+            OptimizationTree,
+            PruningReason,
+            RoutingHypothesisNode,
+            TaskType,
+        )
 
         optimization_goals = optimization_goals or ["cost", "quality"]
 
-        # Build an in-memory hypothesis tree to structure the exploration.
-        # (HypothesisTree is a plain dataclass, not an ORM model — this method
-        # computes and returns a recommendation; it does not persist a row.)
+        # Build an OptimizationTree with ROUTING domain so per-domain budget
+        # limits apply (12 nodes for routing vs 8 for solo coding).
         tree_id = str(uuid.uuid4())
-        tree = HypothesisTree(
+        tree = OptimizationTree(
             id=tree_id,
             task_id=task_type,
             task_description=f"Routing optimization for {task_type}",
             complexity_level="standard",
             tier=tier,
+            task_type=TaskType.ROUTING,
         )
 
         # Generate routing hypotheses
@@ -1732,45 +1896,89 @@ class LearningBasedRouter:
             optimization_goals,
         )
 
-        # Validate each hypothesis
+        # Validate each hypothesis and represent it as a RoutingHypothesisNode
         best_config = None
         best_score = -1.0
+        best_node_id: str = ""
         nodes_created = 0
         pruning_events = []
+
+        max_cost = requirements.get("max_cost_per_1k", 0.10)
+        max_latency = requirements.get("max_latency_ms", 5000)
 
         for hypothesis in hypotheses:
             if nodes_created >= self._get_tier_limit(tier):
                 break
 
-            # Validate routing hypothesis
-            validation = await self._validate_routing_hypothesis(
-                hypothesis,
-                requirements,
+            # Build domain-specific node from hypothesis dict
+            model_seq = []
+            config = hypothesis.get("config", {})
+            if config.get("primary_model"):
+                model_seq.append(config["primary_model"])
+            model_seq.extend(config.get("models", []))
+            if config.get("fallback"):
+                model_seq.append(config["fallback"])
+
+            node = RoutingHypothesisNode(
+                depth=nodes_created,
+                hypothesis=hypothesis.get("description", ""),
+                description=hypothesis.get("description", ""),
+                model_sequence=model_seq,
+                caching_enabled=bool(config.get("caching_enabled")),
+                streaming_enabled=bool(config.get("streaming_enabled")),
+                accuracy_score=float(hypothesis.get("estimated_quality", 0.0)),
+                cost_per_1k_tokens=float(hypothesis.get("estimated_cost", 0.0)),
+                p95_latency_ms=float(hypothesis.get("estimated_latency", 5000.0)),
+                metrics=NodeMetrics(tokens_used=0),
+                session_id=tenant_id,
             )
 
+            budget_ok = tree.add_node(node)
+            if not budget_ok:
+                logger.info(
+                    "[RoutingOptimizer] Tree budget exhausted after %d nodes", nodes_created
+                )
+                break
+
+            # Validate hypothesis against requirements
+            validation = await self._validate_routing_hypothesis(hypothesis, requirements)
+
             if validation["passed"]:
-                score = validation["score"]
+                node.status = NodeStatus.SUCCESS
+                score = node.calculate_promise_score()
                 if score > best_score:
                     best_score = score
                     best_config = validation["config"]
+                    best_node_id = node.id
             else:
+                reason_map = {
+                    "cost_exceeded": PruningReason.RESOURCE_EXCEEDED,
+                    "latency_exceeded": PruningReason.LATENCY_REGRESSION,
+                    "quality_insufficient": PruningReason.LOW_PROMISE,
+                }
+                prune_reason = reason_map.get(
+                    validation.get("reason", ""), PruningReason.LOW_PROMISE
+                )
+                tree.prune_branch(node.id, prune_reason)
                 pruning_events.append({
-                    "hypothesis": hypothesis.description,
+                    "hypothesis": hypothesis.get("description", ""),
                     "reason": validation.get("reason", "unknown"),
                     "details": validation.get("details", ""),
                 })
 
             nodes_created += 1
 
-        # Update tree with results
+        # Record winning path
+        if best_node_id:
+            tree.winning_path = tree.get_path_to_root(best_node_id)
         tree.completed_at = datetime.now(timezone.utc)
         tree.total_nodes_expanded = nodes_created
         tree.total_tokens_used = 0  # Routing uses minimal tokens
-        tree.winning_path = []
 
         logger.info(
-            f"[RoutingOptimizer] Optimized {task_type} routing: "
-            f"explored {nodes_created} hypotheses, best_score={best_score:.2f}"
+            "[RoutingOptimizer] Optimized %s routing: explored %d hypotheses, "
+            "best_score=%.2f, winning_node=%s",
+            task_type, nodes_created, best_score, best_node_id,
         )
 
         return {
@@ -1781,6 +1989,8 @@ class LearningBasedRouter:
             "nodes_explored": nodes_created,
             "pruning_events": pruning_events,
             "optimization_score": best_score,
+            "winning_path": tree.winning_path,
+            "tree_stats": tree.get_domain_statistics(),
         }
 
     async def _generate_routing_hypotheses(

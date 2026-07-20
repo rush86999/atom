@@ -844,7 +844,7 @@ describe('InteractiveForm - Format Validation Edge Cases', () => {
         name: 'phone',
         label: 'Phone',
         type: 'text' as const,
-        validation: { pattern: '^[\\d\\s\\-\\(\\)\\+]+$', custom: 'Invalid phone' }
+        validation: { pattern: '^[\\d\\s\\-\\(\\)\\+]+(?:\\s*ext\\s*\\d+)?$', custom: 'Invalid phone' }
       }
     ];
 

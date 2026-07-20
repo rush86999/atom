@@ -386,7 +386,7 @@ class TestSkillRegistryServiceCoverage:
             "vulnerabilities": []
         }
         mock_installer_instance.execute_with_packages.return_value = "Execution result"
-        monkeypatch.setattr('core.skill_registry_service.PackageInstaller', Mock(return_value=mock_installer_instance))
+        monkeypatch.setattr('core.package_installer.PackageInstaller', Mock(return_value=mock_installer_instance))
 
         # Mock parser
         monkeypatch.setattr('core.skill_registry_service.SkillParser.extract_python_code', Mock(return_value=["print('test')"]))
@@ -446,7 +446,7 @@ class TestSkillRegistryServiceCoverage:
         # Mock npm installer
         mock_installer_instance = Mock()
         mock_installer_instance.execute_with_packages.return_value = "Node.js result"
-        monkeypatch.setattr('core.skill_registry_service.NpmPackageInstaller', Mock(return_value=mock_installer_instance))
+        monkeypatch.setattr('core.npm_package_installer.NpmPackageInstaller', Mock(return_value=mock_installer_instance))
 
         # Mock install dependencies
         async def mock_install(*args, **kwargs):
@@ -634,13 +634,55 @@ class TestSkillRegistryServiceCoverage:
         with pytest.raises(ValueError, match="Skill not found"):
             registry.promote_skill("nonexistent-id")
 
+    def test_delete_skill_success(self, db_session):
+        """Cover skill deletion - success path."""
+        skill = SkillExecution(
+            id="delete-skill-id",
+            agent_id="system",
+            tenant_id="system",
+            workspace_id="default",
+            skill_id="community_delete_skill",
+            status="Active",
+            input_params={
+                "skill_name": "delete_me",
+                "skill_type": "prompt_only"
+            },
+            skill_source="community",
+            security_scan_result={"risk_level": "LOW"}
+        )
+        db_session.add(skill)
+        db_session.commit()
+
+        from core.skill_registry_service import SkillRegistryService
+        registry = SkillRegistryService(db_session)
+
+        result = registry.delete_skill("delete-skill-id")
+
+        assert result["deleted"] is True
+        assert result["skill_id"] == "delete-skill-id"
+        assert result["skill_name"] == "delete_me"
+
+        # Confirm the row is gone
+        remaining = db_session.query(SkillExecution).filter(
+            SkillExecution.id == "delete-skill-id"
+        ).first()
+        assert remaining is None
+
+    def test_delete_skill_not_found(self, db_session):
+        """Cover skill deletion - not found raises ValueError."""
+        from core.skill_registry_service import SkillRegistryService
+        registry = SkillRegistryService(db_session)
+
+        with pytest.raises(ValueError, match="Skill not found"):
+            registry.delete_skill("nonexistent-id")
+
     def test_load_skill_dynamically(self, db_session, monkeypatch):
         """Cover dynamic skill loading (lines 1094-1134)"""
         # Mock loader
         mock_loader_instance = Mock()
         mock_module = Mock()
         mock_loader_instance.load_skill.return_value = mock_module
-        monkeypatch.setattr('core.skill_registry_service.get_global_loader', Mock(return_value=mock_loader_instance))
+        monkeypatch.setattr('core.skill_dynamic_loader.get_global_loader', Mock(return_value=mock_loader_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
@@ -656,7 +698,7 @@ class TestSkillRegistryServiceCoverage:
         mock_loader_instance = Mock()
         mock_module = Mock()
         mock_loader_instance.reload_skill.return_value = mock_module
-        monkeypatch.setattr('core.skill_registry_service.get_global_loader', Mock(return_value=mock_loader_instance))
+        monkeypatch.setattr('core.skill_dynamic_loader.get_global_loader', Mock(return_value=mock_loader_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
