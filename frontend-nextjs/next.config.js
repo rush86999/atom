@@ -114,6 +114,24 @@ const nextConfig = {
         source: "/api/chat/:path*",
         destination: "http://127.0.0.1:8000/api/chat/:path*",
       },
+      // Admin Rewrite
+      {
+        source: "/api/admin/:path*",
+        destination: "http://127.0.0.1:8000/api/admin/:path*",
+      },
+      {
+        source: "/api/admin",
+        destination: "http://127.0.0.1:8000/api/admin",
+      },
+      // Marketing Rewrite
+      {
+        source: "/api/marketing/:path*",
+        destination: "http://127.0.0.1:8000/api/marketing/:path*",
+      },
+      {
+        source: "/api/marketing",
+        destination: "http://127.0.0.1:8000/api/marketing",
+      },
       // Documents Rewrite
       {
         source: "/api/documents/:path*",

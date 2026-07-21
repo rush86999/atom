@@ -25,11 +25,13 @@ interface CacheMetricsPanelProps {
 export const CacheMetricsPanel: React.FC<CacheMetricsPanelProps> = ({
   stats,
 }) => {
-  const formatPercentage = (value: number): string => {
+  const formatPercentage = (value?: number): string => {
+    if (typeof value !== "number" || isNaN(value)) return "0%";
     return `${(value * 100).toFixed(1)}%`;
   };
 
-  const formatNumber = (value: number): string => {
+  const formatNumber = (value?: number): string => {
+    if (typeof value !== "number" || isNaN(value)) return "0";
     if (value >= 1000) {
       return `${(value / 1000).toFixed(1)}k`;
     }

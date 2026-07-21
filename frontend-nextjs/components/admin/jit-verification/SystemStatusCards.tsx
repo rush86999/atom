@@ -30,11 +30,13 @@ export const SystemStatusCards: React.FC<SystemStatusCardsProps> = ({
   cacheStats,
   healthStatus,
 }) => {
-  const formatPercentage = (value: number): string => {
+  const formatPercentage = (value?: number): string => {
+    if (typeof value !== "number" || isNaN(value)) return "0%";
     return `${(value * 100).toFixed(0)}%`;
   };
 
-  const formatNumber = (value: number): string => {
+  const formatNumber = (value?: number): string => {
+    if (typeof value !== "number" || isNaN(value)) return "0";
     if (value >= 1000) {
       return `${(value / 1000).toFixed(1)}k`;
     }
