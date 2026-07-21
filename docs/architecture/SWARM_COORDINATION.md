@@ -17,6 +17,8 @@ shared codebases.
 ## 1. Stigmergic Field Guide
 
 **File**: `backend/core/field_guide_service.py`
+**Model**: `backend/core/models.py` → `FieldGuide`
+**Migration**: `backend/alembic/versions/20260721_add_field_guides.py`
 
 ### Problem
 
@@ -26,8 +28,8 @@ static vector databases (episodic/semantic memory) curated by developers.
 
 ### Solution: Agent-Curated Shared Memory
 
-A Markdown file (`FIELD_GUIDE.md`) stored per workspace that agents read *and* write
-during execution.  The file is:
+Per-workspace Markdown content that agents read *and* write during execution.
+It is:
 
 - **Automatically injected** into every agent's system prompt via
   `FieldGuideService.get_field_guide_context(workspace_id)`.
@@ -39,29 +41,53 @@ during execution.  The file is:
   `### File Layout`, etc.) so the guide stays structured.
 - **Deduplicated**: identical insights under the same topic are silently skipped.
 
+### Storage — cloud-native PostgreSQL with a filesystem fallback
+
+The guide is persisted differently depending on whether a DB session is passed
+to the service:
+
+- **Production (DB-backed)**: content lives in the `field_guides` table — one row
+  per `workspace_id` (`FieldGuide` model in `backend/core/models.py`).  This makes
+  the guide **pod-restart safe** (Postgres survives ephemeral container
+  filesystems) and **horizontally scalable** (every instance reads the same row).
+  Concurrent writers are serialised with `SELECT FOR UPDATE` row-level locking so
+  parallel agents cannot corrupt the guide.
+- **Local dev / unit tests (no DB)**: falls back to a file at
+  `backend/core/data/field_guides/<workspace_id>/FIELD_GUIDE.md`, written
+  atomically via a temp-rename swap.  This keeps the local experience
+  zero-config.
+
 ### Key Properties
 
 | Property | Value |
 |---|---|
 | Line budget | 50 lines (configurable per call) |
-| Storage | `backend/core/data/field_guides/<workspace_id>/FIELD_GUIDE.md` |
+| Production storage | PostgreSQL `field_guides` table (one row per workspace) |
+| Local-dev / test storage | `backend/core/data/field_guides/<workspace_id>/FIELD_GUIDE.md` |
 | Scoping | Per-workspace — isolated operational memories |
-| Concurrency | Atomic write via temp-rename swap |
+| Concurrency (DB) | `SELECT FOR UPDATE` row-level lock |
+| Concurrency (FS) | Atomic write via temp-rename swap |
 
 ### Usage
 
 ```python
 from core.field_guide_service import get_field_guide_service
 
-svc = get_field_guide_service()
+# Production — pass a DB session for PostgreSQL-backed storage
+svc = get_field_guide_service(db=db_session)
+
+# Local scripts / unit tests — omit db to use the filesystem fallback
+# svc = get_field_guide_service()
 
 # Agent discovers a rule → writes it
-svc.update_field_guide(
+result = svc.update_field_guide(
     workspace_id="ws-prod-1",
     topic="Tool Failures",
     insight="The 'shell' tool always times out after 30 s on Python builds. Use run_command instead.",
     agent_id="worker-42",
 )
+# result["storage"] → "db" (or "fs" for the fallback)
+# result["path"]    → row/file identifier for the workspace's guide
 
 # System prompt builder → injects guide
 context_block = svc.get_field_guide_context("ws-prod-1")
