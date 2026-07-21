@@ -21,15 +21,17 @@ export function useLiveSupport() {
             setIsLoading(true);
             setError(null);
             const response = await fetch(`${API_BASE}/api/atom/communication/live/support/tickets`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            if (response.ok) {
+                const data = await response.json();
+                setTickets(Array.isArray(data.tickets) ? data.tickets : (Array.isArray(data) ? data : []));
+            } else {
+                setError(`HTTP ${response.status}`);
+                setTickets([]);
             }
-            const data = await response.json();
-            setTickets(data.tickets || data || []);
         } catch (err) {
             console.error('Failed to fetch support tickets:', err);
             setError(err instanceof Error ? err.message : 'Failed to load');
-            setTickets([]); // empty state — no mock data
+            setTickets([]);
         } finally {
             setIsLoading(false);
         }
