@@ -41,6 +41,21 @@ System architecture, design patterns, and technical specifications.
   above.) Pre-action selector certainty; Phase E provenance layer extends
   this to context-window chunks.
 
+### Multi-Agent Coordination
+- **[Swarm Coordination](SWARM_COORDINATION.md)** ✨ - Three patterns from
+  Cursor swarm research for coordinating many concurrent agents on a shared
+  codebase:
+  - **Stigmergic Field Guide** (`core/field_guide_service.py`): per-workspace
+    agent-curated ops manual, auto-injected into system prompts, persisted in
+    the `field_guides` table (PostgreSQL) with a filesystem fallback for local
+    dev. 50-line budget, deduplicated, `SELECT FOR UPDATE` concurrency.
+  - **Parallel Branch Reconciler** (`ConductorAgent._reconcile_branch_conflicts`):
+    neutral third-party mediator that merges per-key output from diverging
+    parallel branches instead of discarding minority work.
+  - **Megafile & Bloat Tripwire** (`sandbox_tripwire.MegafileDetector`): tracks
+    file edits per loop; blocks hotspot megafiles (>800 LOC or ≥5 edits/loop)
+    and emits `HarnessEvolutionService`-compatible patch proposals.
+
 ### Application Design
 - **[Decorator Application Complete](../archive/implementation/DECORATOR_APPLICATION_COMPLETE.md)** - Decorator patterns
 - **[API Reference](API_REFERENCE.md)** - Architecture API reference

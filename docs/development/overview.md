@@ -20,7 +20,7 @@
 
 ### AI & Orchestration
 - **Advanced NLU System** - Understands complex requests
-- **Multi-Agent Coordination** - Specialized AI teams
+- **Multi-Agent Coordination** - Specialized AI teams, including the [Swarm Coordination architecture](../architecture/SWARM_COORDINATION.md) (Stigmergic Field Guide, Parallel Branch Reconciler, Megafile Tripwire) ✨
 - **Context Management** - Remembers conversation history
 - **Voice Integration** - Seamless voice-to-action
 - **JIT Fact Verification** - Real-time business fact retrieval with citation validation (see [CITATION_SYSTEM_GUIDE.md](../intelligence/jit-facts.md) and [JIT_FACT_PROVISION_SYSTEM.md](../intelligence/jit-facts.md))

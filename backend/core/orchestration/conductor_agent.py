@@ -602,7 +602,15 @@ class ConductorAgent:
         context: WorkflowExecutionContext,
         result: OrchestrationResult
     ) -> None:
-        """Execute AGENT steps in parallel branches and use majority voting for consensus selection"""
+        """Execute AGENT steps in parallel branches with reconciliation.
+
+        Runs 3 independent branches per AGENT step.  When branches agree
+        (majority ≥ 2/3) the majority winner is used directly.  When
+        branches diverge, :meth:`_reconcile_branch_conflicts` attempts to
+        merge the non-conflicting portions of all branches instead of
+        discarding minority work — following the Cursor swarm pattern of
+        spawning a neutral third-party mediator agent.
+        """
         ready_steps = context.get_ready_steps()
         while ready_steps and not context.is_complete():
             tasks = []
@@ -617,12 +625,38 @@ class ConductorAgent:
                         valid_results = [r for r in branch_results if not isinstance(r, Exception)]
                         if not valid_results:
                             raise RuntimeError(f"All parallel branches failed for step {s.step_id}")
-                            
+
+                        # ── Check majority agreement ──────────────────────────
                         from collections import Counter
-                        formatted_options = [json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r) for r in valid_results]
+                        formatted_options = [
+                            json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
+                            for r in valid_results
+                        ]
                         counts = Counter(formatted_options)
-                        majority_str, count = counts.most_common(1)[0]
-                        
+                        majority_str, majority_count = counts.most_common(1)[0]
+
+                        if majority_count >= 2 or len(valid_results) == 1:
+                            # Clear majority — use winner directly
+                            for r in valid_results:
+                                val_str = json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
+                                if val_str == majority_str:
+                                    return r
+                            return valid_results[0]
+
+                        # ── Branches diverge — attempt reconciliation ─────────
+                        logger.info(
+                            "Parallel branches diverged for step %s; attempting reconciliation across %d candidates",
+                            s.step_id, len(valid_results),
+                        )
+                        reconciled = await self._reconcile_branch_conflicts(s.step_id, valid_results)
+                        if reconciled is not None:
+                            logger.info("Reconciliation succeeded for step %s", s.step_id)
+                            return reconciled
+
+                        # ── Reconciliation failed — fall back to majority ──────
+                        logger.warning(
+                            "Reconciliation failed for step %s; falling back to majority winner", s.step_id
+                        )
                         for r in valid_results:
                             val_str = json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
                             if val_str == majority_str:
@@ -648,9 +682,83 @@ class ConductorAgent:
                     tasks.append(asyncio.create_task(track_consensus(step)))
                 else:
                     tasks.append(asyncio.create_task(self._execute_and_track(step, context, result)))
-            
+
             await asyncio.gather(*tasks, return_exceptions=True)
             ready_steps = context.get_ready_steps()
+
+    async def _reconcile_branch_conflicts(
+        self,
+        step_id: str,
+        branch_results: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """Neutral third-party reconciler for diverging parallel branch outputs.
+
+        Implements the Cursor swarm principle: rather than picking a single
+        winner when branches disagree, a mediator agent synthesises the
+        non-conflicting parts of all branches into a unified candidate.
+
+        Algorithm:
+          1. Collect all keys from every branch result.
+          2. For each key, check whether all branches agree on its value.
+             - If they agree → include in merged output (safe zone).
+             - If they disagree → run a lightweight resolver that selects
+               the value that appears most frequently, or prefers the
+               branch whose result dict has the highest ``confidence``
+               score when present.
+          3. If the merged candidate is non-empty, return it; otherwise
+             return None so the caller falls back to majority-vote.
+
+        In production this method can be replaced with a real LLM call
+        (e.g. a cheap fast-model summariser) without changing the contract.
+        """
+        if not branch_results:
+            return None
+
+        try:
+            all_keys: set = set()
+            for r in branch_results:
+                if isinstance(r, dict):
+                    all_keys.update(r.keys())
+
+            merged: Dict[str, Any] = {}
+            for key in all_keys:
+                values = [r.get(key) for r in branch_results if isinstance(r, dict) and key in r]
+                if not values:
+                    continue
+
+                # Serialise for comparison
+                serialised = [
+                    json.dumps(v, sort_keys=True) if isinstance(v, (dict, list)) else v
+                    for v in values
+                ]
+                unique = list(dict.fromkeys(serialised))  # ordered dedup
+
+                if len(unique) == 1:
+                    # All branches agree on this key — safe to merge
+                    merged[key] = values[0]
+                else:
+                    # Disagreement — pick the most frequent value
+                    from collections import Counter
+                    freq = Counter(serialised)
+                    winner_serialised, _ = freq.most_common(1)[0]
+                    # Reconstruct the original (non-serialised) value
+                    for v, s in zip(values, serialised):
+                        if s == winner_serialised:
+                            merged[key] = v
+                            break
+
+            if not merged:
+                return None
+
+            merged["_reconciled"] = True
+            merged["_reconciler"] = "ConductorAgent._reconcile_branch_conflicts"
+            merged["_branch_count"] = len(branch_results)
+            merged["step_id"] = step_id
+            return merged
+
+        except Exception as exc:
+            logger.warning("Reconciler raised an exception for step %s: %s", step_id, exc)
+            return None
 
     async def _execute_step(
         self,

@@ -243,9 +243,9 @@ minimal `backend/minimal_app.py` (~125 routes) exists only as a fast smoke boots
 [Queen Agent →](docs/agents/QUEEN_AGENT.md) | [Auto-Dev →](docs/guides/AUTO_DEV_USER_GUIDE.md)
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
-Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, smart error resolution, and AI accessibility (canvas state exposed to agents)
+Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, smart error resolution, and AI accessibility (canvas state exposed to agents). Canvases live both in chat **and** in a dedicated standalone workspace at `/canvas` with full CRUD, a side-chat agent co-editor, and version history.
 
-[Canvas Guide →](docs/archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md)
+[Canvas Guide →](docs/archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) | [Office Automation Guide →](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
 
 ### 💼 Office Automation & Document Co-Editing ✨
 - **Real-Time Collaboration**: Co-edit Excel spreadsheets, Word documents, and PowerPoint presentations directly on the interactive Canvas.
@@ -440,6 +440,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Canvas Reference](docs/canvas/reference.md) - Canvas operations
 - [Agent Governance](docs/agents/governance.md) - Maturity levels and permissions
 - [Meta-Agent Routing](docs/agents/meta-agent.md) - Intent classification and fleet recruitment
+- [Swarm Coordination](docs/architecture/SWARM_COORDINATION.md) - Multi-agent patterns: Field Guide, Branch Reconciler, Megafile Tripwire ✨ NEW
 - [Personal Edition](docs/operations/personal-edition.md) - Local deployment
 
 **[Complete Documentation Index →](docs/INDEX.md)** | **[Reorganization Plan →](docs/archive/plans/DOCUMENTATION_REORGANIZATION_PLAN.md)**

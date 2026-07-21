@@ -10749,3 +10749,29 @@ class FederationCredential(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     revocation_reason = Column(Text, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Stigmergic Field Guide (Swarm Coordination — Cursor Pattern)
+# ---------------------------------------------------------------------------
+
+class FieldGuide(Base):
+    """Per-workspace agent-curated operations manual.
+
+    Stores the Markdown content of the Stigmergic Field Guide that agents
+    write to at runtime and that is injected into successor agents' system
+    prompts.  One row per workspace — upserted on every update.
+
+    Cloud-native: stored in PostgreSQL so content persists across pod
+    restarts and is visible to all horizontally-scaled instances without
+    requiring a shared filesystem mount.
+    """
+    __tablename__ = "field_guides"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, unique=True, index=True)
+    content = Column(Text, nullable=False, default="")
+    line_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
