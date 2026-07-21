@@ -12,7 +12,7 @@ See [WORKBOOK_RUNTIME.md](../architecture/WORKBOOK_RUNTIME.md) for the Excel eng
 
 1. **AI-Native Manipulation**: Core python libraries edit OpenXML files directly. Excel writes trigger `WorkbookRuntime.recalculate()` so formulas are evaluated and the agent sees computed results immediately.
 2. **DOM-like Spreadsheet Paths**: Select and write spreadsheet values or formulas using locator paths like `/SheetName/A1`. Written formulas are re-evaluated and the computed result is returned.
-3. **Canvas Co-Editing**: Presents a live, editable document representation in the chat window, allowing real-time collaboration between the user and the agent.
+3. **Canvas Co-Editing**: Presents a live, editable document representation, allowing real-time collaboration between the user and the agent. Canvases open in two places: an **embedded panel inside chat** (for office-file co-editing) and a **standalone workspace at `/canvas`** with full CRUD, a side chat panel, and version history. See [Canvas Workspace](#standalone-canvas-workspace) below.
 4. **Real-Time Sync**: Modifications made inside the Canvas editor sync instantly back to the filesystem source, and modifications by the agent update the Canvas.
 5. **Live Formula Evaluation**: Excel writes trigger recalculation (LibreOffice headless + `formulas` fallback) so agents read computed values, not unevaluated formula strings. HTML render includes conditional formatting and charts.
 
@@ -74,3 +74,50 @@ sequenceDiagram
     OfficeSyncService->>WebSocket: Broadcast 'canvas:update' (rendered HTML)
     WebSocket->>Canvas UI: Refresh preview to match disk
 ```
+
+---
+
+## Standalone Canvas Workspace
+
+In addition to the in-chat co-editing panel described above, Atom provides a
+**dedicated workspace at `/canvas`** where canvases live outside the chat window.
+This is the recommended place to browse and manage canvases created during chat
+sessions.
+
+### Routes
+
+| Route | Purpose |
+|---|---|
+| `/canvas` | Lists every canvas for the current user, filterable by type |
+| `/canvas/[id]` | Opens a single canvas with a side-chat panel and version history |
+
+### Capabilities
+
+- **Full CRUD** on canvases (read, list, update, delete). New canvases are
+  created by agents from chat — the index page explains this and surfaces any
+  canvas an agent has presented.
+- **Seven canvas types**: `sheets`, `email`, `docs`, `coding`, `terminal`,
+  `orchestration`, and `generic` (charts live inside `generic`).
+- **Side chat panel** ("Agent Co-Editor") for live co-editing: user messages go
+  out over HTTP with the current canvas context injected, and agent edits stream
+  back over the `canvas:update` WebSocket event.
+- **Version history** via the append-only `CanvasAudit` trail — every
+  present / update / delete is recorded and viewable per canvas.
+- **AI accessibility on every canvas type** — each open canvas registers its
+  state under `window.atom.canvas` so agents can read it back synchronously.
+
+### Relationship to office-file co-editing
+
+The standalone workspace and the office automation flow above are **two separate
+but interoperating systems**:
+
+- **Office automation** (`/api/v1/office/...`) is **file-backed**: `/present`
+  opens a canvas for a `.docx`/`.xlsx`/`.pptx` on disk and `/sync-update` writes
+  edits back to that file. The **file is the source of truth**.
+- **Standalone `/canvas` workspace** (`/api/canvas/...`) is **database-backed**:
+  the append-only `CanvasAudit` table is the source of truth, with no filesystem
+  binding.
+
+Both broadcast the same `canvas:update` WebSocket event on the user channel, so
+a canvas presented in chat also appears in the `/canvas` list and can be opened
+standalone.
