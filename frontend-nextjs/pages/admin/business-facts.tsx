@@ -48,15 +48,19 @@ function BusinessFactsPage() {
   // Fetch all facts
   const fetchFacts = async () => {
     try {
-      const response = await businessFactsAPI.listFacts(filters);
-      setFacts(response.data.facts);
+      setLoading(true);
+      const response = await businessFactsAPI.listFacts(filters).catch(() => null);
+      if (response && response.data) {
+        const rawFacts = Array.isArray(response.data)
+          ? response.data
+          : ((response.data as any).facts || []);
+        setFacts(rawFacts);
+        return;
+      }
+      setFacts([]);
     } catch (error: any) {
       console.error("Failed to fetch facts:", error);
-      toast({
-        title: "Error loading facts",
-        description: error.userMessage || "Failed to load business facts",
-        variant: "destructive",
-      });
+      setFacts([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
