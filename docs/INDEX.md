@@ -9,7 +9,12 @@
 
 ## 🚀 Recent Updates (July 2026)
 
+- **Swarm Coordination & Stigmergic Field Guide**: ✨ NEW - Three advanced multi-agent coordination patterns from Cursor swarm research (2026), implemented in production:
+  - **Stigmergic Field Guide** (`core/field_guide_service.py`): Agent-curated shared Markdown ops manual auto-injected into system prompts. 50-line budget, per-workspace, deduplicated. See [SWARM_COORDINATION.md](architecture/SWARM_COORDINATION.md).
+  - **Parallel Branch Reconciler** (`conductor_agent._reconcile_branch_conflicts`): Neutral third-party mediator that merges per-key output from diverging parallel branches instead of discarding minority work.
+  - **Megafile & Bloat Tripwire** (`sandbox_tripwire.MegafileDetector`): Tracks file edits per loop; blocks hotspot megafiles (>800 LOC or ≥5 edits/loop) and emits `HarnessEvolutionService`-compatible patch proposals for auto-modularization.
 - **Bugs Found and Fixed via User-Journey Testing**: ✨ NEW - catalog of the real defects the end-to-end suite uncovered (router double-prefixes, async/await bugs, frontend response-shape mismatches, RBAC gaps, CI/Docker flakiness), each with symptom → root cause → fix → commit. Read before debugging a regression. See [BUGS_FOUND_AND_FIXED.md](architecture/BUGS_FOUND_AND_FIXED.md).
+
 - **Workbook Runtime**: ✨ NEW - Excel engine replaced openpyxl-as-parser with a formula-evaluating runtime (`core/workbook_runtime.py`). LibreOffice headless primary (recalc + pixel-accurate HTML render + structural edits), `formulas` library fallback, openpyxl cached-values last resort. `office_service.py` write_cell now recalculates and returns computed values; render_to_html produces evaluated output with conditional formatting. See [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md).
 - **Integration Resilience Layer**: ✨ NEW - Universal HTTP wrapper (`core/integration_http.py`) for all third-party API calls: circuit breaker, rate limiting, 429 Retry-After parsing, exponential backoff, 401 token refresh, health monitoring. 89 calls across 13 services wired.
 - **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:

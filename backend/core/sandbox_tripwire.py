@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core import sandbox_config
@@ -417,3 +418,145 @@ def check(
             args_hash=args_hash,
             metadata_json={"error": str(e)},
         )
+
+
+# ===========================================================================
+# Megafile & Bloat Tripwire (Swarm Coordination — Cursor Pattern)
+# ===========================================================================
+
+@dataclass
+class MegafileWarning:
+    """Payload emitted when a file crosses the bloat threshold."""
+
+    file_path: str
+    line_count: int
+    edit_count: int
+    threshold_loc: int
+    threshold_edits: int
+    severity: str  # "WARNING" | "CRITICAL"
+    recommendation: str
+
+    def to_harness_patch_proposal(self) -> Dict[str, Any]:
+        """Format as a HarnessEvolutionService-compatible patch proposal."""
+        return {
+            "patch_id": f"megafile_{Path(self.file_path).stem}",
+            "target_component": "file_modularization",
+            "mutation_payload": {
+                "file_path": self.file_path,
+                "action": "decompose_into_modules",
+                "reason": self.recommendation,
+                "current_line_count": self.line_count,
+                "current_edit_count": self.edit_count,
+            },
+            "model_scope": "workspace",
+            "severity": self.severity,
+        }
+
+
+class MegafileDetector:
+    """Tracks file edit operations and flags files that become hotspot 'megafiles'.
+
+    Implements the Cursor swarm pattern: when a shared file is too large or
+    edited too frequently within a single execution loop, it blocks forward
+    progress by causing constant merge conflicts and context overflows.  This
+    detector emits a :class:`MegafileWarning` that callers should forward to
+    :class:`~core.harness_evolution_service.HarnessEvolutionService` as a
+    modularisation patch proposal.
+
+    Usage::
+
+        detector = MegafileDetector(loc_threshold=800, edit_threshold=5)
+        warning = detector.record_edit("/path/to/big_file.py", line_count=920)
+        if warning:
+            harness_service.queue_patch(warning.to_harness_patch_proposal())
+
+    The detector is stateful per execution loop.  Call :meth:`reset` between
+    loops to clear the per-session edit counters.
+    """
+
+    DEFAULT_LOC_THRESHOLD: int = 800
+    DEFAULT_EDIT_THRESHOLD: int = 5
+
+    def __init__(
+        self,
+        loc_threshold: int = DEFAULT_LOC_THRESHOLD,
+        edit_threshold: int = DEFAULT_EDIT_THRESHOLD,
+    ) -> None:
+        self._loc_threshold = loc_threshold
+        self._edit_threshold = edit_threshold
+        # Maps absolute file path → number of edits in this loop
+        self._edit_counts: Dict[str, int] = {}
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def record_edit(
+        self,
+        file_path: str,
+        *,
+        line_count: Optional[int] = None,
+    ) -> Optional[MegafileWarning]:
+        """Record an edit to *file_path* and return a warning if bloat thresholds are crossed.
+
+        Args:
+            file_path: Absolute (or workspace-relative) path of the edited file.
+            line_count: Current line count of the file after the edit.  When
+                        omitted the LOC threshold is skipped.
+
+        Returns:
+            A :class:`MegafileWarning` if either threshold is exceeded, else
+            ``None``.
+        """
+        abs_path = str(Path(file_path).resolve()) if Path(file_path).exists() else file_path
+        self._edit_counts[abs_path] = self._edit_counts.get(abs_path, 0) + 1
+        edit_count = self._edit_counts[abs_path]
+
+        lc = line_count or 0
+        lc_exceeded = lc > self._loc_threshold
+        edit_exceeded = edit_count >= self._edit_threshold
+
+        if not (lc_exceeded or edit_exceeded):
+            return None
+
+        severity = "CRITICAL" if (lc_exceeded and edit_exceeded) else "WARNING"
+        reasons: List[str] = []
+        if lc_exceeded:
+            reasons.append(f"{lc} LOC (threshold {self._loc_threshold})")
+        if edit_exceeded:
+            reasons.append(f"{edit_count} edits this loop (threshold {self._edit_threshold})")
+
+        recommendation = (
+            f"File '{Path(file_path).name}' is a hotspot megafile ({', '.join(reasons)}). "
+            "Block further commits and decompose into smaller focused modules."
+        )
+        warning = MegafileWarning(
+            file_path=abs_path,
+            line_count=lc,
+            edit_count=edit_count,
+            threshold_loc=self._loc_threshold,
+            threshold_edits=self._edit_threshold,
+            severity=severity,
+            recommendation=recommendation,
+        )
+        logger.warning(
+            "MegafileDetector [%s]: %s",
+            severity, recommendation,
+        )
+        return warning
+
+    def is_blocked(self, file_path: str) -> bool:
+        """Return True if the file has already been flagged as a megafile this loop."""
+        abs_path = str(Path(file_path).resolve()) if Path(file_path).exists() else file_path
+        return self._edit_counts.get(abs_path, 0) >= self._edit_threshold
+
+    def reset(self) -> None:
+        """Clear per-loop edit counters.  Call between execution loops."""
+        self._edit_counts.clear()
+
+    def summary(self) -> List[Dict[str, Any]]:
+        """Return all tracked files with their edit counts for the current loop."""
+        return [
+            {"file": f, "edits": c}
+            for f, c in sorted(self._edit_counts.items(), key=lambda x: -x[1])
+        ]
