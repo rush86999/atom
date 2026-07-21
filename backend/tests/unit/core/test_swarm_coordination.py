@@ -124,7 +124,9 @@ class TestBranchReconciler:
         return ConductorAgent(ConductorConfig())
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        # asyncio.get_event_loop() no longer auto-creates a loop and is
+        # removed in Python 3.14; asyncio.run() is the supported replacement.
+        return asyncio.run(coro)
 
     def test_all_branches_agree(self, conductor):
         """When all branches return the same dict, it is returned unchanged."""
