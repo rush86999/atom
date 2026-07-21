@@ -49,13 +49,17 @@ const adminApiClient = axios.create({
 adminApiClient.interceptors.request.use(
   (config) => {
     // Add auth token if available
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const token = typeof window !== "undefined"
+      ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
+      : null;
+    if (token && config.headers) {
+      (config.headers as any)["Authorization"] = `Bearer ${token}`;
     }
 
     // Add request ID for tracking
-    config.headers["X-Request-ID"] = generateRequestId();
+    if (config.headers) {
+      (config.headers as any)["X-Request-ID"] = generateRequestId();
+    }
 
     return config;
   },
@@ -277,8 +281,8 @@ export class AdminPoller {
 
     // Initial fetch
     fetchFn()
-      .then((response) => {
-        onUpdate(response.data);
+      .then((data: any) => {
+        onUpdate(data?.data !== undefined ? data.data : data);
       })
       .catch((error) => {
         console.error("[AdminPoller] Initial fetch error:", error);
@@ -287,8 +291,8 @@ export class AdminPoller {
     // Set up recurring fetch
     this.intervalId = setInterval(async () => {
       try {
-        const response = await fetchFn();
-        onUpdate(response.data);
+        const data: any = await fetchFn();
+        onUpdate(data?.data !== undefined ? data.data : data);
       } catch (error) {
         console.error("[AdminPoller] Polling error:", error);
         // Don't stop on error - continue polling

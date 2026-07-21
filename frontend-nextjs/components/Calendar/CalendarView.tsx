@@ -69,23 +69,26 @@ const CalendarView = () => {
     const fetchEvents = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/v1/calendar/events');
-            const data = await response.json();
-            if (data.success) {
-                // Convert string dates to Date objects
-                const parsedEvents = data.events.map((event: any) => ({
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+            const response = await fetch('/api/dashboard/events', {
+                headers: token ? { "Authorization": `Bearer ${token}` } : {},
+            }).catch(() => null);
+
+            if (response && response.ok) {
+                const data = await response.json().catch(() => null);
+                const rawEvents = Array.isArray(data) ? data : (data?.events || []);
+                const parsedEvents = rawEvents.map((event: any) => ({
                     ...event,
                     start: new Date(event.start),
                     end: new Date(event.end),
                 }));
                 setEvents(parsedEvents);
+            } else {
+                setEvents([]);
             }
         } catch (error) {
             console.error("Failed to fetch events:", error);
-            toast({
-                title: "Error fetching events",
-                variant: "error",
-            });
+            setEvents([]);
         } finally {
             setLoading(false);
         }

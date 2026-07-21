@@ -108,15 +108,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
-            const { apiClient } = await import('../lib/api-client');
-            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`, {
-                validateStatus: (status) => status < 500, // Treat 401/404 as valid HTTP responses to prevent AxiosError popups
-            });
-            const data = (response as any).data || response;
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+            const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            }).catch(() => null);
 
-            if (response.status === 200 && data && data.messages) {
-                try {
+            if (res && res.ok) {
+                const data = await res.json().catch(() => null);
+                if (data && data.messages) {
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
                         const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => ({
@@ -127,19 +126,12 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             actions: [] as ChatAction[],
                         }));
                         setMessages(chatMessages);
-                    } else {
-                        setMessages([welcomeMsg]);
+                        return;
                     }
-                } catch (jsonError) {
-                    console.error('Failed to parse history JSON:', jsonError);
-                    setMessages([welcomeMsg]);
                 }
-            } else {
-                // No messages or 401/404 — show welcome message
-                setMessages([welcomeMsg]);
             }
-        } catch (error) {
-            console.error('Failed to load history:', error);
+            setMessages([welcomeMsg]);
+        } catch {
             setMessages([welcomeMsg]);
         } finally {
             setIsLoading(false);
@@ -158,41 +150,44 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            // Use apiClient (sends the Authorization header) — raw fetch 401s
-            // for logged-in users since /api/chat/message requires auth.
-            const { apiClient } = await import('../lib/api-client');
-            const response = await apiClient.post("/api/chat/message", {
-                message: text,
-                user_id: userId,
-                session_id: sessionId,
-                context: {
-                    current_page: router.asPath, // Send current page context
-                    conversation_history: messages.slice(-10).map(msg => ({
-                        role: msg.type === "user" ? "user" : "assistant",
-                        content: msg.content,
-                    })),
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+            const res = await fetch("/api/chat/message", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                    message: text,
+                    user_id: userId,
+                    session_id: sessionId,
+                    context: {
+                        current_page: router.asPath,
+                        conversation_history: messages.slice(-10).map(msg => ({
+                            role: msg.type === "user" ? "user" : "assistant",
+                            content: msg.content,
+                        })),
+                    }
+                })
+            }).catch(() => null);
+
+            if (res && res.ok) {
+                const data = await res.json().catch(() => null);
+                if (data && data.success) {
+                    const assistantMessage: ChatMessageData = {
+                        id: `assistant_${Date.now()}`,
+                        type: "assistant",
+                        content: data.message,
+                        timestamp: new Date(),
+                        actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'view_template' as const })) || [],
+                        model: data.model,
+                        provider: data.provider,
+                    };
+                    setMessages(prev => [...prev, assistantMessage]);
+                    return;
                 }
-            }, {
-                validateStatus: (status) => status < 500,
-            });
-
-            const data = (response as any).data || response;
-
-            if (data.success) {
-                const assistantMessage: ChatMessageData = {
-                    id: `assistant_${Date.now()}`,
-                    type: "assistant", // Backend returns 'message', ensure mapping is handled if keys differ
-                    content: data.message, // Backend 'message' field
-                    timestamp: new Date(),
-                    // Backend returns suggested_actions, map them if needed
-                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'view_template' as const })) || [],
-                    model: data.model,
-                    provider: data.provider,
-                };
-                setMessages(prev => [...prev, assistantMessage]);
-            } else {
-                throw new Error(data.error || "Failed to process message");
             }
+            throw new Error("Failed to process message");
         } catch (error) {
             console.error("Error sending message:", error);
             toast({

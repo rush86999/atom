@@ -74,7 +74,8 @@ export const WorkerStatusMonitor: React.FC<WorkerStatusMonitorProps> = ({
     }
   };
 
-  const formatDuration = (seconds: number): string => {
+  const formatDuration = (seconds?: number): string => {
+    if (typeof seconds !== "number" || isNaN(seconds)) return "0s";
     if (seconds < 60) {
       return `${seconds.toFixed(1)}s`;
     }
@@ -276,7 +277,7 @@ export const WorkerStatusMonitor: React.FC<WorkerStatusMonitorProps> = ({
         </div>
 
         {/* Top Citations */}
-        {metrics.top_citations && metrics.top_citations.length > 0 && (
+        {metrics && Array.isArray(metrics.top_citations) && metrics.top_citations.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium flex items-center gap-2">
               <FileText className="h-4 w-4" />

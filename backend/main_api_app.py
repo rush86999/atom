@@ -1905,6 +1905,24 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Governance Verification routes: {e}")
 
+    # JIT Verification & Admin Governance Routes
+    try:
+        from api.admin.jit_verification_routes import router as jit_verification_router
+        app.include_router(jit_verification_router)
+
+        from api.admin.business_facts_routes import router as business_facts_router
+        app.include_router(business_facts_router)
+
+        from api.admin.skill_routes import router as admin_skill_router
+        app.include_router(admin_skill_router)
+
+        from api.admin.system_health_routes import router as admin_health_router
+        app.include_router(admin_health_router)
+
+        logger.info("✓ JIT Verification & Admin Governance Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load JIT Verification / Admin routes: {e}")
+
     # Governance Manual Fact Entry Routes (Phase 167-05)
     try:
 

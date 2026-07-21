@@ -9,23 +9,25 @@ const CalendarManagement: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch("/api/v1/calendar/events");
-      if (response.ok) {
-        const data = await response.json();
-        // Convert date strings to Date objects
-        const parsedEvents = data.events.map((e: any) => ({
-          ...e,
-          start: new Date(e.start),
-          end: new Date(e.end),
-        }));
-        setEvents(parsedEvents);
-      } else {
-        console.error("Failed to fetch events");
-        toast({
-          title: "Error fetching events",
-          variant: "error",
-        });
+      setLoading(true);
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+      const response = await fetch("/api/dashboard/events", {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+      }).catch(() => null);
+
+      if (response && response.ok) {
+        const data = await response.json().catch(() => null);
+        if (data && Array.isArray(data)) {
+          const parsedEvents = data.map((e: any) => ({
+            ...e,
+            start: new Date(e.start),
+            end: new Date(e.end),
+          }));
+          setEvents(parsedEvents);
+          return;
+        }
       }
+      setEvents([]);
     } catch (error) {
       console.error("Error fetching events:", error);
     } finally {
