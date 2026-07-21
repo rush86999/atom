@@ -15,50 +15,54 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GITHUB_CLIENT_ID || "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
     }),
-    // Credentials provider for E2E testing and development - DISABLED IN PRODUCTION
-    ...(process.env.NODE_ENV === "development" || process.env.ENABLE_TEST_CREDENTIALS === "true" ? [{
-      ...CredentialsProvider({
-        name: "Credentials",
-        credentials: {
-          email: { label: "Email", type: "email" },
-          password: { label: "Password", type: "password" }
-        },
-        async authorize(credentials) {
-          // Use Backend API for authentication (avoids direct DB access from frontend)
-          try {
-            const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-            const res = await fetch(`${backendUrl}/api/auth/login`, {
-              method: 'POST',
-              headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-              },
-              body: JSON.stringify({
-                username: credentials?.email || '',
-                password: credentials?.password || ''
-              })
+    // Credentials provider using FastAPI Backend for authentication
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        try {
+          const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+          const res = await fetch(`${backendUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({
+              username: credentials?.email || '',
+              password: credentials?.password || ''
             })
+          });
 
-            const data = await res.json()
-
-            if (res.ok && data.access_token) {
-              return {
-                id: data.user?.id || data.id || "user-from-backend",
-                email: credentials?.email,
-                name: data.user?.name || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || "Atom User",
-                token: data.access_token,
-              }
-            }
-
-            console.error("Login failed:", res.status, data)
-            return null
-          } catch (error) {
-            console.error("Login Check Error:", error)
-            return null
+          const contentType = res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await res.text();
+            console.error("[NextAuth Authorize] Non-JSON response:", res.status, text.slice(0, 200));
+            return null;
           }
-        },
-      }),
-    }] : []),
+
+          const data = await res.json();
+
+          if (res.ok && data.access_token) {
+            return {
+              id: data.user?.id || data.id || "user-from-backend",
+              email: credentials?.email,
+              name: data.user?.name || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || credentials?.email?.split('@')[0] || "Atom User",
+              token: data.access_token,
+            };
+          }
+
+          console.error("[NextAuth Authorize] Login failed:", res.status, data);
+          return null;
+        } catch (error) {
+          console.error("[NextAuth Authorize] Error during authentication:", error);
+          return null;
+        }
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
