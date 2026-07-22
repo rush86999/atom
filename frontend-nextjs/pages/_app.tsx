@@ -32,6 +32,46 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   useEffect(() => {
     setMounted(true);
+
+    // Global Theme Application
+    const applyTheme = (theme: string) => {
+        const root = document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else if (theme === 'light') {
+            root.classList.remove('dark');
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                root.classList.add('dark');
+            } else {
+                root.classList.remove('dark');
+            }
+        }
+    };
+
+    const loadTheme = async () => {
+        try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+            const headers = {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            };
+            const res = await fetch('/api/v1/preferences?user_id=default_user&workspace_id=default', { headers });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.theme) {
+                    applyTheme(data.theme);
+                    return;
+                }
+            }
+            applyTheme('system');
+        } catch (e) {
+            applyTheme('system');
+        }
+    };
+
+    loadTheme();
   }, []);
 
   // Default to false during SSR/prerender to avoid router errors
