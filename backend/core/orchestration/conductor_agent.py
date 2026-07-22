@@ -298,6 +298,12 @@ class ConductorAgent:
         # Conductor runs actual AI/webhook/tool steps instead of mock sleep.
         self._step_executor: Optional[Callable] = None
 
+        # Injectable domain-aware verification orchestrator. Lazily
+        # constructed on first PARALLEL_CONSENSUS run if not injected, so
+        # the Conductor lights up the verification cascade without callers
+        # having to wire anything. See core.orchestration.verification.
+        self._verification_orchestrator: Optional[Any] = None
+
         # Execution tracking
         self._active_workflows: Dict[str, WorkflowExecutionContext] = {}
         self._completed_workflows: Dict[str, OrchestrationResult] = {}
@@ -626,42 +632,17 @@ class ConductorAgent:
                         if not valid_results:
                             raise RuntimeError(f"All parallel branches failed for step {s.step_id}")
 
-                        # ── Check majority agreement ──────────────────────────
-                        from collections import Counter
-                        formatted_options = [
-                            json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
-                            for r in valid_results
-                        ]
-                        counts = Counter(formatted_options)
-                        majority_str, majority_count = counts.most_common(1)[0]
-
-                        if majority_count >= 2 or len(valid_results) == 1:
-                            # Clear majority — use winner directly
-                            for r in valid_results:
-                                val_str = json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
-                                if val_str == majority_str:
-                                    return r
-                            return valid_results[0]
-
-                        # ── Branches diverge — attempt reconciliation ─────────
-                        logger.info(
-                            "Parallel branches diverged for step %s; attempting reconciliation across %d candidates",
-                            s.step_id, len(valid_results),
-                        )
-                        reconciled = await self._reconcile_branch_conflicts(s.step_id, valid_results)
-                        if reconciled is not None:
-                            logger.info("Reconciliation succeeded for step %s", s.step_id)
-                            return reconciled
-
-                        # ── Reconciliation failed — fall back to majority ──────
-                        logger.warning(
-                            "Reconciliation failed for step %s; falling back to majority winner", s.step_id
-                        )
-                        for r in valid_results:
-                            val_str = json.dumps(r, sort_keys=True) if isinstance(r, dict) else str(r)
-                            if val_str == majority_str:
-                                return r
-                        return valid_results[0]
+                        # ── Domain-aware verification ────────────────────────
+                        # The orchestrator resolves the step's domain
+                        # (explicit tag or heuristic inference), picks the
+                        # matching verifier, and falls back to voting if the
+                        # domain-specific verifier can't produce a winner.
+                        # For untagged steps (domain UNKNOWN) the VOTING
+                        # verifier reproduces the original majority +
+                        # per-key reconciliation algorithm byte for byte.
+                        orchestrator = self._get_or_create_verification_orchestrator()
+                        verification = await orchestrator.verify(valid_results, s, context)
+                        return verification.winner
 
                     async def track_consensus(s=step):
                         s.status = ExecutionStatus.RUNNING
@@ -693,72 +674,51 @@ class ConductorAgent:
     ) -> Optional[Dict[str, Any]]:
         """Neutral third-party reconciler for diverging parallel branch outputs.
 
-        Implements the Cursor swarm principle: rather than picking a single
-        winner when branches disagree, a mediator agent synthesises the
-        non-conflicting parts of all branches into a unified candidate.
+        .. deprecated::
+            Behaviour moved to
+            :class:`core.orchestration.verification.voting.VotingVerifier`.
+            This method is retained as a thin backward-compatibility shim
+            so existing callers and tests keep working. It delegates to
+            ``VotingVerifier.reconcile_only`` which preserves the original
+            algorithm and the ``_reconciled`` / ``_reconciler`` /
+            ``_branch_count`` / ``step_id`` metadata tags exactly.
 
-        Algorithm:
+        Algorithm (now in VotingVerifier.reconcile_only_sync):
           1. Collect all keys from every branch result.
           2. For each key, check whether all branches agree on its value.
              - If they agree → include in merged output (safe zone).
-             - If they disagree → run a lightweight resolver that selects
-               the value that appears most frequently, or prefers the
-               branch whose result dict has the highest ``confidence``
-               score when present.
+             - If they disagree → pick the most frequent value.
           3. If the merged candidate is non-empty, return it; otherwise
              return None so the caller falls back to majority-vote.
-
-        In production this method can be replaced with a real LLM call
-        (e.g. a cheap fast-model summariser) without changing the contract.
         """
-        if not branch_results:
-            return None
+        from core.orchestration.verification.voting import VotingVerifier
 
-        try:
-            all_keys: set = set()
-            for r in branch_results:
-                if isinstance(r, dict):
-                    all_keys.update(r.keys())
+        return await VotingVerifier().reconcile_only(step_id, branch_results)
 
-            merged: Dict[str, Any] = {}
-            for key in all_keys:
-                values = [r.get(key) for r in branch_results if isinstance(r, dict) and key in r]
-                if not values:
-                    continue
+    def _get_or_create_verification_orchestrator(self) -> Any:
+        """Return the injected verification orchestrator, or lazily build one.
 
-                # Serialise for comparison
-                serialised = [
-                    json.dumps(v, sort_keys=True) if isinstance(v, (dict, list)) else v
-                    for v in values
-                ]
-                unique = list(dict.fromkeys(serialised))  # ordered dedup
+        Mirrors the lazy-construction pattern of the step executor: if a
+        caller injected one via :meth:`set_verification_orchestrator`
+        (e.g. with a real LLM service or sandbox runtime), use it;
+        otherwise construct a default orchestrator. The default wires no
+        external services, so every domain-specific strategy degrades to
+        voting — equivalent to the original single-strategy behaviour.
+        """
+        if self._verification_orchestrator is None:
+            from core.orchestration.verification import VerificationOrchestrator
 
-                if len(unique) == 1:
-                    # All branches agree on this key — safe to merge
-                    merged[key] = values[0]
-                else:
-                    # Disagreement — pick the most frequent value
-                    from collections import Counter
-                    freq = Counter(serialised)
-                    winner_serialised, _ = freq.most_common(1)[0]
-                    # Reconstruct the original (non-serialised) value
-                    for v, s in zip(values, serialised):
-                        if s == winner_serialised:
-                            merged[key] = v
-                            break
+            self._verification_orchestrator = VerificationOrchestrator()
+        return self._verification_orchestrator
 
-            if not merged:
-                return None
+    def set_verification_orchestrator(self, orchestrator: Any) -> None:
+        """Inject a verification orchestrator (e.g. with LLM/sandbox wired).
 
-            merged["_reconciled"] = True
-            merged["_reconciler"] = "ConductorAgent._reconcile_branch_conflicts"
-            merged["_branch_count"] = len(branch_results)
-            merged["step_id"] = step_id
-            return merged
-
-        except Exception as exc:
-            logger.warning("Reconciler raised an exception for step %s: %s", step_id, exc)
-            return None
+        Mirrors :meth:`set_step_executor`. When set, the PARALLEL_CONSENSUS
+        path delegates domain resolution + strategy dispatch + fallback
+        to this orchestrator instead of the lazily-built default.
+        """
+        self._verification_orchestrator = orchestrator
 
     async def _execute_step(
         self,

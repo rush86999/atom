@@ -7,8 +7,9 @@
 
 ## Overview
 
-This document describes the three advanced multi-agent coordination patterns
-implemented in Atom, derived from Cursor's large-scale swarm engineering research.
+This document describes the four advanced multi-agent coordination patterns
+implemented in Atom, derived from Cursor's large-scale swarm engineering
+research and the domain-aware verification literature (MAV, AlphaCodium, VERGE).
 They address failure modes that emerge when many agents operate concurrently on
 shared codebases.
 
@@ -98,8 +99,9 @@ system_prompt = base_system_prompt + "\n\n" + context_block
 
 ## 2. Parallel Branch Reconciler
 
-**File**: `backend/core/orchestration/conductor_agent.py`
-**Method**: `ConductorAgent._reconcile_branch_conflicts`
+**File**: `backend/core/orchestration/verification/voting.py` (`VotingVerifier`)
+**Shim**: `backend/core/orchestration/conductor_agent.py` → `ConductorAgent._reconcile_branch_conflicts` (backward-compat delegate)
+**Dispatched by**: `VerificationOrchestrator` (see §4) when the resolved strategy is `VOTING`
 
 ### Problem
 
@@ -119,14 +121,29 @@ from *all* branches rather than discarding minority work:
 4. If the merged candidate is non-empty → return it.
 5. If reconciliation fails → fall back to majority-vote winner.
 
+> The reconciler now lives in `VotingVerifier` (`verification/voting.py`). It
+> originated as a **coding-coordination** technique — merging divergent
+> coding-agent action dicts (e.g. `{"action":"read","target":"db.py"}`) — and is
+> now composed into the CODE domain's 2-stage pipeline (§4: reconcile → execute).
+> It also remains the **universal fallback** for the cascade: every untagged step
+> (`UNKNOWN` domain) and every domain-specific strategy that fails to produce a
+> winner falls through to it. The Conductor's `_reconcile_branch_conflicts` method
+> is retained as a thin shim that delegates to `VotingVerifier.reconcile_only`,
+> preserving the original contract and metadata tags (`_reconciled`,
+> `_reconciler`, `_branch_count`, `step_id`).
+
 ### Decision Tree
 
 ```
 3 branch results
 │
+├── Classify domain (§4) ──→ pick verification strategy
+│
 ├── ≥2 agree (majority) ──────────────→ Use majority winner directly
 │
 └── All 3 diverge
+    │
+    ├── Strategy-specific verifier ──→ (see §4 cascade)
     │
     ├── Reconcile (per-key freq vote) ─→ Return merged candidate   ✓
     │
@@ -201,27 +218,200 @@ detector.reset()
 
 ---
 
+## 4. Domain-Aware Verification Cascade
+
+**Package**: `backend/core/orchestration/verification/`
+**Entry point**: `VerificationOrchestrator.verify(candidates, step, context)`
+**Wired into**: `ConductorAgent._execute_parallel_consensus` (replaces the inline majority-vote block)
+**Tests**: `backend/tests/unit/core/orchestration/verification/`
+
+### Problem
+
+The original reconciler (§2) applied **one** verification strategy to every step:
+JSON-normalised majority vote → per-key frequency reconciliation. This is
+domain-blind. "Correct" means different things in different domains — code must
+*run*, math must be *provable*, extraction must be *schema-valid*, prose has no
+cheap ground truth — so a single strategy either wastes effort (running tests on
+a prose summary) or misses errors (majority-voting three subtly-broken programs).
+The verification literature (MAV, AlphaCodium, VERGE) confirms no single verifier
+fits all domains; the right architecture is a **cascade that picks the verifier
+per domain**.
+
+A second, subtler problem is that **code tasks have two distinct concerns** that
+the original reconciler conflated: *coordination* (merging divergent agent action
+dicts — which file to read, which action to take) and *correctness* (the code
+itself runs and passes tests). The reconciler handles coordination well but has
+no execution gate, so three subtly-broken programs that happen to produce
+identical action dicts would pass. The `CODE_PIPELINE` strategy composes both.
+
+### Solution: Strategy dispatcher with a universal voting fallback
+
+For each `PARALLEL_CONSENSUS` step, the orchestrator:
+
+1. **Resolves the domain** — explicit tag first (`step.parameters["task_domain"]`),
+   else heuristic inference from the step's capability/name/description/parameters.
+2. **Resolves the strategy** — explicit override
+   (`step.parameters["verification_strategy"]`), else the domain→strategy map below.
+3. **Runs the matching verifier**, which returns a `VerificationResult` (`winner`,
+   `confidence`, `details`, `reason`).
+4. **Falls back to voting** if the chosen strategy returns `winner=None` — the
+   swarm is never worse off than the original single-strategy behaviour.
+5. **Records a Field Guide insight** when the domain was *inferred* (not explicit),
+   so the workspace accumulates feedback on which inference mappings pay off.
+
+### Domain → strategy map
+
+| Domain | Strategy | Rationale | Ground-truth signal |
+|---|---|---|---|
+| `UNKNOWN` | `VOTING` | Preserves original behaviour | None cheap |
+| `CODE` | `CODE_PIPELINE` | Reconcile agent action dicts, then execute the code (tests are oracle — AlphaCodium) | Strong — runs/tests |
+| `MATH` | `FORMAL` | Provability (VERGE) | Strong — proof/sympy |
+| `QA` | `GROUNDED` | Faithfulness to sources | Partial — retrieved evidence |
+| `EXTRACTION` | `SCHEMA` | Cheapest strong signal | Partial — schema/types |
+| `PLANNING` | `VOTING` | Self-consistency semantics | Weak — goal at end |
+| `PROSE` | `JUDGE` | No ground truth; LLM judge | None — subjective |
+
+### Strategies
+
+| Strategy | File | What it does | Degrades to VOTING when… |
+|---|---|---|---|
+| `VOTING` | `voting.py` | Majority (≥2/3) → per-key freq reconcile → majority fallback | (is the fallback) |
+| `SCHEMA` | `schema_verifier.py` | Validates each candidate against `output_schema` / `required_fields`; first valid wins | No schema configured, or no candidate validates |
+| `EXECUTION` | `execution.py` | Runs candidate code in `SandboxRuntime`; first passing the `tests` spec wins | No sandbox runtime, runtime raises, no candidate passes |
+| `CODE_PIPELINE` | `code_pipeline.py` | **2-stage for CODE**: reconcile divergent action dicts (stage 1) → execute the merged code in sandbox (stage 2) | Sandbox unavailable (stage 2 skipped, reconciled winner returned); code fails tests (`winner=None` → voting) |
+| `FORMAL` | `formal.py` | SymPy equivalence (`simplify(a-b)==0`); largest equivalence group wins | `sympy` not installed, no parseable majority |
+| `GROUNDED` | `grounded.py` | LLM faithfulness check per candidate against retrieved sources; first grounded wins | No LLM service, no sources, timeout, circuit open |
+| `JUDGE` | `judge.py` | LLM-as-judge ranks candidates (display-order shuffled); top-ranked wins | No LLM service, timeout, circuit open |
+
+### CODE_PIPELINE — the 2-stage coding cascade
+
+`CODE_PIPELINE` is the strategy the `CODE` domain routes to by default. It
+composes the two distinct concerns of a coding step:
+
+```
+candidates (coding-agent outputs: action dicts and/or code)
+   │
+   ├─ Stage 1 — RECONCILE  (VotingVerifier, §2)
+   │    merge divergent agent action dicts via per-key frequency vote
+   │    → merged_candidate (or majority winner if all-distinct)
+   │
+   ├─ Stage 2 — EXECUTE  (ExecutionVerifier)
+   │    extract code from merged_candidate (code/source/output keys)
+   │    if code found → run in sandbox against the step's tests spec
+   │       passes → return merged_candidate (verified)           ✓
+   │       fails  → winner=None (correctness gate → voting fallback)
+   │    if no code found → return reconciled winner (coordination-only step)
+   │
+   └─ result.details carries both stages' diagnostics
+```
+
+This separates **coordination** (did the agents agree on the action?) from
+**correctness** (does the resulting code actually work?) — the original
+reconciler handled the first but had no answer for the second. Stage 2 is
+skipped gracefully when the merged candidate carries no code (a pure action
+plan like `{"action":"read","target":"f.py"}`), preserving the original
+reconciler behaviour for coordination-only steps.
+
+### Cascade flow
+
+```
+3 parallel branches → candidates: List[Dict]
+   │
+   ├─ resolve domain: step.parameters['task_domain']  OR  infer_domain(step)
+   ├─ resolve strategy: step.parameters['verification_strategy']  OR  DOMAIN_STRATEGY_MAP[domain]
+   │
+   ├─ run Verifier.verify(candidates, step, context) → VerificationResult
+   │     VOTING       → majority + per-key freq reconcile
+   │     SCHEMA       → validate against schema; first valid wins
+   │     EXECUTION    → run in sandbox; first passing tests wins
+   │     CODE_PIPELINE → reconcile action dicts → execute merged code
+   │     FORMAL       → sympy equivalence; largest group wins
+   │     GROUNDED     → LLM faithfulness check against sources
+   │     JUDGE        → LLM-as-judge ranks candidates
+   │
+   ├─ if winner is None → universal fallback to VOTING
+   └─ record (domain, strategy, outcome) to Field Guide if domain was inferred
+```
+
+### Graceful-degradation guarantees
+
+The cascade is designed to land in the codebase and light up incrementally —
+no external service is required:
+
+- **No LLM service wired** → `GROUNDED` and `JUDGE` return `winner=None` → voting fallback. Circuit breaker + `asyncio.wait_for` timeout mirror the `ActionJudge` pattern.
+- **No sandbox runtime** → `EXECUTION` and `CODE_PIPELINE`'s stage 2 return `winner=None`. `CODE_PIPELINE` treats this as infra (not a correctness failure): stage 2 is skipped and the reconciled winner is returned. `EXECUTION` alone falls through to voting.
+- **`sympy` not installed** → `FORMAL` returns `winner=None` → voting fallback.
+- **`jsonschema` not installed** → `SCHEMA` falls back to manual required-field + type checks.
+- **Any verifier raises** → orchestrator catches, logs, and falls back to voting.
+
+The Conductor constructs a default `VerificationOrchestrator` lazily on first
+`PARALLEL_CONSENSUS` run; callers wire real services via
+`ConductorAgent.set_verification_orchestrator(VerificationOrchestrator(
+    llm_service=..., sandbox_runtime=..., field_guide_service=...))`.
+
+### Usage
+
+```python
+from core.orchestration.verification import (
+    VerificationOrchestrator, TaskDomain, VerificationStrategy,
+)
+
+# Default — every domain-specific strategy degrades to voting.
+orch = VerificationOrchestrator()
+
+# Wired — lights up EXECUTION (sandbox), GROUNDED + JUDGE (LLM), and
+# records inferred-domain feedback to the Field Guide.
+orch = VerificationOrchestrator(
+    llm_service=llm_service,
+    sandbox_runtime=get_runtime(),
+    field_guide_service=get_field_guide_service(db=db_session),
+)
+
+# Inject into the Conductor.
+conductor.set_verification_orchestrator(orch)
+
+# Tag a step explicitly to force a strategy (bypasses inference).
+step = WorkflowStep(
+    step_type=StepType.AGENT,
+    name="implement the login endpoint",
+    parameters={"task_domain": "code"},  # → EXECUTION
+)
+# Or override the strategy directly.
+step.parameters["verification_strategy"] = "judge"  # forces JUDGE regardless of domain
+```
+
+---
+
 ## Integration Map
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                     Agent Execution                        │
-│                                                            │
-│  ConductorAgent                                            │
-│  ├─ PARALLEL_CONSENSUS ─→ _reconcile_branch_conflicts      │
-│  │                        (merge diverging branches)       │
-│  │                                                         │
-│  └─ Step executor ──→ MegafileDetector.record_edit()       │
-│                        (detect bloat, emit warnings)       │
-│                                 │                          │
-│                                 ▼                          │
-│                       HarnessEvolutionService              │
-│                       (queue modularization patch)         │
-│                                                            │
-│  FieldGuideService                                         │
-│  ├─ update_field_guide()  ←── Agent discoveries            │
-│  └─ get_field_guide_context() ──→ System prompt injection  │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Agent Execution                         │
+│                                                             │
+│  ConductorAgent                                             │
+│  ├─ PARALLEL_CONSENSUS                                      │
+│  │   └─ VerificationOrchestrator.verify(candidates, step)   │
+│  │       ├─ resolve domain (explicit tag OR inference)      │
+│  │       ├─ dispatch → VOTING / SCHEMA / EXECUTION /        │
+│  │       │                 FORMAL / GROUNDED / JUDGE        │
+│  │       └─ universal fallback → VOTING on winner=None      │
+│  │                                                          │
+│  │   (VotingVerifier holds the per-key reconcile algorithm  │
+│  │    previously inline in _reconcile_branch_conflicts)     │
+│  │                                                          │
+│  └─ Step executor ──→ MegafileDetector.record_edit()        │
+│                        (detect bloat, emit warnings)        │
+│                                 │                           │
+│                                 ▼                           │
+│                       HarnessEvolutionService               │
+│                       (queue modularization patch)          │
+│                                                             │
+│  FieldGuideService                                          │
+│  ├─ update_field_guide()  ←── Agent discoveries             │
+│  ├─ update_field_guide()  ←── VerificationOrchestrator      │
+│  │                          (inferred-domain feedback, §4)  │
+│  └─ get_field_guide_context() ──→ System prompt injection   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -231,3 +421,9 @@ detector.reset()
 - Cursor Research: *Agent Swarms and the New Model Economics* (2026-07-20)
 - Stigmergy: Bonabeau et al., *Swarm Intelligence* (1999)
 - Self-Harness / HarnessX: Atom internal architecture
+- **Domain-aware verification cascade (§4)**:
+  - Lifshitz, McIlraith, Du — *Multi-Agent Verification: Scaling Test-Time Compute with Multiple Verifiers* (arXiv:2502.20379, 2025). Aspect verifiers combine without retraining; scaling verifiers beats scaling samples.
+  - Ridnik et al. — *Code Generation with AlphaCodium* (arXiv:2401.08500, 2024). Test-based iterative flow; execution is the oracle for code.
+  - VERGE — *Formal Refinement and Guidance Engine for Verifiable LLM Reasoning*. SMT solvers + consensus cascade for math/formal domains.
+  - *ReVeal: Self-Evolving Code Agents via Iterative Generation-Verification* (arXiv:2506.11442, 2025). Generation-verification cycle with structured feedback.
+  - "Verification Over Generation" framing (2025-2026): verification is the bottleneck in coding agents, not generation.
