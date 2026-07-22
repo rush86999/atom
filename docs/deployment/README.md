@@ -29,10 +29,10 @@ cd atom
 cp .env.personal .env
 
 # Start with Docker Compose
-docker-compose -f docker-compose-personal.yml up -d
+docker compose -f docker-compose-personal.yml up -d
 
 # Check health
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 ```
 
 ### Cloud Deployment
@@ -65,7 +65,7 @@ curl http://localhost:8000/health/live
 # Rollback to previous version
 git log --oneline -n 10
 git checkout <previous-commit>
-docker-compose -f docker-compose-personal.yml up -d --build
+docker compose -f docker-compose-personal.yml up -d --build
 ```
 
 ## 📖 Related Documentation

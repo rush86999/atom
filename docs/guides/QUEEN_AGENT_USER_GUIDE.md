@@ -93,14 +93,14 @@ Queen Agent requires agents to have sufficient maturity:
 
 **Check your agent's maturity:**
 ```bash
-curl http://localhost:8000/api/v1/agents/{agent_id}/maturity
+curl http://localhost:8001/api/v1/agents/{agent_id}/maturity
 ```
 
 ### Step 2: Explore Available Blueprints
 
 ```bash
 # List all available blueprints
-curl http://localhost:8000/api/v1/queen/blueprints
+curl http://localhost:8001/api/v1/queen/blueprints
 ```
 
 **Example Response:**
@@ -132,7 +132,7 @@ curl http://localhost:8000/api/v1/queen/blueprints
 
 ```bash
 # Execute a blueprint with parameters
-curl -X POST http://localhost:8000/api/v1/queen/execute \
+curl -X POST http://localhost:8001/api/v1/queen/execute \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "daily_report_v1",
@@ -383,7 +383,7 @@ With orchestration primitives:
 
 ```bash
 # Create a new blueprint
-curl -X POST http://localhost:8000/api/v1/queen/blueprints \
+curl -X POST http://localhost:8001/api/v1/queen/blueprints \
   -H "Content-Type: application/json" \
   -d @my_blueprint.json
 ```
@@ -404,7 +404,7 @@ curl -X POST http://localhost:8000/api/v1/queen/blueprints \
 
 **Execute:**
 ```bash
-curl -X POST http://localhost:8000/api/v1/queen/execute \
+curl -X POST http://localhost:8001/api/v1/queen/execute \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "daily_sales_report_v1",
@@ -429,7 +429,7 @@ curl -X POST http://localhost:8000/api/v1/queen/execute \
 
 **Execute:**
 ```bash
-curl -X POST http://localhost:8000/api/v1/queen/execute \
+curl -X POST http://localhost:8001/api/v1/queen/execute \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "lead_qualification_v1",
@@ -522,7 +522,7 @@ Add clear descriptions:
 ### 6. 🆕 Test Before Production
 Always test blueprints with non-critical data first:
 ```bash
-curl -X POST http://localhost:8000/api/v1/queen/execute \
+curl -X POST http://localhost:8001/api/v1/queen/execute \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "my_blueprint",
@@ -538,17 +538,17 @@ curl -X POST http://localhost:8000/api/v1/queen/execute \
 
 ```bash
 # Get specific execution
-curl http://localhost:8000/api/v1/queen/executions/{execution_id}
+curl http://localhost:8001/api/v1/queen/executions/{execution_id}
 
 # List recent executions
-curl http://localhost:8000/api/v1/queen/executions?limit=10
+curl http://localhost:8001/api/v1/queen/executions?limit=10
 ```
 
 ### 🆕 State Machine Monitoring
 
 ```bash
 # Get current workflow state
-curl http://localhost:8000/api/v1/orchestration/workflows/{workflow_id}/state
+curl http://localhost:8001/api/v1/orchestration/workflows/{workflow_id}/state
 
 # Get state transition history
 curl http://localhost://localhost:8000/api/v1/orchestration/workflows/{workflow_id}/transitions
@@ -557,24 +557,24 @@ curl http://localhost://localhost:8000/api/v1/orchestration/workflows/{workflow_
 ### Cancel Running Execution
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/queen/executions/{execution_id}/cancel
+curl -X POST http://localhost:8001/api/v1/queen/executions/{execution_id}/cancel
 ```
 
 ### 🆕 Pause and Resume
 
 ```bash
 # Pause a running workflow
-curl -X POST http://localhost:8000/api/v1/orchestration/workflows/{workflow_id}/pause
+curl -X POST http://localhost:8001/api/v1/orchestration/workflows/{workflow_id}/pause
 
 # Resume a paused workflow
-curl -X POST http://localhost:8000/api/v1/orchestration/workflows/{workflow_id}/resume
+curl -X POST http://localhost:8001/api/v1/orchestration/workflows/{workflow_id}/resume
 ```
 
 ### View Execution Logs
 
 ```bash
 # Get logs for specific execution
-curl http://localhost:8000/api/v1/queen/executions/{execution_id}/logs
+curl http://localhost:8001/api/v1/queen/executions/{execution_id}/logs
 ```
 
 ### Common Issues
@@ -605,7 +605,7 @@ curl http://localhost:8000/api/v1/queen/executions/{execution_id}/logs
 
 ```bash
 # Create a scheduled execution
-curl -X POST http://localhost:8000/api/v1/queen/schedules \
+curl -X POST http://localhost:8001/api/v1/queen/schedules \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "daily_report_v1",

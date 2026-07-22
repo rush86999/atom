@@ -26,13 +26,13 @@ Canvas components are reusable UI elements that agents can use to create rich, i
 
 ```bash
 # List all components
-curl http://localhost:8000/api/v1/marketplace/components
+curl http://localhost:8001/api/v1/marketplace/components
 
 # Filter by category
-curl http://localhost:8000/api/v1/marketplace/components?category=charts
+curl http://localhost:8001/api/v1/marketplace/components?category=charts
 
 # Search by name
-curl http://localhost:8000/api/v1/marketplace/components?query=line+chart
+curl http://localhost:8001/api/v1/marketplace/components?query=line+chart
 ```
 
 **Response:**
@@ -62,7 +62,7 @@ curl http://localhost:8000/api/v1/marketplace/components?query=line+chart
 
 ```bash
 # Get full component details
-curl http://localhost:8000/api/v1/marketplace/components/comp_line_chart_001
+curl http://localhost:8001/api/v1/marketplace/components/comp_line_chart_001
 ```
 
 **Response:**
@@ -108,7 +108,7 @@ curl http://localhost:8000/api/v1/marketplace/components/comp_line_chart_001
 
 ```bash
 # Install component to a canvas
-curl -X POST http://localhost:8000/api/v1/marketplace/components/comp_line_chart_001/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/components/comp_line_chart_001/install \
   -H "Content-Type: application/json" \
   -d '{
     "canvas_id": "your_canvas_id"
@@ -299,7 +299,7 @@ Each component defines a JSON schema for its configuration:
 ### Install with Default Configuration
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/marketplace/components/{component_id}/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/components/{component_id}/install \
   -H "Content-Type: application/json" \
   -d '{
     "canvas_id": "your_canvas_id"
@@ -309,7 +309,7 @@ curl -X POST http://localhost:8000/api/v1/marketplace/components/{component_id}/
 ### Install with Custom Configuration
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/marketplace/components/{component_id}/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/components/{component_id}/install \
   -H "Content-Type: application/json" \
   -d '{
     "canvas_id": "your_canvas_id",
@@ -331,7 +331,7 @@ curl -X POST http://localhost:8000/api/v1/marketplace/components/{component_id}/
 ```bash
 # Install multiple components at once
 for component in comp_line_chart_001 comp_bar_chart_001 comp_table_grid_001; do
-  curl -X POST http://localhost:8000/api/v1/marketplace/components/$component/install \
+  curl -X POST http://localhost:8001/api/v1/marketplace/components/$component/install \
     -H "Content-Type: application/json" \
     -d "{\"canvas_id\": \"your_canvas_id\"}"
 done
@@ -368,7 +368,7 @@ When component updates are available:
 
 ```bash
 # Uninstall component from canvas
-curl -X DELETE http://localhost:8000/api/v1/marketplace/components/{installation_id}
+curl -X DELETE http://localhost:8001/api/v1/marketplace/components/{installation_id}
 ```
 
 ⚠️ **Note:** Uninstallation removes component from canvas but keeps component metadata in case other canvases use it.
@@ -542,7 +542,7 @@ Returns:
 
 ```bash
 # 1. Create a new canvas
-curl -X POST http://localhost:8000/api/canvases \
+curl -X POST http://localhost:8001/api/canvases \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Sales Dashboard",
@@ -557,7 +557,7 @@ components=(
 )
 
 for component in "${components[@]}"; do
-  curl -X POST "http://localhost:8000/api/v1/marketplace/components/$component/install" \
+  curl -X POST "http://localhost:8001/api/v1/marketplace/components/$component/install" \
     -H "Content-Type: application/json" \
     -d "{\"canvas_id\": \"$canvas_id\"}"
 done
@@ -584,7 +584,7 @@ EOF
 
 ```bash
 # 1. Install survey form component
-curl -X POST http://localhost:8000/api/v1/marketplace/components/comp_form_survey_001/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/components/comp_form_survey_001/install \
   -H "Content-Type: application/json" \
   -d '{
     "canvas_id": "feedback_canvas",

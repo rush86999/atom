@@ -128,7 +128,7 @@ Comprehensive protection against real-world supply chain attacks.
 ### Browse the Marketplace
 
 ```bash
-curl "http://localhost:8000/marketplace/skills?page=1&page_size=20"
+curl "http://localhost:8001/marketplace/skills?page=1&page_size=20"
 ```
 
 **Response**:
@@ -155,7 +155,7 @@ curl "http://localhost:8000/marketplace/skills?page=1&page_size=20"
 ### Install a Skill
 
 ```bash
-curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/install" \
+curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/install" \
   -H "Content-Type: application/json" \
   -d '{"agent_id": "my-agent", "auto_install_deps": true}'
 ```
@@ -194,7 +194,7 @@ reloaded = loader.reload_skill("my_skill")
 
 ```bash
 # Python packages
-curl -X POST "http://localhost:8000/auto-install/install" \
+curl -X POST "http://localhost:8001/auto-install/install" \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "data-analysis",
@@ -204,7 +204,7 @@ curl -X POST "http://localhost:8000/auto-install/install" \
   }'
 
 # npm packages
-curl -X POST "http://localhost:8000/auto-install/install" \
+curl -X POST "http://localhost:8001/auto-install/install" \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "web-scraper",
@@ -560,12 +560,12 @@ GET /auto-install/status/{skill_id}
 **Solution**:
 1. Check dependency versions in skill metadata:
    ```bash
-   curl http://localhost:8000/marketplace/skills/{skill_id}
+   curl http://localhost:8001/marketplace/skills/{skill_id}
    ```
 2. Resolve conflicts manually or contact skill author
 3. Use `auto_install_deps=false` to skip auto-installation:
    ```bash
-   curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/install" \
+   curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/install" \
      -H "Content-Type: application/json" \
      -d '{"agent_id": "my-agent", "auto_install_deps": false}'
    ```
@@ -598,7 +598,7 @@ GET /auto-install/status/{skill_id}
 **Solution**:
 1. Review dependency graph for cycles:
    ```bash
-   curl -X POST "http://localhost:8000/composition/validate" \
+   curl -X POST "http://localhost:8001/composition/validate" \
      -H "Content-Type: application/json" \
      -d '{"steps": [...]}'
    ```
@@ -626,7 +626,7 @@ GET /auto-install/status/{skill_id}
 **Solution**:
 1. Review scan results:
    ```bash
-   curl http://localhost:8000/auto-install/status/{skill_id}
+   curl http://localhost:8001/auto-install/status/{skill_id}
    ```
 2. Check for known vulnerabilities:
    ```bash

@@ -290,7 +290,7 @@ make docker-build
 docker-compose up -d
 
 # Health checks
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8001/api/v1/health
 ```
 
 ## 📝 Notes

@@ -171,20 +171,20 @@ With the backend running, connect each app so Atom stores a token:
 
 ```bash
 # Microsoft (Outlook + OneDrive) — initiates OAuth in the browser
-open "http://localhost:8000/api/v1/auth/oauth/microsoft/initiate"
+open "http://localhost:8001/api/v1/auth/oauth/microsoft/initiate"
 
 # Google (Drive + Gmail + Calendar) — initiates OAuth in the browser
-open "http://localhost:8000/api/v1/auth/oauth/google/initiate"
+open "http://localhost:8001/api/v1/auth/oauth/google/initiate"
 
 # Telegram — already connected via webhook (step 2a); send the bot a message to test.
 
 # Zoho — token obtained out-of-band; save as a connection via the UI or API:
-curl -X POST http://localhost:8000/api/connections \
+curl -X POST http://localhost:8001/api/connections \
   -H "Content-Type: application/json" \
   -d '{"integration_id":"zoho","name":"Zoho","credentials":{"access_token":"<TOKEN>","refresh_token":"<REFRESH>","api_domain":"https://www.zohoapis.com","organization_id":"<ORG_ID>"}}'
 
 # Shopify — OAuth via the callback route
-open "http://localhost:8000/api/shopify/auth/url"
+open "http://localhost:8001/api/shopify/auth/url"
 ```
 
 ---
@@ -222,7 +222,7 @@ This checks:
 If the agent is stuck at STUDENT, graduate it via the UI (Agents → promote) or:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/agents/<agent_id>/graduate \
+curl -X POST http://localhost:8001/api/v1/agents/<agent_id>/graduate \
   -H "Content-Type: application/json" -d '{"to_maturity":"SUPERVISED"}'
 ```
 

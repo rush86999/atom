@@ -92,7 +92,7 @@ UPDATE agent_registry
 
 ```bash
 # Check effective flags:
-curl -s http://localhost:8000/health/ready | jq .details.match_confidence
+curl -s http://localhost:8001/health/ready | jq .details.match_confidence
 
 # Tail audit rows to see what level real actions are getting:
 sqlite3 ./atom_dev.db \

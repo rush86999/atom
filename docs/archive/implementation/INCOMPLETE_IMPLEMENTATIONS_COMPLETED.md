@@ -362,7 +362,7 @@ alembic upgrade head
 alembic current
 
 # 6. Restart server
-python -m uvicorn main:app --reload
+python -m uvicorn main_api_app:app --reload
 ```
 
 ---

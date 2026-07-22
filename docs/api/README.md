@@ -26,7 +26,7 @@ Complete API reference and guides for the Atom platform.
 
 ## 🔧 Quick Links
 
-- **Base URL**: `http://localhost:8000/api/v1`
+- **Base URL**: `http://localhost:8001/api/v1`
 - **Authentication**: Bearer token (JWT)
 - **Content-Type**: `application/json`
 - **Rate Limiting**: See deployment configuration

@@ -85,7 +85,7 @@ This guide provides a comprehensive overview of quality assurance (QA) practices
 **Documentation:**
 - Public APIs: Documented
 - Complex logic: Commented
-- Breaking changes: Noted in CHANGELOG
+- Breaking changes: Noted in RELEASE_NOTES.md
 
 ---
 

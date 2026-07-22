@@ -277,7 +277,7 @@ WARNING:core.scheduler:Failed to initialize skill sync: Invalid ATOM_SAAS_API_UR
 
 ```bash
 # Check admin API for scheduled jobs
-curl http://localhost:8000/api/admin/sync/jobs
+curl http://localhost:8001/api/admin/sync/jobs
 
 # Expected output:
 {
@@ -305,7 +305,7 @@ curl http://localhost:8000/api/admin/sync/jobs
 
 ```bash
 # Check current sync status
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 
 # Expected output:
 {
@@ -397,13 +397,13 @@ livenessProbe:
 
 ```bash
 # Liveness check
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 
 # Expected output:
 {"status": "healthy", "timestamp": "2026-02-19T14:20:00Z"}
 
 # Readiness check
-curl http://localhost:8000/health/ready
+curl http://localhost:8001/health/ready
 
 # Expected output:
 {
@@ -414,7 +414,7 @@ curl http://localhost:8000/health/ready
 }
 
 # Sync health check
-curl http://localhost:8000/health/sync
+curl http://localhost:8001/health/sync
 
 # Expected output:
 {
@@ -436,7 +436,7 @@ curl http://localhost:8000/health/sync
 
 ```bash
 # Scrape metrics
-curl http://localhost:8000/metrics/sync
+curl http://localhost:8001/metrics/sync
 
 # Expected output:
 # HELP atom_saas_sync_duration_seconds Sync duration in seconds
@@ -660,11 +660,11 @@ echo $ATOM_SAAS_CONFLICT_STRATEGY
 # Expected: remote_wins (recommended)
 
 # Check conflict logs
-curl http://localhost:8000/api/admin/sync/conflicts
+curl http://localhost:8001/api/admin/sync/conflicts
 # Look for patterns in conflict types
 
 # Check conflict metrics
-curl http://localhost:8000/metrics/sync | grep conflict
+curl http://localhost:8001/metrics/sync | grep conflict
 # atom_saas_conflicts_detected_total
 ```
 
@@ -688,7 +688,7 @@ sqlite3 data/atom.db "SELECT COUNT(*) FROM skill_cache;"
 # Expected: > 0
 
 # Check last sync time
-curl http://localhost:8000/api/admin/sync/status | jq .sync.last_sync_at
+curl http://localhost:8001/api/admin/sync/status | jq .sync.last_sync_at
 # Expected: Recent timestamp (< 30 min ago)
 
 # Check sync logs
@@ -934,7 +934,7 @@ export ENABLE_SCHEDULER=false
 docker-compose restart atom-api
 
 # Or delete scheduled jobs via API
-curl -X DELETE http://localhost:8000/api/admin/sync/jobs
+curl -X DELETE http://localhost:8001/api/admin/sync/jobs
 ```
 
 ## Support and Resources

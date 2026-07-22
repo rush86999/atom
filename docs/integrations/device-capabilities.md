@@ -832,7 +832,7 @@ PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/test_device*.py
 **Issue**: Command execution blocked
 ```bash
 # Verify agent is AUTONOMOUS
-curl -X GET http://localhost:8000/api/agents/agent-123
+curl -X GET http://localhost:8001/api/agents/agent-123
 
 # Check command whitelist
 echo $DEVICE_COMMAND_WHITELIST
@@ -841,10 +841,10 @@ echo $DEVICE_COMMAND_WHITELIST
 **Issue**: Governance blocks legitimate actions
 ```bash
 # Check agent maturity level
-curl -X GET http://localhost:8000/api/agents/agent-123
+curl -X GET http://localhost:8001/api/agents/agent-123
 
 # Promote agent if needed
-curl -X POST http://localhost:8000/api/agents/agent-123/promote
+curl -X POST http://localhost:8001/api/agents/agent-123/promote
 ```
 
 ### Debug Logging

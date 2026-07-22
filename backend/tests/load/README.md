@@ -20,7 +20,7 @@ Load testing simulates multiple concurrent users interacting with the API to ide
 2. **Application running**:
    ```bash
    cd backend
-   python -m uvicorn main:app --host 0.0.0.0 --port 8000
+   python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
    ```
 
 3. **Test database** (optional but recommended):
@@ -49,7 +49,7 @@ Then open http://localhost:8089 in your browser.
 - Stop/start test control
 
 **Default Settings:**
-- Host: http://localhost:8000
+- Host: http://localhost:8001
 - Web UI Port: 8089
 - Default Users: Start with 100 users
 - Spawn Rate: 10 users/second
@@ -244,11 +244,11 @@ Response time percentiles (approximate)
 **Solution:**
 ```bash
 # Check if server is running
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 
 # Start server if not running
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### Authentication Failures
@@ -260,7 +260,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 - Ensure test user exists in database
 - Check authentication endpoint is working:
   ```bash
-  curl -X POST http://localhost:8000/api/v1/auth/login \
+  curl -X POST http://localhost:8001/api/v1/auth/login \
     -H "Content-Type: application/json" \
     -d '{"email": "load_test@example.com", "password": "test_password_123"}'
   ```
@@ -287,7 +287,7 @@ export SQLALCHEMY_MAX_OVERFLOW=40
 export SQLALCHEMY_POOL_TIMEOUT=30
 
 # Restart server with new settings
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### High Failure Rate
@@ -326,14 +326,14 @@ psql -c "SELECT count(*) FROM pg_stat_activity;"
 **Debugging:**
 ```bash
 # Check cache hit rate
-curl http://localhost:8000/api/agent-governance/cache-stats
+curl http://localhost:8001/api/agent-governance/cache-stats
 
 # Profile database queries
 # Enable query logging in SQLAlchemy
 export SQLALCHEMY_ECHO=true
 
 # Run with profiling
-python -m cProfile -o profile.stats -m uvicorn main:app
+python -m cProfile -o profile.stats -m uvicorn main_api_app:app
 ```
 
 ## CI Integration
@@ -375,7 +375,7 @@ jobs:
       - name: Start application
         run: |
           cd backend
-          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000 &
           sleep 10
 
       - name: Run load tests

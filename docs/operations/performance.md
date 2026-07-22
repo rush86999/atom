@@ -944,7 +944,7 @@ python -m memory_profiler script.py
 3. **Use process isolation**:
    ```bash
    # Run skills in separate processes
-   uvicorn main:app --workers 4
+   uvicorn main_api_app:app --workers 4
    ```
 
 4. **Monitor with memory profiler**:

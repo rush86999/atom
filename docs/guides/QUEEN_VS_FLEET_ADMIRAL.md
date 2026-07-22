@@ -297,7 +297,7 @@ See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for comple
 
 ```bash
 # Execute blueprint
-curl -X POST http://localhost:8000/api/v1/queen/execute \
+curl -X POST http://localhost:8001/api/v1/queen/execute \
   -H "Content-Type: application/json" \
   -d '{
     "blueprint_name": "daily_report_v1",
@@ -308,17 +308,17 @@ curl -X POST http://localhost:8000/api/v1/queen/execute \
   }'
 
 # List blueprints
-curl http://localhost:8000/api/v1/queen/blueprints
+curl http://localhost:8001/api/v1/queen/blueprints
 
 # Get execution status
-curl http://localhost:8000/api/v1/queen/executions/{execution_id}
+curl http://localhost:8001/api/v1/queen/executions/{execution_id}
 ```
 
 ### Fleet Admiral API
 
 ```bash
 # Submit complex task
-curl -X POST http://localhost:8000/api/v1/fleet/submit \
+curl -X POST http://localhost:8001/api/v1/fleet/submit \
   -H "Content-Type: application/json" \
   -d '{
     "task": "Research competitors and build integration",
@@ -330,10 +330,10 @@ curl -X POST http://localhost:8000/api/v1/fleet/submit \
   }'
 
 # List active fleets
-curl http://localhost:8000/api/v1/fleet/active
+curl http://localhost:8001/api/v1/fleet/active
 
 # Get fleet status
-curl http://localhost:8000/api/v1/fleet/{fleet_id}/status
+curl http://localhost:8001/api/v1/fleet/{fleet_id}/status
 ```
 
 ---
@@ -408,15 +408,15 @@ Sometimes the best solution combines both orchestrators:
 **Implementation:**
 ```bash
 # Phase 1: Use Fleet Admiral for research
-curl -X POST http://localhost:8000/api/v1/fleet/submit \
+curl -X POST http://localhost:8001/api/v1/fleet/submit \
   -d '{"task": "Research competitors and design analysis framework"}'
 
 # Phase 2: Create Queen Agent blueprint from research
-curl -X POST http://localhost:8000/api/v1/queen/blueprints \
+curl -X POST http://localhost:8001/api/v1/queen/blueprints \
   -d '{"name": "weekly_competitor_analysis", "steps": [...]}'
 
 # Schedule recurring execution
-curl -X POST http://localhost:8000/api/v1/queen/schedules \
+curl -X POST http://localhost:8001/api/v1/queen/schedules \
   -d '{"blueprint": "weekly_competitor_analysis", "schedule": "0 9 * * 1"}'
 ```
 

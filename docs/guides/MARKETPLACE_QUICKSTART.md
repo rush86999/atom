@@ -70,7 +70,7 @@ environment:
 
 ```bash
 # Personal Edition (Docker)
-docker-compose -f docker-compose-personal.yml restart
+docker compose -f docker-compose-personal.yml restart
 
 # Native Installation
 atom restart
@@ -83,7 +83,7 @@ brew services restart atom  # macOS
 
 ```bash
 # Check sync status
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 ```
 
 **Expected Response:**
@@ -108,13 +108,13 @@ curl http://localhost:8000/api/admin/sync/status
 
 ```bash
 # Get all skills (paginated)
-curl http://localhost:8000/api/marketplace/skills?limit=20
+curl http://localhost:8001/api/marketplace/skills?limit=20
 
 # Search by category
-curl http://localhost:8000/api/marketplace/skills?category=data
+curl http://localhost:8001/api/marketplace/skills?category=data
 
 # Search by query
-curl http://localhost:8000/api/marketplace/skills?q=slack
+curl http://localhost:8001/api/marketplace/skills?q=slack
 ```
 
 **Example Response:**
@@ -140,7 +140,7 @@ curl http://localhost:8000/api/marketplace/skills?q=slack
 ### Install a Skill
 
 ```bash
-curl -X POST http://localhost:8000/api/marketplace/skills/install \
+curl -X POST http://localhost:8001/api/marketplace/skills/install \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "skill_slack_notification_v1"
@@ -185,7 +185,7 @@ result = skill.execute_skill(
 ### List Available Agents
 
 ```bash
-curl http://localhost:8000/api/marketplace/agents?limit=20
+curl http://localhost:8001/api/marketplace/agents?limit=20
 ```
 
 **Example Response:**
@@ -216,7 +216,7 @@ curl http://localhost:8000/api/marketplace/agents?limit=20
 ### Install an Agent Template
 
 ```bash
-curl -X POST http://localhost:8000/api/marketplace/agents/install \
+curl -X POST http://localhost:8001/api/marketplace/agents/install \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_finance_analyst_v2",
@@ -245,7 +245,7 @@ curl -X POST http://localhost:8000/api/marketplace/agents/install \
 ### List Available Components
 
 ```bash
-curl http://localhost:8000/api/marketplace/canvas-components?limit=20
+curl http://localhost:8001/api/marketplace/canvas-components?limit=20
 ```
 
 **Example Response:**
@@ -269,7 +269,7 @@ curl http://localhost:8000/api/marketplace/canvas-components?limit=20
 ### Install a Component
 
 ```bash
-curl -X POST http://localhost:8000/api/marketplace/canvas-components/install \
+curl -X POST http://localhost:8001/api/marketplace/canvas-components/install \
   -H "Content-Type: application/json" \
   -d '{
     "component_id": "component_sales_dashboard_v1"
@@ -283,7 +283,7 @@ curl -X POST http://localhost:8000/api/marketplace/canvas-components/install \
 ### List Available Domains
 
 ```bash
-curl http://localhost:8000/api/marketplace/domains?limit=20
+curl http://localhost:8001/api/marketplace/domains?limit=20
 ```
 
 **Example Response:**
@@ -306,7 +306,7 @@ curl http://localhost:8000/api/marketplace/domains?limit=20
 ### Install a Domain
 
 ```bash
-curl -X POST http://localhost:8000/api/marketplace/domains/install \
+curl -X POST http://localhost:8001/api/marketplace/domains/install \
   -H "Content-Type: application/json" \
   -d '{
     "domain_id": "domain_healthcare_compliance"
@@ -320,7 +320,7 @@ curl -X POST http://localhost:8000/api/marketplace/domains/install \
 After using a marketplace resource, you can rate it to help others:
 
 ```bash
-curl -X POST http://localhost:8000/api/marketplace/ratings \
+curl -X POST http://localhost:8001/api/marketplace/ratings \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "skill",
@@ -344,7 +344,7 @@ MARKETPLACE_RATING_SYNC_INTERVAL_MINUTES=30  # Default: 30 minutes
 
 **Manual Sync:**
 ```bash
-curl -X POST http://localhost:8000/api/admin/sync/trigger
+curl -X POST http://localhost:8001/api/admin/sync/trigger
 ```
 
 ---
@@ -390,7 +390,7 @@ INSTANCE_NAME=My-Atom-Instance  # Optional friendly name
 2. Update your `.env` file with the new token
 3. Restart Atom:
    ```bash
-   docker-compose -f docker-compose-personal.yml restart
+   docker compose -f docker-compose-personal.yml restart
    ```
 
 ### Issue: "Skills Not Syncing"
@@ -398,12 +398,12 @@ INSTANCE_NAME=My-Atom-Instance  # Optional friendly name
 **Solution:**
 1. Check sync status:
    ```bash
-   curl http://localhost:8000/api/admin/sync/status
+   curl http://localhost:8001/api/admin/sync/status
    ```
 2. Verify `MARKETPLACE_SYNC_ENABLED=true`
 3. Check logs for sync errors:
    ```bash
-   docker-compose -f docker-compose-personal.yml logs -f atom
+   docker compose -f docker-compose-personal.yml logs -f atom
    ```
 
 ### Issue: "Installation Failed"
@@ -465,7 +465,7 @@ Always check:
 Install and test skills in development first:
 ```bash
 # Install with test mode
-curl -X POST http://localhost:8000/api/marketplace/skills/install \
+curl -X POST http://localhost:8001/api/marketplace/skills/install \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "skill_example",
@@ -478,10 +478,10 @@ curl -X POST http://localhost:8000/api/marketplace/skills/install \
 Enable automatic updates or update manually:
 ```bash
 # Check for updates
-curl http://localhost:8000/api/marketplace/skills/updates
+curl http://localhost:8001/api/marketplace/skills/updates
 
 # Update a skill
-curl -X POST http://localhost:8000/api/marketplace/skills/update \
+curl -X POST http://localhost:8001/api/marketplace/skills/update \
   -H "Content-Type: application/json" \
   -d '{"skill_id": "skill_example"}'
 ```
@@ -490,7 +490,7 @@ curl -X POST http://localhost:8000/api/marketplace/skills/update \
 
 Track installed skill performance:
 ```bash
-curl http://localhost:8000/api/marketplace/skills/installed?include_stats=true
+curl http://localhost:8001/api/marketplace/skills/installed?include_stats=true
 ```
 
 ---

@@ -457,7 +457,7 @@ Required for frontend builds:
 cp frontend-nextjs/.env.example frontend-nextjs/.env.local
 
 # Edit .env.local with your values
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 # ... other variables
 ```
 

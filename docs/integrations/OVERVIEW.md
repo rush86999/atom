@@ -94,13 +94,13 @@ ATOM provides one of the most comprehensive integration ecosystems available, wi
 3. **Test Connectivity**
    ```bash
    # Test service health
-   curl http://localhost:8000/api/v1/slack/health
+   curl http://localhost:8001/api/v1/slack/health
    ```
 
 4. **Create Workflows**
    ```bash
    # Generate workflow from natural language
-   curl -X POST http://localhost:8000/workflows/enhanced/intelligence/generate \
+   curl -X POST http://localhost:8001/workflows/enhanced/intelligence/generate \
      -H "Content-Type: application/json" \
      -d '{
        "user_input": "When I receive important emails, create Asana tasks and notify Slack",

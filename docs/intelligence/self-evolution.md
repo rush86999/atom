@@ -294,7 +294,7 @@ async def analyze_sales_data(sales_records: list) -> dict:
 
 **Manual Trigger** (SUPERVISED+ agents):
 ```bash
-curl -X POST http://localhost:8000/api/v1/auto-dev/evolve \
+curl -X POST http://localhost:8001/api/v1/auto-dev/evolve \
   -H "Content-Type: application/json" \
   -d '{
     "skill_name": "analyze_sales_data",
@@ -560,7 +560,7 @@ event_bus.on_skill_execution(evolution_engine.process_execution)
 
 **Via API:**
 ```bash
-curl -X PATCH http://localhost:8000/api/v1/workspaces/{workspace_id} \
+curl -X PATCH http://localhost:8001/api/v1/workspaces/{workspace_id} \
   -H "Content-Type: application/json" \
   -d '{
     "configuration": {
@@ -887,10 +887,10 @@ Best Practices:
 **Diagnosis**:
 ```bash
 # Check if reflection is enabled
-curl http://localhost:8000/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.reflection_enabled
+curl http://localhost:8001/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.reflection_enabled
 
 # Check agent maturity
-curl http://localhost:8000/api/v1/agents/{agent_id} | jq .maturity_level
+curl http://localhost:8001/api/v1/agents/{agent_id} | jq .maturity_level
 ```
 
 **Solutions**:
@@ -905,7 +905,7 @@ curl http://localhost:8000/api/v1/agents/{agent_id} | jq .maturity_level
 **Diagnosis**:
 ```bash
 # Check failure threshold
-curl http://localhost:8000/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.failure_threshold
+curl http://localhost:8001/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.failure_threshold
 
 # Check ReflectionEngine logs
 tail -f logs/atom.log | grep ReflectionEngine
@@ -923,10 +923,10 @@ tail -f logs/atom.log | grep ReflectionEngine
 **Diagnosis**:
 ```bash
 # Check if auto-evolution is enabled
-curl http://localhost:8000/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.alpha_evolver_enabled
+curl http://localhost:8001/api/v1/workspaces/{workspace_id} | jq .configuration.auto_dev.alpha_evolver_enabled
 
 # Check agent maturity
-curl http://localhost:8000/api/v1/agents/{agent_id} | jq .maturity_level
+curl http://localhost:8001/api/v1/agents/{agent_id} | jq .maturity_level
 ```
 
 **Solutions**:

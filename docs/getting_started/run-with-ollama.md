@@ -22,7 +22,8 @@ git clone https://github.com/rush86999/atom.git
 cd atom
 ./scripts/quickstart.sh
 # Edit backend/.env — set ATOM_LOCAL_ONLY=true
-./scripts/dev.sh
+./scripts/dev.sh          # NOTE: launches minimal_app (smoke subset). For the
+                          # full app, use: make backend
 ```
 
 ## Option B: Docker
@@ -34,9 +35,11 @@ cp .env.personal .env
 # Edit .env — set:
 #   ATOM_LOCAL_ONLY=true
 #   OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-#   BYOK_ENCRYPTION_KEY=<run: openssl rand -base64 32>
+#   SECRET_KEY=<run: openssl rand -base64 32>
 #   JWT_SECRET_KEY=<run: openssl rand -base64 32>
-docker-compose -f docker-compose-personal.yml up -d
+#   BYOK_ENCRYPTION_KEY=<run: openssl rand -base64 32>
+docker compose -f docker-compose-personal.yml up -d --build
+# Frontend: http://localhost:3001   Backend: http://localhost:8001
 ```
 
 ## Option C: Manual Setup
@@ -53,8 +56,9 @@ export OLLAMA_BASE_URL=http://localhost:11434/v1
 export DATABASE_URL=sqlite:///./atom_dev.db
 export SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 
-# Start
-PYTHONPATH=..:. python -m uvicorn main:app --reload --port 8000
+# Start the FULL app (main_api_app:app) — from repo root
+cd ..
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
 ## Verifying It Works

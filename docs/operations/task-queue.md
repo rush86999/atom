@@ -258,17 +258,17 @@ rq requeue --url redis://localhost:6379/0 --queue social_media
 
 **List Scheduled Posts**:
 ```bash
-curl http://localhost:8000/api/v1/tasks/scheduled-posts
+curl http://localhost:8001/api/v1/tasks/scheduled-posts
 ```
 
 **Get Job Status**:
 ```bash
-curl http://localhost:8000/api/v1/tasks/scheduled-posts/{post_id}/status
+curl http://localhost:8001/api/v1/tasks/scheduled-posts/{post_id}/status
 ```
 
 **Get Queue Statistics**:
 ```bash
-curl http://localhost:8000/api/v1/tasks/queues
+curl http://localhost:8001/api/v1/tasks/queues
 ```
 
 **Response**:

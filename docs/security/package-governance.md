@@ -58,7 +58,7 @@ Atom implements a four-tier maturity system for Python package access control. E
 **Example Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/request \
+curl -X POST http://localhost:8001/api/packages/request \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "numpy",
@@ -71,7 +71,7 @@ curl -X POST http://localhost:8000/api/packages/request \
 **Example Approval:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/approve \
+curl -X POST http://localhost:8001/api/packages/approve \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "numpy",
@@ -94,7 +94,7 @@ curl -X POST http://localhost:8000/api/packages/approve \
 **Check Permission:**
 
 ```bash
-curl "http://localhost:8000/api/packages/check?agent_id=agent-123&package_name=pandas&version=1.3.0"
+curl "http://localhost:8001/api/packages/check?agent_id=agent-123&package_name=pandas&version=1.3.0"
 ```
 
 **Response (Allowed):**
@@ -141,7 +141,7 @@ Agents or users request package approval through the API.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/request \
+curl -X POST http://localhost:8001/api/packages/request \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "scikit-learn",
@@ -201,7 +201,7 @@ Admin approves package for specific maturity level.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/approve \
+curl -X POST http://localhost:8001/api/packages/approve \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "scikit-learn",
@@ -240,7 +240,7 @@ Agents check package permission before use.
 **Request:**
 
 ```bash
-curl "http://localhost:8000/api/packages/check?agent_id=agent-123&package_name=scikit-learn&version=1.0.0"
+curl "http://localhost:8001/api/packages/check?agent_id=agent-123&package_name=scikit-learn&version=1.0.0"
 ```
 
 **Response (Allowed):**
@@ -270,7 +270,7 @@ Agent executes skill with approved package.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/execute \
+curl -X POST http://localhost:8001/api/packages/execute \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent-123",
@@ -315,7 +315,7 @@ Packages can be banned to block usage for ALL agents regardless of maturity.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/ban \
+curl -X POST http://localhost:8001/api/packages/ban \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "malicious-pkg",
@@ -364,7 +364,7 @@ To reverse a ban (after security fix):
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/unban \
+curl -X POST http://localhost:8001/api/packages/unban \
   -H "Content-Type: application/json" \
   -d '{
     "package_name": "malicious-pkg",
@@ -467,7 +467,7 @@ Get all approved packages.
 **Request:**
 
 ```bash
-curl http://localhost:8000/api/packages/approvals?min_maturity=SUPERVISED
+curl http://localhost:8001/api/packages/approvals?min_maturity=SUPERVISED
 ```
 
 **Response:**
@@ -506,7 +506,7 @@ Get all pending package approval requests.
 **Request:**
 
 ```bash
-curl http://localhost:8000/api/packages/requests?status=pending
+curl http://localhost:8001/api/packages/requests?status=pending
 ```
 
 **Response:**
@@ -537,7 +537,7 @@ Reject a package approval request.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/reject \
+curl -X POST http://localhost:8001/api/packages/reject \
   -H "Content-Type: application/json" \
   -d '{
     "request_id": "req_abc123",
@@ -584,19 +584,19 @@ All package operations are logged to the `package_registry` table for compliance
 **Get package history:**
 
 ```bash
-curl http://localhost:8000/api/packages/audit?package_name=numpy&version=1.21.0
+curl http://localhost:8001/api/packages/audit?package_name=numpy&version=1.21.0
 ```
 
 **Get agent operations:**
 
 ```bash
-curl http://localhost:8000/api/packages/audit?agent_id=agent-123
+curl http://localhost:8001/api/packages/audit?agent_id=agent-123
 ```
 
 **Get recent bans:**
 
 ```bash
-curl http://localhost:8000/api/packages/audit?banned_only=true
+curl http://localhost:8001/api/packages/audit?banned_only=true
 ```
 
 ### Compliance Reporting
@@ -605,10 +605,10 @@ Export audit data for compliance:
 
 ```bash
 # Export to CSV
-curl http://localhost:8000/api/packages/audit?format=csv > packages_audit.csv
+curl http://localhost:8001/api/packages/audit?format=csv > packages_audit.csv
 
 # Export to JSON
-curl http://localhost:8000/api/packages/audit?format=json > packages_audit.json
+curl http://localhost:8001/api/packages/audit?format=json > packages_audit.json
 ```
 
 ---

@@ -66,9 +66,9 @@ Once both services are running:
 | Service | URL | Description |
 |---------|-----|-------------|
 | **Frontend** | http://localhost:3000 | Main application UI |
-| **Backend API** | http://localhost:8000 | API server |
-| **API Docs** | http://localhost:8000/docs | Interactive API documentation (Swagger UI) |
-| **Health Check** | http://localhost:8000/health | Backend health status |
+| **Backend API** | http://localhost:8001 | API server |
+| **API Docs** | http://localhost:8001/docs | Interactive API documentation (Swagger UI) |
+| **Health Check** | http://localhost:8001/health | Backend health status |
 
 ## Environment Configuration
 
@@ -87,7 +87,7 @@ The backend uses the root `.env` file located at `c:\Users\Mannan Bajaj\atom\.en
 
 Auto-created by the startup script with:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 NEXT_PUBLIC_APP_NAME=ATOM Platform
 ```
 
@@ -207,12 +207,12 @@ ATOM Platform
 
 1. **Configure API Keys**: Update `.env` with your actual API keys
 2. **Set up Database**: Configure PostgreSQL if needed (optional)
-3. **Explore API**: Visit http://localhost:8000/docs
+3. **Explore API**: Visit http://localhost:8001/docs
 4. **Test Features**: Try creating workflows, integrations, etc.
 
 ## Getting Help
 
-- Check the [API Documentation](http://localhost:8000/docs) when running
+- Check the [API Documentation](http://localhost:8001/docs) when running
 - Review error messages in terminal output
 - Check browser console for frontend errors
 - Refer to `DEPLOYMENT_GUIDE.md` for production setup

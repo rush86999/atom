@@ -87,7 +87,7 @@ Architecture, deployment models, and technical platform overview.
 
 ### Personal Edition (Docker Compose)
 ```bash
-docker-compose -f docker-compose-personal.yml up -d
+docker compose -f docker-compose-personal.yml up -d --build
 ```
 
 ### Enterprise (Kubernetes)

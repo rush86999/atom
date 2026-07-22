@@ -423,7 +423,7 @@ Success Rate: 100.0%
    # Stop current app
    kill 4153
    # Restart with environment
-   python3 -m uvicorn main:app --reload --port 8000
+   python3 -m uvicorn main_api_app:app --reload --port 8000
    ```
 
 3. **Test OAuth flows**

@@ -230,7 +230,7 @@ Run stress tests locally without CI/CD:
 ```bash
 # 1. Start backend server
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000 &
 
 # 2. Run load tests (k6)
 cd backend/tests/load

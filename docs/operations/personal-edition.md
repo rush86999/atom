@@ -77,27 +77,28 @@ openssl rand -base64 32
 ### 3. Start Atom
 
 ```bash
-# Start all services (includes Valkey for agent communication)
-docker-compose -f docker-compose-personal.yml up -d
+# Build and start the personal stack (full main_api_app on SQLite)
+docker compose -f docker-compose-personal.yml up -d --build
 
 # Wait for services to start (30-60 seconds)
 # Check status:
-docker-compose -f docker-compose-personal.yml ps
+docker compose -f docker-compose-personal.yml ps
 ```
 
 **Expected output:**
 ```
-✅ atom-personal-backend - Up (healthy)
+✅ atom-personal-backend  - Up (healthy)
 ✅ atom-personal-frontend - Up
-✅ atom-personal-valkey - Up (healthy)
-✅ atom-personal-browser - Up
 ```
 
-**Note:** Valkey (Redis-compatible) is included automatically for agent communication. No external Redis installation required!
+**Note:** The Personal Edition runs the **full app** (`main_api_app:app`, all
+80+ routers) on SQLite — no PostgreSQL or Redis required. The optional
+browser-node is commented out by default; uncomment it in
+`docker-compose-personal.yml` if you need browser automation.
 
 ### 4. Access Atom
 
-Open your browser: **http://localhost:3000**
+Open your browser: **http://localhost:3001**
 
 That's it! 🎉 Atom is now running on your local machine.
 
@@ -186,15 +187,19 @@ nano .env
 
 **Minimum required settings in `.env`:**
 ```bash
-# Set at least one AI provider key
+# Security keys (REQUIRED — generate each with: openssl rand -base64 32)
+SECRET_KEY=<your-generated-key>
+JWT_SECRET_KEY=<your-generated-key>
+BYOK_ENCRYPTION_KEY=<your-generated-key>
+
+# Set at least one AI provider key (OR ATOM_LOCAL_ONLY=true for Ollama)
 OPENAI_API_KEY=sk-your-key-here
 # OR
 ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# Set encryption keys (generate with: openssl rand -base64 32)
-BYOK_ENCRYPTION_KEY=your-32-char-key-here
-JWT_SECRET_KEY=your-different-32-char-key-here
 ```
+
+The full reference for every env var is at
+[`docs/reference/ENVIRONMENT_VARIABLES.md`](../reference/ENVIRONMENT_VARIABLES.md).
 
 ### Step 4: Start Services
 
@@ -203,18 +208,16 @@ JWT_SECRET_KEY=your-different-32-char-key-here
 mkdir -p data
 
 # Start Atom Personal Edition
-docker-compose -f docker-compose-personal.yml up -d
+docker compose -f docker-compose-personal.yml up -d
 
 # Watch logs (optional, Ctrl+C to exit log view)
-docker-compose -f docker-compose-personal.yml logs -f
+docker compose -f docker-compose-personal.yml logs -f
 ```
 
 **Expected output:**
 ```
-✅ atom-personal-backend - Up (healthy)
+✅ atom-personal-backend  - Up (healthy)
 ✅ atom-personal-frontend - Up
-✅ atom-personal-valkey - Up (healthy)
-✅ atom-personal-browser - Up
 ```
 
 ---
@@ -223,13 +226,13 @@ docker-compose -f docker-compose-personal.yml logs -f
 
 Personal Edition includes all necessary services via Docker Compose:
 
-- **Backend API** - FastAPI server with hot reload
-- **Frontend** - Next.js development server
-- **Valkey** - Redis-compatible pub/sub for agent communication
-- **Browser Node** - Chrome automation (optional)
+- **Backend API** - FastAPI server running the full `main_api_app:app` (all 80+ routers)
+- **Frontend** - Next.js app
+- **Browser Node** - Chrome automation (optional, commented out by default)
 - **SQLite** - Embedded database (no PostgreSQL required)
 
-No external dependencies beyond Docker itself!
+No external dependencies beyond Docker itself! (Redis/Valkey is optional — the
+app runs without it; background tasks degrade gracefully.)
 
 ---
 
@@ -239,9 +242,9 @@ No external dependencies beyond Docker itself!
 
 Open your browser and navigate to:
 
-- **Main Dashboard:** http://localhost:3000
-- **API Documentation:** http://localhost:8000/docs
-- **ReDoc Documentation:** http://localhost:8000/redoc
+- **Main Dashboard:** http://localhost:3001
+- **API Documentation:** http://localhost:8001/docs
+- **ReDoc Documentation:** http://localhost:8001/redoc
 
 ### Default Features Available
 
@@ -262,21 +265,21 @@ Open your browser and navigate to:
 
 ```bash
 # All services
-docker-compose -f docker-compose-personal.yml logs -f
+docker compose -f docker-compose-personal.yml logs -f
 
 # Specific service
-docker-compose -f docker-compose-personal.yml logs -f atom-backend
-docker-compose -f docker-compose-personal.yml logs -f atom-frontend
+docker compose -f docker-compose-personal.yml logs -f atom-backend
+docker compose -f docker-compose-personal.yml logs -f atom-frontend
 ```
 
 ### Stop Atom
 
 ```bash
 # Stop all services
-docker-compose -f docker-compose-personal.yml down
+docker compose -f docker-compose-personal.yml down
 
 # Stop and remove all data (clean slate)
-docker-compose -f docker-compose-personal.yml down -v
+docker compose -f docker-compose-personal.yml down -v
 rm -rf data/
 ```
 
@@ -284,10 +287,10 @@ rm -rf data/
 
 ```bash
 # Restart all services
-docker-compose -f docker-compose-personal.yml restart
+docker compose -f docker-compose-personal.yml restart
 
 # Restart specific service
-docker-compose -f docker-compose-personal.yml restart atom-backend
+docker compose -f docker-compose-personal.yml restart atom-backend
 ```
 
 ### Update Atom
@@ -297,10 +300,10 @@ docker-compose -f docker-compose-personal.yml restart atom-backend
 git pull origin main
 
 # Rebuild and restart
-docker-compose -f docker-compose-personal.yml up -d --build
+docker compose -f docker-compose-personal.yml up -d --build
 
 # View logs during update
-docker-compose -f docker-compose-personal.yml logs -f
+docker compose -f docker-compose-personal.yml logs -f
 ```
 
 ### Access Database
@@ -335,7 +338,7 @@ Atom Personal Edition supports importing 5,000+ community skills from OpenClaw/C
 
 **Via GitHub URL:**
 ```bash
-curl -X POST http://localhost:8000/api/skills/import \
+curl -X POST http://localhost:8001/api/skills/import \
   -H "Content-Type: application/json" \
   -d '{
     "source": "github_url",
@@ -345,12 +348,12 @@ curl -X POST http://localhost:8000/api/skills/import \
 
 **List Imported Skills:**
 ```bash
-curl http://localhost:8000/api/skills/list
+curl http://localhost:8001/api/skills/list
 ```
 
 **Execute a Skill:**
 ```bash
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "skill-name",
@@ -387,7 +390,7 @@ netstat -ano | findstr :3000  # Windows
 1. Verify your API key is correct (no extra spaces)
 2. Check API key hasn't expired
 3. Ensure you have credits/balance on your AI provider account
-4. Restart services: `docker-compose -f docker-compose-personal.yml restart`
+4. Restart services: `docker compose -f docker-compose-personal.yml restart`
 
 ### Issue: Services Not Starting
 
@@ -396,7 +399,7 @@ netstat -ano | findstr :3000  # Windows
 **Solution:**
 ```bash
 # Check logs
-docker-compose -f docker-compose-personal.yml logs atom-backend
+docker compose -f docker-compose-personal.yml logs atom-backend
 
 # Common issues:
 # 1. Missing .env file → Copy from .env.personal
@@ -411,13 +414,13 @@ docker-compose -f docker-compose-personal.yml logs atom-backend
 **Solution:**
 ```bash
 # Stop all services
-docker-compose -f docker-compose-personal.yml down
+docker compose -f docker-compose-personal.yml down
 
 # Wait 5 seconds
 sleep 5
 
 # Restart
-docker-compose -f docker-compose-personal.yml up -d
+docker compose -f docker-compose-personal.yml up -d
 ```
 
 ### Issue: Out of Memory
@@ -431,32 +434,15 @@ docker-compose -f docker-compose-personal.yml up -d
 
 ### Issue: Valkey/Redis Connection Issues
 
+**Note:** The Personal Edition compose stack does **not** include Valkey/Redis
+by default — the app runs without it. This section applies only if you added
+a Redis service to your compose file (or use the full `docker-compose.yml`).
+
 **Error:** `Redis connection failed` or `Could not connect to Redis`
 
-**Solution:**
-```bash
-# Check Valkey container status
-docker-compose -f docker-compose-personal.yml ps valkey
-
-# Check Valkey logs
-docker-compose -f docker-compose-personal.yml logs valkey
-
-# Restart Valkey
-docker-compose -f docker-compose-personal.yml restart valkey
-
-# Test Valkey connection
-docker-compose -f docker-compose-personal.yml exec valkey redis-cli ping
-# Expected output: PONG
-```
-
-**Note:** Valkey uses port 6379. If you have local Redis on this port, stop it first:
-```bash
-# macOS: Stop local Redis if running
-brew services stop redis
-
-# Linux: Stop local Redis if running
-sudo systemctl stop redis
-```
+**Solution:** Redis is optional. If you want background task queueing /
+scheduler persistence, either run the full `docker-compose.yml` stack or add
+a Redis service. The app otherwise falls back to in-process operation.
 
 ---
 
@@ -465,7 +451,7 @@ sudo systemctl stop redis
 | Feature | Personal Edition | Full Edition |
 |---------|-----------------|--------------|
 | **Database** | SQLite (simpler, no external DB) | PostgreSQL (production-ready) |
-| **Agent Communication** | Valkey (included, in-memory) | Redis (persistent, clustered) |
+| **Agent Communication** | In-process (Redis optional) | Redis (persistent, clustered) |
 | **Setup Time** | 5-10 minutes | 15-30 minutes |
 | **Services** | Backend, Frontend, Browser (optional) | All services including monitoring |
 | **Use Case** | Personal use, development | Production deployment |
@@ -493,7 +479,7 @@ sudo systemctl stop redis
 
 ### 1. Create Your First Agent
 
-1. Open http://localhost:3000
+1. Open http://localhost:3001
 2. Click "Create Agent"
 3. Name your agent (e.g., "Personal Assistant")
 4. Set maturity level to "STUDENT" (for learning)
@@ -553,7 +539,7 @@ sudo systemctl stop redis
 ATOM_HOST_MOUNT_ENABLED=true
 
 # Restart services
-docker-compose -f docker-compose-personal.yml restart
+docker compose -f docker-compose-personal.yml restart
 ```
 
 **Safety features:**
@@ -604,10 +590,10 @@ command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload --log-leve
 
 ### Troubleshooting Tips
 
-1. **Check logs first:** `docker-compose logs -f`
+1. **Check logs first:** `docker compose logs -f`
 2. **Verify .env file:** Ensure no typos in API keys
 3. **Restart services:** Often fixes transient issues
-4. **Clean restart:** `docker-compose down -v && docker-compose up -d`
+4. **Clean restart:** `docker compose down -v && docker compose up -d`
 5. **Check Docker resources:** Ensure enough memory allocated
 
 ---
@@ -616,24 +602,24 @@ command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload --log-leve
 
 **You now have Atom running locally!** 🎉
 
-- **Dashboard:** http://localhost:3000
-- **API Docs:** http://localhost:8000/docs
+- **Dashboard:** http://localhost:3001
+- **API Docs:** http://localhost:8001/docs
 - **Data stored in:** `./data/`
 - **Configuration:** `.env`
 
 **Quick commands:**
 ```bash
 # Start
-docker-compose -f docker-compose-personal.yml up -d
+docker compose -f docker-compose-personal.yml up -d
 
 # View logs
-docker-compose -f docker-compose-personal.yml logs -f
+docker compose -f docker-compose-personal.yml logs -f
 
 # Stop
-docker-compose -f docker-compose-personal.yml down
+docker compose -f docker-compose-personal.yml down
 
 # Restart
-docker-compose -f docker-compose-personal.yml restart
+docker compose -f docker-compose-personal.yml restart
 ```
 
 Enjoy automating with AI agents on your local machine! 🚀

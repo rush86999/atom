@@ -277,14 +277,14 @@ See `docs/FRONTEND_TO_BACKEND_API.md` for complete API documentation including:
 ```bash
 # frontend-nextjs/.env.local
 NEXT_PUBLIC_USE_BACKEND_API=true
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 ```
 
 #### Disable (Rollback to Direct DB)
 ```bash
 # frontend-nextjs/.env.local
 NEXT_PUBLIC_USE_BACKEND_API=false
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 ```
 
 ### Migration Statistics
@@ -311,7 +311,7 @@ If issues occur:
 
 2. **Investigate Backend** (parallel):
    - Check backend logs: `backend/`
-   - Test endpoint: `curl http://localhost:8000/api/users/me`
+   - Test endpoint: `curl http://localhost:8001/api/users/me`
    - Review errors
 
 3. **Fix and Re-enable**:

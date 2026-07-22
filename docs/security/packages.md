@@ -207,7 +207,7 @@ docker run --rm --privileged python:3.11-slip python -c "print('privileged')"
 **Custom Limits:**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/execute \
+curl -X POST http://localhost:8001/api/packages/execute \
   -d '{
     "memory_limit": "512m",
     "cpu_limit": 1.0,
@@ -236,7 +236,7 @@ curl -X POST http://localhost:8000/api/packages/execute \
 **Enable (Not Recommended):**
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/execute \
+curl -X POST http://localhost:8001/api/packages/execute \
   -d '{
     "network_enabled": true,
     "agent_id": "autonomous-agent",
@@ -596,7 +596,7 @@ assert result.malicious == True
 
 1. **Ban package immediately**
    ```bash
-   curl -X POST http://localhost:8000/api/packages/ban \
+   curl -X POST http://localhost:8001/api/packages/ban \
      -d '{
        "package_name": "malicious-pkg",
        "version": "1.0.0",
@@ -611,12 +611,12 @@ assert result.malicious == True
 
 3. **Review audit trail**
    ```bash
-   curl http://localhost:8000/api/packages/audit?package_name=malicious-pkg
+   curl http://localhost:8001/api/packages/audit?package_name=malicious-pkg
    ```
 
 4. **Check affected skills**
    ```bash
-   curl http://localhost:8000/api/skills/list?packages=malicious-pkg
+   curl http://localhost:8001/api/skills/list?packages=malicious-pkg
    ```
 
 5. **Notify users**
@@ -626,8 +626,8 @@ assert result.malicious == True
 
 6. **Rebuild affected images**
    ```bash
-   curl -X DELETE "http://localhost:8000/api/packages/{skill_id}"
-   curl -X POST http://localhost:8000/api/packages/install \
+   curl -X DELETE "http://localhost:8001/api/packages/{skill_id}"
+   curl -X POST http://localhost:8001/api/packages/install \
      -d '{"requirements": ["safe-pkg==1.0.0"]}'
    ```
 
@@ -689,17 +689,17 @@ assert result.malicious == True
 
 2. **Check skill code**
    ```bash
-   curl http://localhost:8000/api/skills/{skill_id} | jq '.code'
+   curl http://localhost:8001/api/skills/{skill_id} | jq '.code'
    ```
 
 3. **Review static analysis**
    ```bash
-   curl http://localhost:8000/api/skills/{skill_id}/security-scan
+   curl http://localhost:8001/api/skills/{skill_id}/security-scan
    ```
 
 4. **Ban package if malicious**
    ```bash
-   curl -X POST http://localhost:8000/api/packages/ban \
+   curl -X POST http://localhost:8001/api/packages/ban \
      -d '{"package_name": "evil-pkg", "reason": "Data exfiltration"}'
    ```
 

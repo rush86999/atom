@@ -39,9 +39,9 @@ OPENAI_API_KEY=sk-...
 
 ### 3. Launch the Backend
 ```bash
-# From the repo root (NOT from backend/ — main.py uses backend.* imports)
+# From the repo root (NOT from backend/ — main_api_app.py uses backend.* imports)
 cd /path/to/atom
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
 On first launch, the app auto-creates `admin@example.com` and writes a
@@ -68,19 +68,19 @@ launching (recommended for production).
 
 ### 4. Verify Health
 ```bash
-curl http://localhost:8000/health/live    # → {"status":"alive"}
-curl http://localhost:8000/health/ready   # → database + disk checks
-curl http://localhost:8000/docs           # → OpenAPI Swagger UI
+curl http://localhost:8001/health/live    # → {"status":"alive"}
+curl http://localhost:8001/health/ready   # → database + disk checks
+curl http://localhost:8001/docs           # → OpenAPI Swagger UI
 ```
 
 ### 5. Login
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin@example.com","password":"<password-from-log>"}' \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
 
-curl http://localhost:8000/api/users/me -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8001/api/users/me -H "Authorization: Bearer $TOKEN"
 # → {"email":"admin@example.com","role":"workspace_admin", ...}
 ```
 
@@ -118,7 +118,7 @@ ENVIRONMENT=production \
 SECRET_KEY=<strong-key> \
 DATABASE_URL=postgresql://... \
 PYTHONPATH=$PWD:$PWD/backend \
-./backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+./backend/venv/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001
 ```
 
 In production, `SECRET_KEY` is **required** (the app refuses to start without it).
@@ -128,20 +128,25 @@ In production, `SECRET_KEY` is **required** (the app refuses to start without it
 ## Docker Launch (Personal Edition)
 
 ```bash
-cp .env.personal .env   # edit with your API keys
-docker-compose -f docker-compose-personal.yml up -d
+cp .env.personal .env   # edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
+docker compose -f docker-compose-personal.yml up -d --build
+# Frontend: http://localhost:3001   Backend: http://localhost:8001   Swagger: http://localhost:8001/docs
 ```
 
-The compose file mounts the repo root at `/app`, sets `PYTHONPATH=/app:/app/backend`,
-and launches `uvicorn main:app`. This matches the local launch path.
+The Personal Edition compose runs the **full app** (`main_api_app:app`) on
+SQLite — no Postgres/Redis required. The backend Dockerfile sets
+`WORKDIR /app/backend` and `PYTHONPATH=/app:/app/backend` so both bare and
+`backend.*` imports resolve. For the full production stack (Postgres + Redis +
+piece-engine), use `docker-compose.yml`.
 
 ---
 
 ## Troubleshooting
 
 ### "ModuleNotFoundError: No module named 'backend.api'"
-Launch from the **repo root**, not from `backend/`. `main.py` uses
+Launch from the **repo root**, not from `backend/`. `main_api_app.py` uses
 `from backend.api...` imports which require the repo root on `PYTHONPATH`.
+Use `main_api_app:app` (the full app) — there is no `backend/main.py`.
 
 ### "Could not validate credentials" (401 on every authenticated request)
 Two possible causes (both fixed in June 2026):
@@ -170,7 +175,7 @@ cd /path/to/atom
 - **System Tray**: ATOM runs in the background. Close the window to minimize to the tray; right-click the tray icon to Show or Quit.
 - **Skill Runner**: Access via **Dev Studio > Skill Runner** to browse and execute agent skills with real-time streaming output.
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
+- **Backend API**: http://localhost:8001
 - **Sign In**: http://localhost:3000/auth/signin
 
 ## Key Features
@@ -354,5 +359,5 @@ python tests/test_phase21_operations.py
 
 ---
 
-**Last Updated**: June 30, 2026
+**Last Updated**: July 2026
 **Status**: Production ready ✅ (launch command verified working)

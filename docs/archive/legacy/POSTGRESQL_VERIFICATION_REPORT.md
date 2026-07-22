@@ -105,7 +105,7 @@ alembic upgrade head
 docker-compose -f infra/deployment/docker-compose.production.yml up -d
 
 # Or direct Python
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 5. Health Check

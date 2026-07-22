@@ -335,7 +335,7 @@ pip install pytest-asyncio psutil
 
 **Required:**
 - PostgreSQL database (for connection pool tests)
-- Running application server (`python -m uvicorn main:app`)
+- Running application server (`python -m uvicorn main_api_app:app`)
 - Sufficient system resources (CPU, memory)
 
 **Recommended:**

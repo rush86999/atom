@@ -548,7 +548,7 @@ To prevent alert spam:
 import requests
 
 response = requests.post(
-    "http://localhost:8000/api/v1/messaging/proactive/send",
+    "http://localhost:8001/api/v1/messaging/proactive/send",
     json={
         "agent_id": "agent_reports",
         "platform": "slack",
@@ -564,7 +564,7 @@ print(response.json())
 
 ```python
 response = requests.post(
-    "http://localhost:8000/api/v1/messaging/schedule/create",
+    "http://localhost:8001/api/v1/messaging/schedule/create",
     json={
         "agent_id": "agent_reports",
         "platform": "discord",
@@ -584,7 +584,7 @@ print(response.json())
 
 ```python
 response = requests.post(
-    "http://localhost:8000/api/v1/monitoring/condition/create",
+    "http://localhost:8001/api/v1/monitoring/condition/create",
     json={
         "agent_id": "agent_monitor",
         "name": "High Slack Inbox",

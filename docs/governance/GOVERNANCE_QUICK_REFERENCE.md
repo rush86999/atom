@@ -295,7 +295,7 @@ intern = AgentRegistry(
 
 2. Test streaming:
 ```bash
-curl -X POST http://localhost:8000/api/atom-agent/chat/stream \
+curl -X POST http://localhost:8001/api/atom-agent/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Hello",

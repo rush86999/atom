@@ -101,8 +101,8 @@ npm run dev
 ### Verify both are up
 
 ```bash
-curl http://localhost:8000/health/live    # backend liveness
-curl http://localhost:8000/health/ready   # backend readiness
+curl http://localhost:8001/health/live    # backend liveness
+curl http://localhost:8001/health/ready   # backend readiness
 curl http://localhost:3000                # frontend HTML
 ```
 

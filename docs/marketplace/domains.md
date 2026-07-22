@@ -36,13 +36,13 @@ Domains are knowledge packages that include:
 
 ```bash
 # List all domains
-curl http://localhost:8000/api/v1/marketplace/domains
+curl http://localhost:8001/api/v1/marketplace/domains
 
 # Filter by category
-curl http://localhost:8000/api/v1/marketplace/domains?category=finance
+curl http://localhost:8001/api/v1/marketplace/domains?category=finance
 
 # Search by name
-curl http://localhost:8000/api/v1/marketplace/domains?query=financial+analysis
+curl http://localhost:8001/api/v1/marketplace/domains?query=financial+analysis
 ```
 
 **Response:**
@@ -75,7 +75,7 @@ curl http://localhost:8000/api/v1/marketplace/domains?query=financial+analysis
 
 ```bash
 # Get full domain details
-curl http://localhost:8000/api/v1/marketplace/domains/domain_financial_analysis_001
+curl http://localhost:8001/api/v1/marketplace/domains/domain_financial_analysis_001
 ```
 
 **Response:**
@@ -150,7 +150,7 @@ curl http://localhost:8000/api/v1/marketplace/domains/domain_financial_analysis_
 
 ```bash
 # Install domain to your instance
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/domain_financial_analysis_001/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/domain_financial_analysis_001/install \
   -H "Content-Type: application/json" \
   -d '{
     "custom_name": "My Financial Analysis"
@@ -413,12 +413,12 @@ agent.execute("update_crm", opportunity_data)
 
 ```bash
 # Install with default name
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/{domain_id}/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/{domain_id}/install \
   -H "Content-Type: application/json" \
   -d '{}'
 
 # Install with custom name
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/{domain_id}/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/{domain_id}/install \
   -H "Content-Type: application/json" \
   -d '{
     "custom_name": "My Custom Domain"
@@ -621,14 +621,14 @@ Returns domain knowledge base for review
 
 ```bash
 # 1. Install Finance domain
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/domain_financial_analysis_001/install \
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/domain_financial_analysis_001/install \
   -H "Content-Type: application/json" \
   -d '{
     "custom_name": "Corporate Finance"
   }'
 
 # 2. Create agent with domain expertise
-curl -X POST http://localhost:8000/api/agents \
+curl -X POST http://localhost:8001/api/agents \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Financial Analyst",
@@ -642,7 +642,7 @@ curl -X POST http://localhost:8000/api/agents \
   }'
 
 # 3. Use agent for financial analysis
-curl -X POST http://localhost:8000/api/agents/financial_analyst/execute \
+curl -X POST http://localhost:8001/api/agents/financial_analyst/execute \
   -H "Content-Type: application/json" \
   -d '{
     "task": "Generate monthly P&L report",
@@ -657,11 +657,11 @@ curl -X POST http://localhost:8000/api/agents/financial_analyst/execute \
 
 ```bash
 # 1. Install Sales and Marketing domains
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/domain_sales_001/install
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/domain_marketing_001/install
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/domain_sales_001/install
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/domain_marketing_001/install
 
 # 2. Create agent with both domains
-curl -X POST http://localhost:8000/api/agents \
+curl -X POST http://localhost:8001/api/agents \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Sales Rep",

@@ -49,7 +49,7 @@ Browser discovery tests use headless browser automation to discover bugs that tr
    ```bash
    # Terminal 1: Start backend
    cd backend
-   python -m uvicorn main:app
+   python -m uvicorn main_api_app:app
 
    # Terminal 2: Start frontend
    cd frontend-nextjs
@@ -223,7 +223,7 @@ Browser discovery tests run weekly (not on every PR) due to longer execution tim
 
 2. **Start Services**
    - Start frontend server (npm run build && npm start)
-   - Start backend server (uvicorn main:app)
+   - Start backend server (uvicorn main_api_app:app)
 
 3. **Run Tests**
    - Console error tests
@@ -492,14 +492,14 @@ pytest backend/tests/browser_discovery/test_visual_regression.py -v
 ```bash
 # Start backend
 cd backend
-python -m uvicorn main:app
+python -m uvicorn main_api_app:app
 
 # Start frontend (new terminal)
 cd frontend-nextjs
 npm run dev
 
 # Verify services are running
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 curl http://localhost:3001
 ```
 

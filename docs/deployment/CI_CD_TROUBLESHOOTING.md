@@ -547,7 +547,7 @@ kubectl logs $POD --namespace=staging | grep -i "error\|exception\|failed"
 kubectl wait --for=condition=ready pod -l app=atom --namespace=staging --timeout=5m
 
 # Test health endpoint
-kubectl exec -it $POD --namespace=staging -- curl -f http://localhost:8000/health/live
+kubectl exec -it $POD --namespace=staging -- curl -f http://localhost:8001/health/live
 ```
 
 **Solution 3: Increase smoke test timeout**

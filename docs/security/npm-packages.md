@@ -102,12 +102,12 @@ result = tool._run(query="1,2,3,4,5")
 
 ```bash
 # 1. Check npm package permission
-curl -X GET "http://localhost:8000/api/packages/npm/check?agent_id=agent_789&package_name=lodash&version=4.17.21"
+curl -X GET "http://localhost:8001/api/packages/npm/check?agent_id=agent_789&package_name=lodash&version=4.17.21"
 
 # Response: {"allowed": true, "maturity_required": "intern", "reason": null}
 
 # 2. Install npm packages for skill
-curl -X POST http://localhost:8000/api/packages/npm/install \
+curl -X POST http://localhost:8001/api/packages/npm/install \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_789",
@@ -119,7 +119,7 @@ curl -X POST http://localhost:8000/api/packages/npm/install \
 # Response: {"success": true, "image_tag": "atom-npm-skill:data-analysis-skill-v1"}
 
 # 3. Execute skill with packages
-curl -X POST http://localhost:8000/api/packages/npm/execute \
+curl -X POST http://localhost:8001/api/packages/npm/execute \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_789",
@@ -502,12 +502,12 @@ GET /api/packages/npm/audit?agent_id={agent_id}&skill_id={skill_id}
 
 **Check Governance Status:**
 ```bash
-curl -X GET "http://localhost:8000/api/packages/npm/check?agent_id=agent_789&package_name=lodash&version=4.17.21"
+curl -X GET "http://localhost:8001/api/packages/npm/check?agent_id=agent_789&package_name=lodash&version=4.17.21"
 ```
 
 **View Audit Logs:**
 ```bash
-curl -X GET "http://localhost:8000/api/packages/npm/audit?agent_id=agent_789"
+curl -X GET "http://localhost:8001/api/packages/npm/audit?agent_id=agent_789"
 ```
 
 **Check Docker Images:**

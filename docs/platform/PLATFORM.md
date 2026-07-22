@@ -82,9 +82,9 @@ Production deployment, monitoring, and platform-specific guides.
 
 ### Health Endpoints
 ```bash
-curl http://localhost:8000/health/live    # Liveness
-curl http://localhost:8000/health/ready   # Readiness
-curl http://localhost:8000/health/metrics # Prometheus metrics
+curl http://localhost:8001/health/live    # Liveness
+curl http://localhost:8001/health/ready   # Readiness
+curl http://localhost:8001/health/metrics # Prometheus metrics
 ```
 
 ### Platform Support

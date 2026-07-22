@@ -168,7 +168,7 @@ print(f"  Steps: {progress['completed_steps']}/{progress['total_steps']}")
 
 ```bash
 # Collect event
-curl -X POST http://localhost:8000/api/debug/events \
+curl -X POST http://localhost:8001/api/debug/events \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -181,11 +181,11 @@ curl -X POST http://localhost:8000/api/debug/events \
   }'
 
 # Query events
-curl http://localhost:8000/api/debug/events?component_type=agent&component_id=agent-123 \
+curl http://localhost:8001/api/debug/events?component_type=agent&component_id=agent-123 \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Generate insights
-curl -X POST http://localhost:8000/api/debug/insights/generate \
+curl -X POST http://localhost:8001/api/debug/insights/generate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -194,7 +194,7 @@ curl -X POST http://localhost:8000/api/debug/insights/generate \
   }'
 
 # Get component health
-curl -X POST http://localhost:8000/api/debug/analytics/component-health \
+curl -X POST http://localhost:8001/api/debug/analytics/component-health \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -388,7 +388,7 @@ DEBUG_REDIS_HOT_TTL_HOURS=24
 
 1. **Read Full Documentation**: See `docs/AI_DEBUG_SYSTEM.md`
 2. **Explore Tests**: Check `backend/tests/test_debug_*.py` for examples
-3. **Review API**: Visit `http://localhost:8000/docs` for interactive API docs
+3. **Review API**: Visit `http://localhost:8001/docs` for interactive API docs
 4. **Monitor Performance**: Use `/api/debug/analytics/component-health` endpoint
 
 ---

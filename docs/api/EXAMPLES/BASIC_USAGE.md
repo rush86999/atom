@@ -4,15 +4,15 @@ Real curl recipes for the most common Atom operations. Copy-paste and run.
 
 ## Prerequisites
 
-- Atom backend running on `http://localhost:8000`
-- Swagger UI available at `http://localhost:8000/docs`
+- Atom backend running on `http://localhost:8001`
+- Swagger UI available at `http://localhost:8001/docs`
 
 ## Authentication
 
 ### Register a new user
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/register \
+curl -X POST http://localhost:8001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -25,7 +25,7 @@ curl -X POST http://localhost:8000/api/auth/register \
 ### Login and get a token
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "user@example.com",
@@ -53,7 +53,7 @@ export TOKEN="eyJhbGci..."
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
-     http://localhost:8000/api/auth/me
+     http://localhost:8001/api/auth/me
 ```
 
 ## Chat
@@ -61,7 +61,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 ### Send a message
 
 ```bash
-curl -X POST http://localhost:8000/api/chat/message \
+curl -X POST http://localhost:8001/api/chat/message \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -87,14 +87,14 @@ Response includes `model` and `provider` (which model answered):
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     "http://localhost:8000/api/chat/sessions?user_id=default_user"
+     "http://localhost:8001/api/chat/sessions?user_id=default_user"
 ```
 
 ### Load chat history
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     "http://localhost:8000/api/chat/history/SESSION_ID?user_id=default_user"
+     "http://localhost:8001/api/chat/history/SESSION_ID?user_id=default_user"
 ```
 
 ## Canvas CRUD
@@ -103,20 +103,20 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/canvas/
+     http://localhost:8001/api/canvas/
 ```
 
 ### Read a canvas by ID
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/canvas/CANVAS_ID
+     http://localhost:8001/api/canvas/CANVAS_ID
 ```
 
 ### Update canvas content
 
 ```bash
-curl -X PUT http://localhost:8000/api/canvas/CANVAS_ID \
+curl -X PUT http://localhost:8001/api/canvas/CANVAS_ID \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"content": "Updated content here"}'
@@ -133,7 +133,7 @@ curl -X DELETE http://localhost:8080/api/canvas/CANVAS_ID \
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/canvas/CANVAS_ID/history
+     http://localhost:8001/api/canvas/CANVAS_ID/history
 ```
 
 ## Office Automation
@@ -141,7 +141,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 ### Write an Excel cell (with formula evaluation)
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/office/excel \
+curl -X POST http://localhost:8001/api/v1/office/excel \
   -H "Content-Type: application/json" \
   -d '{
     "file_path": "data/budget.xlsx",
@@ -163,13 +163,13 @@ Response includes the **computed value**:
 ### Read an Excel range
 
 ```bash
-curl "http://localhost:8000/api/v1/office/excel?file_path=data/budget.xlsx&cell_path=/Sheet1/A1:A10"
+curl "http://localhost:8001/api/v1/office/excel?file_path=data/budget.xlsx&cell_path=/Sheet1/A1:A10"
 ```
 
 ### Get a formula result (forces recalculation)
 
 ```bash
-curl "http://localhost:8000/api/v1/office/excel/formula-result?file_path=data/budget.xlsx&cell_path=/Sheet1/A4"
+curl "http://localhost:8001/api/v1/office/excel/formula-result?file_path=data/budget.xlsx&cell_path=/Sheet1/A4"
 ```
 
 ## Learning Router
@@ -177,7 +177,7 @@ curl "http://localhost:8000/api/v1/office/excel/formula-result?file_path=data/bu
 ### Submit feedback (thumbs up/down)
 
 ```bash
-curl -X POST http://localhost:8000/api/chat/feedback \
+curl -X POST http://localhost:8001/api/chat/feedback \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -192,7 +192,7 @@ curl -X POST http://localhost:8000/api/chat/feedback \
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/chat/routing-stats
+     http://localhost:8001/api/chat/routing-stats
 ```
 
 Response:
@@ -214,7 +214,7 @@ Response:
 ### Register an Ollama provider
 
 ```bash
-curl -X POST http://localhost:8000/api/local-models \
+curl -X POST http://localhost:8001/api/local-models \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -228,13 +228,13 @@ curl -X POST http://localhost:8000/api/local-models \
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:8000/api/local-models/PROVIDER_ID/models
+     http://localhost:8001/api/local-models/PROVIDER_ID/models
 ```
 
 ### Set model capabilities
 
 ```bash
-curl -X POST http://localhost:8000/api/local-models/PROVIDER_ID/capabilities \
+curl -X POST http://localhost:8001/api/local-models/PROVIDER_ID/capabilities \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -253,7 +253,7 @@ curl -X POST http://localhost:8000/api/local-models/PROVIDER_ID/capabilities \
 ### Create a DID
 
 ```bash
-curl -X POST http://localhost:8000/api/federation/dids \
+curl -X POST http://localhost:8001/api/federation/dids \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -265,7 +265,7 @@ curl -X POST http://localhost:8000/api/federation/dids \
 ### Issue a verifiable credential
 
 ```bash
-curl -X POST http://localhost:8000/api/federation/credentials \
+curl -X POST http://localhost:8001/api/federation/credentials \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -279,7 +279,7 @@ curl -X POST http://localhost:8000/api/federation/credentials \
 ### Verify a request
 
 ```bash
-curl -X POST http://localhost:8000/api/federation/verify \
+curl -X POST http://localhost:8001/api/federation/verify \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -295,17 +295,17 @@ curl -X POST http://localhost:8000/api/federation/verify \
 ### Liveness check
 
 ```bash
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 ```
 
 ### Readiness check
 
 ```bash
-curl http://localhost:8000/health/ready
+curl http://localhost:8001/health/ready
 ```
 
 ### Database check
 
 ```bash
-curl http://localhost:8000/health/db
+curl http://localhost:8001/health/db
 ```

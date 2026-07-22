@@ -84,7 +84,7 @@ python -m uvicorn main_api_app:app --reload
 
 ```bash
 # Test marketplace health
-curl http://localhost:8000/api/v1/marketplace/health
+curl http://localhost:8001/api/v1/marketplace/health
 
 # Expected response when connected:
 {
@@ -108,16 +108,16 @@ Browse and install pre-configured AI agents:
 
 ```bash
 # List available agents
-curl http://localhost:8000/api/v1/marketplace/agents?limit=20
+curl http://localhost:8001/api/v1/marketplace/agents?limit=20
 
 # Search agents by category
-curl http://localhost:8000/api/v1/marketplace/agents?category=sales
+curl http://localhost:8001/api/v1/marketplace/agents?category=sales
 
 # Get agent details
-curl http://localhost:8000/api/v1/marketplace/agents/{agent_id}
+curl http://localhost:8001/api/v1/marketplace/agents/{agent_id}
 
 # Install an agent
-curl -X POST http://localhost:8000/api/v1/marketplace/agents/{agent_id}/install
+curl -X POST http://localhost:8001/api/v1/marketplace/agents/{agent_id}/install
 ```
 
 **Available Agent Categories:**
@@ -133,16 +133,16 @@ Browse and install specialist knowledge domains:
 
 ```bash
 # List available domains
-curl http://localhost:8000/api/v1/marketplace/domains?limit=20
+curl http://localhost:8001/api/v1/marketplace/domains?limit=20
 
 # Search domains by category
-curl http://localhost:8000/api/v1/marketplace/domains?category=finance
+curl http://localhost:8001/api/v1/marketplace/domains?category=finance
 
 # Get domain details
-curl http://localhost:8000/api/v1/marketplace/domains/{domain_id}
+curl http://localhost:8001/api/v1/marketplace/domains/{domain_id}
 
 # Install a domain
-curl -X POST http://localhost:8000/api/v1/marketplace/domains/{domain_id}/install
+curl -X POST http://localhost:8001/api/v1/marketplace/domains/{domain_id}/install
 ```
 
 **What are Domains?**
@@ -164,16 +164,16 @@ Browse and install canvas presentation components:
 
 ```bash
 # List available components
-curl http://localhost:8000/api/v1/marketplace/components?limit=20
+curl http://localhost:8001/api/v1/marketplace/components?limit=20
 
 # Search components by category
-curl http://localhost:8000/api/v1/marketplace/components?category=charts
+curl http://localhost:8001/api/v1/marketplace/components?category=charts
 
 # Get component details
-curl http://localhost:8000/api/v1/marketplace/components/{component_id}
+curl http://localhost:8001/api/v1/marketplace/components/{component_id}
 
 # Install a component
-curl -X POST http://localhost:8000/api/v1/marketplace/components/{component_id}/install
+curl -X POST http://localhost:8001/api/v1/marketplace/components/{component_id}/install
 ```
 
 **What are Canvas Components?**
@@ -200,16 +200,16 @@ Browse and install agent skills and integrations:
 
 ```bash
 # List available skills
-curl http://localhost:8000/api/v1/marketplace/skills?limit=20
+curl http://localhost:8001/api/v1/marketplace/skills?limit=20
 
 # Search skills by category
-curl http://localhost:8000/api/v1/marketplace/skills?category=integration
+curl http://localhost:8001/api/v1/marketplace/skills?category=integration
 
 # Get skill details
-curl http://localhost:8000/api/v1/marketplace/skills/{skill_id}
+curl http://localhost:8001/api/v1/marketplace/skills/{skill_id}
 
 # Install a skill
-curl -X POST http://localhost:8000/api/v1/marketplace/skills/{skill_id}/install
+curl -X POST http://localhost:8001/api/v1/marketplace/skills/{skill_id}/install
 ```
 
 **What are Skills?**
@@ -294,7 +294,7 @@ curl -H "X-API-Token: $ATOM_SAAS_API_TOKEN" \
 
 ```bash
 # Check if marketplace is enabled
-curl http://localhost:8000/api/v1/marketplace/health
+curl http://localhost:8001/api/v1/marketplace/health
 
 # Response will show connection status
 ```
@@ -411,7 +411,7 @@ Monitor marketplace connection health:
 
 ```bash
 # Check health status
-curl http://localhost:8000/api/v1/marketplace/health
+curl http://localhost:8001/api/v1/marketplace/health
 
 # Response includes connection status, marketplace URL, and any errors
 {

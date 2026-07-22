@@ -500,12 +500,12 @@ FEDERATION_API_KEY=sk-fed-partner-shared
 
 **Original:**
 ```bash
-curl http://localhost:8000/api/v1/instance/identity
+curl http://localhost:8001/api/v1/instance/identity
 ```
 
 **Enhanced (2026):**
 ```bash
-curl http://localhost:8000/api/v1/instance/did
+curl http://localhost:8001/api/v1/instance/did
 ```
 
 **Response (Enhanced):**
@@ -667,7 +667,7 @@ env | grep FEDERATION
 env | grep ATOM_FEDERATION_MODE
 
 # Verify DID is configured
-curl http://localhost:8000/api/v1/instance/did
+curl http://localhost:8001/api/v1/instance/did
 
 # Verify VC is valid
 python -c "
@@ -706,7 +706,7 @@ print(f'Errors: {result.errors}')
 "
 
 # Check issuer DID is trusted
-curl http://localhost:8000/api/v1/trusted/dids
+curl http://localhost:8001/api/v1/trusted/dids
 ```
 
 ---

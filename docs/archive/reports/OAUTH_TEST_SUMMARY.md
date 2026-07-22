@@ -168,7 +168,7 @@
    # Stop the current app (PID 4153)
    kill 4153
    # Restart with environment loaded
-   python3 -m uvicorn main:app --reload --port 8000
+   python3 -m uvicorn main_api_app:app --reload --port 8000
    ```
 
 3. **Test OAuth Flow**

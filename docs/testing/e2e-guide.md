@@ -92,7 +92,7 @@ curl http://localhost:3001              # Frontend should load
 ```bash
 # Terminal 1: Start backend
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8001
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001
 
 # Terminal 2: Start frontend
 cd frontend-nextjs
@@ -464,7 +464,7 @@ async def test_mobile_camera_permission_api(authenticated_mobile_client: httpx.A
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| **Endpoint not found (404)** | Mobile routes not registered in FastAPI app | Verify routes in `backend/api/mobile_routes.py` are included in `main:app` |
+| **Endpoint not found (404)** | Mobile routes not registered in FastAPI app | Verify routes in `backend/api/mobile_routes.py` are included in `main_api_app:app` |
 | **Missing mobile-specific routes** | Mobile API routes not implemented | Use backend API routes as fallback or implement mobile-specific endpoints |
 | **Permission denials (403)** | Device capability mock not configured | Check `backend/tests/e2e_api/conftest.py` for device mock setup |
 | **Test isolation failures** | Tests sharing same agent IDs | Use UUID suffixes: `f"TestAgent-{uuid.uuid4().hex[:8]}"` |
@@ -1398,7 +1398,7 @@ Reuse backend/frontend servers across tests:
 def backend_server():
     """Start backend server once for all tests."""
     process = subprocess.Popen(
-        ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"],
+        ["python", "-m", "uvicorn", "main_api_app:app", "--host", "0.0.0.0", "--port", "8001"],
         cwd="backend"
     )
     time.sleep(5)  # Wait for startup

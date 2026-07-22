@@ -100,7 +100,7 @@ def test_example(authenticated_user):
 
     # Make authenticated API request
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get("http://localhost:8000/api/v1/users/me", headers=headers)
+    response = requests.get("http://localhost:8001/api/v1/users/me", headers=headers)
     assert response.status_code == 200
 ```
 
@@ -197,7 +197,7 @@ def test_admin_only_feature(admin_user):
 
     # Make admin API request
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get("http://localhost:8000/api/v1/admin/users", headers=headers)
+    response = requests.get("http://localhost:8001/api/v1/admin/users", headers=headers)
     assert response.status_code == 200
 ```
 

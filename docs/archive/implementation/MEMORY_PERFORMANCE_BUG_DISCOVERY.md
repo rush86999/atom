@@ -160,7 +160,7 @@ pytest tests/performance_regression/ --benchmark-only --benchmark-compare=baseli
 ```bash
 # Start servers
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000 &
 cd frontend-nextjs
 npm run build
 npm start &

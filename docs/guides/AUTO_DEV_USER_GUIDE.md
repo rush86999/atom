@@ -83,7 +83,7 @@ Before enabling Auto-Dev, ensure:
 
 **Via API:**
 ```bash
-curl -X PATCH http://localhost:8000/api/v1/workspaces/{workspace_id} \
+curl -X PATCH http://localhost:8001/api/v1/workspaces/{workspace_id} \
   -H "Content-Type: application/json" \
   -d '{
     "configuration": {
@@ -111,7 +111,7 @@ WHERE id = 'your_workspace_id';
 
 ```bash
 # Check if your agent can use Auto-Dev
-curl http://localhost:8000/api/v1/agents/{agent_id}/auto-dev/capabilities
+curl http://localhost:8001/api/v1/agents/{agent_id}/auto-dev/capabilities
 ```
 
 **Response:**
@@ -181,7 +181,7 @@ Memento-Skills activates when:
 4. **Approval & Installation**
    ```bash
    # Approve and install
-   curl -X POST http://localhost:8000/api/v1/auto-dev/proposals/{proposal_id}/approve
+   curl -X POST http://localhost:8001/api/v1/auto-dev/proposals/{proposal_id}/approve
    ```
 
 ### Example: API Timeout Skill
@@ -269,7 +269,7 @@ winning_path = tree.search(params)
 
 1. **Trigger Evolution**
    ```bash
-   curl -X POST http://localhost:8000/api/v1/auto-dev/evolve \
+   curl -X POST http://localhost:8001/api/v1/auto-dev/evolve \
      -H "Content-Type: application/json" \
      -d '{
        "skill_name": "data_analysis",
@@ -417,7 +417,7 @@ ContainerSandbox(
 ### View Active Evolutions
 
 ```bash
-curl http://localhost:8000/api/v1/auto-dev/evolutions/active
+curl http://localhost:8001/api/v1/auto-dev/evolutions/active
 ```
 
 **Response:**
@@ -440,13 +440,13 @@ curl http://localhost:8000/api/v1/auto-dev/evolutions/active
 ### View Skill Proposals
 
 ```bash
-curl http://localhost:8000/api/v1/auto-dev/proposals?status=pending
+curl http://localhost:8001/api/v1/auto-dev/proposals?status=pending
 ```
 
 ### View Evolution History
 
 ```bash
-curl http://localhost:8000/api/v1/auto-dev/evolutions/history?skill_name=data_analysis
+curl http://localhost:8001/api/v1/auto-dev/evolutions/history?skill_name=data_analysis
 ```
 
 ---
@@ -496,13 +496,13 @@ curl http://localhost:8000/api/v1/auto-dev/evolutions/history?skill_name=data_an
 **Solution:**
 ```bash
 # Check agent maturity
-curl http://localhost:8000/api/v1/agents/{agent_id}/maturity
+curl http://localhost:8001/api/v1/agents/{agent_id}/maturity
 
 # Check workspace configuration
-curl http://localhost:8000/api/v1/workspaces/{workspace_id}
+curl http://localhost:8001/api/v1/workspaces/{workspace_id}
 
 # Enable Auto-Dev if needed
-curl -X PATCH http://localhost:8000/api/v1/workspaces/{workspace_id} \
+curl -X PATCH http://localhost:8001/api/v1/workspaces/{workspace_id} \
   -d '{"configuration": {"auto_dev": {"enabled": true}}}'
 ```
 

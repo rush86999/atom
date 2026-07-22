@@ -27,7 +27,7 @@ fly scale count app=2 functions=2 handshake=1 oauth=1 optaplanner=1 python-agent
 
 ### 🔗 Local Development Endpoints
 - **Main App**: http://localhost:3000
-- **API Services**: http://localhost:8000
+- **API Services**: http://localhost:8001
 - **GraphQL Auth**: http://localhost:5000/graphql
 - **GraphQL Playground**: http://localhost:5000/playground  
 - **Health Check**: http://localhost:3000/health

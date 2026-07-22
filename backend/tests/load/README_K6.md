@@ -48,7 +48,7 @@ Ensure the Atom backend is running:
 
 ```bash
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 3. Create Test User (Optional)
@@ -56,7 +56,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 Load tests use `load_test@example.com` with password `test_password_123`. Create this user via:
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/register \
+curl -X POST http://localhost:8001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email": "load_test@example.com", "password": "test_password_123"}'
 ```
@@ -129,8 +129,8 @@ k6 run test_web_ui_load.js
 Configure the API URL:
 
 ```bash
-# Default: http://localhost:8000
-export API_URL="http://localhost:8000"
+# Default: http://localhost:8001
+export API_URL="http://localhost:8001"
 
 # Run with custom API URL
 API_URL="http://staging.example.com" k6 run test_api_load_baseline.js
@@ -245,7 +245,7 @@ jobs:
       - name: Start application
         run: |
           cd backend
-          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000 &
           sleep 10
 
       - name: Run baseline load test
@@ -336,11 +336,11 @@ sudo mv k6-v0.51.0-linux-amd64/k6 /usr/local/bin/
 **Solution:**
 ```bash
 # Check if server is running
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 
 # Start server if not running
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### Authentication Failures
@@ -352,7 +352,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 - Ensure test user exists in database
 - Check authentication endpoint is working:
   ```bash
-  curl -X POST http://localhost:8000/api/auth/login \
+  curl -X POST http://localhost:8001/api/auth/login \
     -H "Content-Type: application/json" \
     -d '{"email": "load_test@example.com", "password": "test_password_123"}'
   ```
@@ -393,14 +393,14 @@ psql -c "SELECT count(*) FROM pg_stat_activity;"
 **Debugging:**
 ```bash
 # Check cache hit rate
-curl http://localhost:8000/api/agent-governance/cache-stats
+curl http://localhost:8001/api/agent-governance/cache-stats
 
 # Profile database queries
 # Enable query logging in SQLAlchemy
 export SQLALCHEMY_ECHO=true
 
 # Run with profiling
-python -m cProfile -o profile.stats -m uvicorn main:app
+python -m cProfile -o profile.stats -m uvicorn main_api_app:app
 ```
 
 ## Best Practices

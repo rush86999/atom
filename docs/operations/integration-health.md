@@ -49,7 +49,7 @@ The integration health monitoring system provides:
 
 **Example Request**:
 ```bash
-curl "http://localhost:8000/api/zoom/health"
+curl "http://localhost:8001/api/zoom/health"
 ```
 
 **Example Response** (Healthy & Configured):
@@ -112,7 +112,7 @@ curl "http://localhost:8000/api/zoom/health"
 
 **Example Request**:
 ```bash
-curl "http://localhost:8000/api/integrations/health"
+curl "http://localhost:8001/api/integrations/health"
 ```
 
 **Example Response**:
@@ -157,7 +157,7 @@ curl "http://localhost:8000/api/integrations/health"
 
 **Example Request**:
 ```bash
-curl "http://localhost:8000/api/integrations/config"
+curl "http://localhost:8001/api/integrations/config"
 ```
 
 **Example Response**:
@@ -396,15 +396,15 @@ async def create_zoom_meeting(
 
 ```bash
 # Test individual service health
-curl http://localhost:8000/api/zoom/health
-curl http://localhost:8000/api/notion/health
-curl http://localhost:8000/api/slack/health
+curl http://localhost:8001/api/zoom/health
+curl http://localhost:8001/api/notion/health
+curl http://localhost:8001/api/slack/health
 
 # Test all integrations health
-curl http://localhost:8000/api/integrations/health
+curl http://localhost:8001/api/integrations/health
 
 # Test configuration status
-curl http://localhost:8000/api/integrations/config
+curl http://localhost:8001/api/integrations/config
 ```
 
 ### Run Health Check Tests

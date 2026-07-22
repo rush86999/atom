@@ -457,7 +457,7 @@ logger.info(f"Security Audit: credential_accessed - user={user_id} - provider={p
 
 **API Endpoint**:
 ```bash
-curl http://localhost:8000/api/security/configuration
+curl http://localhost:8001/api/security/configuration
 ```
 
 **Response**:

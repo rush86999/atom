@@ -104,7 +104,7 @@ The contract tests run automatically on every PR via `.github/workflows/contract
 ### 1. OpenAPI spec auto-generated from FastAPI endpoints
 
 ```bash
-curl http://localhost:8000/openapi.json | python -c "import json, sys; d=json.load(sys.stdin); print(f'{len(d[\"paths\"])} endpoints')"
+curl http://localhost:8001/openapi.json | python -c "import json, sys; d=json.load(sys.stdin); print(f'{len(d[\"paths\"])} endpoints')"
 ```
 
 ### 2. Schemathesis validates all API contracts

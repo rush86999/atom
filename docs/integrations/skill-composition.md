@@ -541,7 +541,7 @@ fetch_products┘
 ### Execute Workflow
 
 ```bash
-curl -X POST "http://localhost:8000/composition/execute" \
+curl -X POST "http://localhost:8001/composition/execute" \
   -H "Content-Type: application/json" \
   -d '{
     "workflow_id": "my-workflow",
@@ -585,7 +585,7 @@ curl -X POST "http://localhost:8000/composition/execute" \
 Check workflow without executing:
 
 ```bash
-curl -X POST "http://localhost:8000/composition/validate" \
+curl -X POST "http://localhost:8001/composition/validate" \
   -H "Content-Type: application/json" \
   -d '{
     "steps": [
@@ -630,7 +630,7 @@ curl -X POST "http://localhost:8000/composition/validate" \
 ### Check Execution Status
 
 ```bash
-curl "http://localhost:8000/composition/status/{execution_id}"
+curl "http://localhost:8001/composition/status/{execution_id}"
 ```
 
 **Response**:
@@ -978,7 +978,7 @@ steps = [
 **Solution**:
 1. Review step dependencies:
    ```bash
-   curl -X POST "http://localhost:8000/composition/validate" \
+   curl -X POST "http://localhost:8001/composition/validate" \
      -H "Content-Type: application/json" \
      -d '{"steps": [...]}'
    ```
@@ -1000,7 +1000,7 @@ steps = [
 **Solution**:
 1. Verify skill is installed or registered:
    ```bash
-   curl "http://localhost:8000/api/skills/list?status=Active"
+   curl "http://localhost:8001/api/skills/list?status=Active"
    ```
 
 2. Check skill_id matches exactly:
@@ -1014,7 +1014,7 @@ steps = [
 
 3. Ensure skill is available to agent (maturity check):
    ```bash
-   curl "http://localhost:8000/api/agents/my-agent"
+   curl "http://localhost:8001/api/agents/my-agent"
    ```
 
 ### Rollback Incomplete
@@ -1032,7 +1032,7 @@ steps = [
 
 2. Check logs for rollback failures:
    ```bash
-   curl "http://localhost:8000/composition/status/{execution_id}" | jq '.rollback_log'
+   curl "http://localhost:8001/composition/status/{execution_id}" | jq '.rollback_log'
    ```
 
 3. Manual cleanup may be required:
@@ -1048,7 +1048,7 @@ steps = [
 **Diagnosis**:
 1. Check execution time per step:
    ```bash
-   curl "http://localhost:8000/composition/status/{execution_id}" | jq '.step_timings'
+   curl "http://localhost:8001/composition/status/{execution_id}" | jq '.step_timings'
    ```
 
 2. Identify bottlenecks:

@@ -40,7 +40,9 @@ shareable as a video/GIF for social media, documentation, or demos.
 **Setup:** Start Atom with Ollama, chat with a local model, zero cloud dependency.
 
 **What to show:**
-1. Terminal: `ollama pull llama3:8b && ATOM_LOCAL_ONLY=true ./scripts/dev.sh`
+1. Terminal: `ollama pull llama3:8b && ATOM_LOCAL_ONLY=true make backend`
+   (Note: `scripts/dev.sh` launches the minimal smoke app; `make backend` runs
+   the full `main_api_app:app` — recommended for demos.)
 2. Open the app, log in
 3. Send a message — the response comes from the local model
 4. Show the routing dashboard: local model serving at $0.00 cost

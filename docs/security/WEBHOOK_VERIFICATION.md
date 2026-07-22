@@ -135,7 +135,7 @@ signature = 'v0=' + hmac.new(
     hashlib.sha256
 ).hexdigest()
 
-requests.post('http://localhost:8000/api/webhooks/slack',
+requests.post('http://localhost:8001/api/webhooks/slack',
     data=body,
     headers={
         'X-Slack-Request-Timestamp': timestamp,
@@ -148,7 +148,7 @@ requests.post('http://localhost:8000/api/webhooks/slack',
 **Invalid Signature**:
 ```bash
 # Should reject in production
-curl -X POST http://localhost:8000/api/webhooks/slack \
+curl -X POST http://localhost:8001/api/webhooks/slack \
   -H "X-Slack-Request-Timestamp: $(date +%s)" \
   -H "X-Slack-Signature: invalid_signature" \
   -d '{"type":"url_verification"}'
@@ -218,7 +218,7 @@ def verify_teams_token(self, auth_header: str) -> bool:
 
 **Valid Token**:
 ```bash
-curl -X POST http://localhost:8000/api/webhooks/teams \
+curl -X POST http://localhost:8001/api/webhooks/teams \
   -H "Authorization: Bearer your-microsoft-webhook-secret-here" \
   -H "Content-Type: application/json" \
   -d '{"type":"message","text":"Hello"}'
@@ -227,7 +227,7 @@ curl -X POST http://localhost:8000/api/webhooks/teams \
 **Invalid Token**:
 ```bash
 # Should reject in production
-curl -X POST http://localhost:8000/api/webhooks/teams \
+curl -X POST http://localhost:8001/api/webhooks/teams \
   -H "Authorization: Bearer invalid_token" \
   -H "Content-Type: application/json" \
   -d '{"type":"message","text":"Hello"}'
@@ -281,7 +281,7 @@ def verify_gmail_token(self, token: str) -> bool:
 
 **Valid Token**:
 ```bash
-curl -X POST "http://localhost:8000/api/webhooks/gmail?verification_token=your-gmail-verification-token" \
+curl -X POST "http://localhost:8001/api/webhooks/gmail?verification_token=your-gmail-verification-token" \
   -H "Content-Type: application/json" \
   -d '{"message":{"data":"base64_encoded_data"}}'
 ```
@@ -289,7 +289,7 @@ curl -X POST "http://localhost:8000/api/webhooks/gmail?verification_token=your-g
 **Invalid Token**:
 ```bash
 # Should reject in production
-curl -X POST "http://localhost:8000/api/webhooks/gmail?verification_token=invalid_token" \
+curl -X POST "http://localhost:8001/api/webhooks/gmail?verification_token=invalid_token" \
   -H "Content-Type: application/json" \
   -d '{"message":{"data":"base64_encoded_data"}}'
 ```
@@ -332,7 +332,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
 
     location /api/webhooks/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8001;
     }
 }
 ```
@@ -425,7 +425,7 @@ export ENVIRONMENT=production
 **Diagnosis**:
 ```bash
 # Check security status
-curl http://localhost:8000/api/webhooks/security-status
+curl http://localhost:8001/api/webhooks/security-status
 
 # Check environment variable
 echo $SLACK_SIGNING_SECRET
@@ -508,7 +508,7 @@ date +%s
 ab -n 1000 -c 10 -p webhook.json -T application/json \
   -H "X-Slack-Request-Timestamp: $(date +%s)" \
   -H "X-Slack-Signature: valid_signature" \
-  http://localhost:8000/api/webhooks/slack
+  http://localhost:8001/api/webhooks/slack
 ```
 
 ---

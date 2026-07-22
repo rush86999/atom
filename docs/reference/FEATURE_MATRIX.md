@@ -246,7 +246,7 @@ service.require_feature(Feature.SSO)
 atom enable enterprise
 
 # Via API
-curl -X POST http://localhost:8000/api/edition/enable \
+curl -X POST http://localhost:8001/api/edition/enable \
     -H "Content-Type: application/json" \
     -d '{"database_url": "postgresql://..."}'
 ```
