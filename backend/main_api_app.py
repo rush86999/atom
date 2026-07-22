@@ -2794,12 +2794,14 @@ try:
     # 15.1. Integration Health Stubs
     try:
         from integration_health_endpoints import router as health_stubs_router
-
         app.include_router(health_stubs_router, tags=["Integration Health"])
 
         from service_health_endpoints import router as service_health_router
-
         app.include_router(service_health_router, tags=["Service Health"])
+
+        # Legacy Health stubs
+        from api_legacy_health import router as legacy_health_router
+        app.include_router(legacy_health_router, prefix="/api", tags=["Legacy Health"])
 
         logger.info("✓ Integration & Service Health Routes Loaded")
     except (ImportError, TypeError) as e:
