@@ -49,11 +49,17 @@ const DevStudio = () => {
     // Load system information
     const loadSystemInfo = async () => {
         if (!invoke) {
-            toast({
-                title: "Desktop Only",
-                description: "This feature is only available in the desktop app",
-                variant: "error",
-            });
+            try {
+                const res = await fetch("/api/dev/desktop-bridge", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ command: "get_system_info" })
+                });
+                const info = await res.json();
+                setSystemInfo(info);
+            } catch (error) {
+                console.error("Failed to load system info:", error);
+            }
             return;
         }
 
@@ -72,7 +78,28 @@ const DevStudio = () => {
 
     // Open file dialog
     const openFile = async () => {
-        if (!invoke) return;
+        if (!invoke) {
+            const filePath = prompt("Enter the absolute file path to open (e.g. C:/Users/User/Desktop/New folder (2)/atom/README.md):");
+            if (filePath) {
+                setSelectedFile(filePath);
+                try {
+                    const res = await fetch("/api/dev/desktop-bridge", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ command: "read_file_content", args: { path: filePath } })
+                    });
+                    const content = await res.json();
+                    if (content.success) {
+                        setFileContent(content.content);
+                    } else {
+                        toast({ title: "Error", description: content.error, variant: "error" });
+                    }
+                } catch (error) {
+                    console.error("Failed to read file:", error);
+                }
+            }
+            return;
+        }
 
         try {
             const result = await invoke("open_file_dialog", {
@@ -118,7 +145,28 @@ const DevStudio = () => {
 
     // Open folder dialog
     const openFolder = async () => {
-        if (!invoke) return;
+        if (!invoke) {
+            const folderPath = prompt("Enter the absolute folder path to open (e.g. C:/Users/User/Desktop/New folder (2)/atom):");
+            if (folderPath) {
+                setCurrentDirectory(folderPath);
+                try {
+                    const res = await fetch("/api/dev/desktop-bridge", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ command: "list_directory", args: { path: folderPath } })
+                    });
+                    const contents = await res.json();
+                    if (contents.success) {
+                        setDirectoryContents(contents.entries);
+                    } else {
+                        toast({ title: "Error", description: contents.error, variant: "error" });
+                    }
+                } catch (error) {
+                    console.error("Failed to list directory:", error);
+                }
+            }
+            return;
+        }
 
         try {
             const result = await invoke("open_folder_dialog");
@@ -136,10 +184,44 @@ const DevStudio = () => {
 
     // Execute command
     const executeCommand = async () => {
-        if (!invoke || !command.trim()) return;
+        if (!command.trim()) return;
 
         setIsExecuting(true);
         setCommandOutput("");
+
+        if (!invoke) {
+            try {
+                const args = commandArgs.split(" ").filter((arg) => arg.trim());
+                const res = await fetch("/api/dev/desktop-bridge", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        command: "execute_command",
+                        args: {
+                            command: command.trim(),
+                            args: args,
+                            workingDir: workingDir || currentDirectory || undefined,
+                        }
+                    })
+                });
+                const result = await res.json();
+                let output = "";
+                if (result.success) {
+                    output += `Command executed successfully (exit code: ${result.exit_code})\n\n`;
+                } else {
+                    output += `Command failed (exit code: ${result.exit_code})\n\n`;
+                }
+                if (result.stdout) output += `STDOUT:\n${result.stdout}\n`;
+                if (result.stderr) output += `STDERR:\n${result.stderr}\n`;
+                setCommandOutput(output);
+            } catch (error: any) {
+                console.error("Failed to execute command:", error);
+                setCommandOutput(error.message || "Execution error");
+            } finally {
+                setIsExecuting(false);
+            }
+            return;
+        }
 
         try {
             const args = commandArgs.split(" ").filter((arg) => arg.trim());
@@ -174,7 +256,44 @@ const DevStudio = () => {
 
     // Save file content
     const saveFile = async () => {
-        if (!invoke || !selectedFile) return;
+        if (!selectedFile) return;
+
+        if (!invoke) {
+            try {
+                const res = await fetch("/api/dev/desktop-bridge", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        command: "write_file_content",
+                        args: {
+                            path: selectedFile,
+                            content: fileContent,
+                        }
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    toast({
+                        title: "File Saved",
+                        description: `Successfully saved ${selectedFile}`,
+                        variant: "success",
+                    });
+                } else {
+                    toast({
+                        title: "Save Failed",
+                        description: result.error || "Failed to save file",
+                        variant: "error",
+                    });
+                }
+            } catch (error) {
+                toast({
+                    title: "Save Failed",
+                    description: `Failed to save file: ${error}`,
+                    variant: "error",
+                });
+            }
+            return;
+        }
 
         try {
             const result = await invoke("write_file_content", {
@@ -200,7 +319,23 @@ const DevStudio = () => {
 
     // Load directory contents
     const loadDirectory = async (path: string) => {
-        if (!invoke) return;
+        if (!invoke) {
+            try {
+                const res = await fetch("/api/dev/desktop-bridge", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ command: "list_directory", args: { path } })
+                });
+                const contents = await res.json();
+                if (contents.success) {
+                    setDirectoryContents(contents.entries);
+                    setCurrentDirectory(path);
+                }
+            } catch (error) {
+                console.error("Failed to load directory:", error);
+            }
+            return;
+        }
 
         try {
             const contents = await invoke("list_directory", { path });

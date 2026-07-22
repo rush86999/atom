@@ -21,7 +21,7 @@ from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import UserRole
-from core.policy_fact_extractor import get_policy_fact_extractor
+from core.policy_fact_extractor import get_policy_fact_extractor, ExtractionResult
 from core.security.rbac import require_role
 
 
@@ -288,7 +288,7 @@ async def upload_and_extract(
         
         # 2. Extract facts using local temp file
         extractor = get_policy_fact_extractor(workspace_id)
-        result = await extractor.extract_facts_from_document(
+        result: ExtractionResult = await extractor.extract_facts_from_document(
             document_path=temp_path,
             user_id=str(current_user.id)
         )
@@ -334,7 +334,7 @@ async def upload_and_extract(
                 )
                 for f in business_facts
             ],
-            source_document=file.filename,
+            source_document=safe_filename,
             extraction_time=result.extraction_time
         )
         
