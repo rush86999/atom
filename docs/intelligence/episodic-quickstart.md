@@ -261,7 +261,7 @@ print(f"Constitutional Score: {audit['avg_constitutional_score']}")
 
 ```bash
 # Create episode
-curl -X POST http://localhost:8000/api/episodes/create \
+curl -X POST http://localhost:8001/api/episodes/create \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "chat_123",
@@ -269,7 +269,7 @@ curl -X POST http://localhost:8000/api/episodes/create \
   }'
 
 # Temporal retrieval
-curl -X POST http://localhost:8000/api/episodes/retrieve/temporal \
+curl -X POST http://localhost:8001/api/episodes/retrieve/temporal \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_456",
@@ -277,7 +277,7 @@ curl -X POST http://localhost:8000/api/episodes/retrieve/temporal \
   }'
 
 # Semantic retrieval
-curl -X POST http://localhost:8000/api/episodes/retrieve/semantic \
+curl -X POST http://localhost:8001/api/episodes/retrieve/semantic \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_456",
@@ -285,17 +285,17 @@ curl -X POST http://localhost:8000/api/episodes/retrieve/semantic \
   }'
 
 # Get full episode
-curl http://localhost:8000/api/episodes/retrieve/episode_123?agent_id=agent_456
+curl http://localhost:8001/api/episodes/retrieve/episode_123?agent_id=agent_456
 ```
 
 ### Graduation
 
 ```bash
 # Check readiness
-curl http://localhost:8000/api/episodes/graduation/readiness/agent_456?target_maturity=INTERN
+curl http://localhost:8001/api/episodes/graduation/readiness/agent_456?target_maturity=INTERN
 
 # Run exam
-curl -X POST http://localhost:8000/api/episodes/graduation/exam \
+curl -X POST http://localhost:8001/api/episodes/graduation/exam \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_456",
@@ -303,7 +303,7 @@ curl -X POST http://localhost:8000/api/episodes/graduation/exam \
   }'
 
 # Promote agent
-curl -X POST http://localhost:8000/api/episodes/graduation/promote \
+curl -X POST http://localhost:8001/api/episodes/graduation/promote \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_456",
@@ -312,7 +312,7 @@ curl -X POST http://localhost:8000/api/episodes/graduation/promote \
   }'
 
 # Get audit trail
-curl http://localhost:8000/api/episodes/graduation/audit/agent_456
+curl http://localhost:8001/api/episodes/graduation/audit/agent_456
 ```
 
 ## Common Patterns

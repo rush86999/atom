@@ -266,7 +266,7 @@ async def monitor_agent_progress(agent_id: str):
 ### Creating Episodes via API
 
 ```bash
-curl -X POST http://localhost:8000/api/episodes/create \
+curl -X POST http://localhost:8001/api/episodes/create \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_123",
@@ -282,7 +282,7 @@ curl -X POST http://localhost:8000/api/episodes/create \
 
 ```bash
 # Temporal retrieval
-curl -X POST http://localhost:8000/api/episodes/retrieve/temporal \
+curl -X POST http://localhost:8001/api/episodes/retrieve/temporal \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_123",
@@ -291,7 +291,7 @@ curl -X POST http://localhost:8000/api/episodes/retrieve/temporal \
   }'
 
 # Semantic retrieval
-curl -X POST http://localhost:8000/api/episodes/retrieve/semantic \
+curl -X POST http://localhost:8001/api/episodes/retrieve/semantic \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_123",
@@ -304,10 +304,10 @@ curl -X POST http://localhost:8000/api/episodes/retrieve/semantic \
 
 ```bash
 # Check readiness
-curl http://localhost:8000/api/episodes/graduation/readiness/agent_123?target_level=INTERN
+curl http://localhost:8001/api/episodes/graduation/readiness/agent_123?target_level=INTERN
 
 # Run graduation exam
-curl -X POST http://localhost:8000/api/episodes/graduation/exam \
+curl -X POST http://localhost:8001/api/episodes/graduation/exam \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_123",

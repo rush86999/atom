@@ -42,7 +42,7 @@ Unhandled exceptions are caught by a global handler and return:
 ### Bad credentials
 
 ```bash
-curl -s -X POST http://localhost:8000/api/auth/login \
+curl -s -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"user@example.com","password":"wrong"}' -i
 ```
@@ -61,7 +61,7 @@ Any authenticated endpoint returns the same generic message for a missing,
 malformed, or expired token — there is no distinct "expired" code:
 
 ```bash
-curl -s http://localhost:8000/api/chat/sessions -i
+curl -s http://localhost:8001/api/chat/sessions -i
 ```
 
 ```
@@ -99,7 +99,7 @@ tenants). When exceeded:
 ```bash
 # Hit the limit, then one more:
 for i in $(seq 1 130); do curl -s -o /dev/null -w "%{http_code} " \
-  -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/chat/sessions; done
+  -H "Authorization: Bearer $TOKEN" http://localhost:8001/api/chat/sessions; done
 ```
 
 ```
@@ -125,7 +125,7 @@ value is seconds until the window resets. For the daily cap, `detail` is
 Missing a required field — FastAPI's default Pydantic shape:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/chat/message \
+curl -s -X POST http://localhost:8001/api/chat/message \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"user_id":"default_user","session_id":"new","context":{}}' -i
@@ -147,7 +147,7 @@ curl -s -X POST http://localhost:8000/api/chat/message \
 Manual validation produces a **string** detail (not an array):
 
 ```bash
-curl -s -X POST http://localhost:8000/api/chat/feedback \
+curl -s -X POST http://localhost:8001/api/chat/feedback \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message_id":"msg_1","feedback":"bad_value"}'
@@ -165,7 +165,7 @@ Chat returns a **200** with a recoverable error shape when no AI provider is
 configured — this is not an HTTP error, it's a user-actionable state:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/chat/message \
+curl -s -X POST http://localhost:8001/api/chat/message \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message":"Hello","user_id":"default_user","session_id":"new","context":{}}'
@@ -209,7 +209,7 @@ Session ownership is enforced — accessing another user's session returns a
 deliberately non-revealing 403:
 
 ```bash
-curl -s http://localhost:8000/api/chat/sessions/<other_user_session> \
+curl -s http://localhost:8001/api/chat/sessions/<other_user_session> \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -263,7 +263,7 @@ import httpx, time
 
 def chat(token, message, session="new"):
     r = httpx.post(
-        "http://localhost:8000/api/chat/message",
+        "http://localhost:8001/api/chat/message",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json={"message": message, "user_id": "default_user", "session_id": session, "context": {}},
         timeout=60.0,

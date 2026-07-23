@@ -28,31 +28,27 @@ Atom provides three independent, structured installation options to match execut
 ### Method 1: Docker Compose (Personal & Enterprise)
 Docker Compose is the recommended path for deploying stable releases.
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  backend:
-    image: rush86999/atom-backend:latest
-    ports:
-      - "8001:8001"
-    environment:
-      - DATABASE_URL=sqlite:///data/atom.db
-      - ATOM_DMM_LEVEL5_ENABLED=true
-    volumes:
-      - atom-data:/data
-  frontend:
-    image: rush86999/atom-frontend:latest
-    ports:
-      - "3001:3001"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
+**Personal Edition** (single-user SQLite stack, no external services):
+```bash
+git clone https://github.com/rush86999/atom.git
+cd atom
+cp .env.personal .env
+# Edit .env — generate SECRET_KEY, JWT_SECRET_KEY, BYOK_ENCRYPTION_KEY
+# (openssl rand -base64 32) and set one LLM key OR ATOM_LOCAL_ONLY=true
+docker compose -f docker-compose-personal.yml up -d --build
+# Frontend: http://localhost:3001   Backend: http://localhost:8001
 ```
 
-To run:
+**Full stack** (PostgreSQL + Redis + piece-engine + browser-node):
 ```bash
-docker compose up -d
+docker compose up -d --build
+# Uses docker-compose.yml. Requires SECRET_KEY + JWT_SECRET_KEY in .env.
 ```
+
+The Personal Edition compose file (`docker-compose-personal.yml`) runs the
+**full app** (`main_api_app:app`, all 80+ routers) on SQLite. The backend
+Dockerfile sets `WORKDIR /app/backend` and `PYTHONPATH=/app:/app/backend` so
+both bare and `backend.*` imports resolve.
 
 ### Method 2: Manual Clone & Virtual Environment (Local Dev)
 Ideal for contribution and running the latest changes from `main`:
@@ -66,12 +62,16 @@ cd backend
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env   # edit: SECRET_KEY + one LLM key (or ATOM_LOCAL_ONLY=true)
 
 # 2. Setup Frontend
 cd ../frontend-nextjs
 npm install --legacy-peer-deps
-npm run dev -- -p 3001
+
+# 3. Launch (from repo root — main_api_app:app is the FULL app)
+cd ..
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
+# In another terminal: cd frontend-nextjs && npm run dev -- -p 3001
 ```
 
 ### Method 3: Automated Installer Script

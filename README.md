@@ -137,9 +137,12 @@ cd ../frontend-nextjs
 npm install --legacy-peer-deps
 cd ..
 
-# Configure (DATABASE_URL, SECRET_KEY, at least one LLM key)
+# Configure — copy the template (every var has a working default; you only
+# need to set SECRET_KEY + one LLM key). Full reference:
+#   docs/reference/ENVIRONMENT_VARIABLES.md
 cp backend/.env.example backend/.env
 # Edit backend/.env — generate SECRET_KEY with: openssl rand -base64 48
+# ...and set OPENAI_API_KEY=sk-... (or ATOM_LOCAL_ONLY=true for Ollama)
 
 # Point the frontend at the backend (port 8001 in the commands below)
 cat > frontend-nextjs/.env.local <<'EOF'
@@ -306,6 +309,16 @@ Recursive knowledge retrieval via BFS traversal, canonical anchoring to database
 
 ---
 
+### 🐝 Swarm Coordination ✨ New 2026
+Four advanced multi-agent coordination patterns (derived from Cursor's swarm research + domain-aware verification literature) that address failure modes when many agents operate concurrently on shared codebases:
+- **Stigmergic Field Guide**: per-workspace Markdown memory that agents read *and* write — runtime rules discovered during execution persist into every agent's system prompt. Backed by PostgreSQL (`field_guides` table, pod-restart safe) with a filesystem fallback for local dev.
+- **Domain-Aware Verification Cascade**: 2-stage CODE pipeline that verifies agent outputs using domain-specific strategies (formal, grounded, schema, execution-backed).
+- **Megafile Tripwire & Branch Reconciler**: sandbox tripwires that detect runaway file growth and reconcile divergent agent branches before merge.
+
+[Swarm Coordination Architecture →](docs/architecture/SWARM_COORDINATION.md)
+
+---
+
 ## 🚀 2026 Enhancement Plan
 
 Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major feature phases:
@@ -353,8 +366,17 @@ Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major
 git clone https://github.com/rush86999/atom.git
 cd atom
 cp .env.personal .env
-docker-compose -f docker-compose-personal.yml up -d
+# Edit .env — generate the 3 required keys (openssl rand -base64 32):
+#   SECRET_KEY, JWT_SECRET_KEY, BYOK_ENCRYPTION_KEY
+# ...and set one LLM provider key (or ATOM_LOCAL_ONLY=true for Ollama)
+docker compose -f docker-compose-personal.yml up -d --build
 ```
+- **Frontend**: http://localhost:3001 · **Backend**: http://localhost:8001 · **Swagger**: http://localhost:8001/docs
+
+`docker-compose-personal.yml` is the single-user SQLite stack (no Postgres/Redis).
+For the full production stack (Postgres + Redis + piece-engine + browser), use
+`docker-compose.yml`. See [Environment Variables Reference](docs/reference/ENVIRONMENT_VARIABLES.md)
+for every variable.
 
 ### 🚀 DigitalOcean (1-Click Deploy)
 Launch Atom on DigitalOcean App Platform with one click:
@@ -367,13 +389,24 @@ Launch Atom on DigitalOcean App Platform with one click:
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cd backend && python3 -m venv venv && source venv/bin/activate
+
+# Backend
+cd backend && python3.11 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cd ../frontend-nextjs && npm install
-cp .env.personal .env
-# Start backend: cd backend && python -m uvicorn main_api_app:app --reload
-# Start frontend: cd frontend-nextjs && npm run dev
+cp .env.example .env   # edit: SECRET_KEY + one LLM key (or ATOM_LOCAL_ONLY=true)
+cd ..
+
+# Frontend
+cd frontend-nextjs && npm install --legacy-peer-deps
+echo 'NEXT_PUBLIC_API_URL=http://localhost:8001' > .env.local
+cd ..
+
+# Start backend (from repo root): PYTHONPATH=$PWD:$PWD/backend \
+#   ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
+# Start frontend: cd frontend-nextjs && npm run dev -- -p 3001
 ```
+See [Quick Start](#quick-start) above for the verified commands, or
+[Environment Variables Reference](docs/reference/ENVIRONMENT_VARIABLES.md).
 
 ---
 
@@ -434,6 +467,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 ### Platform
 - [Development Guide](docs/development/overview.md) - Technical setup
 - [Installation Guide](docs/getting_started/INSTALLATION.md) - Complete instructions
+- [Environment Variables](docs/reference/ENVIRONMENT_VARIABLES.md) - Every env var, defaults, and where to set them
 - [Atom vs OpenClaw](docs/features/atom-vs-openclaw.md) - Feature comparison
 
 ### Advanced

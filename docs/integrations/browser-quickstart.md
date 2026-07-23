@@ -198,7 +198,7 @@ with SessionLocal() as db:
 ### Create Session via REST API
 
 ```bash
-curl -X POST http://localhost:8000/api/browser/session/create \
+curl -X POST http://localhost:8001/api/browser/session/create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -210,7 +210,7 @@ curl -X POST http://localhost:8000/api/browser/session/create \
 ### Navigate via REST API
 
 ```bash
-curl -X POST http://localhost:8000/api/browser/navigate \
+curl -X POST http://localhost:8001/api/browser/navigate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -222,7 +222,7 @@ curl -X POST http://localhost:8000/api/browser/navigate \
 ### Get Screenshot via REST API
 
 ```bash
-curl -X POST http://localhost:8000/api/browser/screenshot \
+curl -X POST http://localhost:8001/api/browser/screenshot \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

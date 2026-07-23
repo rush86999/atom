@@ -54,7 +54,7 @@ Choose which providers you want to support and set them up:
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new OAuth 2.0 Client ID (Web application)
-3. Add redirect URI: `http://localhost:8000/api/v1/llm/oauth/callback`
+3. Add redirect URI: `http://localhost:8001/api/v1/llm/oauth/callback`
 4. Enable APIs: Cloud AI Platform, Generative Language API
 5. Add to `.env`:
 
@@ -105,7 +105,7 @@ Add to your `.env` file:
 
 ```bash
 # Development
-LLM_OAUTH_REDIRECT_URI=http://localhost:8000/api/v1/llm/oauth/callback
+LLM_OAUTH_REDIRECT_URI=http://localhost:8001/api/v1/llm/oauth/callback
 
 # Production (change when deploying)
 # LLM_OAUTH_REDIRECT_URI=https://your-domain.com/api/v1/llm/oauth/callback
@@ -117,17 +117,17 @@ Start your application:
 
 ```bash
 cd backend
-python -m uvicorn main:app --reload
+python -m uvicorn main_api_app:app --reload
 ```
 
 Test the OAuth endpoints:
 
 ```bash
 # List supported providers
-curl http://localhost:8000/api/v1/llm/oauth/providers
+curl http://localhost:8001/api/v1/llm/oauth/providers
 
 # Check provider status
-curl http://localhost:8000/api/v1/llm/oauth/providers/google/status
+curl http://localhost:8001/api/v1/llm/oauth/providers/google/status
 ```
 
 ## Step 7: Connect OAuth (Frontend Integration)
@@ -180,16 +180,16 @@ await fetch('/api/v1/llm/oauth/callback', {
 
 ```bash
 # 1. Get authorization URL
-curl -X POST http://localhost:8000/api/v1/llm/oauth/authorize \
+curl -X POST http://localhost:8001/api/v1/llm/oauth/authorize \
   -H "Content-Type: application/json" \
   -d '{
     "provider_id": "google",
-    "redirect_uri": "http://localhost:8000/api/v1/llm/oauth/callback"
+    "redirect_uri": "http://localhost:8001/api/v1/llm/oauth/callback"
   }'
 
 # 2. Visit the authorization_url in your browser
 # 3. After authorization, check credentials
-curl http://localhost:8000/api/v1/llm/oauth/credentials
+curl http://localhost:8001/api/v1/llm/oauth/credentials
 ```
 
 ### Test with Python
@@ -198,11 +198,11 @@ curl http://localhost:8000/api/v1/llm/oauth/credentials
 import requests
 
 # Check provider status
-response = requests.get("http://localhost:8000/api/v1/llm/oauth/providers/openai/status")
+response = requests.get("http://localhost:8001/api/v1/llm/oauth/providers/openai/status")
 print(response.json())
 
 # List credentials
-response = requests.get("http://localhost:8000/api/v1/llm/oauth/credentials")
+response = requests.get("http://localhost:8001/api/v1/llm/oauth/credentials")
 print(response.json())
 ```
 

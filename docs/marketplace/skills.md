@@ -51,7 +51,7 @@ Future: Atom SaaS API Sync (when available)
 Search by name, description, or category:
 
 ```bash
-curl "http://localhost:8000/marketplace/skills?query=data&sort_by=relevance"
+curl "http://localhost:8001/marketplace/skills?query=data&sort_by=relevance"
 ```
 
 **Response**:
@@ -103,7 +103,7 @@ Available categories:
 | `scraping` | Web scraping and data extraction | HTML scraper, API fetcher |
 
 ```bash
-curl "http://localhost:8000/marketplace/skills?category=data"
+curl "http://localhost:8001/marketplace/skills?category=data"
 ```
 
 ### Filter by Skill Type
@@ -114,13 +114,13 @@ curl "http://localhost:8000/marketplace/skills?category=data"
 
 ```bash
 # Prompt-only skills (safe for all agents)
-curl "http://localhost:8000/marketplace/skills?skill_type=prompt_only"
+curl "http://localhost:8001/marketplace/skills?skill_type=prompt_only"
 
 # Python code skills (require INTERN+)
-curl "http://localhost:8000/marketplace/skills?skill_type=python_code"
+curl "http://localhost:8001/marketplace/skills?skill_type=python_code"
 
 # Node.js code skills (require INTERN+)
-curl "http://localhost:8000/marketplace/skills?skill_type=nodejs_code"
+curl "http://localhost:8001/marketplace/skills?skill_type=nodejs_code"
 ```
 
 ### Sort Results
@@ -132,9 +132,9 @@ curl "http://localhost:8000/marketplace/skills?skill_type=nodejs_code"
 - `downloads` - Most downloaded
 
 ```bash
-curl "http://localhost:8000/marketplace/skills?sort_by=rating"
-curl "http://localhost:8000/marketplace/skills?sort_by=created"
-curl "http://localhost:8000/marketplace/skills?sort_by=name"
+curl "http://localhost:8001/marketplace/skills?sort_by=rating"
+curl "http://localhost:8001/marketplace/skills?sort_by=created"
+curl "http://localhost:8001/marketplace/skills?sort_by=name"
 ```
 
 ### Pagination
@@ -143,10 +143,10 @@ Control page size and number:
 
 ```bash
 # First page with 10 results
-curl "http://localhost:8000/marketplace/skills?page=1&page_size=10"
+curl "http://localhost:8001/marketplace/skills?page=1&page_size=10"
 
 # Second page with 50 results
-curl "http://localhost:8000/marketplace/skills?page=2&page_size=50"
+curl "http://localhost:8001/marketplace/skills?page=2&page_size=50"
 ```
 
 **Limits**:
@@ -161,7 +161,7 @@ curl "http://localhost:8000/marketplace/skills?page=2&page_size=50"
 Get detailed information about a specific skill:
 
 ```bash
-curl "http://localhost:8000/marketplace/skills/{skill_id}"
+curl "http://localhost:8001/marketplace/skills/{skill_id}"
 ```
 
 **Response**:
@@ -233,7 +233,7 @@ curl "http://localhost:8000/marketplace/skills/{skill_id}"
 Submit a rating (1-5 stars) with optional comment:
 
 ```bash
-curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/rate" \
+curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/rate" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "my-agent",
@@ -273,7 +273,7 @@ curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/rate" \
 Submit a new rating to update your previous rating:
 
 ```bash
-curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/rate" \
+curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/rate" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "my-agent",
@@ -301,7 +301,7 @@ curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/rate" \
 Install a skill with automatic dependency installation:
 
 ```bash
-curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/install" \
+curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/install" \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "my-agent",
@@ -339,14 +339,14 @@ If `auto_install_deps=false`, install dependencies separately:
 
 ```bash
 # 1. Check dependencies first
-curl "http://localhost:8000/marketplace/skills/{skill_id}"
+curl "http://localhost:8001/marketplace/skills/{skill_id}"
 
 # 2. Note packages from response:
 #    "packages": ["pandas==2.0.0", "numpy>=1.24.0"]
 #    "node_packages": []
 
 # 3. Install manually via auto-install API
-curl -X POST "http://localhost:8000/auto-install/install" \
+curl -X POST "http://localhost:8001/auto-install/install" \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "my-skill",
@@ -481,7 +481,7 @@ All marketplace skills are scanned before listing:
 
 **Promoting Skills**:
 ```bash
-curl -X POST "http://localhost:8000/api/skills/{skill_id}/promote" \
+curl -X POST "http://localhost:8001/api/skills/{skill_id}/promote" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "Active",
@@ -562,7 +562,7 @@ result = process_csv(
 
 1. **Use the skills import API**:
 ```bash
-curl -X POST "http://localhost:8000/api/skills/import" \
+curl -X POST "http://localhost:8001/api/skills/import" \
   -H "Content-Type: application/json" \
   -d '{
     "source": "github_url",
@@ -576,7 +576,7 @@ curl -X POST "http://localhost:8000/api/skills/import" \
 
 2. **Wait for security scan** (automatic):
 ```bash
-curl "http://localhost:8000/api/skills/csv-processor"
+curl "http://localhost:8001/api/skills/csv-processor"
 ```
 
 3. **Review scan results**:
@@ -595,7 +595,7 @@ curl "http://localhost:8000/api/skills/csv-processor"
 
 4. **Promote to Active** (if scan passed):
 ```bash
-curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
+curl -X POST "http://localhost:8001/api/skills/csv-processor/promote" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "Active",
@@ -703,7 +703,7 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 **Solutions**:
 1. Check skill's required packages:
    ```bash
-   curl "http://localhost:8000/marketplace/skills/{skill_id}" | jq '.packages, .node_packages'
+   curl "http://localhost:8001/marketplace/skills/{skill_id}" | jq '.packages, .node_packages'
    ```
 
 2. Verify compatibility with your existing packages:
@@ -727,7 +727,7 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 **Solutions**:
 1. Verify skill status is "Active":
    ```bash
-   curl "http://localhost:8000/marketplace/skills/{skill_id}" | jq '.status'
+   curl "http://localhost:8001/marketplace/skills/{skill_id}" | jq '.status'
    ```
 
 2. Check if packages are compatible with your system:
@@ -738,7 +738,7 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 
 3. Review error message for specific issue:
    ```bash
-   curl "http://localhost:8000/auto-install/status/{skill_id}" | jq '.error'
+   curl "http://localhost:8001/auto-install/status/{skill_id}" | jq '.error'
    ```
 
 ### Ratings Not Showing
@@ -749,13 +749,13 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 1. Allow time for rating aggregation (usually <1 second)
 2. Refresh skill details page:
    ```bash
-   curl "http://localhost:8000/marketplace/skills/{skill_id}"
+   curl "http://localhost:8001/marketplace/skills/{skill_id}"
    ```
 
 3. Check that rating was submitted successfully:
    ```bash
    # Submit rating again - will update if exists
-   curl -X POST "http://localhost:8000/marketplace/skills/{skill_id}/rate" \
+   curl -X POST "http://localhost:8001/marketplace/skills/{skill_id}/rate" \
      -H "Content-Type: application/json" \
      -d '{"user_id": "my-agent", "rating": 5}'
    ```
@@ -769,20 +769,20 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 2. Try broader search terms:
    ```bash
    # Too specific
-   curl "http://localhost:8000/marketplace/skills?query=csv-data-processor-with-pandas"
+   curl "http://localhost:8001/marketplace/skills?query=csv-data-processor-with-pandas"
 
    # Better
-   curl "http://localhost:8000/marketplace/skills?query=csv"
+   curl "http://localhost:8001/marketplace/skills?query=csv"
    ```
 
 3. Browse by category instead:
    ```bash
-   curl "http://localhost:8000/marketplace/skills?category=data"
+   curl "http://localhost:8001/marketplace/skills?category=data"
    ```
 
 4. Check if any skills are imported:
    ```bash
-   curl "http://localhost:8000/api/skills/list?status=Active"
+   curl "http://localhost:8001/api/skills/list?status=Active"
    ```
 
 ### Security Scan Blocks Installation
@@ -792,7 +792,7 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 **Solutions**:
 1. Review scan results:
    ```bash
-   curl "http://localhost:8000/api/skills/{skill_id}" | jq '.security_scan_details'
+   curl "http://localhost:8001/api/skills/{skill_id}" | jq '.security_scan_details'
    ```
 
 2. Check for malicious patterns:
@@ -808,7 +808,7 @@ curl -X POST "http://localhost:8000/api/skills/csv-processor/promote" \
 
 4. Manual approval (if safe):
    ```bash
-   curl -X POST "http://localhost:8000/api/skills/{skill_id}/promote" \
+   curl -X POST "http://localhost:8001/api/skills/{skill_id}/promote" \
      -H "Content-Type: application/json" \
      -d '{"status": "Active", "reason": "Manual review completed - no actual threat"}'
    ```

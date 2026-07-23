@@ -96,13 +96,13 @@ MARKETPLACE_SYNC_ENABLED=true
 ```bash
 atom restart
 # or
-docker-compose -f docker-compose-personal.yml restart
+docker compose -f docker-compose-personal.yml restart
 ```
 
 ### 4. Verify Connection
 
 ```bash
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 ```
 
 Expected response:

@@ -84,7 +84,7 @@ nano backend/.env.oauth
 
 ```bash
 OAUTH_ENCRYPTION_KEY=your-key-here
-LLM_OAUTH_REDIRECT_URI=http://localhost:8000/api/v1/llm/oauth/callback
+LLM_OAUTH_REDIRECT_URI=http://localhost:8001/api/v1/llm/oauth/callback
 OPENAI_OAUTH_CLIENT_ID=your-openai-client-id
 OPENAI_OAUTH_CLIENT_SECRET=your-openai-client-secret
 ```
@@ -101,11 +101,11 @@ pip install cryptography httpx
 ```bash
 # Start the application
 cd backend
-python -m uvicorn main:app --reload
+python -m uvicorn main_api_app:app --reload
 
 # In another terminal, test the endpoints
-curl http://localhost:8000/api/v1/llm/oauth/providers
-curl http://localhost:8000/api/v1/llm/oauth/providers/openai/status
+curl http://localhost:8001/api/v1/llm/oauth/providers
+curl http://localhost:8001/api/v1/llm/oauth/providers/openai/status
 ```
 
 ### Step 6: Build Frontend Integration

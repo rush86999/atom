@@ -367,7 +367,7 @@ All platforms implement webhook verification:
 
 ### Send a Message (Slack)
 ```bash
-curl -X POST http://localhost:8000/api/slack/send-message \
+curl -X POST http://localhost:8001/api/slack/send-message \
   -H "Content-Type: application/json" \
   -d '{
     "channel": "C12345",
@@ -377,7 +377,7 @@ curl -X POST http://localhost:8000/api/slack/send-message \
 
 ### Send a Message (WhatsApp)
 ```bash
-curl -X POST http://localhost:8000/api/whatsapp/send-message \
+curl -X POST http://localhost:8001/api/whatsapp/send-message \
   -H "Content-Type: application/json" \
   -d '{
     "to": "15551234567",
@@ -387,7 +387,7 @@ curl -X POST http://localhost:8000/api/whatsapp/send-message \
 
 ### Send a Message (Telegram)
 ```bash
-curl -X POST http://localhost:8000/api/telegram/send-message \
+curl -X POST http://localhost:8001/api/telegram/send-message \
   -H "Content-Type: application/json" \
   -d '{
     "chat_id": "123456789",

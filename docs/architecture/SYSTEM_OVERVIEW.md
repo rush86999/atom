@@ -181,7 +181,8 @@ backend/
 
 ```bash
 # Start all services
-./start-dev.sh
+scripts/dev.sh
+# (For the full app backend instead of the minimal smoke app, use `make backend` which runs `main_api_app:app`.)
 
 # Start backend only
 ./start-backend.sh

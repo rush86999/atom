@@ -187,7 +187,7 @@ for container in $(docker ps -q -f name=atom); do
     echo "Restarting container: $container"
     docker restart $container
     sleep 10  # Wait for health check
-    curl -f http://localhost:8000/health/ready || echo "Health check failed"
+    curl -f http://localhost:8001/health/ready || echo "Health check failed"
 done
 
 # Verify all containers running

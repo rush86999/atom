@@ -429,7 +429,7 @@ echo $NOTION_CLIENT_ID
 echo $NOTION_CLIENT_SECRET
 
 # Restart application
-python -m uvicorn main:app --reload
+python -m uvicorn main_api_app:app --reload
 ```
 
 #### 2. "Invalid redirect URI" Error

@@ -906,10 +906,10 @@ ATOM_SAAS_ENABLED=false
 - [ ] **Sync Verification**
   ```bash
   # Check SyncService is initialized
-  curl http://localhost:8000/api/admin/sync/status
+  curl http://localhost:8001/api/admin/sync/status
 
   # Trigger manual sync
-  curl -X POST http://localhost:8000/api/admin/sync/trigger
+  curl -X POST http://localhost:8001/api/admin/sync/trigger
 
   # Check SkillCache populated
   sqlite3 atom.db "SELECT COUNT(*) FROM skill_cache"
@@ -918,7 +918,7 @@ ATOM_SAAS_ENABLED=false
 - [ ] **Health Check Verification**
   ```bash
   # Local Atom sync health
-  curl http://localhost:8000/health/sync
+  curl http://localhost:8001/health/sync
 
   # Expected response
   {
@@ -1019,7 +1019,7 @@ websocat "wss://api.atomsaas.com/ws?token=$ATOM_SAAS_API_TOKEN"
 
 ```bash
 # Trigger manual sync
-curl -X POST http://localhost:8000/api/admin/sync/trigger
+curl -X POST http://localhost:8001/api/admin/sync/trigger
 
 # Wait 5 seconds
 sleep 5
@@ -1048,7 +1048,7 @@ sqlite3 atom.db "SELECT COUNT(*) FROM skill_cache"
 **Command:**
 
 ```bash
-curl http://localhost:8000/metrics/sync
+curl http://localhost:8001/metrics/sync
 ```
 
 **Expected Output:**
@@ -1273,7 +1273,7 @@ websocat -v "wss://api.atomsaas.com/ws?token=$TOKEN"
 
 ```bash
 # Check sync status
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 
 # Check logs
 tail -f logs/atom.log | grep sync
@@ -1282,7 +1282,7 @@ tail -f logs/atom.log | grep sync
 **Solutions:**
 - Verify Atom SaaS is reachable: `curl https://api.atomsaas.com/health`
 - Check sync interval: `echo $ATOM_SAAS_SYNC_INTERVAL_MINUTES`
-- Trigger manual sync: `curl -X POST http://localhost:8000/api/admin/sync/trigger`
+- Trigger manual sync: `curl -X POST http://localhost:8001/api/admin/sync/trigger`
 - Check scheduler is running: `ps aux | grep scheduler`
 
 ---
@@ -1295,10 +1295,10 @@ tail -f logs/atom.log | grep sync
 
 ```bash
 # Check metrics
-curl http://localhost:8000/metrics/sync | grep errors
+curl http://localhost:8001/metrics/sync | grep errors
 
 # Check recent errors
-curl http://localhost:8000/api/admin/sync/errors?limit=10
+curl http://localhost:8001/api/admin/sync/errors?limit=10
 ```
 
 **Solutions:**

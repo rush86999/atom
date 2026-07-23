@@ -746,7 +746,7 @@ psql -c "\d escalation_logs"
 
 **Setting Preferences via API:**
 ```bash
-curl -X POST http://localhost:8000/api/v1/cognitive-tier/preferences/workspace-123 \
+curl -X POST http://localhost:8001/api/v1/cognitive-tier/preferences/workspace-123 \
   -H "Content-Type: application/json" \
   -d '{
     "default_tier": "complex",

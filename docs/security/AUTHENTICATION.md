@@ -402,7 +402,7 @@ POST /api/auth/refresh                       - Refresh session token
 
 ```bash
 # Get current user with X-User-ID header
-curl http://localhost:8000/api/oauth/user \
+curl http://localhost:8001/api/oauth/user \
   -H "X-User-ID: user_123abc"
 ```
 
@@ -469,7 +469,7 @@ pytest tests/test_session_management.py -v
 **Diagnosis**:
 ```bash
 # Check X-User-ID header format
-curl -v http://localhost:8000/api/oauth/user \
+curl -v http://localhost:8001/api/oauth/user \
   -H "X-User-ID: user@123"  # Invalid format
 ```
 

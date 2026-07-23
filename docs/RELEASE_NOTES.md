@@ -68,6 +68,19 @@ DID/VC identity with HTTP API surface:
 - Message length validation (32KB cap)
 - Learning router race condition fixed (asyncio.Lock)
 
+### 🐝 Swarm Coordination (newest)
+Four advanced multi-agent coordination patterns derived from Cursor's swarm
+research and the domain-aware verification literature (MAV, AlphaCodium, VERGE):
+- **Stigmergic Field Guide** — per-workspace Markdown memory agents read *and*
+  write; runtime-discovered rules persist into every agent's system prompt.
+  Backed by PostgreSQL (`field_guides` table, pod-restart safe) with a
+  filesystem fallback for local dev.
+- **Domain-Aware Verification Cascade** — 2-stage CODE pipeline that verifies
+  agent outputs using domain-specific strategies.
+- **Megafile Tripwire & Branch Reconciler** — sandbox tripwires for runaway
+  file growth and divergent agent branches.
+- See [docs/architecture/SWARM_COORDINATION.md](architecture/SWARM_COORDINATION.md).
+
 ## Getting Started
 
 ### Quick Start
@@ -75,20 +88,29 @@ DID/VC identity with HTTP API surface:
 git clone https://github.com/rush86999/atom.git
 cd atom
 ./scripts/quickstart.sh
-./scripts/dev.sh
+make backend          # full app (main_api_app:app) on :8001
+make frontend         # frontend on :3001
 ```
+
+> Note: `./scripts/dev.sh` launches `minimal_app:app` (a ~125-route smoke
+> subset). For the full feature surface use `make backend` (which runs
+> `main_api_app:app`). See [Quick Start](getting_started/quick-start.md).
 
 ### With Ollama (no API key needed)
 ```bash
 ollama pull llama3:8b
 # Set ATOM_LOCAL_ONLY=true in backend/.env
-./scripts/dev.sh
+make backend
 ```
 
-### Docker
+### Docker (Personal Edition — single-user SQLite stack)
 ```bash
-docker-compose -f docker-compose-personal.yml up -d
+cp .env.personal .env   # generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
+docker compose -f docker-compose-personal.yml up -d --build
+# Frontend: http://localhost:3001   Backend: http://localhost:8001
 ```
+
+Full env-var reference: [docs/reference/ENVIRONMENT_VARIABLES.md](reference/ENVIRONMENT_VARIABLES.md).
 
 ## Test Coverage
 

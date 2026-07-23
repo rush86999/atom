@@ -1,0 +1,144 @@
+# ==============================================================================
+# Atom Personal Edition — Docker Compose
+# ==============================================================================
+# Single-user, SQLite, zero-external-services stack. This is the simplest way
+# to run the full Atom platform (all 80+ routers via main_api_app:app) without
+# standing up PostgreSQL, Redis, or the piece-engine.
+#
+# Quick Start:
+#   1. cp .env.personal .env
+#   2. Edit .env — set BYOK_ENCRYPTION_KEY, JWT_SECRET_KEY (run:
+#      openssl rand -base64 32) and at least one LLM provider key
+#      (or ATOM_LOCAL_ONLY=true for Ollama).
+#   3. docker compose -f docker-compose-personal.yml up -d --build
+#   4. Frontend:  http://localhost:3001   |   Backend: http://localhost:8001
+#      Swagger:   http://localhost:8001/docs
+#
+# What you get:
+#   - Backend running the FULL app (main_api_app:app), port 8001
+#   - Next.js frontend, port 3001
+#   - SQLite database (./data/atom.db) + local LanceDB (./data/lancedb)
+#   - No Postgres / Redis / piece-engine / browser-node required
+#
+# Want the full production stack (Postgres + Redis + piece-engine + browser)?
+# Use `docker-compose.yml` instead.
+# ==============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend — the full Atom app (main_api_app:app)
+  # ---------------------------------------------------------------------------
+  atom-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atom-personal-backend
+    ports:
+      - "8001:8000"                       # host:container
+    environment:
+      # --- Database (SQLite — no external DB required) ---
+      - DATABASE_URL=sqlite:///./data/atom.db
+      - SQLITE_PATH=./data/atom.db
+      # Ensure both bare and backend.* imports resolve inside the container.
+      # (The Dockerfile already sets PYTHONPATH=/app:/app/backend; this is a
+      # belt-and-suspenders copy for env-file overrides.)
+      - PYTHONPATH=/app:/app/backend
+
+      # --- Core runtime ---
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+      - HOST=0.0.0.0
+      - PORT=8000
+
+      # --- Encryption keys (REQUIRED — no insecure defaults) ---
+      # Generate each with: openssl rand -base64 32
+      - "SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required — generate with: openssl rand -base64 32}"
+      - "JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required — generate with: openssl rand -base64 32}"
+      - "BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:?BYOK_ENCRYPTION_KEY is required — generate with: openssl rand -base64 32}"
+
+      # --- Vector embeddings (local, fast, free) ---
+      - LANCEDB_PATH=./data/lancedb
+      - ENABLE_LANCEDB=true
+
+      # --- AI providers (BYOK — at least one, OR set ATOM_LOCAL_ONLY=true) ---
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GLM_API_KEY=${GLM_API_KEY:-}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+
+      # --- Local LLM (Ollama) — no API key required ---
+      # To run fully offline, set ATOM_LOCAL_ONLY=true and point OLLAMA_BASE_URL
+      # at a host-side Ollama instance (host.docker.internal resolves to the host).
+      - ATOM_LOCAL_ONLY=${ATOM_LOCAL_ONLY:-false}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
+
+      # --- CORS (frontend runs on :3001) ---
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
+
+    volumes:
+      - atom-personal-data:/app/backend/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/alive')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - atom-personal
+    extra_hosts:
+      # Lets the container reach a host-side Ollama (or any host service).
+      - "host.docker.internal:host-gateway"
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Next.js UI
+  # ---------------------------------------------------------------------------
+  atom-frontend:
+    build:
+      context: ./frontend-nextjs
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8001
+    container_name: atom-personal-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NODE_ENV=production
+    restart: unless-stopped
+    depends_on:
+      atom-backend:
+        condition: service_healthy
+    networks:
+      - atom-personal
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: Browser automation node (for scraping / form-filling agents).
+  # Uncomment to enable. Not required for personal/single-user use.
+  # ---------------------------------------------------------------------------
+  # browser-node:
+  #   image: browserless/chrome:latest
+  #   container_name: atom-personal-browser
+  #   ports:
+  #     - "3010:3000"
+  #   environment:
+  #     - MAX_CONCURRENT_SESSIONS=3
+  #     - MAX_QUEUE_LENGTH=5
+  #     - PREBOOT_CHROME=true
+  #   restart: unless-stopped
+  #   networks:
+  #     - atom-personal
+
+networks:
+  atom-personal:
+    driver: bridge
+
+volumes:
+  atom-personal-data:
+    driver: local

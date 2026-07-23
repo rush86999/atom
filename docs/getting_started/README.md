@@ -33,16 +33,18 @@ cd ../frontend-nextjs && npm install --legacy-peer-deps && cd ..
 # Configure (edit backend/.env with DATABASE_URL, SECRET_KEY, an LLM key)
 cp backend/.env.example backend/.env
 
-# Launch backend (FROM REPO ROOT — main.py uses backend.* imports)
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+# Launch backend (FROM REPO ROOT — main_api_app.py uses backend.* imports;
+# main_api_app:app is the FULL app, all 80+ routers)
+PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
+  ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 
 # In a second terminal: frontend
-cd frontend-nextjs && npm run dev
+cd frontend-nextjs && npm run dev -- -p 3001
 ```
 
-- **Frontend (UI)**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API docs (Swagger)**: http://localhost:8000/docs
+- **Frontend (UI)**: http://localhost:3001
+- **Backend API**: http://localhost:8001
+- **API docs (Swagger)**: http://localhost:8001/docs
 - **Admin password**: auto-generated at `backend/logs/bootstrap_admin_password.txt` (mode 0600)
 
 ### Option 2: Docker
@@ -50,13 +52,14 @@ cd frontend-nextjs && npm run dev
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env   # edit with your API keys
-docker-compose -f docker-compose-personal.yml up -d
+cp .env.personal .env   # edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
+docker compose -f docker-compose-personal.yml up -d --build
 ```
 
-The compose file mounts the repo at `/app`, sets
-`PYTHONPATH=/app:/app/backend`, and launches `uvicorn main:app`. Same
-URLs as above after startup.
+`docker-compose-personal.yml` is the single-user SQLite stack (no Postgres/Redis).
+The backend Dockerfile runs `main_api_app:app` (the full app), mapped to host
+port 8001. Frontend on :3001. For the full production stack (Postgres + Redis +
+piece-engine), use `docker-compose.yml`.
 
 ### Option 3: DigitalOcean (1 click)
 [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
@@ -101,7 +104,9 @@ SECRET_KEY=<run: openssl rand -base64 48>   # MUST be set or JWTs reset on resta
 OPENAI_API_KEY=sk-...                        # at least one LLM provider
 ```
 
-A complete template with all options is at `backend/.env.example`.
+A complete template with all options is at `backend/.env.example` (every var
+has a working default). The full reference — every variable, its default, and
+what it does — is at [`docs/reference/ENVIRONMENT_VARIABLES.md`](../reference/ENVIRONMENT_VARIABLES.md).
 
 ## ❓ Troubleshooting
 
@@ -110,9 +115,10 @@ See **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** for the full guide. Most comm
 | Error | Fix |
 |-------|-----|
 | `ModuleNotFoundError: No module named 'backend.api'` | Run uvicorn from repo root with `PYTHONPATH=$PWD:$PWD/backend` |
+| `ModuleNotFoundError: No module named 'main'` | Use `main_api_app:app` (full app) or `minimal_app:app` (smoke). There is no `backend/main.py`. |
 | `Could not validate credentials` | `SECRET_KEY` not set — tokens reset on restart |
 | Admin password lost | Read `backend/logs/bootstrap_admin_password.txt` or set `ADMIN_PASSWORD` in `.env` |
-| Port in use | Use `--port 8001` (backend) or different port for frontend |
+| Port in use | Use a different `--port` (e.g. `--port 8002`); update `frontend-nextjs/.env.local`'s `NEXT_PUBLIC_API_URL` to match |
 
 ## 📖 Next Steps
 
@@ -131,5 +137,5 @@ See **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** for the full guide. Most comm
 
 ---
 
-*Last Updated: June 30, 2026*
+*Last Updated: July 2026*
 

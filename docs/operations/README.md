@@ -30,9 +30,9 @@ Deployment, monitoring, performance tuning, and troubleshooting.
 ### Health Checks
 ```bash
 # Check service health
-curl http://localhost:8000/health/live    # Liveness
-curl http://localhost:8000/health/ready   # Readiness (DB + disk)
-curl http://localhost:8000/health/metrics # Prometheus metrics
+curl http://localhost:8001/health/live    # Liveness
+curl http://localhost:8001/health/ready   # Readiness (DB + disk)
+curl http://localhost:8001/health/metrics # Prometheus metrics
 ```
 
 ### Monitoring
@@ -72,7 +72,7 @@ docker-compose -f docker-compose-personal.yml up -d --build
 scrape_configs:
   - job_name: 'atom'
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['localhost:8001']
     metrics_path: '/health/metrics'
 ```
 

@@ -138,7 +138,7 @@ cd backend
 python main_api_app.py
 
 # Test health endpoint
-curl http://localhost:8000/api/linear/health
+curl http://localhost:8001/api/linear/health
 ```
 
 ### 2. Frontend Integration

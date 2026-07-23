@@ -19,16 +19,28 @@ See [docs/development/DEVELOPMENT_SETUP.md](docs/development/DEVELOPMENT_SETUP.m
 git clone https://github.com/rush86999/atom.git
 cd atom
 
-# Install backend dependencies
+# Backend deps in a venv
 cd backend
+python3.11 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+
+# Configure (every var has a default; set SECRET_KEY + one LLM key)
+cp .env.example .env
+# Full reference: docs/reference/ENVIRONMENT_VARIABLES.md
 
 # Run tests
 pytest tests/ -v
 
-# Start development server
-python -m uvicorn main:app --reload --port 8000
+# Start the FULL backend (main_api_app:app, all 80+ routers) — from repo root
+cd ..
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
+
+> The canonical entrypoint is `main_api_app:app` (in `backend/main_api_app.py`).
+> `minimal_app:app` is a ~125-route smoke subset only — do not use it for
+> feature work. Run from the **repo root** with `PYTHONPATH=$PWD:$PWD/backend`
+> so both bare and `backend.*` imports resolve.
 
 ## Security Guidelines
 
@@ -88,13 +100,13 @@ git push origin --force --all
    - Update documentation as needed
 
 3. **Test thoroughly**
-   ```bash
-   # Run all tests
-   pytest tests/ -v
+```bash
+# Run all backend tests (from backend/, using the venv)
+cd backend && ../backend/venv/bin/python -m pytest tests/ -v
 
-   # Run specific test files
-   pytest tests/test_governance_streaming.py -v
-   ```
+# Run specific test files
+./backend/venv/bin/python -m pytest tests/test_governance_streaming.py -v
+```
 
 4. **Commit your changes** with clear, descriptive messages
    ```bash
@@ -210,8 +222,7 @@ We are committed to making participation in our community a harassment-free expe
 1. **Update documentation** if you've changed functionality
 2. **Add tests** for new features or bug fixes
 3. **Ensure all tests pass** before submitting
-4. **Update CHANGELOG.md** (if applicable)
-5. **Request review** from maintainers
+4. **Request review** from maintainers
 
 ### PR Checklist
 

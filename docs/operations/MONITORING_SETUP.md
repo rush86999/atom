@@ -456,7 +456,7 @@ spec:
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "curl -f http://localhost:8000/health/live || exit 1"
+          "curl -f http://localhost:8001/health/live || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
@@ -514,26 +514,26 @@ This section documents performance targets and baseline measurements for health 
 
 ```bash
 # Test /health/live endpoint
-ab -n 10000 -c 100 http://localhost:8000/health/live
+ab -n 10000 -c 100 http://localhost:8001/health/live
 
 # Test /health/ready endpoint
-ab -n 1000 -c 50 http://localhost:8000/health/ready
+ab -n 1000 -c 50 http://localhost:8001/health/ready
 
 # Test /health/metrics endpoint
-ab -n 1000 -c 50 http://localhost:8000/health/metrics
+ab -n 1000 -c 50 http://localhost:8001/health/metrics
 ```
 
 #### Load Testing with wrk
 
 ```bash
 # Test /health/live endpoint (10 seconds, 10 connections)
-wrk -t10 -c10 -d10s http://localhost:8000/health/live
+wrk -t10 -c10 -d10s http://localhost:8001/health/live
 
 # Test /health/ready endpoint
-wrk -t10 -c10 -d10s http://localhost:8000/health/ready
+wrk -t10 -c10 -d10s http://localhost:8001/health/ready
 
 # Test /health/metrics endpoint
-wrk -t10 -c10 -d10s http://localhost:8000/health/metrics
+wrk -t10 -c10 -d10s http://localhost:8001/health/metrics
 ```
 
 ### Alert Thresholds

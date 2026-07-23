@@ -128,8 +128,8 @@ rq info --url redis://localhost:6379/0
 tail -f logs/rq-worker.log
 
 # API endpoints
-curl http://localhost:8000/api/v1/tasks/scheduled-posts
-curl http://localhost:8000/api/v1/tasks/scheduled-posts/{post_id}/status
+curl http://localhost:8001/api/v1/tasks/scheduled-posts
+curl http://localhost:8001/api/v1/tasks/scheduled-posts/{post_id}/status
 ```
 
 ### Worker Configuration
@@ -394,9 +394,9 @@ npm start
 
 ### Post-Deployment Verification
 
-- [ ] Check security status: `curl http://localhost:8000/api/security/configuration`
-- [ ] Check search health: `curl http://localhost:8000/api/unified-search/health`
-- [ ] Check webhook security: `curl http://localhost:8000/api/webhooks/security-status`
+- [ ] Check security status: `curl http://localhost:8001/api/security/configuration`
+- [ ] Check search health: `curl http://localhost:8001/api/unified-search/health`
+- [ ] Check webhook security: `curl http://localhost:8001/api/webhooks/security-status`
 - [ ] Check queue status: `rq info --url redis://localhost:6379/0`
 - [ ] Monitor logs: `tail -f logs/atom.log | grep -E "SECURITY|WARNING|ERROR"`
 - [ ] Run test suite: `pytest tests/ -v`

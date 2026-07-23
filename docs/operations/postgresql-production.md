@@ -245,8 +245,8 @@ pytest tests/
 - [ ] Verify health checks: `/health/ready` endpoint
 
 ### Verification
-- [ ] Health check returns 200: `curl http://localhost:8000/health/ready`
-- [ ] Prometheus metrics available: `curl http://localhost:8000/health/metrics`
+- [ ] Health check returns 200: `curl http://localhost:8001/health/ready`
+- [ ] Prometheus metrics available: `curl http://localhost:8001/health/metrics`
 - [ ] Database queries working: Check application logs
 - [ ] SSL connection verified: No SSL errors in logs
 
@@ -291,7 +291,7 @@ CREATE INDEX idx_jsonb_gin ON entity_type_definitions USING GIN (json_schema);
 
 Available at `/health/metrics`:
 ```bash
-curl http://localhost:8000/health/metrics
+curl http://localhost:8001/health/metrics
 ```
 
 **Key Metrics**:

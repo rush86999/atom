@@ -186,7 +186,7 @@ The test suite includes 450+ lines of malicious package fixtures (`backend/tests
 ### Via GitHub URL (Recommended)
 
 ```bash
-curl -X POST http://localhost:8000/api/skills/import \
+curl -X POST http://localhost:8001/api/skills/import \
   -H "Content-Type: application/json" \
   -d '{
     "source": "github_url",
@@ -209,7 +209,7 @@ curl -X POST http://localhost:8000/api/skills/import \
 ### Via File Upload
 
 ```bash
-curl -X POST http://localhost:8000/api/skills/import \
+curl -X POST http://localhost:8001/api/skills/import \
   -F "file=@/path/to/SKILL.md" \
   -F "source=file_upload"
 ```
@@ -217,7 +217,7 @@ curl -X POST http://localhost:8000/api/skills/import \
 ### Via Raw Content
 
 ```bash
-curl -X POST http://localhost:8000/api/skills/import \
+curl -X POST http://localhost:8001/api/skills/import \
   -H "Content-Type: application/json" \
   -d '{
     "source": "raw_content",
@@ -232,7 +232,7 @@ curl -X POST http://localhost:8000/api/skills/import \
 ### Check Skill Status
 
 ```bash
-curl http://localhost:8000/api/skills/email-sorter
+curl http://localhost:8001/api/skills/email-sorter
 ```
 
 **Response:**
@@ -252,7 +252,7 @@ curl http://localhost:8000/api/skills/email-sorter
 
 **Prompt Skill:**
 ```bash
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "email-sorter",
@@ -266,7 +266,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
 
 **Python Skill (in sandbox):**
 ```bash
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "data-analyzer",
@@ -315,7 +315,7 @@ Atom includes 6 built-in skills for controlling the Atom OS CLI:
 **Usage Example:**
 ```bash
 # Start daemon (requires AUTONOMOUS agent)
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "atom-daemon",
@@ -323,7 +323,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
   }'
 
 # Check status (works with STUDENT+)
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "atom-status",
@@ -398,7 +398,7 @@ def process_data(file_path):
 ### Executing with Packages
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/execute \
+curl -X POST http://localhost:8001/api/packages/execute \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_789",
@@ -439,7 +439,7 @@ curl -X POST http://localhost:8000/api/packages/execute \
 Remove skill image when no longer needed:
 
 ```bash
-curl -X DELETE http://localhost:8000/api/packages/data-analysis-skill?agent_id=agent_789
+curl -X DELETE http://localhost:8001/api/packages/data-analysis-skill?agent_id=agent_789
 ```
 
 **See:** API Documentation for complete reference.
@@ -507,7 +507,7 @@ node_packages:
 
 **Request:**
 ```bash
-curl -X POST http://localhost:8000/api/packages/npm/install \
+curl -X POST http://localhost:8001/api/packages/npm/install \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_789",
@@ -535,7 +535,7 @@ curl -X POST http://localhost:8000/api/packages/npm/install \
 ### Executing with Packages
 
 ```bash
-curl -X POST http://localhost:8000/api/packages/npm/execute \
+curl -X POST http://localhost:8001/api/packages/npm/execute \
   -H "Content-Type: application/json" \
   -d '{
     "agent_id": "agent_789",
@@ -597,7 +597,7 @@ curl -X POST http://localhost:8000/api/packages/npm/execute \
 Remove skill image when no longer needed:
 
 ```bash
-curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
+curl -X DELETE http://localhost:8001/api/packages/npm/data-analysis-skill
 ```
 
 **See:** npm Package Support for comprehensive user guide.
@@ -610,18 +610,18 @@ curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
 
 ```bash
 # All skills
-curl http://localhost:8000/api/skills/list
+curl http://localhost:8001/api/skills/list
 
 # Filter by status
-curl http://localhost:8000/api/skills/list?status=Active
-curl http://localhost:8000/api/skills/list?status=Untrusted
-curl http://localhost:8000/api/skills/list?status=Banned
+curl http://localhost:8001/api/skills/list?status=Active
+curl http://localhost:8001/api/skills/list?status=Untrusted
+curl http://localhost:8001/api/skills/list?status=Banned
 ```
 
 ### Promote Skill to Active
 
 ```bash
-curl -X POST http://localhost:8000/api/skills/email-sorter/promote \
+curl -X POST http://localhost:8001/api/skills/email-sorter/promote \
   -H "Content-Type: application/json" \
   -d '{
     "status": "Active",
@@ -632,7 +632,7 @@ curl -X POST http://localhost:8000/api/skills/email-sorter/promote \
 ### Ban a Skill
 
 ```bash
-curl -X POST http://localhost:8000/api/skills/suspicious-skill/promote \
+curl -X POST http://localhost:8001/api/skills/suspicious-skill/promote \
   -H "Content-Type: application/json" \
   -d '{
     "status": "Banned",
@@ -643,7 +643,7 @@ curl -X POST http://localhost:8000/api/skills/suspicious-skill/promote \
 ### View Skill Execution History
 
 ```bash
-curl http://localhost:8000/api/skills/email-sorter/executions
+curl http://localhost:8001/api/skills/email-sorter/executions
 ```
 
 ---
@@ -729,7 +729,7 @@ Instructions here...
 
 **Solution:** Review the security scan results:
 ```bash
-curl http://localhost:8000/api/skills/my-skill | jq '.security_scan_details'
+curl http://localhost:8001/api/skills/my-skill | jq '.security_scan_details'
 ```
 
 Common issues:
@@ -799,7 +799,7 @@ docker ps
 
 ```bash
 # 1. Import skill
-curl -X POST http://localhost:8000/api/skills/import \
+curl -X POST http://localhost:8001/api/skills/import \
   -H "Content-Type: application/json" \
   -d '{
     "source": "github_url",
@@ -807,15 +807,15 @@ curl -X POST http://localhost:8000/api/skills/import \
   }'
 
 # 2. Check security scan results
-curl http://localhost:8000/api/skills/email-sorter
+curl http://localhost:8001/api/skills/email-sorter
 
 # 3. Promote to Active (if scan passed)
-curl -X POST http://localhost:8000/api/skills/email-sorter/promote \
+curl -X POST http://localhost:8001/api/skills/email-sorter/promote \
   -H "Content-Type: application/json" \
   -d '{"status": "Active", "reason": "Reviewed and safe"}'
 
 # 4. Execute skill
-curl -X POST http://localhost:8000/api/skills/execute \
+curl -X POST http://localhost:8001/api/skills/execute \
   -H "Content-Type: application/json" \
   -d '{
     "skill_id": "email-sorter",
@@ -830,7 +830,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
 ### Example 2: List All Active Skills
 
 ```bash
-curl http://localhost:8000/api/skills/list?status=Active | jq '.skills[] | {name: .name, type: .skill_type}'
+curl http://localhost:8001/api/skills/list?status=Active | jq '.skills[] | {name: .name, type: .skill_type}'
 ```
 
 **Output:**
@@ -848,7 +848,7 @@ curl http://localhost:8000/api/skills/list?status=Active | jq '.skills[] | {name
 ### Example 3: View Skill Execution History
 
 ```bash
-curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[] | {date: .created_at, result: .result}'
+curl http://localhost:8001/api/skills/email-sorter/executions | jq '.executions[] | {date: .created_at, result: .result}'
 ```
 
 ---

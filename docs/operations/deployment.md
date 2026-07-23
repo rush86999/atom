@@ -128,7 +128,7 @@ pytest tests/test_user_management_api.py -v
 python -c "from core.models import User, EmailVerificationToken, Tenant; print('Models OK')"
 
 # Check API endpoints
-curl http://localhost:8000/docs | grep "api/users"
+curl http://localhost:8001/docs | grep "api/users"
 ```
 
 **Expected Results**:

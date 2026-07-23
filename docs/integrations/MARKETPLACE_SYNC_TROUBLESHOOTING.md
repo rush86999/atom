@@ -144,10 +144,10 @@ Skill Marketplace Sync is a background service that keeps your local Atom market
 **Diagnosis**:
 ```bash
 # Check sync status
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 
 # Check health
-curl http://localhost:8000/health/sync
+curl http://localhost:8001/health/sync
 
 # Check logs
 grep "sync" logs/atom.log | tail -50
@@ -166,7 +166,7 @@ ps aux | grep sync
 1. Restart scheduler service
 2. Check database connectivity
 3. Verify Atom SaaS API status
-4. Trigger manual sync: `curl -X POST http://localhost:8000/api/admin/sync/trigger`
+4. Trigger manual sync: `curl -X POST http://localhost:8001/api/admin/sync/trigger`
 
 ---
 
@@ -180,10 +180,10 @@ ps aux | grep sync
 **Diagnosis**:
 ```bash
 # Check WebSocket status
-curl http://localhost:8000/api/admin/sync/websocket/status
+curl http://localhost:8001/api/admin/sync/websocket/status
 
 # Check reconnection metrics
-curl http://localhost:8000/metrics/sync | grep websocket_reconnects_total
+curl http://localhost:8001/metrics/sync | grep websocket_reconnects_total
 
 # Check network connectivity
 ping api.atomsaas.com
@@ -202,7 +202,7 @@ sudo iptables -L | grep 443
 **Resolution**:
 1. Check network connectivity
 2. Verify firewall rules allow outbound 443
-3. Force reconnect: `curl -X POST http://localhost:8000/api/admin/sync/websocket/reconnect`
+3. Force reconnect: `curl -X POST http://localhost:8001/api/admin/sync/websocket/reconnect`
 4. Re-authenticate if token expired
 
 ---
@@ -217,7 +217,7 @@ sudo iptables -L | grep 443
 **Diagnosis**:
 ```bash
 # Check error metrics
-curl http://localhost:8000/metrics/sync | grep sync_errors_total
+curl http://localhost:8001/metrics/sync | grep sync_errors_total
 
 # Check logs for errors
 grep "500" logs/atom.log | grep sync | tail -20
@@ -253,7 +253,7 @@ curl -H "Authorization: Bearer $TOKEN" https://api.atomsaas.com/skills
 **Diagnosis**:
 ```bash
 # Check cache metrics
-curl http://localhost:8000/metrics/sync | grep sync_skills_cached
+curl http://localhost:8001/metrics/sync | grep sync_skills_cached
 
 # Check database
 sqlite3 atom_dev.db "SELECT COUNT(*) FROM community_skills;"
@@ -262,7 +262,7 @@ sqlite3 atom_dev.db "SELECT COUNT(*) FROM community_skills;"
 grep "skills_cached" logs/atom.log | tail -20
 
 # Check sync state
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 ```
 
 **Common Causes**:
@@ -289,13 +289,13 @@ curl http://localhost:8000/api/admin/sync/status
 **Diagnosis**:
 ```bash
 # Check rating sync status
-curl http://localhost:8000/api/admin/sync/ratings/status
+curl http://localhost:8001/api/admin/sync/ratings/status
 
 # Check failed uploads
-curl http://localhost:8000/api/admin/sync/ratings/failed-uploads
+curl http://localhost:8001/api/admin/sync/ratings/failed-uploads
 
 # Check rating metrics
-curl http://localhost:8000/metrics/sync | grep rating_sync
+curl http://localhost:8001/metrics/sync | grep rating_sync
 
 # Check logs
 grep "rating_sync" logs/atom.log | tail -30
@@ -309,7 +309,7 @@ grep "rating_sync" logs/atom.log | tail -30
 
 **Resolution**:
 1. Check Atom SaaS API status
-2. Retry failed uploads: `curl -X POST http://localhost:8000/api/admin/sync/ratings/failed-uploads/{id}/retry`
+2. Retry failed uploads: `curl -X POST http://localhost:8001/api/admin/sync/ratings/failed-uploads/{id}/retry`
 3. Verify rating data integrity
 4. Reduce batch size if rate limited
 
@@ -325,13 +325,13 @@ grep "rating_sync" logs/atom.log | tail -30
 **Diagnosis**:
 ```bash
 # List conflicts
-curl http://localhost:8000/api/admin/sync/conflicts
+curl http://localhost:8001/api/admin/sync/conflicts
 
 # Check conflict metrics
-curl http://localhost:8000/metrics/sync | grep conflicts
+curl http://localhost:8001/metrics/sync | grep conflicts
 
 # Get conflict details
-curl http://localhost:8000/api/admin/sync/conflicts/{id}
+curl http://localhost:8001/api/admin/sync/conflicts/{id}
 
 # Check logs
 grep "conflict" logs/atom.log | tail -20
@@ -346,8 +346,8 @@ grep "conflict" logs/atom.log | tail -20
 **Resolution**:
 1. Review conflict details
 2. Choose resolution strategy (local_wins, remote_wins, merge)
-3. Resolve conflicts: `curl -X POST http://localhost:8000/api/admin/sync/conflicts/{id}/resolve?strategy=local_wins`
-4. Bulk resolve if needed: `curl -X POST http://localhost:8000/api/admin/sync/conflicts/bulk-resolve?strategy=remote_wins`
+3. Resolve conflicts: `curl -X POST http://localhost:8001/api/admin/sync/conflicts/{id}/resolve?strategy=local_wins`
+4. Bulk resolve if needed: `curl -X POST http://localhost:8001/api/admin/sync/conflicts/bulk-resolve?strategy=remote_wins`
 
 ---
 
@@ -356,7 +356,7 @@ grep "conflict" logs/atom.log | tail -20
 ### Step 1: Check Health Endpoint
 
 ```bash
-curl http://localhost:8000/health/sync
+curl http://localhost:8001/health/sync
 ```
 
 **Expected Output**:
@@ -389,7 +389,7 @@ curl http://localhost:8000/health/sync
 ### Step 2: Check Sync Status
 
 ```bash
-curl http://localhost:8000/api/admin/sync/status
+curl http://localhost:8001/api/admin/sync/status
 ```
 
 **Expected Output**:
@@ -439,7 +439,7 @@ grep "rating_sync" logs/atom.log | tail -20
 ### Step 4: Check Metrics
 
 ```bash
-curl http://localhost:8000/metrics/sync | grep -E "(sync_duration|sync_errors|websocket_connected)"
+curl http://localhost:8001/metrics/sync | grep -E "(sync_duration|sync_errors|websocket_connected)"
 ```
 
 **What to Look For**:
@@ -452,7 +452,7 @@ curl http://localhost:8000/metrics/sync | grep -E "(sync_duration|sync_errors|we
 ### Step 5: Check WebSocket Status
 
 ```bash
-curl http://localhost:8000/api/admin/sync/websocket/status
+curl http://localhost:8001/api/admin/sync/websocket/status
 ```
 
 **Expected Output**:
@@ -481,10 +481,10 @@ curl http://localhost:8000/api/admin/sync/websocket/status
 **Steps**:
 ```bash
 # Trigger manual sync
-curl -X POST http://localhost:8000/api/admin/sync/trigger
+curl -X POST http://localhost:8001/api/admin/sync/trigger
 
 # Monitor sync status
-watch -n 5 'curl -s http://localhost:8000/api/admin/sync/status | jq .'
+watch -n 5 'curl -s http://localhost:8001/api/admin/sync/status | jq .'
 
 # Check logs for progress
 tail -f logs/atom.log | grep sync
@@ -510,13 +510,13 @@ tail -f logs/atom.log | grep sync
 **Steps**:
 ```bash
 # Check current status
-curl http://localhost:8000/api/admin/sync/websocket/status
+curl http://localhost:8001/api/admin/sync/websocket/status
 
 # Force reconnect
-curl -X POST http://localhost:8000/api/admin/sync/websocket/reconnect
+curl -X POST http://localhost:8001/api/admin/sync/websocket/reconnect
 
 # Monitor reconnection
-watch -n 2 'curl -s http://localhost:8000/api/admin/sync/websocket/status | jq .connected'
+watch -n 2 'curl -s http://localhost:8001/api/admin/sync/websocket/status | jq .connected'
 
 # Check logs
 tail -f logs/atom.log | grep websocket
@@ -555,7 +555,7 @@ sqlite3 atom_dev.db "DELETE FROM sync_state;"
 systemctl start atom-sync
 
 # Trigger manual sync
-curl -X POST http://localhost:8000/api/admin/sync/trigger
+curl -X POST http://localhost:8001/api/admin/sync/trigger
 
 # Monitor sync progress
 tail -f logs/atom.log | grep sync
@@ -582,21 +582,21 @@ tail -f logs/atom.log | grep sync
 **Steps**:
 ```bash
 # List conflicts
-curl http://localhost:8000/api/admin/sync/conflicts | jq .
+curl http://localhost:8001/api/admin/sync/conflicts | jq .
 
 # Get conflict details
-curl http://localhost:8000/api/admin/sync/conflicts/{conflict_id}
+curl http://localhost:8001/api/admin/sync/conflicts/{conflict_id}
 
 # Resolve single conflict
-curl -X POST "http://localhost:8000/api/admin/sync/conflicts/{conflict_id}/resolve?strategy=local_wins"
+curl -X POST "http://localhost:8001/api/admin/sync/conflicts/{conflict_id}/resolve?strategy=local_wins"
 
 # Bulk resolve conflicts
-curl -X POST "http://localhost:8000/api/admin/sync/conflicts/bulk-resolve?strategy=remote_wins" \
+curl -X POST "http://localhost:8001/api/admin/sync/conflicts/bulk-resolve?strategy=remote_wins" \
   -H "Content-Type: application/json" \
   -d '{"conflict_ids": ["id1", "id2", "id3"]}'
 
 # Verify resolution
-curl http://localhost:8000/api/admin/sync/conflicts
+curl http://localhost:8001/api/admin/sync/conflicts
 ```
 
 **Resolution Strategies**:
@@ -761,12 +761,12 @@ BACKOFF_MAX_SECONDS = 60  # Change from 30
 **Impact**: Skills and categories may be outdated
 
 **Diagnosis**:
-1. Check health: `curl http://localhost:8000/health/sync`
-2. Check sync status: `curl http://localhost:8000/api/admin/sync/status`
+1. Check health: `curl http://localhost:8001/health/sync`
+2. Check sync status: `curl http://localhost:8001/api/admin/sync/status`
 3. Check logs: `grep "sync" logs/atom.log | tail -50`
 
 **Resolution**:
-1. Trigger manual sync: `curl -X POST http://localhost:8000/api/admin/sync/trigger`
+1. Trigger manual sync: `curl -X POST http://localhost:8001/api/admin/sync/trigger`
 2. Monitor sync progress: `tail -f logs/atom.log | grep sync`
 3. If sync fails, check Atom SaaS API status
 4. If API is down, contact Atom SaaS support
@@ -787,12 +787,12 @@ BACKOFF_MAX_SECONDS = 60  # Change from 30
 **Impact**: Real-time updates unavailable
 
 **Diagnosis**:
-1. Check WebSocket status: `curl http://localhost:8000/api/admin/sync/websocket/status`
-2. Check metrics: `curl http://localhost:8000/metrics/sync | grep websocket`
+1. Check WebSocket status: `curl http://localhost:8001/api/admin/sync/websocket/status`
+2. Check metrics: `curl http://localhost:8001/metrics/sync | grep websocket`
 3. Check network: `ping api.atomsaas.com`
 
 **Resolution**:
-1. Force reconnect: `curl -X POST http://localhost:8000/api/admin/sync/websocket/reconnect`
+1. Force reconnect: `curl -X POST http://localhost:8001/api/admin/sync/websocket/reconnect`
 2. If reconnect fails, check network connectivity
 3. Verify firewall rules allow outbound 443
 4. Check Atom SaaS WebSocket service status
@@ -813,7 +813,7 @@ BACKOFF_MAX_SECONDS = 60  # Change from 30
 **Impact**: Many sync operations failing
 
 **Diagnosis**:
-1. Check error metrics: `curl http://localhost:8000/metrics/sync | grep sync_errors`
+1. Check error metrics: `curl http://localhost:8001/metrics/sync | grep sync_errors`
 2. Check error logs: `grep "ERROR" logs/atom.log | grep sync | tail -20`
 3. Check Atom SaaS API: `curl -I https://api.atomsaas.com/health`
 
@@ -840,12 +840,12 @@ BACKOFF_MAX_SECONDS = 60  # Change from 30
 **Impact**: Sync operations may be blocked
 
 **Diagnosis**:
-1. Check conflict count: `curl http://localhost:8000/api/admin/sync/conflicts`
-2. Check conflict metrics: `curl http://localhost:8000/metrics/sync | grep conflicts`
+1. Check conflict count: `curl http://localhost:8001/api/admin/sync/conflicts`
+2. Check conflict metrics: `curl http://localhost:8001/metrics/sync | grep conflicts`
 3. Review conflict types and causes
 
 **Resolution**:
-1. List conflicts: `curl http://localhost:8000/api/admin/sync/conflicts`
+1. List conflicts: `curl http://localhost:8001/api/admin/sync/conflicts`
 2. Choose resolution strategy (local_wins, remote_wins, merge)
 3. Resolve conflicts individually or in bulk
 4. Trigger manual sync to verify resolution
@@ -863,28 +863,28 @@ BACKOFF_MAX_SECONDS = 60  # Change from 30
 
 ```bash
 # Check all sync health
-curl http://localhost:8000/health/sync | jq .
+curl http://localhost:8001/health/sync | jq .
 
 # Get all sync metrics
-curl http://localhost:8000/metrics/sync
+curl http://localhost:8001/metrics/sync
 
 # Trigger manual sync
-curl -X POST http://localhost:8000/api/admin/sync/trigger
+curl -X POST http://localhost:8001/api/admin/sync/trigger
 
 # Get sync status
-curl http://localhost:8000/api/admin/sync/status | jq .
+curl http://localhost:8001/api/admin/sync/status | jq .
 
 # Get WebSocket status
-curl http://localhost:8000/api/admin/sync/websocket/status | jq .
+curl http://localhost:8001/api/admin/sync/websocket/status | jq .
 
 # List conflicts
-curl http://localhost:8000/api/admin/sync/conflicts | jq .
+curl http://localhost:8001/api/admin/sync/conflicts | jq .
 
 # Get rating sync status
-curl http://localhost:8000/api/admin/sync/ratings/status | jq .
+curl http://localhost:8001/api/admin/sync/ratings/status | jq .
 
 # Get failed uploads
-curl http://localhost:8000/api/admin/sync/ratings/failed-uploads | jq .
+curl http://localhost:8001/api/admin/sync/ratings/failed-uploads | jq .
 
 # Watch sync logs
 tail -f logs/atom.log | grep sync

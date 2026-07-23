@@ -18,42 +18,45 @@ the repo root.
 **Fix**: Launch from the repo root with both paths on PYTHONPATH:
 ```bash
 cd /path/to/atom
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
-**Why**: `backend/main.py` uses `from backend.api.agent_routes import ...`
-which requires the repo root on `PYTHONPATH`. The `$PWD:$PWD/backend`
-pattern puts both on the search path so bare-name imports
-(`from advanced_workflow_orchestrator import ...`) AND `backend.*`
-imports both resolve.
+**Why**: `backend/main_api_app.py` uses `from backend.api...` imports which
+require the repo root on `PYTHONPATH`. The `$PWD:$PWD/backend` pattern puts
+both on the search path so bare-name imports (`from advanced_workflow_orchestrator import ...`)
+AND `backend.*` imports both resolve.
 
 ### `ModuleNotFoundError: No module named 'main'`
 
-**Cause**: uvicorn can't find `main.py`. You're probably running from a
-directory that doesn't have `backend/` on its PYTHONPATH.
+**Cause**: You're using `main:app` as the entrypoint. There is **no**
+`backend/main.py` — the canonical full app is `main_api_app:app`.
 
-**Fix**: Same as above — run from repo root with
-`PYTHONPATH=$PWD:$PWD/backend`.
+**Fix**: Use `main_api_app:app` (the full app, all 80+ routers):
+```bash
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
+```
+`minimal_app:app` (~125-route smoke subset) also exists for fast checks.
 
 ### `Could not import module "main"` (uvicorn error)
 
-**Cause**: Same root cause as above.
+**Cause**: Same as above — `main:app` doesn't exist.
 
-**Fix**: Verify the venv exists and the path is correct:
+**Fix**: Use `main_api_app:app`. Verify the venv + module resolve:
 ```bash
-ls backend/venv/bin/python    # should exist
-ls backend/main.py            # should exist
+ls backend/venv/bin/python        # should exist
+ls backend/main_api_app.py        # should exist
 ```
 
 ### `Error loading ASGI app`
 
-**Cause**: Most often, `main_api_app.py` was used as the entry point. That
-file is documented as "mid-refactor and currently broken" — use
-`main:app` instead (i.e. `backend/main.py`).
+**Cause**: Most often you passed a module name that doesn't exist. The
+canonical entrypoint is `main_api_app:app`. (If you saw old docs telling
+you `main_api_app` was "broken" and to use `main` — that advice was
+backwards and has been corrected.)
 
-**Fix**: Use `main:app`, not `main_api_app:app`:
+**Fix**:
 ```bash
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --port 8000
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
 ```
 
 ---
@@ -100,7 +103,7 @@ sqlite3 backend/atom_dev.db "DELETE FROM users WHERE email='admin@example.com'"
 **Fix**: The header must be exactly `Authorization: Bearer <token>`:
 ```bash
 TOKEN="eyJhbGc..."   # paste the full token
-curl http://localhost:8000/api/users/me -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8001/api/users/me -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
@@ -116,7 +119,7 @@ interrupted, tables may be missing.
 **Fix**: Stop the server, delete the dev DB, restart:
 ```bash
 rm backend/atom_dev.db
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main:app --reload --port 8000
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
 The bootstrap will recreate everything.
@@ -192,10 +195,10 @@ npm install --legacy-peer-deps
 **Cause**: Backend isn't running, or it's on a different port.
 
 **Fix**:
-1. Verify backend: `curl http://localhost:8000/health/live`
+1. Verify backend: `curl http://localhost:8001/health/live`
 2. Check `frontend-nextjs/.env.local`:
    ```
-   NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+   NEXT_PUBLIC_API_BASE_URL=http://localhost:8001
    ```
 3. Restart the frontend dev server after editing `.env.local`.
 
@@ -242,7 +245,7 @@ This is **by design** — new agents start read-only. They graduate to
 INTERN after accumulating successful executions. To force-promote for
 testing:
 ```bash
-curl -X POST http://localhost:8000/api/agents/{agent_id}/promote \
+curl -X POST http://localhost:8001/api/agents/{agent_id}/promote \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -262,10 +265,10 @@ loads. Subsequent requests are fast.
 **Fix**: None needed — warmup is one-time. Verify with:
 ```bash
 # First request: ~5s
-time curl http://localhost:8000/health/ready
+time curl http://localhost:8001/health/ready
 
 # Second request: <50ms
-time curl http://localhost:8000/health/ready
+time curl http://localhost:8001/health/ready
 ```
 
 ### High memory usage
@@ -284,8 +287,8 @@ FASTEMBED_MODEL=BAAI/bge-small-en-v1.5    # smallest model
 ## Getting more help
 
 1. **Read the logs**: `tail -f backend/logs/atom.log`
-2. **Check health**: `curl http://localhost:8000/health/ready`
-3. **Browse the API**: http://localhost:8000/docs (Swagger UI)
+2. **Check health**: `curl http://localhost:8001/health/ready`
+3. **Browse the API**: http://localhost:8001/docs (Swagger UI)
 4. **Search the codebase**: `grep -r "error message" backend/core/`
 5. **Read `CLAUDE.md`**: the engineering reference covers everything
 
@@ -293,9 +296,9 @@ For bugs, file an issue at
 https://github.com/rush86999/atom/issues with:
 - The exact command you ran
 - The full error message (not just the last line)
-- Output of `curl http://localhost:8000/health/ready`
+- Output of `curl http://localhost:8001/health/ready`
 - Output of `cat backend/.env` **with secrets redacted**
 
 ---
 
-**Last Updated**: June 30, 2026
+**Last Updated**: July 2026

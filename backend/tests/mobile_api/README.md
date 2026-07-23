@@ -245,7 +245,7 @@ Mobile API responses match web API responses for consistency:
 ### Login
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "test@example.com",
@@ -256,7 +256,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 ### Execute Agent
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/agents/agent_id/execute \
+curl -X POST http://localhost:8001/api/v1/agents/agent_id/execute \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -267,7 +267,7 @@ curl -X POST http://localhost:8000/api/v1/agents/agent_id/execute \
 ### Create Workflow
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/workflows \
+curl -X POST http://localhost:8001/api/v1/workflows \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -280,7 +280,7 @@ curl -X POST http://localhost:8000/api/v1/workflows \
 ### Get Location
 
 ```bash
-curl -X GET http://localhost:8000/api/v1/device/location \
+curl -X GET http://localhost:8001/api/v1/device/location \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

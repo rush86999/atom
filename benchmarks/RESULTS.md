@@ -4,7 +4,7 @@
 > The numbers below are from a reference run on a single-node development
 > instance. Re-run on your own hardware for representative figures.
 
-- **Instance:** `http://localhost:8000`
+- **Instance:** `http://localhost:8001`
 - **Run:** (run the benchmark to populate)
 - **Auth:** (run the benchmark to populate)
 - **Overall:** (run the benchmark to populate)
@@ -14,6 +14,7 @@
 ```bash
 # 1. Start Atom
 scripts/dev.sh
+# (Note: `scripts/dev.sh` launches the minimal smoke app; for full-app benchmarks use `make backend` which runs `main_api_app:app`.)
 
 # 2. In another terminal, run the benchmarks
 python benchmarks/run_benchmarks.py \

@@ -737,7 +737,7 @@ class KnowledgeQueryManager:
 **Example Request**:
 
 ```bash
-curl -X POST http://localhost:8000/api/knowledge/query \
+curl -X POST http://localhost:8001/api/knowledge/query \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is the approval limit for invoices?",

@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Last Updated:** 2026-02-16
-**Base URL:** `http://localhost:8000`
+**Base URL:** `http://localhost:8001`
 
 ## Table of Contents
 
@@ -35,9 +35,9 @@ The Atom Platform provides a comprehensive REST API for AI-powered workflow auto
 
 Interactive API documentation is available:
 
-- **Swagger UI**: `http://localhost:8000/docs` - Interactive API explorer
-- **ReDoc**: `http://localhost:8000/redoc` - API reference documentation
-- **OpenAPI JSON**: `http://localhost:8000/openapi.json` - OpenAPI specification
+- **Swagger UI**: `http://localhost:8001/docs` - Interactive API explorer
+- **ReDoc**: `http://localhost:8001/redoc` - API reference documentation
+- **OpenAPI JSON**: `http://localhost:8001/openapi.json` - OpenAPI specification
 
 ---
 
@@ -51,12 +51,12 @@ Most endpoints require JWT token authentication.
 
 ```bash
 # Login to get token
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password"}'
 
 # Use token in requests
-curl -X GET http://localhost:8000/api/agents \
+curl -X GET http://localhost:8001/api/agents \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -65,7 +65,7 @@ curl -X GET http://localhost:8000/api/agents \
 Some endpoints support API key authentication for service accounts.
 
 ```bash
-curl -X GET http://localhost:8000/api/agents \
+curl -X GET http://localhost:8001/api/agents \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -1486,7 +1486,7 @@ The Atom Platform provides interactive API documentation powered by FastAPI and 
 Interactive API explorer with "Try it out" functionality:
 
 ```
-http://localhost:8000/docs
+http://localhost:8001/docs
 ```
 
 Features:
@@ -1500,7 +1500,7 @@ Features:
 API reference documentation with detailed descriptions:
 
 ```
-http://localhost:8000/redoc
+http://localhost:8001/redoc
 ```
 
 Features:
@@ -1514,7 +1514,7 @@ Features:
 Raw OpenAPI specification for code generation:
 
 ```
-http://localhost:8000/openapi.json
+http://localhost:8001/openapi.json
 ```
 
 Use with:
@@ -1535,7 +1535,7 @@ Use with:
 import requests
 
 # Base URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 
 # Login
 response = requests.post(
@@ -1563,7 +1563,7 @@ print(response.json())
 #### Using `fetch` API
 
 ```javascript
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://localhost:8001';
 
 // Login
 const loginResponse = await fetch(`${BASE_URL}/api/auth/login`, {
@@ -1597,12 +1597,12 @@ console.log(data);
 
 ```bash
 # Login
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password"}'
 
 # Chat with agent
-curl -X POST http://localhost:8000/api/atom-agent/chat \
+curl -X POST http://localhost:8001/api/atom-agent/chat \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

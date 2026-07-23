@@ -11,12 +11,12 @@
 ```bash
 PWD_VAL=$(cat backend/logs/bootstrap_admin_password.txt)
 
-TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"username\":\"admin@example.com\",\"password\":\"$PWD_VAL\"}" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
 
-curl http://localhost:8000/api/users/me -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8001/api/users/me -H "Authorization: Bearer $TOKEN"
 # → {"email":"admin@example.com","role":"workspace_admin", ...}
 ```
 
@@ -48,7 +48,7 @@ after running `ollama pull llama3:8b`.
 ## 3. Create your first agent
 
 ```bash
-curl -X POST http://localhost:8000/api/agents \
+curl -X POST http://localhost:8001/api/agents \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -64,7 +64,7 @@ INTERN → SUPERVISED → AUTONOMOUS as they accumulate clean executions.
 ## 4. Try a workflow
 
 ```bash
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"request": "Summarize the benefits of multi-agent governance in 3 bullets"}'

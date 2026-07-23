@@ -77,7 +77,7 @@ Lighthouse needs running servers to test against.
 **Backend Server (Port 8000):**
 ```bash
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 ```
 
 **Frontend Server (Port 3001):**
@@ -344,7 +344,7 @@ npm install -g lighthouse
 ```bash
 # Start backend
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8000
 
 # Start frontend
 cd frontend-nextjs

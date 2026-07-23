@@ -30,12 +30,12 @@ cd backend
 python -m uvicorn main_api_app:app --reload --port 8000
 ```
 
-The server will start at `http://localhost:8000`
+The server will start at `http://localhost:8001`
 
 ### Verify Server is Running
 
 ```bash
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 ```
 
 Expected response:
@@ -100,7 +100,7 @@ Default admin credentials:
 ### 1. Login and Get Token
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@atom.ai",
@@ -132,14 +132,14 @@ export ATOM_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 Use it in requests:
 
 ```bash
-curl -X GET http://localhost:8000/api/agents \
+curl -X GET http://localhost:8001/api/agents \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
 ### 3. Refresh Token (if supported)
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/refresh \
+curl -X POST http://localhost:8001/api/auth/refresh \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -152,7 +152,7 @@ curl -X POST http://localhost:8000/api/auth/refresh \
 Open your browser and navigate to:
 
 ```
-http://localhost:8000/docs
+http://localhost:8001/docs
 ```
 
 ### Features
@@ -183,7 +183,7 @@ http://localhost:8000/docs
 For formatted API reference documentation:
 
 ```
-http://localhost:8000/redoc
+http://localhost:8001/redoc
 ```
 
 ---
@@ -195,7 +195,7 @@ http://localhost:8000/redoc
 #### Using cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/atom-agent/chat \
+curl -X POST http://localhost:8001/api/atom-agent/chat \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -213,7 +213,7 @@ curl -X POST http://localhost:8000/api/atom-agent/chat \
 ```python
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 TOKEN = "your_jwt_token_here"
 
 headers = {
@@ -262,7 +262,7 @@ print(response.json())
 #### Using cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/atom-agent/sessions \
+curl -X POST http://localhost:8001/api/atom-agent/sessions \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -286,7 +286,7 @@ curl -X POST http://localhost:8000/api/atom-agent/sessions \
 #### Using cURL
 
 ```bash
-curl -X GET "http://localhost:8000/api/atom-agent/sessions/session_abc123/history" \
+curl -X GET "http://localhost:8001/api/atom-agent/sessions/session_abc123/history" \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -330,7 +330,7 @@ curl -X GET "http://localhost:8000/api/atom-agent/sessions/session_abc123/histor
 #### Using cURL
 
 ```bash
-curl -X GET "http://localhost:8000/api/agents?limit=10" \
+curl -X GET "http://localhost:8001/api/agents?limit=10" \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -363,7 +363,7 @@ curl -X GET "http://localhost:8000/api/agents?limit=10" \
 #### Using cURL
 
 ```bash
-curl -X POST "http://localhost:8000/api/skills/weather_skill/execute" \
+curl -X POST "http://localhost:8001/api/skills/weather_skill/execute" \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -396,7 +396,7 @@ curl -X POST "http://localhost:8000/api/skills/weather_skill/execute" \
 #### Liveness Probe
 
 ```bash
-curl http://localhost:8000/health/live
+curl http://localhost:8001/health/live
 ```
 
 Response:
@@ -411,7 +411,7 @@ Response:
 #### Readiness Probe
 
 ```bash
-curl http://localhost:8000/health/ready
+curl http://localhost:8001/health/ready
 ```
 
 Response:
@@ -438,7 +438,7 @@ Response:
 #### Prometheus Metrics
 
 ```bash
-curl http://localhost:8000/health/metrics
+curl http://localhost:8001/health/metrics
 ```
 
 Response (Prometheus text format):
@@ -456,7 +456,7 @@ http_requests_total{method="post",endpoint="/api/atom-agent/chat"} 1234
 #### Using cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/canvas/present \
+curl -X POST http://localhost:8001/api/canvas/present \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -493,7 +493,7 @@ curl -X POST http://localhost:8000/api/canvas/present \
 #### Create Browser Session
 
 ```bash
-curl -X POST http://localhost:8000/api/browser/session \
+curl -X POST http://localhost:8001/api/browser/session \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -505,7 +505,7 @@ curl -X POST http://localhost:8000/api/browser/session \
 #### Navigate
 
 ```bash
-curl -X POST "http://localhost:8000/api/browser/session_123/navigate" \
+curl -X POST "http://localhost:8001/api/browser/session_123/navigate" \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -516,7 +516,7 @@ curl -X POST "http://localhost:8000/api/browser/session_123/navigate" \
 #### Take Screenshot
 
 ```bash
-curl -X POST "http://localhost:8000/api/browser/session_123/screenshot" \
+curl -X POST "http://localhost:8001/api/browser/session_123/screenshot" \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -527,7 +527,7 @@ curl -X POST "http://localhost:8000/api/browser/session_123/screenshot" \
 #### Using cURL
 
 ```bash
-curl -X GET "http://localhost:8000/api/episodes?agent_id=agent_789&limit=10&mode=semantic" \
+curl -X GET "http://localhost:8001/api/episodes?agent_id=agent_789&limit=10&mode=semantic" \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -563,7 +563,7 @@ curl -X GET "http://localhost:8000/api/episodes?agent_id=agent_789&limit=10&mode
 #### Create Post
 
 ```bash
-curl -X POST http://localhost:8000/api/social/posts \
+curl -X POST http://localhost:8001/api/social/posts \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -579,7 +579,7 @@ curl -X POST http://localhost:8000/api/social/posts \
 #### Get Feed
 
 ```bash
-curl -X GET "http://localhost:8000/api/social/feed?limit=20" \
+curl -X GET "http://localhost:8001/api/social/feed?limit=20" \
   -H "Authorization: Bearer $ATOM_TOKEN"
 ```
 
@@ -692,7 +692,7 @@ curl -X GET "http://localhost:8000/api/social/feed?limit=20" \
 Store sensitive values in environment variables:
 
 ```bash
-export ATOM_BASE_URL="http://localhost:8000"
+export ATOM_BASE_URL="http://localhost:8001"
 export ATOM_TOKEN="your_jwt_token"
 export ATOM_USER_ID="user_123"
 ```
@@ -751,7 +751,7 @@ apt-get install jq  # Ubuntu
 Use it to parse JSON:
 
 ```bash
-curl -s http://localhost:8000/health/live | jq .
+curl -s http://localhost:8001/health/live | jq .
 ```
 
 ### 5. Test Governance Levels
@@ -775,7 +775,7 @@ Test actions at each level to verify governance enforcement.
 Check rate limit headers in responses:
 
 ```bash
-curl -v http://localhost:8000/api/agents \
+curl -v http://localhost:8001/api/agents \
   -H "Authorization: Bearer $ATOM_TOKEN" 2>&1 | grep -i "x-ratelimit"
 ```
 
@@ -793,14 +793,14 @@ Intentionally trigger errors to verify error handling:
 
 ```bash
 # Test missing auth
-curl http://localhost:8000/api/agents
+curl http://localhost:8001/api/agents
 
 # Test invalid token
-curl http://localhost:8000/api/agents \
+curl http://localhost:8001/api/agents \
   -H "Authorization: Bearer invalid_token"
 
 # Test invalid data
-curl -X POST http://localhost:8000/api/atom-agent/chat \
+curl -X POST http://localhost:8001/api/atom-agent/chat \
   -H "Authorization: Bearer $ATOM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"invalid": "data"}'
@@ -850,7 +850,7 @@ class AtomUser(HttpUser):
 Run Locust:
 
 ```bash
-locust -f locustfile.py --host=http://localhost:8000
+locust -f locustfile.py --host=http://localhost:8001
 ```
 
 Visit `http://localhost:8089` to configure load test.
@@ -930,7 +930,7 @@ ls -la atom_dev.db
 alembic upgrade head
 
 # Check database health
-curl http://localhost:8000/health/ready
+curl http://localhost:8001/health/ready
 ```
 
 ### Authentication Failures
@@ -941,7 +941,7 @@ curl http://localhost:8000/health/ready
 
 ```bash
 # Login again to get fresh token
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@atom.ai", "password": "admin123"}'
 
@@ -971,7 +971,7 @@ app.add_middleware(
 ## Next Steps
 
 1. **Explore Full API Documentation**: See `API_DOCUMENTATION.md`
-2. **Check OpenAPI Spec**: `http://localhost:8000/openapi.json`
+2. **Check OpenAPI Spec**: `http://localhost:8001/openapi.json`
 3. **Review Governance Rules**: Understand maturity levels
 4. **Test Integration Flows**: Workflow creation, execution, monitoring
 5. **Set Up Monitoring**: Prometheus metrics at `/health/metrics`

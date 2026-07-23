@@ -192,7 +192,7 @@ python -m uvicorn main_api_app:app --reload
 
 ```bash
 # Call health endpoint
-curl http://localhost:8000/health/external-data
+curl http://localhost:8001/health/external-data
 
 # Expected response:
 {
