@@ -108,9 +108,8 @@ apiClient.interceptors.response.use(
     if (error?.response?.status === 401) {
       const path = typeof window !== "undefined" ? window.location.pathname : "";
       const isAuthPage = path.startsWith("/login") || path.startsWith("/auth/");
-      const isExplicitLogout = typeof window !== "undefined" && localStorage.getItem("atom_explicit_logout") === "1";
 
-      if (isExplicitLogout && !isAuthPage) {
+      if (!isAuthPage) {
         if (typeof window !== "undefined") {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("token");

@@ -513,6 +513,14 @@ async def lifespan(app: FastAPI):
                 logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
+
+        # Start Outlook Automation Loop
+        try:
+            from outlook_automation_service import start_outlook_automation_loop
+            asyncio.create_task(start_outlook_automation_loop())
+            logger.info("✓ Outlook Automation Loop started")
+        except Exception as e:
+            logger.error(f"Failed to start Outlook Automation Loop: {e}")
     elif is_test_mode:
         logger.info("⊘ Skipping Schedulers and Workers in test mode")
 

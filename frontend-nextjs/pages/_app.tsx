@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { SessionProvider } from "next-auth/react";
+import { SessionProvider, useSession } from "next-auth/react";
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppProps } from "next/app";
@@ -12,6 +12,20 @@ import Layout from "../components/layout/Layout";
 import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
+
+const SessionSync: React.FC = () => {
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (session && (session as any).backendToken) {
+      const token = (session as any).backendToken;
+      localStorage.setItem('auth_token', token);
+      document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+    }
+  }, [session]);
+
+  return null;
+};
 
 const TauriHooks: React.FC = () => {
   useCliHandler();
@@ -80,6 +94,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   return (
     <SessionProvider session={session}>
+      <SessionSync />
       <QueryClientProvider client={queryClient}>
         <TauriHooks />
         <ChakraProvider value={defaultSystem}>

@@ -139,20 +139,31 @@ class OutlookService(IntegrationService):
     async def _get_access_token(self, user_id: str) -> Optional[str]:
         """Get access token for user from database"""
         try:
-            from database_manager import DatabaseManager
+            from core.database import get_db_session
+            from core.models import IntegrationToken
 
-            db = DatabaseManager()
-
-            # Get user tokens from database
-            tokens = await db.get_user_tokens(user_id, "outlook")
-            if tokens and tokens.get("access_token"):
-                # Check if token needs refresh
-                if self._is_token_expired(tokens):
-                    return await self._refresh_access_token(user_id, tokens)
-                return tokens["access_token"]
+            with get_db_session() as db:
+                token_record = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == user_id,
+                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.status == "active"
+                ).first()
+                
+                if token_record and token_record.access_token:
+                    # Check if token needs refresh
+                    tokens = {
+                        "access_token": token_record.access_token,
+                        "refresh_token": token_record.refresh_token,
+                        "expires_at": token_record.expires_at.timestamp() if token_record.expires_at else None
+                    }
+                    if self._is_token_expired(tokens):
+                        refreshed = await self._refresh_access_token(user_id, tokens)
+                        return refreshed
+                    return token_record.access_token
             return None
         except Exception as e:
             logger.error(f"Error getting access token for user {user_id}: {e}")
+            return None
             return None
 
     def _is_token_expired(self, tokens: Dict[str, Any]) -> bool:

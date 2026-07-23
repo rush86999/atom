@@ -55,6 +55,31 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [messages, isOpen]);
 
+    // Fetch existing pending approvals on mount or open
+    useEffect(() => {
+        const fetchPendingApprovals = async () => {
+            try {
+                const { apiClient } = await import('../lib/api-client');
+                const response = await apiClient.get("/api/agents/approvals/pending", {
+                    validateStatus: (status) => status < 500
+                }) as any;
+                if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
+                    const first = response.data[0];
+                    setPendingApproval({
+                        action_id: first.id,
+                        tool: first.action_type,
+                        reason: first.reason
+                    });
+                } else if (response.status === 200 && Array.isArray(response.data) && response.data.length === 0) {
+                    setPendingApproval(null);
+                }
+            } catch (err) {
+                console.error("Failed to fetch pending approvals:", err);
+            }
+        };
+        fetchPendingApprovals();
+    }, [isOpen]);
+
     // WebSocket subscription
     useEffect(() => {
         if (isConnected) {
