@@ -211,6 +211,7 @@ MICROSOFT_OAUTH_CONFIG = OAuthConfig(
         "https://graph.microsoft.com/Mail.ReadWrite",
         "https://graph.microsoft.com/Files.ReadWrite.All",
         "https://graph.microsoft.com/User.Read",
+        "offline_access",
     ]
 )
 
