@@ -40,9 +40,28 @@ interface WorkflowTemplate {
     input_schema?: any
 }
 
+const categories = [
+    { label: "Automation", value: "automation" },
+    { label: "Data Processing", value: "data_processing" },
+    { label: "AI/ML", value: "ai_ml" },
+    { label: "Business", value: "business" },
+    { label: "Integration", value: "integration" },
+    { label: "Monitoring", value: "monitoring" },
+    { label: "Reporting", value: "reporting" },
+    { label: "Security", value: "security" },
+    { label: "General", value: "general" },
+]
+
+const formatCategory = (category?: string) => {
+    if (!category) return "General"
+    return categories.find(cat => cat.value === category)?.label
+        || category.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase())
+}
+
 export default function MarketplacePage() {
     const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
     const [loading, setLoading] = useState(true)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -51,8 +70,6 @@ export default function MarketplacePage() {
     const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-    const categories = ["Productivity", "Sales", "Marketing", "Finance", "Development", "Data Management"]
-
     useEffect(() => {
         fetchTemplates()
     }, [selectedCategory])
@@ -60,12 +77,16 @@ export default function MarketplacePage() {
     const fetchTemplates = async () => {
         try {
             setLoading(true)
+            setErrorMessage(null)
             const url = selectedCategory
-                ? `/api/workflow-templates?category=${selectedCategory}`
+                ? `/api/workflow-templates?category=${encodeURIComponent(selectedCategory)}`
                 : '/api/workflow-templates'
 
             const response = await fetch(url)
-            if (!response.ok) throw new Error('Failed to fetch templates')
+            if (!response.ok) {
+                const details = await response.text().catch(() => '')
+                throw new Error(details || `Failed to fetch templates (${response.status})`)
+            }
             const data = await response.json()
             setTemplates((data || []).map((t: any) => ({ // Direct list, not data.templates
                 ...t,
@@ -78,7 +99,9 @@ export default function MarketplacePage() {
                 input_schema: t.input_schema || {}
             })))
         } catch (error) {
-            console.error('Error fetching templates:', error)
+            console.warn('Error fetching templates:', error instanceof Error ? error.message : error)
+            setTemplates([])
+            setErrorMessage('Could not load workflow templates. Make sure the backend is running on port 8000, then refresh.')
         } finally {
             setLoading(false)
         }
@@ -154,16 +177,22 @@ export default function MarketplacePage() {
                     </Button>
                     {categories.map(cat => (
                         <Button
-                            key={cat}
-                            variant={selectedCategory === cat ? "default" : "outline"}
-                            onClick={() => setSelectedCategory(cat)}
+                            key={cat.value}
+                            variant={selectedCategory === cat.value ? "default" : "outline"}
+                            onClick={() => setSelectedCategory(cat.value)}
                             className="whitespace-nowrap"
                         >
-                            {cat}
+                            {cat.label}
                         </Button>
                     ))}
                 </div>
             </div>
+
+            {errorMessage && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                    {errorMessage}
+                </div>
+            )}
 
             {/* Templates Grid */}
             {loading ? (
@@ -178,7 +207,7 @@ export default function MarketplacePage() {
                         <Card key={template.id} className="flex flex-col hover:shadow-lg transition-shadow border-slate-200 dark:border-slate-800">
                             <CardHeader>
                                 <div className="flex justify-between items-start">
-                                    <Badge variant="outline" className="mb-2">{template.category}</Badge>
+                                    <Badge variant="outline" className="mb-2">{formatCategory(template.category)}</Badge>
                                     <div className="flex items-center text-yellow-500 text-sm">
                                         <Star className="h-3 w-3 fill-current mr-1" />
                                         {template.rating.toFixed(1)}
@@ -239,7 +268,7 @@ export default function MarketplacePage() {
                     <DialogHeader>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Badge>{previewTemplate?.category}</Badge>
+                                <Badge>{formatCategory(previewTemplate?.category)}</Badge>
                                 <span className="text-sm text-muted-foreground">v{previewTemplate?.version}</span>
                             </div>
                         </div>
