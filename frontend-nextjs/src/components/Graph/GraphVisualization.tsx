@@ -44,10 +44,22 @@ interface GraphData {
   links: Link[];
 }
 
+async function readJsonResponse(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(`Expected JSON but received ${contentType || 'unknown content type'}: ${text.slice(0, 120)}`);
+  }
+
+  return response.json();
+}
+
 export default function GraphVisualization() {
   const svgRef = useRef<SVGSVGElement>(null);
   const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
@@ -86,27 +98,34 @@ export default function GraphVisualization() {
 
   const fetchGraphData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [nodesRes, linksRes] = await Promise.all([
         fetch('/api/graphrag/entities?workspace_id=default_workspace&limit=200'),
         fetch('/api/graphrag/relationships?workspace_id=default_workspace&limit=300')
       ]);
       
-      const nodesData = await nodesRes.json();
-      const linksData = await linksRes.json();
+      const nodesData = await readJsonResponse(nodesRes);
+      const linksData = await readJsonResponse(linksRes);
       
       if (nodesData.success && linksData.success) {
+        const entities = nodesData.data?.entities || [];
+        const relationships = linksData.data?.relationships || [];
+
         setData({
-          nodes: nodesData.data.entities || [],
-          links: linksData.data.relationships.map((l: any) => ({
+          nodes: entities,
+          links: relationships.map((l: any) => ({
             ...l,
             source: l.from_entity,
             target: l.to_entity
-          })) || []
+          }))
         });
+      } else {
+        setError(nodesData.error || linksData.error || 'Failed to load graph data');
       }
     } catch (err) {
       console.error('Failed to fetch graph data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch graph data');
     } finally {
       setLoading(false);
     }
@@ -213,11 +232,13 @@ export default function GraphVisualization() {
         })
       });
       
-      const result = await res.json();
+      const result = await readJsonResponse(res);
       if (result.success) {
         setIsAddNodeOpen(false);
         setNewNode({ name: '', type: 'Concept', description: '', canonical_type: '', canonical_id: '', specialty: '' });
         fetchGraphData();
+      } else {
+        console.error('Failed to add node:', result.error || result.message);
       }
     } catch (err) {
       console.error('Failed to add node:', err);
@@ -230,12 +251,15 @@ export default function GraphVisualization() {
     setIsSearchingCanonical(true);
     try {
       const res = await fetch(`/api/graphrag/canonical-search?workspace_id=default_workspace&type=${newNode.canonical_type}&q=${query}`);
-      const result = await res.json();
+      const result = await readJsonResponse(res);
       if (result.success) {
         setCanonicalResults(result.data.results || []);
+      } else {
+        setCanonicalResults([]);
       }
     } catch (err) {
       console.error('Canonical search failed:', err);
+      setCanonicalResults([]);
     } finally {
       setIsSearchingCanonical(false);
     }
@@ -330,6 +354,21 @@ export default function GraphVisualization() {
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-indigo-600 font-bold tracking-tight">Loading Knowledge Graph...</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 backdrop-blur-sm p-8">
+            <div className="max-w-lg rounded-2xl border border-red-100 bg-white p-6 text-center shadow-xl">
+              <h2 className="text-lg font-bold text-gray-900">Unable to load knowledge graph</h2>
+              <p className="mt-2 text-sm text-gray-600">{error}</p>
+              <button
+                onClick={fetchGraphData}
+                className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-700"
+              >
+                Retry
+              </button>
             </div>
           </div>
         )}
