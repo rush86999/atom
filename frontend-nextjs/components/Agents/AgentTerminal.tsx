@@ -61,13 +61,18 @@ const TOOL_ICONS: Record<string, { icon: any, color: string }> = {
 };
 
 export const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentId, agentName, logs, status, activeTools = [] }) => {
-    const scrollRef = useRef<HTMLDivElement>(null)
+    const scrollAreaRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+        if (logs.length === 0) {
+            return
         }
-    }, [logs])
+
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]')
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight
+        }
+    }, [logs.length])
 
     const getToolInfo = (toolName: string) => {
         const normalized = toolName.toLowerCase();
@@ -116,7 +121,7 @@ export const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentId, agentName
             <div className="flex-1 flex overflow-hidden">
                 {/* Main Log Area */}
                 <div className="flex-1 relative flex flex-col bg-[#020617]">
-                    <ScrollArea className="flex-1 p-6">
+                    <ScrollArea ref={scrollAreaRef} className="flex-1 p-6">
                         <div className="space-y-1.5">
                             {logs.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full pt-20 text-slate-700 opacity-50">
@@ -161,7 +166,6 @@ export const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentId, agentName
                                     )
                                 })
                             )}
-                            <div ref={scrollRef} className="h-4" />
                         </div>
                     </ScrollArea>
 

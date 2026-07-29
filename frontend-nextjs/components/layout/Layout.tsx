@@ -1,5 +1,6 @@
 // LAYOUT COMPONENT
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
 import Sidebar from './Sidebar';
 import NotificationsBell from './NotificationsBell';
 import GraduationCelebration from '../notifications/GraduationCelebration';
@@ -11,6 +12,13 @@ export interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, className = '' }) => {
+  const router = useRouter();
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [router.asPath]);
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar Navigation */}
@@ -23,7 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children, className = '' }) => {
         <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
           <NotificationsBell />
         </div>
-        <main className={cn("flex-1 overflow-y-auto p-6", className)}>
+        <main ref={mainRef} className={cn("flex-1 overflow-y-auto p-6", className)}>
           {children}
         </main>
       </div>
