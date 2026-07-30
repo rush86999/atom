@@ -138,9 +138,13 @@ effective_cost = (cache_hit_prob * cached_price) + ((1 - cache_hit_prob) * full_
 ```
 
 **Cache Hit Prediction:**
-- Tracks cache outcomes per provider/model
-- Maintains 100-sample rolling window
-- Predicts hit probability based on historical cache rate
+- Tracks cache outcomes per `(workspace, prompt-prefix-hash)` key
+- Maintains a bounded 100-sample rolling window per key (older samples decay
+  proportionally so the ratio reflects recent cacheability, not a lifetime
+  average) and caps the number of distinct keys (FIFO eviction) — both bounds
+  prevent unbounded memory growth in the singleton
+- Predicts hit probability based on the recent hit rate; defaults to 0.5 (the
+  industry average) for cold start
 
 **Provider Support:**
 - **OpenAI**: 90% discount on cached tokens (≥1024 tokens)

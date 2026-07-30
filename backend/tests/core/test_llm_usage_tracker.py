@@ -92,7 +92,9 @@ class TestLLMUsageTracker:
         )
 
         assert len(tracker._records) == 1
-        assert tracker._usage["ws-1"] == 0.01
+        # Spend is tracked per calendar date (daily-window budget enforcement);
+        # assert via the public get_usage() which returns today's spend.
+        assert tracker.get_usage("ws-1") == 0.01
         assert tracker._records[0].workspace_id == "ws-1"
         assert tracker._records[0].provider == "openai"
 
@@ -119,7 +121,7 @@ class TestLLMUsageTracker:
         )
 
         assert len(tracker._records) == 2
-        assert tracker._usage["ws-1"] == pytest.approx(0.018)
+        assert tracker.get_usage("ws-1") == pytest.approx(0.018)
 
     def test_record_multiple_workspaces(self):
         """Test recording usage for multiple workspaces."""
@@ -144,8 +146,8 @@ class TestLLMUsageTracker:
         )
 
         assert len(tracker._records) == 2
-        assert tracker._usage["ws-1"] == 0.01
-        assert tracker._usage["ws-2"] == 0.02
+        assert tracker.get_usage("ws-1") == 0.01
+        assert tracker.get_usage("ws-2") == 0.02
 
     def test_set_budget(self):
         """Test setting budget for workspace."""

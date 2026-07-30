@@ -102,7 +102,11 @@ def get_quality_score(model_id: str) -> int:
         dynamic_score = fetcher.get_benchmark_score(model_id)
         if dynamic_score is not None:
             logger.debug(f"Using dynamic benchmark score for {model_id}: {dynamic_score}")
-            return int(dynamic_score)
+            # round() rather than int() — int() truncates toward zero, biasing
+            # every dynamic score down by up to ~1 point and discarding the
+            # sub-integer resolution the BPC value_score (quality^2/cost) is
+            # sensitive to. Clamp to the valid [0, 100] range.
+            return max(0, min(100, int(round(dynamic_score))))
     except ImportError:
         logger.debug("Dynamic benchmark fetcher not available, using static scores")
     except Exception as e:
@@ -113,11 +117,20 @@ def get_quality_score(model_id: str) -> int:
     if model_id in MODEL_QUALITY_SCORES:
         return MODEL_QUALITY_SCORES[model_id]
 
-    # Partial match
+    # Partial match — prefer the LONGEST matching key (most specific). A plain
+    # first-match loop returned whichever key happened to iterate first: for
+    # "gpt-4o-mini-2024-07-18" it matched "gpt-4o" (90) instead of the more
+    # specific "gpt-4o-mini" (85), purely due to dict insertion order.
     model_lower = model_id.lower()
+    best_key = None
+    best_score = None
     for key, score in MODEL_QUALITY_SCORES.items():
-        if key.lower() in model_lower:
-            return score
+        kl = key.lower()
+        if kl in model_lower and (best_key is None or len(kl) > len(best_key)):
+            best_key = kl
+            best_score = score
+    if best_score is not None:
+        return best_score
 
     # Heuristics for unknown models
     if "reasoner" in model_lower or "thinking" in model_lower or "-o1" in model_lower:
@@ -191,11 +204,18 @@ def get_capability_score(model_id: str, capability: str) -> int:
         if model_id in capability_scores:
             return capability_scores[model_id]
 
-        # Partial match
+        # Partial match — prefer the longest (most specific) key, matching
+        # get_quality_score's behavior (see comment there).
         model_lower = model_id.lower()
+        best_key = None
+        best_score = None
         for key, score in capability_scores.items():
-            if key.lower() in model_lower:
-                return score
+            kl = key.lower()
+            if kl in model_lower and (best_key is None or len(kl) > len(best_key)):
+                best_key = kl
+                best_score = score
+        if best_score is not None:
+            return best_score
 
     # Fallback to general quality score
     return get_quality_score(model_id)

@@ -1195,14 +1195,19 @@ class LLMService:
             else:
                 estimated_cost = (token_count / 1000) * 0.0001
             
-            # Track usage
+            # Track usage. Previously called llm_usage_tracker.track_usage(...)
+            # which doesn't exist (the method is `record`, with different kwargs:
+            # workspace_id + cost_usd, not estimated_cost). The AttributeError
+            # was swallowed by this try/except, so ALL embedding usage/cost went
+            # untracked — budgets and spend totals missed every embedding call.
             try:
-                llm_usage_tracker.track_usage(
+                llm_usage_tracker.record(
+                    workspace_id=self._workspace_id,
                     provider=provider,
                     model=model,
                     input_tokens=token_count,
                     output_tokens=0,
-                    estimated_cost=estimated_cost
+                    cost_usd=estimated_cost,
                 )
             except Exception as tracking_error:
                 logger.debug(f"Usage tracking failed: {tracking_error}")
@@ -1277,14 +1282,15 @@ class LLMService:
             else:
                 estimated_cost = (total_tokens / 1000) * 0.0001
 
-            # Track usage
+            # Track usage (see generate_embedding: record(), not track_usage()).
             try:
-                llm_usage_tracker.track_usage(
+                llm_usage_tracker.record(
+                    workspace_id=self._workspace_id,
                     provider=provider,
                     model=model,
                     input_tokens=total_tokens,
                     output_tokens=0,
-                    estimated_cost=estimated_cost
+                    cost_usd=estimated_cost,
                 )
             except Exception as tracking_error:
                 logger.debug(f"Usage tracking failed: {tracking_error}")
