@@ -100,36 +100,39 @@ class AgentScheduler:
         """
         Execution wrapper that creates AgentJob record.
         """
-        with get_db_session() as db:
-            job_record = AgentJob(
-                id=str(uuid.uuid4()),
-                agent_id=agent_id,
-                status=AgentJobStatus.RUNNING.value,
-                logs=""
-            )
-            db.add(job_record)
-            db.commit()
-        
+        # Use a SINGLE session for the whole lifecycle — the old code closed
+        # the session after creating the record (get_db_session context manager),
+        # then tried to commit on the closed session in the finally block,
+        # raising ResourceClosedError. Status was never persisted (stuck RUNNING).
+        db = get_db_session().__enter__()
+        job_record = AgentJob(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            status=AgentJobStatus.RUNNING.value,
+            logs=""
+        )
+        db.add(job_record)
+        db.commit()
+
         try:
-            # We need to run async function in sync ThreadPool
-            # This is tricky with APScheduler + AsyncIO
-            # Usually we'd use AsyncIOScheduler if main loop is async
-            # But here we are in a thread. We will run asyncio.run()
             import asyncio
             result = asyncio.run(func(*args, **kwargs))
-            
+
             job_record.status = AgentJobStatus.SUCCESS.value
             job_record.end_time = datetime.datetime.now()
             job_record.result_summary = json.dumps(result, default=str)
-            
+
         except Exception as e:
             logger.error(f"Job failed: {e}")
             job_record.status = AgentJobStatus.FAILED.value
             job_record.end_time = datetime.datetime.now()
             job_record.logs = str(e)
-            
+
         finally:
-            db.commit()
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
             db.close()
 
     def schedule_agent(self, agent_id: str, schedule_config: dict):

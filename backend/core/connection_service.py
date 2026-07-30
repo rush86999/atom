@@ -167,6 +167,20 @@ class ConnectionService:
                         conn.status = "active" # Mark as active if refresh succeeds
                         db.commit()
                         creds = updated_creds
+                    else:
+                        # Refresh failed — _refresh_token_if_needed returned None.
+                        # The old code returned the stale/expired token as if it
+                        # were valid. Check if the token is actually expired and
+                        # refuse to hand it back.
+                        expires_at = conn.expires_at
+                        if expires_at and datetime.now() >= expires_at:
+                            logger.error(
+                                f"Token for connection {connection_id} is expired "
+                                f"and refresh failed — refusing to return stale token"
+                            )
+                            conn.status = "error"
+                            db.commit()
+                            return None
 
                     # Update last used
                     conn.last_used = datetime.now()
