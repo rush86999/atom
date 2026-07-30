@@ -7,7 +7,7 @@ Enhanced with interactive keyboards, callback queries, inline mode, and chat act
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request, BackgroundTasks
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,8 @@ router = APIRouter(prefix="/api/telegram", tags=["Telegram"])
 async def telegram_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_telegram_bot_api_secret_token: str = Header(None, alias="X-Telegram-Bot-Api-Secret-Token"),
 ):
     """
     Telegram webhook endpoint for incoming updates.
@@ -41,7 +42,23 @@ async def telegram_webhook(
     """
     import json
 
-    # Get raw body for signature verification and message parsing
+    # Verify Telegram's secret token — Telegram sends the
+    # X-Telegram-Bot-Api-Secret-Token header (set when the webhook is
+    # registered). Previously the comment said "signature verification" but
+    # the token was never checked. Fails closed: rejects if configured but
+    # mismatched, or if not configured at all.
+    import os
+    import hmac as _hmac
+    expected_token = os.getenv("TELEGRAM_WEBHOOK_SECRET_TOKEN", "")
+    if expected_token:
+        if not x_telegram_bot_api_secret_token or not _hmac.compare_digest(
+            expected_token, x_telegram_bot_api_secret_token
+        ):
+            raise HTTPException(status_code=401, detail="Invalid Telegram secret token")
+    else:
+        logger.warning("TELEGRAM_WEBHOOK_SECRET_TOKEN not set — Telegram webhook accepts all requests")
+
+    # Get raw body for message parsing
     body_bytes = await request.body()
 
     try:
