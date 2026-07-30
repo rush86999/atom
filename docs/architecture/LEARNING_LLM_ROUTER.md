@@ -17,9 +17,20 @@ Static, rule-based routing strategies (like Benchmark-Price-Capability) select m
 Probabilistic routing models can degrade during runtime due to API outages, API schema changes, or model drift. Blindly routing tasks based on static benchmark profiles increases API token costs and exposes multi-step workflows to cascade failures.
 
 ### 🛡️ Our Solution
-A hybrid re-ranking system that combines:
-1. **Per-Model Predictors (ML-driven)**: Sklearn estimators that predict user satisfaction based on prompt features, dynamically re-ordering the candidate pool as user feedback accumulates.
-2. **EMA-Guided Protocol Routing (Metric-driven)**: A running Exponential Moving Average of latency, cost, and execution success, instantly routing traffic around outages or rate-limits without token overhead.
+A hybrid re-ranking system that **blends** two learned signals into one score:
+1. **Per-Model Predictors (ML-driven)**: Sklearn estimators that predict user
+   satisfaction based on prompt features, dynamically re-ordering the candidate
+   pool as user feedback accumulates.
+2. **EMA-Guided Protocol Routing (Metric-driven)**: A running Exponential
+   Moving Average of latency, cost, and execution success, instantly routing
+   traffic around outages or rate-limits without token overhead.
+
+The two are **not** alternatives — when both are enabled they contribute to the
+*same* scoring equation (see [Scoring blend](#scoring-blend-predictor--ema)
+below). The predictor term is confidence-weighted (more data → more influence);
+the EMA term is weighted by the *complement* of that confidence, so online
+telemetry carries the learned signal during cold-start and hands off as the
+predictor matures.
 
 ```
                 ┌─────────────────────────────────────────┐
@@ -42,7 +53,7 @@ A hybrid re-ranking system that combines:
                               ▼   (flag on + predictor exists)
                 ┌─────────────────────────────────────────┐
                 │  Learning Router: re-rank candidates     │  Learned
-                │  via per-model satisfaction signal       │  re-order
+                │  via predictor + EMA blend               │  re-order
                 └─────────────────────────────────────────┘
                               │
                               ▼
@@ -195,30 +206,76 @@ re-rank only re-orders BPC's already-filtered list.
 | `frontend-nextjs/hooks/chat/useChatInterface.ts` | `handleFeedback` + `handleRegenerate` |
 | `frontend-nextjs/pages/settings/routing.tsx` | Routing dashboard |
 
+## Scoring blend (predictor + EMA)
+
+Every candidate model is scored by `_combined_model_score`, which adds three
+terms into **one** equation:
+
+```
+score = rule_based_base                                          # BPC-style quality/cost/speed
+      + confidence(model) · predict_satisfaction(model, prompt)  # ML predictor
+      + (1 − confidence(model)) · EMA_WEIGHT · ema_term(model)   # online telemetry
+```
+
+- `confidence(model)` reuses `PerModelRouter.confidence()` (0..0.3, scales with
+  sample count, ~full weight at 50 samples). This is the Hedge-style handoff:
+  when the predictor is cold-start (`confidence ≈ 0`) the EMA/online signal
+  carries the full learned weight; as the predictor matures it takes over and
+  the noisier EMA signal fades. The rule-based base always contributes the
+  majority of the decision, so new tenants see no regression.
+- `EMA_WEIGHT` is `_EMA_SCORE_WEIGHT = 0.3`, matching the predictor's
+  confidence cap so the two learned signals are weighted on the same scale.
+- `ema_term` is a 0..1 sub-score derived from the model's EMA success, latency,
+  and cost (see below), normalized against the *observed* fleet so a cold-start
+  sibling's spec-derived fallback never sets the normalization floor.
+
+The production chat path (`_rerank_with_learning`) uses this same blend — it no
+longer consults only the predictor. So `ATOM_EMA_ROUTER_ENABLED=true` now
+actually steers live traffic (it previously flipped only a dashboard boolean).
+
+> **Note on `ATOM_EMA_ROUTER_ENABLED`:** this flag toggles whether the EMA term
+> contributes to scoring. EMA telemetry is **collected on every feedback** (and
+> always shown on the dashboard) regardless of the flag — the flag only governs
+> whether it influences the routing *decision*. It has no effect unless
+> `ATOM_LEARNING_ROUTER=true` is also set, because the EMA state lives in the
+> learning-router singleton that the master gate controls.
+
 ## EMA-Guided Protocol Routing (Round 48)
 
-To address potential high-variance loops in pure LLM or ML-based routing, the router supports an optional **Exponential Moving Average (EMA)** protocol routing mode, enabled by setting the environment flag:
+To address potential high-variance loops in pure ML-based routing, the router
+supports an optional **Exponential Moving Average (EMA)** signal, enabled by
+setting the environment flag:
 
 ```bash
-ATOM_EMA_ROUTER_ENABLED=true
+ATOM_EMA_ROUTER_ENABLED=true     # also requires ATOM_LEARNING_ROUTER=true
 ```
 
 ### The Mechanism
 
-When enabled, candidate re-ranking uses a running EMA of model execution performance rather than raw neural/voters predictors. For each `(tenant, task, model)` combination, the router tracks:
+When enabled, the EMA term (above) feeds the unified score. It does **not**
+replace the per-model predictors — both contribute. For each
+`(tenant, task, model)` combination the router tracks a running EMA of:
 1. **Success rate** (based on quality verification and completion signals).
 2. **Execution latency** (response speed).
 3. **Token/execution cost**.
 
-The fitness score is computed as:
+Each metric is updated with standard bias-corrected EMA:
 
-$$S_{t+1}(m, k) = \alpha \cdot \text{Score}_t(m, k) + (1 - \alpha) \cdot S_t(m, k)$$
+$$S_{t+1} = \alpha \cdot x_{t+1} + (1 - \alpha) \cdot S_t \quad\text{then divided by } 1 - (1-\alpha)^n$$
 
 Where:
-- $\alpha = 0.2$ is the smoothing weight prioritizing recent outcomes.
-- $\text{Score}_t$ is calculated dynamically from weighted combinations of success, normalized cost, and normalized latency.
+- $\alpha$ is the smoothing weight, configurable via `ATOM_EMA_ALPHA`
+  (default `0.2`). Higher = more responsive to recent outcomes; lower = more
+  stable. Valid range $(0, 1]$.
+- The $1 - (1-\alpha)^n$ divisor is **bias correction**: a freshly-seeded EMA
+  is biased toward its first sample (the recurrence weights the seed by
+  $(1-\alpha)^n$). Dividing out that factor recovers the true running mean, so
+  early values don't mis-rank models while samples accumulate.
+- `n` is the per-key sample count (now actually tracked and surfaced in the
+  dashboard — previously it was read but never written, always reporting 1).
 
-This provides zero-token overhead routing decisions based strictly on historical empirical evidence, optimizing overall workflow determinism.
+This provides zero-token-overhead routing input based strictly on historical
+empirical evidence, with the ML predictor providing the longer-horizon view.
 
 ## Relationship to the Cognitive Tier System
 
@@ -250,13 +307,22 @@ has learned works.
 
 ## EMA Protocol Telemetry & Administrative Dashboard
 
-When `ATOM_EMA_ROUTER_ENABLED=true` is active, real-time performance telemetry is exposed via `GET /api/chat/routing-stats` and rendered visually in the administrative UI at `/settings/routing`.
+Real-time performance telemetry is exposed via `GET /api/chat/routing-stats`
+and rendered visually in the administrative UI at `/settings/routing`.
 
-**Exposed Telemetry Metrics**:
+EMA telemetry is **always collected** whenever the learning router is on
+(`ATOM_LEARNING_ROUTER=true`) — every `record_feedback` updates the EMA scores,
+so the dashboard always shows them. The `ATOM_EMA_ROUTER_ENABLED` flag only
+controls whether the EMA signal influences the routing *decision* (the scoring
+blend), not whether it's gathered or displayed.
+
+**Exposed Telemetry Metrics** (keyed `{task}:{model}`, scoped to the requesting
+tenant — no cross-tenant leakage):
 - **EMA Score**: Decayed overall suitability score combining success rate, latency, and cost.
-- **Success Rate**: Exponentially decayed success ratio ($S_{t+1} = \alpha S_{\text{new}} + (1 - \alpha) S_t$).
+- **Success Rate**: Exponentially decayed success ratio ($S_{t+1} = \alpha S_{\text{new}} + (1 - \alpha) S_t$), using the same `success AND quality_satisfied` definition as the learning path.
 - **Avg Latency (ms)**: Real-time execution response latency.
-- **Avg Cost ($)**: Decayed average token expenditure per model call.
+- **Avg Cost ($)**: Decayed average per-call cost (consistent units with the observed `actual_cost`).
+- **Samples**: The per-key feedback count feeding the EMA.
 
 ---
 

@@ -141,8 +141,9 @@ Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
 
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
-| `ATOM_LEARNING_ROUTER` | `false` | — | Re-rank model candidates from observed outcomes. |
-| `ATOM_EMA_ROUTER_ENABLED` | `false` | — | EMA-smoothed router variant. |
+| `ATOM_LEARNING_ROUTER` | `false` | — | Re-rank model candidates from observed outcomes. Master gate for the learning router singleton. |
+| `ATOM_EMA_ROUTER_ENABLED` | `false` | — | When true (requires `ATOM_LEARNING_ROUTER=true`), blends an EMA (online telemetry) term into the score **alongside** the ML predictor — they are no longer mutually exclusive. EMA telemetry is always collected while the learning router is on; this flag only controls whether it influences the routing decision. Accepts `1`/`true`/`yes`/`on`. |
+| `ATOM_EMA_ALPHA` | `0.2` | — | EMA smoothing factor in (0, 1]. Higher = more responsive to recent feedback; lower = more stable. |
 | `ATOM_DAILY_BUDGET` | unset | — | Daily spend cap. |
 | `ATOM_MONTHLY_BUDGET` | unset | — | Monthly spend cap. |
 
