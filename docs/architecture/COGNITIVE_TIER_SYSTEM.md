@@ -157,6 +157,15 @@ effective_cost = (cache_hit_prob * cached_price) + ((1 - cache_hit_prob) * full_
 3. **Error Response**: Any 5xx error from provider
 4. **Low Confidence (<0.7)**: Low confidence in tier selection
 
+> **Escalation actually fires now.** `generate_with_cognitive_tier` previously
+> passed `response_quality=None` on the success path (so trigger #1 never
+> evaluated) and relied on an `except` branch that was unreachable because
+> `generate_response` returns apology strings instead of raising (so #2/#3 never
+> fired). The success path now assesses real response quality (0-100) via
+> `assess_response_quality` and passes it, and generation-failure strings are
+> detected and routed through the error branch. A truncated or low-quality
+> response now escalates to a stronger tier instead of being returned as-is.
+
 **Cooldown Logic:**
 - 5-minute cooldown after escalation
 - Prevents rapid oscillation between tiers
@@ -249,15 +258,26 @@ class EscalationLog(Base):
 
 ### Quality Score Ranges
 
-Each tier has an expected quality score range:
+Each tier has an expected quality score range. The **Min Quality** column is
+the authoritative floor used both by `_get_dynamic_tier_models` (which selects
+models in each tier's band from the `LLMModel` registry) and by BPC's
+`MIN_QUALITY_BY_TIER` (which filters BPC candidates). These two MUST agree —
+previously they didn't, so the tier service selected models in the 40-65 band
+for STANDARD while BPC's STANDARD floor of 80 then rejected them, and the two
+pipelines never composed.
 
-| Tier | Expected Quality | Min Quality | Escalation Threshold |
-|------|------------------|-------------|----------------------|
-| MICRO | 60-70 | 50 | <60 → Escalate to STANDARD |
-| STANDARD | 70-80 | 65 | <70 → Escalate to VERSATILE |
-| VERSATILE | 75-85 | 70 | <75 → Escalate to HEAVY |
-| HEAVY | 80-90 | 75 | <80 → Escalate to COMPLEX |
-| COMPLEX | 85-95 | 80 | N/A (highest tier) |
+| Tier | Quality Band | Min Quality (BPC floor) | Escalation Threshold |
+|------|--------------|------------------------|----------------------|
+| MICRO | 0-80 | 0 | <60 → Escalate to STANDARD |
+| STANDARD | 80-86 | 80 | <70 → Escalate to VERSATILE |
+| VERSATILE | 86-90 | 86 | <75 → Escalate to HEAVY |
+| HEAVY | 90-94 | 90 | <80 → Escalate to COMPLEX |
+| COMPLEX | 94-100 | 94 | N/A (highest tier) |
+
+> **`default_tier` is clamped.** A workspace `default_tier` override is now
+> clamped to `[min_tier, max_tier]` — previously it bypassed those bounds
+> entirely, so `default_tier=micro` with `max_tier=standard` routed every query
+> to micro regardless of the configured ceiling.
 
 ### Use Case Examples
 
@@ -335,10 +355,17 @@ effective_cost = (0.90 * $0.10) + (0.10 * $1.00)
 
 ### Cache Hit Prediction Algorithm
 
+The history key is a hash of **`workspace:provider:model:prompt_prefix`** (the
+first ~1k chars of the prompt), not just `workspace:provider:model`. Including
+the prompt prefix means cacheability is tracked per-prompt-shape: a cacheable
+long-context prompt no longer inflates the predicted hit rate for unrelated
+prompts on the same model. (The earlier key omitted the prompt entirely, so
+every request for a given workspace/provider/model shared one history bucket.)
+
 **Rolling Window (100 samples):**
 ```python
-def predict_cache_hit_probability(provider: str, model: str) -> float:
-    history = cache_outcomes[provider][model]  # Last 100 outcomes
+def predict_cache_hit_probability(prompt_hash: str) -> float:
+    history = cache_outcomes[prompt_hash]  # Last 100 outcomes for this key
     cache_hits = sum(1 for outcome in history if outcome.was_cached)
     return cache_hits / len(history)  # Probability 0.0-1.0
 ```

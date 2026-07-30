@@ -395,6 +395,42 @@ class BYOKHandler:
         self._embedding_initialized = False
         self._embedding_init_lock = threading.Lock()
 
+    def _provider_serves_model(self, provider_id: str, model: str) -> bool:
+        """Heuristic: does this provider's client serve this model?
+
+        Cross-provider streaming fallback previously reused the same model name
+        on every provider (e.g. asking Anthropic to serve 'gpt-4o'), which 404s
+        on most fallbacks (Bug 14). We can't know the provider's full catalog
+        without an API call, so use the model-name prefix as the signal — the
+        same heuristic BPC uses (provider id appears in the model id). Local
+        providers (ollama/vllm/lmstudio) serve arbitrary model names, so they
+        always match.
+        """
+        if not model:
+            return True
+        model_l = model.lower()
+        # Local/open providers serve whatever model name is configured.
+        if provider_id in {"ollama", "vllm", "lmstudio", "local"} or provider_id.startswith("local_"):
+            return True
+        # Provider id is a substring of the model id (e.g. 'openai' in
+        # 'gpt-4o'? no — but 'deepseek' in 'deepseek-chat', 'gemini' in
+        # 'gemini-2.5-flash', 'qwen' in 'qwen-plus'). Also handle the common
+        # family prefixes.
+        family_for_provider = {
+            "openai": ("gpt", "o1", "o3", "o4", "chatgpt"),
+            "anthropic": ("claude",),
+            "deepseek": ("deepseek",),
+            "gemini": ("gemini",),
+            "qwen": ("qwen",),
+            "moonshot": ("kimi", "moonshot"),
+            "minimax": ("minimax",),
+            "glm": ("glm", "chatglm"),
+        }
+        prefixes = family_for_provider.get(provider_id)
+        if prefixes:
+            return any(model_l.startswith(p) for p in prefixes)
+        return provider_id in model_l
+
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
         Get provider fallback order for resilience.
@@ -514,19 +550,33 @@ class BYOKHandler:
             logger.warning(f"Failed to check capabilities for {model_id}: {e}")
             return True  # Pass through on error
 
+    # Providers below this score are hard-excluded from BPC candidacy. Kept
+    # low (0.2) on purpose: a higher threshold (the old 0.5) hard-excluded
+    # borderline-healthy providers entirely rather than down-ranking them,
+    # creating a recovery deadlock — an excluded provider can't get the
+    # successful calls needed to push its score back up. Only genuinely-dead
+    # providers (score < 0.2, i.e. ~30% success at zero latency) are dropped;
+    # borderline ones remain candidates and self-correct via the sliding window.
+    _HEALTH_EXCLUDE_THRESHOLD = 0.2
+
     def _filter_by_health(self, provider_id: str) -> bool:
         """
-        Check if provider is healthy enough for routing.
+        Check if provider is healthy enough to remain a candidate.
+
+        Only critically-unhealthy providers (score < _HEALTH_EXCLUDE_THRESHOLD)
+        are excluded. Borderline providers are kept (they're effectively
+        down-ranked by the broader cost/quality scoring and self-heal via the
+        sliding window as successes accumulate).
 
         Args:
             provider_id: Provider identifier
 
         Returns:
-            True if provider is healthy (score >= 0.5) or unknown, False otherwise
+            True if provider is healthy enough or unknown, False if dead.
         """
         if provider_id not in self.health_monitor.health_scores:
-            return True  # Unknown providers pass through
-        return self.health_monitor.get_health_score(provider_id) >= 0.5
+            return True  # Unknown providers pass through (optimistic)
+        return self.health_monitor.get_health_score(provider_id) >= self._HEALTH_EXCLUDE_THRESHOLD
 
     def _model_supports_tools(self, model_id: str) -> bool:
         """
@@ -961,7 +1011,7 @@ class BYOKHandler:
             "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
             "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
             "code": (r"\b(code|coding|function|class|method|script|scripting|debug|debugging|optimize|optimization|refactor|refactoring|snippet|implementation|interface|api|endpoint|webhook|database|sql|postgresql|mongodb|redis|schema|migration|json|xml|yaml|config|docker|kubernetes|aws|lambda|gcp|azure|def|var|let|const|import|return|print|async|await|try|except|catch|throw|public|private|static|final|struct|typedef|typedefs)\b", 3),
-            "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|\bpo\b)\b", 5)
+            "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|purchase orders)\b", 5)
         }
 
         # Check for code blocks (significant weight)
@@ -1550,7 +1600,17 @@ class BYOKHandler:
                         # --- Cache Outcome Recording (Phase 68) ---
                         # Record whether the request hit the prompt cache for future predictions
                         try:
-                            prompt_hash = hashlib.sha256(f"{self.workspace_id}:{provider_id}:{model}".encode()).hexdigest()
+                            # Hash the actual prompt PREFIX (first 1k chars), not just
+                            # workspace/provider/model. The old key collapsed every request
+                            # for the same (ws, provider, model) onto one history bucket
+                            # regardless of prompt, so the cache-hit prediction was global
+                            # noise (a cacheable prompt inflated the predicted hit rate for
+                            # unrelated prompts). The prefix matches the cache providers'
+                            # own prefix-matching behavior and bounds the hash input size.
+                            _prompt_prefix = (prompt or "")[:1000]
+                            prompt_hash = hashlib.sha256(
+                                f"{self.workspace_id}:{provider_id}:{model}:{_prompt_prefix}".encode()
+                            ).hexdigest()
 
                             # Check if response usage includes caching info
                             was_cached = False
@@ -2291,6 +2351,7 @@ class BYOKHandler:
                     else:
                         messages.append({"role": "user", "content": prompt})
 
+                    _structured_start = time.time()
                     result = instructor_client.chat.completions.create(
                         model=model,
                         response_model=response_model,
@@ -2298,8 +2359,25 @@ class BYOKHandler:
                         temperature=temperature,
                         max_tokens=1000
                     )
-                    
+                    _structured_latency_ms = (time.time() - _structured_start) * 1000.0
+                    # Instructor wraps the underlying response; finish_reason
+                    # may be on the raw response. Default to "stop" only when
+                    # unavailable (the API succeeded structurally).
+                    _structured_finish = "stop"
+                    try:
+                        _raw = getattr(result, "_raw_response", None)
+                        if _raw is not None:
+                            _fr = getattr(_raw, "finish_reason", None) or getattr(
+                                getattr(_raw, "choices", [{}])[0] if getattr(_raw, "choices", None) else {},
+                                "finish_reason", None,
+                            )
+                            if _fr:
+                                _structured_finish = _fr
+                    except Exception:
+                        pass
+
                     # --- Record Usage (Phase 6.6) ---
+                    _structured_cost = None  # surfaced to the feedback call below
                     try:
                         # Instructor attaches usage to the response object metadata
                         usage = getattr(result, "_raw_response", {}).usage if hasattr(result, "_raw_response") else None
@@ -2312,6 +2390,7 @@ class BYOKHandler:
 
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+                            _structured_cost = cost
 
                             if cost and cost > 0:
                                 llm_usage_tracker.record(
@@ -2330,10 +2409,14 @@ class BYOKHandler:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
 
                     # Learning-router outcome observation (structured success).
+                    # Pass the REAL finish_reason/latency/cost so predictors can
+                    # learn "model X truncates structured output" / "model Y is
+                    # slow" — previously these were hardcoded (stop/0.0/None),
+                    # making structured-output feedback useless for learning.
                     await self._record_outcome_feedback(
                         model=model, provider_id=provider_id, task_type=task_type,
-                        content=str(result), finish_reason="stop",
-                        success=True, cost=None, latency_ms=0.0,
+                        content=str(result), finish_reason=_structured_finish,
+                        success=True, cost=_structured_cost, latency_ms=_structured_latency_ms,
                         schema_error=False,
                         routing_result_id=structured_decision_id,
                     )
@@ -2658,6 +2741,20 @@ class BYOKHandler:
                 logger.warning(f"No client available for provider: {attempt_provider_id}")
                 continue
 
+            # Skip fallback providers that don't serve this model — cross-
+            # provider streaming fallback previously retried the SAME model
+            # name on incompatible providers (e.g. 'gpt-4o' on Anthropic),
+            # which 404s and wastes the attempt (Bug 14). The requested
+            # primary provider is always tried regardless (the caller asked
+            # for it explicitly and may know something the heuristic doesn't).
+            if attempt_provider_id != provider_id and not self._provider_serves_model(
+                attempt_provider_id, model
+            ):
+                logger.debug(
+                    f"Skipping stream fallback to {attempt_provider_id}: does not serve model '{model}'"
+                )
+                continue
+
             logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
 
             try:
@@ -2688,12 +2785,29 @@ class BYOKHandler:
                 )
 
                 token_count = 0
+                # Accumulate streamed content (capped) so the outcome hook can
+                # assess real quality (truncation/refusal/empty) instead of the
+                # literal placeholder "(streamed)", which always scored 0.7 and
+                # masked truncation. Cap keeps memory bounded for long streams.
+                _stream_content_parts = []
+                _stream_content_chars = 0
+                _STREAM_CONTENT_CAP = 4000
+                _stream_finish_reason = None
                 async for chunk in stream:
                     if chunk.choices:
-                        delta = chunk.choices[0].delta
+                        choice = chunk.choices[0]
+                        delta = choice.delta
                         if hasattr(delta, 'content') and delta.content:
                             token_count += 1
+                            if _stream_content_chars < _STREAM_CONTENT_CAP:
+                                _stream_content_parts.append(delta.content)
+                                _stream_content_chars += len(delta.content)
                             yield delta.content
+                        # Capture the real finish_reason from the final chunk
+                        # (OpenAI/compatible APIs populate it on the last choice).
+                        fr = getattr(choice, "finish_reason", None)
+                        if fr:
+                            _stream_finish_reason = fr
 
                 # Record successful completion
                 if agent_execution and governance_enabled and db:
@@ -2717,9 +2831,13 @@ class BYOKHandler:
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
 
                 # Learning-router outcome observation (streaming success).
+                # Pass the accumulated content + real finish_reason so quality
+                # assessment can detect truncation/refusal/empty on streams
+                # (previously hardcoded "(streamed)"/"stop" masked all of these).
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
-                    content="(streamed)", finish_reason="stop",
+                    content="".join(_stream_content_parts),
+                    finish_reason=_stream_finish_reason or "stop",
                     success=True, cost=None, latency_ms=latency_ms,
                     routing_result_id=stream_decision_id,
                 )
