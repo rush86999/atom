@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.auth import get_current_user
 from pydantic import BaseModel
 
 from integrations.asana_service import asana_service
@@ -11,7 +12,7 @@ from integrations.jira_service import get_jira_service
 from integrations.microsoft365_service import microsoft365_service
 from integrations.zoho_projects_service import ZohoProjectsService
 
-router = APIRouter(prefix="/api/atom/projects/live", tags=["projects-live"])
+router = APIRouter(prefix="/api/atom/projects/live", tags=["projects-live"], dependencies=[Depends(get_current_user)])
 logger = logging.getLogger(__name__)
 
 # --- Data Models ---

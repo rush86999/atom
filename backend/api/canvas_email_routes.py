@@ -52,7 +52,7 @@ async def create_email_canvas(request: CreateEmailRequest, current_user: User = 
     """Create a new email canvas."""
     service = EmailCanvasService(db)
     result = service.create_email_canvas(
-        user_id=request.user_id,
+        user_id=current_user.id,
         subject=request.subject,
         recipients=request.recipients,
         canvas_id=request.canvas_id,
@@ -70,12 +70,12 @@ async def create_email_canvas(request: CreateEmailRequest, current_user: User = 
 
 
 @router.post("/{canvas_id}/message")
-async def add_message(canvas_id: str, request: AddMessageRequest, db: Session = Depends(get_db)):
+async def add_message(canvas_id: str, request: AddMessageRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add a message to an email thread."""
     service = EmailCanvasService(db)
     result = service.add_message_to_thread(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         from_email=request.from_email,
         to_emails=request.to_emails,
         subject=request.subject,
@@ -97,7 +97,7 @@ async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: Us
     service = EmailCanvasService(db)
     result = service.save_draft(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         to_emails=request.to_emails,
         cc_emails=request.cc_emails,
         subject=request.subject,
@@ -113,12 +113,12 @@ async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: Us
 
 
 @router.post("/{canvas_id}/categorize")
-async def categorize_email(canvas_id: str, request: CategorizeRequest, db: Session = Depends(get_db)):
+async def categorize_email(canvas_id: str, request: CategorizeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Categorize an email."""
     service = EmailCanvasService(db)
     result = service.categorize_email(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         category=request.category,
         color=request.color
     )
@@ -132,7 +132,7 @@ async def categorize_email(canvas_id: str, request: CategorizeRequest, db: Sessi
 
 
 @router.get("/{canvas_id}")
-async def get_email_canvas(canvas_id: str, db: Session = Depends(get_db)):
+async def get_email_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get an email canvas by ID."""
     from sqlalchemy import desc
 
