@@ -129,8 +129,9 @@ async def universal_callback(
         return HTMLResponse(content=html_content)
         
     except Exception as e:
-        logger.error(f"OAuth callback failed: {e}")
-        return HTMLResponse(content=f"<html><body>Authentication failed: {str(e)}</body></html>", status_code=500)
+        logger.error(f"OAuth callback failed: {e}", exc_info=True)
+        # Don't reflect internal error text into the response (info leak).
+        return HTMLResponse(content="<html><body>Authentication failed. Please try again.</body></html>", status_code=500)
 
 @router.get("/init")
 async def init_auth(

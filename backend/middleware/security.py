@@ -260,6 +260,15 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 
         # Check for CSRF token for state-changing requests
         if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+            # CSRF protects cookie-based auth. This app uses JWT Bearer tokens
+            # (the frontend sends Authorization: Bearer ...), which a cross-site
+            # request cannot forge, so exempt Bearer-authenticated requests.
+            # Without this exemption, activating this middleware would 403 every
+            # mutation (no token is ever issued/generated in the current app).
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                return await call_next(request)
+
             csrf_token = request.headers.get("X-CSRF-Token")
             if not csrf_token or not self._validate_csrf_token(csrf_token):
                 security_logger.warning(
