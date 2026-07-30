@@ -72,9 +72,10 @@ WORKDIR /app/backend
 ENV PYTHONPATH=/app:/app/backend
 USER atomuser
 
-# Health check — /alive is registered inline in both minimal_app.py and main_api_app.py
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/alive')" || exit 1
+# Health check — uses /health (dependency-aware: checks DB, Redis, vector store)
+# instead of /alive (always returns 200, can't detect outages).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0 if r.status==200 else 1)" || exit 1
 
 # Expose port
 EXPOSE 8000
