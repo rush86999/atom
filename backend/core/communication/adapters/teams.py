@@ -93,8 +93,8 @@ class TeamsAdapter(PlatformAdapter):
 
     async def verify_request(self, request: Request, body_bytes: bytes) -> bool:
         if not self.app_id:
-            # Check dev mode
-            if os.getenv("ENVIRONMENT") == "development":
+            # Only skip with explicit opt-in (see discord.py for rationale).
+            if os.getenv("ENVIRONMENT") == "development" and os.getenv("BYPASS_WEBHOOK_SIGNATURE") == "true":
                 return True
             return False
 

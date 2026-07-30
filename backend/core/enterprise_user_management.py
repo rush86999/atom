@@ -20,11 +20,15 @@ except ImportError:
 
 import logging
 
-from core.auth import get_password_hash
+from core.auth import get_password_hash, get_current_user
 from core.database import get_db
 from core.models import Team, User, UserRole, UserStatus, Workspace, WorkspaceStatus
 
-router = APIRouter()
+# SECURITY: every endpoint in this router manages users/workspaces/teams —
+# create, update, delete, role changes. ALL require admin auth. Previously
+# the entire router had zero auth dependencies, so any anonymous caller could
+# PATCH /api/enterprise/users/{id} {"role":"super_admin"} for full takeover.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 logger = logging.getLogger(__name__)
 
 # ==================== Pydantic Models ====================
@@ -491,6 +495,14 @@ async def update_user(
     if data.last_name is not None:
         user.last_name = data.last_name
     if data.role is not None:
+        # Allowlist: only valid roles can be set (prevents injecting arbitrary
+        # role strings even by an authenticated admin).
+        allowed_roles = {"member", "admin", "super_admin"}
+        if data.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role. Must be one of: {', '.join(allowed_roles)}"
+            )
         user.role = data.role
     if data.status is not None:
         user.status = data.status

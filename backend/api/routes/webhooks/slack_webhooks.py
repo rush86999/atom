@@ -57,18 +57,26 @@ async def slack_webhook(
         # Return 200/202 to avoid Slack retries, but log it
         return {"status": "ignored", "reason": "tenant_not_found"}
 
-    # 3. Security Verification
+    # 3. Security Verification — FAIL CLOSED.
     integration = db.query(TenantIntegration).filter(
         TenantIntegration.tenant_id == tenant_id,
         TenantIntegration.connector_id == "slack"
     ).first()
 
+    signing_secret = None
     if integration and integration.config:
         signing_secret = integration.config.get("slack_signing_secret")
-        if signing_secret:
-            if not verify_slack_webhook(body, x_slack_signature, x_slack_request_timestamp, signing_secret):
-                logger.error(f"Unauthorized Slack webhook for tenant {tenant_id}")
-                raise HTTPException(status_code=401, detail="Invalid signature")
+
+    if not signing_secret:
+        # No signing secret configured → cannot verify → reject. The old code
+        # failed open (skipped verification and dispatched the event), allowing
+        # forged Slack events.
+        logger.error(f"Slack webhook received but no signing_secret for tenant {tenant_id} — rejecting")
+        raise HTTPException(status_code=401, detail="Signing secret not configured")
+
+    if not verify_slack_webhook(body, x_slack_signature, x_slack_request_timestamp, signing_secret):
+        logger.error(f"Unauthorized Slack webhook for tenant {tenant_id}")
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
     # 4. Dispatch via Webhook Bridge
     result = await webhook_bridge.process_event(
