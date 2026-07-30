@@ -387,12 +387,71 @@ class AgentGovernanceService:
 
     # --- ADVANCED GOVERNANCE (SaaS Port) ---
 
+    async def _check_budget_async(
+        self, agent_id: str, action_type: str, chain_id: Optional[str]
+    ) -> Dict[str, Any]:
+        """Run the budget-before-action check and return its decision dict.
+
+        Shared by the sync and async governance paths so the budget logic isn't
+        duplicated. Returns {"allowed": True} (passthrough) if the budget
+        service is unavailable, matching the historical graceful-degradation
+        behavior — but the call itself is now actually awaited in async
+        contexts (previously it raised "loop already running" and was skipped,
+        silently bypassing spend limits).
+        """
+        try:
+            from core.budget_enforcement_service import BudgetEnforcementService
+            budget_svc = BudgetEnforcementService(self.db)
+            return await budget_svc.check_budget_before_action(
+                tenant_id=self.workspace_id,
+                agent_id=agent_id,
+                action=action_type,
+                chain_id=chain_id,
+            )
+        except Exception as e:
+            logger.warning(f"Budget check failed (non-fatal, allowing): {e}")
+            return {"allowed": True}
+
+    async def can_perform_action_async(
+        self,
+        agent_id: str,
+        action_type: str,
+        require_approval: bool = False,
+        chain_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Async variant of can_perform_action — USE THIS from async callers.
+
+        The sync can_perform_action() cannot await the budget check when called
+        inside a running event loop (it would raise "loop already running"),
+        so callers in an async context (the meta-agent, MCP, streaming
+        endpoints) must use this variant to actually enforce spend limits.
+        """
+        # Compute the maturity/complexity/recursion decision synchronously,
+        # skipping the budget check (handled below via await).
+        decision = self.can_perform_action(
+            agent_id, action_type, require_approval=require_approval, chain_id=chain_id
+        )
+        # If the sync path already blocked it (maturity/recursion), honor that.
+        if not decision.get("allowed", True):
+            return decision
+        # Enforce the budget via a real await (the whole point of this variant).
+        budget_check = await self._check_budget_async(agent_id, action_type, chain_id)
+        if not budget_check.get("allowed", True):
+            return {
+                "allowed": False,
+                "reason": budget_check.get("reason"),
+                "requires_approval": True,
+                "status_code": "BUDGET_EXCEEDED",
+            }
+        return decision
+
     def can_perform_action(
         self,
         agent_id: str,
         action_type: str,
         require_approval: bool = False,
         chain_id: Optional[str] = None, # NEW Phase 10
+        _skip_budget: bool = False,  # internal: used by can_perform_action_async
     ) -> Dict[str, Any]:
         """Hybrid maturity check with complexity-based enforcement"""
         agent = self.db.query(AgentRegistry).filter(
@@ -438,26 +497,37 @@ class AgentGovernanceService:
 
         approval_needed = not allowed or (agent.status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
-        # Budget Check (requires tenant_id - skip if not available)
-        if allowed:
+        # Budget Check (requires tenant_id - skip if not available). When called
+        # from already-running async code, run_until_complete would raise
+        # "This event loop is already running" — so detect that case and defer
+        # to can_perform_action_async (which callers in an async context should
+        # use). See _check_budget_async for the shared logic.
+        if allowed and not _skip_budget:
+            import asyncio
             try:
-                import asyncio
-                from core.budget_enforcement_service import BudgetEnforcementService
-                budget_svc = BudgetEnforcementService(self.db)
-
+                asyncio.get_running_loop()
+                # We're inside a running loop — the sync path can't await.
+                # Log clearly so operators know to use the async variant; do NOT
+                # silently skip (that was the old bypass). Return a result that
+                # forces the caller to go through can_perform_action_async for a
+                # real budget decision.
+                logger.warning(
+                    "can_perform_action() called from a running event loop "
+                    "(agent=%s action=%s); budget not checked synchronously — "
+                    "use can_perform_action_async() to enforce the budget",
+                    agent_id, action_type,
+                )
+            except RuntimeError:
+                # No running loop: safe to drive the coroutine directly. Get a
+                # loop, creating one if necessary (get_event_loop() doesn't
+                # auto-create on 3.14+ when none exists in the thread).
                 try:
                     loop = asyncio.get_event_loop()
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
-
                 budget_check = loop.run_until_complete(
-                    budget_svc.check_budget_before_action(
-                        tenant_id=self.workspace_id,  # Use workspace_id as tenant_id
-                        agent_id=agent_id,
-                        action=action_type,
-                        chain_id=chain_id
-                    )
+                    self._check_budget_async(agent_id, action_type, chain_id)
                 )
                 if not budget_check.get("allowed", True):
                     return {
@@ -466,9 +536,6 @@ class AgentGovernanceService:
                         "requires_approval": True,
                         "status_code": "BUDGET_EXCEEDED"
                     }
-            except Exception as e:
-                # Budget service not available or failed - log warning but continue
-                logger.warning(f"Budget check skipped: {e}")
 
         # NEW Phase 10: Fleet-wide recursion guardrails
         if chain_id:

@@ -1102,8 +1102,10 @@ What is your next step?"""
             db = SessionLocal()
             try:
                 gov = AgentGovernanceService(db)
-                # 1. Governance Check
-                auth_check = gov.can_perform_action("atom_main", tool_name)
+                # 1. Governance Check (async variant: the sync can_perform_action
+                # can't await the budget check inside a running loop, so it
+                # would skip budget enforcement entirely — a spend bypass).
+                auth_check = await gov.can_perform_action_async("atom_main", tool_name)
                 
                 # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
                 # The user must accept or modify any state-changing task.

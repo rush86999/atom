@@ -518,7 +518,9 @@ What is your next step?"""
             # 1. Governance Maturity Check
             with get_db_session() as db:
                 gov = AgentGovernanceService(db)
-                auth_check = gov.can_perform_action(self.id, tool_name)
+                # Async variant: the sync can_perform_action can't await the
+                # budget check inside a running loop (spend-limit bypass).
+                auth_check = await gov.can_perform_action_async(self.id, tool_name)
 
                 if auth_check.get("requires_human_approval"):
                     # Create HITL Action
