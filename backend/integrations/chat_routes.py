@@ -344,11 +344,30 @@ async def submit_chat_feedback(
                 quality_score=score, issues=["user_thumbs_down"],
             )
 
+        model_id = request.model or "unknown"
+
+        # Recover the REAL task_type and routing_result_id for this message by
+        # correlating with the most recent outcome feedback the BYOK hook
+        # recorded for this (tenant, model). Previously this was hardcoded to
+        # task_type="question_answering" and keyed by the chat message_id (which
+        # never matched the outcome hook's uuid), so explicit feedback landed in
+        # the wrong task bucket and never recovered prompt features (Bug 5).
+        resolved_task, resolved_id = learning_router.resolve_feedback_context(
+            CHAT_ROUTING_TENANT_KEY, model_id
+        )
+        task_type = resolved_task or "question_answering"
+        # Prefer the routing_result_id the outcome hook used (so feedback recovers
+        # the real prompt features); fall back to the chat message_id, then a
+        # fresh id. Note the id only matters for feature recovery — record_feedback
+        # degrades gracefully to task defaults when it's not found.
+        import uuid as _uuid
+        decision_id = resolved_id or request.message_id or str(_uuid.uuid4())
+
         fb = LearningBasedRouter.build_feedback(
-            routing_result_id=request.message_id,
+            routing_result_id=decision_id,
             tenant_id=CHAT_ROUTING_TENANT_KEY,
-            model_id=request.model or "unknown",
-            task_type="question_answering",  # chat path default
+            model_id=model_id,
+            task_type=task_type,
             quality=quality,
         )
         await learning_router.record_feedback(fb)

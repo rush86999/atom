@@ -1340,6 +1340,18 @@ class BYOKHandler:
             # error falls back to BPC order so the hot path never breaks.
             options = await self._rerank_with_learning(options, prompt, task_type)
 
+            # Capture the decision id minted by _rerank_with_learning (if any) in
+            # a local so EVERY provider attempt in the fallback loop below can
+            # correlate its feedback back to the same prompt features. Previously
+            # the id was consumed on the FIRST attempt (success OR failure): if
+            # the top-ranked model failed and the loop fell through to a second
+            # provider, that fallback's feedback got a random id and lost feature
+            # correlation — exactly when the predictor most needs to learn
+            # "model X fails". The features are request-level (not per-model), so
+            # one id correctly serves the whole ranked list.
+            decision_id_for_feedback = self._pending_routing_result_id
+            self._pending_routing_result_id = None
+
             # --- Phase 14.5: Coordinated Vision Logic ---
             if requires_vision:
                 # Check if the primary ranked model supports vision natively
@@ -1505,9 +1517,8 @@ class BYOKHandler:
                         model=model, provider_id=provider_id, task_type=task_type,
                         content=result, finish_reason=finish_reason,
                         success=True, cost=observed_cost, latency_ms=latency_ms,
-                        routing_result_id=self._pending_routing_result_id,
+                        routing_result_id=decision_id_for_feedback,
                     )
-                    self._pending_routing_result_id = None  # consume
 
                     # Stash the concrete model/provider so generate_completion
                     # can surface the real model (not the "auto" input) in its
@@ -1533,9 +1544,8 @@ class BYOKHandler:
                         content=None, finish_reason=None,
                         success=False, cost=None, latency_ms=latency_ms,
                         exception=attempt_err,
-                        routing_result_id=self._pending_routing_result_id,
+                        routing_result_id=decision_id_for_feedback,
                     )
-                    self._pending_routing_result_id = None  # consume
                     continue # Try next provider
             
             logger.error(f"All providers failed. Last error: {last_error}")
@@ -1752,6 +1762,47 @@ class BYOKHandler:
         except Exception as e:
             logger.debug(f"Learning-router re-rank skipped (non-fatal): {e}")
             return options
+
+    def _stash_decision_features(self, prompt: str, task_type: Optional[str]) -> Optional[str]:
+        """Stash this request's prompt features and return a decision id.
+
+        Paths that DON'T re-rank (structured output, streaming) previously
+        recorded outcome feedback with a random id, so record_feedback could
+        never recover the real prompt features — predictors for those paths
+        trained on constant task-level defaults (Bug 2). This mints a
+        routing_result_id and stashes the same 10-feature vector the predictor
+        contract expects, so feedback from these paths also trains on real
+        features. No-op (returns None) when the learning router is off or on
+        any error — callers pass the id through and feedback degrades to the
+        random-id path unchanged.
+        """
+        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+            return None
+        try:
+            from core.llm.learning_router_registry import get_learning_router_instance
+            import uuid as _uuid
+
+            learning_router = get_learning_router_instance()
+            if learning_router is None:
+                return None
+            estimated_tokens = max(1, len(prompt) // 4)
+            features = learning_router._extract_request_features(
+                type("RR", (), {
+                    "task_type": self._adapt_task_type(task_type),
+                    "estimated_tokens": estimated_tokens,
+                    "requires_reasoning": False,
+                })()
+            )
+            decision_id = str(_uuid.uuid4())
+            learning_router._routing_decisions[decision_id] = features
+            if len(learning_router._routing_decisions) > learning_router._max_routing_decisions:
+                _overflow = len(learning_router._routing_decisions) - learning_router._max_routing_decisions
+                for _stale in list(learning_router._routing_decisions.keys())[:_overflow]:
+                    del learning_router._routing_decisions[_stale]
+            return decision_id
+        except Exception as e:
+            logger.debug(f"Stash-decision-features skipped (non-fatal): {e}")
+            return None
 
     async def generate_with_cognitive_tier(
         self,
@@ -2074,6 +2125,12 @@ class BYOKHandler:
             if not options:
                 return None
 
+            # Stash prompt features for this decision so the structured-output
+            # outcome hook can recover REAL features (not task defaults) when
+            # recording feedback. The structured path doesn't re-rank, so without
+            # this its feedback trained predictors on constant features (Bug 2).
+            structured_decision_id = self._stash_decision_features(prompt, task_type)
+
             # Phase 2 hallucination mitigation — cascade state.
             # Local only; never written to ``self`` (thread-safety).
             from core.hallucination_config import (
@@ -2190,6 +2247,7 @@ class BYOKHandler:
                         content=str(result), finish_reason="stop",
                         success=True, cost=None, latency_ms=0.0,
                         schema_error=False,
+                        routing_result_id=structured_decision_id,
                     )
                     return result
                 except Exception as attempt_err:
@@ -2220,6 +2278,7 @@ class BYOKHandler:
                         success=not is_schema_err, cost=None, latency_ms=0.0,
                         schema_error=is_schema_err,
                         exception=attempt_err if not is_schema_err else None,
+                        routing_result_id=structured_decision_id,
                     )
                     # Fall through to the cascade check below (no continue).
 
@@ -2482,6 +2541,18 @@ class BYOKHandler:
         if not provider_order:
             raise ValueError(f"No available providers for streaming. Requested: {provider_id}")
 
+        # Stash prompt features for this decision so the streaming outcome hook
+        # can recover REAL features (not task defaults) when recording feedback.
+        # The streaming path doesn't re-rank, so without this its feedback
+        # trained predictors on constant features (Bug 2). Derive a prompt
+        # string from the last user message for feature extraction.
+        stream_prompt = ""
+        for _m in reversed(messages):
+            if isinstance(_m, dict) and _m.get("role") == "user":
+                stream_prompt = str(_m.get("content", ""))
+                break
+        stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
+
         # Governance tracking
         governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
         agent_execution = None
@@ -2562,6 +2633,7 @@ class BYOKHandler:
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                     content="(streamed)", finish_reason="stop",
                     success=True, cost=None, latency_ms=latency_ms,
+                    routing_result_id=stream_decision_id,
                 )
 
                 # Success! Return from the function
@@ -2583,6 +2655,7 @@ class BYOKHandler:
                     content=None, finish_reason=None,
                     success=False, cost=None, latency_ms=0.0,
                     exception=e,
+                    routing_result_id=stream_decision_id,
                 )
 
                 # If this is not the last provider, try the next one
