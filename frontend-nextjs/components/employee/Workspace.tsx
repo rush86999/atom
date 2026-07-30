@@ -27,12 +27,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
     const [terminalLogs, setTerminalLogs] = useState<string[]>(['$ atom-employee status', '> AI Employee Workspace Active']);
     const [isExecuting, setIsExecuting] = useState(false);
 
-    const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000').replace('localhost', '127.0.0.1');
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const getAuthHeaders = (): Record<string, string> => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    };
 
     const initWorkspace = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE}/api/v1/employee/workspace/init?user_id=${userId}`, {
-                method: 'POST'
+                method: 'POST',
+                headers: getAuthHeaders(),
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
@@ -57,7 +62,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
         try {
             const response = await fetch(`${API_BASE}/api/v1/employee/task`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({
                     command,
                     workspace_id: realWorkspaceId,
@@ -88,7 +93,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
         if (!confirm('Are you sure you want to reset the workspace? All logs and progress will be cleared.')) return;
         try {
             const response = await fetch(`${API_BASE}/api/v1/employee/workspace/reset?workspace_id=${realWorkspaceId}`, {
-                method: 'POST'
+                method: 'POST',
+                headers: getAuthHeaders(),
             });
             const data = await response.json();
             if (data.new_state) {
