@@ -241,7 +241,8 @@ async def get_canvas_history(
             ]
         return {"success": True, "canvas_id": canvas_id, "history": history, "count": len(history)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Canvas audit history failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve audit history")
 
 
 @router.get("/")

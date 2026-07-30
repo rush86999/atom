@@ -29,12 +29,12 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
         with get_db_session() as db:
             workspace = db.query(Workspace).filter(Workspace.satellite_api_key == api_key).first()
             if not workspace:
-                # Fallback for sk- prefix if no keys generated yet (migration path)
-                if api_key.startswith("sk-"):
-                    tenant_id = "default"
-                else:
-                    await websocket.close(code=1008, reason="Invalid API Key")
-                    return
+                # Reject unknown keys. The previous "sk-" prefix fallback
+                # authenticated ANY sk-prefixed string as the default tenant
+                # (a full auth bypass — generate_satellite_key produces exactly
+                # sk-+hex, so "sk-x" was enough to get CLI access).
+                await websocket.close(code=1008, reason="Invalid API Key")
+                return
             else:
                 tenant_id = workspace.id
 

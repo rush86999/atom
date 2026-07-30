@@ -1,10 +1,14 @@
 import logging
 from typing import Any, Dict, List
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from integrations.mcp_service import mcp_service
+from core.auth import get_current_user
 
-router = APIRouter(prefix="/api/mcp", tags=["mcp"])
+# MCP endpoints expose connected-server/tool metadata and can execute arbitrary
+# tools — they must be authenticated. Previously none of them had a
+# get_current_user dependency, allowing unauthenticated tool execution.
+router = APIRouter(prefix="/api/mcp", tags=["mcp"], dependencies=[Depends(get_current_user)])
 logger = logging.getLogger(__name__)
 
 @router.get("/servers")
