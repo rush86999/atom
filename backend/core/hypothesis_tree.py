@@ -11,7 +11,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _now_utc() -> datetime:
+    """Timezone-aware UTC now. Replaces datetime.utcnow() (deprecated in 3.12+,
+    returns naive datetimes that break arithmetic against the aware DB timestamps)."""
+    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Set
 from functools import total_ordering
@@ -101,8 +107,8 @@ class HypothesisNode:
     children: List[str] = field(default_factory=list)
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_now_utc)
+    updated_at: datetime = field(default_factory=_now_utc)
 
     # Cumulative learning linkage
     session_id: Optional[str] = None
@@ -281,8 +287,8 @@ class HypothesisTree:
     max_cost_usd: float = 0.50
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_now_utc)
+    updated_at: datetime = field(default_factory=_now_utc)
     completed_at: Optional[datetime] = None
 
     # Cumulative learning
@@ -352,7 +358,7 @@ class HypothesisTree:
         if node.parent_id and node.parent_id in self.nodes:
             self.nodes[node.parent_id].children.append(node.id)
 
-        self.updated_at = datetime.utcnow()
+        self.updated_at = _now_utc()
         return True
 
     def get_node(self, node_id: str) -> Optional[HypothesisNode]:
@@ -754,7 +760,11 @@ class WorkflowHypothesisNode(OptimizationNode):
             max(0.0, 1.0 - (self.estimated_latency_ms / 10000.0)) * 0.5
         )
 
-        return quality_score + parallelization_bonus + cost_savings_bonus + cache_bonus
+        # Clamp to the documented [0.0, 1.0] range (bonuses can push the raw
+        # sum to ~1.6). The base HypothesisNode.calculate_promise_score clamps,
+        # but this override previously didn't, leaking >1.0 values into
+        # governance metadata and BFS ranking.
+        return max(0.0, min(1.0, quality_score + parallelization_bonus + cost_savings_bonus + cache_bonus))
 
 
 @dataclass
@@ -810,13 +820,15 @@ class RoutingHypothesisNode(OptimizationNode):
         caching_bonus = 0.1 if self.caching_enabled else 0.0
         streaming_bonus = 0.05 if self.streaming_enabled else 0.0
 
-        return (
+        # Clamp to the documented [0.0, 1.0] range (bonuses can push the raw
+        # sum to ~1.10). See WorkflowHypothesisNode.calculate_promise_score.
+        return max(0.0, min(1.0, (
             quality * 0.5 +
             cost_efficiency * 0.3 +
             latency_score * 0.15 +
             caching_bonus +
             streaming_bonus
-        )
+        )))
 
 
 @dataclass

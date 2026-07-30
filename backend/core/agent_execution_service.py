@@ -159,23 +159,30 @@ async def execute_agent_chat(
 
         if agent and governance_enabled:
             try:
+                # Map to ACTUAL AgentExecution columns. Several fields used here
+                # previously (agent_name, agent_category, user_id, session_id,
+                # action_type, action_complexity, input_data, metadata) are NOT
+                # columns on the model — SQLAlchemy silently dropped them, so the
+                # audit trail lost agent/user/action/duration/output. Fold them
+                # into input_summary + metadata_json (the extensible JSON column).
                 agent_execution = AgentExecution(
                     id=execution_id,
                     agent_id=agent.id,
-                    agent_name=agent.name,
-                    agent_category=agent.category,
-                    user_id=user_id,
                     workspace_id=workspace_id,
-                    session_id=session_id,
-                    action_type="chat",
-                    action_complexity=1,
                     status="running",
-                    input_data={"message": message},
-                    metadata={
+                    triggered_by="websocket",
+                    input_summary=(message or "")[:500],
+                    metadata_json={
                         "source": "menubar",
+                        "agent_name": agent.name,
+                        "agent_category": agent.category,
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        "action_type": "chat",
+                        "action_complexity": 1,
                         "governance_check": governance_check,
-                        "resolution_context": resolution_context
-                    }
+                        "resolution_context": resolution_context,
+                    },
                 )
 
                 if db_session:
@@ -323,16 +330,23 @@ Provide helpful, concise responses. Be direct and practical."""
         if agent_execution and governance_enabled:
             try:
                 end_time = datetime.now()
-                duration_ms = (end_time - start_time).total_seconds() * 1000
+                duration_seconds = (end_time - start_time).total_seconds()
 
                 agent_execution.status = "completed"
-                agent_execution.output_data = {
-                    "response": accumulated_content,
+                # Use REAL columns (result_summary, duration_seconds,
+                # completed_at). The old output_data/duration_ms/end_time
+                # writes were no-ops (not model columns).
+                agent_execution.result_summary = (accumulated_content or "")[:500]
+                agent_execution.duration_seconds = duration_seconds
+                agent_execution.completed_at = end_time
+                # Merge output details into the extensible metadata_json.
+                _meta = agent_execution.metadata_json or {}
+                _meta["output"] = {
+                    "response": (accumulated_content or "")[:500],
                     "tokens": tokens_count,
-                    "model": "auto"
+                    "model": "auto",
                 }
-                agent_execution.duration_ms = duration_ms
-                agent_execution.end_time = end_time
+                agent_execution.metadata_json = _meta
 
                 if db_session:
                     db_session.commit()
@@ -401,7 +415,8 @@ Provide helpful, concise responses. Be direct and practical."""
             try:
                 agent_execution.status = "failed"
                 agent_execution.error_message = str(e)
-                agent_execution.end_time = datetime.now()
+                # Use the real column (completed_at, not the nonexistent end_time).
+                agent_execution.completed_at = datetime.now()
                 db_session.commit()
 
                 # Marketplace Tracking (Failure)
@@ -411,7 +426,12 @@ Provide helpful, concise responses. Be direct and practical."""
                             AgentInstallation.instantiated_agent_id == agent.id
                         ).first()
                         if installation:
-                            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                            # start_time is assigned inside the try (line ~264);
+                            # guard against it being unbound when the failure
+                            # occurred before that assignment (the old code raised
+                            # a secondary NameError that masked the root cause).
+                            _start = start_time if "start_time" in locals() else datetime.now()
+                            duration_ms = (datetime.now() - _start).total_seconds() * 1000
                             MarketplaceUsageTracker.track_usage(
                                 item_type="agent",
                                 item_id=installation.template_id,
