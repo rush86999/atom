@@ -69,9 +69,17 @@ else:
 
 ### Creating Agent Execution Records
 
+The `AgentExecution` model's real columns are: `id, agent_id, tenant_id,
+chain_id, workspace_id, status, input_summary, triggered_by, started_at,
+completed_at, duration_seconds, result_summary, error_message, metadata_json,
+human_intervention_count`. (Several earlier examples used non-existent columns
+like `output_summary`, `agent_name`, `action_type`, `input_data` — SQLAlchemy
+silently dropped those, losing the audit trail. `status` must be a valid
+`ExecutionStatus`: pending/running/completed/failed/cancelled/paused/timeout.)
+
 ```python
 from core.models import AgentExecution
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 execution = AgentExecution(
@@ -80,7 +88,10 @@ execution = AgentExecution(
     workspace_id="workspace-1",
     status="running",
     input_summary="User request: ...",
-    triggered_by="api"
+    triggered_by="api",
+    # Extra context (agent name, user, action type, etc.) goes in metadata_json,
+    # the extensible JSON column — not in non-existent dedicated columns.
+    metadata_json={"agent_name": "Researcher", "action_type": "chat"},
 )
 
 db.add(execution)
@@ -88,10 +99,17 @@ db.commit()
 
 # After completing the action
 execution.status = "completed"
-execution.output_summary = "Action completed successfully"
-execution.completed_at = datetime.now()
+execution.result_summary = "Action completed successfully"   # NOT output_summary
+execution.completed_at = datetime.now(timezone.utc)
+execution.duration_seconds = 12.4
 db.commit()
 ```
+
+> **Don't hold the DB session across the LLM stream.** Open the session for the
+> governance check + execution insert, then close it before streaming (the pool
+> is small — ~20 connections — and pinning one across a multi-second stream
+> exhausts it under modest concurrency). Re-open a fresh short-lived session
+> afterward and re-fetch the execution by id to finalize it.
 
 ### Using Canvas Tool with Governance
 

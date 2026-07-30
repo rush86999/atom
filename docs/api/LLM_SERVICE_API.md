@@ -293,6 +293,11 @@ async for token in service.stream_completion(
   provider fallback no longer asks, e.g., Anthropic to serve `gpt-4o` (which
   404s). Local providers (ollama/vllm/lmstudio) always match. The requested
   primary provider is always tried regardless.
+- **Token accounting for streaming consumers:** `stream_completion` yields text
+  fragments (chunks), not tokens. Callers that track spend/tokens (e.g.
+  `execute_agent_chat`) should estimate tokens from the accumulated content
+  (the codebase standard is ~4 chars/token), not count chunks — counting chunks
+  undercounts real tokens by ~3-10× and corrupts budget/spend tracking.
 
 ---
 
