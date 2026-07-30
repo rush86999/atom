@@ -31,6 +31,24 @@ def learning_router_enabled() -> bool:
     return os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true"
 
 
+# Truthy set is intentionally broad: the EMA scoring branch reads this flag in
+# learning_llm_router._score_candidates via the SAME set, so centralizing the
+# parse here keeps every caller (scoring, stats endpoint, dashboard) consistent
+# — previously chat_routes/stats used a "true"-only check that disagreed with
+# the {"1","true","yes","on"} set used at the scoring branch.
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def ema_router_enabled() -> bool:
+    """Whether the EMA (online telemetry) scoring path is enabled.
+
+    Note: this only takes effect when ``learning_router_enabled()`` is also
+    true — EMA scoring operates on ``_ema_scores`` state that is only updated
+    through the learning router singleton (which the master gate controls).
+    """
+    return os.getenv("ATOM_EMA_ROUTER_ENABLED", "false").lower() in _TRUTHY
+
+
 def get_learning_router_instance():
     """Return the process-wide LearningBasedRouter singleton.
 

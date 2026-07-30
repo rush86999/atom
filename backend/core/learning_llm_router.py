@@ -188,14 +188,21 @@ class LearningBasedRouter:
         self._routing_decisions: Dict[str, Dict[str, float]] = {}
         self._max_routing_decisions = 10000  # bounded (R17-2 pattern)
 
+        # EMA (online telemetry) state. Keyed "{tenant}:{task}:{model}".
+        # Updated on every record_feedback regardless of ATOM_EMA_ROUTER_ENABLED —
+        # the flag only controls whether EMA contributes to *scoring*, not whether
+        # it's collected (the dashboard always surfaces it). Bounded by
+        # _max_ema_keys (R17-2) — previously the only unbounded state store.
+        self._ema_scores: Dict[str, Dict[str, float]] = defaultdict(dict)
+        # Insertion order of EMA keys, for FIFO eviction when the cap is hit.
+        self._ema_key_order: List[str] = []
+        self._max_ema_keys = 5000  # bounded (R17-2 pattern)
+
         # Lock to prevent concurrent feedback/retrain races on shared state
         # (_preference_data, _router_cache, _per_model_routers). Without this,
         # two concurrent record_feedback calls can interleave during the
         # append→retrain window, corrupting list state.
         self._state_lock = asyncio.Lock()
-
-        # Incremental EMA performance scores tracking {tenant_id}:{task_type}:{model_id} -> {metric -> value}
-        self._ema_scores: Dict[str, Dict[str, float]] = defaultdict(dict)
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -735,6 +742,13 @@ class LearningBasedRouter:
         # Step 5: Select best model
         selected, score = scored_candidates[0]
 
+        # Clamp the score into [0, 1] before exposing it as ``confidence``.
+        # RoutingResult.confidence is documented as a 0-1 probability, but the
+        # raw score is a weighted sum plus bonuses (+0.1 long-context, +0.15
+        # tenant pref, up to +0.3 learned) that routinely exceeds 1.0 — any
+        # consumer that thresholds or displays it as a percentage gets garbage.
+        score = max(0.0, min(1.0, score))
+
         # Get alternatives (top 3)
         alternatives = [m for m, s in scored_candidates[1:4]]
 
@@ -823,35 +837,28 @@ class LearningBasedRouter:
         candidates: List[ModelSpec],
         request: RoutingRequest,
     ) -> List[Tuple[ModelSpec, float]]:
-        """Score candidates based on learned preferences and context.
+        """Score candidates by combining rule-based, learned-predictor, and
+        online-EMA signals into ONE equation.
 
-        Combines the rule-based quality/cost/speed score with a learned
-        per-model satisfaction signal. When a model has a trained predictor
-        for this tenant/task, its predicted satisfaction probability boosts
-        (or penalizes) the score — this is what makes routing decisions
-        change as feedback accumulates. Cold start (no predictor) leaves the
-        rule-based score untouched.
+        Previously this branched: if ATOM_EMA_ROUTER_ENABLED was on it returned
+        early into a separate EMA scoring path and the per-model ML predictors
+        were never consulted (the two subsystems were mutually exclusive, never
+        blended). Now both contribute to every candidate via
+        ``_combined_model_score``:
+
+          score = base (rule-based quality/cost/speed)
+                + confidence * predicted_satisfaction      # learned predictor
+                + (1 - confidence) * EMA_WEIGHT * ema_term # online telemetry
+
+        The confidence weight (PerModelRouter.confidence, 0..0.3, scales with
+        samples) implements the Hedge-style handoff: when the predictor is
+        cold-start (confidence≈0) the EMA/online signal carries the learned
+        weight; as the predictor matures it takes over and the noisier EMA
+        signal fades. The rule-based base always dominates, so new tenants see
+        no regression.
         """
         # Get learned preference weights for this task type
         weights = self._get_learned_weights(request.task_type, request.tenant_id)
-
-        # If EMA routing is enabled, route via the EMA router scoring mechanism
-        import os
-        if os.getenv("ATOM_EMA_ROUTER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
-            quality_weight = weights.get("quality", 0.4)
-            if request.requires_quality:
-                quality_weight *= 1.2
-            cost_weight = weights.get("cost", 0.3)
-            if request.budget_limit:
-                cost_weight *= 1.5
-            speed_weight = weights.get("speed", 0.2)
-            if request.max_latency_ms:
-                speed_weight *= 1.5
-            return self._score_candidates_with_ema(
-                candidates, request, weights, quality_weight, cost_weight, speed_weight
-            )
-
-        scores = []
 
         # Look up the per-model predictors for this tenant/task (may be absent).
         cache_key = f"{request.tenant_id}:{request.task_type}"
@@ -859,157 +866,288 @@ class LearningBasedRouter:
         # Pre-compute the request's prompt features once for all predictors.
         request_features = self._extract_request_features(request) if per_model else None
 
+        # Pre-compute fleet-wide normalization baselines for EMA latency/cost.
+        # Only candidates that have REAL EMA history contribute to the max, so a
+        # cold-start sibling's spec-derived fallback can't set the normalization
+        # floor (which previously clamped every observed model's score to 0).
+        ema_norm = self._ema_normalization_baselines(candidates, request)
+        # Cross-candidate max spec cost, for the base cost term (cheaper-is-
+        # better). Guarded against a uniform-cost fleet (would divide by zero).
+        max_spec_cost = max((m.cost_per_million for m in candidates), default=1.0) or 1.0
+
+        scores = []
         for model in candidates:
-            score = 0.0
-
-            # Quality component
-            quality_weight = weights.get("quality", 0.4)
-            if request.requires_quality:
-                quality_weight *= 1.2  # Boost quality importance
-            score += model.quality_score * quality_weight
-
-            # Cost component (inverse - cheaper is better)
-            cost_weight = weights.get("cost", 0.3)
-            if request.budget_limit:
-                cost_weight *= 1.5  # Boost cost importance with budget
-            # Normalize cost (lower is better)
-            max_cost = max(m.cost_per_million for m in candidates)
-            cost_score = 1.0 - (model.cost_per_million / max_cost)
-            score += cost_score * cost_weight
-
-            # Speed component
-            speed_weight = weights.get("speed", 0.2)
-            if request.max_latency_ms:
-                speed_weight *= 1.5
-            score += model.speed_score * speed_weight
-
-            # Capability matching bonus
-            if ModelCapability.LONG_CONTEXT in model.capabilities:
-                # Bonus for tasks that might need long context
-                if request.estimated_tokens > 50000:
-                    score += 0.1
-
-            # Tenant preference override
-            tenant_pref = request.user_preferences.get("preferred_model")
-            if tenant_pref and tenant_pref in model.model_name.lower():
-                score += 0.15
-
-            # Learned per-model satisfaction signal. The blend weight scales
-            # with how much data backs this predictor (see PerModelRouter.confidence),
-            # so cold-start models get zero learned influence and the rule-based
-            # score above dominates — no regression for new tenants.
-            if per_model is not None and request_features is not None:
-                satisfaction = per_model.predict_satisfaction(
-                    model.model_id, request_features
-                )
-                if satisfaction is not None:
-                    blend = per_model.confidence(model.model_id)
-                    score += blend * satisfaction
-
+            score = self._combined_model_score(
+                model,
+                request,
+                weights,
+                per_model,
+                request_features,
+                ema_norm,
+                max_spec_cost,
+            )
             scores.append((model, score))
 
         # Sort by score (descending)
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores
 
-    def _score_candidates_with_ema(
+    # Maximum weight the EMA/online term can contribute to a candidate's score.
+    # Matches PerModelRouter.confidence's default cap (0.3) so the two learned
+    # signals — predictor and EMA — are weighted on the same scale, and the
+    # rule-based base always contributes the majority of the decision.
+    _EMA_SCORE_WEIGHT = 0.3
+
+    def _ema_normalization_baselines(
+        self, candidates: List[ModelSpec], request: RoutingRequest
+    ) -> Dict[str, float]:
+        """Fleet-wide max latency/cost for normalizing EMA sub-scores.
+
+        Only candidates with REAL observed EMA history contribute. If none have
+        history (fully cold fleet), falls back to spec-derived estimates so the
+        normalization is still finite — but those estimates are converted to
+        per-call units to match observed costs (see cost unit note in
+        ``_update_ema_scores``).
+        """
+        observed_latencies = []
+        observed_costs = []
+        for model in candidates:
+            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+            ema_data = self._ema_scores.get(key, {})
+            if "latency" in ema_data:
+                observed_latencies.append(ema_data["latency"])
+            if "cost" in ema_data:
+                observed_costs.append(ema_data["cost"])
+
+        if observed_latencies:
+            max_latency = max(observed_latencies)
+        else:
+            # Fully cold fleet: derive a per-model latency estimate from the
+            # speed spec (higher speed_score -> lower latency). ~1000ms at 0.
+            max_latency = max(
+                1000.0 * (1.0 - m.speed_score + 0.1) for m in candidates
+            ) if candidates else 1.0
+        if observed_costs:
+            max_cost = max(observed_costs)
+        else:
+            # Cold fleet: convert per-million spec cost to a per-call estimate
+            # using the request's token count, so it's the same unit as the
+            # observed per-call costs that will arrive later.
+            tokens = max(1, request.estimated_tokens)
+            max_cost = max(
+                m.cost_per_million * tokens / 1_000_000.0 for m in candidates
+            ) if candidates else 1.0
+
+        if max_latency <= 0:
+            max_latency = 1.0
+        if max_cost <= 0:
+            max_cost = 1.0
+        return {"max_latency": max_latency, "max_cost": max_cost}
+
+    def _combined_model_score(
         self,
-        candidates: List[ModelSpec],
+        model: ModelSpec,
         request: RoutingRequest,
         weights: Dict[str, float],
-        quality_weight: float,
-        cost_weight: float,
-        speed_weight: float,
-    ) -> List[Tuple[ModelSpec, float]]:
-        scores = []
-        
-        # Collect EMA latency and cost for normalization across candidates
-        latencies = []
-        costs = []
-        for model in candidates:
-            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
-            ema_data = self._ema_scores.get(key, {})
-            # Use historical EMA or fall back to static spec values for norm collection
-            latencies.append(ema_data.get("latency", 1000.0 * (1.0 - model.speed_score + 0.1)))
-            costs.append(ema_data.get("cost", model.cost_per_million))
-            
-        max_latency = max(latencies) if latencies else 1.0
-        max_cost = max(costs) if costs else 1.0
-        if max_latency == 0:
-            max_latency = 1.0
-        if max_cost == 0:
-            max_cost = 1.0
-            
-        for model in candidates:
-            key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
-            ema_data = self._ema_scores.get(key, {})
-            
-            # --- Quality / Success Component ---
-            # If no history exists, use model's static quality_score
-            success_score = ema_data.get("success", model.quality_score)
-            
-            # --- Latency Component ---
-            # Lower latency is better
-            if "latency" in ema_data:
-                latency_score = 1.0 - (ema_data["latency"] / max_latency)
-                latency_score = max(0.0, min(1.0, latency_score))
-            else:
-                latency_score = model.speed_score
-                
-            # --- Cost Component ---
-            # Lower cost is better
-            if "cost" in ema_data:
-                cost_score = 1.0 - (ema_data["cost"] / max_cost)
-                cost_score = max(0.0, min(1.0, cost_score))
-            else:
-                cost_score = 1.0 - (model.cost_per_million / max_cost)
-                cost_score = max(0.0, min(1.0, cost_score))
-                
-            score = (
-                success_score * quality_weight
-                + latency_score * speed_weight
-                + cost_score * cost_weight
-            )
-            
-            # Capabilities / Preference overrides still apply
-            if ModelCapability.LONG_CONTEXT in model.capabilities and request.estimated_tokens > 50000:
+        per_model: Optional["PerModelRouter"],
+        request_features: Optional[Dict[str, float]],
+        ema_norm: Dict[str, float],
+        max_spec_cost: float,
+    ) -> float:
+        """Blend rule-based + learned-predictor + EMA signals for one model.
+
+        This is the single scoring equation shared by the route() path and
+        (via _rerank_with_learning) the production chat path, so the two no
+        longer diverge. See _score_candidates for the blend rationale.
+        """
+        score = 0.0
+
+        # --- Base: rule-based weighted sum of static quality/cost/speed ---
+        quality_weight = weights.get("quality", 0.4)
+        if request.requires_quality:
+            quality_weight *= 1.2  # Boost quality importance
+        score += model.quality_score * quality_weight
+
+        cost_weight = weights.get("cost", 0.3)
+        if request.budget_limit:
+            cost_weight *= 1.5  # Boost cost importance with budget
+        # Cross-candidate cost normalization (cheaper is better).
+        cost_score = 1.0 - (model.cost_per_million / max_spec_cost)
+        score += cost_score * cost_weight
+
+        speed_weight = weights.get("speed", 0.2)
+        if request.max_latency_ms:
+            speed_weight *= 1.5
+        score += model.speed_score * speed_weight
+
+        # Capability matching bonus
+        if ModelCapability.LONG_CONTEXT in model.capabilities:
+            if request.estimated_tokens > 50000:
                 score += 0.1
-            tenant_pref = request.user_preferences.get("preferred_model")
-            if tenant_pref and tenant_pref in model.model_name.lower():
-                score += 0.15
-                
-            scores.append((model, score))
-            
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return scores
+
+        # Tenant preference override (lower-case both sides — previously the
+        # preference itself wasn't lower-cased, so "GPT-4o" never matched
+        # "gpt-4o").
+        tenant_pref = request.user_preferences.get("preferred_model")
+        if tenant_pref and str(tenant_pref).lower() in model.model_name.lower():
+            score += 0.15
+
+        # --- Learned predictor term (confidence-weighted) ---
+        confidence = 0.0
+        if per_model is not None and request_features is not None:
+            satisfaction = per_model.predict_satisfaction(
+                model.model_id, request_features
+            )
+            if satisfaction is not None:
+                confidence = per_model.confidence(model.model_id)
+                score += confidence * satisfaction
+
+        # --- EMA / online-telemetry term ---
+        # Only when enabled. Weighted by (1 - confidence) so the online signal
+        # carries the learned weight while the predictor is cold, then hands off
+        # as the predictor matures. The EMA "quality" sub-score is a normalized
+        # blend of observed success/latency/cost (or spec fallbacks when cold).
+        from core.llm.learning_router_registry import ema_router_enabled
+
+        if ema_router_enabled():
+            ema_term = self._ema_quality_term(model, request, ema_norm)
+            if ema_term is not None:
+                score += (1.0 - confidence) * self._EMA_SCORE_WEIGHT * ema_term
+
+        return score
+
+    def _ema_quality_term(
+        self,
+        model: ModelSpec,
+        request: RoutingRequest,
+        ema_norm: Dict[str, float],
+    ) -> Optional[float]:
+        """A 0..1 quality signal for one model derived from EMA telemetry.
+
+        Returns None when there is no EMA history AND no usable spec fallback
+        (i.e. the model should get no online-signal contribution). Mirrors the
+        old _score_candidates_with_ema sub-score math but with corrected
+        normalization: latency/cost maxes come only from observed candidates
+        (see _ema_normalization_baselines), and cold-start cost is converted to
+        per-call units to match observed costs.
+        """
+        key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
+        ema_data = self._ema_scores.get(key, {})
+        has_history = bool(ema_data)
+
+        # Quality / success: observed EMA success, else static quality_score.
+        success_score = ema_data.get("success", model.quality_score)
+
+        max_latency = ema_norm["max_latency"]
+        max_cost = ema_norm["max_cost"]
+
+        # Latency: lower is better. Observed EMA, else speed spec.
+        if "latency" in ema_data:
+            latency_score = 1.0 - (ema_data["latency"] / max_latency)
+            latency_score = max(0.0, min(1.0, latency_score))
+        else:
+            latency_score = model.speed_score
+
+        # Cost: lower is better. Observed EMA (per-call $), else convert the
+        # per-million spec to a per-call estimate so units match max_cost.
+        if "cost" in ema_data:
+            cost_score = 1.0 - (ema_data["cost"] / max_cost)
+            cost_score = max(0.0, min(1.0, cost_score))
+        else:
+            tokens = max(1, request.estimated_tokens)
+            per_call_cost = model.cost_per_million * tokens / 1_000_000.0
+            cost_score = 1.0 - (per_call_cost / max_cost)
+            cost_score = max(0.0, min(1.0, cost_score))
+
+        term = (
+            success_score * 0.5
+            + latency_score * 0.3
+            + cost_score * 0.2
+        )
+        # If fully cold (no history at all), return None so the caller applies
+        # no EMA term rather than a spec-only guess.
+        return term if has_history else None
+
+    @staticmethod
+    def _ema_alpha() -> float:
+        """EMA smoothing factor, configurable via ATOM_EMA_ALPHA (default 0.2).
+
+        Valid range (0, 1]. Higher = more responsive to recent feedback; lower
+        = more stable. Clamped to avoid a degenerate 0 (no update) or >1.
+        """
+        try:
+            alpha = float(os.getenv("ATOM_EMA_ALPHA", "0.2"))
+        except (TypeError, ValueError):
+            return 0.2
+        if alpha <= 0.0:
+            return 0.2
+        return min(alpha, 1.0)
+
+    def _ema_update_metric(self, key: str, metric: str, current: float, alpha: float) -> None:
+        """Apply one EMA step to ``self._ema_scores[key][metric]``.
+
+        Includes standard bias correction: a freshly-seeded EMA is biased
+        toward its first sample (the recurrence weights the seed by
+        (1-alpha)^n), so we divide by ``1 - (1-alpha)^n`` to recover the true
+        running mean. Without this, early EMA values cluster near the first
+        observation and mis-rank models until enough samples accumulate.
+        """
+        bucket = self._ema_scores[key]
+        if metric not in bucket:
+            bucket[metric] = current
+            return
+        raw = alpha * current + (1.0 - alpha) * bucket[metric]
+        n = bucket.get("samples", 1)
+        # Bias-correction divisor (guarded: n>=1 so divisor is in (0,1]).
+        bias = 1.0 - (1.0 - alpha) ** n
+        bucket[metric] = raw / bias if bias > 0 else raw
+
+    def _ema_record_key(self, key: str) -> None:
+        """Track an EMA key for FIFO eviction, bounding _ema_scores (R17-2).
+
+        Previously _ema_scores was the only state store with no cap, so a
+        long-running process with many tenant/task/model triples leaked memory.
+        """
+        if key not in self._ema_scores:
+            self._ema_key_order.append(key)
+            overflow = len(self._ema_key_order) - self._max_ema_keys
+            if overflow > 0:
+                for stale in self._ema_key_order[:overflow]:
+                    self._ema_scores.pop(stale, None)
+                del self._ema_key_order[:overflow]
 
     def _update_ema_scores(self, feedback: RoutingFeedback) -> None:
-        """Update the Exponential Moving Average for accuracy, latency, and cost."""
+        """Update the Exponential Moving Average for success, latency, and cost.
+
+        Always increments a per-key ``samples`` counter (previously this field
+        was read by get_routing_statistics but never written, so it always
+        reported 1). Uses bias-corrected EMA so early values reflect the true
+        running mean rather than clustering near the seed.
+        """
         key = f"{feedback.tenant_id}:{feedback.task_type}:{feedback.model_id}"
-        alpha = 0.2  # Smoothing factor
-        
-        # 1. Success rate (satisfaction)
+        self._ema_record_key(key)
+        alpha = self._ema_alpha()
+        bucket = self._ema_scores[key]
+
+        # Sample counter — consumed by get_routing_statistics (and a basis for
+        # any future EMA confidence weighting).
+        bucket["samples"] = bucket.get("samples", 0) + 1
+
+        # 1. Success rate (binary: success AND quality_satisfied). This is the
+        #    target the EMA scoring path uses as its "quality" signal.
         current_success = 1.0 if (feedback.success and feedback.quality_satisfied) else 0.0
-        if "success" not in self._ema_scores[key]:
-            self._ema_scores[key]["success"] = current_success
-        else:
-            self._ema_scores[key]["success"] = alpha * current_success + (1.0 - alpha) * self._ema_scores[key]["success"]
+        self._ema_update_metric(key, "success", current_success, alpha)
 
-        # 2. Latency
+        # 2. Latency (ms). Only updated when observed — None means the caller
+        #    didn't capture it (e.g. a failure before first token).
         if feedback.actual_latency_ms is not None:
-            current_latency = float(feedback.actual_latency_ms)
-            if "latency" not in self._ema_scores[key]:
-                self._ema_scores[key]["latency"] = current_latency
-            else:
-                self._ema_scores[key]["latency"] = alpha * current_latency + (1.0 - alpha) * self._ema_scores[key]["latency"]
+            self._ema_update_metric(key, "latency", float(feedback.actual_latency_ms), alpha)
 
-        # 3. Cost
+        # 3. Cost. Note: feedback.actual_cost is a per-call dollar amount
+        #    (from estimate_cost), NOT per-million — the scoring path must keep
+        #    that unit consistent with its cold-start fallback.
         if feedback.actual_cost is not None:
-            current_cost = float(feedback.actual_cost)
-            if "cost" not in self._ema_scores[key]:
-                self._ema_scores[key]["cost"] = current_cost
-            else:
-                self._ema_scores[key]["cost"] = alpha * current_cost + (1.0 - alpha) * self._ema_scores[key]["cost"]
+            self._ema_update_metric(key, "cost", float(feedback.actual_cost), alpha)
 
     def _get_learned_weights(
         self, task_type: str, tenant_id: str
@@ -1353,7 +1491,13 @@ class LearningBasedRouter:
                 # rows are most-recent-first; keep the most recent within cap.
                 self._preference_data[key] = fbs[: self._max_preference_data_per_key]
 
-            # Process historical rows oldest-to-newest to rebuild EMA values in memory
+            # Process historical rows oldest-to-newest to rebuild EMA values in
+            # memory. This method runs synchronously at singleton init; it can't
+            # take the async ``_state_lock`` that record_feedback uses, so we
+            # rebuild against a snapshot of the rows (read above) and accept that
+            # a concurrent record_feedback during init could add a newer EMA
+            # sample that this rebuild then overwrites with historical data —
+            # acceptable because init completes before the singleton is published.
             for row in reversed(rows):
                 fb = RoutingFeedback(
                     routing_result_id=row.routing_result_id,
@@ -1606,13 +1750,16 @@ class LearningBasedRouter:
             "cached_weights": len(self._router_cache),
         }
 
-        # Calculate success rate by model
+        # Calculate success rate by model. Uses the SAME success definition as
+        # the learning path (success AND quality_satisfied) — previously this
+        # used `feedback.success` only, so the dashboard reported higher success
+        # rates than the learned signal actually reflects.
         model_stats = defaultdict(lambda: {"success": 0, "total": 0})
         for feedback_list in self._preference_data.values():
             for feedback in feedback_list:
                 if feedback.tenant_id == tenant_id:
                     model_stats[feedback.model_id]["total"] += 1
-                    if feedback.success:
+                    if feedback.success and getattr(feedback, "quality_satisfied", True):
                         model_stats[feedback.model_id]["success"] += 1
 
         stats["model_success_rates"] = {}
@@ -1622,17 +1769,34 @@ class LearningBasedRouter:
                     counts["success"] / counts["total"]
                 )
 
-        stats["ema_enabled"] = os.environ.get("ATOM_EMA_ROUTER_ENABLED", "false").lower() == "true"
-        ema_out = {}
+        # Use the centralized parse (accepts 1/true/yes/on) so this agrees with
+        # the scoring branch, not the stricter "true"-only check it used before.
+        from core.llm.learning_router_registry import ema_router_enabled
+
+        stats["ema_enabled"] = ema_router_enabled()
+        # EMA scores are keyed "{tenant}:{task}:{model}". Previously this loop
+        # collapsed every key to just model_id (parts[-1]) and wrote into a flat
+        # dict — so two task types or two tenants overwrote each other, AND it
+        # leaked every tenant's telemetry to whichever tenant called this. Now
+        # we scope to the requesting tenant and key the output by task:model so
+        # distinct (task, model) pairs don't collide.
+        ema_out: Dict[str, Dict[str, float]] = {}
         for key, data in getattr(self, "_ema_scores", {}).items():
             parts = key.split(":")
-            model_id = parts[-1] if len(parts) >= 3 else key
-            ema_out[model_id] = {
+            if len(parts) < 3:
+                continue
+            key_tenant, task_type, model_id = parts[0], parts[1], parts[2]
+            if key_tenant != tenant_id:
+                continue  # don't leak other tenants' telemetry
+            out_key = f"{task_type}:{model_id}"
+            ema_out[out_key] = {
                 "score": round(data.get("success", 0.5), 4),
                 "success_rate": round(data.get("success", 1.0), 4),
                 "avg_latency_ms": round(data.get("latency", 0.0), 2),
                 "avg_cost": round(data.get("cost", 0.0), 6),
-                "samples": data.get("samples", 1),
+                # samples is now actually incremented in _update_ema_scores;
+                # the default 0 only applies to an empty/partial bucket.
+                "samples": int(data.get("samples", 0)),
             }
         stats["ema_scores"] = ema_out
 

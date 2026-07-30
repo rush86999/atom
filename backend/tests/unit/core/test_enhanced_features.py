@@ -43,9 +43,11 @@ async def test_get_routing_statistics_includes_ema_scores(monkeypatch):
     
     stats = await router.get_routing_statistics("chat-tenant")
     assert stats["ema_enabled"] is True
-    assert "gpt-4o" in stats["ema_scores"]
-    assert stats["ema_scores"]["gpt-4o"]["samples"] == 1
-    assert stats["ema_scores"]["gpt-4o"]["avg_latency_ms"] == 120.0
+    # ema_scores are keyed "{task}:{model}" so distinct (task, model) pairs no
+    # longer collide, and scoped to the requesting tenant (no cross-tenant leak).
+    assert "question_answering:gpt-4o" in stats["ema_scores"]
+    assert stats["ema_scores"]["question_answering:gpt-4o"]["samples"] == 1
+    assert stats["ema_scores"]["question_answering:gpt-4o"]["avg_latency_ms"] == 120.0
 
 
 def test_ast_tripwire_expanded_reflection_and_js():
