@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { signIn, getSession } from 'next-auth/react';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { loginWithBackend, persistBackendToken } from '../lib/backendAuth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -26,40 +26,8 @@ export default function LoginPage() {
 
         try {
             if (isLogin) {
-                // Establish a real next-auth session via the Credentials provider.
-                // The provider's authorize() callback hits the backend /api/auth/login
-                // and returns the JWT, which next-auth stores as a proper session
-                // (so session-gated pages like /chat stop redirecting to /login).
-                const result = await signIn('credentials', {
-                    redirect: false,
-                    email: formData.email,
-                    password: formData.password,
-                });
-
-                if (!result || result.error) {
-                    throw new Error(result?.error || 'Invalid credentials');
-                }
-
-                // Mirror the backend JWT into localStorage for pages/components
-                // that read auth_token directly (agents, chat composer, etc.).
-                // Pull it from the next-auth session we just established — no
-                // second login round-trip needed (the jwt callback exposes it as
-                // backendToken).
-                try {
-                    const session = await getSession();
-                    const token = (session as any)?.backendToken;
-                    if (token) {
-                        localStorage.removeItem('atom_explicit_logout');
-                        localStorage.setItem('auth_token', token);
-                        localStorage.setItem('token', token);
-                        document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-                        document.cookie = `next-auth.session-token=${token}; path=/; max-age=86400; SameSite=Lax`;
-                    }
-                } catch (e) {
-                    // Non-fatal: the next-auth session is the source of truth.
-                    console.warn('Could not mirror token to localStorage:', e);
-                }
-
+                const data = await loginWithBackend(formData.email, formData.password);
+                persistBackendToken(data.access_token);
                 router.push('/dashboard');
             } else {
                 // Register
@@ -78,18 +46,7 @@ export default function LoginPage() {
 
                 const data = await response.json();
                 console.log("Register Success. Token:", data.access_token);
-                localStorage.removeItem('atom_explicit_logout');
-                localStorage.setItem('auth_token', data.access_token);
-                localStorage.setItem('token', data.access_token);
-                document.cookie = `auth_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-
-                // Establish a next-auth session for the freshly registered user.
-                await signIn('credentials', {
-                    redirect: false,
-                    email: formData.email,
-                    password: formData.password,
-                });
+                persistBackendToken(data.access_token);
                 router.push('/dashboard');
             }
         } catch (err: any) {
@@ -231,6 +188,5 @@ export default function LoginPage() {
         </div>
     );
 }
-
 
 

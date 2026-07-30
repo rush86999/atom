@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { GetServerSideProps } from "next";
 import { useToast } from "@/components/ui/use-toast";
+import { loginWithBackend, persistBackendToken } from "@/lib/backendAuth";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -32,35 +33,26 @@ export default function SignIn() {
     setError("");
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        totp_code: totpCode,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        if (result.error === "2FA_REQUIRED" || result.error.includes("2FA_REQUIRED")) {
-          setIsTwoFactorRequired(true);
-          setError("");
-        } else if (result.error === "INVALID_2FA_CODE" || result.error.includes("INVALID_2FA_CODE")) {
-          setError("Invalid 2FA code. Please try again.");
-          setTotpCode("");
-        } else {
-          setError("Invalid email or password");
-        }
-      } else if (!result?.ok) {
-        setError("Authentication failed");
-      } else {
-        toast({
-          title: "Successfully signed in!",
-          variant: "success",
-        });
-        localStorage.removeItem('atom_explicit_logout');
-        router.push("/dashboard");
+      const data = await loginWithBackend(email, password, totpCode);
+      if (data.two_factor_required) {
+        setIsTwoFactorRequired(true);
+        setError("");
+        return;
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
+
+      persistBackendToken(data.access_token);
+      toast({
+        title: "Successfully signed in!",
+        variant: "success",
+      });
+      router.push("/dashboard");
+    } catch (err: any) {
+      if (err.message === "Invalid 2FA code") {
+        setError("Invalid 2FA code. Please try again.");
+        setTotpCode("");
+      } else {
+        setError(err.message || "Invalid email or password");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -205,5 +197,4 @@ export default function SignIn() {
     </div>
   );
 }
-
 
