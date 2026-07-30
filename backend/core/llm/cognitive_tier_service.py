@@ -97,46 +97,50 @@ class CognitiveTierService:
 
         # Priority 3: Apply preference constraints
         if preference:
+            # Shared tier ordering for min/max clamping.
+            tier_order = [
+                CognitiveTier.MICRO,
+                CognitiveTier.STANDARD,
+                CognitiveTier.VERSATILE,
+                CognitiveTier.HEAVY,
+                CognitiveTier.COMPLEX,
+            ]
+
+            def _clamp(tier: CognitiveTier) -> CognitiveTier:
+                """Clamp ``tier`` to the configured [min_tier, max_tier] window."""
+                idx = tier_order.index(tier)
+                if preference.min_tier:
+                    try:
+                        min_idx = tier_order.index(CognitiveTier(preference.min_tier))
+                        if idx < min_idx:
+                            idx = min_idx
+                    except ValueError:
+                        logger.warning(f"Invalid min_tier in preference: {preference.min_tier}")
+                if preference.max_tier:
+                    try:
+                        max_idx = tier_order.index(CognitiveTier(preference.max_tier))
+                        if idx > max_idx:
+                            idx = max_idx
+                    except ValueError:
+                        logger.warning(f"Invalid max_tier in preference: {preference.max_tier}")
+                return tier_order[idx]
+
             # Apply min_tier constraint
             if preference.min_tier:
-                try:
-                    min_tier = CognitiveTier(preference.min_tier)
-                    tier_order = [
-                        CognitiveTier.MICRO,
-                        CognitiveTier.STANDARD,
-                        CognitiveTier.VERSATILE,
-                        CognitiveTier.HEAVY,
-                        CognitiveTier.COMPLEX,
-                    ]
-                    classified_index = tier_order.index(classified_tier)
-                    min_index = tier_order.index(min_tier)
-                    if classified_index < min_index:
-                        classified_tier = min_tier
-                except ValueError:
-                    logger.warning(f"Invalid min_tier in preference: {preference.min_tier}")
+                classified_tier = _clamp(classified_tier)
 
             # Apply max_tier constraint
             if preference.max_tier:
-                try:
-                    max_tier = CognitiveTier(preference.max_tier)
-                    tier_order = [
-                        CognitiveTier.MICRO,
-                        CognitiveTier.STANDARD,
-                        CognitiveTier.VERSATILE,
-                        CognitiveTier.HEAVY,
-                        CognitiveTier.COMPLEX,
-                    ]
-                    classified_index = tier_order.index(classified_tier)
-                    max_index = tier_order.index(max_tier)
-                    if classified_index > max_index:
-                        classified_tier = max_tier
-                except ValueError:
-                    logger.warning(f"Invalid max_tier in preference: {preference.max_tier}")
+                classified_tier = _clamp(classified_tier)
 
-            # Apply default_tier override from preference
+            # Apply default_tier override from preference. Previously this
+            # returned the raw default_tier, bypassing the min/max clamps above
+            # — so a workspace with default_tier=micro and max_tier=standard
+            # got micro for every query, defeating classification AND ignoring
+            # the bounds. Now the override is clamped too.
             if preference.default_tier:
                 try:
-                    return CognitiveTier(preference.default_tier)
+                    return _clamp(CognitiveTier(preference.default_tier))
                 except ValueError:
                     logger.warning(f"Invalid default_tier in preference: {preference.default_tier}")
 
@@ -257,7 +261,7 @@ class CognitiveTierService:
         elif model.startswith("gemini"):
             return "gemini"
         elif model.startswith("qwen"):
-            return "moonshot"
+            return "qwen"
         elif model.startswith("minimax"):
             return "minimax"
         elif model.startswith("glm"):
