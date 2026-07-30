@@ -78,12 +78,14 @@ const RoutingDashboardPage: React.FC = () => {
                         <CardContent className="flex items-start gap-3 pt-6">
                             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                             <div>
-                                <p className="font-medium text-amber-900">Learning &amp; EMA Routers are off</p>
+                                <p className="font-medium text-amber-900">Learning Router is off</p>
                                 <p className="text-sm text-amber-700 mt-1">
-                                    Adaptive routing is currently disabled. Enable ML predictors via
+                                    Adaptive routing is currently disabled. Enable the learning router via
                                     <code className="mx-1 px-1 py-0.5 rounded bg-amber-100">ATOM_LEARNING_ROUTER=true</code>
-                                    or real-time telemetry via
-                                    <code className="mx-1 px-1 py-0.5 rounded bg-amber-100">ATOM_EMA_ROUTER_ENABLED=true</code>.
+                                    to re-rank candidates from observed outcomes, and optionally blend in
+                                    real-time EMA telemetry with
+                                    <code className="mx-1 px-1 py-0.5 rounded bg-amber-100">ATOM_EMA_ROUTER_ENABLED=true</code>
+                                    (both contribute to the same score).
                                 </p>
                             </div>
                         </CardContent>
@@ -132,9 +134,13 @@ const RoutingDashboardPage: React.FC = () => {
                             <Activity className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{emaEnabled ? 'Active' : 'Off'}</div>
+                            <div className="text-2xl font-bold">{emaEnabled ? 'Blended' : (enabled ? 'Collected' : 'Off')}</div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {emaEnabled ? 'Real-time latency &amp; cost decay' : 'ATOM_EMA_ROUTER_ENABLED=false'}
+                                {emaEnabled
+                                    ? 'Real-time signal blended into scoring'
+                                    : (enabled
+                                        ? 'Collected; enable ATOM_EMA_ROUTER_ENABLED to blend'
+                                        : 'ATOM_EMA_ROUTER_ENABLED=false')}
                             </p>
                         </CardContent>
                     </Card>
