@@ -103,6 +103,25 @@ async def register_provider(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Register a new local model provider."""
+    # SSRF guard: base_url must be http(s) and not target private/loopback
+    # addresses (169.254.169.254 metadata, localhost, internal services).
+    from urllib.parse import urlparse
+    import ipaddress
+    parsed = urlparse(request.base_url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="base_url must be http or https")
+    hostname = parsed.hostname or ""
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(
+                status_code=400,
+                detail="base_url must not point to a private, loopback, or link-local address",
+            )
+    except ValueError:
+        # hostname is a DNS name, not an IP — allow (DNS rebinding is a
+        # residual risk but blocking all DNS names would break legitimate use).
+        pass
     ws_id = current_user.workspace_id or "default"
     provider = LocalModelProvider(
         workspace_id=ws_id,

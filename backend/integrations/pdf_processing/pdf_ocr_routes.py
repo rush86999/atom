@@ -3,6 +3,11 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
+try:
+    from backend.core.auth import get_current_user
+except ImportError:
+    from core.auth import get_current_user
+
 # BYOK Integration
 try:
     from backend.core.byok_endpoints import get_byok_manager
@@ -163,12 +168,27 @@ async def process_pdf_from_url(
         True, description="Use BYOK for provider optimization"
     ),
     byok_manager=Depends(get_byok_manager_dependency),
+    current_user=Depends(get_current_user),
 ):
     """
     Process a PDF from a URL with optional OCR and image comprehension.
     """
     try:
         import httpx
+        from urllib.parse import urlparse
+        import ipaddress
+
+        # SSRF guard: block private/loopback/link-local URLs.
+        parsed = urlparse(pdf_url)
+        if parsed.scheme not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="URL must be http or https")
+        hostname = parsed.hostname or ""
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                raise HTTPException(status_code=400, detail="URL must not point to a private/internal address")
+        except ValueError:
+            pass  # DNS name — allow
 
         # Download PDF from URL
         async with httpx.AsyncClient() as client:

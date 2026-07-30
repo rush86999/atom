@@ -5,15 +5,21 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 try:
     from backend.core.lancedb_handler import get_lancedb_handler
 except ImportError:
-    # Fallback for when imported from main API context
     from core.lancedb_handler import get_lancedb_handler
+
+try:
+    from backend.core.auth import get_current_user, User
+except ImportError:
+    from core.auth import get_current_user, User
 
 from .pdf_memory_integration import PDFMemoryIntegration
 
 logger = logging.getLogger(__name__)
 
-# Initialize router
-router = APIRouter(prefix="/pdf-memory", tags=["PDF Memory"])
+# All PDF memory endpoints read/write user-attributed documents — they must be
+# authenticated. Previously none had auth (any user_id was accepted from the
+# request body, an IDOR + filter-injection vector).
+router = APIRouter(prefix="/pdf-memory", tags=["PDF Memory"], dependencies=[Depends(get_current_user)])
 
 # Global service instance
 _pdf_memory_service: Optional[PDFMemoryIntegration] = None

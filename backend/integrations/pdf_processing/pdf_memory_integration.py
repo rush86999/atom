@@ -463,16 +463,18 @@ class PDFMemoryIntegration:
         try:
             table = self.lancedb_handler.get_table(self.table_name)
 
-            # Build filter expression
-            filter_expr = f"user_id = '{user_id}'"
+            # Build filter expression — ESCAPE user_id and filter values to
+            # prevent filter-expression injection via LanceDB's SQL-like syntax.
+            safe_user_id = str(user_id).replace("'", "''")
+            filter_expr = f"user_id = '{safe_user_id}'"
             if filters:
                 if filters.get("pdf_type"):
-                    filter_expr += f" AND pdf_type = '{filters['pdf_type']}'"
+                    safe_type = str(filters["pdf_type"]).replace("'", "''")
+                    filter_expr += f" AND pdf_type = '{safe_type}'"
                 if filters.get("tags"):
-                    # Robust array handling for tags using LanceDB collection membership
                     tag_list = filters["tags"]
                     if isinstance(tag_list, list):
-                        tag_conditions = [f"'{tag}' IN tags" for tag in tag_list]
+                        tag_conditions = [f"'{str(t).replace(chr(39), chr(39)+chr(39))}' IN tags" for t in tag_list]
                         filter_expr += f" AND ({' OR '.join(tag_conditions)})"
 
             # Perform semantic search

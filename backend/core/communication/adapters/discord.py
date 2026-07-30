@@ -31,8 +31,12 @@ class DiscordAdapter(PlatformAdapter):
 
     async def verify_request(self, request: Request, body_bytes: bytes) -> bool:
         if not self.verify_key:
-            if os.getenv("ENVIRONMENT") == "development":
-                logger.warning("DISCORD_PUBLIC_KEY not set, skipping verification (DEV ONLY)")
+            # Only skip verification with an EXPLICIT opt-in (matching the
+            # pattern in core/webhook_security.py). The old code skipped
+            # verification whenever ENVIRONMENT=="development" — which is the
+            # DEFAULT — so forged Discord webhooks were accepted out of the box.
+            if os.getenv("ENVIRONMENT") == "development" and os.getenv("BYPASS_WEBHOOK_SIGNATURE") == "true":
+                logger.warning("DISCORD_PUBLIC_KEY not set, skipping verification (explicit DEV bypass)")
                 return True
             return False
 
