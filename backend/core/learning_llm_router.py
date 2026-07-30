@@ -752,17 +752,18 @@ class LearningBasedRouter:
         # Get alternatives (top 3)
         alternatives = [m for m, s in scored_candidates[1:4]]
 
-        routing_time = datetime.now(timezone.utc)
-        elapsed_ms = (routing_time - start_time).total_seconds() * 1000
-        routing_time_ms = elapsed_ms
-
         result = self._create_routing_result(
             selected,
             request,
             score,
             self._generate_reasoning(selected, request, score),
             alternatives,
-            routing_time_ms,
+            # _create_routing_result treats this arg as an absolute start
+            # timestamp and computes elapsed = now - start_ms. The two fallback
+            # paths above pass `start_ms` correctly; this success path
+            # previously passed an *elapsed* value, yielding routing_time_ms ≈
+            # 1.7e12 (current epoch in ms). Pass the start timestamp instead.
+            start_ms,
         )
 
         logger.info(
@@ -1084,23 +1085,31 @@ class LearningBasedRouter:
         return min(alpha, 1.0)
 
     def _ema_update_metric(self, key: str, metric: str, current: float, alpha: float) -> None:
-        """Apply one EMA step to ``self._ema_scores[key][metric]``.
+        """Apply one bias-corrected EMA step to ``self._ema_scores[key][metric]``.
 
-        Includes standard bias correction: a freshly-seeded EMA is biased
-        toward its first sample (the recurrence weights the seed by
-        (1-alpha)^n), so we divide by ``1 - (1-alpha)^n`` to recover the true
-        running mean. Without this, early EMA values cluster near the first
-        observation and mis-rank models until enough samples accumulate.
+        Tracks a PER-METRIC sample count (``{metric}_n``) for the bias
+        correction, not the key-total ``samples``. latency/cost are only
+        updated when those fields are present in feedback, so using the
+        key-total would over-correct sparsely-reported metrics (a key with 100
+        rows but 5 latency observations would divide the 2nd latency EMA by a
+        divisor computed from n=100, grossly distorting avg_latency).
+
+        Bias correction: a freshly-seeded EMA is biased toward its first sample
+        (the recurrence weights the seed by (1-alpha)^n), so we divide by
+        ``1 - (1-alpha)^n`` to recover the true running mean.
         """
         bucket = self._ema_scores[key]
-        if metric not in bucket:
+        n_key = f"{metric}_n"
+        n = bucket.get(n_key, 0)
+        if n == 0:
+            # First observation for this metric: seed, no correction needed.
             bucket[metric] = current
+            bucket[n_key] = 1
             return
         raw = alpha * current + (1.0 - alpha) * bucket[metric]
-        n = bucket.get("samples", 1)
-        # Bias-correction divisor (guarded: n>=1 so divisor is in (0,1]).
-        bias = 1.0 - (1.0 - alpha) ** n
+        bias = 1.0 - (1.0 - alpha) ** (n + 1)
         bucket[metric] = raw / bias if bias > 0 else raw
+        bucket[n_key] = n + 1
 
     def _ema_record_key(self, key: str) -> None:
         """Track an EMA key for FIFO eviction, bounding _ema_scores (R17-2).
@@ -1444,6 +1453,43 @@ class LearningBasedRouter:
             actual_latency_ms=actual_latency_ms,
         )
 
+    def resolve_feedback_context(
+        self, tenant_id: str, model_id: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Recover the real (task_type, routing_result_id) for an explicit-feedback event.
+
+        Explicit chat feedback (thumbs up/down) arrives knowing only the model
+        and message id — not the task type the orchestrator actually classified
+        the prompt as, nor the routing_result_id the outcome hook stashed. Without
+        this, explicit feedback was hardcoded to ``task_type="question_answering"``
+        and keyed by the chat message_id (which never matched the outcome hook's
+        uuid), so it landed in the wrong task bucket and never recovered prompt
+        features (Bug 5).
+
+        This looks up the most recent outcome feedback recorded for this
+        ``(tenant, model)`` and returns its task_type + routing_result_id, so the
+        explicit signal aggregates with the auto-recorded outcome. Best-effort:
+        returns (None, None) if no prior outcome exists (caller falls back to
+        the question_answering default + a fresh id).
+        """
+        try:
+            with get_db_session() as db:
+                row = (
+                    db.query(LLMRoutingFeedback)
+                    .filter(
+                        LLMRoutingFeedback.tenant_id == tenant_id,
+                        LLMRoutingFeedback.model_id == model_id,
+                    )
+                    .order_by(LLMRoutingFeedback.created_at.desc())
+                    .first()
+                )
+            if row is None:
+                return None, None
+            return row.task_type, row.routing_result_id
+        except Exception as e:
+            logger.debug(f"resolve_feedback_context failed (non-fatal): {e}")
+            return None, None
+
     def load_feedback_from_db(self, tenant_id: Optional[str] = None) -> int:
         """Hydrate ``_preference_data`` from the DB so learned data survives restarts.
 
@@ -1743,9 +1789,16 @@ class LearningBasedRouter:
         stats = {
             "tenant_id": tenant_id,
             "total_models": len(self._model_registry),
+            # Count per-ROW by tenant (consistent with model_success_rates
+            # below). Previously this keyed on v[0].tenant_id — only the most
+            # recent feedback in each bucket — so if that one row belonged to a
+            # different tenant, the whole bucket (including this tenant's rows)
+            # was dropped from the count, underreporting feedback_samples.
             "feedback_samples": sum(
-                len(v) for v in self._preference_data.values()
-                if v and v[0].tenant_id == tenant_id
+                1
+                for feedback_list in self._preference_data.values()
+                for feedback in feedback_list
+                if feedback.tenant_id == tenant_id
             ),
             "cached_weights": len(self._router_cache),
         }
