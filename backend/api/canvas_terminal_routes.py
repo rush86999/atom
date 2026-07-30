@@ -34,7 +34,7 @@ async def create_terminal_canvas(request: CreateTerminalRequest, current_user: U
     """Create a new terminal canvas."""
     service = TerminalCanvasService(db)
     result = service.create_terminal_canvas(
-        user_id=request.user_id,
+        user_id=current_user.id,
         command=request.command,
         canvas_id=request.canvas_id,
         agent_id=request.agent_id,
@@ -59,7 +59,7 @@ async def add_output(canvas_id: str, request: AddOutputRequest, current_user: Us
     service = TerminalCanvasService(db)
     result = service.add_output(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         command=request.command,
         output=request.output,
         exit_code=request.exit_code
@@ -78,7 +78,7 @@ async def add_output(canvas_id: str, request: AddOutputRequest, current_user: Us
 
 
 @router.get("/{canvas_id}")
-async def get_terminal_canvas(canvas_id: str, db: Session = Depends(get_db)):
+async def get_terminal_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get a terminal canvas."""
     from sqlalchemy import desc
 

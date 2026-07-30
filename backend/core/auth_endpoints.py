@@ -19,6 +19,7 @@ from core.auth import (
 )
 from core.config import get_config
 from core.database import get_db
+from core.security.auth_rate_limit import login_rate_limit, register_rate_limit
 from core.email_utils import send_smtp_email
 from core.models import (
     AuditEventType,
@@ -64,7 +65,8 @@ class LoginRequest(BaseModel):
 async def login_for_access_token(
     request: Request,
     login_data: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(login_rate_limit),
 ):
     import traceback
     from fastapi.responses import JSONResponse
@@ -166,7 +168,7 @@ async def login_for_access_token(
         )
 
 @router.post("/register", response_model=Token)
-async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
+async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _rl=Depends(register_rate_limit)):
     # Check if user exists
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -177,7 +179,12 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         hashed_password=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        role=user_data.role or "member",
+        # SECURITY: ignore the client-supplied role entirely. Self-registration
+        # must always create a plain "member"; elevated roles (admin,
+        # super_admin) are only grantable by an existing admin via the admin
+        # API. Previously `role` was taken verbatim from the request body, so
+        # POST /register {"role":"super_admin"} granted full platform takeover.
+        role="member",
         status=UserStatus.ACTIVE
     )
 

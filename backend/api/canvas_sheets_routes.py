@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.canvas_sheets_service import SpreadsheetCanvasService
 from core.database import get_db
+from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
-router = BaseAPIRouter(prefix="/api/canvas/sheets", tags=["canvas_sheets"])
+# All canvas-sheets endpoints create/read user-attributed spreadsheets — they
+# must be authenticated. Previously none had auth.
+router = BaseAPIRouter(prefix="/api/canvas/sheets", tags=["canvas_sheets"], dependencies=[Depends(get_current_user)])
 
 
 class CreateSpreadsheetRequest(BaseModel):
@@ -39,11 +42,11 @@ class AddChartRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_spreadsheet(request: CreateSpreadsheetRequest, db: Session = Depends(get_db)):
+async def create_spreadsheet(request: CreateSpreadsheetRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Create a new spreadsheet canvas."""
     service = SpreadsheetCanvasService(db)
     result = service.create_spreadsheet_canvas(
-        user_id=request.user_id,
+        user_id=current_user.id,
         title=request.title,
         data=request.data,
         canvas_id=request.canvas_id,
@@ -61,12 +64,12 @@ async def create_spreadsheet(request: CreateSpreadsheetRequest, db: Session = De
 
 
 @router.put("/{canvas_id}/cell")
-async def update_cell(canvas_id: str, request: UpdateCellRequest, db: Session = Depends(get_db)):
+async def update_cell(canvas_id: str, request: UpdateCellRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Update a cell value."""
     service = SpreadsheetCanvasService(db)
     result = service.update_cell(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         cell_ref=request.cell_ref,
         value=request.value,
         cell_type=request.cell_type,
@@ -82,12 +85,12 @@ async def update_cell(canvas_id: str, request: UpdateCellRequest, db: Session = 
 
 
 @router.post("/{canvas_id}/chart")
-async def add_chart(canvas_id: str, request: AddChartRequest, db: Session = Depends(get_db)):
+async def add_chart(canvas_id: str, request: AddChartRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add a chart to the spreadsheet."""
     service = SpreadsheetCanvasService(db)
     result = service.add_chart(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        user_id=current_user.id,
         chart_type=request.chart_type,
         data_range=request.data_range,
         title=request.title

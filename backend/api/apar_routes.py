@@ -13,7 +13,9 @@ from pydantic import BaseModel
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
 
-router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"])
+# All AP/AR endpoints create/approve invoices, mark paid, and serve invoice
+# PDFs — they must be authenticated. Previously only /ar/generate had auth.
+router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"], dependencies=[Depends(get_current_user)])
 
 class APIntakeRequest(BaseModel):
     vendor: str

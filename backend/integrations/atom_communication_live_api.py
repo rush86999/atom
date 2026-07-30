@@ -2,7 +2,8 @@ import asyncio
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from core.auth import get_current_user
 
 # Import Services (Lazy load or direct import depending on architecture)
 # For now, we import directly but handle missing dependencies gracefully
@@ -40,7 +41,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/atom/communication/live", tags=["communication-live"])
+router = APIRouter(prefix="/api/atom/communication/live", tags=["communication-live"], dependencies=[Depends(get_current_user)])
 
 # --- Unified Data Models ---
 

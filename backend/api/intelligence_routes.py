@@ -86,7 +86,7 @@ async def get_entities(type: Optional[str] = None, platform: Optional[str] = Non
         raise router.internal_error("Internal error")
 
 @router.post("/refresh")
-async def refresh_intelligence():
+async def refresh_intelligence(current_user: User = Depends(get_current_user)):
     """
     Manually trigger a cross-platform data ingestion and analysis.
     Syncs data from all connected integrations into their respective dashboards.

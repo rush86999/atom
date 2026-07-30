@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.auth import get_current_user
 from pydantic import BaseModel
 
 from integrations.microsoft365_service import microsoft365_service
@@ -18,7 +19,7 @@ except ImportError:
 from integrations.xero_service import XeroService
 from integrations.zoho_books_service import ZohoBooksService
 
-router = APIRouter(prefix="/api/atom/finance/live", tags=["finance-live"])
+router = APIRouter(prefix="/api/atom/finance/live", tags=["finance-live"], dependencies=[Depends(get_current_user)])
 logger = logging.getLogger(__name__)
 
 # --- Data Models ---

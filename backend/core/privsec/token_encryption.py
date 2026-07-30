@@ -97,17 +97,17 @@ def get_encryption_key() -> bytes:
     key_str = os.getenv("BYOK_ENCRYPTION_KEY")
 
     if not key_str:
-        # Generate random key for development (NOT for production)
+        # Generate random key for development (NOT for production).
+        # WARNING: the key is NOT logged — logging it would let anyone with log
+        # access decrypt every stored token. The old code wrote the key to the
+        # logs via `extra={"generated_key": key_str}`, which is a secrets leak.
         logger.warning(
             "BYOK_ENCRYPTION_KEY not configured - generating temporary key. "
+            "Tokens encrypted with this key will be UNDECIPHERABLE after restart. "
             "Set BYOK_ENCRYPTION_KEY environment variable for production use.",
             extra={"security_warning": True}
         )
         key_str = generate_encryption_key()
-        logger.info(
-            "Generated temporary encryption key - save this for future use",
-            extra={"generated_key": key_str, "security_note": "Save this key!"}
-        )
 
     # Validate key format
     if not validate_encryption_key(key_str):

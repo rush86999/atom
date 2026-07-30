@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.auth import get_current_user
 from pydantic import BaseModel
 
 from core.token_storage import token_storage
@@ -12,7 +13,7 @@ from integrations.microsoft365_service import microsoft365_service
 from integrations.salesforce_service import SalesforceService, create_client_with_token
 from integrations.zoho_crm_service import ZohoCRMService
 
-router = APIRouter(prefix="/api/atom/sales/live", tags=["sales-live"])
+router = APIRouter(prefix="/api/atom/sales/live", tags=["sales-live"], dependencies=[Depends(get_current_user)])
 logger = logging.getLogger(__name__)
 
 # --- Data Models ---
