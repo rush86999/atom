@@ -1673,23 +1673,54 @@ class BYOKHandler:
                 })()
             )
 
-            # Score each candidate by learned satisfaction, blended by confidence.
-            # Candidates without a predictor keep their BPC-implied position
-            # (score 0 so they sort below learned-favored models but above none).
+            # Score each candidate by the SAME blend the route() path uses:
+            # a learned per-model satisfaction term (confidence-weighted) PLUS,
+            # when ATOM_EMA_ROUTER_ENABLED, an EMA/online-telemetry term weighted
+            # by (1 - confidence). Previously this live path only ever consulted
+            # the predictor and ignored EMA entirely, so the EMA flag had zero
+            # effect on production routing. Now EMA drives re-ranking during
+            # cold-start (no/weak predictor) and hands off as predictors mature.
+            from core.llm.learning_router_registry import ema_router_enabled
+
+            use_ema = ema_router_enabled()
+            tenant = self.tenant_id or "default"
+            task = self._adapt_task_type(task_type)
+            ema_weight = getattr(learning_router, "_EMA_SCORE_WEIGHT", 0.3)
+
             scored = []
             learned_any = False
             for idx, (provider_id, model) in enumerate(options):
                 satisfaction = per_model.predict_satisfaction(model, features)
                 if satisfaction is None:
-                    # No predictor for this model — keep BPC order via a small
-                    # negative score so it sorts after learned-positive models.
-                    scored.append((-(idx * 0.001), provider_id, model))
+                    # No predictor for this model.
+                    confidence = 0.0
+                    pred_term = 0.0
                 else:
-                    blend = per_model.confidence(model)
-                    score = blend * satisfaction
-                    scored.append((score, provider_id, model))
-                    if blend > 0:
+                    confidence = per_model.confidence(model)
+                    pred_term = confidence * satisfaction
+                    if confidence > 0:
                         learned_any = True
+
+                # EMA / online term. Even when the predictor is cold
+                # (confidence≈0), observed telemetry can still steer ranking.
+                ema_term = 0.0
+                if use_ema:
+                    ema_key = f"{tenant}:{task}:{model}"
+                    ema_data = learning_router._ema_scores.get(ema_key, {})
+                    # success is the EMA of (success AND quality_satisfied), in
+                    # [0,1]. Missing history -> no EMA contribution for this model.
+                    if "success" in ema_data:
+                        ema_term = (1.0 - confidence) * ema_weight * ema_data["success"]
+                        if ema_data.get("success", 0.0) > 0:
+                            learned_any = True
+
+                score = pred_term + ema_term
+                if score == 0.0:
+                    # No learned signal at all (predictor cold AND no EMA): keep
+                    # BPC order via a small negative score so this model sorts
+                    # after any learned-favored model but above none.
+                    score = -(idx * 0.001)
+                scored.append((score, provider_id, model))
 
             if not learned_any:
                 return options  # no predictor had enough data to influence

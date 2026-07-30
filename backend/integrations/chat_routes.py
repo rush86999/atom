@@ -282,6 +282,17 @@ def _learning_router_enabled() -> bool:
     return learning_router_enabled()
 
 
+def _ema_router_enabled() -> bool:
+    """Whether the EMA (online telemetry) scoring path is enabled.
+
+    Mirrors the centralized parse in the registry (accepts 1/true/yes/on) so the
+    dashboard agrees with the scoring branch — previously this endpoint used a
+    "true"-only check that disagreed with what the router actually honored.
+    """
+    from core.llm.learning_router_registry import ema_router_enabled
+    return ema_router_enabled()
+
+
 def _get_learning_router():
     """Return the process-wide learning router singleton (or None).
 
@@ -359,7 +370,7 @@ async def get_routing_stats(
     'Learning Router is off' banner.
     """
     enabled = _learning_router_enabled()
-    ema_enabled = os.environ.get("ATOM_EMA_ROUTER_ENABLED", "false").lower() == "true"
+    ema_enabled = _ema_router_enabled()
     
     if not enabled and not ema_enabled:
         return {"enabled": False, "ema_enabled": False, "stats": {"feedback_samples": 0, "model_success_rates": {}, "ema_scores": {}}}
