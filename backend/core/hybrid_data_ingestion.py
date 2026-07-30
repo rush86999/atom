@@ -375,13 +375,34 @@ class HybridDataIngestionService:
                 except Exception as record_err:
                     results["errors"].append(str(record_err))
                     logger.warning(f"Failed to ingest record from {integration_id}: {record_err}")
-            
-            # Update last synced time
-            if stats:
-                stats.last_synced = datetime.utcnow()
-            
+
+            # Only mark fully synced if there were no errors. Previously, even
+            # a sync where most records failed was marked success=True and the
+            # "recently synced" guard blocked retries (Bug #7).
+            error_count = len(results.get("errors", []))
+            total_records = results.get("records_fetched", 0)
+            if error_count > 0 and total_records > 0:
+                error_rate = error_count / total_records
+                if error_rate > 0.5:
+                    # Majority failed — don't mark as synced, allow retry.
+                    results["success"] = False
+                    results["partial"] = True
+                    logger.warning(
+                        f"Sync for {integration_id} had {error_count}/{total_records} "
+                        f"errors ({error_rate:.0%}) — not marking as fully synced"
+                    )
+                else:
+                    # Minority errors — mark success but record the partial.
+                    results["success"] = True
+                    results["partial"] = True
+                    if stats:
+                        stats.last_synced = datetime.utcnow()
+            else:
+                results["success"] = True
+                if stats:
+                    stats.last_synced = datetime.utcnow()
+
             results["completed_at"] = datetime.utcnow().isoformat()
-            results["success"] = True
             
             logger.info(
                 f"Sync completed for {integration_id}: "
@@ -506,18 +527,29 @@ class HybridDataIngestionService:
                 if hasattr(adapter, "fetch_records"):
                     for etype in entity_types:
                         try:
-                            # Fetch a single page for discovery/sync
-                            response = await adapter.fetch_records(entity_type=etype, limit=100)
-                            batch = response.get("results", [])
-                            
-                            for r in batch:
-                                # Ensure record has type and source for ingestion loop
-                                r["type"] = etype
-                                r["source"] = integration_id
-                                records.append(r)
-                                
-                            if len(records) >= config.max_records_per_sync:
-                                break
+                            # Paginated fetch: loop through all pages instead of
+                            # a single limit=100 call that silently truncated
+                            # entities with >100 records (Bug #6).
+                            page_size = 100
+                            offset = 0
+                            while True:
+                                response = await adapter.fetch_records(
+                                    entity_type=etype, limit=page_size, offset=offset
+                                )
+                                batch = response.get("results", [])
+
+                                for r in batch:
+                                    r["type"] = etype
+                                    r["source"] = integration_id
+                                    records.append(r)
+
+                                # Stop if fewer than a full page was returned
+                                # (last page) or we hit the max-records cap.
+                                if len(batch) < page_size:
+                                    break
+                                if len(records) >= config.max_records_per_sync:
+                                    break
+                                offset += page_size
                         except Exception as fetch_err:
                             logger.error(f"Error fetching {etype} from {integration_id}: {fetch_err}")
                 else:

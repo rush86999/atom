@@ -272,6 +272,16 @@ class WorkflowEngine:
         # Main execution loop
         try:
             while True:
+                # Check for cancellation BEFORE processing more steps (Bug #3).
+                # Previously only the linear path checked cancellation_requests.
+                if execution_id in self.cancellation_requests:
+                    logger.info(f"Workflow {execution_id} cancelled by user request")
+                    self.cancellation_requests.discard(execution_id)
+                    async with state_lock:
+                        await self.state_manager.update_execution_status(execution_id, "CANCELLED")
+                        await ws_manager.notify_workflow_status(user_id, execution_id, "CANCELLED", {"reason": "user_request"})
+                    return
+
                 ready_steps = get_ready_steps()
                 if not ready_steps:
                     # No more steps ready to execute
@@ -421,7 +431,17 @@ class WorkflowEngine:
                         continue_on_error = config.get("continue_on_error", False)
                         if continue_on_error:
                             logger.warning(f"Step {step_id} failed but continue_on_error is True, marking as failed but continuing workflow")
-                            # Step already marked as FAILED, no need to fail whole workflow
+                            # Bug #4: activate downstream connections so the
+                            # workflow doesn't stall. Previously failed steps
+                            # never activated their outgoing connections, so
+                            # descendants were permanently blocked.
+                            async with state_lock:
+                                current_state = await self.state_manager.get_execution_state(execution_id)
+                                new_activated = []
+                                for conn in adjacency.get(step_id, []):
+                                    if evaluate_connection_condition(conn, current_state):
+                                        new_activated.append((conn.get("source"), conn.get("target")))
+                                activated_connections.update(new_activated)
                         else:
                             has_failure = True
                             failure_error = error
@@ -594,7 +614,12 @@ class WorkflowEngine:
                 # Check dependencies
                 if not self._check_dependencies(step, state):
                     # This shouldn't happen in a linear sequence, but important for DAGs
-                    logger.info(f"Step {step_id} waiting for dependencies")
+                    # Previously, `continue` permanently dropped the step and the
+                    # workflow reported COMPLETED. Now log as a warning so the
+                    # partial completion is visible, and mark the step as SKIPPED.
+                    logger.warning(f"Step {step_id} skipped — dependencies not met")
+                    await self.state_manager.update_step_status(execution_id, step_id, "SKIPPED",
+                                                                error="Dependencies not met")
                     continue
 
                 # Check condition (if specified)
