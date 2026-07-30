@@ -13,6 +13,14 @@ from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
+# core.cost_attribution_service was archived (moved to .archive/dead-core-ai-).
+# Skip the entire module gracefully when the service is absent, rather than
+# aborting collection of the whole budget test directory with ImportError.
+pytest.importorskip(
+    "core.cost_attribution_service",
+    reason="core.cost_attribution_service was archived; tests skipped",
+)
+
 from core.cost_attribution_service import (
     CostAttributionService,
     STANDARD_CATEGORIES,

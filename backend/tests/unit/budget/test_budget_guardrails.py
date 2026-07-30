@@ -8,6 +8,13 @@ actions match the expected status.
 
 import pytest
 from decimal import Decimal
+
+# core.financial_ops_engine was archived. Skip gracefully rather than failing.
+pytest.importorskip(
+    "core.financial_ops_engine",
+    reason="core.financial_ops_engine was archived; tests target a removed API",
+)
+
 from core.financial_ops_engine import BudgetGuardrails, BudgetLimit, SpendStatus
 
 

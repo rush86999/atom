@@ -35,27 +35,27 @@ TIER_THRESHOLDS = {
     CognitiveTier.MICRO: {
         "max_tokens": 100,
         "complexity_score": 0,
-        "description": "Simple greetings or quick lookups",
+        "description": "Simple greetings or quick lookups — low-token, low-complexity tasks",
     },
     CognitiveTier.STANDARD: {
         "max_tokens": 500,
         "complexity_score": 2,
-        "description": "Moderate complexity queries",
+        "description": "Moderate complexity queries and short-task explanations",
     },
     CognitiveTier.VERSATILE: {
         "max_tokens": 2000,
         "complexity_score": 5,
-        "description": "Multi-step reasoning or technical tasks",
+        "description": "Multi-step reasoning or technical tasks of moderate token length",
     },
     CognitiveTier.HEAVY: {
         "max_tokens": 5000,
         "complexity_score": 8,
-        "description": "Complex analysis and large context",
+        "description": "Complex analysis and large-context tasks with high token counts",
     },
     CognitiveTier.COMPLEX: {
         "max_tokens": float("inf"),
         "complexity_score": float("inf"),
-        "description": "Advanced problem solving and high-stakes reasoning",
+        "description": "Advanced problem solving and high-stakes reasoning on the most complex tasks",
     },
 }
 

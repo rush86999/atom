@@ -20,6 +20,13 @@ from unittest.mock import Mock, patch
 import uuid
 import json
 
+# core.messaging_schemas was removed/archived. Skip gracefully rather than
+# aborting collection of the whole tests/unit/core/ directory.
+pytest.importorskip(
+    "core.messaging_schemas",
+    reason="core.messaging_schemas was removed; tests skipped",
+)
+
 from core.messaging_schemas import (
     TaskRequest,
     TaskResult,
