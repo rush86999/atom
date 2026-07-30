@@ -310,7 +310,12 @@ class CognitiveTierService:
 
         cache_discount = 1.0 - (effective_cost / full_cost) if full_cost > 0 else 0.0
 
-        # Estimate total cost in cents (Input + 2x output tokens)
+        # Estimate total request cost. effective_cost is the blended per-token
+        # rate ((cached_input_cost + output_cost) / 2). We assume a typical
+        # request is ~1× input + ~2× output tokens (3× the input estimate), so
+        # total ~= effective_cost * estimated_tokens * 3. This is a budget
+        # PRE-CHECK estimate (not exact billing); actual cost is attributed from
+        # real usage in BYOKHandler after the call.
         total_cost = (effective_cost * estimated_tokens * 3)
 
         return {

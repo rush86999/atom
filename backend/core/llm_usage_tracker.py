@@ -5,7 +5,7 @@ Tracks LLM usage across providers, models, and workspaces with budget management
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from threading import Lock
 
@@ -29,12 +29,23 @@ class UsageRecord:
 class LLMUsageTracker:
     """
     Thread-safe tracker for LLM usage with budget enforcement.
+
+    Budgets are enforced on a **rolling daily window**: spend is tracked per
+    ``(workspace, calendar date)`` so a budget breach today doesn't permanently
+    block generation (the old monotonic counter never reset, locking workspaces
+    out until process restart). ``_records`` is also bounded to avoid unbounded
+    memory growth in the process-wide singleton.
     """
+
+    # Bound on retained per-workspace records (most recent kept). Limits memory
+    # in the singleton; get_records already returns only the tail anyway.
+    _MAX_RECORDS = 50_000
 
     def __init__(self):
         self._records: list[UsageRecord] = []
-        self._budgets: dict[str, float] = {}  # workspace_id -> budget_limit
-        self._usage: dict[str, float] = {}  # workspace_id -> total_usage
+        self._budgets: dict[str, float] = {}  # workspace_id -> daily budget limit (USD)
+        # workspace_id -> {date -> spend_usd}. Lazy-pruned to recent dates.
+        self._usage: dict[str, dict[date, float]] = {}
         self._lock = Lock()
 
     def record(
@@ -82,9 +93,24 @@ class LLMUsageTracker:
 
         with self._lock:
             self._records.append(record)
-            if workspace_id not in self._usage:
-                self._usage[workspace_id] = 0.0
-            self._usage[workspace_id] += cost_usd
+            # Bound the record list (keep most recent). Without this the
+            # singleton leaked memory proportional to total LLM call volume.
+            if len(self._records) > self._MAX_RECORDS:
+                overflow = len(self._records) - self._MAX_RECORDS
+                del self._records[:overflow]
+            # Track spend per calendar date so budgets are a DAILY window
+            # (previously a single monotonic counter never reset, so a workspace
+            # that hit its budget once was locked out until process restart).
+            today = record.timestamp.date()
+            ws_usage = self._usage.setdefault(workspace_id, {})
+            ws_usage[today] = ws_usage.get(today, 0.0) + cost_usd
+            # Lazy-prune dates older than 2 days (keeps the dict small; only
+            # today's spend is consulted for budget enforcement).
+            if len(ws_usage) > 2:
+                cutoff = today
+                for d in list(ws_usage.keys()):
+                    if d < cutoff:
+                        del ws_usage[d]
 
     def set_budget(self, workspace_id: str, budget_limit: float) -> None:
         """
@@ -97,37 +123,43 @@ class LLMUsageTracker:
         with self._lock:
             self._budgets[workspace_id] = budget_limit
 
+    def _today_usage_locked(self, workspace_id: str) -> float:
+        """Spend for the current calendar date (caller holds _lock)."""
+        ws_usage = self._usage.get(workspace_id, {})
+        return ws_usage.get(date.today(), 0.0)
+
     def is_budget_exceeded(self, workspace_id: str) -> bool:
         """
-        Check if a workspace has exceeded its budget.
+        Check if a workspace has exceeded its **daily** budget.
+
+        Budgets reset at the start of each calendar day (local server date), so
+        a breach today does not block generation tomorrow.
 
         Args:
             workspace_id: Workspace identifier
 
         Returns:
-            True if budget is exceeded, False otherwise
+            True if today's spend meets/exceeds the daily budget, else False.
         """
         with self._lock:
             if workspace_id not in self._budgets:
                 return False  # No budget set
 
             budget_limit = self._budgets[workspace_id]
-            current_usage = self._usage.get(workspace_id, 0.0)
-
-            return current_usage >= budget_limit
+            return self._today_usage_locked(workspace_id) >= budget_limit
 
     def get_usage(self, workspace_id: str) -> float:
         """
-        Get total usage for a workspace.
+        Get usage for a workspace for the **current day**.
 
         Args:
             workspace_id: Workspace identifier
 
         Returns:
-            Total usage in USD
+            Today's spend in USD.
         """
         with self._lock:
-            return self._usage.get(workspace_id, 0.0)
+            return self._today_usage_locked(workspace_id)
 
     def get_budget(self, workspace_id: str) -> Optional[float]:
         """
@@ -162,13 +194,15 @@ class LLMUsageTracker:
 
     def reset_usage(self, workspace_id: str) -> None:
         """
-        Reset usage for a workspace.
+        Reset usage for a workspace for the current day.
 
         Args:
             workspace_id: Workspace identifier
         """
         with self._lock:
-            self._usage[workspace_id] = 0.0
+            today = date.today()
+            ws_usage = self._usage.setdefault(workspace_id, {})
+            ws_usage[today] = 0.0
 
 
 # Global singleton instance

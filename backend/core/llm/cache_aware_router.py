@@ -82,6 +82,10 @@ class CacheAwareRouter:
         },
     }
 
+    # Rolling-window and memory bounds for cache-hit history.
+    _CACHE_WINDOW = 100        # max samples counted per (workspace, prompt) key
+    _MAX_CACHE_KEYS = 10_000   # max distinct keys retained (FIFO eviction)
+
     def __init__(self, pricing_fetcher):
         """
         Initialize the cache-aware router.
@@ -90,9 +94,13 @@ class CacheAwareRouter:
             pricing_fetcher: DynamicPricingFetcher instance for model pricing data
         """
         self.pricing_fetcher = pricing_fetcher
-        # In-memory cache hit history: {"workspace_id:prompt_hash": [hits, total]}
-        # This is sufficient for initial implementation. Can be persisted to DB later.
-        self.cache_hit_history = {}
+        # In-memory cache hit history: {"workspace_id:prompt_hash": [hits, total]}.
+        # Each key's counters are capped at _CACHE_WINDOW samples (rolling) and
+        # the dict itself is capped at _MAX_CACHE_KEYS (FIFO). Without these
+        # bounds the singleton grew unbounded (one entry per distinct prompt
+        # forever) and per-key ratios became lifetime averages instead of recent.
+        self.cache_hit_history: Dict[str, list] = {}
+        self._cache_key_order = []  # insertion order for FIFO eviction
 
     def calculate_effective_cost(
         self,
@@ -212,11 +220,29 @@ class CacheAwareRouter:
         key = f"{workspace_id}:{prompt_hash[:16]}"
 
         if key not in self.cache_hit_history:
+            # Bound the number of distinct keys (FIFO eviction). Without this
+            # the singleton dict grew forever — one entry per distinct prompt.
             self.cache_hit_history[key] = [0, 0]  # [hits, total]
+            self._cache_key_order.append(key)
+            if len(self._cache_key_order) > self._MAX_CACHE_KEYS:
+                overflow = len(self._cache_key_order) - self._MAX_CACHE_KEYS
+                for stale in self._cache_key_order[:overflow]:
+                    self.cache_hit_history.pop(stale, None)
+                del self._cache_key_order[:overflow]
 
-        self.cache_hit_history[key][1] += 1  # Increment total
+        hits, total = self.cache_hit_history[key]
+        total += 1
         if was_cached:
-            self.cache_hit_history[key][0] += 1  # Increment hits
+            hits += 1
+        # Rolling window: once over the cap, scale both counters down
+        # proportionally so the ratio reflects the RECENT window, not a lifetime
+        # average (a prompt cacheable last month but not now would otherwise keep
+        # its stale high hit ratio forever).
+        if total > self._CACHE_WINDOW:
+            scale = self._CACHE_WINDOW / total
+            hits *= scale
+            total = self._CACHE_WINDOW
+        self.cache_hit_history[key] = [hits, total]
 
         logger.debug(
             f"Cache outcome recorded: {key}, "
