@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -317,7 +317,7 @@ async def get_session_history(
                 "id": msg.get("id", ""),
                 "role": msg.get("role", "assistant"),
                 "content": msg.get("text", ""),
-                "timestamp": msg.get("created_at", datetime.utcnow().isoformat()),
+                "timestamp": msg.get("created_at", datetime.now(timezone.utc).isoformat()),
                 "metadata": {}
             }
             
@@ -1019,9 +1019,12 @@ async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any
             }
         }
     
-    # Parse the time expression
+    # Parse the time expression. ai_service is no longer a required arg (the
+    # global was commented out, so passing it raised NameError on every
+    # schedule-via-chat request). Pattern matching handles common phrases; the
+    # LLM fallback is skipped when no service is available.
     from core.time_expression_parser import parse_time_expression
-    schedule_info = await parse_time_expression(time_expression, ai_service)
+    schedule_info = await parse_time_expression(time_expression)
     
     if not schedule_info:
         return {

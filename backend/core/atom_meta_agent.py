@@ -435,405 +435,444 @@ class AtomMetaAgent:
             raise
         except Exception as e:
             logger.error(f"Failed to create AgentExecution: {e}")
-        
-        # 1. Fetch Canvas Context if provided (OPTIONAL)
-        canvas_state: Optional[CanvasContext] = None
-        canvas_text = ""
-        
-        if canvas_context and canvas_context.get("canvas_id"):
-            db = SessionLocal()
-            try:
-                canvas_state = await self.canvas_provider.get_canvas_context(
-                    db=db,
-                    canvas_id=canvas_context["canvas_id"],
-                    tenant_id=tenant_id
-                )
-                if canvas_state:
-                    canvas_text = self.canvas_provider.format_for_agent(canvas_state)
-                    logger.info(f"Canvas context loaded: {canvas_state.artifact_count} artifacts, {len(canvas_state.comments)} comments")
-            except Exception as e:
-                logger.warning(f"Failed to fetch canvas context: {e}")
-                raise  # Re-raise to prevent silent failures
-            finally:
-                db.close()
-        
-        # 2. Access Memory with Canvas Enrichment
-        # Build enriched task description for better memory retrieval
-        enriched_task = request
-        if canvas_state:
-            enrichment_parts = [request]
-            if canvas_state.canvas_id:
-                enrichment_parts.append(f"canvas: {canvas_state.canvas_id}")
-            if canvas_state.comments:
-                comment_texts = [c.content for c in canvas_state.comments[:5]]
-                enrichment_parts.append(f"user context: {' '.join(comment_texts)}")
-            enriched_task = " | ".join(enrichment_parts)
 
-        memory_context = await self.world_model.recall_experiences(
-            agent=self._get_atom_registry(),
-            current_task_description=enriched_task  # Use enriched task
-        )
+        # Initialize status + final_answer BEFORE the body so the failure
+        # finalizer (the except below) always has well-defined values even when
+        # an exception escapes early. start_time is already set above (line 403).
+        # Previously an unhandled exception in the body bypassed the finalization
+        # entirely, orphaning the AgentExecution row in "running" forever (Bug 4).
+        status = "failed"
+        final_answer = ""
 
-        # 2.5. Explicit Canvas-Aware Episodic Recall (NEW)
-        # Canvas context already enriches the semantic search via enriched_task.
-        # This adds explicit episodic recall with canvas-aware boosting.
-        if canvas_state and canvas_state.canvas_id:
-            try:
-                episodic_context = await self.world_model.recall_episodes(
-                    task_description=request,  # Use original request for episodic search
-                    agent_role=self._get_atom_registry().category or "general",
-                    agent_id=self._get_atom_registry().id,
-                    canvas_id=canvas_state.canvas_id,  # NEW: Explicit canvas filtering
-                    limit=5
-                )
+        # Wrap the body so an escaping exception finalizes the execution
+        # as failed instead of orphaning it in 'running' (Bug 4).
+        try:
+            # 1. Fetch Canvas Context if provided (OPTIONAL)
+            canvas_state: Optional[CanvasContext] = None
+            canvas_text = ""
+        
+            if canvas_context and canvas_context.get("canvas_id"):
+                db = SessionLocal()
+                try:
+                    canvas_state = await self.canvas_provider.get_canvas_context(
+                        db=db,
+                        canvas_id=canvas_context["canvas_id"],
+                        tenant_id=tenant_id
+                    )
+                    if canvas_state:
+                        canvas_text = self.canvas_provider.format_for_agent(canvas_state)
+                        logger.info(f"Canvas context loaded: {canvas_state.artifact_count} artifacts, {len(canvas_state.comments)} comments")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch canvas context: {e}")
+                    raise  # Re-raise to prevent silent failures
+                finally:
+                    db.close()
+        
+            # 2. Access Memory with Canvas Enrichment
+            # Build enriched task description for better memory retrieval
+            enriched_task = request
+            if canvas_state:
+                enrichment_parts = [request]
+                if canvas_state.canvas_id:
+                    enrichment_parts.append(f"canvas: {canvas_state.canvas_id}")
+                if canvas_state.comments:
+                    comment_texts = [c.content for c in canvas_state.comments[:5]]
+                    enrichment_parts.append(f"user context: {' '.join(comment_texts)}")
+                enriched_task = " | ".join(enrichment_parts)
 
-                if episodic_context:
-                    # Add episodic context to memory
-                    memory_context["canvas_episodes"] = episodic_context
-                    logger.info(
-                        f"Added {len(episodic_context)} canvas-aware episodes "
-                        f"(canvas_id={canvas_state.canvas_id})"
+            memory_context = await self.world_model.recall_experiences(
+                agent=self._get_atom_registry(),
+                current_task_description=enriched_task  # Use enriched task
+            )
+
+            # 2.5. Explicit Canvas-Aware Episodic Recall (NEW)
+            # Canvas context already enriches the semantic search via enriched_task.
+            # This adds explicit episodic recall with canvas-aware boosting.
+            if canvas_state and canvas_state.canvas_id:
+                try:
+                    episodic_context = await self.world_model.recall_episodes(
+                        task_description=request,  # Use original request for episodic search
+                        agent_role=self._get_atom_registry().category or "general",
+                        agent_id=self._get_atom_registry().id,
+                        canvas_id=canvas_state.canvas_id,  # NEW: Explicit canvas filtering
+                        limit=5
                     )
 
-            except Exception as e:
-                logger.warning(f"Failed to recall canvas-aware episodes: {e}")
+                    if episodic_context:
+                        # Add episodic context to memory
+                        memory_context["canvas_episodes"] = episodic_context
+                        logger.info(
+                            f"Added {len(episodic_context)} canvas-aware episodes "
+                            f"(canvas_id={canvas_state.canvas_id})"
+                        )
+
+                except Exception as e:
+                    logger.warning(f"Failed to recall canvas-aware episodes: {e}")
         
-        # 2. Get available tools (Core + Session Lazy Loaded)
-        all_tools = await self.mcp.get_all_tools()
+            # 2. Get available tools (Core + Session Lazy Loaded)
+            all_tools = await self.mcp.get_all_tools()
         
-        # Filter for Core Tools + Dynamically added Session Tools
-        active_tools = [t for t in all_tools if t["name"] in self.CORE_TOOLS_NAMES]
-        active_tools.extend(self.session_tools)
+            # Filter for Core Tools + Dynamically added Session Tools
+            active_tools = [t for t in all_tools if t["name"] in self.CORE_TOOLS_NAMES]
+            active_tools.extend(self.session_tools)
         
-        # Deduplicate
-        seen_tools = set()
-        unique_active_tools = []
-        for t in active_tools:
-            if t["name"] not in seen_tools:
-                unique_active_tools.append(t)
-                seen_tools.add(t["name"])
+            # Deduplicate
+            seen_tools = set()
+            unique_active_tools = []
+            for t in active_tools:
+                if t["name"] not in seen_tools:
+                    unique_active_tools.append(t)
+                    seen_tools.add(t["name"])
 
-        # Inject special "mcp_tool_search" if not present (although it should be in core)
-        TOOL_SEARCH_ALIASES = ["mcp_tool_search", "tool_search", "search_tools"]
-        has_tool_search = any(t["name"] in TOOL_SEARCH_ALIASES for t in unique_active_tools)
+            # Inject special "mcp_tool_search" if not present (although it should be in core)
+            TOOL_SEARCH_ALIASES = ["mcp_tool_search", "tool_search", "search_tools"]
+            has_tool_search = any(t["name"] in TOOL_SEARCH_ALIASES for t in unique_active_tools)
 
-        if not has_tool_search:
-             unique_active_tools.append({
-                 "name": "mcp_tool_search",
-                 "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
-                 "parameters": {"query": "string"}
-             })
+            if not has_tool_search:
+                 unique_active_tools.append({
+                     "name": "mcp_tool_search",
+                     "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
+                     "parameters": {"query": "string"}
+                 })
 
-        try:
-            tool_descriptions = json.dumps(
-                [{"name": t["name"], "description": t["description"]} for t in unique_active_tools],
-                indent=2,
-                default=str  # Fallback for non-serializable objects
-            )
-        except (TypeError, ValueError) as e:
-            logger.error(f"Failed to serialize tool descriptions: {e}")
-            tool_descriptions = json.dumps([])  # Fallback to empty list
+            try:
+                tool_descriptions = json.dumps(
+                    [{"name": t["name"], "description": t["description"]} for t in unique_active_tools],
+                    indent=2,
+                    default=str  # Fallback for non-serializable objects
+                )
+            except (TypeError, ValueError) as e:
+                logger.error(f"Failed to serialize tool descriptions: {e}")
+                tool_descriptions = json.dumps([])  # Fallback to empty list
 
 
-        # Initialize execution history before planning phase
-        execution_history = ""
+            # Initialize execution history before planning phase
+            execution_history = ""
 
-        # 3. Planning & Specialty Delegation Phase (NEW)
-        # If the task is complex, we use a high-reasoning turn to plan subtasks
-        # 3. Intelligent Routing Phase (NEW)
-        # Fast classification to determine if we need a persistent automation or a one-off task
-        from ai.nlp_engine import RouteCategory
-        nlu = NaturalLanguageEngine()
-        route = await nlu.classify_route(request, tenant_id=tenant_id or "default")
+            # 3. Planning & Specialty Delegation Phase (NEW)
+            # If the task is complex, we use a high-reasoning turn to plan subtasks
+            # 3. Intelligent Routing Phase (NEW)
+            # Fast classification to determine if we need a persistent automation or a one-off task
+            from ai.nlp_engine import RouteCategory
+            nlu = NaturalLanguageEngine()
+            route = await nlu.classify_route(request, tenant_id=tenant_id or "default")
         
-        routing_log = {
-            "execution_id": execution_id,
-            "step": 0,
-            "step_type": "routing",
-            "thought": f"[SYSTEM] Routing Request: {route.category.value.upper()} - {route.reasoning}",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        if step_callback: await step_callback(routing_log)
-        execution_history += f"System Routing: {route.category.value.upper()} ({route.reasoning})\n"
-
-        # 4. Planning & Specialty Delegation Phase
-        is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"]) or route.category == RouteCategory.AUTOMATION
-        
-        if is_complex and trigger_mode == AgentTriggerMode.MANUAL:
-            plan_record = {
+            routing_log = {
                 "execution_id": execution_id,
                 "step": 0,
-                "step_type": "planning",
-                "thought": "Activating Queen Agent to design architectural blueprint...",
-                "action": {"tool": "queen_architect", "params": {"goal": request}},
+                "step_type": "routing",
+                "thought": f"[SYSTEM] Routing Request: {route.category.value.upper()} - {route.reasoning}",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-            if step_callback: await step_callback(plan_record)
-            
-            try:
-                # 1. Queen Phase: Generate Blueprint
-                if not self.queen:
-                    from core.service_factory import ServiceFactory
-                    with SessionLocal() as db:
-                        self.queen = ServiceFactory.get_queen_agent(db)
-                
-                execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
-                blueprint = await self.queen.generate_blueprint(
-                    request, 
-                    tenant_id=tenant_id or "default",
-                    execution_mode=execution_mode
-                )
-                
-                if blueprint and blueprint.get("nodes"):
-                    plan_summary = f"Queen designed blueprint '{blueprint.get('architecture_name')}'. Transitioning to King Mode for execution."
-                    plan_record["output"] = plan_summary
-                    execution_history += f"System Blueprint: {plan_summary}\n"
-                    if step_callback: await step_callback(plan_record)
-                    
-                    # 2. King Phase: Execute Blueprint nodes as "Thoughts" or "Delegations"
-                    # For now, we seed the ReAct history with the blueprint nodes to guide the loop
-                    nodes_desc = "\n".join([f"- {n['name']} ({n['type']}): Requires {n.get('capability_required')}" for n in blueprint['nodes']])
-                    execution_history += f"Planned Execution Steps:\n{nodes_desc}\n"
-                    
-                    if blueprint.get("missing_capabilities"):
-                        execution_history += f"Note: Identified missing capabilities: {blueprint['missing_capabilities']}. Will attempt to create or research.\n"
-            except Exception as plan_error:
-                logger.warning(f"Queen planning failed, falling back to legacy orchestrator: {plan_error}")
-                # Fallback to orchestrator
-                plan = await self.orchestrator.generate_dynamic_workflow(request)
-                if plan and plan.get("nodes"):
-                    plan_summary = f"Identified plan with {len(plan['nodes'])} steps. Delegating to specialized components."
-                    plan_record["output"] = plan_summary
-                    execution_history += f"System Plan: {plan_summary}\n"
-                    if step_callback: await step_callback(plan_record)
+            if step_callback: await step_callback(routing_log)
+            execution_history += f"System Routing: {route.category.value.upper()} ({route.reasoning})\n"
 
-        # 4. ReAct Loop with Pydantic Validation
-        max_steps = 10
-        steps = []
-        final_answer = None
-        status = "success"
-
-        for current_step in range(1, max_steps + 1):
-            step_start = datetime.now(timezone.utc)
-            # Generate next step using instructor for structured output
-            react_step = await self._react_step(
-                request=request,
-                memory_context=memory_context,
-                tool_descriptions=tool_descriptions,
-                execution_history=execution_history,
-                context=context,
-                canvas_text=canvas_text,
-                turn_index=current_step - 1  # NEW: Pass turn index for BPC routing
-            )
-            
-            step_record = {
-                "execution_id": execution_id,
-                "step": current_step,
-                "step_type": "action" if react_step.action else "final_answer",
-                "thought": react_step.thought,
-                "action": react_step.action.model_dump() if react_step.action else None,
-                "output": None,
-                "confidence": getattr(react_step, 'confidence', 0.9),
-                "duration_ms": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-            
-            # Stream to UI
-            if step_callback:
-                await step_callback(step_record)
-            
-            execution_history += f"Thought: {react_step.thought}\n"
-            
-            # Check for final answer
-            if react_step.final_answer:
-                step_record["final_answer"] = react_step.final_answer
-                final_answer = react_step.final_answer
-                steps.append(step_record)
-                execution_history += f"Final Answer: {react_step.final_answer}\n"
-                break
-            
-            # Safety: If no action and no final answer, we are stuck - convert thought to final answer
-            if not react_step.action:
-                final_answer = react_step.thought or "I'm sorry, I'm unable to proceed with that request."
-                step_record["final_answer"] = final_answer
-                step_record["step_type"] = "final_answer"
-                # Record it one last time to satisfy visibility
-                if step_callback: await step_callback(step_record)
-                steps.append(step_record)
-                break
-            
-            # Execute action if provided
-            if react_step.action:
-                tool_name = react_step.action.tool
-                tool_args = react_step.action.params
-                
-                execution_history += f"Action: {tool_name}({json.dumps(tool_args)})\n"
-                
-                if tool_name == "mcp_tool_search":
-                    found_tools = await self.mcp.search_tools(tool_args.get("query", ""), limit=5)
-
-                    # Deduplicate by tool name before adding
-                    existing_names = {t["name"] for t in self.session_tools}
-                    new_tools = [t for t in found_tools if t["name"] not in existing_names]
-
-                    self.session_tools.extend(new_tools)
-                    observation = f"Found {len(new_tools)} new tools (total: {len(self.session_tools)}). They have been added to your toolkit for the next step: {[t['name'] for t in new_tools]}"
-                    
-                    step_record["output"] = str(observation)
-                    execution_history += f"Observation: {observation}\n"
-                    if step_callback: await step_callback(step_record)
-                
-                elif tool_name == "delegate_task":
-                    # Pass the main step_callback to the sub-agent for layered visibility!
-                    observation = await self._execute_delegation(
-                        tool_args.get("agent_name"), 
-                        tool_args.get("task"), 
-                        context,
-                        step_callback=step_callback,
-                        execution_id=execution_id
-                    )
-                    step_record["output"] = str(observation)
-                    execution_history += f"Observation: Delegated task completed.\n"
-                    if step_callback: await step_callback(step_record)
-                
-                else:
-                    # Execute via MCP with governance check
-                    observation = await self._execute_tool_with_governance(
-                        tool_name, tool_args, context, step_callback
-                    )
-
-                    step_record["output"] = str(observation)[:500]
-                    execution_history += f"Observation: {observation}\n"
-
-                    # Parse the tool return for a verification envelope
-                    # {success, verified, evidence}. Silent no-ops that return
-                    # success without evidence land as 'unverified' and cannot
-                    # inflate graduation counters (general critique, fixed).
-                    try:
-                        _vo = parse_tool_outcome(observation)
-                        step_record["_verified_kind"] = _vo.kind
-                        step_record["_verified_evidence"] = _vo.evidence
-                    except Exception:
-                        step_record["_verified_kind"] = "unverified"
-                        step_record["_verified_evidence"] = None
-
-                # Update duration after tool execution
-                step_record["duration_ms"] = (datetime.now(timezone.utc) - step_start).total_seconds() * 1000
-                if step_callback: await step_callback(step_record)
-            
-            # Persist Step to DB (Phase 6: Learning Loop)
-            try:
-                with SessionLocal() as db:
-                    db_step = AgentReasoningStep(
-                        id=str(uuid.uuid4()),
-                        execution_id=execution_id,
-                        step_number=current_step,
-                        step_type=step_record["step_type"],
-                        thought=react_step.thought,
-                        action=react_step.action.model_dump() if react_step.action else None,
-                        observation=step_record.get("output"),
-                        confidence=step_record["confidence"],
-                        verified=step_record.get("_verified_kind", "unverified"),
-                        verification_evidence=step_record.get("_verified_evidence"),
-                        duration_ms=step_record["duration_ms"]
-                    )
-                    db.add(db_step)
-                    db.commit()
-                    # Add DB ID to record for UI feedback binding
-                    step_record["id"] = db_step.id
-
-                    # ── Per-turn fact extraction (sync_turn hook) ──────────────
-                    # Fire-and-forget: a slow extraction must never block the
-                    # ReAct loop. STUDENT maturity is gated inside the extractor.
-                    if _TURN_FACT_EXTRACTION_ENABLED:
-                        try:
-                            extractor = get_turn_fact_extractor(
-                                workspace_id=self.workspace_id,
-                                tenant_id=self.tenant_id,
-                            )
-                            maturity = None
-                            if getattr(self, "graduation_service", None):
-                                try:
-                                    maturity = self.graduation_service.get_maturity(
-                                        self.tenant_id, "atom_main", "fact_extraction"
-                                    )
-                                except Exception:
-                                    maturity = None
-
-                            task = asyncio.create_task(
-                                extractor.extract_from_turn(
-                                    user_request=request,
-                                    thought=react_step.thought,
-                                    action=(
-                                        react_step.action.model_dump()
-                                        if react_step.action
-                                        else None
-                                    ),
-                                    observation=step_record.get("output"),
-                                    final_answer=final_answer,
-                                    execution_id=execution_id,
-                                    reasoning_step_id=db_step.id,
-                                    session_id=context.get("session_id")
-                                    if context
-                                    else None,
-                                    user_id=context.get("user_id") if context else None,
-                                    maturity=maturity,
-                                )
-                            )
-                            _pending_extraction_tasks.add(task)
-
-                            def _discard_extraction_task(t, _set=_pending_extraction_tasks):
-                                _set.discard(t)
-
-                            task.add_done_callback(_discard_extraction_task)
-                        except Exception as e:
-                            logger.debug(f"turn_fact extraction dispatch failed: {e}")
-            except Exception as e:
-                logger.error(f"Failed to persist reasoning step: {e}")
-                # traceback.print_exc()
-
-            steps.append(step_record)
+            # 4. Planning & Specialty Delegation Phase
+            is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"]) or route.category == RouteCategory.AUTOMATION
         
-        # Handle max steps exceeded
-        if not final_answer:
-            final_answer = "Maximum reasoning steps reached. Please refine your request."
-            status = "max_steps_exceeded"
-
-        # on_session_end hook — final extraction pass over the whole turn.
-        # Catches durable facts the per-turn hook missed (e.g. facts that only
-        # became visible once the final answer was composed). Fire-and-forget.
-        if _TURN_FACT_EXTRACTION_ENABLED:
-            try:
-                extractor = get_turn_fact_extractor(
-                    workspace_id=self.workspace_id, tenant_id=self.tenant_id
-                )
-                # Compose a compact session digest for the final pass.
-                digest_parts = [f"REQUEST: {request}"]
-                for s in steps[-6:]:  # last 6 steps keep it bounded
-                    t = (s.get("thought") or "")[:200]
-                    o = (s.get("output") or "")[:200]
-                    if t:
-                        digest_parts.append(f"THOUGHT: {t}")
-                    if o:
-                        digest_parts.append(f"OBSERVATION: {o}")
-                digest_parts.append(f"FINAL ANSWER: {final_answer}")
-                task = asyncio.create_task(
-                    extractor.extract_from_turn(
-                        user_request=request,
-                        thought="\n".join(digest_parts),
-                        final_answer=final_answer,
-                        execution_id=execution_id,
-                        session_id=context.get("session_id") if context else None,
-                        user_id=context.get("user_id") if context else None,
-                        maturity=None,
+            if is_complex and trigger_mode == AgentTriggerMode.MANUAL:
+                plan_record = {
+                    "execution_id": execution_id,
+                    "step": 0,
+                    "step_type": "planning",
+                    "thought": "Activating Queen Agent to design architectural blueprint...",
+                    "action": {"tool": "queen_architect", "params": {"goal": request}},
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                if step_callback: await step_callback(plan_record)
+            
+                try:
+                    # 1. Queen Phase: Generate Blueprint
+                    if not self.queen:
+                        from core.service_factory import ServiceFactory
+                        with SessionLocal() as db:
+                            self.queen = ServiceFactory.get_queen_agent(db)
+                
+                    execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
+                    blueprint = await self.queen.generate_blueprint(
+                        request, 
+                        tenant_id=tenant_id or "default",
+                        execution_mode=execution_mode
                     )
+                
+                    if blueprint and blueprint.get("nodes"):
+                        plan_summary = f"Queen designed blueprint '{blueprint.get('architecture_name')}'. Transitioning to King Mode for execution."
+                        plan_record["output"] = plan_summary
+                        execution_history += f"System Blueprint: {plan_summary}\n"
+                        if step_callback: await step_callback(plan_record)
+                    
+                        # 2. King Phase: Execute Blueprint nodes as "Thoughts" or "Delegations"
+                        # For now, we seed the ReAct history with the blueprint nodes to guide the loop
+                        nodes_desc = "\n".join([f"- {n['name']} ({n['type']}): Requires {n.get('capability_required')}" for n in blueprint['nodes']])
+                        execution_history += f"Planned Execution Steps:\n{nodes_desc}\n"
+                    
+                        if blueprint.get("missing_capabilities"):
+                            execution_history += f"Note: Identified missing capabilities: {blueprint['missing_capabilities']}. Will attempt to create or research.\n"
+                except Exception as plan_error:
+                    logger.warning(f"Queen planning failed, falling back to legacy orchestrator: {plan_error}")
+                    # Fallback to orchestrator
+                    plan = await self.orchestrator.generate_dynamic_workflow(request)
+                    if plan and plan.get("nodes"):
+                        plan_summary = f"Identified plan with {len(plan['nodes'])} steps. Delegating to specialized components."
+                        plan_record["output"] = plan_summary
+                        execution_history += f"System Plan: {plan_summary}\n"
+                        if step_callback: await step_callback(plan_record)
+
+            # 4. ReAct Loop with Pydantic Validation
+            max_steps = 10
+            steps = []
+            final_answer = None
+            status = "success"
+
+            for current_step in range(1, max_steps + 1):
+                step_start = datetime.now(timezone.utc)
+                # Generate next step using instructor for structured output
+                react_step = await self._react_step(
+                    request=request,
+                    memory_context=memory_context,
+                    tool_descriptions=tool_descriptions,
+                    execution_history=execution_history,
+                    context=context,
+                    canvas_text=canvas_text,
+                    turn_index=current_step - 1  # NEW: Pass turn index for BPC routing
                 )
-                _pending_extraction_tasks.add(task)
-                task.add_done_callback(
-                    lambda t, _s=_pending_extraction_tasks: _s.discard(t)
-                )
-            except Exception as e:
-                logger.debug(f"on_session_end extraction dispatch failed: {e}")
+            
+                step_record = {
+                    "execution_id": execution_id,
+                    "step": current_step,
+                    "step_type": "action" if react_step.action else "final_answer",
+                    "thought": react_step.thought,
+                    "action": react_step.action.model_dump() if react_step.action else None,
+                    "output": None,
+                    "confidence": getattr(react_step, 'confidence', 0.9),
+                    "duration_ms": 0,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            
+                # Stream to UI
+                if step_callback:
+                    await step_callback(step_record)
+            
+                execution_history += f"Thought: {react_step.thought}\n"
+            
+                # Check for final answer
+                if react_step.final_answer:
+                    step_record["final_answer"] = react_step.final_answer
+                    final_answer = react_step.final_answer
+                    steps.append(step_record)
+                    execution_history += f"Final Answer: {react_step.final_answer}\n"
+                    break
+            
+                # Safety: If no action and no final answer, we are stuck - convert thought to final answer
+                if not react_step.action:
+                    final_answer = react_step.thought or "I'm sorry, I'm unable to proceed with that request."
+                    step_record["final_answer"] = final_answer
+                    step_record["step_type"] = "final_answer"
+                    # Record it one last time to satisfy visibility
+                    if step_callback: await step_callback(step_record)
+                    steps.append(step_record)
+                    break
+            
+                # Execute action if provided
+                if react_step.action:
+                    tool_name = react_step.action.tool
+                    tool_args = react_step.action.params
+                
+                    execution_history += f"Action: {tool_name}({json.dumps(tool_args)})\n"
+                
+                    if tool_name == "mcp_tool_search":
+                        found_tools = await self.mcp.search_tools(tool_args.get("query", ""), limit=5)
+
+                        # Deduplicate by tool name before adding
+                        existing_names = {t["name"] for t in self.session_tools}
+                        new_tools = [t for t in found_tools if t["name"] not in existing_names]
+
+                        self.session_tools.extend(new_tools)
+                        observation = f"Found {len(new_tools)} new tools (total: {len(self.session_tools)}). They have been added to your toolkit for the next step: {[t['name'] for t in new_tools]}"
+                    
+                        step_record["output"] = str(observation)
+                        execution_history += f"Observation: {observation}\n"
+                        if step_callback: await step_callback(step_record)
+                
+                    elif tool_name == "delegate_task":
+                        # Pass the main step_callback to the sub-agent for layered visibility!
+                        observation = await self._execute_delegation(
+                            tool_args.get("agent_name"), 
+                            tool_args.get("task"), 
+                            context,
+                            step_callback=step_callback,
+                            execution_id=execution_id
+                        )
+                        step_record["output"] = str(observation)
+                        execution_history += f"Observation: Delegated task completed.\n"
+                        if step_callback: await step_callback(step_record)
+                
+                    else:
+                        # Execute via MCP with governance check
+                        observation = await self._execute_tool_with_governance(
+                            tool_name, tool_args, context, step_callback
+                        )
+
+                        step_record["output"] = str(observation)[:500]
+                        execution_history += f"Observation: {observation}\n"
+
+                        # Parse the tool return for a verification envelope
+                        # {success, verified, evidence}. Silent no-ops that return
+                        # success without evidence land as 'unverified' and cannot
+                        # inflate graduation counters (general critique, fixed).
+                        try:
+                            _vo = parse_tool_outcome(observation)
+                            step_record["_verified_kind"] = _vo.kind
+                            step_record["_verified_evidence"] = _vo.evidence
+                        except Exception:
+                            step_record["_verified_kind"] = "unverified"
+                            step_record["_verified_evidence"] = None
+
+                    # Update duration after tool execution
+                    step_record["duration_ms"] = (datetime.now(timezone.utc) - step_start).total_seconds() * 1000
+                    if step_callback: await step_callback(step_record)
+            
+                # Persist Step to DB (Phase 6: Learning Loop)
+                try:
+                    with SessionLocal() as db:
+                        db_step = AgentReasoningStep(
+                            id=str(uuid.uuid4()),
+                            execution_id=execution_id,
+                            step_number=current_step,
+                            step_type=step_record["step_type"],
+                            thought=react_step.thought,
+                            action=react_step.action.model_dump() if react_step.action else None,
+                            observation=step_record.get("output"),
+                            confidence=step_record["confidence"],
+                            verified=step_record.get("_verified_kind", "unverified"),
+                            verification_evidence=step_record.get("_verified_evidence"),
+                            duration_ms=step_record["duration_ms"]
+                        )
+                        db.add(db_step)
+                        db.commit()
+                        # Add DB ID to record for UI feedback binding
+                        step_record["id"] = db_step.id
+
+                        # ── Per-turn fact extraction (sync_turn hook) ──────────────
+                        # Fire-and-forget: a slow extraction must never block the
+                        # ReAct loop. STUDENT maturity is gated inside the extractor.
+                        if _TURN_FACT_EXTRACTION_ENABLED:
+                            try:
+                                extractor = get_turn_fact_extractor(
+                                    workspace_id=self.workspace_id,
+                                    tenant_id=self.tenant_id,
+                                )
+                                maturity = None
+                                if getattr(self, "graduation_service", None):
+                                    try:
+                                        maturity = self.graduation_service.get_maturity(
+                                            self.tenant_id, "atom_main", "fact_extraction"
+                                        )
+                                    except Exception:
+                                        maturity = None
+
+                                task = asyncio.create_task(
+                                    extractor.extract_from_turn(
+                                        user_request=request,
+                                        thought=react_step.thought,
+                                        action=(
+                                            react_step.action.model_dump()
+                                            if react_step.action
+                                            else None
+                                        ),
+                                        observation=step_record.get("output"),
+                                        final_answer=final_answer,
+                                        execution_id=execution_id,
+                                        reasoning_step_id=db_step.id,
+                                        session_id=context.get("session_id")
+                                        if context
+                                        else None,
+                                        user_id=context.get("user_id") if context else None,
+                                        maturity=maturity,
+                                    )
+                                )
+                                _pending_extraction_tasks.add(task)
+
+                                def _discard_extraction_task(t, _set=_pending_extraction_tasks):
+                                    _set.discard(t)
+
+                                task.add_done_callback(_discard_extraction_task)
+                            except Exception as e:
+                                logger.debug(f"turn_fact extraction dispatch failed: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to persist reasoning step: {e}")
+                    # traceback.print_exc()
+
+                steps.append(step_record)
+        
+            # Handle max steps exceeded
+            if not final_answer:
+                final_answer = "Maximum reasoning steps reached. Please refine your request."
+                # Map to a VALID ExecutionStatus. "max_steps_exceeded" is not in the
+                # ExecutionStatus enum (pending/running/completed/failed/cancelled/
+                # paused/timeout), so persisting it verbatim created an invisible
+                # third state that status-filtered queries (failure dashboards, retry
+                # logic) miss. TIMEOUT is the closest semantic match.
+                status = "timeout"
+
+            # on_session_end hook — final extraction pass over the whole turn.
+            # Catches durable facts the per-turn hook missed (e.g. facts that only
+            # became visible once the final answer was composed). Fire-and-forget.
+            if _TURN_FACT_EXTRACTION_ENABLED:
+                try:
+                    extractor = get_turn_fact_extractor(
+                        workspace_id=self.workspace_id, tenant_id=self.tenant_id
+                    )
+                    # Compose a compact session digest for the final pass.
+                    digest_parts = [f"REQUEST: {request}"]
+                    for s in steps[-6:]:  # last 6 steps keep it bounded
+                        t = (s.get("thought") or "")[:200]
+                        o = (s.get("output") or "")[:200]
+                        if t:
+                            digest_parts.append(f"THOUGHT: {t}")
+                        if o:
+                            digest_parts.append(f"OBSERVATION: {o}")
+                    digest_parts.append(f"FINAL ANSWER: {final_answer}")
+                    task = asyncio.create_task(
+                        extractor.extract_from_turn(
+                            user_request=request,
+                            thought="\n".join(digest_parts),
+                            final_answer=final_answer,
+                            execution_id=execution_id,
+                            session_id=context.get("session_id") if context else None,
+                            user_id=context.get("user_id") if context else None,
+                            maturity=None,
+                        )
+                    )
+                    _pending_extraction_tasks.add(task)
+                    task.add_done_callback(
+                        lambda t, _s=_pending_extraction_tasks: _s.discard(t)
+                    )
+                except Exception as e:
+                    logger.debug(f"on_session_end extraction dispatch failed: {e}")
+
+        except Exception as _body_err:
+            logger.error(f"Agent body raised, finalizing execution as failed: {_body_err}", exc_info=True)
+            status = 'failed'
+            final_answer = final_answer or f'Agent error: {_body_err}'
+            db = None
+            try:
+                db = SessionLocal()
+                execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).with_for_update().first()
+                if execution:
+                    execution.status = 'failed'
+                    execution.result_summary = str(final_answer)[:500]
+                    execution.error_message = str(_body_err)[:500]
+                    execution.duration_seconds = (datetime.now(timezone.utc) - start_time).total_seconds()
+                    execution.completed_at = datetime.now(timezone.utc)
+                    db.commit()
+            except Exception as _fin_err:
+                logger.error(f"Failed to finalize execution as failed: {_fin_err}")
+            finally:
+                if db is not None:
+                    try: db.close()
+                    except Exception: pass
+            raise
 
         # 4. Record Execution
         result_payload = {
@@ -1074,12 +1113,17 @@ What is your next step?"""
                     auth_check["reason"] = f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' requires confirmation."
 
                 if auth_check.get("requires_human_approval"):
+                    # request_approval's signature is (agent_id, action_type,
+                    # params, reason, chain_id=None) — it reads workspace_id off
+                    # the service instance (self.workspace_id). Passing it as a
+                    # kwarg raised TypeError every time, which the outer except
+                    # masked as "Tool error" — making the entire HITL approval
+                    # gate dead for the meta-agent.
                     action_id = gov.request_approval(
                         agent_id="atom_main",
                         action_type=tool_name,
                         params=args,
                         reason=auth_check["reason"],
-                        workspace_id=self.workspace_id
                     )
                     
                     if step_callback:

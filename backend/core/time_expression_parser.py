@@ -202,15 +202,16 @@ IMPORTANT: Use 24-hour format. Monday=1, Sunday=0 in cron.
 
 async def parse_time_expression(
     expression: str,
-    ai_service: RealAIWorkflowService
+    ai_service: Optional["RealAIWorkflowService"] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Parse a natural language time expression into a schedule specification.
-    
+
     Args:
         expression: Natural language time expression (e.g., "every weekday at 9am")
-        ai_service: AI service instance for LLM fallback
-    
+        ai_service: AI service instance for LLM fallback. Optional — when None,
+            pattern matching still runs and only the LLM fallback is skipped.
+
     Returns:
         Dictionary with:
         - schedule_type: "cron", "interval", or "date"
@@ -218,7 +219,7 @@ async def parse_time_expression(
         - interval_minutes: Number of minutes (if interval type)
         - run_date: ISO datetime string (if date type)
         - human_readable: Human-friendly description
-        
+
         Returns None if parsing fails
     """
     # Try pattern matching first (fast)
@@ -226,13 +227,17 @@ async def parse_time_expression(
     if result:
         logger.info(f"Parsed '{expression}' using patterns: {result['human_readable']}")
         return result
-    
-    # Fall back to LLM (slow but handles complex cases)
+
+    # Fall back to LLM (slow but handles complex cases). Skip when no service is
+    # available rather than raising — pattern matching covers the common cases.
+    if ai_service is None:
+        logger.warning(f"Pattern matching failed for '{expression}' and no ai_service for LLM fallback")
+        return None
     logger.info(f"Pattern matching failed for '{expression}', trying LLM...")
     result = await parse_with_llm(expression, ai_service)
     if result:
         logger.info(f"Parsed '{expression}' using LLM: {result.get('human_readable')}")
         return result
-    
+
     logger.warning(f"Could not parse time expression: {expression}")
     return None
