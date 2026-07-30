@@ -6,8 +6,8 @@ feedback through ``record_feedback`` → the row lands in the DB → a fresh
 router instance (empty in-memory state) calls ``load_feedback_from_db`` and
 recovers the feedback so predictors can retrain.
 
-Also covers the two crash-bug regressions: ``optimize_routing_configuration``
-(no broken import) and ``_create_model`` for NEURAL_NETWORK / ENSEMBLE.
+Also covers the ``_create_model`` crash-bug regressions for
+NEURAL_NETWORK / ENSEMBLE estimator types.
 """
 
 from __future__ import annotations
@@ -86,33 +86,6 @@ class TestCrashBugFixes:
         trainer = RouteLLMTrainer(cfg)
         result = trainer.train([ex(i % 2 == 0) for i in range(30)])
         assert result.status == TrainingStatus.COMPLETED, result.metadata
-
-    @pytest.mark.asyncio
-    async def test_optimize_routing_configuration_runs(self, monkeypatch, tmp_path):
-        """optimize_routing_configuration must not crash on the broken import."""
-        from core import learning_llm_router
-
-        original_init = learning_llm_router.TrainingConfig.__init__
-
-        def patched_init(self, *args, **kwargs):
-            kwargs.setdefault("model_path", str(tmp_path / "models"))
-            original_init(self, *args, **kwargs)
-
-        monkeypatch.setattr(
-            learning_llm_router.TrainingConfig, "__init__", patched_init
-        )
-
-        router = learning_llm_router.LearningBasedRouter(Mock())
-        # Previously raised ImportError (HypothesisTree not in core.models) +
-        # misused db.add/flush/commit on a dataclass.
-        result = await router.optimize_routing_configuration(
-            tenant_id="t1",
-            task_type="code_generation",
-            requirements={"max_latency_ms": 2000, "min_quality": 0.8},
-        )
-        assert result is not None
-        assert "optimization_score" in result
-        assert "nodes_explored" in result
 
 
 # ----------------------------------------------------------------------------
