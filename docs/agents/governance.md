@@ -189,6 +189,16 @@ else:
         pass
 ```
 
+> **Async callers must use `can_perform_action_async()`.** The sync
+> `can_perform_action()` drives the budget check via the event loop, which is
+> impossible inside an already-running loop (it raises "this event loop is
+> already running" and the broad except silently allowed the action — a spend-
+> limit bypass). From `async` code (the meta-agent, generic agent, MCP,
+> streaming endpoints), `await governance.can_perform_action_async(...)` instead,
+> which awaits the budget check directly. The sync method now detects a running
+> loop and logs loudly (rather than silently skipping) when mis-used.
+
+
 ### Response Format
 
 ```python

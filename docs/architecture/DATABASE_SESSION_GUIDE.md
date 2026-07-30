@@ -309,6 +309,44 @@ async def get_user(user_id: str, db: Session = Depends(get_db)):
     other = db.query(Other).first()  # Same session
 ```
 
+### ❌ Holding a Session Across a Long Await (streaming LLM calls, agent runs)
+
+The pool is small (~20 connections + overflow). Pinning one across a multi-second
+`await` (a streaming completion, a full agent execution) exhausts the pool under
+modest concurrency — the 21st request blocks/fails. Likewise, a `SELECT ...
+FOR UPDATE` row lock held across an `await` serializes concurrent runs of the
+same row.
+
+**BAD**:
+```python
+db = SessionLocal()                 # held for the whole request
+agent_execution = AgentExecution(status="running"); db.add(agent_execution); db.commit()
+async for token in llm_service.stream_completion(...):   # multi-second await, session pinned
+    ...
+agent_execution.status = "completed"; db.commit()        # still the same session
+db.close()
+```
+
+**GOOD**:
+```python
+# Short-lived session for the governance check + insert.
+with get_db_session() as db:
+    agent_execution = AgentExecution(status="running"); db.add(agent_execution); db.commit()
+    execution_id = agent_execution.id
+# Session released BEFORE the stream.
+async for token in llm_service.stream_completion(...):
+    ...
+# Fresh short-lived session to finalize; re-fetch by id (the object is detached).
+with get_db_session() as db:
+    execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+    execution.status = "completed"; execution.completed_at = datetime.now(timezone.utc)
+    db.commit()
+```
+
+For a `with_for_update()` lock, `db.commit()` (or close the session) to release
+the lock **before** awaiting the long-running work — the work should open its
+own session.
+
 ---
 
 ## Best Practices
