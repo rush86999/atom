@@ -332,7 +332,10 @@ class TestConcreteModelVisibility:
         service._get_handler = lambda workspace_id=None: FakeHandler()
         service._resolve_governance_model = lambda ws, model, **kw: model
 
-        result = asyncio.get_event_loop().run_until_complete(
+        # asyncio.run() instead of get_event_loop().run_until_complete(): the
+        # latter raises "There is no current event loop" on Python 3.14+ (where
+        # get_event_loop no longer implicitly creates a loop).
+        result = asyncio.run(
             service.generate_completion(
                 messages=[{"role": "user", "content": "hi"}],
                 model="auto",
