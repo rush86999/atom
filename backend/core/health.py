@@ -32,9 +32,12 @@ def _check_database() -> str:
 def _check_redis() -> str:
     """Return 'operational' if Redis is reachable, else 'degraded'."""
     try:
-        from core.cache import cache_manager  # type: ignore
+        # core/cache.py exports `redis_cache` (not `cache_manager`). The old
+        # import always raised ImportError → caught → returned "degraded"
+        # unconditionally, so /health permanently reported redis as down.
+        from core.cache import redis_cache
 
-        if getattr(cache_manager, "enabled", False):
+        if getattr(redis_cache, "enabled", False):
             return "operational"
         return "degraded"
     except Exception as exc:
@@ -45,11 +48,14 @@ def _check_redis() -> str:
 def _check_vector_store() -> str:
     """Return 'operational' if the vector store is initialized, else 'degraded'."""
     try:
-        from core import lancedb_handler  # type: ignore
+        from core.lancedb_handler import get_lancedb_handler
 
-        if getattr(lancedb_handler, "_initialized", False) or getattr(
-            lancedb_handler, "table", None
-        ):
+        handler = get_lancedb_handler()
+        # The handler lazy-loads via _ensure_db() — check if the underlying
+        # LanceDB connection is live (handler.db is not None and handler.db.db
+        # is set). The old check looked for a non-existent `_initialized`
+        # attribute that was always False.
+        if handler and handler.db is not None and getattr(handler.db, "db", None) is not None:
             return "operational"
         return "degraded"
     except Exception as exc:

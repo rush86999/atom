@@ -466,9 +466,11 @@ async def lifespan(app: FastAPI):
             from ai.workflow_scheduler import workflow_scheduler
 
             if not qstash_init_skip:
-                await workflow_scheduler.start()
-        except Exception:
-            pass
+                # workflow_scheduler.start() is synchronous — awaiting None
+                # raises TypeError, which was silently swallowed. Call directly.
+                workflow_scheduler.start()
+        except Exception as exc:
+            logger.warning(f"Workflow scheduler failed to start: {exc}")
 
         # 2. Start Agent Scheduler
         try:
@@ -642,12 +644,19 @@ async def lifespan(app: FastAPI):
                 from core.database import SessionLocal
                 interval = CONSOLIDATION_INTERVAL_HOURS * 3600
                 while True:
+                    # Use a context-managed session so the connection is always
+                    # returned to the pool (previously SessionLocal() was never
+                    # closed — one connection leaked per cycle, exhausting the
+                    # 20+30 pool over days).
+                    db = SessionLocal()
                     try:
-                        svc = MemoryConsolidationService(db=SessionLocal())
+                        svc = MemoryConsolidationService(db=db)
                         await svc.run_consolidation_cycle()
                         logger.info("✓ POMDP memory consolidation cycle complete")
                     except Exception as ce:
                         logger.warning(f"Memory consolidation cycle failed (non-fatal): {ce}")
+                    finally:
+                        db.close()
                     await asyncio.sleep(interval)
             asyncio.create_task(_consolidation_loop())
             logger.info("✓ POMDP Memory Consolidation background task started (6h interval)")
@@ -726,8 +735,10 @@ async def lifespan(app: FastAPI):
 
         await shutdown_learning_service()
         logger.info("✓ Learning Service shutdown complete")
-    except:
-        pass
+    except ImportError:
+        pass  # shutdown_learning_service doesn't exist — not critical
+    except Exception as e:
+        logger.debug(f"Learning service shutdown: {e}")
 
 
 # --- APP INITIALIZATION ---
