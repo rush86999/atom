@@ -122,6 +122,11 @@ jobs:
           SECRET_KEY: "ci-e2e-secret-key"
           ENVIRONMENT: "development"
           DISABLE_AUTH_RATE_LIMIT: "1"
+          # MUST match the env var the AuthRateLimiter checks (line 68 of
+          # core/security/auth_rate_limit.py). DISABLE_AUTH_RATE_LIMIT is an
+          # older name that the limiter does NOT read — without this, the
+          # e2e journey tests hit 429 on /api/auth/register.
+          BYPASS_RATE_LIMIT: "1"
           ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001"
         run: |
           rm -f /tmp/atom_e2e.db
@@ -158,10 +163,6 @@ jobs:
           # backend/ on PYTHONPATH so `from core.database import SessionLocal`
           # works in the role fixtures. $GITHUB_WORKSPACE is repo root.
           PYTHONPATH: "${{ github.workspace }}/backend"
-          # The journey tests register multiple test users in quick succession;
-          # bypass the auth rate limiter (login 10/min, register 3/5min) so
-          # they don't hit 429 in CI. The rate limiter checks this env var.
-          BYPASS_RATE_LIMIT: "true"
           CI: "true"
         run: |
           python -m pytest tests/test_journey_api_features.py \
