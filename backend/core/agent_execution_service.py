@@ -275,7 +275,12 @@ Provide helpful, concise responses. Be direct and practical."""
         # Stream response via LLMService
         async for token in llm_service.stream_completion(**stream_kwargs):
             accumulated_content += token
-            tokens_count += 1
+            # Count TOKENS, not stream chunks. stream_completion yields
+            # arbitrary text fragments (often whole words/sentences), so the old
+            # `tokens_count += 1` undercounted real tokens by ~3-10x and
+            # corrupted the spend recorded against the personal budget. Use the
+            # codebase's standard ~4-chars/token estimate.
+            tokens_count += max(1, len(token) // 4)
 
             # Broadcast token via WebSocket if streaming enabled
             if stream:
@@ -286,7 +291,9 @@ Provide helpful, concise responses. Be direct and practical."""
                     "delta": token,
                     "complete": False,
                     "metadata": {
-                        "tokens_so_far": len(accumulated_content),
+                        # Report the token ESTIMATE (tokens_count), not the raw
+                        # char count — the key is named tokens_so_far.
+                        "tokens_so_far": tokens_count,
                         "execution_id": execution_id
                     }
                 })
