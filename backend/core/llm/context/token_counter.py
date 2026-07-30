@@ -168,6 +168,10 @@ class ContextValidator:
         "text-embedding-3-large": 8191,
         "text-embedding-3-small": 8191,
         "text-embedding-ada-002": 8191,
+        # 2026 frontier models
+        "kimi-k3": 1000000,
+        "gpt-5.6-sol": 1050000,
+        "claude-mythos-5": 1000000,
     }
 
     DEFAULT_CONTEXT_LIMIT: int = 128000

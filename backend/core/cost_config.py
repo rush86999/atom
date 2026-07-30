@@ -61,6 +61,10 @@ MODEL_COSTS: Dict[str, Dict[str, float]] = {
     "gemini-2.0-flash": {"input": 0.00000025, "output": 0.000001},
     "gemini-3.5-flash": {"input": 0.0000003, "output": 0.0000015},
     "xiaomi/mimo-v2.5-pro": {"input": 0.0000005, "output": 0.0000015},
+    # 2026 frontier models (per-token fallback)
+    "kimi-k3": {"input": 0.0000029, "output": 0.000014},
+    "gpt-5.6-sol": {"input": 0.000005, "output": 0.00003},
+    "claude-mythos-5": {"input": 0.00001, "output": 0.00005},
 }
 
 

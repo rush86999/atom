@@ -19,6 +19,8 @@ MODEL_QUALITY_SCORES = {
     "gemini-3-pro": 100,
     "gpt-5.2": 100,
     "gpt-5": 99,
+    "gpt-5.6-sol": 98,
+    "claude-mythos-5": 99,
     "o3": 99,
     "claude-4-opus": 99,
     "claude-3.5-opus": 97, # older opus
@@ -68,6 +70,7 @@ MODEL_QUALITY_SCORES = {
     "kimi-k2.6": 93,
     "kimi-k2-thinking": 91,
     "kimi-k2": 89,
+    "kimi-k3": 94,
 
     # Mistral (OpenAI-compatible)
     "mistral-large-latest": 90,

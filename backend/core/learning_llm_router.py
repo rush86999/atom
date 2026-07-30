@@ -412,6 +412,28 @@ class LearningBasedRouter:
             ),
         })
 
+        # GPT 5.6 Sol (OpenAI, 2026)
+        self._model_registry.update({
+            "gpt-5.6-sol": ModelSpec(
+                model_id="gpt-5.6-sol",
+                provider="openai",
+                model_name="gpt-5.6-sol",
+                capabilities={
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.TOOL_USE,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=17.50,  # avg of $5.00 in / $30.00 out
+                quality_score=0.98,
+                speed_score=0.72,
+                context_window=1050000,
+                supports_cache=True,
+                tier="premium",
+            ),
+        })
+
         # Claude Opus 4.6 (Anthropic, 2026)
         self._model_registry.update({
             "claude-opus-4.6": ModelSpec(
@@ -545,6 +567,29 @@ class LearningBasedRouter:
             ),
         })
 
+        # Kimi K3 (Moonshot AI, 2026)
+        self._model_registry.update({
+            "kimi-k3": ModelSpec(
+                model_id="kimi-k3",
+                provider="moonshot",
+                model_name="kimi-k3",
+                capabilities={
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.VISION,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=8.45,  # avg of $2.90 in / $14.00 out
+                quality_score=0.94,
+                speed_score=0.75,
+                context_window=1000000,
+                supports_cache=True,
+                tier="premium",
+                api_region="international",
+            ),
+        })
+
         # Qwen 2.5 Max (Alibaba, 2026, uses international API)
         self._model_registry.update({
             "qwen-2.5-max": ModelSpec(
@@ -621,6 +666,30 @@ class LearningBasedRouter:
                     ModelCapability.HIGH_QUALITY,
                 },
                 cost_per_million=30.00,
+                quality_score=0.99,
+                speed_score=0.60,
+                context_window=1000000,
+                supports_cache=True,
+                tier="premium",
+            ),
+        })
+
+        # Claude Mythos 5 (Anthropic, 2026) — highest quality, reserved for
+        # ADVANCED tasks via escalation. Cost calibrated for cost-effectiveness:
+        # $10/$50 per 1M (avg $30), quality 0.99, Arena ELO 1508 (#1 overall).
+        self._model_registry.update({
+            "claude-mythos-5": ModelSpec(
+                model_id="claude-mythos-5",
+                provider="anthropic",
+                model_name="claude-mythos-5",
+                capabilities={
+                    ModelCapability.VISION,
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=30.00,  # avg of $10 in / $50 out
                 quality_score=0.99,
                 speed_score=0.60,
                 context_window=1000000,
