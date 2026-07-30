@@ -131,7 +131,7 @@ response characteristics, replacing dead placeholder fields
 |--------|--------|---------------------|
 | Truncation | `finish_reason == "length"` (previously never read) | False |
 | Empty content | content is blank | False |
-| Refusal | content starts with a refusal marker | False |
+| Refusal | a known declination phrase appears in the leading ~160 chars | False |
 | Schema error | structured-output validation failed (`is_schema_err`) | False (API succeeded) |
 | Exception | the API call raised | `success=False` |
 | Normal | substantive, complete response | True, score 0.7–0.95 |
@@ -139,6 +139,22 @@ response characteristics, replacing dead placeholder fields
 The score is a **graded heuristic proxy**, not a substitute for real user
 feedback. It lets predictors learn "model X truncates long prompts" /
 "model Y fails structured output" — far better than all-True placeholders.
+
+> **Refusal matching** scans a leading window (not a strict offset-0 match):
+> models frequently prefix refusals with a preamble ("Sure — however,
+> unfortunately, I cannot…"), leading whitespace, or a markdown marker. The
+> marker set covers the common "I'm sorry, but I can't" / "Unfortunately, I
+> am unable to" / "As an AI language model, I cannot" variants; a phrase
+> appearing well past the window is not treated as a refusal (avoids false
+> positives on substantive content).
+
+> **Structured & streaming feedback carry real signals.** The structured and
+> streaming outcome hooks pass the actual `finish_reason`, observed `latency_ms`,
+> and attributed `cost` (not hardcoded `stop`/`0.0`/`None`), and streaming
+> accumulates the content (capped) so quality assessment can detect
+> truncation/refusal/empty on streams. Without this, predictors for those paths
+> trained on constant signals and couldn't learn "model X truncates structured
+> output" or "model Y is slow on streams."
 
 ### DB persistence (`LLMRoutingFeedback` + migration `20260711`)
 

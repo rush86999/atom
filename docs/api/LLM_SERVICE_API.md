@@ -288,6 +288,11 @@ async for token in service.stream_completion(
 - When `provider_id="auto"`, analyzes query complexity to select optimal provider
 - Includes automatic provider fallback on failure
 - Integrates with governance tracking when `agent_id` and `db` are provided
+- **Fallback is model-aware:** a fallback provider is only attempted if it
+  actually serves the requested model (by name-prefix family), so cross-
+  provider fallback no longer asks, e.g., Anthropic to serve `gpt-4o` (which
+  404s). Local providers (ollama/vllm/lmstudio) always match. The requested
+  primary provider is always tried regardless.
 
 ---
 

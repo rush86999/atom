@@ -30,17 +30,35 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 
-# Short, conservative refusal markers. Kept deliberately tight to avoid
-# false positives on legitimate content that happens to mention safety.
+# Refusal markers. A model often prefixes a refusal with a preamble
+# ("Sure — however", "Unfortunately,"), leading whitespace, or a markdown
+# marker, so we match these as a *leading clause* (within the first ~120 chars)
+# rather than a strict startswith at offset 0. Kept deliberately conservative:
+# each marker is a clear declination phrase, so the risk of a false positive on
+# legitimate content is low, while recall (catching "Unfortunately, I cannot
+# help with that") is much higher than the old exact-offset match.
 _REFUSAL_MARKERS = (
     "i'm sorry, but i can't",
     "i'm sorry, but i cannot",
+    "i am sorry, but i can't",
+    "i am sorry, but i cannot",
     "i cannot assist with that",
     "i can't assist with that",
+    "i cannot help with that",
+    "i can't help with that",
+    "i'm not able to fulfill this request",
+    "i am not able to fulfill this request",
+    "i'm unable to",
+    "i am unable to",
     "as an ai language model, i cannot",
     "as an ai, i cannot",
-    "i'm not able to fulfill this request",
+    "as an ai language model, i can't",
+    "unfortunately, i cannot",
+    "unfortunately, i can't",
+    "unfortunately, i am unable",
 )
+# How far into the (normalized) text we look for a leading refusal clause.
+_REFUSAL_SCAN_WINDOW = 160
 
 
 @dataclass
@@ -119,9 +137,16 @@ def assess_response_quality(
             issues=issues,
         )
 
-    # --- Refusal: content starts with a known refusal marker. ---
+    # --- Refusal: content begins (within a leading window) with a known
+    # declination phrase. Models frequently prefix refusals with a preamble,
+    # leading whitespace, or a markdown marker, so we scan the first
+    # _REFUSAL_SCAN_WINDOW chars after stripping common leading punctuation/
+    # whitespace, rather than requiring an exact match at offset 0 (which
+    # missed the common "Unfortunately, I cannot..." / "Sure — however, I'm
+    # sorry, but..." patterns).
     lowered = text.lower()
-    if any(lowered.startswith(m) for m in _REFUSAL_MARKERS):
+    scan_head = lowered[:_REFUSAL_SCAN_WINDOW]
+    if any(m in scan_head for m in _REFUSAL_MARKERS):
         issues.append("refusal")
         return ResponseQuality(
             success=True,

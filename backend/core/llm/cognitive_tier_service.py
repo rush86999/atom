@@ -213,13 +213,19 @@ class CognitiveTierService:
         if not self.db:
             return []
 
-        # Define quality bands
+        # Define quality bands. These MUST agree with BPC's MIN_QUALITY_BY_TIER
+        # (byok_handler) — previously they didn't: this picked STANDARD models
+        # in the 40-65 band while BPC's MIN_QUALITY_BY_TIER[STANDARD]=80 then
+        # rejected them, so the cognitive-tier path selected models BPC filtered
+        # out and the two pipelines never composed. Bands are now aligned to
+        # BPC's floors (0-100 scale): each tier's band starts at BPC's floor for
+        # that tier and extends to the next tier's floor.
         quality_map = {
-            CognitiveTier.MICRO: (0, 40),
-            CognitiveTier.STANDARD: (40, 65),
-            CognitiveTier.VERSATILE: (65, 80),
-            CognitiveTier.HEAVY: (80, 92),
-            CognitiveTier.COMPLEX: (92, 101),
+            CognitiveTier.MICRO: (0, 80),
+            CognitiveTier.STANDARD: (80, 86),
+            CognitiveTier.VERSATILE: (86, 90),
+            CognitiveTier.HEAVY: (90, 94),
+            CognitiveTier.COMPLEX: (94, 101),
         }
 
         min_q, max_q = quality_map.get(tier, (0, 100))
