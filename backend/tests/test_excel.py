@@ -5,6 +5,7 @@ import logging
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), 'backend'))
 
+import pytest; pytest.importorskip("apps.ai_employee", reason="ai_employee removed — core agent system replaces it")
 from apps.ai_employee.tools import EmployeeTools
 
 logging.basicConfig(level=logging.INFO)

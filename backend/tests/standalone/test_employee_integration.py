@@ -6,6 +6,7 @@ import sys
 # Add backend to path
 sys.path.append(os.getcwd())
 
+import pytest; pytest.importorskip("apps.ai_employee", reason="ai_employee removed — core agent system replaces it")
 from apps.ai_employee.executor import employee_executor
 from apps.ai_employee.tools import EmployeeTools
 
