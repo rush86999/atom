@@ -2,6 +2,7 @@
 Provider Health Monitor
 Health tracking service for LLM provider API calls using Exponential Moving Average
 """
+import threading
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple
@@ -32,6 +33,12 @@ class ProviderHealthMonitor:
         self.window_minutes = window_minutes
         self.call_history: Dict[str, deque] = {}  # provider_id -> deque of (timestamp, success, latency_ms)
         self.health_scores: Dict[str, float] = {}  # provider_id -> 0.0-1.0 score
+        # Guards call_history/health_scores. This monitor is a process-global
+        # singleton shared across every BYOKHandler/async-task/thread, and
+        # record_call does deque.append + popleft trim + dict write; without a
+        # lock, concurrent calls corrupt the deque/dict (lost updates, and
+        # "deque mutated during iteration" / RuntimeError during _update_health_score).
+        self._lock = threading.Lock()
 
     def record_call(self, provider_id: str, success: bool, latency_ms: float):
         """
@@ -44,23 +51,29 @@ class ProviderHealthMonitor:
         """
         timestamp = datetime.now(timezone.utc)
 
-        # Initialize deque for new provider
-        if provider_id not in self.call_history:
-            self.call_history[provider_id] = deque()
-            logger.debug(f"Initialized health tracking for provider: {provider_id}")
+        # All state mutation (deque append + trim + score write) is atomic under
+        # the lock so concurrent record_call / get_* calls can't interleave on
+        # the shared singleton (see __init__).
+        with self._lock:
+            # Initialize deque for new provider
+            if provider_id not in self.call_history:
+                self.call_history[provider_id] = deque()
+                logger.debug(f"Initialized health tracking for provider: {provider_id}")
 
-        history = self.call_history[provider_id]
-        history.append((timestamp, success, latency_ms))
+            history = self.call_history[provider_id]
+            history.append((timestamp, success, latency_ms))
 
-        # Trim old entries outside sliding window to prevent memory leaks
-        self._trim_old_entries(provider_id)
+            # Trim old entries outside sliding window to prevent memory leaks
+            self._trim_old_entries(provider_id)
 
-        # Update health score using EMA calculation
-        self._update_health_score(provider_id)
+            # Update health score using EMA calculation
+            self._update_health_score(provider_id)
+
+            score = self.health_scores[provider_id]
 
         logger.debug(
             f"Recorded call for {provider_id}: success={success}, "
-            f"latency={latency_ms}ms, health_score={self.health_scores[provider_id]:.3f}"
+            f"latency={latency_ms}ms, health_score={score:.3f}"
         )
 
     def get_health_score(self, provider_id: str) -> float:
@@ -77,7 +90,10 @@ class ProviderHealthMonitor:
         if provider_id not in self.health_scores:
             logger.debug(f"No health history for {provider_id}, returning default 1.0")
             return 1.0
-        return round(self.health_scores[provider_id], 3)
+        with self._lock:
+            # Snapshot under the lock so a concurrent record_call can't mutate
+            # the dict mid-read.
+            return round(self.health_scores[provider_id], 3)
 
     def get_healthy_providers(self, min_score: float = 0.5) -> List[str]:
         """
@@ -89,11 +105,13 @@ class ProviderHealthMonitor:
         Returns:
             List of provider IDs with health_score >= min_score
         """
-        healthy = [
-            provider_id
-            for provider_id, score in self.health_scores.items()
-            if score >= min_score
-        ]
+        healthy = []
+        with self._lock:
+            # Iterate a snapshot of items so a concurrent record_call can't
+            # mutate the dict during the comprehension.
+            for provider_id, score in list(self.health_scores.items()):
+                if score >= min_score:
+                    healthy.append(provider_id)
         logger.debug(f"Healthy providers (min_score={min_score}): {healthy}")
         return healthy
 
@@ -165,6 +183,7 @@ class ProviderHealthMonitor:
 
 # Singleton instance
 _health_monitor: ProviderHealthMonitor | None = None
+_singleton_lock = threading.Lock()
 
 
 def get_provider_health_monitor() -> ProviderHealthMonitor:
@@ -176,6 +195,11 @@ def get_provider_health_monitor() -> ProviderHealthMonitor:
     """
     global _health_monitor
     if _health_monitor is None:
-        _health_monitor = ProviderHealthMonitor()
-        logger.info("Created ProviderHealthMonitor singleton instance")
+        # Double-checked locking: two concurrent first-callers would otherwise
+        # each build a monitor and one (with whatever state it had accumulated)
+        # would be discarded.
+        with _singleton_lock:
+            if _health_monitor is None:
+                _health_monitor = ProviderHealthMonitor()
+                logger.info("Created ProviderHealthMonitor singleton instance")
     return _health_monitor

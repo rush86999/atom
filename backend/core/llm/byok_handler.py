@@ -453,19 +453,55 @@ class BYOKHandler:
             logger.warning(f"Failed to refresh excluded models cache: {e}")
             self.excluded_models = set()
 
-    def _filter_by_capabilities(self, model_id: str, required_capability: Optional[str]) -> bool:
+    def _load_capability_index(self) -> Optional[Dict[str, list]]:
+        """Bulk-load {model_id -> capabilities} from ModelCatalog in ONE query.
+
+        The BPC ranking loop iterates the full pricing cache (hundreds of
+        models) and previously called _filter_by_capabilities per model, each
+        opening its own DB session — hundreds of round-trips per request plus
+        connection-pool pressure whenever a capability filter was active. This
+        fetches them all at once; returns None on failure (callers fall back to
+        the per-model path, which still passes unknown/error models through).
+        """
+        try:
+            with get_db_session() as db:
+                rows = db.query(ModelCatalog).all()
+            return {row.model_id: (row.capabilities or ["chat"]) for row in rows}
+        except Exception as e:
+            logger.warning(f"Could not bulk-load capability index: {e}")
+            return None
+
+    def _filter_by_capabilities(
+        self,
+        model_id: str,
+        required_capability: Optional[str],
+        capability_index: Optional[Dict[str, list]] = None,
+    ) -> bool:
         """
         Check if model has the required capability.
 
         Args:
             model_id: Model identifier
             required_capability: Required capability (e.g., "computer_use", "vision", "tools")
+            capability_index: optional pre-built {model_id -> capabilities} map
+                from _load_capability_index(). When provided, avoids a per-model
+                DB query inside the hot BPC loop.
 
         Returns:
-            True if model has capability or no requirement, False otherwise
+            True if model has capability or no requirement, False otherwise.
+            Unknown models and DB errors pass through (conservative: don't drop
+            a candidate we can't verify — the caller's quality/health filters
+            still apply).
         """
         if not required_capability:
             return True  # No capability requirement
+
+        # Fast path: use the pre-built index (no DB round-trip).
+        if capability_index is not None:
+            capabilities = capability_index.get(model_id)
+            if capabilities is None:
+                return True  # Unknown model — pass through
+            return required_capability in capabilities
 
         try:
             with get_db_session() as db:
@@ -505,7 +541,13 @@ class BYOKHandler:
             True if model supports tools, False otherwise
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
-        return capabilities.get("supports_tools", True)  # Default to True for unknown models
+        # NOTE: get_model_capabilities returns an explicit supports_tools=False for
+        # models with no capability metadata, so a .get(..., True) fallback here
+        # would be dead code. Unknown models are conservatively treated as NOT
+        # tool-capable — this is intentional (routing an agentic request to a
+        # model that can't tool-call breaks the agent). To admit a model into
+        # agentic routing, set its supports_tools flag in the pricing cache.
+        return bool(capabilities.get("supports_tools", False))
 
     def _model_supports_vision(self, model_id: str) -> bool:
         """
@@ -1073,7 +1115,15 @@ class BYOKHandler:
             
             available_providers = list(self.clients.keys())
             candidates = []
-            
+
+            # When a capability filter is active, bulk-load the capability index
+            # ONCE instead of querying the DB per model inside the loop below
+            # (hundreds of round-trips + connection-pool pressure). None when no
+            # filter is needed (the per-model call is then a no-op anyway).
+            capability_index = (
+                self._load_capability_index() if required_capability else None
+            )
+
             # Use the entire pricing cache to discover models beyond hardcoded lists
             for model_id, pricing in fetcher.pricing_cache.items():
                 litellm_provider = pricing.get("litellm_provider", "").lower()
@@ -1089,7 +1139,7 @@ class BYOKHandler:
                     continue
 
                 # Phase 226.4-04: Check capability filter
-                if not self._filter_by_capabilities(model_id, required_capability):
+                if not self._filter_by_capabilities(model_id, required_capability, capability_index):
                     continue
 
                 # Phase 226.4-04: Check if model is excluded from general routing
@@ -1115,28 +1165,43 @@ class BYOKHandler:
                 ):
                     continue
 
-                # Calculate BPC Value Score with Cache-Aware Cost
-                # Value = (Quality^2) / Cost. We use 1e6 to make costs readable.
-
                 # Calculate DETERMINISTIC cache-aware effective cost (Turn 0 vs Turn N)
                 effective_cost = self.cache_router.calculate_effective_cost(
                     model_id, active_provider, estimated_tokens, turn_index=turn_index
                 )
 
-                # Avoid division by zero and handle free models
-                normalized_cost = max(effective_cost, 1e-9)
-
-                # BPC Score: Higher is better value
-                # Squaring quality penalizes low-end models regardless of price for complex tasks
-                value_score = (quality_score ** 2) / (normalized_cost * 1e6)
-                
+                # NOTE: value_score is computed in a second pass below, after we
+                # know the pool's cost scale, so free/local models (cost == 0.0)
+                # can be floored RELATIVE to paid models rather than with an
+                # absolute floor that either let them dominate unconditionally
+                # (old 1e-9 → ~1000x advantage) or over-penalized them.
                 candidates.append({
                     "provider": active_provider,
                     "model": model_id,
-                    "value_score": value_score,
                     "quality": quality_score,
-                    "cost": effective_cost
+                    "cost": effective_cost,
                 })
+
+            # Second pass: compute value_score with a pool-relative cost floor.
+            # Free models are floored at ~half the median PAID cost in this
+            # candidate pool, so they remain cheap-but-finite: a free model
+            # still beats an equal-quality paid model, but a substantially-
+            # higher-quality paid model can win (Bug 8). The factor (0.5) is
+            # chosen so that quality gaps (squared in the numerator) overcome
+            # the price advantage: quality 0.95 paid beats quality 0.5 free,
+            # while quality-0.9 free still beats quality-0.9 paid.
+            paid_costs = sorted(c["cost"] for c in candidates if c["cost"] > 0)
+            if paid_costs:
+                median_paid = paid_costs[len(paid_costs) // 2]
+                relative_floor = max(median_paid * 0.5, 1e-9)
+            else:
+                relative_floor = 1e-9  # all-free pool — original behavior
+            for c in candidates:
+                normalized_cost = max(c["cost"], relative_floor)
+                # BPC Score: Higher is better value.
+                # Squaring quality penalizes low-end models for complex tasks.
+                c["value_score"] = (c["quality"] ** 2) / (normalized_cost * 1e6)
+
             
             # Sort by Value Score (Descending)
             candidates.sort(key=lambda x: x["value_score"], reverse=True)
@@ -1887,10 +1952,43 @@ class BYOKHandler:
                     image_payload=image_payload
                 )
 
-                # Phase 68-06: Step 5 - Check for escalation
-                should_escalate, reason, target_tier = self.tier_service.handle_escalation(
-                    current_tier, None, None, False, request_id
+                # generate_response signals failure by returning an apology
+                # string rather than raising (its internal fallback). Detect
+                # those so escalation can fire on generation failures, not just
+                # exceptions (Bug 2): the except block below was unreachable for
+                # generation errors because they never raised.
+                _GEN_FAILURE_MARKERS = (
+                    "i'm sorry, i couldn't generate",
+                    "i'm sorry, but an error occurred",
                 )
+                gen_failed = isinstance(response, str) and any(
+                    m in response.lower() for m in _GEN_FAILURE_MARKERS
+                )
+
+                if gen_failed:
+                    # Treat as an error and let escalation decide (rate-limit /
+                    # error branches in should_escalate).
+                    should_escalate, reason, target_tier = self.tier_service.handle_escalation(
+                        current_tier, None, "generation_failed", False, request_id
+                    )
+                else:
+                    # Phase 68-06: Step 5 - Assess quality and check for
+                    # escalation. Previously this passed response_quality=None,
+                    # so the QUALITY_THRESHOLD branch never fired and a
+                    # truncated/low-quality response was returned as success
+                    # every time (Bug 1). Assess the real quality (0-100) and
+                    # pass it so quality breaches escalate to a stronger tier.
+                    try:
+                        from core.llm.response_quality import assess_response_quality
+                        rq = assess_response_quality(
+                            content=response, finish_reason="stop"
+                        )
+                        quality_0_100 = (rq.quality_score or 0.0) * 100.0
+                    except Exception:
+                        quality_0_100 = None
+                    should_escalate, reason, target_tier = self.tier_service.handle_escalation(
+                        current_tier, quality_0_100, None, False, request_id
+                    )
 
                 if not should_escalate:
                     # Success - return response with metadata
