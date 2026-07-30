@@ -1451,8 +1451,10 @@ class HTMLErrorToJSONMiddleware:
     """
     Middleware to convert FastAPI's default HTML error pages to JSON responses.
 
-    FastAPI's default exception handlers return HTML for validation errors and HTTPExceptions.
-    This middleware intercepts those responses and converts them to JSON for API consistency.
+    Buffers the response body, and if it's an HTML error (4xx/5xx), replaces
+    the body with a JSON error object. Previously the Content-Type was changed
+    to application/json but the HTML body was passed through unchanged, so
+    clients received Content-Type: JSON with an HTML body — unparseable.
     """
 
     def __init__(self, app):
@@ -1463,49 +1465,74 @@ class HTMLErrorToJSONMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Intercept the send function to modify responses
         status_code = None
-        headers = None
+        is_html_error = False
+        body_chunks = []
 
         async def send_wrapper(message):
-            nonlocal status_code, headers
+            nonlocal status_code, is_html_error
 
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 headers = message.get("headers", [])
+                is_html_error = False
 
-                # Check if this is an error response (4xx or 5xx)
                 if status_code >= 400:
-                    # Convert to JSON by modifying Content-Type
-                    new_headers = []
-                    content_type_is_html = False
-
                     for name, value in headers:
-                        name_lower = name.decode().lower()
-                        if name_lower == b"content-type":
-                            if b"text/html" in value:
-                                content_type_is_html = True
-                            # Force JSON content type
-                            new_headers.append((name, b"application/json"))
-                        else:
-                            new_headers.append((name, value))
+                        if name.decode().lower() == "content-type" and b"text/html" in value:
+                            is_html_error = True
+                            break
 
-                    # Update headers
-                    message["headers"] = new_headers
+                if not is_html_error:
+                    # Not an HTML error — pass through unchanged.
+                    await send(message)
+                # If it IS an HTML error, don't send the start yet — we'll
+                # send a modified one after buffering the body.
 
-                    # If we changed HTML to JSON, we need to intercept the body too
-                    if content_type_is_html:
-                        message["headers"] = tuple(
-                            (name, b"application/json")
-                            if name.decode().lower() == "content-type"
-                            else (name, value)
-                            for name, value in headers
-                        )
+            elif message["type"] == "http.response.body":
+                if is_html_error:
+                    # Buffer the body; don't send yet.
+                    body_chunks.append(message.get("body", b""))
+                    if not message.get("more_body"):
+                        # Last chunk — reconstruct as JSON.
+                        import json as _json
+                        original = b"".join(body_chunks).decode("utf-8", errors="replace")
+                        # Extract a short message from the HTML (strip tags).
+                        import re as _re
+                        text = _re.sub(r"<[^>]+>", " ", original).strip()
+                        text = _re.sub(r"\s+", " ", text)[:300]
+                        json_body = _json.dumps({
+                            "detail": text or f"HTTP {status_code}",
+                            "status_code": status_code,
+                        }).encode("utf-8")
 
-            await send(message)
+                        # Send the modified start with JSON headers.
+                        from starlette.http_messages import _get_cached_headers as _gh
+                        # Build headers manually (replace content-type + length).
+                        new_headers = []
+                        for name, value in headers:
+                            nl = name.decode().lower()
+                            if nl == "content-type":
+                                new_headers.append((name, b"application/json"))
+                            elif nl == "content-length":
+                                new_headers.append((name, str(len(json_body)).encode()))
+                            else:
+                                new_headers.append((name, value))
 
-        # For response body interception, we'd need a more complex solution
-        # For now, we'll rely on our custom exception handlers in the routes
+                        await send({
+                            "type": "http.response.start",
+                            "status": status_code,
+                            "headers": new_headers,
+                        })
+                        await send({
+                            "type": "http.response.body",
+                            "body": json_body,
+                        })
+                else:
+                    await send(message)
+            else:
+                await send(message)
+
         await self.app(scope, receive, send_wrapper)
 
 
