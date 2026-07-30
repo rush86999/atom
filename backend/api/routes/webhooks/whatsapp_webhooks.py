@@ -1,4 +1,7 @@
 import logging
+import os
+import hmac
+import hashlib
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -46,7 +49,22 @@ async def whatsapp_webhook(
     encrypted TenantSetting rows via CredentialVault, then dispatches
     to the webhook bridge.
     """
-    data = await request.json()
+    raw_body = await request.body()
+
+    # Verify WhatsApp/Meta signature — x-hub-signature-256 is HMAC-SHA256 of
+    # the raw body with the app secret (WHATSAPP_APP_SECRET). Previously the
+    # header was accepted but never verified (forged events processed).
+    app_secret = os.getenv("WHATSAPP_APP_SECRET", "")
+    if not app_secret:
+        logger.error("WhatsApp webhook received but WHATSAPP_APP_SECRET not set — rejecting")
+        raise HTTPException(status_code=401, detail="App secret not configured")
+    if not x_hub_signature_256:
+        raise HTTPException(status_code=401, detail="Missing signature")
+    expected = "sha256=" + hmac.new(app_secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, x_hub_signature_256):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    data = request.json()
 
     entries = data.get("entry", [])
     if not entries:
