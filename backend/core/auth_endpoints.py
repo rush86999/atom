@@ -343,7 +343,23 @@ async def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Logout the current user (client should discard token)"""
+    """Logout the current user and revoke their token server-side."""
+    # Revoke the JWT so it can't be reused after logout (previously the token
+    # stayed valid for 24h — a stolen token survived logout).
+    from core.auth import oauth2_scheme, revoke_token
+    import jwt as _jwt
+    from core.auth import SECRET_KEY, ALGORITHM
+    try:
+        raw_token = oauth2_scheme(request)
+        if raw_token:
+            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+            jti = payload.get("jti")
+            exp = payload.get("exp", 0)
+            if jti:
+                revoke_token(jti, exp)
+    except Exception:
+        pass  # Best-effort revocation; logout shouldn't fail
+
     audit_service.log_event(
         db,
         event_type=AuditEventType.LOGOUT.value,

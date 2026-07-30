@@ -336,12 +336,15 @@ class GoogleChatEnhancedService(IntegrationService):
     def _encrypt_token(self, token: str) -> str:
         """Encrypt access token for storage"""
         if not self.cipher:
-            return token
+            # No cipher configured — do NOT store plaintext (token would be
+            # exposed on DB read). Raise so the caller knows to configure the key.
+            raise RuntimeError("Encryption key not configured; cannot store token securely")
         return self.cipher.encrypt(token.encode()).decode()
-    
+
     def _decrypt_token(self, encrypted_token: str) -> str:
         """Decrypt access token from storage"""
         if not self.cipher:
+            logger.warning("Encryption key not configured — cannot decrypt token")
             return encrypted_token
         return self.cipher.decrypt(encrypted_token.encode()).decode()
     
