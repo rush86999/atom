@@ -24,14 +24,15 @@ const AgentConsole: React.FC = () => {
         logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [logs]);
 
-    // Poll for status
+    // Poll for status via the agent-status router (fixed prefix in round-18).
     useEffect(() => {
         let interval: NodeJS.Timeout;
 
         if (isRunning && taskId) {
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
             interval = setInterval(async () => {
                 try {
-                    const response = await fetch(`http://localhost:8000/api/agent/status/${taskId}`);
+                    const response = await fetch(`${API_BASE}/api/agent-status/agent/status/${taskId}`);
                     if (response.ok) {
                         const data = await response.json();
                         setStatus(data.status);
@@ -78,10 +79,17 @@ const AgentConsole: React.FC = () => {
         setStatus("starting");
 
         try {
-            const response = await fetch("http://localhost:8000/api/agent/run", {
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            // Use the real /api/agent/execute endpoint (was /api/agent/run — 404).
+            // Map the UI's (goal, mode) to the backend's (command, timeout).
+            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+            const response = await fetch(`${API_BASE}/api/agent/execute`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ goal, mode }),
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ command: goal, timeout: 120 }),
             });
 
             if (response.ok) {
@@ -109,19 +117,15 @@ const AgentConsole: React.FC = () => {
     const handleStop = async () => {
         if (!taskId) return;
 
-        try {
-            await fetch("http://localhost:8000/api/agent/stop", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ task_id: taskId }),
-            });
-            toast({
-                title: "Stop Signal Sent",
-                description: "Agent should stop shortly.",
-            });
-        } catch (error) {
-            console.error("Stop error:", error);
-        }
+        // No task-level stop endpoint exists — /api/agent/stop shuts down the
+        // entire daemon (super_admin only). Mark the local task as stopped.
+        setIsRunning(false);
+        setStatus("stopped");
+        setLogs(prev => [...prev, "[stopped by user]"]);
+        toast({
+            title: "Task Stopped",
+            description: "Local task state cleared. The agent process may still be running.",
+        });
     };
 
     return (

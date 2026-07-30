@@ -117,14 +117,17 @@ export default async function handler(
     }
 
     // Step 2: Forward to main backend for workflow processing
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const authToken = req.headers.authorization || '';
     let backendResponse;
     try {
       backendResponse = await fetch(
-        "http://localhost:8000/api/v1/ai/chat",
+        `${API_BASE}/api/v1/ai/chat`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(authToken ? { "Authorization": authToken } : {}),
           },
           body: JSON.stringify({
             user_id: userId,
