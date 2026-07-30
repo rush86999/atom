@@ -63,6 +63,38 @@ class HITLApprovalRequest(BaseModel):
 
 # --- Endpoints ---
 
+@router.get("/history")
+async def get_agent_execution_history(
+    limit: int = 50,
+    user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get recent agent execution history (for the Agents page history panel)."""
+    from core.models import AgentExecution, ExecutionStatus
+    try:
+        executions = db.query(AgentExecution).order_by(
+            AgentExecution.started_at.desc()
+        ).limit(limit).all()
+        return [
+            {
+                "id": str(e.id),
+                "agent_id": e.agent_id,
+                "status": e.status,
+                "started_at": e.started_at.isoformat() if e.started_at else None,
+                "completed_at": e.completed_at.isoformat() if e.completed_at else None,
+                "duration_seconds": e.duration_seconds,
+                "result_summary": (e.result_summary or "")[:200],
+                "error_message": (e.error_message or "")[:200],
+                "triggered_by": e.triggered_by,
+            }
+            for e in executions
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch agent history: {e}")
+        return []
+
+
 @router.get("/")
 async def list_agents(
     category: Optional[str] = None,

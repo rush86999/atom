@@ -24,7 +24,11 @@ export const AgentHistoryTable: React.FC = () => {
 
     const fetchHistory = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/agents/history');
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+            const res = await fetch(`${API_BASE}/api/agents/history`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
             if (res.ok) {
                 const data = await res.json();
                 setJobs(data);

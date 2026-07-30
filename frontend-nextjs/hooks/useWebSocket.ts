@@ -17,7 +17,9 @@ interface UseWebSocketOptions {
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const { data: session } = useSession();
     const {
-        url = "ws://localhost:8000/ws",
+        url = "",  // Empty default — uses resolveWsBase() derived from NEXT_PUBLIC_API_URL.
+                    // Previously hardcoded "ws://localhost:8000/ws" which bypassed
+                    // resolveWsBase() and broke WebSocket in non-localhost deploys.
         autoConnect = true,
     } = options;
 

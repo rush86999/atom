@@ -227,17 +227,29 @@ const AgentsDashboard = () => {
 
     const handleStepFeedback = async (stepId: string, score: number, comment?: string) => {
         try {
-            // Internal path for single-tenant feedback
-            const res = await fetch(`${API_BASE}/api/v1/agents/steps/feedback`, {
+            // POST to the correct reasoning-step feedback endpoint
+            // (was /api/v1/agents/steps/feedback — 404; correct is /api/reasoning/feedback).
+            // Map the frontend's (stepId, score, comment) to the backend's
+            // ReasoningStepFeedback schema (agent_id, run_id, step_index,
+            // step_content, feedback_type, comment).
+            const feedbackType = score >= 0.5 ? "thumbs_up" : "thumbs_down";
+            const parts = stepId.split(":");
+            const agentId = parts[0] || "atom_main";
+            const runId = parts[1] || stepId;
+            const stepIndex = parseInt(parts[2] || "0", 10);
+            const res = await fetch(`${API_BASE}/api/reasoning/feedback`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
                 body: JSON.stringify({
-                    step_id: stepId,
-                    score: score,
-                    feedback_text: comment
+                    agent_id: agentId,
+                    run_id: runId,
+                    step_index: stepIndex,
+                    step_content: { thought: "" },
+                    feedback_type: feedbackType,
+                    comment: comment
                 })
             });
 

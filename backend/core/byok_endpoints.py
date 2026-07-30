@@ -267,7 +267,7 @@ class BYOKManager:
                 api_key_env_var="ANTHROPIC_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis", "writing", "vision", "reasoning"],
                 cost_per_token=0.000015,
-                model="claude-3-5-sonnet-20240620",
+                model="claude-3-5-sonnet-20241022",
                 reasoning_level=3,
                 supports_structured_output=True # Via tool use / instructor
             ),
