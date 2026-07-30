@@ -1304,7 +1304,11 @@ app.include_router(supervised_queue_router)
 app.include_router(core_user_activity_router)
 app.include_router(operational_router)
 app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensics"])
-app.include_router(agent_status_router, prefix="/api/v1", tags=["agents"])
+# Agent status router: do NOT add a prefix — the router already declares its
+# own prefix="/api/agent-status" with internal routes /agent/status/{task_id}.
+# The old prefix="/api/v1" produced a doubled path
+# /api/v1/api/agent-status/agent/status/{task_id} (404 for every frontend poll).
+app.include_router(agent_status_router, tags=["agents"])
 app.include_router(user_templates_router)
 app.include_router(workflow_versioning_router)
 app.include_router(protection_router)

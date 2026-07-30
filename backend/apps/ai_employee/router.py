@@ -33,14 +33,13 @@ import datetime
 
 @router.post("/task")
 async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
-    DEBUG_FILE = r"c:\Users\Mannan Bajaj\atom\backend\debug_log.txt"
-    with open(DEBUG_FILE, "a", encoding='utf-8') as f:
-        f.write(f"[{datetime.datetime.now()}] execute_task CALLED with command: {request.command[:50]}\n")
-        
+    # Removed hardcoded Windows debug-log path — it crashed every non-Windows
+    # host with FileNotFoundError. Use standard logging if debug is needed.
+    logger.info(f"execute_task called: workspace={request.workspace_id}")
+
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == request.workspace_id).first()
     if not workspace:
-        with open(DEBUG_FILE, "a", encoding='utf-8') as f:
-            f.write(f"[{datetime.datetime.now()}] Workspace {request.workspace_id} NOT FOUND\n")
+        logger.warning(f"Workspace {request.workspace_id} not found")
         raise HTTPException(status_code=404, detail="Workspace not found")
     
     # Run the dynamic executor
@@ -61,10 +60,8 @@ async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
 
 @router.post("/workspace/init")
 async def init_workspace(user_id: str, db: Session = Depends(get_db)):
-    DEBUG_FILE = r"c:\Users\Mannan Bajaj\atom\backend\debug_log.txt"
-    with open(DEBUG_FILE, "a", encoding='utf-8') as f:
-        f.write(f"[{datetime.datetime.now()}] init_workspace CALLED for user_id: {user_id}\n")
-    
+    logger.info(f"init_workspace called for user_id: {user_id}")
+
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.user_id == user_id).first()
     
     if not workspace:

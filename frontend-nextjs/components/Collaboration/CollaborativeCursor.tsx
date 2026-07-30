@@ -45,7 +45,11 @@ export const CollaborativeCursor: React.FC<CollaborativeCursorProps> = ({
   useEffect(() => {
     if (!sessionId) return;
 
-    const wsUrl = `ws://localhost:8000/api/collaboration/ws/${sessionId}/${currentUserId}`;
+    // Derive WS base from NEXT_PUBLIC_API_URL (env-configurable), matching
+    // the useWebSocket hook pattern. Was hardcoded ws://localhost:8000.
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+    const wsBase = apiBase.replace(/^http/, 'ws');
+    const wsUrl = `${wsBase}/ws/${sessionId}/${currentUserId}`;
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
