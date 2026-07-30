@@ -381,6 +381,19 @@ logger.info(f"CORS Allowed Origins: {ALLOWED_ORIGINS}")
 DISABLE_DOCS = ENVIRONMENT == "production"
 
 
+# Strong references for background tasks so the GC doesn't cancel them
+# mid-flight (asyncio only holds weak refs; without this, under memory
+# pressure workers silently vanish with "Task was destroyed but it is pending!").
+_background_tasks: set = set()
+
+
+def _spawn_background_task(coro) -> None:
+    """Create a background task AND retain a strong reference to it."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis_listener_instance
@@ -448,6 +461,12 @@ async def lifespan(app: FastAPI):
     is_test_mode = (
         os.getenv("PYTEST_VERSION") is not None or os.getenv("PYTEST_CURRENT_TEST") is not None
     )
+    # Initialize before the scheduler gate so the QStash cleanup block below
+    # (which runs outside the if) doesn't hit NameError when the scheduler is
+    # disabled. Previously, enabling ENABLE_SCHEDULER=false caused every
+    # startup to raise NameError (silently swallowed by except).
+    qstash_init_skip = True
+    startup_session_key = None
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False
@@ -476,7 +495,7 @@ async def lifespan(app: FastAPI):
         try:
             from core.scheduler import AgentScheduler
 
-            asyncio.create_task(AgentScheduler.get_instance().load_scheduled_agents())
+            _spawn_background_task(AgentScheduler.get_instance().load_scheduled_agents())
         except Exception:
             pass
 
@@ -511,7 +530,7 @@ async def lifespan(app: FastAPI):
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
 
                 ingestion_service = get_hybrid_ingestion_service()
-                asyncio.create_task(ingestion_service.run_scheduled_syncs())
+                _spawn_background_task(ingestion_service.run_scheduled_syncs())
                 logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
@@ -519,7 +538,7 @@ async def lifespan(app: FastAPI):
         # Start Outlook Automation Loop
         try:
             from outlook_automation_service import start_outlook_automation_loop
-            asyncio.create_task(start_outlook_automation_loop())
+            _spawn_background_task(start_outlook_automation_loop())
             logger.info("✓ Outlook Automation Loop started")
         except Exception as e:
             logger.error(f"Failed to start Outlook Automation Loop: {e}")
@@ -587,12 +606,12 @@ async def lifespan(app: FastAPI):
 
             # Start Activity State Worker (online/away/offline transitions)
             activity_worker = ActivityStateWorker(interval_seconds=60)
-            asyncio.create_task(activity_worker.run())
+            _spawn_background_task(activity_worker.run())
             logger.info("✓ Activity State Worker running")
 
             # Start Queue Processing Worker (supervised execution)
             queue_worker = QueueProcessingWorker(interval_seconds=60)
-            asyncio.create_task(queue_worker.run())
+            _spawn_background_task(queue_worker.run())
             logger.info("✓ Queue Processing Worker running")
 
             # 9. Start Webhook Renewal Worker (NEW)
@@ -615,7 +634,7 @@ async def lifespan(app: FastAPI):
                     # Wait 24 hours
                     await asyncio.sleep(86400)
 
-            asyncio.create_task(renewal_loop())
+            _spawn_background_task(renewal_loop())
             logger.info("✓ Webhook Renewal loop started")
 
         except Exception as e:
@@ -629,7 +648,7 @@ async def lifespan(app: FastAPI):
         logger.info("[STARTUP] About to start Webhook Processing Worker...")
         webhook_worker = get_webhook_worker()
         logger.info("[STARTUP] Webhook worker instance created")
-        asyncio.create_task(webhook_worker.run())
+        _spawn_background_task(webhook_worker.run())
         logger.info("✓ Webhook Processing Worker running (processes ingestion:webhook:jobs queue)")
     except Exception as e:
         logger.error(f"CRITICAL: Failed to start Webhook Processing Worker: {e}")
@@ -658,7 +677,7 @@ async def lifespan(app: FastAPI):
                     finally:
                         db.close()
                     await asyncio.sleep(interval)
-            asyncio.create_task(_consolidation_loop())
+            _spawn_background_task(_consolidation_loop())
             logger.info("✓ POMDP Memory Consolidation background task started (6h interval)")
         except Exception as e:
             logger.warning(f"Could not start memory consolidation loop (non-fatal): {e}")

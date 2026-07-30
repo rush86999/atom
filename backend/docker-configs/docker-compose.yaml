@@ -61,10 +61,12 @@ services:
       - ./initdb.d:/docker-entrypoint-initdb.d:ro
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretpgpassword}
-      POSTGRES_USERNAME: ${POSTGRES_USERNAME:-postgres}
+      # The official postgres image reads POSTGRES_USER (not POSTGRES_USERNAME).
+      # The old var name was silently ignored, always creating user "postgres".
+      POSTGRES_USER: ${POSTGRES_USERNAME:-${POSTGRES_USER:-postgres}}
     healthcheck:
       test:
-        ["CMD", "pg_isready", "-U", "${POSTGRES_USERNAME}", "-d", "postgres"]
+        ["CMD", "pg_isready", "-U", "${POSTGRES_USERNAME:-${POSTGRES_USER:-postgres}}", "-d", "postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
