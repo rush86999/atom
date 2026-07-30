@@ -72,9 +72,39 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    # Add a unique token ID (jti) so individual tokens can be revoked (logout).
+    import uuid as _uuid
+    to_encode.update({"exp": expire, "jti": str(_uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+# --- Token revocation (logout) ---
+# Lightweight in-memory denylist of revoked jti claims. Single-process
+# single-tenant — sufficient without Redis. Bounded; expired entries are
+# pruned on access. Without this, a stolen JWT stays valid for 24h after
+# logout (ACCESS_TOKEN_EXPIRE_MINUTES = 60*24).
+_revoked_tokens: set = set()
+_revoked_expiry: dict = {}  # jti -> exp timestamp (for pruning)
+
+
+def revoke_token(jti: str, exp: int) -> None:
+    """Mark a token as revoked (used by /logout)."""
+    _revoked_tokens.add(jti)
+    _revoked_expiry[jti] = exp
+
+
+def is_token_revoked(jti: Optional[str]) -> bool:
+    """Check if a token has been revoked. Prunes expired entries."""
+    if not jti:
+        return False
+    # Prune expired revocations.
+    now = datetime.now(timezone.utc).timestamp()
+    expired = [k for k, exp in _revoked_expiry.items() if exp < now]
+    for k in expired:
+        _revoked_tokens.discard(k)
+        _revoked_expiry.pop(k, None)
+    return jti in _revoked_tokens
 
 
 
@@ -128,6 +158,13 @@ async def get_current_user(
             logger.warning(
                 "JWT validation failed: token payload missing 'sub', 'id', and 'user_id' claims"
             )
+            raise credentials_exception
+
+        # Token revocation check (logout). If the token's jti is in the
+        # denylist, reject it — even if the JWT hasn't expired yet.
+        token_jti = payload.get("jti")
+        if is_token_revoked(token_jti):
+            logger.warning(f"Rejected revoked token (jti={token_jti}) for user {user_id}")
             raise credentials_exception
     except JWTError as e:
         logger.warning("JWT decode error during user lookup")

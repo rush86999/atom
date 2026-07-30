@@ -476,9 +476,32 @@ async def upload_document(
     Parses content and adds to LanceDB 'documents' table.
     """
     try:
+        # Upload guardrails: size cap + file-type restriction (DoS / ingestion safety).
+        MAX_FILE_SIZE = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
+        if file.size is not None and file.size > MAX_FILE_SIZE:
+            raise router.validation_error(
+                "file",
+                f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB"
+            )
         content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise router.validation_error(
+                "file",
+                f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB"
+            )
         file_name = file.filename
         file_ext = file_name.split(".")[-1].lower() if "." in file_name else "txt"
+
+        ALLOWED_EXTENSIONS = {
+            "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
+            "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
+            "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
+        }
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise router.validation_error(
+                "file",
+                f"File type '{file_ext}' is not supported"
+            )
         
         # 1. Parse Document
         text = ""
