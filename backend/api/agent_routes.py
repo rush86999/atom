@@ -306,18 +306,16 @@ async def run_agent(
 
     # Check if we should run synchronously (for testing)
     is_sync = run_req.parameters.get("sync", False)
-    
-    if is_sync:
-        # Run immediately and return result
-        # Note: calling execute_agent_task directly might have session issues if it creates its own session
-        # but execute_agent_task creates a SessionLocal(), so it is fine.
-        # We need to capture the return value from execute_agent_task (which currently returns nothing/void, just logs/notifies).
-        # We need to refactor execute_agent_task to return result if needed.
-        # Let's import it or call the logic directly.
-        # Actually, let's just instantiate GenericAgent here if it's a generic agent to get the Result object?
-        # Or better, refactor execute_agent_task to return the result.
 
-        # Refactoring execute_agent_task is best.
+    if is_sync:
+        # Commit to RELEASE the SELECT ... FOR UPDATE row lock BEFORE running
+        # the agent. Previously the lock (and the request's DB connection) was
+        # held across the full `await execute_agent_task(...)` — serializing
+        # concurrent runs of the same agent and pinning a pool slot for the
+        # whole execution. execute_agent_task opens its own session, so the
+        # lock serves no purpose during the run.
+        db.commit()
+
         result = await execute_agent_task(agent_id, run_req.parameters)
         return router.success_response(
             data={"agent_id": agent_id, "result": result},

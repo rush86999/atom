@@ -91,6 +91,9 @@ async def execute_agent_chat(
     resolution_context = None
     governance_check = None
     db_session = None
+    # Carries the execution id forward after the governance session is closed
+    # pre-stream, so the post-stream/failure finalizers can re-fetch the row.
+    _execution_id_for_finalize = None
 
     try:
         # ============================================
@@ -197,7 +200,13 @@ async def execute_agent_chat(
         # ============================================
         # LLM: Initialize LLM Service
         # ============================================
-        llm_service = LLMService(tenant_id=workspace_id, db=db_session)
+        # Pass db=None so LLMService/BYOKHandler do NOT share the governance
+        # session. Holding one DB connection across the full streaming call
+        # (which can run for many seconds) pins a pool slot per concurrent chat
+        # and exhausts the pool (~20 connections) under modest load. The handler
+        # opens its own sessions as needed. The governance session is closed
+        # below before streaming begins.
+        llm_service = LLMService(tenant_id=workspace_id, db=None)
 
         # Prepare messages for LLM
         messages = []
@@ -271,6 +280,21 @@ Provide helpful, concise responses. Be direct and practical."""
             "agent_id": agent.id if agent else None
         }
 
+        # Close the governance DB session BEFORE streaming. The session was
+        # opened for agent resolution + the execution-record insert (all done
+        # by now); holding it across the streaming call pinned a pool slot for
+        # the whole stream wall-clock. The post-stream block re-opens a fresh
+        # short-lived session to finalize the execution row (re-fetched by id).
+        _execution_id_for_finalize = agent_execution.id if agent_execution else None
+        if db_session is not None:
+            try:
+                db_session.close()
+            except Exception:
+                pass
+            db_session = None
+            # Detach so the post-stream block knows to re-fetch; keep the id.
+            agent_execution = None
+
         # Stream response
         # Stream response via LLMService
         async for token in llm_service.stream_completion(**stream_kwargs):
@@ -334,34 +358,42 @@ Provide helpful, concise responses. Be direct and practical."""
         # ============================================
         # GOVERNANCE: Update Execution Record
         # ============================================
-        if agent_execution and governance_enabled:
+        # The governance session was closed before streaming (to avoid pinning a
+        # pool slot across the stream), so open a FRESH short-lived session here
+        # and re-fetch the execution row by id. agent_execution is detached/None
+        # at this point; _execution_id_for_finalize carries the id forward.
+        if _execution_id_for_finalize and governance_enabled:
+            end_time = datetime.now()
+            duration_seconds = (end_time - start_time).total_seconds()
+            _fin_session = SessionLocal()
             try:
-                end_time = datetime.now()
-                duration_seconds = (end_time - start_time).total_seconds()
-
-                agent_execution.status = "completed"
-                # Use REAL columns (result_summary, duration_seconds,
-                # completed_at). The old output_data/duration_ms/end_time
-                # writes were no-ops (not model columns).
-                agent_execution.result_summary = (accumulated_content or "")[:500]
-                agent_execution.duration_seconds = duration_seconds
-                agent_execution.completed_at = end_time
-                # Merge output details into the extensible metadata_json.
-                _meta = agent_execution.metadata_json or {}
-                _meta["output"] = {
-                    "response": (accumulated_content or "")[:500],
-                    "tokens": tokens_count,
-                    "model": "auto",
-                }
-                agent_execution.metadata_json = _meta
-
-                if db_session:
-                    db_session.commit()
+                execution = _fin_session.query(AgentExecution).filter(
+                    AgentExecution.id == _execution_id_for_finalize
+                ).first()
+                if execution:
+                    execution.status = "completed"
+                    # Use REAL columns (result_summary, duration_seconds,
+                    # completed_at). The old output_data/duration_ms/end_time
+                    # writes were no-ops (not model columns).
+                    execution.result_summary = (accumulated_content or "")[:500]
+                    execution.duration_seconds = duration_seconds
+                    execution.completed_at = end_time
+                    # Merge output details into the extensible metadata_json.
+                    _meta = execution.metadata_json or {}
+                    if not isinstance(_meta, dict):
+                        _meta = {}
+                    _meta["output"] = {
+                        "response": (accumulated_content or "")[:500],
+                        "tokens": tokens_count,
+                        "model": "auto",
+                    }
+                    execution.metadata_json = _meta
+                    _fin_session.commit()
 
                 # Marketplace Tracking
                 if agent and agent.type == "marketplace":
                     try:
-                        installation = db_session.query(AgentInstallation).filter(
+                        installation = _fin_session.query(AgentInstallation).filter(
                             AgentInstallation.instantiated_agent_id == agent.id
                         ).first()
                         if installation:
@@ -369,13 +401,22 @@ Provide helpful, concise responses. Be direct and practical."""
                                 item_type="agent",
                                 item_id=installation.template_id,
                                 success=True,
-                                duration_ms=duration_ms
+                                duration_ms=duration_seconds * 1000
                             )
                     except Exception as mt_error:
                         logger.error(f"Marketplace tracking failed: {mt_error}")
 
             except Exception as update_error:
                 logger.error(f"Failed to update AgentExecution record: {update_error}")
+                try:
+                    _fin_session.rollback()
+                except Exception:
+                    pass
+            finally:
+                try:
+                    _fin_session.close()
+                except Exception:
+                    pass
 
         # Trigger episode creation for memory
         try:
@@ -417,26 +458,38 @@ Provide helpful, concise responses. Be direct and practical."""
     except Exception as e:
         logger.error(f"Agent chat execution failed: {e}", exc_info=True)
 
-        # Update execution record as failed
-        if agent_execution and governance_enabled and db_session:
+        # Update execution record as failed. Two windows: before the pre-stream
+        # session close (db_session + agent_execution still valid) and after
+        # (both None — re-fetch by id in a fresh session).
+        _fail_session = db_session  # reuse if still open
+        _fail_session_owned = False
+        if _fail_session is None and _execution_id_for_finalize and governance_enabled:
             try:
-                agent_execution.status = "failed"
-                agent_execution.error_message = str(e)
-                # Use the real column (completed_at, not the nonexistent end_time).
-                agent_execution.completed_at = datetime.now()
-                db_session.commit()
+                _fail_session = SessionLocal()
+                _fail_session_owned = True
+            except Exception:
+                _fail_session = None
+        if _execution_id_for_finalize and governance_enabled and _fail_session is not None:
+            try:
+                # Re-fetch if the original object is detached/None.
+                execution = agent_execution
+                if execution is None:
+                    execution = _fail_session.query(AgentExecution).filter(
+                        AgentExecution.id == _execution_id_for_finalize
+                    ).first()
+                if execution:
+                    execution.status = "failed"
+                    execution.error_message = str(e)[:500]
+                    execution.completed_at = datetime.now()
+                    _fail_session.commit()
 
                 # Marketplace Tracking (Failure)
                 if agent and agent.type == "marketplace":
                     try:
-                        installation = db_session.query(AgentInstallation).filter(
+                        installation = _fail_session.query(AgentInstallation).filter(
                             AgentInstallation.instantiated_agent_id == agent.id
                         ).first()
                         if installation:
-                            # start_time is assigned inside the try (line ~264);
-                            # guard against it being unbound when the failure
-                            # occurred before that assignment (the old code raised
-                            # a secondary NameError that masked the root cause).
                             _start = start_time if "start_time" in locals() else datetime.now()
                             duration_ms = (datetime.now() - _start).total_seconds() * 1000
                             MarketplaceUsageTracker.track_usage(
@@ -450,6 +503,16 @@ Provide helpful, concise responses. Be direct and practical."""
 
             except Exception as update_error:
                 logger.error(f"Failed to update failed execution record: {update_error}")
+                try:
+                    _fail_session.rollback()
+                except Exception:
+                    pass
+            finally:
+                if _fail_session_owned:
+                    try:
+                        _fail_session.close()
+                    except Exception:
+                        pass
 
         return {
             "success": False,
