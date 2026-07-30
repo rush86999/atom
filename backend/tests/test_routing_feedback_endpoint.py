@@ -368,15 +368,24 @@ class TestRerankRoutingResultId:
             _max_routing_decisions = 10000
             def _extract_request_features(self, request):
                 return {"log_tokens": 5.0}
+            # Mirror the real router's thread-safe stash helper (added when the
+            # direct _routing_decisions mutation was centralized under a lock).
+            def stash_decision(self, features, decision_id=None):
+                import uuid as _uuid
+                if decision_id is None:
+                    decision_id = str(_uuid.uuid4())
+                self._routing_decisions[decision_id] = features
+                return decision_id
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "default"
         handler._pending_routing_result_id = None
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
+        fake_router = FakeLearningRouter()
         with patch(
             "core.llm.learning_router_registry.get_learning_router_instance",
-            return_value=FakeLearningRouter(),
+            return_value=fake_router,
         ):
             options = await BYOKHandler._rerank_with_learning(
                 handler,
@@ -390,8 +399,7 @@ class TestRerankRoutingResultId:
         assert {("openai", "gpt-4o"), ("deepseek", "deepseek-v4-pro")} == set(options)
         # The routing_result_id was stashed.
         assert handler._pending_routing_result_id is not None
-        # Features are recoverable under that id.
-        fake_router = FakeLearningRouter()
+        # Features are recoverable under that id (on the instance actually used).
         assert handler._pending_routing_result_id in fake_router._routing_decisions
 
 

@@ -1743,15 +1743,10 @@ class BYOKHandler:
             # so the outcome-observation hook can recover the REAL features
             # (not task-level defaults) when feedback arrives. This closes the
             # train/serve-skew gap: predictors train on the same features used
-            # to make the decision.
-            import uuid as _uuid
-            decision_id = str(_uuid.uuid4())
-            learning_router._routing_decisions[decision_id] = features
-            # Bound the decision store (R17-2 pattern).
-            if len(learning_router._routing_decisions) > learning_router._max_routing_decisions:
-                _overflow = len(learning_router._routing_decisions) - learning_router._max_routing_decisions
-                for _stale in list(learning_router._routing_decisions.keys())[:_overflow]:
-                    del learning_router._routing_decisions[_stale]
+            # to make the decision. Stash via the router's thread-safe helper —
+            # concurrent handlers on the shared singleton otherwise race on the
+            # dict (lost updates / iteration crashes during eviction).
+            decision_id = learning_router.stash_decision(features)
             self._pending_routing_result_id = decision_id
 
             logger.info(
@@ -1780,7 +1775,6 @@ class BYOKHandler:
             return None
         try:
             from core.llm.learning_router_registry import get_learning_router_instance
-            import uuid as _uuid
 
             learning_router = get_learning_router_instance()
             if learning_router is None:
@@ -1793,13 +1787,9 @@ class BYOKHandler:
                     "requires_reasoning": False,
                 })()
             )
-            decision_id = str(_uuid.uuid4())
-            learning_router._routing_decisions[decision_id] = features
-            if len(learning_router._routing_decisions) > learning_router._max_routing_decisions:
-                _overflow = len(learning_router._routing_decisions) - learning_router._max_routing_decisions
-                for _stale in list(learning_router._routing_decisions.keys())[:_overflow]:
-                    del learning_router._routing_decisions[_stale]
-            return decision_id
+            # Stash via the router's thread-safe helper (concurrent handlers on
+            # the shared singleton otherwise race on _routing_decisions).
+            return learning_router.stash_decision(features)
         except Exception as e:
             logger.debug(f"Stash-decision-features skipped (non-fatal): {e}")
             return None
