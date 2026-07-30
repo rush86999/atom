@@ -146,6 +146,7 @@ class DynamicPricingFetcher:
                     "kimi-k2.6": {"input": 0.000001, "output": 0.000003, "ctx": 256000},
                     "kimi-k2-thinking": {"input": 0.000001, "output": 0.000003, "ctx": 256000},
                     "kimi-k2": {"input": 0.0000007, "output": 0.0000025, "ctx": 128000},
+                    "kimi-k3": {"input": 0.0000029, "output": 0.000014, "ctx": 1000000},
                 }
                 for _kimi, _kinfo in _kimi_models.items():
                     if _kimi not in pricing:
@@ -461,7 +462,9 @@ class DynamicPricingFetcher:
                 supports_vision = True
             elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
                 supports_vision = True
-            elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus"]):
+            elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus", "claude-mythos", "claude-fable"]):
+                supports_vision = True
+            elif "kimi-k3" in model_lower or "gpt-5.6" in model_lower:
                 supports_vision = True
             else:
                 supports_vision = False

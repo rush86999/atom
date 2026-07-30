@@ -262,8 +262,11 @@ class CognitiveClassifier:
             ],
             CognitiveTier.COMPLEX: [
                 "gpt-5",
+                "gpt-5.6-sol",
                 "o3",
                 "claude-4-opus",
+                "claude-mythos-5",
+                "kimi-k3",
                 "deepseek-v3.2-speciale",
                 "gemini-3-pro",
                 "ollama/mixtral:8x7b",

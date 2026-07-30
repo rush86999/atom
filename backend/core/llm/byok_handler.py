@@ -194,13 +194,13 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.SIMPLE: "o4-mini",
         QueryComplexity.MODERATE: "o4-mini",
         QueryComplexity.COMPLEX: "o3-mini",
-        QueryComplexity.ADVANCED: "o3",
+        QueryComplexity.ADVANCED: "gpt-5.6-sol",
     },
     "anthropic": {
         QueryComplexity.SIMPLE: "claude-3-haiku-20240307",
         QueryComplexity.MODERATE: "claude-3-haiku-20240307",
         QueryComplexity.COMPLEX: "claude-3-5-sonnet",
-        QueryComplexity.ADVANCED: "claude-4-opus",
+        QueryComplexity.ADVANCED: "claude-mythos-5",
     },
     "deepseek": {
         QueryComplexity.SIMPLE: "deepseek-chat",
@@ -217,8 +217,8 @@ COST_EFFICIENT_MODELS = {
     "moonshot": {  # Moonshot AI (Kimi family)
         QueryComplexity.SIMPLE: "moonshot/kimi-k2-thinking",
         QueryComplexity.MODERATE: "moonshot/kimi-k2-thinking",
-        QueryComplexity.COMPLEX: "kimi-k2.6",
-        QueryComplexity.ADVANCED: "kimi-k2.6",
+        QueryComplexity.COMPLEX: "kimi-k3",
+        QueryComplexity.ADVANCED: "kimi-k3",
     },
     "minimax": {
         QueryComplexity.SIMPLE: "MiniMax-M3-highspeed",
