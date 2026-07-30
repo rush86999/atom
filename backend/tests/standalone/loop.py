@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+import pytest; pytest.importorskip("apps.ai_employee", reason="ai_employee removed — core agent system replaces it")
 from apps.ai_employee.executor import employee_executor
 
 async def run():

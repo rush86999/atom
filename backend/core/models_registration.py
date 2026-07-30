@@ -37,10 +37,9 @@ if not TESTING:
         import service_delivery.models
         import saas.models
         # import ecommerce.models  # Disabled: Models consolidated to core.models
-        try:
-            import apps.ai_employee.models
-        except Exception as e:
-            print(f"DEBUG: AI Employee models import failed: {e}")
+        # apps.ai_employee removed — the core AI agent system provides the same
+        # value. The module had a hardcoded Windows debug path, was never
+        # mounted in main_api_app, and duplicated agent-execution functionality.
     except ImportError:
         # Optional modules may not exist in all environments
         pass
