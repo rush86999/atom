@@ -1232,6 +1232,15 @@ class ChatHistoryManager:
             logger.error(f"Failed to save chat message: {e}")
             return False
 
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        """Escape a value for safe interpolation into a LanceDB LIKE filter.
+
+        Prevents filter-syntax injection / broken filters when the value (e.g. a
+        session_id) contains a quote or %/_ wildcard char.
+        """
+        return str(value).replace("'", "''").replace("\\", "\\\\")
+
     def get_session_history(self, session_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """
         Retrieve recent messages from a session (chronological order).
@@ -1247,15 +1256,20 @@ class ChatHistoryManager:
             if table is None:
                 return []
 
-            # Query all messages for session (LanceDB doesn't have chronological sorting built-in)
-            # So we'll fetch all and sort in memory
-            # For better performance with large histories, consider using filter + limit
-
+            # LanceDB has no built-in chronological ordering, so we fetch and
+            # sort in memory. The previous `.limit(limit * 2)` fetched an
+            # arbitrary (insertion-order) slice and could MISS the newest
+            # messages for long sessions — returning a stale window. Fetch a
+            # generous bounded window so the in-memory sort + slice actually
+            # sees the recent messages.
             if not PANDAS_AVAILABLE:
                 logger.error("Pandas not available for session history")
                 return []
+            safe_sid = self._escape_like(session_id)
+            # Fetch a wide window (capped) so we capture the newest messages.
+            fetch_window = max(limit * 10, 200)
             results = (
-                table.search().where(f"metadata LIKE '%{session_id}%'").limit(limit * 2).to_pandas()
+                table.search().where(f"metadata LIKE '%{safe_sid}%'").limit(fetch_window).to_pandas()
             )
 
             # Parse and filter
@@ -1268,6 +1282,9 @@ class ChatHistoryManager:
                     elif metadata is None:
                         metadata = {}
 
+                    # Exact session_id match (the LIKE filter is a substring
+                    # pre-filter; this guards against session_id prefixes
+                    # colliding, e.g. 'abc' matching 'abcdef').
                     if metadata.get("session_id") == session_id:
                         messages.append(
                             {
@@ -1282,10 +1299,10 @@ class ChatHistoryManager:
                     logger.warning(f"Error parsing message: {e}")
                     continue
 
-            # Sort by created_at
+            # Sort by created_at (oldest→newest), then take the newest `limit`.
             messages.sort(key=lambda x: x["created_at"])
 
-            return messages[-limit:]  # Return most recent
+            return messages[-limit:]  # most recent
 
         except Exception as e:
             logger.error(f"Failed to get session history: {e}")
@@ -1307,11 +1324,27 @@ class ChatHistoryManager:
             # Use existing search method
             filter_expr = None
             if session_id:
-                filter_expr = f"metadata LIKE '%{session_id}%'"
+                # Escape to avoid filter injection / broken filters on session
+                # IDs containing quotes. The LIKE is a substring pre-filter; the
+                # exact-match post-filter below prevents cross-session leakage
+                # (e.g. 'abc' matching 'abcdef') that would inject another
+                # session's context into the prompt.
+                safe_sid = self._escape_like(session_id)
+                filter_expr = f"metadata LIKE '%{safe_sid}%'"
 
             results = self.db.search(
                 table_name=self.table_name, query=query, limit=limit, filter_expression=filter_expr
             )
+
+            # Exact session_id post-filter: the LIKE pre-filter is substring, so
+            # without this, prefix-colliding sessions leak into recall.
+            if session_id and results:
+                results = [
+                    r for r in results
+                    if isinstance(r, dict)
+                    and isinstance(r.get("metadata"), dict)
+                    and r["metadata"].get("session_id") == session_id
+                ]
 
             return results
 
@@ -1336,8 +1369,8 @@ class ChatHistoryManager:
             if not table:
                 return []
 
-            # Search for entity_id in metadata
-            filter_expr = f"metadata LIKE '%{entity_id}%'"
+            # Search for entity_id in metadata (escape to avoid filter injection).
+            filter_expr = f"metadata LIKE '%{self._escape_like(entity_id)}%'"
             if not PANDAS_AVAILABLE:
                 logger.error("Pandas not available for entity mentions")
                 return []

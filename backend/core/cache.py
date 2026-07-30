@@ -48,42 +48,52 @@ class RedisCircuitBreaker:
         self._failure_count = 0
         self._last_failure_time = None
         self._state = CircuitState.CLOSED
+        # Guards _failure_count/_state/_last_failure_time. The breaker lives on
+        # the process-wide UniversalCacheService singleton shared by every
+        # thread/asyncio task; without a lock, concurrent Redis failures lose
+        # increments (breaker never opens) or race the OPEN<->HALF_OPEN flip.
+        self._lock = threading.Lock()
 
     def call(self, func, *args, **kwargs):
         """Execute function through circuit breaker"""
-        if self._state == CircuitState.OPEN:
-            if self._should_attempt_reset():
-                self._state = CircuitState.HALF_OPEN
-                logger.info("🔄 Circuit breaker transitioning to HALF_OPEN")
-            else:
-                raise CircuitBreakerOpenError(
-                    f"Circuit breaker is OPEN. Last failure: {self._last_failure_time}"
-                )
+        with self._lock:
+            if self._state == CircuitState.OPEN:
+                if self._should_attempt_reset():
+                    self._state = CircuitState.HALF_OPEN
+                    logger.info("🔄 Circuit breaker transitioning to HALF_OPEN")
+                else:
+                    raise CircuitBreakerOpenError(
+                        f"Circuit breaker is OPEN. Last failure: {self._last_failure_time}"
+                    )
 
+        # Run the actual call OUTSIDE the lock so a slow Redis call doesn't
+        # serialize all callers through the breaker.
         try:
             result = func(*args, **kwargs)
-            self._on_success()
-            return result
-        except self.expected_exception as e:
-            self._on_failure()
+        except self.expected_exception:
+            with self._lock:
+                self._on_failure()
             raise
+        with self._lock:
+            self._on_success()
+        return result
 
     def _should_attempt_reset(self) -> bool:
-        """Check if enough time has passed to attempt recovery"""
+        """Check if enough time has passed to attempt recovery (caller holds lock)"""
         if self._last_failure_time is None:
             return True
         elapsed = (datetime.now(timezone.utc) - self._last_failure_time).total_seconds()
         return elapsed >= self.recovery_timeout
 
     def _on_success(self):
-        """Handle successful call"""
+        """Handle successful call (caller holds lock)"""
         self._failure_count = 0
         if self._state == CircuitState.HALF_OPEN:
             self._state = CircuitState.CLOSED
             logger.info("✅ Circuit breaker recovered to CLOSED state")
 
     def _on_failure(self):
-        """Handle failed call"""
+        """Handle failed call (caller holds lock)"""
         self._failure_count += 1
         self._last_failure_time = datetime.now(timezone.utc)
 
@@ -95,20 +105,30 @@ class RedisCircuitBreaker:
 
     def get_state(self) -> CircuitState:
         """Get current circuit state"""
-        return self._state
+        with self._lock:
+            return self._state
 
     def reset(self):
         """Manually reset circuit breaker (for testing)"""
-        self._failure_count = 0
-        self._state = CircuitState.CLOSED
-        self._last_failure_time = None
+        with self._lock:
+            self._failure_count = 0
+            self._state = CircuitState.CLOSED
+            self._last_failure_time = None
 
 class SyncLocalCache:
-    """Synchronous LRU-like cache for simple in-memory storage"""
+    """Synchronous LRU cache for simple in-memory storage.
+
+    Eviction is true LRU: when at capacity, the single least-recently-set key is
+    evicted (dicts preserve insertion order, so the oldest key is first). The
+    old implementation did no eviction between max_size and 110% capacity, then
+    mass-cleared everything — causing unbounded growth followed by periodic
+    cache stampedes. Expired entries are evicted lazily on access (and counted
+    as one miss, not two).
+    """
     def __init__(self, max_size: int = 1000, default_ttl: int = 60):
         self.max_size = max_size
         self.default_ttl = default_ttl
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: Dict[str, Any] = {}
         self._expire_times: Dict[str, float] = {}
         self.hits = 0
         self.misses = 0
@@ -117,23 +137,30 @@ class SyncLocalCache:
         if key not in self._cache:
             self.misses += 1
             return None
-        
+
         if time.time() > self._expire_times.get(key, 0):
             self.delete(key)
+            # Expired entry: count as one miss (the key existed but is stale).
             self.misses += 1
             return None
-        
+
+        # LRU: re-insert to mark as most-recently-used (moves key to end of the
+        # insertion-order dict so it's evicted last).
+        value = self._cache.pop(key)
+        self._cache[key] = value
         self.hits += 1
-        return self._cache[key]
+        return value
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None):
-        if len(self._cache) >= self.max_size and key not in self._cache:
-            # Simple eviction: clear random key or just clear all if it gets too big
-            if len(self._cache) > self.max_size * 1.1:
-                self._cache.clear()
-                self._expire_times.clear()
-        
+        # Evict a single oldest key when at capacity (LRU). Only when inserting a
+        # NEW key — an update to an existing key just refreshes it.
+        if key not in self._cache and len(self._cache) >= self.max_size:
+            oldest_key = next(iter(self._cache))
+            self.delete(oldest_key)
+
         ttl = ttl or self.default_ttl
+        # pop+set so an update moves the key to the end (most-recently-used).
+        self._cache.pop(key, None)
         self._cache[key] = value
         self._expire_times[key] = time.time() + ttl
 
@@ -317,13 +344,16 @@ class UniversalCacheService:
         if self.client:
             try:
                 val = self.circuit_breaker.call(self.client.get, namespaced_key)
-                if val: return self._decode(val)
+                # `is not None`, not truthiness: a stored falsy value (empty
+                # string, JSON false/null) is a real hit; only a Redis miss
+                # returns None. The old `if val:` treated those as misses.
+                if val is not None: return self._decode(val)
             except Exception as _e: logger.debug("cache async get failed: %s", _e, exc_info=True)
 
         # 2. Try Upstash REST
         if self.use_rest_api:
             val = self._rest_get(namespaced_key)
-            if val: return self._decode(val)
+            if val is not None: return self._decode(val)
 
         # 3. Local fallback
         return await self.async_local_cache.get(namespaced_key)
@@ -337,12 +367,12 @@ class UniversalCacheService:
         if self.client:
             try:
                 val = self.circuit_breaker.call(self.client.get, namespaced_key)
-                if val: return self._decode(val)
+                if val is not None: return self._decode(val)
             except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)
 
         if self.use_rest_api:
             val = self._rest_get(namespaced_key)
-            if val: return self._decode(val)
+            if val is not None: return self._decode(val)
 
         return self.sync_local_cache.get(namespaced_key)
 
