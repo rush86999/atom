@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Activity, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-const API_URL = "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const USER_ID = "system";
 const WORKSPACE_ID = "global";
 
