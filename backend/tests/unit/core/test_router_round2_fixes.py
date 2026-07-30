@@ -118,14 +118,19 @@ def test_ema_bias_correction_uses_per_metric_samples(router):
     assert bucket["samples"] == 11
 
 
-def test_ema_per_metric_second_sample_corrected(router, monkeypatch):
-    """Second observation of a sparse metric applies correction based on n=2."""
+def test_ema_per_metric_second_sample_uncorrected(router, monkeypatch):
+    """Second observation of a sparse metric stores the raw EMA (no correction).
+
+    Bias correction was removed as unsound for non-stationary telemetry (it
+    produced success > 1.0). The stored value is the plain EMA recurrence.
+    """
     monkeypatch.setenv("ATOM_EMA_ALPHA", "0.5")
     router._update_ema_scores(_fb("gpt-4", True, True, latency=100.0))
     router._update_ema_scores(_fb("gpt-4", True, True, latency=300.0))
     bucket = router._ema_scores["t1:code_generation:gpt-4"]
-    # raw = 0.5*300 + 0.5*100 = 200; bias = 1 - (1-0.5)^2 = 0.75; corrected = 200/0.75
-    assert bucket["latency"] == pytest.approx(200.0 / 0.75, rel=1e-9)
+    # raw EMA: 0.5*300 + 0.5*100 = 200.0 (no division).
+    assert bucket["latency"] == pytest.approx(200.0, rel=1e-9)
+    assert bucket["latency_n"] == 2
 
 
 # --------------------------------------------------------------------------

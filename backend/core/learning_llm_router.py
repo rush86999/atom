@@ -203,6 +203,16 @@ class LearningBasedRouter:
         # two concurrent record_feedback calls can interleave during the
         # append→retrain window, corrupting list state.
         self._state_lock = asyncio.Lock()
+        # Thread lock for _routing_decisions mutations. This dict is written
+        # from MULTIPLE call sites — the async route()/record_feedback path AND
+        # the sync BYOKHandler re-rank/stash paths (_rerank_with_learning,
+        # _stash_decision_features) — which run concurrently across requests on
+        # the shared singleton handler. A threading.Lock (not asyncio) is used
+        # because the sync callers can't take an async lock, and mutation must
+        # be atomic to avoid "dictionary changed size during iteration" crashes
+        # during eviction and lost updates during stash/consume.
+        import threading as _threading
+        self._decisions_lock = _threading.Lock()
 
         # Initialize model registry
         self._initialize_model_registry()
@@ -786,8 +796,14 @@ class LearningBasedRouter:
             required_capabilities.add(ModelCapability.REASONING)
         if request.requires_vision:
             required_capabilities.add(ModelCapability.VISION)
-        if request.max_latency_ms and request.max_latency_ms < 1000:
-            required_capabilities.add(ModelCapability.FAST_RESPONSE)
+        # NOTE: max_latency_ms is intentionally NOT a hard capability gate here.
+        # An earlier version added a FAST_RESPONSE capability requirement when
+        # max_latency_ms < 1000, which ran BEFORE _filter_by_latency and silently
+        # dropped every non-FAST model (all premium/reasoning models) for any
+        # sub-1s budget — often leaving an empty candidate set. The dedicated
+        # _filter_by_latency (which uses the speed_score -> latency model) is the
+        # correct gate and is applied separately in route(). The hard capability
+        # gate was strictly redundant with it and could only shrink the set.
 
         for model in self._model_registry.values():
             # Check if model has all required capabilities
@@ -912,13 +928,18 @@ class LearningBasedRouter:
         """
         observed_latencies = []
         observed_costs = []
+        alpha = self._ema_alpha()
         for model in candidates:
             key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
             ema_data = self._ema_scores.get(key, {})
-            if "latency" in ema_data:
-                observed_latencies.append(ema_data["latency"])
-            if "cost" in ema_data:
-                observed_costs.append(ema_data["cost"])
+            # Use bias-corrected values (read-time correction) so the max is on
+            # the same scale as the per-model corrected values used in scoring.
+            corrected_latency = self._ema_corrected(ema_data, "latency", alpha)
+            if corrected_latency is not None:
+                observed_latencies.append(corrected_latency)
+            corrected_cost = self._ema_corrected(ema_data, "cost", alpha)
+            if corrected_cost is not None:
+                observed_costs.append(corrected_cost)
 
         if observed_latencies:
             max_latency = max(observed_latencies)
@@ -1035,24 +1056,29 @@ class LearningBasedRouter:
         key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
         ema_data = self._ema_scores.get(key, {})
         has_history = bool(ema_data)
+        alpha = self._ema_alpha()
 
-        # Quality / success: observed EMA success, else static quality_score.
-        success_score = ema_data.get("success", model.quality_score)
+        # Quality / success: bias-corrected EMA success, else static quality_score.
+        # (Read-time correction via _ema_corrected — stored values are raw.)
+        corrected_success = self._ema_corrected(ema_data, "success", alpha)
+        success_score = corrected_success if corrected_success is not None else model.quality_score
 
         max_latency = ema_norm["max_latency"]
         max_cost = ema_norm["max_cost"]
 
-        # Latency: lower is better. Observed EMA, else speed spec.
-        if "latency" in ema_data:
-            latency_score = 1.0 - (ema_data["latency"] / max_latency)
+        # Latency: lower is better. Bias-corrected observed EMA, else speed spec.
+        corrected_latency = self._ema_corrected(ema_data, "latency", alpha)
+        if corrected_latency is not None:
+            latency_score = 1.0 - (corrected_latency / max_latency)
             latency_score = max(0.0, min(1.0, latency_score))
         else:
             latency_score = model.speed_score
 
-        # Cost: lower is better. Observed EMA (per-call $), else convert the
-        # per-million spec to a per-call estimate so units match max_cost.
-        if "cost" in ema_data:
-            cost_score = 1.0 - (ema_data["cost"] / max_cost)
+        # Cost: lower is better. Bias-corrected observed EMA (per-call $), else
+        # convert the per-million spec to a per-call estimate so units match.
+        corrected_cost = self._ema_corrected(ema_data, "cost", alpha)
+        if corrected_cost is not None:
+            cost_score = 1.0 - (corrected_cost / max_cost)
             cost_score = max(0.0, min(1.0, cost_score))
         else:
             tokens = max(1, request.estimated_tokens)
@@ -1085,31 +1111,43 @@ class LearningBasedRouter:
         return min(alpha, 1.0)
 
     def _ema_update_metric(self, key: str, metric: str, current: float, alpha: float) -> None:
-        """Apply one bias-corrected EMA step to ``self._ema_scores[key][metric]``.
+        """Apply one EMA step to ``self._ema_scores[key][metric]``.
 
-        Tracks a PER-METRIC sample count (``{metric}_n``) for the bias
-        correction, not the key-total ``samples``. latency/cost are only
-        updated when those fields are present in feedback, so using the
-        key-total would over-correct sparsely-reported metrics (a key with 100
-        rows but 5 latency observations would divide the 2nd latency EMA by a
-        divisor computed from n=100, grossly distorting avg_latency).
+        Tracks a PER-METRIC sample count (``{metric}_n``) so latency/cost (which
+        are only updated when those fields are present in feedback) can be
+        reported with their own observation count, independent of the key-total
+        ``samples`` (which counts every feedback row). Using the key-total for a
+        sparse metric's count would misreport how many observations back it.
 
-        Bias correction: a freshly-seeded EMA is biased toward its first sample
-        (the recurrence weights the seed by (1-alpha)^n), so we divide by
-        ``1 - (1-alpha)^n`` to recover the true running mean.
+        Note on bias correction: an earlier revision applied Adam-style bias
+        correction (``raw / (1 - (1-α)^n)``) to counter early-value clustering
+        near the seed. That correction is only valid for a STATIONARY process;
+        routing telemetry is non-stationary (outages, drift), so the correction
+        produced impossible values (e.g. success > 1.0) and distorted latency.
+        It has been removed — the mild early clustering self-corrects as samples
+        accumulate, which is strictly safer than over-correcting.
         """
         bucket = self._ema_scores[key]
         n_key = f"{metric}_n"
         n = bucket.get(n_key, 0)
         if n == 0:
-            # First observation for this metric: seed, no correction needed.
             bucket[metric] = current
             bucket[n_key] = 1
             return
-        raw = alpha * current + (1.0 - alpha) * bucket[metric]
-        bias = 1.0 - (1.0 - alpha) ** (n + 1)
-        bucket[metric] = raw / bias if bias > 0 else raw
+        bucket[metric] = alpha * current + (1.0 - alpha) * bucket[metric]
         bucket[n_key] = n + 1
+
+    def _ema_corrected(self, bucket: Dict[str, float], metric: str, alpha: float) -> Optional[float]:
+        """Read a stored EMA metric value (raw — no correction applied).
+
+        Kept as the single read accessor so all call sites go through one place;
+        the name is retained for call-site stability but the value returned is
+        the plain stored EMA (bias correction was removed as unsound for
+        non-stationary telemetry — see _ema_update_metric).
+        """
+        if metric not in bucket:
+            return None
+        return bucket[metric]
 
     def _ema_record_key(self, key: str) -> None:
         """Track an EMA key for FIFO eviction, bounding _ema_scores (R17-2).
@@ -1200,6 +1238,43 @@ class LearningBasedRouter:
 
         return cheapest or list(self._model_registry.values())[0]
 
+    def stash_decision(
+        self, prompt_features: Dict[str, float], decision_id: Optional[str] = None
+    ) -> str:
+        """Stash prompt features under a routing_result_id (thread-safe).
+
+        Centralizes the stash + bounded-eviction that was previously inlined in
+        _create_routing_result AND duplicated in BYOKHandler._rerank_with_learning
+        / _stash_decision_features. Those handlers touch the shared singleton's
+        _routing_decisions from concurrent requests; routing every mutation
+        through this method (under _decisions_lock) prevents lost updates and
+        "dictionary changed size during iteration" crashes during eviction.
+
+        Returns the id used (a fresh uuid when ``decision_id`` is None, so
+        callers that don't care about the id can just take the return value).
+        """
+        import uuid as _uuid
+        if decision_id is None:
+            decision_id = str(_uuid.uuid4())
+        with self._decisions_lock:
+            self._routing_decisions[decision_id] = prompt_features
+            if len(self._routing_decisions) > self._max_routing_decisions:
+                overflow = len(self._routing_decisions) - self._max_routing_decisions
+                for stale_id in list(self._routing_decisions.keys())[:overflow]:
+                    del self._routing_decisions[stale_id]
+        return decision_id
+
+    def consume_decision(self, routing_result_id: str) -> Optional[Dict[str, float]]:
+        """Look up and return stashed prompt features for an id (thread-safe).
+
+        ``record_feedback`` reads the stashed features so the per-model
+        predictors train on the same features the decision used. The entry is
+        NOT deleted here (a decision id may correlate multiple feedback rows —
+        e.g. auto outcome + explicit thumbs); eviction is handled by the cap.
+        """
+        with self._decisions_lock:
+            return self._routing_decisions.get(routing_result_id)
+
     def _create_routing_result(
         self,
         model: ModelSpec,
@@ -1224,13 +1299,10 @@ class LearningBasedRouter:
         routing_result_id = str(uuid.uuid4())
         prompt_features = self._extract_request_features(request)
 
-        # Stash the decision so feedback can recover the prompt features. Bound
-        # the store (R17-2 pattern): evict the oldest entries when over the cap.
-        self._routing_decisions[routing_result_id] = prompt_features
-        if len(self._routing_decisions) > self._max_routing_decisions:
-            overflow = len(self._routing_decisions) - self._max_routing_decisions
-            for stale_id in list(self._routing_decisions.keys())[:overflow]:
-                del self._routing_decisions[stale_id]
+        # Stash the decision so feedback can recover the prompt features (under
+        # _decisions_lock via stash_decision — concurrent handlers mutate this
+        # shared dict). Pass the id we'll return so the correlation holds.
+        self.stash_decision(prompt_features, decision_id=routing_result_id)
 
         return RoutingResult(
             selected_model=model,
@@ -1280,7 +1352,9 @@ class LearningBasedRouter:
         # the same features that were used to make the decision (no train/serve
         # skew). Falls back to None -> _feedback_to_training_example derives
         # task-level defaults (graceful degradation for evicted/restarted ids).
-        recovered = self._routing_decisions.get(feedback.routing_result_id)
+        # Thread-safe read via consume_decision (concurrent handlers mutate the
+        # shared dict).
+        recovered = self.consume_decision(feedback.routing_result_id)
         if recovered is not None:
             feedback._prompt_features = recovered  # type: ignore[attr-defined]
         elif feedback.routing_result_id:
@@ -1842,11 +1916,16 @@ class LearningBasedRouter:
             if key_tenant != tenant_id:
                 continue  # don't leak other tenants' telemetry
             out_key = f"{task_type}:{model_id}"
+            # Read-time bias-corrected values (stored values are raw EMA).
+            alpha = self._ema_alpha()
+            c_success = self._ema_corrected(data, "success", alpha)
+            c_latency = self._ema_corrected(data, "latency", alpha)
+            c_cost = self._ema_corrected(data, "cost", alpha)
             ema_out[out_key] = {
-                "score": round(data.get("success", 0.5), 4),
-                "success_rate": round(data.get("success", 1.0), 4),
-                "avg_latency_ms": round(data.get("latency", 0.0), 2),
-                "avg_cost": round(data.get("cost", 0.0), 6),
+                "score": round(c_success if c_success is not None else 0.5, 4),
+                "success_rate": round(c_success if c_success is not None else 1.0, 4),
+                "avg_latency_ms": round(c_latency if c_latency is not None else 0.0, 2),
+                "avg_cost": round(c_cost if c_cost is not None else 0.0, 6),
                 # samples is now actually incremented in _update_ema_scores;
                 # the default 0 only applies to an empty/partial bucket.
                 "samples": int(data.get("samples", 0)),

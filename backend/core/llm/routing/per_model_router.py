@@ -120,7 +120,20 @@ class PerModelRouter:
                 accuracy = positive_rate
             else:
                 estimator = self._create_estimator()
-                estimator.fit(X, y)
+                # Preference weighting: TrainingExample.weight (1.0 by default,
+                # stronger for explicit thumbs-down-with-comment, etc.) must
+                # actually influence the fit — previously it was extracted by
+                # FeatureExtractor.extract_weights but never passed to fit, so
+                # every example was weighted equally regardless of signal
+                # strength. Most estimators (RF, LR, VotingClassifier) accept
+                # sample_weight directly; MLPClassifier does not, so we fall
+                # back to an unweighted fit for it (the standard sklearn
+                # limitation) rather than dropping the whole training run.
+                weights = self.feature_extractor.extract_weights(examples)
+                try:
+                    estimator.fit(X, y, sample_weight=weights)
+                except (TypeError, ValueError):
+                    estimator.fit(X, y)
                 # Training accuracy on the full set (these predictors are tiny;
                 # a held-out split on ~20-100 examples is too noisy to be
                 # meaningful, so we report in-sample fit as a rough confidence
