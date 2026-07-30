@@ -1118,10 +1118,12 @@ class WorkflowEngine:
                 fallback_executor = service_registry[fallback_service]
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(fallback_executor(action, params), timeout=timeout)
+                        result = await asyncio.wait_for(fallback_executor(action, params, step.get("connection_id")), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
-                        timeout=timeout
+                            message=f"Fallback service {fallback_service}.{action} timed out after {timeout}s",
+                            step_id=step.get("id", "unknown"),
+                            timeout=timeout,
                         )
                 else:
                     result = await fallback_executor(action, params, step.get("connection_id"))

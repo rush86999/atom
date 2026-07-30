@@ -75,7 +75,7 @@ class BoardEventEmitter:
                 "column_id": str(task.get("column_id")),
                 "title": task.get("title"),
                 "status": task.get("status"),
-                "sort_order": float(task.get("sort_order", 0.0)),
+                "sort_order": float(task.get("sort_order") or 0.0),
                 "version_id": task.get("version_id"),
                 "canvas_id": (
                     str(task.get("canvas_id")) if task.get("canvas_id") else None
@@ -88,7 +88,7 @@ class BoardEventEmitter:
             "column_id": str(task.column_id),
             "title": task.title,
             "status": task.status,
-            "sort_order": float(task.sort_order),
+            "sort_order": float(task.sort_order or 0.0),
             "version_id": task.version_id,
             "canvas_id": str(task.canvas_id) if task.canvas_id else None,
         }
