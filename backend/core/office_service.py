@@ -35,6 +35,29 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def _validate_office_path(file_path: str) -> str:
+    """Contain user-supplied file paths to the configured office directory.
+
+    Office endpoints accept a user-controlled ``file_path``; without containment
+    that's arbitrary file read/write (path traversal — reading /etc/passwd or
+    overwriting config). Resolve to an absolute path and require it to live
+    under ATOM_OFFICE_DIR (default ./data/office). Raises ValueError otherwise.
+    """
+    if not file_path:
+        raise ValueError("file_path is required")
+    base = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
+    try:
+        resolved = Path(file_path).resolve()
+    except (OSError, ValueError) as e:
+        raise ValueError(f"Invalid file path: {e}")
+    # Resolve symlinks/relative escapes: the resolved path must be under base.
+    if base not in resolved.parents and resolved != base:
+        raise ValueError(
+            f"Access denied: path '{file_path}' is outside the allowed office directory"
+        )
+    return str(resolved)
+
+
 class ExcelManager:
     """Manages Excel sheet operations using openpyxl."""
 
@@ -57,8 +80,12 @@ class ExcelManager:
 
     def read_range(self, file_path: str, cell_path: str) -> Dict[str, Any]:
         """Read values from a cell or cell range."""
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         if not os.path.exists(file_path):
-            return {"success": False, "error": f"File not found: {file_path}"}
+            return {"success": False, "error": f"File not found"}
 
         try:
             wb = openpyxl.load_workbook(file_path, data_only=True)
@@ -251,8 +278,12 @@ class WordManager:
 
     def read_document(self, file_path: str) -> Dict[str, Any]:
         """Read content from a Word document."""
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         if not os.path.exists(file_path):
-            return {"success": False, "error": f"File not found: {file_path}"}
+            return {"success": False, "error": "File not found"}
 
         try:
             doc = docx.Document(file_path)
@@ -336,8 +367,12 @@ class PowerPointManager:
         """Read content from a PowerPoint deck."""
         if not PPTX_AVAILABLE:
             return {"success": False, "error": "python-pptx library not installed"}
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         if not os.path.exists(file_path):
-            return {"success": False, "error": f"File not found: {file_path}"}
+            return {"success": False, "error": "File not found"}
 
         try:
             prs = pptx.Presentation(file_path)

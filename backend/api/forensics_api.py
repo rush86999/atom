@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.financial_forensics import get_forensics_services
+from core.auth import get_current_user
 
-router = BaseAPIRouter(prefix="/api/forensics", tags=["Forensics"])
+# Forensics endpoints expose sensitive vendor/pricing/subscription analysis —
+# they must be authenticated. Previously none had a get_current_user dependency.
+router = BaseAPIRouter(prefix="/api/forensics", tags=["Forensics"], dependencies=[Depends(get_current_user)])
 
 @router.get("/vendor-drift")
 async def get_vendor_drift(

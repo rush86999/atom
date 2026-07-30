@@ -14,10 +14,15 @@ from sqlalchemy.orm import Session
 from core.database import get_db_session
 from core.office_service import OfficeService
 from core.office_sync_service import OfficeSyncService
+from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# Every office endpoint reads/writes user-supplied file paths and document
+# content — they MUST be authenticated. Previously NONE of the 14 endpoints had
+# a get_current_user dependency, allowing unauthenticated arbitrary file
+# read/write (path traversal) via the process's filesystem permissions.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 office_service = OfficeService()
 
 

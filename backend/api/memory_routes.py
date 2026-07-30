@@ -40,7 +40,7 @@ _context_store: Dict[str, Dict[str, Any]] = {}
 
 # Static routes MUST come before parameterized routes
 @router.get("/stats")
-async def get_memory_stats(workspace_id: str = "default"):
+async def get_memory_stats(workspace_id: str = "default", current_user: User = Depends(get_current_user)):
     """
     Get memory statistics from LanceDB.
 
@@ -117,7 +117,7 @@ async def get_memory_stats(workspace_id: str = "default"):
         )
 
 @router.get("/search")
-async def search_memory(q: str, limit: int = 10):
+async def search_memory(q: str, limit: int = 10, current_user: User = Depends(get_current_user)):
     """Search memory entries"""
     results = []
     for key, entry in _memory_store.items():
@@ -132,7 +132,7 @@ async def search_memory(q: str, limit: int = 10):
     )
 
 @router.get("/context/{session_id}", response_model=ContextResponse)
-async def get_context(session_id: str):
+async def get_context(session_id: str, current_user: User = Depends(get_current_user)):
     """Get context for a session"""
     context = _context_store.get(session_id, {})
     return ContextResponse(
@@ -207,7 +207,7 @@ async def store_memory(
 
 # Parameterized routes MUST come after static routes
 @router.get("/{key}", response_model=MemoryResponse)
-async def retrieve_memory(key: str):
+async def retrieve_memory(key: str, current_user: User = Depends(get_current_user)):
     """Retrieve a memory entry by key"""
     if key not in _memory_store:
         raise router.not_found_error("Memory key", key)

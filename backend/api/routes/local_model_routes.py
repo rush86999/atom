@@ -184,7 +184,7 @@ async def discover_models(
         return {"models": models, "count": len(models)}
     except Exception as e:
         logger.warning(f"Model discovery failed for {provider.name}: {e}")
-        return {"models": [], "count": 0, "error": str(e)}
+        return {"models": [], "count": 0, "error": "model discovery failed"}
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +290,8 @@ async def test_connection(
             resp.raise_for_status()
         return {"reachable": True, "status_code": resp.status_code}
     except Exception as e:
-        return {"reachable": False, "error": str(e)}
+        logger.warning(f"Local model connectivity check failed: {e}")
+        return {"reachable": False, "error": "connectivity check failed"}
 
 
 # ---------------------------------------------------------------------------

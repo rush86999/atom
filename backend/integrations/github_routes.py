@@ -26,7 +26,14 @@ except ImportError as e:
     GITHUB_AVAILABLE = False
     github_service = None
 
-router = APIRouter(prefix="/api/github", tags=["github"])
+# GitHub endpoints act on behalf of a user's stored OAuth token. They MUST be
+# authenticated, and the effective user_id must come from the authenticated
+# session — NOT the request body (otherwise any caller could pass another
+# user's id and act under their GitHub identity: an IDOR). Router-level auth
+# closes the unauthenticated-access hole; per-handler overrides pin user_id to
+# the authenticated user (see e.g. list_repositories).
+from core.auth import get_current_user, User
+router = APIRouter(prefix="/api/github", tags=["github"], dependencies=[Depends(get_current_user)])
 
 # Feature flag for OAuth strict mode
 OAUTH_STRICT_MODE = os.getenv("OAUTH_STRICT_MODE", "true").lower() == "true"
@@ -256,9 +263,10 @@ async def health_check():
         }
 
 @router.post("/repositories")
-async def list_repositories(request: RepoRequest):
+async def list_repositories(request: RepoRequest, current_user: User = Depends(get_current_user)):
     """List user GitHub repositories"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -326,9 +334,10 @@ async def list_repositories(request: RepoRequest):
         raise HTTPException(status_code=500, detail="Error listing repositories")
 
 @router.post("/repositories/create")
-async def create_repository(request: CreateRepoRequest):
+async def create_repository(request: CreateRepoRequest, current_user: User = Depends(get_current_user)):
     """Create a new GitHub repository"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -397,9 +406,10 @@ async def create_repository(request: CreateRepoRequest):
         raise HTTPException(status_code=500, detail="Error creating repository")
 
 @router.post("/issues")
-async def list_issues(request: IssueRequest):
+async def list_issues(request: IssueRequest, current_user: User = Depends(get_current_user)):
     """List user GitHub issues"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -472,9 +482,10 @@ async def list_issues(request: IssueRequest):
         raise HTTPException(status_code=500, detail="Error listing issues")
 
 @router.post("/issues/create")
-async def create_issue(request: CreateIssueRequest):
+async def create_issue(request: CreateIssueRequest, current_user: User = Depends(get_current_user)):
     """Create a new GitHub issue"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -535,9 +546,10 @@ async def create_issue(request: CreateIssueRequest):
         raise HTTPException(status_code=500, detail="Error creating issue")
 
 @router.post("/pulls")
-async def list_pull_requests(request: PullRequestRequest):
+async def list_pull_requests(request: PullRequestRequest, current_user: User = Depends(get_current_user)):
     """List pull requests for a repository"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -611,9 +623,10 @@ async def list_pull_requests(request: PullRequestRequest):
         raise HTTPException(status_code=500, detail="Error listing pull requests")
 
 @router.post("/pulls/create")
-async def create_pull_request(request: CreatePullRequestRequest):
+async def create_pull_request(request: CreatePullRequestRequest, current_user: User = Depends(get_current_user)):
     """Create a new pull request"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -682,9 +695,10 @@ async def create_pull_request(request: CreatePullRequestRequest):
         raise HTTPException(status_code=500, detail="Error creating pull request")
 
 @router.post("/search")
-async def search_github(request: SearchRequest):
+async def search_github(request: SearchRequest, current_user: User = Depends(get_current_user)):
     """Search GitHub repositories"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         
@@ -710,9 +724,10 @@ async def search_github(request: SearchRequest):
         raise HTTPException(status_code=500, detail="Error searching GitHub")
 
 @router.post("/user/profile")
-async def get_user_profile(request: UserRequest):
+async def get_user_profile(request: UserRequest, current_user: User = Depends(get_current_user)):
     """Get authenticated user profile"""
     try:
+        request.user_id = current_user.id  # IDOR: pin to authenticated user
         if not GITHUB_AVAILABLE:
             raise HTTPException(status_code=503, detail="GitHub service not available")
         

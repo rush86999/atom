@@ -127,6 +127,7 @@ async def disable_auto_sync(
     integration_id: str,
     request: Request,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     agent_id: Optional[str] = None
 ):
     """
