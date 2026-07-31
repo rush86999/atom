@@ -225,16 +225,22 @@ async def hubspot_webhook_handler(
                 if db.bind and db.bind.dialect.name == "postgresql":
                     db.execute(text("SET LOCAL row_security = on"))
 
-            if integration and integration.config:
-                client_secret = integration.config.get("client_secret")
-                if client_secret:
-                    import hashlib
+            # Round 45: fail CLOSED — when the integration or its signing
+            # secret is not configured, reject instead of processing the
+            # event unverified (previously the HMAC check was skipped and
+            # forged events were dispatched). Mirrors the Slack handler.
+            if not integration or not integration.config or not integration.config.get("client_secret"):
+                logger.error(f"HubSpot signing secret not configured for tenant {tenant_id}")
+                raise HTTPException(status_code=503, detail="Webhook verification not configured")
 
-                    if not verify_hmac_signature(
-                        payload, x_hubspot_signature, client_secret, algorithm=hashlib.sha256
-                    ):
-                        logger.error(f"Unauthorized HubSpot webhook for tenant {tenant_id}")
-                        raise HTTPException(status_code=401, detail="Invalid signature")
+            import hashlib
+
+            client_secret = integration.config.get("client_secret")
+            if not verify_hmac_signature(
+                payload, x_hubspot_signature, client_secret, algorithm=hashlib.sha256
+            ):
+                logger.error(f"Unauthorized HubSpot webhook for tenant {tenant_id}")
+                raise HTTPException(status_code=401, detail="Invalid signature")
 
             # 4.5. Resolve source_connection_id for BYOK credential lookup
             source_connection_id = None
@@ -341,12 +347,16 @@ async def salesforce_webhook_handler(
             if db.bind and db.bind.dialect.name == "postgresql":
                 db.execute(text("SET LOCAL row_security = on"))
 
-        if integration and integration.config:
-            client_secret = integration.config.get("client_secret")
-            if client_secret:
-                if not verify_hmac_signature(payload, x_salesforce_signature, client_secret):
-                    logger.error(f"Unauthorized Salesforce webhook for tenant {tenant_id}")
-                    raise HTTPException(status_code=401, detail="Invalid signature")
+        # Round 45: fail CLOSED — reject when the integration/secret is not
+        # configured (previously the HMAC check was skipped entirely).
+        if not integration or not integration.config or not integration.config.get("client_secret"):
+            logger.error(f"Salesforce signing secret not configured for tenant {tenant_id}")
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+
+        client_secret = integration.config.get("client_secret")
+        if not verify_hmac_signature(payload, x_salesforce_signature, client_secret):
+            logger.error(f"Unauthorized Salesforce webhook for tenant {tenant_id}")
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
         # 4.5. Resolve source_connection_id for BYOK credential lookup
         source_connection_id = None
@@ -550,12 +560,16 @@ async def notion_webhook_handler(
             if db.bind and db.bind.dialect.name == "postgresql":
                 db.execute(text("SET LOCAL row_security = on"))
 
-        if integration and integration.config:
-            client_secret = integration.config.get("client_secret")
-            if client_secret:
-                if not verify_hmac_signature(payload, x_notion_signature, client_secret):
-                    logger.error(f"Unauthorized Notion webhook for tenant {tenant_id}")
-                    raise HTTPException(status_code=401, detail="Invalid signature")
+        # Round 45: fail CLOSED — reject when the integration/secret is not
+        # configured (previously the HMAC check was skipped entirely).
+        if not integration or not integration.config or not integration.config.get("client_secret"):
+            logger.error(f"Notion signing secret not configured for tenant {tenant_id}")
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+
+        client_secret = integration.config.get("client_secret")
+        if not verify_hmac_signature(payload, x_notion_signature, client_secret):
+            logger.error(f"Unauthorized Notion webhook for tenant {tenant_id}")
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
         # 4.5. Resolve source_connection_id for BYOK credential lookup
         source_connection_id = None

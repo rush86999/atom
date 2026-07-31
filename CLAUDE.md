@@ -192,6 +192,15 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 45 — Fail-Open Webhook Signature Verification (July 31, 2026) ✨
+**Bug hunt round.** Audited the mounted webhook surface (`api/routes/webhooks/ingestion_webhooks.py` — slack/hubspot/salesforce/gmail/notion/outlook/zoho/pm-crm) for fail-open signature handling.
+
+**A. HubSpot / Salesforce / Notion webhooks — signature check skipped when unconfigured.** All three handlers claimed "Verifies HMAC signature" but wrapped the check in `if integration and integration.config: if client_secret:` — when the integration row, its config, or the `client_secret` was missing, the event was **processed with NO verification** (CRUD dispatch / ingestion → forged-event injection, data poisoning, workflow triggers). An attacker who knew the tenant's `portalId`/`orgId`/`workspace_id` could POST arbitrary events. Fixed to fail CLOSED (503 "Webhook verification not configured" / 401 bad signature), mirroring the already-correct Slack handler.
+
+**B. Reviewed, NOT bugs:** Gmail uses Google Pub/Sub auth (no HMAC by design); Outlook relies on Microsoft's `clientState`/validationToken handshake model (weaker by protocol design); zoho/pm-crm don't claim HMAC; Slack url_verification challenge echo is Slack protocol.
+
+**Tests:** 6 new tests in `backend/tests/test_round45_webhook_fail_open.py` (unconfigured → 401/503 + dispatch never called for all 3 handlers; configured + bad signature → still 401). Zero regressions (comm-verified: 13→10 failures in affected suites — delta is exactly the 3 RED tests flipping green). mypy baseline identical (line shifts only). 194 tests green across rounds 38-45.
+
 ### Round 44 — Rate-Limit Bypasses: Scheduler Header + XFF Key Spoofing (July 31, 2026) ✨
 **Bug hunt round.** Two rate-limit bypasses found in the security middleware:
 
