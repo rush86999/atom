@@ -192,6 +192,15 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 44 — Rate-Limit Bypasses: Scheduler Header + XFF Key Spoofing (July 31, 2026) ✨
+**Bug hunt round.** Two rate-limit bypasses found in the security middleware:
+
+**A. `core/security/middleware.py` RateLimitMiddleware** — the global limiter (120/min, 5000/day) bypassed for ANY request carrying an `X-Scheduler-Secret` header — **presence check only, no value validation**, and nothing in the codebase ever sets the header. `/api/scheduler` paths were already exempted by prefix, so the header check was dead weight that let any client strip rate limiting on every endpoint. Removed the header condition; the path exemption stays.
+
+**B. `core/security/auth_rate_limit.py` AuthRateLimiter._client_ip** — trusted the LAST `X-Forwarded-For` entry as the rate-limit key. Only safe behind a proxy that appends the peer IP; the **Personal Edition runs standalone** (`uvicorn main:app`), where the client's own header value is used verbatim — rotating XFF bypassed login/register/refresh limits (10/min, 3/5min, 30/min). Now defaults to the TCP peer (`request.client.host`, never spoofable); XFF is only trusted when `TRUST_X_FORWARDED_FOR=1` is set explicitly for proxy deployments. `enterprise_auth_endpoints.reset_ip` uses the same `_client_ip()` helper, so reset stays consistent.
+
+**Tests:** 5 new tests in `backend/tests/test_round44_rate_limit_bypasses.py` (direct middleware dispatch with the header present/absent + scheduler-path exemption + XFF-rotation bucket test + missing-XFF peer test). 204 tests green across rounds 38-44 + auth/round-14 suites. mypy baseline identical (line shifts only). `test_scenarios/test_security_scenarios.py` is pre-existing broken (`from main import app` — no main.py exists) — unrelated.
+
 ### Round 43 — Deleted/Suspended-User Token Continuation (July 31, 2026) ✨
 **Bug hunt round.** `login_for_access_token` rejects non-ACTIVE users, but `get_current_user`/`get_current_user_ws` never checked `user.status` — so an already-issued JWT (24h lifetime, `ACCESS_TOKEN_EXPIRE_MINUTES`) kept authenticating a user after an admin soft-deleted the account (`enterprise_user_management.deactivate_user` sets `status=DELETED`) or suspended it. Every `get_current_user`-protected endpoint was affected (including `get_current_session_token` and all `require_permission` chains, which wrap it).
 

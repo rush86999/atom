@@ -276,9 +276,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         test_secret = request.headers.get("x-test-secret") or request.headers.get("X-Test-Secret")
         force_rate_limit = request.headers.get("X-Force-Rate-Limit") == "true"
-        is_scheduler = path.startswith("/api/scheduler") or request.headers.get(
-            "X-Scheduler-Secret"
-        )
+        # Round 44: scheduler exemption is path-based ONLY. The previous
+        # `or request.headers.get("X-Scheduler-Secret")` check bypassed rate
+        # limiting for ANY request carrying the header — presence check only,
+        # no value validation, and nothing in the codebase ever sets it.
+        is_scheduler = path.startswith("/api/scheduler")
 
         # Bypass check — test_secret bypass is ONLY valid during pytest runs
         _is_pytest_rl = os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("PYTEST_VERSION") is not None

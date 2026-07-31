@@ -19,6 +19,7 @@ Limitations (acceptable for single-instance deployments):
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
@@ -46,11 +47,20 @@ class AuthRateLimiter:
         self._hits: Dict[str, list] = defaultdict(list)
 
     def _client_ip(self, request: Request) -> str:
-        """Extract client IP, preferring X-Forwarded-For (last entry)."""
-        xff = request.headers.get("x-forwarded-for")
-        if xff:
-            # Last entry is the closest proxy — most trustworthy
-            return xff.split(",")[-1].strip()
+        """Extract client IP for rate-limit bucketing.
+
+        Default: the TCP peer (request.client.host) — never spoofable.
+        X-Forwarded-For is only trusted when TRUST_X_FORWARDED_FOR=1 is set
+        explicitly (deployments behind a proxy that appends the peer IP).
+        Round 44: previously the last XFF entry was trusted unconditionally;
+        standalone deployments (Personal Edition) used the client's own
+        header value verbatim, so rotating XFF bypassed the limit.
+        """
+        if os.getenv("TRUST_X_FORWARDED_FOR") == "1":
+            xff = request.headers.get("x-forwarded-for")
+            if xff:
+                # Last entry is the closest proxy — most trustworthy
+                return xff.split(",")[-1].strip()
         return request.client.host if request.client else "unknown"
 
     def check(self, request: Request) -> Tuple[bool, int]:
