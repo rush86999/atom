@@ -42,6 +42,7 @@ from sales.models import Lead
 def client(db_session: Session):
     """Create test client with database session override"""
     from core.database import get_db
+    from core.auth import get_current_user
 
     def override_get_db():
         try:
@@ -49,7 +50,13 @@ def client(db_session: Session):
         finally:
             pass
 
+    def override_get_current_user():
+        from unittest.mock import MagicMock
+        return MagicMock(id="test-user")
+
     app.dependency_overrides[get_db] = override_get_db
+    # Round 38: operational endpoints require auth — override the dependency.
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(app) as test_client:
         yield test_client

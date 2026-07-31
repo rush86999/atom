@@ -55,6 +55,7 @@ async def register_background_agent(
     request: RegisterAgentRequest,
     http_request: Request,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     requesting_agent_id: Optional[str] = None
 ):
     """
@@ -83,6 +84,7 @@ async def start_background_agent(
     agent_id: str,
     http_request: Request,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     requesting_agent_id: Optional[str] = None
 ):
     """
@@ -102,10 +104,11 @@ async def start_background_agent(
             message="Agent started successfully"
         )
     except ValueError as e:
-        raise router.not_found_error("Background Agent", agent_id, details={"error": str(e)})
+        logger.error(f"Background agent start failed: {e}")
+        raise router.not_found_error("Background Agent", agent_id)
 
 @router.post("/{agent_id}/stop")
-async def stop_background_agent(agent_id: str):
+async def stop_background_agent(agent_id: str, current_user: User = Depends(get_current_user)):
     """Stop periodic execution of an agent"""
     from core.background_agent_runner import background_runner
 
@@ -116,7 +119,7 @@ async def stop_background_agent(agent_id: str):
     )
 
 @router.get("/status")
-async def get_all_agent_status():
+async def get_all_agent_status(current_user: User = Depends(get_current_user)):
     """Get status of all background agents"""
     try:
         from core.background_agent_runner import background_runner
@@ -125,7 +128,7 @@ async def get_all_agent_status():
         return {"agents": {}, "message": "Background runner not available"}
 
 @router.get("/{agent_id}/status")
-async def get_agent_status(agent_id: str):
+async def get_agent_status(agent_id: str, current_user: User = Depends(get_current_user)):
     """Get status of a specific agent"""
     from core.background_agent_runner import background_runner
     return background_runner.get_status(agent_id)

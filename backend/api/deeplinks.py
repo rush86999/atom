@@ -43,7 +43,7 @@ router = BaseAPIRouter(prefix="/api/deeplinks", tags=["Deep Links"])
 class DeepLinkExecuteRequest(BaseModel):
     """Request to execute a deep link."""
     deeplink_url: str = Field(..., description="The atom:// deep link URL to execute")
-    user_id: str = Field(..., description="User ID executing the deep link")
+    user_id: Optional[str] = Field(None, description="DEPRECATED: identity comes from the auth token")  # noqa: E501
     source: str = Field(default="external", description="Source of the deep link")
 
 
@@ -135,10 +135,12 @@ async def execute_deeplink_endpoint(
         )
 
     try:
-        # Execute deep link
+        # Execute deep link — Round 37: identity comes from the authenticated
+        # user. Trusting request.user_id allowed executing deep links as any
+        # other user (cross-user impersonation).
         result = await execute_deep_link(
             url=request.deeplink_url,
-            user_id=request.user_id,
+            user_id=current_user.id,
             db=db,
             source=request.source
         )
@@ -160,14 +162,14 @@ async def execute_deeplink_endpoint(
 
         logger.info(
             f"Deep link executed successfully: {request.deeplink_url}, "
-            f"user={request.user_id}, result={result}"
+            f"user={current_user.id}, result={result}"
         )
 
         return response
 
     except (DeepLinkParseException, DeepLinkSecurityException) as e:
         logger.error(f"Deep link execution failed: {e}")
-        raise router.validation_error("deeplink_url", str(e))
+        raise router.validation_error("deeplink_url", "Deep link execution failed")
     except Exception as e:
         logger.error(f"Unexpected error executing deep link: {e}")
         raise router.internal_error("Internal error")
@@ -201,6 +203,13 @@ async def get_deeplink_audit(
         List of DeepLinkAuditResponse entries
     """
     query = db.query(DeepLinkAudit)
+
+    # Round 37: scope audit reads to the authenticated user. The client-supplied
+    # user_id filter previously let any user read another user's deep-link audit
+    # entries (URLs + parameters). A user_id filter for another user is ignored
+    # unless it matches the caller's own id.
+    if user_id and user_id != current_user.id:
+        user_id = current_user.id
 
     # Apply filters
     if user_id:
@@ -297,7 +306,7 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest, current_u
 
     except ValueError as e:
         logger.error(f"Failed to generate deep link: {e}")
-        raise router.validation_error("request", str(e))
+        raise router.validation_error("request", "Failed to generate deep link")
     except Exception as e:
         logger.error(f"Unexpected error generating deep link: {e}")
         raise router.internal_error("Internal error")

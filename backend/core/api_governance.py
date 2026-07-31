@@ -128,8 +128,14 @@ def require_governance(
     def decorator(func: Callable):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Extract request and db from kwargs
+            # Extract request and db from kwargs. The starlette Request may be
+            # named `request` OR `http_request` (endpoints whose JSON body is
+            # also named `request` use the latter). Round 37: previously only
+            # `request` was looked up, so endpoints with `http_request` had
+            # their governance check silently skipped.
             request: Optional[Request] = kwargs.get('request')
+            if not isinstance(request, Request):
+                request = kwargs.get('http_request')
             db: Optional[Session] = kwargs.get('db')
 
             if not request or not db:

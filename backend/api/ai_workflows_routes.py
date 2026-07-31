@@ -5,14 +5,22 @@ Provides compatibility with various API path conventions
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from pydantic import BaseModel, Field
 
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
 
-router = BaseAPIRouter(prefix="/api/ai-workflows", tags=["AI Workflows"])
+# Round 37: NLU/LLM endpoints burn provider credits and expose provider config —
+# they must be authenticated (were fully anonymous, enabling cost abuse).
+router = BaseAPIRouter(
+    prefix="/api/ai-workflows",
+    tags=["AI Workflows"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Pydantic Models
 class NLUParseRequest(BaseModel):
@@ -174,9 +182,9 @@ async def complete_text(request: CompletionRequest):
     except Exception as e:
         logger.error(f"Completion failed: {e}")
         processing_time = (time.time() - start_time) * 1000
-        
+
         return CompletionResponse(
-            completion=f"[Completion unavailable: {str(e)[:100]}]",
+            completion="[Completion unavailable]",
             provider_used="error",
             tokens_used=0,
             processing_time_ms=processing_time

@@ -334,7 +334,7 @@ async def flag_recording(
             raise
         logger.error(f"Failed to flag recording: {e}")
         raise router.internal_error(
-            message=f"Failed to flag recording: {str(e)}"
+            message="Failed to flag recording"
         )
 
 
@@ -387,7 +387,7 @@ async def get_recording_replay(
             raise
         logger.error(f"Failed to get recording replay: {e}")
         raise router.internal_error(
-            message=f"Failed to get recording replay: {str(e)}"
+            message="Failed to get recording replay"
         )
 
 

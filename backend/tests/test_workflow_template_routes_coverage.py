@@ -132,6 +132,11 @@ def app_with_overrides(template_manager, monkeypatch):
     import core.api_governance as governance_module
     monkeypatch.setattr(governance_module, "require_governance", lambda *args, **kwargs: lambda f: f)
 
+    # Round 37: template mutations require auth — override the dependency.
+    from unittest.mock import MagicMock
+    from core.auth import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
+
     yield app
 
 

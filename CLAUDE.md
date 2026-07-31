@@ -192,6 +192,29 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 38 — Remaining API Surface: Auth + Governance Wiring + Impersonation + Leak Sweep (July 31, 2026) ✨
+**Bug hunt round.** AST-based audit (`backend/scripts/audit_governance_auth.py`) of every `@require_governance` endpoint and mounted-but-unauthenticated router.
+
+**CRITICAL — unauthenticated endpoints (anonymous reads/writes):**
+- `api/operational_routes.py` `/api/business-health/*` (7 endpoints) — anonymous **intervention execution**, decision simulation, financial-forensics reads
+- `api/project_routes.py` `/api/projects/unified-tasks` — anonymous **MCP task creation on connected platforms**; `user_id` query param allowed cross-user access
+- `api/ai_workflows_routes.py` — anonymous LLM usage (cost abuse) + provider-config disclosure
+- `api/feedback_batch.py` — anonymous feedback adjudication + pending-feedback content exposure
+- `api/zoho_workdrive_routes.py` — anonymous **cross-user file access/ingestion** via client-supplied `user_id`
+- `api/workflow_template_routes.py` create/import/execute — anonymous template creation + **execution**
+- `api/background_agent_routes.py` register/start/stop/status — anonymous background-agent control
+- `api/data_ingestion_routes.py` `enable_auto_sync` — anonymous sync config
+→ Added `Depends(get_current_user)` (router-level where every endpoint is sensitive; per-endpoint where `current_user.id` is needed). Identity now comes from the token, never from query/body params.
+
+**HIGH — governance silently disabled (`core/api_governance.py`):**
+The `require_governance` wrapper only looked up `kwargs['request']`. Endpoints whose JSON body is also named `request` used `http_request` — so the check was **silently skipped**, and worse, `extract_agent_id()` crashed with `AttributeError` (every such endpoint 500'd in production: `admin_routes` delete_admin_user/roles/websocket, background-agent register/start, `enable_auto_sync`, `create_template`). Fixed the wrapper to fall back to `http_request` when `request` isn't a `starlette.Request`; added the missing `request` param to `list_conflicts`/`get_conflict`. Side effect: ~110 pre-existing failing tests repaired.
+
+**HIGH — impersonation (`api/deeplinks.py`):** `execute` trusted client-supplied `user_id` (deep links ran **as any user**); `audit` let any user read another user's deep-link history. Both now use the authenticated identity; audit scoping clamps to the caller's own id.
+
+**MEDIUM — 17 `str(e)` leaks removed** across `forensics_api`, `canvas_recording_routes`, `document_ingestion_routes`, `workflow_template_routes`, `project_routes`, `ai_workflows_routes`, `background_agent_routes`, `deeplinks`. Added `min_length=1` name validation to template create/update; fixed `parameters={}` mutable default in `execute_template`.
+
+**Tests:** 45 new tests in `backend/tests/test_round38_api_auth_governance.py` (auth 401s, governance wiring, impersonation, leaks). 0 new failures across ~30 affected suites; 13 existing test files updated with `get_current_user` overrides.
+
 ---
 
 ### Rounds 15+16 — Email Verification + 2FA (June 22, 2026) ✨

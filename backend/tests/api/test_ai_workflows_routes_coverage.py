@@ -44,9 +44,13 @@ def ai_workflows_client(mock_ai_service):
     Patches enhanced_ai_workflow_endpoints.ai_service at import location.
     """
     from api.ai_workflows_routes import router
+    from core.auth import get_current_user
 
     app = FastAPI()
     app.include_router(router)
+
+    # Round 37: endpoints are authenticated — override the dependency.
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
 
     # Patch ai_service at the module where it's imported
     with patch('enhanced_ai_workflow_endpoints.ai_service', mock_ai_service):

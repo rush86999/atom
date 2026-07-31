@@ -31,8 +31,13 @@ from api.background_agent_routes import router
 @pytest.fixture
 def app():
     """Create test FastAPI app with background agent routes."""
+    from unittest.mock import MagicMock
+    from core.auth import get_current_user
+
     app = FastAPI()
     app.include_router(router)
+    # Round 37: background-agent endpoints require auth — override the dependency.
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
     return app
 
 

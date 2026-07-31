@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Body, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
@@ -24,7 +24,7 @@ class InstantiateRequest(BaseModel):
     customizations: Optional[Dict[str, Any]] = None
 
 class CreateTemplateRequest(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, description="Template name (must not be empty)")
     description: str
     category: str = "automation"
     complexity: str = "intermediate"
@@ -32,7 +32,7 @@ class CreateTemplateRequest(BaseModel):
     steps: List[Dict[str, Any]] = []
 
 class UpdateTemplateRequest(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, description="Template name (must not be empty)")
     description: Optional[str] = None
     steps: Optional[List[Dict[str, Any]]] = None
     inputs: Optional[List[Dict[str, Any]]] = None
@@ -46,7 +46,8 @@ class UpdateTemplateRequest(BaseModel):
 )
 async def create_template(
     request: CreateTemplateRequest,
-    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    http_request: Request = None,
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
@@ -91,8 +92,7 @@ async def create_template(
     except Exception as e:
         logger.error(f"Failed to create template: {e}")
         raise router.internal_error(
-            message="Failed to create template",
-            details={"error": str(e)}
+            message="Failed to create template"
         )
 
 @router.get("/", response_model=List[Dict[str, Any]])
@@ -239,8 +239,7 @@ async def instantiate_template(template_id: str, request: InstantiateRequest, cu
     except Exception as e:
         logger.error(f"Failed to instantiate template: {e}")
         raise router.internal_error(
-            message="Failed to instantiate template",
-            details={"error": str(e)}
+            message="Failed to instantiate template"
         )
 
 @router.post("/{template_id}/import")
@@ -248,6 +247,7 @@ async def instantiate_template(template_id: str, request: InstantiateRequest, cu
 async def import_template(
     template_id: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     body: Optional[Dict[str, Any]] = None
 ):
@@ -279,8 +279,7 @@ async def import_template(
     except Exception as e:
         logger.error(f"Failed to import template: {e}")
         raise router.internal_error(
-            message="Failed to import template",
-            details={"error": str(e)}
+            message="Failed to import template"
         )
 
 @router.get("/search")
@@ -308,8 +307,9 @@ async def search_templates(query: str, limit: int = 20):
 )
 async def execute_template(
     template_id: str,
-    parameters: Dict[str, Any] = {},
+    parameters: Optional[Dict[str, Any]] = None,
     request: Request = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
@@ -327,7 +327,7 @@ async def execute_template(
         workflow_data = manager.create_workflow_from_template(
             template_id=template_id,
             workflow_name=f"Execution of {template_id}",
-            template_parameters=parameters
+            template_parameters=parameters or {}
         )
 
         workflow_id = workflow_data.get("workflow_id")
@@ -339,7 +339,7 @@ async def execute_template(
         # Create execution context
         context = await get_orchestrator().execute_workflow(
             workflow_id,  # Use the instantiated workflow_id
-            input_data=parameters,
+            input_data=parameters if parameters is not None else {},
             execution_context={"source": "visual_builder", "agent_id": agent_id}
         )
 
