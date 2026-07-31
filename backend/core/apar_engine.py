@@ -84,7 +84,10 @@ class APAREngine:
         Intake invoice from email, PDF, or portal.
         Parses and creates AP invoice.
         """
-        invoice_id = f"ap_{datetime.now().timestamp()}"
+        # M2 fix: use uuid4 instead of timestamp — two invoices in the same
+        # tick produced the same ID, silently overwriting the first.
+        import uuid as _uuid
+        invoice_id = f"ap_{_uuid.uuid4().hex[:12]}"
         
         # Parse invoice data (in production, use OCR/AI extraction)
         invoice = APInvoice(
@@ -136,7 +139,8 @@ class APAREngine:
         """
         Generate AR invoice from contract, CRM deal, or time tracking.
         """
-        invoice_id = f"ar_{datetime.now().timestamp()}"
+        import uuid as _uuid2
+        invoice_id = f"ar_{_uuid2.uuid4().hex[:12]}"
         
         invoice = ARInvoice(
             id=invoice_id,

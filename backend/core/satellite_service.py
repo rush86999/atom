@@ -22,8 +22,18 @@ class SatelliteService:
         return cls._instance
 
     async def connect(self, websocket: WebSocket, tenant_id: str):
-        """Register a new satellite connection."""
+        """Register a new satellite connection.
+
+        H5 fix: if a connection already exists for this tenant, close the old
+        one before replacing it (was silently overwritten, leaking the socket).
+        """
         await websocket.accept()
+        old = self.active_connections.get(tenant_id)
+        if old is not None:
+            try:
+                await old.close(code=1000, reason="Replaced by newer connection")
+            except Exception:
+                pass  # old socket may already be closed
         self.active_connections[tenant_id] = websocket
         logger.info(f"Satellite connected for tenant: {tenant_id}")
 
@@ -42,7 +52,10 @@ class SatelliteService:
             return {"error": "Satellite not connected. Run 'python atom_satellite.py' locally."}
             
         websocket = self.active_connections[tenant_id]
-        request_id = f"{tenant_id}-{asyncio.get_event_loop().time()}"
+        # H6 fix: use uuid4 instead of loop time — two calls in the same tick
+        # produced the same request_id, orphaning the first's future.
+        import uuid as _uuid
+        request_id = f"{tenant_id}-{_uuid.uuid4()}"
         
         payload = {
             "type": "tool_call",

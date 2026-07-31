@@ -284,9 +284,14 @@ class PushNotificationService:
         try:
             import httpx
 
-            # APNs endpoint (production vs sandbox)
-            is_sandbox = "sandbox" in os.getenv("APNS_KEY_ID", "")
-            apns_url = f"https://{'' if is_sandbox else 'api'}.push.apple.com/3/device/{device.device_token}"
+            # APNs endpoint (production vs sandbox).
+            # M7 fix: was checking APNS_KEY_ID for the word "sandbox" (wrong
+            # field) and producing https://.push.apple.com (empty subdomain).
+            # Now uses a dedicated APNS_USE_SANDBOX env var and the correct
+            # sandbox host (api.sandbox.push.apple.com).
+            is_sandbox = os.getenv("APNS_USE_SANDBOX", "false").lower() in ("1", "true", "yes")
+            host = "api.sandbox.push.apple.com" if is_sandbox else "api.push.apple.com"
+            apns_url = f"https://{host}/3/device/{device.device_token}"
 
             headers = {
                 "apns-topic": APNS_BUNDLE_ID,
