@@ -83,10 +83,18 @@ class BoardDispatcher:
             claimed = self._claim_ready_tasks(session)
             for task in claimed:
                 try:
+                    # _dispatch_one may rollback the session on flush failure,
+                    # which detaches all ORM objects. Guard by re-fetching the
+                    # task ID from the detached instance (the id is a plain
+                    # string attribute, not a lazy-loaded relation, so it
+                    # survives detachment).
                     self._dispatch_one(session, task)
                 except Exception as e:
+                    # Accessing task.id after rollback is safe (it's a string
+                    # column already loaded, not a lazy relationship).
+                    task_id = task.id if task in session else getattr(task, 'id', 'unknown')
                     logger.exception(
-                        "Failed to dispatch task %s: %s", task.id, e
+                        "Failed to dispatch task %s: %s", task_id, e
                     )
             self._reap_stale(session)
             session.commit()
@@ -176,7 +184,13 @@ class BoardDispatcher:
         try:
             session.flush()
         except Exception:
+            # Rollback detaches ALL ORM objects in `claimed` — subsequent
+            # iterations accessing task.canvas_id / task.assignee_agent_id
+            # raise DetachedInstanceError. After rollback, re-query the
+            # task to get a fresh attached instance, so the rest of the
+            # batch can proceed without crashing.
             session.rollback()
+            logger.warning("Flush failed for task %s, rolled back batch context", task.id)
             return
 
         if task.canvas_id is not None:

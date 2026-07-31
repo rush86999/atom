@@ -2632,4 +2632,3 @@ def get_workflow_engine() -> WorkflowEngine:
             if _workflow_engine is None:
                 _workflow_engine = WorkflowEngine()
     return _workflow_engine
-    return _workflow_engine
