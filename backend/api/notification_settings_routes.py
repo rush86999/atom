@@ -30,6 +30,17 @@ class NotificationSettingsRequest(BaseModel):
 @router.get("/{workflow_id}")
 async def get_notification_settings(workflow_id: str, current_user: User = Depends(get_current_user)):
     """Get notification settings for a workflow"""
+    # H7 fix: verify ownership — was fetching current_user but never using it.
+    from core.database import SessionLocal as _SL
+    from core.models import Workflow as _WF
+    _db = _SL()
+    try:
+        _wf = _db.query(_WF).filter(_WF.id == workflow_id).first()
+        if not _wf or (_wf.created_by and _wf.created_by != current_user.id):
+            raise router.not_found_error("Workflow", workflow_id)
+    finally:
+        _db.close()
+
     from core.workflow_notifier import get_notification_settings
 
     settings = get_notification_settings(workflow_id)
@@ -41,6 +52,17 @@ async def get_notification_settings(workflow_id: str, current_user: User = Depen
 @router.put("/{workflow_id}")
 async def update_notification_settings(workflow_id: str, request: NotificationSettingsRequest, current_user: User = Depends(get_current_user)):
     """Update notification settings for a workflow"""
+    # H7 fix: verify ownership.
+    from core.database import SessionLocal as _SL
+    from core.models import Workflow as _WF
+    _db = _SL()
+    try:
+        _wf = _db.query(_WF).filter(_WF.id == workflow_id).first()
+        if not _wf or (_wf.created_by and _wf.created_by != current_user.id):
+            raise router.not_found_error("Workflow", workflow_id)
+    finally:
+        _db.close()
+
     from core.workflow_notifier import NotificationSettings, set_notification_settings
 
     settings = NotificationSettings(

@@ -49,11 +49,28 @@ class TokenStorage:
             self._tokens = {}
 
     def _save_tokens(self):
-        """Save tokens to storage file"""
+        """Save tokens to storage file with restrictive permissions.
+
+        H4 fix: previously wrote plaintext OAuth tokens (access_token,
+        refresh_token) with default file permissions. Now writes with 0600
+        mode (owner read/write only).
+        """
         try:
-            with open(self.storage_file, 'w') as f:
-                json.dump(self._tokens, f, indent=2)
-            logger.info("Tokens saved to storage")
+            # Write to temp then rename for atomicity; set restrictive mode.
+            import tempfile
+            fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(self.storage_file))
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(self._tokens, f, indent=2)
+                os.chmod(tmp_path, 0o600)
+                os.replace(tmp_path, self.storage_file)
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+            logger.info("Tokens saved to storage (mode 0600)")
         except Exception as e:
             logger.error(f"Failed to save tokens: {e}")
 
