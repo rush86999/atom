@@ -192,6 +192,21 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 64 — Health/Federation/Workflow str(e) Leak Sweep (July 31, 2026) ✨
+**Bug hunt round.** Systematic `str(e)` sweep of mounted modules (script cross-referenced against the mounted-module list) found 8 remaining leak sites in 4 files:
+
+**A. `api/health_routes.py`** — `/health/db` (PUBLIC, `x-auth-required: false`) embedded the raw DB exception in `detail.database.error` (SQLAlchemy internals, DSN fragments reach unauthenticated callers); disk check message embedded `str(e)`.
+
+**B. `api/routes/federation_routes.py`** — DID resolve + `/security/health` + `/security/stats` returned `{"error": str(e)}` (3 sites).
+
+**C. `core/workflow_ui_endpoints.py`** — `/executions` returned `str(e)` in the error dict AND printed `traceback.print_exc()` to stdout on every failure.
+
+**D. `core/workflow_endpoints.py`** — `/workflows/{id}/edit` AI-parse failure embedded `str(e)[:100]` in the client-facing message; failed-execution records stored `str(e)` (later returned via GET).
+
+**Fix:** generic messages at all 8 sites; `logger.error(f"...{e}")` added where missing; traceback print removed. Verified NOT bugs in-round: `canvas_recording_routes` `"not found" in str(e)` checks (conditions, not leaks), `entity_type_routes`/`workspace_routes` controlled-ValueError messages (accepted pattern), and all `integrations/*` hits (on-demand routers, not mounted by default).
+
+**Tests:** 6 new tests in `backend/tests/test_round64_health_federation_leaks.py` (secret-sentinel assertions for `/health/db` via a raising `get_db` dependency, `/health/ready` disk via patched `psutil.disk_usage`, federation DID resolve + security health, workflow-ui `/executions`, workflow edit failure with workflow seeded + permission dep neutralized). Zero regressions (comm-verified: 26→14 failures in affected suites — delta is exactly the 6 RED tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (7 pre-existing errors, line shifts only). `main_api_app` imports clean. 6/6 round tests green.
+
 ### Round 63 — Protection API: str(e) Leak Sweep (July 31, 2026) ✨
 **Bug hunt round.** `api/protection_api.py` (mounted at `/api/protection` via `safe_import_router`) forwarded raw exception strings to clients via `details={"error": str(e)}` on **all 4 endpoints** (`/churn`, `/financial`, `/growth`, `/scan`) — internal exception detail (service internals, paths) reached clients on every failure. Also verified in-round as NOT bugs: `HTMLErrorToJSONMiddleware` (strip-tags 300-char truncation, prod error pages carry no tracebacks), `AuditMiddleware` (no request bodies/secrets logged), and registration email CRLF header-injection (Python 3.11's `email` library raises `HeaderParseError` on embedded headers — injection blocked).
 
