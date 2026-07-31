@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 43 — Deleted/Suspended-User Token Continuation (July 31, 2026) ✨
+**Bug hunt round.** `login_for_access_token` rejects non-ACTIVE users, but `get_current_user`/`get_current_user_ws` never checked `user.status` — so an already-issued JWT (24h lifetime, `ACCESS_TOKEN_EXPIRE_MINUTES`) kept authenticating a user after an admin soft-deleted the account (`enterprise_user_management.deactivate_user` sets `status=DELETED`) or suspended it. Every `get_current_user`-protected endpoint was affected (including `get_current_session_token` and all `require_permission` chains, which wrap it).
+
+**Fix (`core/auth.py`):** both auth paths now reject non-ACTIVE accounts (`user.status != UserStatus.ACTIVE` → 401 / `None`), mirroring the login check. Added `UserStatus` import. Deactivation now takes effect immediately for existing tokens instead of at expiry.
+
+**Tests:** 6 new tests in `backend/tests/test_round43_user_status_tokens.py` (crafted-JWT rejection for suspended/deleted/pending + WS paths + active acceptance guards). Zero regressions (comm-verified: 162→155 failures — the 7 delta is exactly the 4 RED tests flipping green + pre-existing flake; `comm -13` empty = no new failures). Note: tests read `SECRET_KEY` at call time — `test_auth_fixes.py` reloads `core.auth` mid-session, which stale module-level imports (a pre-existing test-isolation hazard). mypy baseline identical (25/25). 183 tests green across rounds 38-43.
+
 ### Round 42 — Client-Supplied Identity Sweep + Phantom-Schema Repair (July 31, 2026) ✨
 **Bug hunt round.** Swept mounted routers for identity that comes from query/body params instead of the token (the IDOR/attribution-spoofing class fixed case-by-case in R38-41).
 

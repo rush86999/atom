@@ -18,7 +18,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import User, MobileDevice
+from core.models import User, MobileDevice, UserStatus
 
 # Configuration
 logger = logging.getLogger(__name__)
@@ -177,6 +177,16 @@ async def get_current_user(
     if user is None:
         logger.warning("Token referenced non-existent user_id=%s", user_id)
         raise credentials_exception
+
+    # Round 43: reject tokens for non-ACTIVE accounts. Login already blocks
+    # suspended/deleted users, but an already-issued JWT (24h lifetime) kept
+    # working after an admin soft-deleted the account — every get_current_user
+    # protected endpoint was affected. Mirrors the login status check.
+    if user.status != UserStatus.ACTIVE:
+        logger.warning(
+            "Rejected token for non-active user %s (status=%s)", user_id, user.status
+        )
+        raise credentials_exception
     return user
 
 async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
@@ -191,7 +201,11 @@ async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
         user_id: str = payload.get("sub") or payload.get("id") or payload.get("user_id")
         if user_id is None:
             return None
-        return db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        # Round 43: reject non-ACTIVE accounts (deleted/suspended users)
+        if user is None or user.status != UserStatus.ACTIVE:
+            return None
+        return user
     except JWTError:
         return None
 
