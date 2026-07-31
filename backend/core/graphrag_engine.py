@@ -618,6 +618,24 @@ class GraphRAGEngine:
         
         with get_db_session() as session:
             try:
+                # Bug #12: verify both endpoint nodes exist before inserting the
+                # edge — prevents orphaned relationships that pollute traversals.
+                from core.models import GraphNode
+                src = session.query(GraphNode).filter(
+                    GraphNode.id == rel.from_entity,
+                    GraphNode.workspace_id == ws_id
+                ).first()
+                tgt = session.query(GraphNode).filter(
+                    GraphNode.id == rel.to_entity,
+                    GraphNode.workspace_id == ws_id
+                ).first()
+                if not src:
+                    logger.warning(f"add_relationship: source node '{rel.from_entity}' not found — skipping")
+                    return None
+                if not tgt:
+                    logger.warning(f"add_relationship: target node '{rel.to_entity}' not found — skipping")
+                    return None
+
                 edge = GraphEdge(
                     id=rel.id,
                     tenant_id=tid,
@@ -1071,7 +1089,7 @@ class GraphRAGEngine:
                     ORDER BY created_at DESC
                     LIMIT 20
                 """)
-                communities = session.execute(sql, {"ws_id": workspace_id}).fetchall()
+                communities = session.execute(sql, {"ws_id": ws_id}).fetchall()
                 
                 if not communities:
                     return {"mode": "global", "summaries": [], "answer": "No community data available for global search."}
@@ -1179,7 +1197,7 @@ class GraphRAGEngine:
         try:
             import redis
             r = redis.from_url(redis_url)
-            r.lpush("graph_reindex_jobs", workspace_id)
+            r.lpush("graph_reindex_jobs", workspace_id or self.workspace_id)
             return True
         except Exception:
             return False

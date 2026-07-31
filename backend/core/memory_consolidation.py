@@ -177,8 +177,11 @@ class MemoryConsolidationService:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.COLD_DAYS)
 
             # Find forgotten memories (already archived, low importance, and old)
+            # Bug #7: archive used workspace_id + tenant_id, but delete used
+            # tenant_id only — cross-workspace mismatch. Added workspace_id filter.
             forgotten_memories = db.query(AgentMemory).filter(
                 and_(
+                    AgentMemory.workspace_id == self.workspace_id,
                     AgentMemory.tenant_id == tenant_id,
                     AgentMemory.created_at < cutoff_date,
                     AgentMemory.importance_score < self.IMPORTANCE_THRESHOLD,
