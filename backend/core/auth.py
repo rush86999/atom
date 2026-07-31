@@ -189,6 +189,31 @@ async def get_current_user(
         raise credentials_exception
     return user
 
+async def get_current_tenant(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Resolve the authenticated user's Tenant.
+
+    Single-tenant (Personal Edition): prefers the user's tenant_id (falling
+    back to the personal default via personal_scope), then the first Tenant
+    row. Round 47: previously core.auth never exported this, so callers that
+    imported it with a silent None fallback (api/byok_routes.py) had their
+    tenant parameter become a required query param via Depends(None) — every
+    tenant-scoped BYOK endpoint returned 422 on every call.
+    """
+    from core.models import Tenant
+    from core.personal_scope import resolve_tenant_id
+
+    tenant_id = resolve_tenant_id(current_user)
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if tenant is None:
+        tenant = db.query(Tenant).first()
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="No tenant configured")
+    return tenant
+
+
 async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
     """Get user from token for WebSocket connections"""
     # Early validation: Skip obviously invalid tokens before JWT decode

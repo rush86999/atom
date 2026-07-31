@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 47 — Missing get_current_tenant: Tenant-Scoped BYOK Endpoints Broken (July 31, 2026) ✨
+**Bug hunt round.** `api/byok_routes.py` imported `get_current_tenant` with a silent fallback (`except ImportError: get_current_tenant = None`) — and **`core.auth` has never exported `get_current_tenant`**, so the fallback always fired. `Depends(None)` makes FastAPI treat the parameter as a REQUIRED QUERY PARAM, so every tenant-scoped endpoint (`GET /api/ai/providers`, `GET /api/ai/providers/{id}`, `POST /api/ai/providers/{id}/keys`, `POST /api/ai/usage/track`, `POST /api/ai/pdf/optimize`) returned **422 "Field required" on every call** — authenticated or not. The entire provider/key-management surface was unusable.
+
+**Fix:** implemented `get_current_tenant` in `core/auth.py` (resolves the authenticated user's tenant via `personal_scope.resolve_tenant_id`, falls back to the first Tenant row — single-tenant semantics; 404 if none) and removed the silent-None fallback in `byok_routes.py` (direct import).
+
+**Tests:** 3 new tests in `backend/tests/test_round47_byok_tenant_dependency.py` (auth'd GET /api/ai/providers, GET /api/ai/providers/{id}, POST .../keys all return 200 with a resolved tenant). Zero regressions (comm-verified: byok+auth suites 14→11 failed — delta is exactly the 3 RED tests flipping green). mypy identical (43/43 — line shifts only). 201 tests green across rounds 38-47.
+
 ### Round 46 — Outlook Webhook: clientState Verification Not Enforced (July 31, 2026) ✨
 **Bug hunt round.** `outlook_webhook_handler` verifies Microsoft's `clientState` signed token but **ignored the result** — `if not is_valid: logger.warning(...)` with no rejection. Processing continued: tenant lookup via the client-controlled `Host`/`X-Forwarded-Host` header, connection resolution, enqueue — and for forged `changeType: "deleted"` events, **deletion of `DiscoveredEntity` rows**. A forged clientState (valid JSON, no signature — `verify_client_state` returns False, `get_client_state_data` returns it unchanged, `json.loads` succeeds) was enough; no HMAC knowledge required. Fixed to fail closed (`continue` on invalid state). Also fixed a `str(e)` leak in the outer exception handler (`message: str(e)` → generic "Webhook processing failed" — reachable via non-dict payloads).
 

@@ -17,14 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from core.auth import get_current_user, User
 from core.models import Tenant, TenantSetting
 from core.database import get_db
-
-# Import get_current_tenant for endpoint dependencies
-# This import may fail in test contexts due to FastAPI dependencies
-try:
-    from core.auth import get_current_tenant
-except ImportError:
-    # Will be imported lazily when needed
-    get_current_tenant = None
+from core.auth import get_current_tenant
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet
 from core.schemas import ApiResponse
