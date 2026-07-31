@@ -151,9 +151,14 @@ class DoclingDocumentProcessor:
         try:
             # Convert source to appropriate format for docling
             result = await self._convert_document(source, file_type)
-            
+
             if result is None:
                 return self._create_error_result("Document conversion failed")
+
+            # Bug #19: if a temp file was created by _convert_document for bytes
+            # input, it needs to survive until extraction is done. _convert_document
+            # now defers cleanup; we clean up here after all extraction.
+            _temp_path_to_clean = getattr(result, '_temp_path', None)
             
             # Extract content in requested format
             extracted = self._extract_content(result, export_format)
@@ -162,6 +167,13 @@ class DoclingDocumentProcessor:
             tables = self._extract_tables(result)
             images = self._extract_images(result)
             metadata = self._extract_metadata(result)
+
+            # Bug #19: now safe to clean up the temp file (extraction done).
+            if _temp_path_to_clean:
+                try:
+                    os.unlink(_temp_path_to_clean)
+                except OSError:
+                    pass
             
             return {
                 "success": True,
@@ -199,9 +211,17 @@ class DoclingDocumentProcessor:
                 
                 try:
                     result = self.converter.convert(tmp_path)
-                finally:
-                    # Clean up temp file
-                    os.unlink(tmp_path)
+                    # Bug #19: attach the temp path so process_document can clean
+                    # it up AFTER all extraction is done (docling may lazily
+                    # reference the input file during _extract_content).
+                    if result is not None:
+                        result._temp_path = tmp_path
+                except Exception:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                    raise
                     
             elif isinstance(source, (str, Path)):
                 # Direct file path or URL

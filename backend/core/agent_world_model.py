@@ -581,15 +581,15 @@ class WorldModelService:
 
         task_type = f"integration_{connector_id}_{operation_name}"
 
-        # Semantic search for similar experiences
+        # Semantic search for similar experiences — use the correct LanceDB
+        # search API (query + filter_str, not query_text/where).
+        # Bug #1: the old call used non-existent kwargs query_text/where → TypeError.
+        _filter = f"task_type = '{task_type}' AND agent_role = '{agent_role}'"
         results = self.db.search(
             table_name=self.table_name,
-            query_text=f"Integration {connector_id} {operation_name}",
+            query=f"Integration {connector_id} {operation_name}",
             limit=limit,
-            where={
-                "task_type": task_type,
-                "agent_role": agent_role
-            }
+            filter_str=_filter,
         )
 
         experiences = []
@@ -1441,7 +1441,11 @@ class WorldModelService:
             return experiences
 
         # For summary/standard, query PostgreSQL with tenant filter
+        # Bug #3: self.db is a LanceDBHandler which has no execute() method.
+        # Use a SQLAlchemy SessionLocal instead.
         from sqlalchemy import text
+        from core.database import SessionLocal as _SessionLocal
+        _pg_session = _SessionLocal()
 
         query = """
             SELECT
@@ -1472,12 +1476,13 @@ class WorldModelService:
             LIMIT :limit
         """
 
-        result = await self.db.execute(
+        result = _pg_session.execute(
             text(query),
             {"tenant_id": tenant_id, "agent_role": agent_role, "limit": limit}
         )
 
         rows = result.fetchall()
+        _pg_session.close()
         return [dict(row._mapping) for row in rows]
 
     def _format_episodes_as_experiences(
