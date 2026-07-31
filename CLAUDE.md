@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 56 — Password-Recovery Endpoints: Missing Rate Limits (July 31, 2026) ✨
+**Bug hunt round.** `login`/`register`/`refresh` got `AuthRateLimiter` deps in R14 and verify/TOTP in R15/16 — but the three unauthenticated password-recovery endpoints had **no rate limiting at all**: `POST /api/auth/forgot-password` could be called unlimited times to **spam reset emails for any known address** (mailbox flooding + mailer DoS), and `/reset-password` + `/verify-token` were unthrottled token-guessing surfaces (256-bit `token_urlsafe(32)` tokens make brute force infeasible, but every other auth endpoint follows the per-IP throttle pattern).
+
+**Fix:** three new `AuthRateLimiter` singletons + dependency functions in `core/auth_endpoints.py` — `_recovery_limiter` 5/5min on `/forgot-password`, `_verify_limiter` 10/5min on `/verify-token`, `_reset_limiter` 5/5min on `/reset-password` — wired into the endpoints as `_rl=Depends(...)`, mirroring `login_rate_limit`. Peer-IP keying (never spoofable) comes from the R44-hardened `AuthRateLimiter._client_ip`.
+
+**Tests:** 5 new tests in `backend/tests/test_round56_password_recovery_rate_limit.py` (limit-then-429 for all three deps, per-IP isolation, endpoint-level 429 via HTTP after 5 requests). Zero regressions (comm-verified with `--continue-on-collection-errors`: baseline 36→34 failures — delta is exactly the R56 collection-error lines flipping green; `comm -13` empty = no new failures; the 17 `test_auth_routes_coverage.py` failures are pre-existing and identical in both runs — the file also carries the pre-existing `tests/property_tests/conftest.py` `from main import app` collection breakage noted in R44). mypy clean (0/0, identical). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 55 — Unbounded Request Bodies: OOM DoS via Huge JSON Payloads (July 31, 2026) ✨
 **Bug hunt round.** `InputValidationMiddleware` (registered on the real app) reads the **entire POST/PUT/PATCH body into memory with no size cap** — FastAPI/Starlette impose no default body limit, so every JSON-accepting endpoint was an OOM amplification point: a multi-GB JSON body was fully allocated (and regex-scanned) before any handler ran.
 
