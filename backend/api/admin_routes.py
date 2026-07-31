@@ -1085,10 +1085,11 @@ class BulkResolveConflictsResponse(BaseModel):
     feature="admin"
 )
 async def list_conflicts(
+    request: Request,
     severity: Optional[str] = None,
     conflict_type: Optional[str] = None,
     page: int = 1,
-    page_size: int = 50,
+    page_size: int = 50,  # #4 fix: bounded below
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
@@ -1112,6 +1113,10 @@ async def list_conflicts(
     )
 
     resolver = ConflictResolutionService(db)
+
+    # #4 fix: cap page_size to prevent memory exhaustion via ?page_size=99999999
+    page_size = min(page_size, 200)
+    page = max(page, 1)
 
     # Get unresolved conflicts
     conflicts = resolver.get_unresolved_conflicts(
@@ -1157,6 +1162,7 @@ async def list_conflicts(
 )
 async def get_conflict(
     conflict_id: int,
+    request: Request,
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None

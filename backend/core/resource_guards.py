@@ -84,7 +84,7 @@ class ResourceGuard:
         Returns:
             Result of coroutine
         """
-        last_exception = None
+        last_exception = RuntimeError(f"{operation_name} failed: no attempts made")
         
         for attempt in range(max_retries):
             try:

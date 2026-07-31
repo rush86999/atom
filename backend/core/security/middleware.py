@@ -517,6 +517,13 @@ class ExternalAPIRateLimitMiddleware(BaseHTTPMiddleware):
         current_minute = current_time // 60
 
         try:
+            # #3 fix: evict stale entries to prevent unbounded growth from
+            # rotating API key headers.
+            if len(self._local_requests) > 10000:
+                stale = [k for k, v in self._local_requests.items() if v.get("minute", 0) < current_minute]
+                for k in stale:
+                    del self._local_requests[k]
+
             # Initialize local tracking
             if identifier not in self._local_requests:
                 self._local_requests[identifier] = {
