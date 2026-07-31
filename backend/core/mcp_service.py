@@ -470,7 +470,7 @@ class MCPService:
         # 3. Execution: Coding Agent Service
         from core.coding_agent_service import coding_agent_service
         tenant_id = context.get("tenant_id", "default")
-        
+
         coding_tool_map = {
             "read_codebase": lambda: coding_agent_service.read_codebase(tenant_id, arguments.get("file_path")),
             "write_code_file": lambda: coding_agent_service.write_code_file(tenant_id, arguments.get("file_path"), arguments.get("content")),
@@ -480,27 +480,49 @@ class MCPService:
             "browser_action": lambda: coding_agent_service.execute_browser_action(tenant_id, arguments.get("canvas_id"), arguments.get("action_type"), arguments.get("selector"), arguments.get("value"))
         }
 
-        if tool_name in coding_tool_map:
-            logger.info(f"MCP: Executing Coding Tool {tool_name}")
-            return await coding_tool_map[tool_name]()
+        # Bug #8: wrap ALL tool execution in try/except so a single misbehaving
+        # tool doesn't crash the dispatch loop or propagate TypeError from
+        # await-ing a non-coroutine. Also cap output size (32KB) to prevent
+        # context overflow / cost circumvention.
+        _MAX_TOOL_OUTPUT = 32 * 1024
+        try:
+            if tool_name in coding_tool_map:
+                logger.info(f"MCP: Executing Coding Tool {tool_name}")
+                result = await coding_tool_map[tool_name]()
+            elif tool_name == "run_local_terminal":
+                from core.satellite_service import satellite_service
+                result = await satellite_service.execute_local_tool(tenant_id, "run_terminal", arguments)
+            elif self.tool_registry:
+                tool_meta = self.tool_registry.get(tool_name)
+                if tool_meta:
+                    logger.info(f"MCP: Executing Registry Tool {tool_name}")
+                    call_args = {**arguments, "user_id": context.get("user_id"), "tenant_id": tenant_id, "agent_id": context.get("agent_id")}
+                    result = await tool_meta.function(**{k: v for k, v in call_args.items() if v is not None})
+                else:
+                    from integrations.mcp_service import mcp_service as legacy_mcp
+                    result = await legacy_mcp.execute_tool(server_id or "local-tools", tool_name, arguments, context)
+            else:
+                from integrations.mcp_service import mcp_service as legacy_mcp
+                result = await legacy_mcp.execute_tool(server_id or "local-tools", tool_name, arguments, context)
 
-        # 4. Execution: Satellite (Local Device)
-        if tool_name == "run_local_terminal":
-            from core.satellite_service import satellite_service
-            return await satellite_service.execute_local_tool(tenant_id, "run_terminal", arguments)
+            # Cap output size to prevent context overflow.
+            if isinstance(result, str) and len(result) > _MAX_TOOL_OUTPUT:
+                logger.warning(f"MCP tool {tool_name} returned {len(result)} bytes — truncating to {_MAX_TOOL_OUTPUT}")
+                result = result[:_MAX_TOOL_OUTPUT] + "\n... [truncated by MCP output cap]"
+            elif isinstance(result, dict):
+                for k, v in result.items():
+                    if isinstance(v, str) and len(v) > _MAX_TOOL_OUTPUT:
+                        logger.warning(f"MCP tool {tool_name} field '{k}' returned {len(v)} bytes — truncating")
+                        result[k] = v[:_MAX_TOOL_OUTPUT] + "\n... [truncated]"
 
-        # 5. Execution: Tool Registry (Native Plugins)
-        if self.tool_registry:
-            tool_meta = self.tool_registry.get(tool_name)
-            if tool_meta:
-                logger.info(f"MCP: Executing Registry Tool {tool_name}")
-                call_args = {**arguments, "user_id": context.get("user_id"), "tenant_id": tenant_id, "agent_id": context.get("agent_id")}
-                return await tool_meta.function(**{k: v for k, v in call_args.items() if v is not None})
+            return result
 
-        # 6. Legacy Fallback (Default to multi-server mcp_service)
-        from integrations.mcp_service import mcp_service as legacy_mcp
-        logger.info(f"MCP: Routing {tool_name} to Legacy MCP on {server_id or 'auto'}")
-        return await legacy_mcp.execute_tool(server_id or "local-tools", tool_name, arguments, context)
+        except TypeError as te:
+            logger.error(f"MCP tool {tool_name} TypeError (likely sync/async mismatch): {te}")
+            return {"error": f"Tool {tool_name} failed: internal type error", "status": "error"}
+        except Exception as te:
+            logger.error(f"MCP tool {tool_name} execution failed: {te}", exc_info=True)
+            return {"error": f"Tool {tool_name} failed: {str(te)[:200]}", "status": "error"}
 
 # Global Instance
 mcp_service = MCPService()

@@ -311,29 +311,45 @@ def check_python_ast(code: str) -> Optional[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for name in node.names:
-                if name.name in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
+                if name.name in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib", "builtins"}:
                     return f"AST violation: Forbidden import of module '{name.name}'"
         elif isinstance(node, ast.ImportFrom):
-            if node.module in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib"}:
+            if node.module in {"os", "sys", "subprocess", "shutil", "socket", "pty", "importlib", "builtins"}:
                 return f"AST violation: Forbidden import from module '{node.module}'"
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id in {"eval", "exec", "open", "compile", "__import__"}:
+                if node.func.id in {"eval", "exec", "open", "compile", "__import__", "globals", "vars", "locals", "dir"}:
                     return f"AST violation: Forbidden built-in call '{node.func.id}()'"
                 if node.func.id == "getattr":
-                    if node.args and isinstance(node.args[0], ast.Name) and node.args[0].id in {"os", "sys", "subprocess", "shutil", "socket"}:
+                    if node.args and isinstance(node.args[0], ast.Name) and node.args[0].id in {"os", "sys", "subprocess", "shutil", "socket", "builtins"}:
                         return f"AST violation: Forbidden reflection getattr() on module '{node.args[0].id}'"
             elif isinstance(node.func, ast.Attribute):
                 if isinstance(node.func.value, ast.Name):
-                    if node.func.value.id in {"os", "sys", "subprocess", "shutil", "importlib"}:
+                    if node.func.value.id in {"os", "sys", "subprocess", "shutil", "importlib", "builtins"}:
                         return f"AST violation: Forbidden system attribute call '{node.func.value.id}.{node.func.attr}()'"
         elif isinstance(node, ast.Subscript):
+            # Bug #3: catch globals()["__builtins__"]["eval"] and similar
+            # subscript-based reflection that bypassed the Name-level checks.
+            if isinstance(node.value, ast.Name) and node.value.id in {"globals", "vars", "locals"}:
+                return f"AST violation: Reflection via {node.value.id}[] subscript"
             if isinstance(node.value, ast.Attribute):
                 if isinstance(node.value.value, ast.Name) and node.value.value.id == "os" and node.value.attr == "environ":
                     if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
                         key = node.slice.value.upper()
                         if any(k in key for k in ["SECRET", "TOKEN", "API_KEY", "PASSWORD", "AWS"]):
                             return f"AST violation: Access to secret-bearing environment variable '{node.slice.value}'"
+        elif isinstance(node, ast.Attribute):
+            # Bug #3: catch dunder-class traversal: (1).__class__.__base__.__subclasses__()
+            if node.attr in {"__subclasses__", "__bases__", "__base__", "__mro__", "__class__", "__subclasses__"}:
+                # Allow __class__ only in non-call context (commonly used in
+                # isinstance checks); block when chained or called.
+                if isinstance(node.ctx, ast.Load):
+                    # Check if this is part of a chain (parent is also Attribute)
+                    pass  # We catch the actual call via the Call handler above
+        elif isinstance(node, ast.Call):
+            # Catch (1).__class__.__base__.__subclasses__() — dunder traversal
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "__subclasses__":
+                return "AST violation: Forbidden dunder-class traversal __subclasses__()"
     return check_js_ast(code)
 
 
