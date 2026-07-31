@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 57 — Test-Infra: Stale `from main import app` Breaks Suite Collection (July 31, 2026) ✨
+**Test-infra round.** `tests/property_tests/conftest.py:13` did `from main import app` — there is **no `main.py`** (the real app is `main_api_app.py`; the CLAUDE.md quick-reference is stale). Every consumer of its `db_session` fixture — `tests/security/`, `tests/scenarios/`, `tests/integration/websocket/`, `tests/integration/test_websocket_integration.py` — failed collection with `ModuleNotFoundError`, so whole suites never ran (flagged pre-existing since R44).
+
+**Fix:** bulk-repaired **28 test files** (`sed` sweep + manual): `from main import app` → `from main_api_app import app` (including `import main as main_mod/module` forms), and `test_final_audit_fixes.py`'s `_startup_bootstrap` inspection → `lifespan` (where `create_all` actually lives). No source-code changes.
+
+**Tests:** 3 new tests in `backend/tests/test_round57_property_conftest_repair.py` (conftest imports cleanly, security conftest chain resolves, property_tests/ collects). Previously-broken suites now collect and run (property_tests + security + websocket + regression: 116 passed, 27 failed, 25 errors — the failures/errors are newly-visible pre-existing test quality issues, e.g. MagicMock-await in websocket fixtures, unrunnable at baseline). All round suites (R14, R38, R49-R56, R57) run together: **99 passed, 0 failed** (the 28-failure scare in the first combined run traced to `test_auth_fixes.py`'s R43-documented mid-session `core.auth` reload — pre-existing isolation hazard, not caused by this round). Test-only changes — mypy N/A (tests excluded). `main_api_app` untouched.
+
 ### Round 56 — Password-Recovery Endpoints: Missing Rate Limits (July 31, 2026) ✨
 **Bug hunt round.** `login`/`register`/`refresh` got `AuthRateLimiter` deps in R14 and verify/TOTP in R15/16 — but the three unauthenticated password-recovery endpoints had **no rate limiting at all**: `POST /api/auth/forgot-password` could be called unlimited times to **spam reset emails for any known address** (mailbox flooding + mailer DoS), and `/reset-password` + `/verify-token` were unthrottled token-guessing surfaces (256-bit `token_urlsafe(32)` tokens make brute force infeasible, but every other auth endpoint follows the per-IP throttle pattern).
 
