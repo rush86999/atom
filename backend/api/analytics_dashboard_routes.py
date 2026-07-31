@@ -27,7 +27,8 @@ router = BaseAPIRouter(prefix="/api/analytics", tags=["analytics"])
 @router.get("/summary")
 async def get_analytics_summary(
     time_window: str = Query("24h", description="Time window: 24h, 7d, 30d, all"),
-    platform: Optional[str] = Query(None, description="Filter by platform")
+    platform: Optional[str] = Query(None, description="Filter by platform"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get comprehensive analytics summary.
@@ -87,7 +88,8 @@ async def get_analytics_summary(
 @router.get("/sentiment")
 async def get_sentiment_analysis(
     platform: Optional[str] = Query(None, description="Filter by platform"),
-    time_window: str = Query("24h", description="Time window for analysis")
+    time_window: str = Query("24h", description="Time window for analysis"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get sentiment analysis breakdown.
@@ -122,7 +124,8 @@ async def get_sentiment_analysis(
 @router.get("/response-times")
 async def get_response_time_metrics(
     platform: Optional[str] = Query(None, description="Filter by platform"),
-    time_window: str = Query("7d", description="Time window for analysis")
+    time_window: str = Query("7d", description="Time window for analysis"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get response time metrics.
@@ -156,7 +159,8 @@ async def get_response_time_metrics(
 @router.get("/activity")
 async def get_activity_metrics(
     period: str = Query("daily", description="Period: hourly, daily, weekly"),
-    platform: Optional[str] = Query(None, description="Filter by platform")
+    platform: Optional[str] = Query(None, description="Filter by platform"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get activity metrics and peak times.
@@ -188,7 +192,8 @@ async def get_activity_metrics(
 
 @router.get("/cross-platform")
 async def get_cross_platform_analytics(
-    time_window: str = Query("7d", description="Time window for analysis")
+    time_window: str = Query("7d", description="Time window for analysis"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get cross-platform analytics and comparisons.
@@ -231,7 +236,8 @@ async def get_cross_platform_analytics(
 
 @router.post("/correlations")
 async def analyze_cross_platform_correlations(
-    messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]],
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Analyze and correlate conversations across platforms.
@@ -269,7 +275,8 @@ async def analyze_cross_platform_correlations(
 
 @router.get("/correlations/{conversation_id}/timeline")
 async def get_unified_timeline(
-    conversation_id: str
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get unified timeline for a cross-platform conversation.
@@ -317,7 +324,8 @@ async def get_unified_timeline(
 async def predict_response_time(
     recipient: str = Query(..., description="User ID or name"),
     platform: str = Query(..., description="Platform to send on"),
-    urgency: str = Query("medium", description="Urgency: low, medium, high, urgent")
+    urgency: str = Query("medium", description="Urgency: low, medium, high, urgent"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Predict response time for a user.
@@ -360,7 +368,8 @@ async def predict_response_time(
 async def recommend_channel(
     recipient: str = Query(..., description="User ID or name"),
     message_type: str = Query("general", description="Type of message"),
-    urgency: str = Query("medium", description="Urgency: low, medium, high, urgent")
+    urgency: str = Query("medium", description="Urgency: low, medium, high, urgent"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get optimal channel recommendation for a user.
@@ -400,7 +409,8 @@ async def recommend_channel(
 
 @router.get("/bottlenecks")
 async def detect_bottlenecks(
-    threshold_hours: float = Query(24.0, description="Hours without response to flag")
+    threshold_hours: float = Query(24.0, description="Hours without response to flag"),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Detect communication bottlenecks.
@@ -439,7 +449,8 @@ async def detect_bottlenecks(
 
 @router.get("/patterns/{user_id}")
 async def get_user_patterns(
-    user_id: str
+    user_id: str,
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get communication patterns for a specific user.
@@ -477,7 +488,7 @@ async def get_user_patterns(
 
 
 @router.get("/overview")
-async def get_analytics_overview() -> Dict[str, Any]:
+async def get_analytics_overview(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """
     Get high-level analytics overview for dashboard.
 

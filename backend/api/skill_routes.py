@@ -159,6 +159,7 @@ async def list_skills(
     skill_status: Optional[str] = None,
     skill_type: Optional[str] = None,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """
@@ -209,6 +210,7 @@ async def list_skills(
 @router.get("/{skill_id}")
 async def get_skill(
     skill_id: str,
+    current_user: User = Depends(get_current_user),
     service: SkillRegistryService = Depends(get_skill_service)
 ) -> Dict[str, Any]:
     """
@@ -422,6 +424,7 @@ async def get_skill_execution_episodes(
     skill_id: str,
     agent_id: str,
     limit: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -477,6 +480,7 @@ async def get_skill_execution_episodes(
 async def get_skill_learning_progress(
     skill_id: str,
     agent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """

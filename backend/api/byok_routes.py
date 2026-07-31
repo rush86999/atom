@@ -801,7 +801,7 @@ async def byok_health_check(current_user: User = Depends(get_current_user)):
     })
 
 @router.get("/api/ai/keys")
-async def get_api_keys():
+async def get_api_keys(current_user: User = Depends(get_current_user)):
     """Get all configured API keys (masked)"""
     return ApiResponse(success=True, data={
         "keys": [
@@ -813,7 +813,7 @@ async def get_api_keys():
     })
 
 @router.post("/api/ai/keys")
-async def add_api_key(key_data: Dict[str, str]):
+async def add_api_key(key_data: Dict[str, str], current_user: User = Depends(get_current_user)):
     """Add a new API key"""
     provider = key_data.get("provider")
     key = key_data.get("key")
@@ -1284,7 +1284,7 @@ async def byok_health_v1(current_user: User = Depends(get_current_user), byok_ma
 # Dynamic Pricing Endpoints
 
 @router.get("/api/ai/pricing")
-async def get_ai_pricing():
+async def get_ai_pricing(current_user: User = Depends(get_current_user)):
     """Get current AI model pricing from cache"""
     try:
         from core.dynamic_pricing_fetcher import get_pricing_fetcher
@@ -1299,11 +1299,11 @@ async def get_ai_pricing():
         })
     except Exception as e:
         logger.error(f"Failed to get pricing: {e}")
-        return ApiResponse(success=False, message=str(e))
+        return ApiResponse(success=False, message="Failed to get pricing")
 
 
 @router.post("/api/ai/pricing/refresh")
-async def refresh_ai_pricing(force: bool = False):
+async def refresh_ai_pricing(force: bool = False, current_user: User = Depends(get_current_user)):
     """Refresh AI pricing from LiteLLM and OpenRouter"""
     try:
         from core.dynamic_pricing_fetcher import refresh_pricing_cache
@@ -1314,11 +1314,11 @@ async def refresh_ai_pricing(force: bool = False):
         })
     except Exception as e:
         logger.error(f"Failed to refresh pricing: {e}")
-        return ApiResponse(success=False, message=str(e))
+        return ApiResponse(success=False, message="Failed to refresh pricing")
 
 
 @router.get("/api/ai/pricing/model/{model_name:path}")
-async def get_model_pricing(model_name: str):
+async def get_model_pricing(model_name: str, current_user: User = Depends(get_current_user)):
     """Get pricing for a specific model"""
     try:
         from core.dynamic_pricing_fetcher import get_pricing_fetcher
@@ -1336,11 +1336,11 @@ async def get_model_pricing(model_name: str):
             })
     except Exception as e:
         logger.error(f"Failed to get model pricing: {e}")
-        return ApiResponse(success=False, message=str(e))
+        return ApiResponse(success=False, message="Failed to get model pricing")
 
 
 @router.get("/api/ai/pricing/provider/{provider}")
-async def get_provider_pricing(provider: str, limit: int = 10):
+async def get_provider_pricing(provider: str, limit: int = 10, current_user: User = Depends(get_current_user)):
     """Get all models and pricing for a specific provider"""
     try:
         from core.dynamic_pricing_fetcher import get_pricing_fetcher
@@ -1355,11 +1355,11 @@ async def get_provider_pricing(provider: str, limit: int = 10):
         })
     except Exception as e:
         logger.error(f"Failed to get provider pricing: {e}")
-        return ApiResponse(success=False, message=str(e))
+        return ApiResponse(success=False, message="Failed to get provider pricing")
 
 
 @router.post("/api/ai/pricing/estimate")
-async def estimate_request_cost(request_data: Dict[str, Any]):
+async def estimate_request_cost(request_data: Dict[str, Any], current_user: User = Depends(get_current_user)):
     """Estimate the cost of an AI request"""
     try:
         from core.dynamic_pricing_fetcher import get_pricing_fetcher

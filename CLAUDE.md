@@ -2,7 +2,7 @@
 
 > **Project Context**: Intelligent business automation/integration platform using AI agents to automate workflows, integrate services, and manage operations.
 
-**Last Updated**: July 12, 2026
+**Last Updated**: July 31, 2026
 
 ---
 
@@ -191,6 +191,50 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_EGRESS_ENABLED=false` (Phase D)
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
+
+### Round 40 — Third-Pass Auth Sweep: Never-Touched Routers + Route Shadowing (July 31, 2026) ✨
+**Bug hunt round.** Extended `backend/scripts/audit_all_route_auth.py` matcher (now recognizes `require_permission(Permission.X)` calls, `get_super_admin`, `get_current_session_token`, `admin` param names) and swept the remaining *mounted* routers that prior rounds never touched.
+
+**A. `api/agent_control_routes.py`** — start/stop/restart/execute were `get_super_admin`-guarded, but `GET /api/agent/status` (daemon PID/uptime/memory/CPU) was anonymous → now super-admin-gated.
+
+**B. `api/canvas_coding_routes.py`** — R24 fixed canvas docs/email/terminal; `GET /api/canvas/coding/{id}` returned full coding-canvas audit details (code diffs) anonymously → auth'd.
+
+**C. `api/intelligence_routes.py`** — `GET /api/intelligence/{insights,entities}` exposed cross-platform business insights; `/insights` also auto-seeds and ingests platform data in development mode (side-effecting, cost-bearing) → auth'd.
+
+**D. `api/skill_routes.py`** — R22 fixed import/execute/promote; the 4 reads (`list`, `get`, `{id}/episodes` — episodic execution memory, `{id}/learning-progress`) were anonymous → auth'd.
+
+**E. `api/workflow_template_routes.py`** — R38 fixed create/import/execute; `list_templates`/`search_templates` were anonymous. **Bonus bug: `GET /search` was unreachable** — shadowed by `GET /{template_id}` declared earlier (searches always hit `get_template`). Moved `search_templates` above `get_template` + auth'd both. Also removed a `str(e)` leak in `list_templates` (`details={"error": str(e)}`).
+
+**F. `api/byok_routes.py`** — key-management endpoints (`GET/POST /api/ai/keys` — mock but key surface) and all 5 pricing endpoints were anonymous; `POST /api/ai/pricing/refresh` triggers external fetches from LiteLLM/OpenRouter (anonymous network abuse). 5 remaining `str(e)` leaks in the pricing section (R25 fixed the earlier ones) → all auth'd + generic messages.
+
+**G. `api/analytics_dashboard_routes.py`** — all 12 endpoints (message analytics, sentiment, `POST /correlations`, predictions, user patterns, overview) were anonymous → auth'd.
+
+**Also:** `api/signal_routes.py`, `api/line_routes.py`, `api/google_chat_enhanced_routes.py`, `api/analytics_dashboard_endpoints.py`, `api/integration_dashboard_routes.py`, `api/learning_plan_routes.py`, `api/sales_routes.py`, `api/integrations/memory_backfill_routes.py`, `api/routes/webhooks/monitoring.py`, `api/tools.py`, `api/reports.py` are **unmounted dead code** with anonymous endpoints — flagged, not exploitable today. WebSocket endpoints (`websocket_routes`, `satellite_routes`, `canvas_state_websocket`) and `user_management_routes` sessions already do token checks (`get_current_user_ws` / `get_current_session_token` — scanner false positives). `admin/skill_routes.create_new_skill` is `get_super_admin`-guarded (scanner false positive).
+
+**Tests:** 40 new tests in `backend/tests/test_round40_remaining_auth_sweep.py` (30 anon-401 + 10 positive/leak/regression incl. route-shadowing + `list_templates` leak). Fixed 2 existing test files (auth overrides: `test_byok_pricing_endpoints.py`, `test_skill_routes.py`) + updated 2 leak-assertion tests in `test_byok_pricing_endpoints.py` that asserted the OLD leaky messages. 311 tests green across rounds 38-40 + 9 affected suites; zero regressions vs baseline (verified by comm on failure lists — 7 pre-existing setup-ERROR tests in `test_byok_routes.py` merely converted to assertion failures, 8 previously-crashing tests now pass). mypy baseline identical (line-number shifts only, verified by diff).
+
+### Round 39 — Second-Half Auth Sweep: Partially-Fixed Routers (July 31, 2026) ✨
+**Bug hunt round.** Prior rounds (20/24/25/26/27/38) added auth to *some* endpoints in each file but left sibling endpoints anonymous. New AST scanner `backend/scripts/audit_all_route_auth.py` walks **every** `@router.*` handler (R38's script only checked `@require_governance`-decorated ones) and flags endpoints with no auth dep and no router-level dependency.
+
+**A. `api/ai_accounting_routes.py` (mounted at `/api/v1/accounting` + `/api/ai-accounting`)** — R27 fixed only `ingest_transaction`. The other 12 endpoints were anonymous: `bank-feed` (bulk ingest), `review-queue` + `all-transactions` (full financial ledger read: amounts/merchants/reasoning), `update/delete/post/{id}` (financial writes/deletes), `auto-post` (mass posting), `audit-log`, `export/gl` (CSV), `export/trial-balance`, `forecast` (13-week cash flow), `scenario`. `categorize/update/delete/post` also trusted a client-supplied `user_id` (default `"user"`) for the audit trail → now `current_user.id`.
+
+**B. `api/episode_routes.py`** — R26 fixed only ~6 of 20 endpoints. The remaining 14 (temporal/semantic/sequential/contextual/canvas-aware/business-data retrieval, `{id}/feedback/list`, `analytics/feedback-episodes`, `graduation/readiness|exam|audit`, `lifecycle/decay`, `stats/{id}`) were anonymous reads of episodic memory (reasoning steps, canvas state). `retrieve_temporal` trusted client-supplied `user_id` (cross-user read IDOR) → now `current_user.id`; `promote_agent` trusted client-supplied `validated_by` for audit attribution → now `current_user.id`.
+
+**C. `api/agent_governance_routes.py`** — `approve_workflow` had auth + RBAC, but `reject_workflow` was **anonymous privilege escalation** (reject any pending approval as ANY approver) and `list_pending_approvals` was an anonymous read of the approval queue. `approve_workflow` ran RBAC against client-supplied `approver_id` instead of `current_user.id` (attribution spoof) → RBAC + `approve_intervention` + `reject_intervention` now keyed to the token identity.
+
+**D. `api/entity_type_routes.py`** — `create_entity_type` fixed (R26); `list/get/update (PATCH schema modification)/suggest-schema (anonymous LLM cost abuse)` were not → all now auth'd.
+
+**E. `api/graphrag_routes.py`** — `ingest_document`/`add_entity` fixed (R26); the other 9 (graph reads, `add_relationship` + `build-communities` — graph poisoning, `query` — LLM cost abuse) were anonymous → all now auth'd.
+
+**F. `api/agent_status_endpoints.py`** — write endpoints had auth; all 5 read endpoints (`agent/status/{id}`, `agent/status`, `agents`, `agents/{id}`, `agent/metrics`) leaked agent task state anonymously → auth'd.
+
+**G. `api/background_agent_routes.py`** — register/start/stop/status auth'd; `{agent_id}/logs` + `logs` leaked run logs anonymously → auth'd.
+
+**H. `api/feedback_enhanced.py`** — submit fixed (R27); `agent/{id}`, `analytics`, `trends` aggregate reads were anonymous → auth'd.
+
+**Also:** `api/operations_api.py` is dead code (never mounted) with a `str(e)` leak + no auth — flagged for future cleanup, not exploitable today. `episode_routes.list_canvas_types` intentionally left public (static metadata). Remaining audit hits are `get_super_admin`-guarded (agent_control), `require_permission(...)`-guarded (agent_routes), or unmounted archive — reviewed, not bugs.
+
+**Tests:** 65 new tests in `backend/tests/test_round39_remaining_auth_sweep.py` (57 anon-401 assertions + 8 identity-attribution/positive tests). Fixed 2 pre-existing test files (auth override fixtures: `test_ai_accounting_routes.py`, `test_agent_governance_routes.py`) + repaired 19 stale-path tests in `test_ai_accounting_routes.py` (`/ai-accounting/...` → router's actual empty-prefix paths — pre-existing failures, verified identical in baseline via git stash). 230 tests green (round39 + round38 + 6 affected suites). mypy baseline identical (38 pre-existing errors, zero new — verified by diff).
 
 ### Round 38 — Remaining API Surface: Auth + Governance Wiring + Impersonation + Leak Sweep (July 31, 2026) ✨
 **Bug hunt round.** AST-based audit (`backend/scripts/audit_governance_auth.py`) of every `@require_governance` endpoint and mounted-but-unauthenticated router.

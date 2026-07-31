@@ -96,7 +96,7 @@ async def create_template(
         )
 
 @router.get("/", response_model=List[Dict[str, Any]])
-async def list_templates(category: Optional[str] = None, limit: int = 50):
+async def list_templates(category: Optional[str] = None, limit: int = 50, current_user: User = Depends(get_current_user)):
     """List all available workflow templates"""
     try:
         manager = get_template_manager()
@@ -134,9 +134,29 @@ async def list_templates(category: Optional[str] = None, limit: int = 50):
     except Exception as e:
         logger.error(f"Failed to list templates: {e}")
         raise router.internal_error(
-            message="Failed to list templates",
-            details={"error": str(e)}
+            message="Failed to list templates"
         )
+
+@router.get("/search")
+async def search_templates(
+    query: str,
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+):
+    """Search templates by text query"""
+    manager = get_template_manager()
+    templates = manager.search_templates(query, limit=limit)
+    
+    return [
+        {
+            "template_id": t.template_id,
+            "name": t.name,
+            "description": t.description,
+            "category": t.category.value,
+            "tags": t.tags
+        }
+        for t in templates
+    ]
 
 @router.get("/{template_id}")
 async def get_template(template_id: str, current_user: User = Depends(get_current_user)):
@@ -281,23 +301,6 @@ async def import_template(
         raise router.internal_error(
             message="Failed to import template"
         )
-
-@router.get("/search")
-async def search_templates(query: str, limit: int = 20):
-    """Search templates by text query"""
-    manager = get_template_manager()
-    templates = manager.search_templates(query, limit=limit)
-    
-    return [
-        {
-            "template_id": t.template_id,
-            "name": t.name,
-            "description": t.description,
-            "category": t.category.value,
-            "tags": t.tags
-        }
-        for t in templates
-    ]
 
 @router.post("/{template_id}/execute")
 @require_governance(

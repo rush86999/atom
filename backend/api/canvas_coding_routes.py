@@ -5,7 +5,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.auth import get_current_user
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_coding_service import CodingCanvasService
 from core.database import get_db
@@ -126,7 +126,7 @@ async def add_diff(
 
 
 @router.get("/{canvas_id}")
-async def get_coding_canvas(canvas_id: str, db: Session = Depends(get_db)):
+async def get_coding_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get a coding canvas."""
     from sqlalchemy import desc
 

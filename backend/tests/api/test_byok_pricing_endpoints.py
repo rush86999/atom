@@ -31,9 +31,12 @@ def pricing_app() -> FastAPI:
     """Create FastAPI app with BYOK routes for testing."""
     from fastapi import FastAPI
     from api.byok_routes import router as byok_router
+    from core.auth import get_current_user as auth_get_current_user
     
     app = FastAPI()
     app.include_router(byok_router)
+    # Round 40: pricing/key endpoints now require auth; bind a default identity.
+    app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(id="test-user")
     return app
 
 
@@ -156,7 +159,7 @@ class TestGetPricing:
             assert data["data"]["cheapest_models"] == []
 
     def test_get_pricing_error_handling(self, pricing_client):
-        """Test error handling when fetcher fails."""
+        """Test error handling when fetcher fails — no str(e) leak (R40)."""
         with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher', side_effect=Exception("Test error")):
             response = pricing_client.get("/api/ai/pricing")
             
@@ -165,7 +168,7 @@ class TestGetPricing:
             
             assert data["success"] is False
             assert "message" in data
-            assert "Test error" in data["message"]
+            assert "Test error" not in data["message"]
 
 
 # ============================================================================
@@ -213,7 +216,7 @@ class TestRefreshPricing:
             data = response.json()
             
             assert data["success"] is False
-            assert "Network error" in data["message"]
+            assert "Network error" not in data["message"]
 
 
 # ============================================================================

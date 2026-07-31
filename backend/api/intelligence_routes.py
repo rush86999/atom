@@ -12,7 +12,7 @@ router = BaseAPIRouter(prefix="/api/intelligence", tags=["Intelligence"])
 engine = DataIntelligenceEngine()
 
 @router.get("/insights")
-async def get_insights():
+async def get_insights(current_user: User = Depends(get_current_user)):
     """
     Fetch cross-platform smart insights and anomalies.
     """
@@ -54,7 +54,7 @@ async def get_insights():
         raise router.internal_error("Internal error")
 
 @router.get("/entities")
-async def get_entities(type: Optional[str] = None, platform: Optional[str] = None):
+async def get_entities(type: Optional[str] = None, platform: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """
     Fetch unified entities from the intelligence engine.
     """

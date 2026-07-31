@@ -287,7 +287,9 @@ async def restart_atom(
 
 
 @router.get("/status", response_model=AgentStatusResponse)
-async def get_status():
+async def get_status(
+    current_user: User = Depends(get_super_admin),
+):
     """Get Atom OS status and running info.
 
     Returns current status, PID, uptime, memory usage, and CPU.

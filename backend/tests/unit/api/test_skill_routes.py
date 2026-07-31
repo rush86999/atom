@@ -14,6 +14,7 @@ Pass Rate Target: 95%+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
 try:
     from api.skill_routes import router
@@ -23,8 +24,11 @@ except ImportError:
 
 @pytest.fixture
 def app():
+    from core.auth import get_current_user as auth_get_current_user
     app = FastAPI()
     app.include_router(router)
+    # Round 40: read endpoints now require auth; bind a default identity.
+    app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(id="test-user")
     return app
 
 
