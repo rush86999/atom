@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 61 — Runtime BYOK Manager: R59 Key-Persistence Gap + Silent Key Swap (July 31, 2026) ✨
+**Bug hunt round.** R59 fixed `api/byok_routes.BYOKManager` (the admin surface) — but the **runtime manager** `core/byok_endpoints.BYOKManager` (used by `byok_handler` for actual LLM provider calls — imported by `lancedb_handler`, `lifecycle_comm_generator`, `lux_config`, `byok_competitive_endpoints`) still:
+
+**A.** generated a **fresh Fernet key per process** (never persisted) — stored keys bricked on every restart;
+**B.** worse, both managers are process singletons using **different keys for the same keys store** (`./data/byok_keys.json`) — keys stored via the admin API could never be decrypted by the runtime LLM path (the BYOK feature was broken end-to-end even without a restart);
+**C.** `_get_fernet` **silently swapped in a fresh key on any Fernet error** — invalidating all stored ciphertext and diverging from the persisted key (this also masked the invalid test key below).
+
+**Fix:** runtime manager shares the **same** persisted key file (`BYOK_ENC_KEY_FILE`), reusing the R59 load-or-create pattern; `_get_fernet` in BOTH managers now logs and **re-raises** instead of rotating the key (fail-loud — a bad key must not silently corrupt the keystore).
+
+**BONUS — invalid test-fixture key exposed:** `tests/conftest.py:setup_byok_test_env` set `BYOK_ENCRYPTION_KEY` to a plain 32-char string — **not a valid Fernet key** — which only worked because of the old swap. The fail-loud change surfaced it (3 store-key suites 500'd); fixture now uses a fixed valid Fernet key (`MDEyMzQ1...`).
+
+**Tests:** 5 new tests in `backend/tests/test_round61_byok_runtime_key.py` (runtime key persists across instances, **admin-stored key decrypts in the runtime manager** — the cross-manager end-to-end check, runtime restart decrypt, no-swap guarantees for both managers). Zero regressions (comm-verified: 19→13 failures in affected suites — delta is exactly the 5 RED tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (31 pre-existing errors, line shifts only). `main_api_app` imports clean. 5/5 round tests green; all byok suites run together 54 passed.
+
 ### Round 60 — Mobile Auth Paths Accept Deactivated Users: R43 Status Gap (July 31, 2026) ✨
 **Bug hunt round.** R43 added the `user.status != UserStatus.ACTIVE` rejection to `get_current_user`/`get_current_user_ws`/`login_for_access_token` — but the **three mobile authentication paths never got it**, so a deactivated (departed/removed) employee who keeps their password and device can continue authenticating indefinitely:
 
