@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 import docx  # python-docx — used for Word-doc canvas→file sync (line ~71)
 
-from core.office_service import OfficeService
+from core.office_service import OfficeService, _validate_office_path
 from core.models import CanvasAudit
 from core.websockets import manager as ws_manager
 
@@ -42,6 +42,14 @@ class OfficeSyncService:
         data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Apply Canvas user edit back to filesystem document."""
+        # R53: contain the path BEFORE any read/write — every OfficeService
+        # entry point validates, but this service previously wrote docx files
+        # via doc.save() on an unvalidated path (arbitrary file overwrite).
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         if not os.path.exists(file_path):
             return {"success": False, "error": f"File not found: {file_path}"}
 
@@ -88,11 +96,17 @@ class OfficeSyncService:
 
         except Exception as e:
             logger.error(f"Failed to sync canvas to file: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to sync canvas to file"}
 
     def broadcast_file_update(self, canvas_id: str, file_path: str, user_id: str):
         """Broadcast updated document HTML render to the Canvas WebSocket subscribers."""
         try:
+            # R53: contain the path — this reads the file (render + memory
+            # ingestion) and stores its HTML in CanvasAudit/WS state the caller
+            # controls; without containment any existing office file is readable.
+            file_path = _validate_office_path(file_path)
+        except ValueError:
+            return
             render_res = self.office.renderer.render_to_html(file_path)
             if not render_res.get("success"):
                 return
