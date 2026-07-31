@@ -439,16 +439,17 @@ class BYOKManager:
             key = self.encryption_key
             if not key:
                 raise ValueError("Encyrption key is empty")
-                
+
             if isinstance(key, str):
                 key = key.encode()
-                
+
             return Fernet(key)
         except Exception as e:
-            logger.debug(f"Fernet error: {str(e)[:50]}")
-            new_key = Fernet.generate_key()
-            self.encryption_key = new_key.decode()
-            return Fernet(new_key)
+            # R61: do NOT rotate the key here — the old code silently generated
+            # a fresh key, invalidating all stored ciphertext and diverging
+            # from the persisted key. Fail loudly instead.
+            logger.error(f"Invalid BYOK encryption key: {e}")
+            raise
 
     def encrypt_api_key(self, api_key: str) -> str:
         """Encrypt API key using Fernet (AES)"""

@@ -38,6 +38,10 @@ class AddAPIKeyRequest(BaseModel):
 # BYOK Configuration Storage
 BYOK_CONFIG_FILE = "./data/byok_config.json"
 BYOK_KEYS_FILE = "./data/byok_keys.json"
+# R61: the runtime manager must share the SAME persisted Fernet key as the
+# admin manager (api/byok_routes) — otherwise keys stored via the admin API
+# are undecryptable by the LLM runtime, and every restart bricks stored keys.
+BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
 
 
 @dataclass
@@ -105,9 +109,12 @@ class BYOKManager:
         self.providers: Dict[str, AIProviderConfig] = {}
         self.usage_stats: Dict[str, ProviderUsage] = {}
         self.api_keys: Dict[str, APIKey] = {}
-        self.encryption_key = os.getenv(
-            "BYOK_ENCRYPTION_KEY", self._generate_encryption_key()
-        )
+        # R61: env override wins; otherwise reuse the persisted key (same file
+        # as the admin manager) so stored ciphertext survives restarts and is
+        # shared across both managers.
+        self.encryption_key = os.getenv("BYOK_ENCRYPTION_KEY")
+        if not self.encryption_key:
+            self.encryption_key = self._load_or_create_encryption_key()
         self._load_configuration()
         self._initialize_default_providers()
 
@@ -576,6 +583,30 @@ class BYOKManager:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
 
+    def _load_or_create_encryption_key(self) -> str:
+        """Load the persisted Fernet key, or generate and persist one (0600).
+
+        R61: mirrors the R59 fix in api/byok_routes — the runtime manager must
+        use the same persisted key, or stored keys brick on every restart.
+        """
+        try:
+            if os.path.exists(BYOK_ENC_KEY_FILE):
+                with open(BYOK_ENC_KEY_FILE, "r") as f:
+                    key = f.read().strip()
+                if key:
+                    return key
+        except Exception as e:
+            logger.error(f"Failed to read BYOK encryption key: {e}")
+        key = self._generate_encryption_key()
+        try:
+            os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENC_KEY_FILE, "w") as f:
+                f.write(key)
+            os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+        except Exception as e:
+            logger.error(f"Failed to persist BYOK encryption key: {e}")
+        return key
+
     def _get_fernet(self):
         """Get Fernet instance with current key"""
         try:
@@ -583,21 +614,17 @@ class BYOKManager:
             key = self.encryption_key
             if not key:
                 raise ValueError("Encyrption key is empty")
-                
+
             if isinstance(key, str):
                 key = key.encode()
-                
+
             return Fernet(key)
         except Exception as e:
-            # Only log error once per session to avoid spamming logs
-            if not hasattr(self, '_encryption_error_logged'):
-                logger.warning(f"Invalid encryption key encountered: {e}. Generating new key.")
-                self._encryption_error_logged = True
-                
-            # Fallback to a new key if invalid (will invalidate existing data)
-            new_key = Fernet.generate_key()
-            self.encryption_key = new_key.decode()
-            return Fernet(new_key)
+            # R61: do NOT rotate the key here. The old code silently generated
+            # a fresh key, invalidating all stored ciphertext and diverging
+            # from the persisted key. Fail loudly instead.
+            logger.error(f"Invalid BYOK encryption key: {e}")
+            raise
 
     def encrypt_api_key(self, api_key: str) -> str:
         """Encrypt API key using Fernet (AES)"""

@@ -167,8 +167,12 @@ def setup_byok_test_env():
         # Set environment variables for the session
         os.environ['BYOK_CONFIG_FILE'] = config_path
         os.environ['BYOK_KEYS_FILE'] = keys_path
-        # Use a stable but test-specific encryption key
-        os.environ['BYOK_ENCRYPTION_KEY'] = "test-encryption-key-must-be-32-chars-long-!"[:32]
+        # Use a stable but test-specific encryption key.
+        # NOTE: must be a VALID Fernet key (44-char url-safe base64). The old
+        # value was a plain 32-char string — invalid for Fernet — and only
+        # worked because _get_fernet silently swapped in a fresh key on error
+        # (removed in R61: fail-loud instead of silent key rotation).
+        os.environ['BYOK_ENCRYPTION_KEY'] = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
         
         # Initialize empty files
         with open(config_path, 'w') as f:
