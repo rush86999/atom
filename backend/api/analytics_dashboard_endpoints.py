@@ -199,17 +199,27 @@ async def get_top_workflows(
                 time_window="1h"
             )
             trend = "stable"
+            # Bug 4 fix: PerformanceMetrics has no success_rate field — compute
+            # from successful/total. The old code raised AttributeError.
+            def _success_rate(m):
+                if not m or m.total_executions == 0:
+                    return 0.0
+                return (m.successful_executions / m.total_executions) * 100
+
+            current_sr = _success_rate(metrics)
+            recent_sr = _success_rate(recent_metrics) if recent_metrics else current_sr
+
             if recent_metrics and recent_metrics.total_executions > 0:
-                if recent_metrics.success_rate > metrics.success_rate + 5:
+                if recent_sr > current_sr + 5:
                     trend = "up"
-                elif recent_metrics.success_rate < metrics.success_rate - 5:
+                elif recent_sr < current_sr - 5:
                     trend = "down"
 
             rankings.append(WorkflowPerformanceRanking(
                 workflow_id=workflow_id,
                 workflow_name=analytics.get_workflow_name(workflow_id) or workflow_id,
                 total_executions=metrics.total_executions,
-                success_rate=round(metrics.success_rate, 2),
+                success_rate=round(current_sr, 2),
                 average_duration_ms=round(metrics.average_duration_ms, 2),
                 last_execution=analytics.get_last_execution_time(workflow_id),
                 trend=trend

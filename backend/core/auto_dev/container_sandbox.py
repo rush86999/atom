@@ -253,14 +253,23 @@ class ContainerSandbox:
 
     @staticmethod
     def _build_execution_wrapper(code: str, input_params: dict[str, Any]) -> str:
-        """Wrap user code with input parameter injection."""
+        """Wrap user code with input parameter injection.
+
+        Bug 1 fix: the old code interpolated params_json into a triple-single-
+        quoted string literal — a param value containing ''' escaped the
+        literal and injected arbitrary Python. Now uses base64 encoding to
+        ensure the params string can never break out of the literal.
+        """
+        import base64
         params_json = json.dumps(input_params)
+        params_b64 = base64.b64encode(params_json.encode("utf-8")).decode("ascii")
         return f"""
 import json
 import sys
+import base64 as _b64
 
-# Inject input parameters
-_INPUT_PARAMS = json.loads('''{params_json}''')
+# Inject input parameters (base64-decoded to prevent injection via param values)
+_INPUT_PARAMS = json.loads(_b64.b64decode('{params_b64}').decode('utf-8'))
 
 # User code
 {code}
