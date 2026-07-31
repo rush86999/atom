@@ -13,6 +13,24 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from core.decimal_utils import to_decimal
 
+# R51: CSV-injection neutralization (CWE-1236), mirroring accounting/export_service.py (R21).
+# Cells beginning with = + - @ (or tab/CR) are interpreted as formulas by
+# spreadsheet apps; prefixing with a single quote forces text interpretation.
+_CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_csv_cell(value: object) -> object:
+    """Neutralize CSV-injection payloads in a cell value.
+
+    - Strings beginning with = + - @ or containing tab/CR are prefixed with a single quote.
+    - Non-string values (numbers, None) are returned unchanged.
+    """
+    if not isinstance(value, str):
+        return value
+    if value.startswith(_CSV_INJECTION_PREFIXES):
+        return "'" + value
+    return value
+
 logger = logging.getLogger(__name__)
 
 class TransactionStatus(Enum):
@@ -352,14 +370,14 @@ class AIAccountingEngine:
         
         for tx in self.get_all_transactions():
             writer.writerow([
-                tx.date.strftime("%Y-%m-%d"),
-                tx.id,
-                tx.category_name or "Uncategorized",
-                tx.amount,
-                tx.description,
-                tx.merchant or "",
-                tx.status.value,
-                f"{tx.confidence:.0%}"
+                _sanitize_csv_cell(tx.date.strftime("%Y-%m-%d")),
+                _sanitize_csv_cell(tx.id),
+                _sanitize_csv_cell(tx.category_name or "Uncategorized"),
+                _sanitize_csv_cell(tx.amount),
+                _sanitize_csv_cell(tx.description),
+                _sanitize_csv_cell(tx.merchant or ""),
+                _sanitize_csv_cell(tx.status.value),
+                _sanitize_csv_cell(f"{tx.confidence:.0%}")
             ])
             
         return output.getvalue()

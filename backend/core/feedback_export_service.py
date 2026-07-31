@@ -35,6 +35,25 @@ from core.models import AgentFeedback, AgentRegistry
 
 logger = logging.getLogger(__name__)
 
+# R51: CSV-injection neutralization (CWE-1236), mirroring accounting/export_service.py (R21).
+# Cells beginning with = + - @ (or tab/CR) are interpreted as formulas by
+# spreadsheet apps; prefixing with a single quote forces text interpretation
+# (the quote is stripped on display).
+_CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_csv_cell(value: object) -> object:
+    """Neutralize CSV-injection payloads in a cell value.
+
+    - Strings beginning with = + - @ or containing tab/CR are prefixed with a single quote.
+    - Non-string values (numbers, None) are returned unchanged.
+    """
+    if not isinstance(value, str):
+        return value
+    if value.startswith(_CSV_INJECTION_PREFIXES):
+        return "'" + value
+    return value
+
 
 class FeedbackExportService:
     """
@@ -150,19 +169,19 @@ class FeedbackExportService:
         # Data rows
         for feedback in feedback_data:
             row = [
-                feedback["id"],
-                feedback["agent_id"],
-                feedback.get("agent_name", ""),
-                feedback.get("agent_execution_id", ""),
-                feedback["user_id"],
-                feedback.get("feedback_type", ""),
-                feedback.get("thumbs_up_down", ""),
-                feedback.get("rating", ""),
-                feedback["original_output"][:200],  # Truncate long text
-                feedback["user_correction"][:200],
-                feedback["status"],
-                feedback["created_at"],
-                feedback.get("adjudicated_at", "")
+                _sanitize_csv_cell(feedback["id"]),
+                _sanitize_csv_cell(feedback["agent_id"]),
+                _sanitize_csv_cell(feedback.get("agent_name", "")),
+                _sanitize_csv_cell(feedback.get("agent_execution_id", "")),
+                _sanitize_csv_cell(feedback["user_id"]),
+                _sanitize_csv_cell(feedback.get("feedback_type", "")),
+                _sanitize_csv_cell(feedback.get("thumbs_up_down", "")),
+                _sanitize_csv_cell(feedback.get("rating", "")),
+                _sanitize_csv_cell(feedback["original_output"][:200]),  # Truncate long text
+                _sanitize_csv_cell(feedback["user_correction"][:200]),
+                _sanitize_csv_cell(feedback["status"]),
+                _sanitize_csv_cell(feedback["created_at"]),
+                _sanitize_csv_cell(feedback.get("adjudicated_at", ""))
             ]
             writer.writerow(row)
 
