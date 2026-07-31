@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import inspect
+import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +75,15 @@ class TestAuthRateLimits:
 
 class TestAuthRateLimiterBehavior:
     """AuthRateLimiter class enforces sliding-window limits."""
+
+    @pytest.fixture(autouse=True)
+    def _no_bypass_env(self, monkeypatch):
+        # tests/unit/conftest.py sets TESTING=1 at import for the unit-test DB
+        # and never restores it — which makes AuthRateLimiter.check() hit its
+        # TESTING bypass (return True) when a tests/unit/ file is collected
+        # before this file. Clear it so the limiter actually enforces.
+        monkeypatch.delenv("TESTING", raising=False)
+        monkeypatch.delenv("BYPASS_RATE_LIMIT", raising=False)
 
     def test_blocks_after_limit_exceeded(self):
         from core.security.auth_rate_limit import AuthRateLimiter

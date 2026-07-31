@@ -192,6 +192,15 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 48 — BYOK Test-Suite Repair: Phantom Routes + Session Env Pollution (July 31, 2026) ✨
+**Test-infra round (zero source changes).** The long-flagged stale `tests/unit/api/test_byok_routes.py` was rewritten:
+
+**A. Phantom routes** — all 15 tests hit `/api/byok/*` routes that never existed on this router (404s), and the fixture's `patch('core.auth')` required core.auth to be pre-imported (order-dependent setup crashes). Rewrote against the REAL surface (now working after R47): `/api/ai/keys` (list/register), `/api/ai/providers` + `/{id}` + `/{id}/keys` + `/{id}/keys/{name}` (status/delete), `/api/v1/byok/health`, `/api/ai/health`, `/api/ai/pricing`, `/api/ai/usage/stats`, `/api/ai/optimize-cost`, `/api/ai/pdf/providers` — 13 tests, fixture imports normally with an auth override. Previously 7 setup-errors → now 13/13 passing.
+
+**B. `tests/api/test_byok_endpoints_coverage.py`** — 4 stale assertions fixed (nested response shapes `provider`/`pdf_providers`, key registration via query params on `api/byok_routes` vs JSON body on `core/byok_endpoints`, `key_name` must be alphanumeric+underscores) → 28/28 passing.
+
+**C. Session env pollution exposed + fixed** — `tests/unit/conftest.py` sets `TESTING=1` at import (unit-test DB) and never restores it; collecting any `tests/unit/` file before `tests/test_round14_fixes.py` made `AuthRateLimiter.check()` hit its TESTING bypass, breaking `test_blocks_after_limit_exceeded`. Hardened the round-14 test with an autouse monkeypatch delenv (same pattern as R44's tests). 279 tests green across the combined byok + rounds 38-47 + auth suites.
+
 ### Round 47 — Missing get_current_tenant: Tenant-Scoped BYOK Endpoints Broken (July 31, 2026) ✨
 **Bug hunt round.** `api/byok_routes.py` imported `get_current_tenant` with a silent fallback (`except ImportError: get_current_tenant = None`) — and **`core.auth` has never exported `get_current_tenant`**, so the fallback always fired. `Depends(None)` makes FastAPI treat the parameter as a REQUIRED QUERY PARAM, so every tenant-scoped endpoint (`GET /api/ai/providers`, `GET /api/ai/providers/{id}`, `POST /api/ai/providers/{id}/keys`, `POST /api/ai/usage/track`, `POST /api/ai/pdf/optimize`) returned **422 "Field required" on every call** — authenticated or not. The entire provider/key-management surface was unusable.
 
