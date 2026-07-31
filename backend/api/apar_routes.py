@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
@@ -20,7 +20,7 @@ router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"], dependencies=[Depends(get
 
 class APIntakeRequest(BaseModel):
     vendor: str
-    amount: Decimal  # M8: was float — money precision drift
+    amount: Decimal = Field(..., gt=0, description="Invoice amount — must be positive")
     due_date: Optional[str] = None
     line_items: List[Dict[str, Any]] = []
     payment_terms: str = "Net 30"
@@ -28,7 +28,7 @@ class APIntakeRequest(BaseModel):
 
 class ARGenerateRequest(BaseModel):
     customer: str
-    amount: Decimal  # M8: was float
+    amount: Decimal = Field(..., gt=0, description="Invoice amount — must be positive")
     due_date: Optional[str] = None
     line_items: List[Dict[str, Any]] = []
     source: str = "manual"

@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -23,7 +23,7 @@ router = BaseAPIRouter(prefix="", tags=["AI Accounting"])
 class TransactionRequest(BaseModel):
     id: str
     date: str  # ISO format
-    amount: float
+    amount: float = Field(..., gt=0, description="Transaction amount — must be positive")
     description: str
     merchant: Optional[str] = None
     source: str = "bank"

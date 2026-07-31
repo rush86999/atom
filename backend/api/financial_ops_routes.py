@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
@@ -81,13 +81,13 @@ async def get_savings_report():
 
 class BudgetLimitRequest(BaseModel):
     category: str
-    monthly_limit: float
+    monthly_limit: float = Field(..., gt=0, description="Monthly limit — must be positive")
     deal_stage_required: Optional[str] = None
     milestone_required: Optional[str] = None
 
 class SpendCheckRequest(BaseModel):
     category: str
-    amount: float
+    amount: float = Field(..., gt=0, description="Spend amount — must be positive")
     deal_stage: Optional[str] = None
     milestone: Optional[str] = None
 
@@ -139,14 +139,14 @@ async def check_spend(request: SpendCheckRequest):
 class InvoiceRequest(BaseModel):
     id: str
     vendor: str
-    amount: float
+    amount: float = Field(..., gt=0, description="Invoice amount — must be positive")
     date: str  # ISO date
     contract_id: Optional[str] = None
 
 class ContractRequest(BaseModel):
     id: str
     vendor: str
-    monthly_amount: float
+    monthly_amount: float = Field(..., gt=0, description="Monthly amount — must be positive")
     start_date: str
     end_date: str
 

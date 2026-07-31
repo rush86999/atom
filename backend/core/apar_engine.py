@@ -80,6 +80,13 @@ class APAREngine:
         Intake invoice from email, PDF, or portal.
         Parses and creates AP invoice.
         """
+        # R49: reject non-positive amounts at the engine boundary — a negative
+        # invoice would be auto-approved (negative < threshold) and distort
+        # AP/AR balances. Decimal compare to avoid float boundary issues.
+        from decimal import Decimal as _Dec
+        raw_amount = data.get("amount", 0.0)
+        if _Dec(str(raw_amount)) <= 0:
+            raise ValueError(f"Invoice amount must be positive, got {raw_amount}")
         # M2 fix: use uuid4 instead of timestamp — two invoices in the same
         # tick produced the same ID, silently overwriting the first.
         import uuid as _uuid

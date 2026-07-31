@@ -366,17 +366,13 @@ class TestAPARErrors:
             apar_engine.generate_reminder("invalid_id")
 
     def test_intake_with_zero_amount(self, apar_engine):
-        """Test invoice intake with zero amount."""
+        """Test invoice intake with zero amount is rejected (R49)."""
         data = {"vendor": "Test", "amount": 0.00}
-        invoice = apar_engine.intake_invoice("email", data)
-
-        assert invoice.amount == 0.00
-        assert invoice.status == InvoiceStatus.APPROVED  # Under threshold
+        with pytest.raises(ValueError):
+            apar_engine.intake_invoice("email", data)
 
     def test_intake_with_negative_amount(self, apar_engine):
-        """Test invoice intake with negative amount."""
+        """Test invoice intake with negative amount is rejected (R49)."""
         data = {"vendor": "Test", "amount": -100.00}
-        invoice = apar_engine.intake_invoice("email", data)
-
-        assert invoice.amount == -100.00
-        assert invoice.status == InvoiceStatus.APPROVED  # Under threshold
+        with pytest.raises(ValueError):
+            apar_engine.intake_invoice("email", data)

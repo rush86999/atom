@@ -148,43 +148,32 @@ class TestPaymentFailures:
 
     def test_budget_limit_with_negative_monthly_limit(self):
         """
-        VALIDATED_BUG
+        R49 FIXED (was VALIDATED_BUG)
 
-        Test that negative monthly_limit is rejected.
+        Negative monthly_limit is rejected at set_limit().
 
-        Expected: ValueError raised for negative limit
-        Actual: BudgetLimit accepts negative monthly_limit without validation
         Severity: HIGH
-        Impact: Negative budget limit causes incorrect utilization calculations
-        Fix: Add validation in BudgetLimit dataclass or BudgetGuardrails.set_limit()
+        Impact: Negative budget limit caused incorrect utilization calculations
+        Fix: R49 validation in BudgetGuardrails.set_limit()
         """
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(category="marketing", monthly_limit=Decimal('-1000.00'))
 
-        # Should reject negative limit but doesn't validate
-        guardrails.set_limit(limit)
-        assert limit.monthly_limit < 0  # BUG: Negative limit accepted
+        with pytest.raises(ValueError):
+            guardrails.set_limit(limit)
 
     def test_budget_limit_with_zero_monthly_limit(self):
         """
-        VALIDATED_BUG
+        R49 FIXED (was VALIDATED_BUG)
 
-        Test that zero monthly_limit is handled correctly.
-
-        Expected: Zero limit causes all spends to be rejected (division by zero avoided)
-        Actual: check_spend() has guard: `if limit.monthly_limit > 0` for utilization calculation
-        Severity: LOW
-        Impact: Zero limit sets utilization_pct = 0, which means all spends approved
-        Fix: Consider rejecting zero monthly_limit in set_limit()
+        Zero monthly_limit is rejected at set_limit() (was silently accepted —
+        utilization_pct stayed 0 and all spends were approved).
         """
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(category="marketing", monthly_limit=Decimal('0.00'))
-        guardrails.set_limit(limit)
 
-        result = guardrails.check_spend("marketing", Decimal('100.00'))
-        # With zero limit, utilization_pct is 0 (guard clause at line 276)
-        assert result["utilization_pct"] == 0
-        # BUG: Should reject but approves
+        with pytest.raises(ValueError):
+            guardrails.set_limit(limit)
 
     def test_invoice_reconciliation_with_negative_tolerance(self):
         """

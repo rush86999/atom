@@ -232,6 +232,13 @@ class BudgetGuardrails:
         self._paused_categories: set = set()
     
     def set_limit(self, limit: BudgetLimit):
+        # R49: reject non-positive limits at the engine boundary — a negative
+        # monthly limit inverts every guardrail comparison (any positive spend
+        # exceeds it, pausing/blocking the category entirely).
+        if limit.monthly_limit <= 0:
+            raise ValueError(
+                f"Monthly limit must be positive, got {limit.monthly_limit}"
+            )
         self._limits[limit.category] = limit
     
     def check_spend(
