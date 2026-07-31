@@ -16,7 +16,7 @@ from core.decimal_utils import to_decimal
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/ai-accounting", tags=["AI Accounting"])
+router = BaseAPIRouter(prefix="", tags=["AI Accounting"])
 
 # ==================== REQUEST MODELS ====================
 

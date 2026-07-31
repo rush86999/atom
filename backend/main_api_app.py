@@ -2067,6 +2067,9 @@ try:
         app.include_router(
             ai_accounting_router, prefix="/api/v1/accounting", tags=["ai-accounting"]
         )
+        app.include_router(
+            ai_accounting_router, prefix="/api/ai-accounting", tags=["ai-accounting"]
+        )
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load AI accounting routes: {e}", exc_info=True)
 
