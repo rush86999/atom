@@ -16,7 +16,11 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/financial-ops", tags=["Financial Ops"])
+# C1 fix: ALL financial-ops endpoints require authentication. Previously 6
+# endpoints had no get_current_user — anonymous callers could set budget
+# limits, add subscriptions/contracts, approve invoices, and read reports.
+router = BaseAPIRouter(prefix="/api/financial-ops", tags=["Financial Ops"],
+                       dependencies=[Depends(get_current_user)])
 
 # ==================== COST LEAK DETECTION ====================
 

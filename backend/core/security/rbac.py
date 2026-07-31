@@ -27,11 +27,26 @@ def require_role(required_role: UserRole) -> Callable[[User], User]:
     Raises:
         HTTPException: 403 Forbidden if user doesn't have required role
     """
+    # H1 fix: role hierarchy — higher-privilege roles should pass checks for
+    # lower-required roles. Previously exact-match meant OWNER/SUPER_ADMIN
+    # were rejected from ADMIN-only endpoints (privilege inversion).
+    _ROLE_LEVELS = {
+        "member": 1,
+        "intern": 2,
+        "student": 2,
+        "workspace_admin": 3,
+        "admin": 4,
+        "owner": 5,
+        "super_admin": 6,
+    }
+
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role != required_role:
+        user_level = _ROLE_LEVELS.get(current_user.role, 0)
+        required_level = _ROLE_LEVELS.get(required_role, 99)
+        if user_level < required_level:
             logger.warning(
-                f"Access denied: user {current_user.id} has role {current_user.role}, "
-                f"required {required_role}"
+                f"Access denied: user {current_user.id} has role {current_user.role} "
+                f"(level {user_level}), required {required_role} (level {required_level})"
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

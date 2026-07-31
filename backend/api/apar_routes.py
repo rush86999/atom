@@ -60,9 +60,11 @@ async def intake_ap_invoice(request: APIntakeRequest):
     )
 
 @router.post("/ap/{invoice_id}/approve")
-async def approve_ap_invoice(invoice_id: str, approver: str = "user"):
+async def approve_ap_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
     from core.apar_engine import apar_engine
 
+    # M1 fix: use the authenticated user's identity, not a query param.
+    approver = current_user.email or current_user.id
     invoice = apar_engine.approve_invoice(invoice_id, approver)
     return router.success_response(
         data={"status": "approved", "id": invoice_id},
