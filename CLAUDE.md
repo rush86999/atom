@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 63 — Protection API: str(e) Leak Sweep (July 31, 2026) ✨
+**Bug hunt round.** `api/protection_api.py` (mounted at `/api/protection` via `safe_import_router`) forwarded raw exception strings to clients via `details={"error": str(e)}` on **all 4 endpoints** (`/churn`, `/financial`, `/growth`, `/scan`) — internal exception detail (service internals, paths) reached clients on every failure. Also verified in-round as NOT bugs: `HTMLErrorToJSONMiddleware` (strip-tags 300-char truncation, prod error pages carry no tracebacks), `AuditMiddleware` (no request bodies/secrets logged), and registration email CRLF header-injection (Python 3.11's `email` library raises `HeaderParseError` on embedded headers — injection blocked).
+
+**Fix:** generic `"Internal error"` in `details` at all 4 sites; added missing `logger.error(f"...{e}")` lines (two sites previously had none).
+
+**Tests:** 4 new tests in `backend/tests/test_round63_protection_api_leaks.py` (secret-sentinel leak assertions for all 4 endpoints via patched services/analyzer). Zero regressions (comm-verified: 8→0 failures in affected suite — delta is exactly the 4 RED tests flipping green; `comm -13` empty = no new failures). mypy clean (0/0, identical). `main_api_app` imports clean. 4/4 round tests green.
+
 ### Round 62 — BYOK Admin Config Load: Unknown Fields Brick the Whole Store (July 31, 2026) ✨
 **Bug hunt round.** `api/byok_routes.BYOKManager._load_configuration` did `AIProviderConfig(**p_data)` / `APIKey(**k_data)` with **no field filtering** — the sibling runtime manager (`core/byok_endpoints`) filters to known dataclass fields, but the admin manager doesn't. A single unknown field in the shared config/keys files (e.g. `supports_vision` from an older writer, or any field added by a future version) raised TypeError and the **ENTIRE provider/key store silently failed to load** — custom providers vanish and stored keys disappear from the admin UI (and the runtime, which reads the same files).
 
