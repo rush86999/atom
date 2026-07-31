@@ -216,56 +216,58 @@ class PushNotificationService:
         data: Optional[Dict[str, Any]],
         priority: str
     ) -> bool:
-        """Send notification via Firebase Cloud Messaging."""
+        """Send notification via Firebase Cloud Messaging.
+
+        Bug 2 fix: the legacy /fcm/send endpoint was shut down by Google in
+        2024 (returns 404/410). Now uses the v1 HTTP API when
+        FCM_PROJECT_ID + FCM_ACCESS_TOKEN are set; falls back to a clear
+        warning (not a silent failure) when only the legacy server key is set.
+        """
         try:
             import httpx
 
-            url = "https://fcm.googleapis.com/fcm/send"
-            headers = {
-                "Authorization": f"key={FCM_SERVER_KEY}",
-                "Content-Type": "application/json"
-            }
+            project_id = os.getenv("FCM_PROJECT_ID")
+            access_token = os.getenv("FCM_ACCESS_TOKEN")
 
-            # Build FCM payload
-            notification = {
-                "title": title,
-                "body": body,
-                "sound": "default" if priority == "high" else None
-            }
-
-            payload = {
-                "to": device.device_token,
-                "notification": notification,
-                "data": data or {}
-            }
-
-            if priority == "high":
-                payload["android"] = {
-                    "priority": "high"
+            if project_id and access_token:
+                # FCM v1 API (current, supported).
+                url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
                 }
-                payload["apns"] = {
-                    "payload": {
-                        "aps": {
-                            "alert": title,
-                            "badge": 1,
-                            "sound": "default"
-                        }
+                message = {
+                    "token": device.device_token,
+                    "notification": {"title": title, "body": body},
+                    "data": data or {},
+                }
+                if priority == "high":
+                    message["android"] = {"priority": "high"}
+                    message["apns"] = {
+                        "payload": {"aps": {"alert": title, "badge": 1, "sound": "default"}}
                     }
-                }
+                payload = {"message": message}
+            elif FCM_SERVER_KEY:
+                # Legacy API — deprecated/shut down. Log clearly so operators
+                # know to migrate to the v1 API, and return False rather than
+                # silently swallowing the 404/410.
+                logger.warning(
+                    "FCM legacy API is deprecated and shut down. Set FCM_PROJECT_ID "
+                    "and FCM_ACCESS_TOKEN to use the v1 API. Skipping Android push."
+                )
+                return False
+            else:
+                logger.warning("FCM not configured (no FCM_PROJECT_ID/FCM_ACCESS_TOKEN). Skipping.")
+                return False
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=payload, timeout=10.0)
 
                 if response.status_code == 200:
-                    result = response.json()
-                    if result.get("success", 0) > 0:
-                        logger.info(f"FCM notification sent to device {device.id}")
-                        return True
-                    else:
-                        logger.warning(f"FCM notification failed: {result.get('results', [{}])[0].get('error')}")
-                        return False
+                    logger.info(f"FCM v1 notification sent to device {device.id}")
+                    return True
                 else:
-                    logger.error(f"FCM request failed: {response.status_code}")
+                    logger.error(f"FCM v1 request failed: {response.status_code} {response.text[:200]}")
                     return False
 
         except Exception as e:

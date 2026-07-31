@@ -204,17 +204,28 @@ Please review and approve or reject this proposal.
         proposal.approved_at = datetime.now()
 
         if modifications:
-            # Capture original for learning record
+            # Bug 12 fix: capture original BEFORE mutation, then apply on a
+            # COPY so a failed execution doesn't leave the proposal row in
+            # a partially-mutated state.
             original_action = proposal.proposed_action.copy() if proposal.proposed_action else {}
-            
-            # Apply modifications to proposed action
+            # Don't mutate proposal.proposed_action yet — build the action to
+            # execute first, then persist only after execution succeeds.
+            _action_to_execute = dict(proposal.proposed_action) if proposal.proposed_action else {}
+            _action_to_execute.update(modifications)
+        else:
+            original_action = None
+            _action_to_execute = proposal.proposed_action
+
+        # Execute the proposed action using the prepared (possibly modified) copy
+        execution_result = await self._execute_proposed_action_with(proposal, _action_to_execute)
+
+        # Bug 12 fix: only now (after successful execution) apply mutations
+        # to the persisted proposal row. Previously mutations were applied
+        # BEFORE execution, so a failure left the row in an inconsistent state.
+        if modifications:
             if proposal.proposed_action:
                 proposal.proposed_action.update(modifications)
             proposal.modifications = modifications
-
-        # Execute the proposed action
-        # (In production, this would trigger the actual execution)
-        execution_result = await self._execute_proposed_action(proposal)
 
         proposal.execution_result = execution_result
         proposal.status = ProposalStatus.EXECUTED.value
@@ -359,6 +370,21 @@ Please review and approve or reject this proposal.
     # ========================================================================
     # Private Helper Methods
     # ========================================================================
+
+    async def _execute_proposed_action_with(
+        self, proposal: AgentProposal, action: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute using a prepared action dict (Bug 12 — avoids mutating the
+        proposal row before execution). Falls back to proposal.proposed_action."""
+        if action is not None:
+            # Temporarily swap so _execute_proposed_action uses the prepared copy.
+            _original = proposal.proposed_action
+            proposal.proposed_action = action
+            try:
+                return await self._execute_proposed_action(proposal)
+            finally:
+                proposal.proposed_action = _original
+        return await self._execute_proposed_action(proposal)
 
     async def _execute_proposed_action(
         self,

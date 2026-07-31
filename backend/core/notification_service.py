@@ -107,12 +107,15 @@ class NotificationService:
         from core.models import Notification, User  # local import avoids cycles
 
         if self.db is None:
-            # No session means we can't persist. Log and bail without raising.
-            logger.warning(
-                "NotificationService called without a db session; skipping (type=%s user=%s)",
-                notification_type, user_id,
-            )
-            return {"success": False, "notification_id": None, "emailed": False}
+            # Bug 11 fix: callers using the default constructor (db=None)
+            # silently lost ALL notifications (security alerts, approvals,
+            # graduation). Now opens a short-lived session so the notification
+            # is persisted even when the caller didn't provide one.
+            from core.database import SessionLocal as _SL
+            self.db = _SL()
+            _owns_session = True
+        else:
+            _owns_session = False
 
         title = (data.get("title") or _default_title(notification_type)).strip()
         message = (data.get("message") or "").strip()
@@ -158,11 +161,21 @@ class NotificationService:
                 self.db, user_id, notification_type, title, message, data
             )
 
-        return {
+        result = {
             "success": True,
             "notification_id": notification.id,
             "emailed": emailed,
         }
+
+        # Bug 11: close the session we opened if we created it.
+        if _owns_session:
+            try:
+                self.db.close()
+            except Exception:
+                pass
+            self.db = None
+
+        return result
 
     def _maybe_send_email(
         self,
