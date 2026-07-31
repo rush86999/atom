@@ -814,20 +814,23 @@ class WorkflowAnalyticsEngine:
                 alert_id = alert_data[0]
 
                 try:
-                    # Get latest metric for alert
+                    # Bug 3 fix: alert_data[5] is threshold_value, alert_data[6]
+                    # is metric_name. The old query bound them backwards.
+                    threshold_value = float(alert_data[5])
+                    metric_name = alert_data[6]
+                    workflow_filter = alert_data[7] if len(alert_data) > 7 else None
+
                     cursor.execute("""
                         SELECT value, timestamp FROM workflow_metrics
                         WHERE metric_name = ? AND workflow_id = COALESCE(?, workflow_id)
                         ORDER BY timestamp DESC LIMIT 1
-                    """, (alert_data[5], alert_data[6]))
+                    """, (metric_name, workflow_filter))
 
                     metric_data = cursor.fetchone()
                     if metric_data:
                         metric_value = float(metric_data[0])
 
-                        # Evaluate alert condition
-                        # Simple threshold check for now
-                        if metric_value > float(alert_data[5]):  # threshold_value
+                        if metric_value > threshold_value:
                             # Trigger alert
                             self._trigger_alert(alert_id)
                         else:

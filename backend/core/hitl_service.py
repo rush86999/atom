@@ -32,7 +32,15 @@ class HITLService:
             Dict containing final status and any required next steps (e.g. 2FA).
         """
         with get_db_session() as db:
-            action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+            # Bug 6 fix: TOCTOU race — concurrent approve calls both read
+            # status==PENDING, both pass the guard, and both execute.
+            # Use a conditional UPDATE (check-and-set) to atomically claim the action.
+            action = (
+                db.query(HITLAction)
+                .filter(HITLAction.id == action_id)
+                .with_for_update()
+                .first()
+            )
             if not action:
                 raise ValueError(f"HITL Action {action_id} not found")
 

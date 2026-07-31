@@ -66,8 +66,11 @@ class ProposalService:
             raise ValueError(f"Agent {intern_agent_id} not found")
 
         if agent.status != AgentStatus.INTERN.value:
-            logger.warning(
-                f"Agent {intern_agent_id} is not an INTERN agent (status: {agent.status})"
+            # Bug 8 fix: was a warning only — non-INTERN agents could still
+            # create proposals. Now enforced as a hard block.
+            raise PermissionError(
+                f"Agent {intern_agent_id} is not an INTERN agent (status: {agent.status}). "
+                f"Only INTERN agents can create proposals."
             )
         # Fetch agent name for denormalization
         # The agent object is already fetched above, so we can use it directly.
