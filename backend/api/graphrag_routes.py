@@ -53,7 +53,7 @@ async def ingest_document(request: IngestRequest, current_user: User = Depends(g
     )
 
 @router.get("/entities")
-async def list_entities(workspace_id: str, limit: int = 100):
+async def list_entities(workspace_id: str, limit: int = 100, current_user: User = Depends(get_current_user)):
     """List entities in the knowledge graph"""
     from core.database import get_db_session
     from core.models import GraphNode
@@ -91,7 +91,7 @@ async def add_entity(workspace_id: str, request: AddEntityRequest, current_user:
     )
 
 @router.get("/canonical-search")
-async def canonical_search(workspace_id: str, type: str, q: str):
+async def canonical_search(workspace_id: str, type: str, q: str, current_user: User = Depends(get_current_user)):
     """Search for existing DB records to anchor graph nodes"""
     from core.graphrag_engine import graphrag_engine
     
@@ -101,7 +101,7 @@ async def canonical_search(workspace_id: str, type: str, q: str):
     )
 
 @router.get("/relationships")
-async def list_relationships(workspace_id: str, limit: int = 200):
+async def list_relationships(workspace_id: str, limit: int = 200, current_user: User = Depends(get_current_user)):
     """List relationships in the knowledge graph"""
     from core.database import get_db_session
     from core.models import GraphEdge, GraphNode
@@ -132,7 +132,7 @@ async def list_relationships(workspace_id: str, limit: int = 200):
         )
 
 @router.post("/relationships")
-async def add_relationship(workspace_id: str, request: AddRelationshipRequest):
+async def add_relationship(workspace_id: str, request: AddRelationshipRequest, current_user: User = Depends(get_current_user)):
     """Add a relationship between entities"""
     from core.graphrag_engine import graphrag_engine, Relationship
     from core.database import get_db_session
@@ -171,7 +171,7 @@ async def add_relationship(workspace_id: str, request: AddRelationshipRequest):
         )
 
 @router.post("/build-communities")
-async def build_communities(user_id: str):
+async def build_communities(user_id: str, current_user: User = Depends(get_current_user)):
     """Build communities for a user"""
     from core.graphrag_engine import graphrag_engine
 
@@ -182,7 +182,7 @@ async def build_communities(user_id: str):
     )
 
 @router.post("/query")
-async def query_graphrag(request: QueryRequest):
+async def query_graphrag(request: QueryRequest, current_user: User = Depends(get_current_user)):
     """Query GraphRAG (global or local search)"""
     from core.graphrag_engine import graphrag_engine
 
@@ -193,7 +193,7 @@ async def query_graphrag(request: QueryRequest):
     )
 
 @router.get("/entities/{entity_id}/neighbors")
-async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1):
+async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1, current_user: User = Depends(get_current_user)):
     """Get the neighborhood of an entity"""
     from core.graphrag_engine import graphrag_engine
     from core.database import get_db_session
@@ -211,7 +211,7 @@ async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1
         )
 
 @router.get("/context")
-async def get_ai_context(user_id: str, query: str):
+async def get_ai_context(user_id: str, query: str, current_user: User = Depends(get_current_user)):
     """Get context for AI nodes"""
     from core.graphrag_engine import get_graphrag_context
 
@@ -222,7 +222,7 @@ async def get_ai_context(user_id: str, query: str):
     )
 
 @router.get("/stats")
-async def get_stats(user_id: str = None):
+async def get_stats(user_id: str = None, current_user: User = Depends(get_current_user)):
     """Get GraphRAG stats"""
     from core.graphrag_engine import graphrag_engine
 

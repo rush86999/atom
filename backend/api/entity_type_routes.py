@@ -57,7 +57,7 @@ async def create_entity_type(workspace_id: str, request: EntityTypeCreate, curre
         raise router.validation_error("entity_type", str(e))
 
 @router.get("")
-async def list_entity_types(workspace_id: str, include_system: bool = False):
+async def list_entity_types(workspace_id: str, include_system: bool = False, current_user: User = Depends(get_current_user)):
     """List entity types."""
     service = get_entity_type_service()
     entity_types = service.list_entity_types(tenant_id=workspace_id, include_system=include_system)
@@ -77,7 +77,7 @@ async def list_entity_types(workspace_id: str, include_system: bool = False):
     )
 
 @router.get("/{entity_type_id}")
-async def get_entity_type(workspace_id: str, entity_type_id: str):
+async def get_entity_type(workspace_id: str, entity_type_id: str, current_user: User = Depends(get_current_user)):
     """Get entity type by ID."""
     service = get_entity_type_service()
     entity_type = service.get_entity_type(tenant_id=workspace_id, entity_type_id=entity_type_id)
@@ -95,7 +95,7 @@ async def get_entity_type(workspace_id: str, entity_type_id: str):
     })
 
 @router.patch("/{entity_type_id}")
-async def update_entity_type(workspace_id: str, entity_type_id: str, request: EntityTypeUpdate):
+async def update_entity_type(workspace_id: str, entity_type_id: str, request: EntityTypeUpdate, current_user: User = Depends(get_current_user)):
     """Update entity type."""
     service = get_entity_type_service()
     try:
@@ -115,7 +115,7 @@ async def update_entity_type(workspace_id: str, entity_type_id: str, request: En
         raise router.validation_error("entity_type", str(e))
 
 @router.post("/suggest-schema")
-async def suggest_entity_schema(request: EntityTypeSuggestRequest):
+async def suggest_entity_schema(request: EntityTypeSuggestRequest, current_user: User = Depends(get_current_user)):
     """Suggest a JSON Schema for an entity type."""
     service = get_entity_schema_suggestion_service()
     schema = await service.suggest_schema(

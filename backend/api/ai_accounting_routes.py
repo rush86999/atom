@@ -66,7 +66,7 @@ async def ingest_transaction(request: TransactionRequest, current_user: User = D
     )
 
 @router.post("/bank-feed")
-async def ingest_bank_feed(request: BankFeedRequest):
+async def ingest_bank_feed(request: BankFeedRequest, current_user: User = Depends(get_current_user)):
     """Bulk ingest from bank feed"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -99,11 +99,11 @@ async def ingest_bank_feed(request: BankFeedRequest):
 # ==================== CATEGORIZATION ====================
 
 @router.post("/categorize")
-async def categorize_transaction(request: CategorizeRequest, user_id: str = "user", current_user: User = Depends(get_current_user)):
+async def categorize_transaction(request: CategorizeRequest, current_user: User = Depends(get_current_user)):
     """Manually categorize a transaction (teaches the system)"""
     from core.ai_accounting_engine import ai_accounting
 
-    ai_accounting.learn_categorization(request.transaction_id, request.category_id, user_id)
+    ai_accounting.learn_categorization(request.transaction_id, request.category_id, current_user.id)
 
     return router.success_response(
         data={"transaction_id": request.transaction_id},
@@ -111,7 +111,7 @@ async def categorize_transaction(request: CategorizeRequest, user_id: str = "use
     )
 
 @router.get("/review-queue")
-async def get_review_queue():
+async def get_review_queue(current_user: User = Depends(get_current_user)):
     """Get transactions pending review"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -138,7 +138,7 @@ async def get_review_queue():
     )
 
 @router.get("/all-transactions")
-async def get_all_transactions():
+async def get_all_transactions(current_user: User = Depends(get_current_user)):
     """Get all categorized and pending transactions"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -166,11 +166,15 @@ async def get_all_transactions():
     )
 
 @router.put("/transactions/{transaction_id}")
-async def update_transaction(transaction_id: str, request: Dict[str, Any], user_id: str = "user"):
+async def update_transaction(
+    transaction_id: str,
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+):
     """Update a transaction"""
     from core.ai_accounting_engine import ai_accounting
 
-    success = ai_accounting.update_transaction(transaction_id, request, user_id)
+    success = ai_accounting.update_transaction(transaction_id, request, current_user.id)
     if not success:
         raise router.not_found_error(f"Transaction {transaction_id} not found")
 
@@ -180,11 +184,11 @@ async def update_transaction(transaction_id: str, request: Dict[str, Any], user_
     )
 
 @router.delete("/transactions/{transaction_id}")
-async def delete_transaction(transaction_id: str, user_id: str = "user"):
+async def delete_transaction(transaction_id: str, current_user: User = Depends(get_current_user)):
     """Delete a transaction"""
     from core.ai_accounting_engine import ai_accounting
 
-    success = ai_accounting.delete_transaction(transaction_id, user_id)
+    success = ai_accounting.delete_transaction(transaction_id, current_user.id)
     if not success:
         raise router.not_found_error(f"Transaction {transaction_id} not found")
 
@@ -196,11 +200,11 @@ async def delete_transaction(transaction_id: str, user_id: str = "user"):
 # ==================== POSTING ====================
 
 @router.post("/post/{transaction_id}")
-async def post_transaction(transaction_id: str, user_id: str = "user"):
+async def post_transaction(transaction_id: str, current_user: User = Depends(get_current_user)):
     """Post a transaction to the ledger"""
     from core.ai_accounting_engine import ai_accounting
 
-    success = ai_accounting.post_transaction(transaction_id, user_id)
+    success = ai_accounting.post_transaction(transaction_id, current_user.id)
 
     if not success:
         raise router.validation_error("transaction", "Cannot post: transaction requires review")
@@ -211,7 +215,7 @@ async def post_transaction(transaction_id: str, user_id: str = "user"):
     )
 
 @router.post("/auto-post")
-async def auto_post_high_confidence():
+async def auto_post_high_confidence(current_user: User = Depends(get_current_user)):
     """Auto-post all high confidence transactions"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -225,7 +229,7 @@ async def auto_post_high_confidence():
 # ==================== CHART OF ACCOUNTS ====================
 
 @router.get("/chart-of-accounts")
-async def get_chart_of_accounts():
+async def get_chart_of_accounts(current_user: User = Depends(get_current_user)):
     """Get the Chart of Accounts"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -249,7 +253,7 @@ async def get_chart_of_accounts():
 # ==================== AUDIT TRAIL ====================
 
 @router.get("/audit-log")
-async def get_audit_log(transaction_id: Optional[str] = None):
+async def get_audit_log(transaction_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Get immutable audit log"""
     from core.ai_accounting_engine import ai_accounting
 
@@ -262,7 +266,7 @@ async def get_audit_log(transaction_id: Optional[str] = None):
 # ==================== EXPORTS ====================
 
 @router.get("/export/gl")
-async def export_gl():
+async def export_gl(current_user: User = Depends(get_current_user)):
     """Export General Ledger as CSV"""
     from core.ai_accounting_engine import ai_accounting
     from fastapi import Response
@@ -275,7 +279,7 @@ async def export_gl():
     )
 
 @router.get("/export/trial-balance")
-async def export_trial_balance():
+async def export_trial_balance(current_user: User = Depends(get_current_user)):
     """Export Trial Balance as JSON"""
     from core.ai_accounting_engine import ai_accounting
     
@@ -288,7 +292,7 @@ async def export_trial_balance():
 # ==================== FORECASTING & SCENARIO ====================
 
 @router.get("/forecast")
-async def get_forecast(workspace_id: str = "default"):
+async def get_forecast(workspace_id: str = "default", current_user: User = Depends(get_current_user)):
     """Get 13-week cash flow forecast"""
     from core.ai_accounting_engine import ai_accounting
     
@@ -299,7 +303,11 @@ async def get_forecast(workspace_id: str = "default"):
     )
 
 @router.post("/scenario")
-async def run_scenario(workspace_id: str = "default", scenario_description: str = ""):
+async def run_scenario(
+    workspace_id: str = "default",
+    scenario_description: str = "",
+    current_user: User = Depends(get_current_user),
+):
     """Analyze a what-if scenario"""
     from core.ai_accounting_engine import ai_accounting
     

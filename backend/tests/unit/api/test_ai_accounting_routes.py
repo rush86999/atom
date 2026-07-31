@@ -25,6 +25,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.ai_accounting_routes import router
+from core.auth import get_current_user as auth_get_current_user
 
 
 # =============================================================================
@@ -36,6 +37,8 @@ def app():
     """Create test FastAPI app with AI accounting routes."""
     app = FastAPI()
     app.include_router(router)
+    # Round 39: these endpoints now require auth; bind a default identity.
+    app.dependency_overrides[auth_get_current_user] = lambda: Mock(id="test-user")
     return app
 
 
@@ -50,7 +53,7 @@ def client(app):
 # =============================================================================
 
 class TestTransactionIngestion:
-    """Tests for POST /ai-accounting/transactions and /bank-feed"""
+    """Tests for POST /transactions and /bank-feed"""
 
     @patch('core.ai_accounting_engine.ai_accounting.ingest_transaction')
     def test_ingest_single_transaction_success(self, mock_ingest, client):
@@ -67,7 +70,7 @@ class TestTransactionIngestion:
 
         # Act
         response = client.post(
-            "/ai-accounting/transactions",
+            "/transactions",
             json={
                 "id": "tx-001",
                 "date": "2026-05-02",
@@ -98,7 +101,7 @@ class TestTransactionIngestion:
 
         # Act
         response = client.post(
-            "/ai-accounting/bank-feed",
+            "/bank-feed",
             json={
                 "transactions": [
                     {
@@ -128,7 +131,7 @@ class TestTransactionIngestion:
 # =============================================================================
 
 class TestTransactionCategorization:
-    """Tests for POST /ai-accounting/categorize"""
+    """Tests for POST /categorize"""
 
     @patch('core.ai_accounting_engine.ai_accounting.learn_categorization')
     def test_manually_categorize_transaction(self, mock_learn, client):
@@ -138,7 +141,7 @@ class TestTransactionCategorization:
 
         # Act
         response = client.post(
-            "/ai-accounting/categorize",
+            "/categorize",
             json={
                 "transaction_id": "tx-001",
                 "category_id": "cat-001"
@@ -155,7 +158,7 @@ class TestTransactionCategorization:
 # =============================================================================
 
 class TestReviewQueue:
-    """Tests for GET /ai-accounting/review-queue"""
+    """Tests for GET /review-queue"""
 
     @patch('core.ai_accounting_engine.ai_accounting.get_pending_review')
     def test_get_review_queue(self, mock_get_pending, client):
@@ -174,7 +177,7 @@ class TestReviewQueue:
         mock_get_pending.return_value = [mock_tx1]
 
         # Act
-        response = client.get("/ai-accounting/review-queue")
+        response = client.get("/review-queue")
 
         # Assert
         assert response.status_code in [200, 500]
@@ -186,7 +189,7 @@ class TestReviewQueue:
         mock_get_pending.return_value = []
 
         # Act
-        response = client.get("/ai-accounting/review-queue")
+        response = client.get("/review-queue")
 
         # Assert
         assert response.status_code in [200, 500]
@@ -197,7 +200,7 @@ class TestReviewQueue:
 # =============================================================================
 
 class TestGetAllTransactions:
-    """Tests for GET /ai-accounting/all-transactions"""
+    """Tests for GET /all-transactions"""
 
     @patch('core.ai_accounting_engine.ai_accounting.get_all_transactions')
     def test_get_all_transactions(self, mock_get_all, client):
@@ -217,7 +220,7 @@ class TestGetAllTransactions:
         mock_get_all.return_value = [mock_tx1]
 
         # Act
-        response = client.get("/ai-accounting/all-transactions")
+        response = client.get("/all-transactions")
 
         # Assert
         assert response.status_code in [200, 500]
@@ -228,7 +231,7 @@ class TestGetAllTransactions:
 # =============================================================================
 
 class TestUpdateDeleteTransactions:
-    """Tests for PUT and DELETE /ai-accounting/transactions/{id}"""
+    """Tests for PUT and DELETE /transactions/{id}"""
 
     @patch('core.ai_accounting_engine.ai_accounting.update_transaction')
     def test_update_transaction_success(self, mock_update, client):
@@ -238,7 +241,7 @@ class TestUpdateDeleteTransactions:
 
         # Act
         response = client.put(
-            "/ai-accounting/transactions/tx-001",
+            "/transactions/tx-001",
             json={
                 "description": "Updated description",
                 "amount": 149.99
@@ -257,7 +260,7 @@ class TestUpdateDeleteTransactions:
 
         # Act
         response = client.put(
-            "/ai-accounting/transactions/nonexistent",
+            "/transactions/nonexistent",
             json={"description": "Updated"}
         )
 
@@ -272,7 +275,7 @@ class TestUpdateDeleteTransactions:
         mock_delete.return_value = True
 
         # Act
-        response = client.delete("/ai-accounting/transactions/tx-001")
+        response = client.delete("/transactions/tx-001")
 
         # Assert
         # Should succeed
@@ -285,7 +288,7 @@ class TestUpdateDeleteTransactions:
         mock_delete.return_value = False
 
         # Act
-        response = client.delete("/ai-accounting/transactions/nonexistent")
+        response = client.delete("/transactions/nonexistent")
 
         # Assert
         # Should return 404
@@ -297,7 +300,7 @@ class TestUpdateDeleteTransactions:
 # =============================================================================
 
 class TestPostingTransactions:
-    """Tests for POST /ai-accounting/post and /auto-post"""
+    """Tests for POST /post and /auto-post"""
 
     @patch('core.ai_accounting_engine.ai_accounting.post_transaction')
     def test_post_transaction_success(self, mock_post, client):
@@ -306,7 +309,7 @@ class TestPostingTransactions:
         mock_post.return_value = True
 
         # Act
-        response = client.post("/ai-accounting/post/tx-001")
+        response = client.post("/post/tx-001")
 
         # Assert
         # Should succeed
@@ -319,7 +322,7 @@ class TestPostingTransactions:
         mock_post.return_value = False
 
         # Act
-        response = client.post("/ai-accounting/post/tx-001")
+        response = client.post("/post/tx-001")
 
         # Assert
         # Should return validation error
@@ -332,7 +335,7 @@ class TestPostingTransactions:
         mock_auto_post.return_value = 15
 
         # Act
-        response = client.post("/ai-accounting/auto-post")
+        response = client.post("/auto-post")
 
         # Assert
         # Should succeed
@@ -344,14 +347,14 @@ class TestPostingTransactions:
 # =============================================================================
 
 class TestChartOfAccounts:
-    """Tests for GET /ai-accounting/chart-of-accounts"""
+    """Tests for GET /chart-of-accounts"""
 
     def test_get_chart_of_accounts(self, client):
         """RED: Test getting chart of accounts."""
         # Setup mock - _chart_of_accounts is accessed directly on ai_accounting
         # Can't easily mock this without refactoring production code
         # Act
-        response = client.get("/ai-accounting/chart-of-accounts")
+        response = client.get("/chart-of-accounts")
 
         # Assert
         # Should succeed or fail gracefully
@@ -363,7 +366,7 @@ class TestChartOfAccounts:
 # =============================================================================
 
 class TestAuditTrail:
-    """Tests for GET /ai-accounting/audit-log"""
+    """Tests for GET /audit-log"""
 
     @patch('core.ai_accounting_engine.ai_accounting.get_audit_log')
     def test_get_audit_log_all(self, mock_get_log, client):
@@ -379,7 +382,7 @@ class TestAuditTrail:
         ]
 
         # Act
-        response = client.get("/ai-accounting/audit-log")
+        response = client.get("/audit-log")
 
         # Assert
         # Should succeed
@@ -399,7 +402,7 @@ class TestAuditTrail:
         ]
 
         # Act
-        response = client.get("/ai-accounting/audit-log?transaction_id=tx-001")
+        response = client.get("/audit-log?transaction_id=tx-001")
 
         # Assert
         # Should succeed
@@ -411,7 +414,7 @@ class TestAuditTrail:
 # =============================================================================
 
 class TestExports:
-    """Tests for GET /ai-accounting/export/*"""
+    """Tests for GET /export/*"""
 
     @patch('core.ai_accounting_engine.ai_accounting.export_general_ledger_csv')
     def test_export_general_ledger_csv(self, mock_export, client):
@@ -420,7 +423,7 @@ class TestExports:
         mock_export.return_value = "date,description,amount\n2026-05-02,Software,99.99"
 
         # Act
-        response = client.get("/ai-accounting/export/gl")
+        response = client.get("/export/gl")
 
         # Assert
         # Should return CSV
@@ -440,7 +443,7 @@ class TestExports:
         }
 
         # Act
-        response = client.get("/ai-accounting/export/trial-balance")
+        response = client.get("/export/trial-balance")
 
         # Assert
         # Should succeed
@@ -452,7 +455,7 @@ class TestExports:
 # =============================================================================
 
 class TestForecastingScenarios:
-    """Tests for GET /ai-accounting/forecast and POST /scenario"""
+    """Tests for GET /forecast and POST /scenario"""
 
     @patch('core.ai_accounting_engine.ai_accounting.get_13_week_forecast')
     def test_get_13_week_forecast(self, mock_forecast, client):
@@ -466,7 +469,7 @@ class TestForecastingScenarios:
         }
 
         # Act
-        response = client.get("/ai-accounting/forecast")
+        response = client.get("/forecast")
 
         # Assert
         # Should succeed
@@ -492,7 +495,7 @@ class TestForecastingScenarios:
 
         # Act
         response = client.post(
-            "/ai-accounting/scenario",
+            "/scenario",
             json={"scenario_description": "Increase prices by 10%"}
         )
 
@@ -506,7 +509,7 @@ class TestForecastingScenarios:
 # =============================================================================
 
 class TestDashboardSummary:
-    """Tests for GET /ai-accounting/dashboard/summary"""
+    """Tests for GET /dashboard/summary"""
 
     def test_get_dashboard_summary_success(self, client):
         """RED: Test getting accounting dashboard summary."""
@@ -514,7 +517,7 @@ class TestDashboardSummary:
         # Mark as expected to fail gracefully
         
         # Act
-        response = client.get("/ai-accounting/dashboard/summary")
+        response = client.get("/dashboard/summary")
 
         # Assert
         # May succeed or fail due to DB complexity

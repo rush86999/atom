@@ -26,6 +26,7 @@ from api.agent_governance_routes import (
     can_deploy_directly,
     MOCK_AGENTS,
 )
+from core.auth import get_current_user as auth_get_current_user
 from core.models import AgentRegistry, AgentStatus, User, UserRole
 from core.database import get_db
 
@@ -40,6 +41,8 @@ def app():
     from fastapi import FastAPI
     app = FastAPI()
     app.include_router(router)
+    # Round 39: approval/rejection + pending-approval endpoints require auth.
+    app.dependency_overrides[auth_get_current_user] = lambda: Mock(id="test-user")
     return app
 
 

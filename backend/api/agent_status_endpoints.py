@@ -66,7 +66,7 @@ def save_agent_status(data: Dict[str, Any]):
         logger.error(f"Error saving agent status: {e}")
 
 @router.get("/agent/status/{task_id}", response_model=AgentTask)
-async def get_agent_status(task_id: str):
+async def get_agent_status(task_id: str, current_user: User = Depends(get_current_user)):
     """Get status of a specific agent task"""
     data = load_agent_status()
 
@@ -83,7 +83,7 @@ async def get_agent_status(task_id: str):
     return AgentTask(**task_data)
 
 @router.get("/agent/status", response_model=List[AgentTask])
-async def get_all_agent_tasks():
+async def get_all_agent_tasks(current_user: User = Depends(get_current_user)):
     """Get status of all agent tasks"""
     data = load_agent_status()
 
@@ -94,7 +94,7 @@ async def get_all_agent_tasks():
     return tasks
 
 @router.get("/agents", response_model=List[AgentInfo])
-async def get_all_agents():
+async def get_all_agents(current_user: User = Depends(get_current_user)):
     """Get information about all agents"""
     data = load_agent_status()
 
@@ -105,7 +105,7 @@ async def get_all_agents():
     return agents
 
 @router.get("/agents/{agent_id}", response_model=AgentInfo)
-async def get_agent_info(agent_id: str):
+async def get_agent_info(agent_id: str, current_user: User = Depends(get_current_user)):
     """Get information about a specific agent"""
     data = load_agent_status()
 
@@ -235,7 +235,7 @@ async def delete_task(
         raise router.not_found_error("Task", task_id)
 
 @router.get("/agent/metrics")
-async def get_agent_metrics():
+async def get_agent_metrics(current_user: User = Depends(get_current_user)):
     """Get agent performance metrics"""
     data = load_agent_status()
 

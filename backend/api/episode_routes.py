@@ -125,6 +125,7 @@ async def create_episode(
 @router.post("/retrieve/temporal")
 async def retrieve_temporal(
     request: TemporalRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Temporal retrieval by time range"""
@@ -132,7 +133,7 @@ async def retrieve_temporal(
     return await service.retrieve_temporal(
         agent_id=request.agent_id,
         time_range=request.time_range,
-        user_id=request.user_id,
+        user_id=current_user.id,
         limit=request.limit
     )
 
@@ -140,6 +141,7 @@ async def retrieve_temporal(
 @router.post("/retrieve/semantic")
 async def retrieve_semantic(
     request: SemanticRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Semantic retrieval by similarity"""
@@ -157,6 +159,7 @@ async def retrieve_sequential(
     agent_id: str,
     include_canvas: bool = True,
     include_feedback: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -176,6 +179,7 @@ async def retrieve_sequential(
 @router.post("/retrieve/contextual")
 async def retrieve_contextual(
     request: ContextualRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Contextual retrieval for current task"""
@@ -245,6 +249,7 @@ async def submit_feedback(
 @router.post("/retrieve/by-canvas-type")
 async def retrieve_by_canvas_type(
     request: CanvasTypeRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -273,6 +278,7 @@ async def retrieve_by_canvas_type(
 @router.post("/retrieve/canvas-aware")
 async def retrieve_episodes_canvas_aware(
     request: CanvasAwareRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -312,6 +318,7 @@ async def retrieve_episodes_by_canvas_type(
     query: Optional[str] = None,
     limit: int = Query(10, ge=1, le=100),
     canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -351,6 +358,7 @@ async def retrieve_episodes_by_canvas_type(
 @router.post("/retrieve/business-data")
 async def retrieve_episodes_by_business_data(
     request: BusinessDataRetrievalRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -494,6 +502,7 @@ async def submit_episode_feedback(
 @router.get("/{episode_id}/feedback/list")
 async def get_episode_feedback(
     episode_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -528,6 +537,7 @@ async def get_feedback_weighted_episodes(
     min_feedback_score: float = 0.5,
     time_range: str = "30d",
     limit: int = 10,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -570,6 +580,7 @@ async def get_feedback_weighted_episodes(
 async def get_readiness(
     agent_id: str,
     target_maturity: str = "INTERN",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Calculate graduation readiness score"""
@@ -581,6 +592,7 @@ async def get_readiness(
 async def run_exam(
     agent_id: str,
     edge_case_episodes: List[str],
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Run graduation exam on edge cases"""
@@ -592,12 +604,12 @@ async def run_exam(
 async def promote_agent(
     agent_id: str,
     new_maturity: str,
-    validated_by: str,    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Promote agent after validation"""
     service = AgentGraduationService(db)
-    success = await service.promote_agent(agent_id, new_maturity, validated_by)
+    success = await service.promote_agent(agent_id, new_maturity, current_user.id)
 
     return router.success_response(
         data={
@@ -612,6 +624,7 @@ async def promote_agent(
 @router.get("/graduation/audit/{agent_id}")
 async def get_audit_trail(
     agent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get full audit trail for governance review"""
@@ -623,6 +636,7 @@ async def get_audit_trail(
 @router.post("/lifecycle/decay")
 async def trigger_decay(
     days_threshold: int = 90,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Trigger decay process"""
@@ -643,6 +657,7 @@ async def consolidate_episodes(
 @router.get("/stats/{agent_id}")
 async def get_stats(
     agent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get episode statistics"""

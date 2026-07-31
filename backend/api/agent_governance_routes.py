@@ -395,7 +395,8 @@ async def submit_agent_feedback(request: AgentFeedbackRequest, current_user: Use
 
 @router.get("/pending-approvals")
 async def list_pending_approvals(
-    approver_id: Optional[str] = Query(None, description="Filter by approver")
+    approver_id: Optional[str] = Query(None, description="Filter by approver"),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List pending workflow approvals.
@@ -419,7 +420,6 @@ async def list_pending_approvals(
 @router.post("/approve/{approval_id}")
 async def approve_workflow(
     approval_id: str,
-    approver_id: str = Query(..., description="ID of the approving user"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -427,10 +427,11 @@ async def approve_workflow(
     Approve a pending workflow.
     """
     try:
-        # RBAC Check
-        user = db.query(User).filter(User.id == approver_id).first()
+        # RBAC Check against the AUTHENTICATED user (identity from token,
+        # never from client-supplied query/body params).
+        user = db.query(User).filter(User.id == current_user.id).first()
         if not user:
-            raise router.not_found_error("User", approver_id)
+            raise router.not_found_error("User", current_user.id)
 
         # Require at least Team Lead
         allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
@@ -442,7 +443,7 @@ async def approve_workflow(
             )
 
         # Use intervention service
-        result = await intervention_service.approve_intervention(approval_id, approver_id)
+        result = await intervention_service.approve_intervention(approval_id, current_user.id)
 
         if not result.get("success"):
              raise router.error_response(
@@ -455,7 +456,7 @@ async def approve_workflow(
             data={
                 "approval_id": approval_id,
                 "status": "approved",
-                "approved_by": approver_id,
+                "approved_by": current_user.id,
                 "approved_at": datetime.utcnow().isoformat()
             },
             message="Action approved successfully"
@@ -469,15 +470,17 @@ async def approve_workflow(
 @router.post("/reject/{approval_id}")
 async def reject_workflow(
     approval_id: str,
-    approver_id: str = Query(..., description="ID of the rejecting user"),
-    reason: str = Query(..., description="Reason for rejection")
+    reason: str = Query(..., description="Reason for rejection"),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Reject a pending workflow.
     """
     try:
-        # Use intervention service
-        result = await intervention_service.reject_intervention(approval_id, approver_id, reason)
+        # Use intervention service. Identity comes from the token, never from
+        # a client-supplied approver_id (previously any anonymous caller could
+        # reject approvals as any user).
+        result = await intervention_service.reject_intervention(approval_id, current_user.id, reason)
 
         if not result.get("success"):
              raise router.error_response(
@@ -490,7 +493,7 @@ async def reject_workflow(
             data={
                 "approval_id": approval_id,
                 "status": "rejected",
-                "rejected_by": approver_id,
+                "rejected_by": current_user.id,
                 "rejected_at": datetime.utcnow().isoformat(),
                 "reason": reason
             },
@@ -656,7 +659,8 @@ async def enforce_action(request: ActionEnforceRequest, current_user: User = Dep
 @router.post("/generate-workflow")
 async def generate_workflow_from_description(
     description: str = Query(..., description="Natural language description of desired workflow"),
-    agent_id: str = Query(..., description="Agent to use for generation")
+    agent_id: str = Query(..., description="Agent to use for generation"),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate a workflow from natural language description.

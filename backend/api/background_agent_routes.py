@@ -134,13 +134,13 @@ async def get_agent_status(agent_id: str, current_user: User = Depends(get_curre
     return background_runner.get_status(agent_id)
 
 @router.get("/{agent_id}/logs")
-async def get_agent_logs(agent_id: str, limit: int = 50):
+async def get_agent_logs(agent_id: str, limit: int = 50, current_user: User = Depends(get_current_user)):
     """Get recent logs for an agent"""
     from core.background_agent_runner import background_runner
     return background_runner.get_logs(agent_id, limit)
 
 @router.get("/logs")
-async def get_all_logs(limit: int = 100):
+async def get_all_logs(limit: int = 100, current_user: User = Depends(get_current_user)):
     """Get all recent agent logs"""
     from core.background_agent_runner import background_runner
     return background_runner.get_logs(limit=limit)
