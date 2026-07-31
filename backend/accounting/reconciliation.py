@@ -43,15 +43,26 @@ class ReconciliationService:
                 "duplicates": []
             }
 
-        # 1. Fetch external transactions from Stripe
+        # 1. Fetch external transactions from Stripe — paginated (M3 fix).
+        # Previously fetched a single page of 100, missing charges beyond that.
         created_filter = {
             "gte": int((datetime.utcnow() - timedelta(days=days_to_look_back)).timestamp())
         }
-        stripe_charges = stripe_service.list_payments(
-            stripe_access_token,
-            limit=100,
-            created=created_filter
-        ).get("data", [])
+        stripe_charges = []
+        _has_more = True
+        _last_id = None
+        while _has_more:
+            params = {"limit": 100, "created": created_filter}
+            if _last_id:
+                params["starting_after"] = _last_id
+            page = stripe_service.list_payments(stripe_access_token, **params)
+            batch = page.get("data", [])
+            stripe_charges.extend(batch)
+            _has_more = page.get("has_more", False)
+            if batch:
+                _last_id = batch[-1].get("id")
+            else:
+                _has_more = False
 
         # 2. Fetch internal transactions for the same period
         internal_transactions = self.db.query(Transaction).filter(

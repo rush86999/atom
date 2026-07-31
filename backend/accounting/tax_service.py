@@ -279,16 +279,29 @@ class TaxService:
         total_liability = 0.0
         breakdown = {}
 
+        # M4 fix: normalize region names to match nexus_regions (full names
+        # like "California"), and use round() to mitigate float drift.
         for inv in invoices:
             address = inv.customer.address or ""
+            # Extract state/region: try the last comma-separated part, then
+            # strip zip code (digits + spaces).
             parts = [p.strip() for p in address.split(",") if p.strip()]
-            region = parts[-1] if parts else "Unknown"
-            
-            if region in nexus_regions:
-                # Mock calculation: 7% of invoice amount
-                tax = inv.amount * 0.07 
-                total_liability += tax
-                breakdown[region] = breakdown.get(region, 0) + tax
+            region_raw = parts[-1] if parts else "Unknown"
+            # Strip zip: "CA 94103" → "CA"
+            region_code = region_raw.split()[0] if region_raw.split() else region_raw
+
+            # Match by either full name or 2-letter code
+            matched_region = None
+            for nr in nexus_regions:
+                if region_raw == nr or region_code.upper() == nr[:2].upper():
+                    matched_region = nr
+                    break
+
+            if matched_region:
+                # Use round() to mitigate float accumulation drift (M4).
+                tax = round(float(inv.amount) * 0.07, 2)
+                total_liability = round(total_liability + tax, 2)
+                breakdown[matched_region] = round(breakdown.get(matched_region, 0) + tax, 2)
 
         return {
             "total_estimated_liability": total_liability,
