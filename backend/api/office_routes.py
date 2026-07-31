@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db_session
 from core.office_service import OfficeService
 from core.office_sync_service import OfficeSyncService
-from core.auth import get_current_user
+from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
 
@@ -222,16 +222,21 @@ def modify_pptx(req: PptxModifyRequest):
 
 
 @router.post("/present")
-def present_coedit(req: PresentRequest, db: Session = Depends(get_db_session)):
+def present_coedit(
+    req: PresentRequest,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
     """Present document co-editing canvas panel via WebSocket & CanvasAudit record."""
     sync_service = OfficeSyncService(db)
     canvas_id = req.canvas_id or f"canvas_{uuid.uuid4().hex[:12]}"
     
-    # Trigger initial preview generation
+    # R58: attribution comes from the token, never from the body — a
+    # client-supplied user_id forged audit records and memory ingestion.
     sync_service.broadcast_file_update(
         canvas_id=canvas_id,
         file_path=req.file_path,
-        user_id=req.user_id
+        user_id=current_user.id
     )
 
     return {
@@ -242,13 +247,18 @@ def present_coedit(req: PresentRequest, db: Session = Depends(get_db_session)):
 
 
 @router.post("/sync-update")
-def sync_update(req: SyncUpdateRequest, db: Session = Depends(get_db_session)):
+def sync_update(
+    req: SyncUpdateRequest,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
     """Synchronize canvas co-editing operations back to the local filesystem file."""
     sync_service = OfficeSyncService(db)
     res = sync_service.sync_canvas_to_file(
         canvas_id=req.canvas_id,
         file_path=req.file_path,
-        user_id=req.user_id,
+        # R58: token identity, never the client-supplied user_id.
+        user_id=current_user.id,
         edit_type=req.edit_type,
         data=req.data
     )

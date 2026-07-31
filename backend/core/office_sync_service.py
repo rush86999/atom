@@ -100,13 +100,15 @@ class OfficeSyncService:
 
     def broadcast_file_update(self, canvas_id: str, file_path: str, user_id: str):
         """Broadcast updated document HTML render to the Canvas WebSocket subscribers."""
+        # R53: contain the path — this reads the file (render + memory
+        # ingestion) and stores its HTML in CanvasAudit/WS state the caller
+        # controls; without containment any existing office file is readable.
         try:
-            # R53: contain the path — this reads the file (render + memory
-            # ingestion) and stores its HTML in CanvasAudit/WS state the caller
-            # controls; without containment any existing office file is readable.
             file_path = _validate_office_path(file_path)
         except ValueError:
             return
+
+        try:
             render_res = self.office.renderer.render_to_html(file_path)
             if not render_res.get("success"):
                 return
