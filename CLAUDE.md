@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 49 — Financial Amount Validation: Non-Positive Amounts Accepted (July 31, 2026) ✨
+**Bug hunt round.** Mounted financial routers accepted non-positive amounts with no validation, silently corrupting ledgers and inverting guardrails:
+
+**A. `api/apar_routes.py`** — `POST /apar/ap/intake` + `/apar/ar/generate` accepted negative/zero `amount`. A **negative invoice was AUTO-APPROVED** (`-100 < 500` auto-approve threshold → `InvoiceStatus.APPROVED` with `approved_by="auto"`), then distorted AP/AR balances, payment schedules, and reconciliation. `APIntakeRequest.amount`/`ARGenerateRequest.amount` (already `Decimal` for money precision) → `Field(..., gt=0)`.
+
+**B. `api/financial_ops_routes.py`** — `POST /api/financial-ops/budget/limits` accepted a negative `monthly_limit`, **inverting every guardrail comparison** — any positive spend exceeded the limit → category self-DoS (PAUSED/BLOCKED on first spend). `budget/check`, `/invoices`, `/contracts` also accepted negative amounts. All four request models → `Field(..., gt=0)`. (Also fixed a missing `Field` import that made the module raise `NameError` at import.)
+
+**C. `api/ai_accounting_routes.py`** — `POST /transactions` accepted negative amounts (refunds could be entered as negative spend, skewing category totals). `TransactionRequest.amount` → `Field(..., gt=0)`.
+
+**D. Engine-level guards (defense in depth for non-API callers):** `core/apar_engine.py:intake_invoice` and `core/financial_ops_engine.py:BudgetGuardrails.set_limit` now raise `ValueError` on non-positive amounts. Two `VALIDATED_BUG` tests in `tests/error_paths/test_finance_error_paths.py` (which documented exactly this bug — "Fix: Add validation in BudgetGuardrails.set_limit()") and two in `tests/core/test_apar_engine_coverage.py` were updated from asserting the buggy behavior to asserting the rejection.
+
+**Tests:** 11 new tests in `backend/tests/test_round49_financial_amount_validation.py` (422 rejections at API layer for all 8 endpoints + positive-amount regression + 2 engine `ValueError` guards). Zero regressions (comm-verified: 89→67 failures in affected suites — delta is exactly the 11 new + 4 updated tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (17 pre-existing errors, line shifts only). `main_api_app` imports clean. 11/11 round tests green.
+
 ### Round 48 — BYOK Test-Suite Repair: Phantom Routes + Session Env Pollution (July 31, 2026) ✨
 **Test-infra round (zero source changes).** The long-flagged stale `tests/unit/api/test_byok_routes.py` was rewritten:
 
