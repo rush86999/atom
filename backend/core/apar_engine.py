@@ -40,11 +40,7 @@ class APInvoice:
     """Accounts Payable - Invoice from vendor"""
     id: str
     vendor: str
-    amount: float
-    due_date: datetime
-    line_items: List[Dict[str, Any]]
-    status: InvoiceStatus = InvoiceStatus.PENDING_APPROVAL
-    extracted_from: Optional[str] = None  # email, pdf, portal
+    amount: float  # Accepts Decimal or float from API; engine stores as-is
     payment_terms: str = "Net 30"
     approved_by: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
@@ -101,7 +97,12 @@ class APAREngine:
         )
         
         # Auto-approve if under threshold
-        if invoice.amount < self.AUTO_APPROVE_THRESHOLD:
+        # M8: compare using Decimal to avoid float boundary issues (e.g.
+        # 499.99999999 < 500.0 mis-approving or 500.00000001 over-approving).
+        from decimal import Decimal as _Dec
+        amt = _Dec(str(invoice.amount))
+        threshold = _Dec(str(self.AUTO_APPROVE_THRESHOLD))
+        if amt < threshold:
             invoice.status = InvoiceStatus.APPROVED
             invoice.approved_by = "auto"
             logger.info(f"Auto-approved AP invoice {invoice_id}: ${invoice.amount} < ${self.AUTO_APPROVE_THRESHOLD}")
