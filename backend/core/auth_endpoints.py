@@ -19,7 +19,11 @@ from core.auth import (
 )
 from core.config import get_config
 from core.database import get_db
-from core.security.auth_rate_limit import login_rate_limit, register_rate_limit
+from core.security.auth_rate_limit import (
+    AuthRateLimiter,
+    login_rate_limit,
+    register_rate_limit,
+)
 from core.email_utils import send_smtp_email
 from core.models import (
     AuditEventType,
@@ -34,6 +38,48 @@ from core.models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+# R56: password-recovery endpoints were the only unauthenticated auth surface
+# without rate limits — /forgot-password could be used to spam reset emails
+# (mailbox flooding / mailer DoS) and /reset-password + /verify-token were
+# unthrottled token-guessing surfaces.
+_recovery_limiter = AuthRateLimiter(limit=5, window_seconds=300)    # 5/5min
+_verify_limiter = AuthRateLimiter(limit=10, window_seconds=300)     # 10/5min
+_reset_limiter = AuthRateLimiter(limit=5, window_seconds=300)       # 5/5min
+
+
+def forgot_password_rate_limit(request: Request) -> None:
+    """FastAPI dependency: rate limit POST /api/auth/forgot-password (5/5min/IP)."""
+    allowed, _ = _recovery_limiter.check(request)
+    if not allowed:
+        logger.warning(
+            "forgot-password rate limit exceeded for IP %s",
+            _recovery_limiter._client_ip(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset requests. Try again later.",
+        )
+
+
+def verify_token_rate_limit(request: Request) -> None:
+    """FastAPI dependency: rate limit POST /api/auth/verify-token (10/5min/IP)."""
+    allowed, _ = _verify_limiter.check(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many verification attempts. Try again later.",
+        )
+
+
+def reset_password_rate_limit(request: Request) -> None:
+    """FastAPI dependency: rate limit POST /api/auth/reset-password (5/5min/IP)."""
+    allowed, _ = _reset_limiter.check(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many reset attempts. Try again later.",
+        )
 
 class Token(BaseModel):
     access_token: str
@@ -251,7 +297,12 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.
 
 @router.post("/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _rl=Depends(forgot_password_rate_limit),
+):
     """Generate a password reset token and send an email to the user."""
     user = db.query(User).filter(User.email == request.email).first()
     
@@ -289,7 +340,11 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
     return success_msg
 
 @router.post("/verify-token")
-async def verify_token(request: VerifyTokenRequest, db: Session = Depends(get_db)):
+async def verify_token(
+    request: VerifyTokenRequest,
+    db: Session = Depends(get_db),
+    _rl=Depends(verify_token_rate_limit),
+):
     """Verify if a password reset token is valid and not expired."""
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
@@ -304,7 +359,11 @@ async def verify_token(request: VerifyTokenRequest, db: Session = Depends(get_db
     return {"valid": True, "message": "Token is valid"}
 
 @router.post("/reset-password")
-async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    _rl=Depends(reset_password_rate_limit),
+):
     """Reset the user's password using a valid token."""
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
