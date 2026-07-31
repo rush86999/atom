@@ -753,9 +753,16 @@ async def outlook_webhook_handler(
                 )
 
                 if not is_valid:
+                    # Round 46: FAIL CLOSED — previously this only logged a
+                    # warning and processing continued (tenant resolution via
+                    # the client-controlled Host header, connection lookup,
+                    # enqueue, and even DiscoveredEntity deletion for forged
+                    # "deleted" events). A forged clientState (valid JSON,
+                    # no signature) was enough.
                     logger.warning(
                         f"Outlook clientState signature verification failed for: {client_state_signed[:20]}..."
                     )
+                    continue
 
                 print(
                     f"[OUTLOOK_WEBHOOK] DEBUG: About to get_client_state_data",
@@ -1004,7 +1011,7 @@ async def outlook_webhook_handler(
 
     except Exception as e:
         logger.error(f"Outlook webhook handler error: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Webhook processing failed"}
 
 
 # ============================================================================

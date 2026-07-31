@@ -192,6 +192,11 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 46 — Outlook Webhook: clientState Verification Not Enforced (July 31, 2026) ✨
+**Bug hunt round.** `outlook_webhook_handler` verifies Microsoft's `clientState` signed token but **ignored the result** — `if not is_valid: logger.warning(...)` with no rejection. Processing continued: tenant lookup via the client-controlled `Host`/`X-Forwarded-Host` header, connection resolution, enqueue — and for forged `changeType: "deleted"` events, **deletion of `DiscoveredEntity` rows**. A forged clientState (valid JSON, no signature — `verify_client_state` returns False, `get_client_state_data` returns it unchanged, `json.loads` succeeds) was enough; no HMAC knowledge required. Fixed to fail closed (`continue` on invalid state). Also fixed a `str(e)` leak in the outer exception handler (`message: str(e)` → generic "Webhook processing failed" — reachable via non-dict payloads).
+
+**Tests:** 4 new tests in `backend/tests/test_round46_outlook_client_state.py` (forged-state not enqueued, forged "deleted" event does not delete rows, legitimately-signed state still enqueued — regression guard, no-leak on processing error). Zero regressions (webhook suites 13→10 failures — delta is exactly R45's 3 RED tests flipping green; R46's 4 tests all green). mypy baseline identical (24/24). 198 tests green across rounds 38-46.
+
 ### Round 45 — Fail-Open Webhook Signature Verification (July 31, 2026) ✨
 **Bug hunt round.** Audited the mounted webhook surface (`api/routes/webhooks/ingestion_webhooks.py` — slack/hubspot/salesforce/gmail/notion/outlook/zoho/pm-crm) for fail-open signature handling.
 
