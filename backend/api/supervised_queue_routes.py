@@ -237,11 +237,13 @@ async def get_queue_stats(
     """
     Get queue statistics.
 
-    Optionally filter by user ID.
+    Optionally filter by user ID (clamped to the authenticated user).
     """
     service = SupervisedQueueService(db)
 
     try:
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
         stats = await service.get_queue_stats(user_id)
 
         return QueueStatsResponse(**stats)

@@ -69,12 +69,16 @@ class ProactiveMessageResponse(BaseModel):
 
 class ApproveMessageRequest(BaseModel):
     """Request to approve a pending message"""
-    approver_user_id: str = Field(..., description="ID of the user approving")
+    approver_user_id: Optional[str] = Field(
+        None, description="DEPRECATED: ignored — identity comes from the token"
+    )
 
 
 class RejectMessageRequest(BaseModel):
     """Request to reject a pending message"""
-    rejecter_user_id: str = Field(..., description="ID of the user rejecting")
+    rejecter_user_id: Optional[str] = Field(
+        None, description="DEPRECATED: ignored — identity comes from the token"
+    )
     rejection_reason: str = Field(..., description="Reason for rejection")
 
 
@@ -185,9 +189,11 @@ async def approve_proactive_message(
     """
     service = ProactiveMessagingService(db)
 
+    # Attribution from the token — the client-supplied approver_user_id is
+    # ignored (previously anyone could approve as any user).
     message = service.approve_message(
         message_id=message_id,
-        approver_user_id=request.approver_user_id,
+        approver_user_id=current_user.id,
     )
 
     return message
@@ -197,6 +203,7 @@ async def approve_proactive_message(
 async def reject_proactive_message(
     message_id: str,
     request: RejectMessageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -206,9 +213,10 @@ async def reject_proactive_message(
     """
     service = ProactiveMessagingService(db)
 
+    # Attribution from the token (previously anonymous + client-supplied id)
     message = service.reject_message(
         message_id=message_id,
-        rejecter_user_id=request.rejecter_user_id,
+        rejecter_user_id=current_user.id,
         rejection_reason=request.rejection_reason,
     )
 
@@ -218,6 +226,7 @@ async def reject_proactive_message(
 @router.delete("/proactive/cancel/{message_id}", response_model=ProactiveMessageResponse)
 async def cancel_proactive_message(
     message_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """

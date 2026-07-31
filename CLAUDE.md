@@ -192,6 +192,23 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 42 — Client-Supplied Identity Sweep + Phantom-Schema Repair (July 31, 2026) ✨
+**Bug hunt round.** Swept mounted routers for identity that comes from query/body params instead of the token (the IDOR/attribution-spoofing class fixed case-by-case in R38-41).
+
+**A. `api/user_templates_endpoints.py` — CRITICAL IDOR + attribution spoofing (8 endpoints):** `create_user_template` set `author_id`/`changed_by_id` from a client `user_id` query param (create templates AS any user); `list_user_templates` with no `user_id` returned **ALL templates including private** and with a supplied id read any user's private templates; `update`/`delete`/`publish`/`duplicate` ownership checks ran against the client-supplied id (modify/delete ANY user's template); `stats` read any user. All now keyed to `current_user.id`; list always scopes `author_id == current_user.id OR is_public`.
+
+**B. BONUS — phantom-schema repair (git-history traced):** the router was built against the rich `WorkflowTemplate` (template_id/complexity/tags/is_featured/template_json/...) in `1177eff90`; the Hive port `36ed0f548` **replaced the model** (id/icon/steps/input_schema/is_approved) without touching the router — every create/update/delete/filtered-list/rate 500'd since. Repaired the router against the real model: real-column constructors, `_template_to_response()` bridge (TemplateResponse contract preserved with safe defaults), `is_featured→is_approved`, `rating_sum` → running average, real `TemplateVersion` columns (version_number/created_by/change_summary). Marketplace `workflow_template_system.py` is file-based — DB model's only consumer is this router, so the migration is safe. Also fixed handlers swallowing `HTTPException` (403/404 → converted to 500 by bare `except Exception`).
+
+**C. `api/dashboard_data_routes.py`** — 5 endpoints filtered calendar/tasks/messages/stats by a client-supplied `user_id` (cross-user dashboard reads) → clamped to `current_user.id` (deeplinks R38 pattern).
+
+**D. `api/supervised_queue_routes.py`** — `get_queue_stats` filter clamped to `current_user.id`.
+
+**E. `api/messaging_routes.py`** — approve/reject attributed actions to client-supplied `approver_user_id`/`rejecter_user_id` → token identity (fields kept optional for backward compat). **Bonus: `reject` and `cancel` endpoints were completely anonymous** (R23 fixed send/schedule/queue/history but missed these) → auth'd.
+
+**Reviewed, NOT bugs:** `feedback_batch.py` body `user_id` is declared but never used; `deeplinks` audit already clamps (R38).
+
+**Tests:** 16 new tests in `backend/tests/test_round42_identity_sweep.py` (identity-attribution assertions via captured constructor kwargs, filter-expression bind params, ownership 403s, plus 2 anon-401 regressions for reject/cancel). Zero regressions vs baseline (comm-verified: 72 failed/80 passed/35 errors identical pre/post — pre-existing fixture breakage). mypy baseline identical (0-line diff). 177 tests green across rounds 38-42.
+
 ### Round 41 — str(e) Leak Sweep + Broken Social Posting Pipeline (July 31, 2026) ✨
 **Bug hunt round.** Re-grepped `str(e)` reaching clients in *mounted* routers — R18 fixed 992 leaks, but code added since R19-40 re-introduced them.
 

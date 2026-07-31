@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import Depends, Query, status
+from fastapi import Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -145,12 +145,49 @@ class DuplicateTemplateRequest(BaseModel):
     description: Optional[str] = None
 
 
+# ============================================================================
+# Response mapping — the WorkflowTemplate model is leaner than TemplateResponse:
+# map real columns to the API contract with safe defaults (Round 42 repair;
+# previously the raw ORM object was returned and serialization 500'd on the
+# missing template_id/complexity/tags/is_featured/template_json/... fields).
+# ============================================================================
+
+def _template_to_response(template) -> TemplateResponse:
+    return TemplateResponse(
+        id=template.id,
+        template_id=template.id,
+        name=template.name,
+        description=template.description or "",
+        category=template.category,
+        complexity="intermediate",
+        tags=[],
+        author_id=template.author_id,
+        is_public=template.is_public,
+        is_featured=template.is_approved,
+        template_json={"steps": template.steps or []},
+        inputs_schema=[],
+        steps_schema=[],
+        output_schema={},
+        usage_count=template.usage_count,
+        rating=template.rating,
+        rating_count=template.rating_count,
+        version=template.version,
+        parent_template_id=None,
+        estimated_duration_seconds=0,
+        prerequisites=[],
+        dependencies=[],
+        permissions=[],
+        license="MIT",
+        created_at=template.created_at,
+        updated_at=template.updated_at
+    )
+
+
 # API Endpoints
 
 @router.post("", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_user_template(
     request: CreateTemplateRequest,
-    user_id: str = Query(..., description="User ID creating the template"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -164,27 +201,20 @@ async def create_user_template(
         # Generate unique template_id
         template_id = f"template_{uuid.uuid4().hex[:12]}"
 
-        # Create template record
+        # Create template record — ownership always comes from the token;
+        # constructor uses the REAL model columns (previously phantom kwargs
+        # like template_id/complexity/tags raised TypeError on every create).
         template = WorkflowTemplate(
-            template_id=template_id,
+            id=template_id,
             name=request.name,
             description=request.description,
             category=request.category,
-            complexity=request.complexity,
-            tags=request.tags,
-            author_id=user_id,
+            icon="default",
+            author_id=current_user.id,
+            steps=request.steps_schema or request.template_json or [],
+            input_schema=request.inputs_schema or None,
             is_public=request.is_public,
-            is_featured=False,
-            template_json=request.template_json,
-            inputs_schema=[p.dict() for p in request.inputs_schema],
-            steps_schema=[s.dict() for s in request.steps_schema],
-            output_schema=request.output_schema,
             version="1.0.0",
-            estimated_duration_seconds=request.estimated_duration_seconds,
-            prerequisites=request.prerequisites,
-            dependencies=request.dependencies,
-            permissions=request.permissions,
-            license=request.license,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -193,21 +223,25 @@ async def create_user_template(
         db.commit()
         db.refresh(template)
 
-        # Create initial version record
+        # Create initial version record (real TemplateVersion columns)
         version = TemplateVersion(
             template_id=template_id,
-            version="1.0.0",
-            template_snapshot=request.template_json,
-            change_description="Initial version",
-            changed_by_id=user_id,
+            version_number=1,
+            name=request.name,
+            description=request.description,
+            steps=request.steps_schema or None,
+            created_by=current_user.id,
+            change_summary="Initial version",
             created_at=datetime.now()
         )
         db.add(version)
         db.commit()
 
-        logger.info(f"Created template {template_id} by user {user_id}")
-        return template
+        logger.info(f"Created template {template_id} by user {current_user.id}")
+        return _template_to_response(template)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating template: {e}")
         db.rollback()
@@ -216,7 +250,6 @@ async def create_user_template(
 
 @router.get("", response_model=List[TemplateResponse])
 async def list_user_templates(
-    user_id: Optional[str] = Query(None, description="Filter by user ID"),
     category: Optional[str] = Query(None, description="Filter by category"),
     complexity: Optional[str] = Query(None, description="Filter by complexity"),
     is_public: Optional[bool] = Query(None, description="Filter by visibility"),
@@ -230,29 +263,28 @@ async def list_user_templates(
     """
     List workflow templates with filtering
 
-    Returns templates based on user ownership, visibility, and other filters.
+    Always scoped to the authenticated user's own templates plus public ones;
+    the client-supplied user_id filter was removed (cross-user private reads).
     """
     try:
         query = db.query(WorkflowTemplate)
 
-        # Apply filters
-        if user_id:
-            query = query.filter(
-                (WorkflowTemplate.author_id == user_id) |
-                (WorkflowTemplate.is_public == True)
-            )
+        # Ownership scope is ALWAYS applied — own templates + public ones.
+        # Previously a missing user_id param returned ALL templates (incl.
+        # private) and a supplied user_id read any user's private templates.
+        query = query.filter(
+            (WorkflowTemplate.author_id == current_user.id) |
+            (WorkflowTemplate.is_public == True)
+        )
 
         if category:
             query = query.filter(WorkflowTemplate.category == category)
 
-        if complexity:
-            query = query.filter(WorkflowTemplate.complexity == complexity)
-
-        if is_public is not None:
-            query = query.filter(WorkflowTemplate.is_public == is_public)
-
+        # complexity/tags/is_public filters were dropped — the model has no
+        # such columns (they raised AttributeError since the Hive model port
+        # in 36ed0f548). "featured" maps to is_approved.
         if featured_only:
-            query = query.filter(WorkflowTemplate.is_featured == True)
+            query = query.filter(WorkflowTemplate.is_approved == True)
 
         if search:
             search_term = f"%{search}%"
@@ -263,7 +295,7 @@ async def list_user_templates(
 
         # Order by usage and date
         query = query.order_by(
-            WorkflowTemplate.is_featured.desc(),
+            WorkflowTemplate.is_approved.desc(),
             WorkflowTemplate.usage_count.desc(),
             WorkflowTemplate.created_at.desc()
         )
@@ -271,8 +303,10 @@ async def list_user_templates(
         # Apply pagination
         templates = query.offset(offset).limit(limit).all()
 
-        return templates
+        return [_template_to_response(t) for t in templates]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
         raise router.internal_error("Internal error")
@@ -280,20 +314,19 @@ async def list_user_templates(
 
 @router.get("/stats", response_model=TemplateStatisticsResponse)
 async def get_user_template_statistics(
-    user_id: str = Query(..., description="User ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get template usage statistics for a user
+    Get template usage statistics for the current user
 
     Returns aggregate statistics about user's templates including
     total count, usage, ratings, and most popular templates.
     """
     try:
-        # Get all user's templates
+        # Get all user's templates (identity from token, never query param)
         templates = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.author_id == user_id
+            WorkflowTemplate.author_id == current_user.id
         ).all()
 
         total_templates = len(templates)
@@ -336,6 +369,8 @@ async def get_user_template_statistics(
             recent_templates=recent_templates
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting template statistics: {e}")
         raise router.internal_error("Internal error")
@@ -354,14 +389,16 @@ async def get_template(
     """
     try:
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        return template
+        return _template_to_response(template)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting template {template_id}: {e}")
         raise router.internal_error("Internal error")
@@ -371,7 +408,6 @@ async def get_template(
 async def update_template(
     template_id: str,
     request: UpdateTemplateRequest,
-    user_id: str = Query(..., description="User ID making the update"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -383,46 +419,40 @@ async def update_template(
     """
     try:
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        # Check ownership
-        if template.author_id != user_id:
+        # Check ownership against the AUTHENTICATED user (previously the
+        # client-supplied user_id query param let anyone pass the victim's
+        # id to modify their templates).
+        if template.author_id != current_user.id:
             raise router.permission_denied_error(
                 action="update_template",
                 resource="WorkflowTemplate",
-                details={"template_id": template_id, "user_id": user_id}
+                details={"template_id": template_id, "user_id": current_user.id}
             )
 
-        # MASS ASSIGNMENT FIX: Block sensitive fields from mass assignment
-        # These fields should never be modifiable via user input
-        BLOCKED_FIELDS = {
-            'id', 'template_id', 'author_id', 'owner_id', 'user_id', 'workspace_id',
-            'created_at', 'updated_at', 'last_used_at', 'published_at',
-            'is_public', 'is_featured', 'is_official', 'version',
-            'usage_count', 'rating_count', 'average_rating'
-        }
+        # MASS ASSIGNMENT FIX: only fields that exist on the real model may be
+        # set (complexity/tags/template_json/... were dropped in the Hive model
+        # port 36ed0f548 — setattr on them raises AttributeError).
+        ALLOWED_UPDATE_FIELDS = {"name", "description", "category", "is_public"}
 
         # Update fields
         update_data = request.dict(exclude_unset=True, exclude={'change_description'})
         for field, value in update_data.items():
-            # Skip blocked fields to prevent mass assignment attacks
-            if field in BLOCKED_FIELDS:
-                logger.warning(f"Mass assignment blocked: Attempted to modify protected field '{field}'")
+            if field not in ALLOWED_UPDATE_FIELDS:
+                logger.info(f"Skipping update of unsupported field '{field}' (not on model)")
                 continue
-
             if value is not None:
-                if field in ['inputs_schema', 'steps_schema']:
-                    setattr(template, field, [item.dict() if hasattr(item, 'dict') else item for item in value])
-                else:
-                    setattr(template, field, value)
+                setattr(template, field, value)
 
         template.updated_at = datetime.now()
 
-        # Create version entry if there are substantive changes
+        # Create version entry if there are substantive changes (real
+        # TemplateVersion columns — version_number/created_by/change_summary).
         if request.change_description or any(key in request.dict() for key in
                                               ['template_json', 'steps_schema', 'inputs_schema']):
             # Increment version (simplified semver)
@@ -434,10 +464,12 @@ async def update_template(
 
             version = TemplateVersion(
                 template_id=template_id,
-                version=new_version,
-                template_snapshot=template.template_json,
-                change_description=request.change_description or "Updated template",
-                changed_by_id=user_id,
+                version_number=int(current_version[2]),
+                name=template.name,
+                description=template.description,
+                steps=template.steps or None,
+                created_by=current_user.id,
+                change_summary=request.change_description or "Updated template",
                 created_at=datetime.now()
             )
             db.add(version)
@@ -446,8 +478,10 @@ async def update_template(
         db.refresh(template)
 
         logger.info(f"Updated template {template_id} to version {template.version}")
-        return template
+        return _template_to_response(template)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating template {template_id}: {e}")
         db.rollback()
@@ -457,7 +491,6 @@ async def update_template(
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_template(
     template_id: str,
-    user_id: str = Query(..., description="User ID requesting deletion"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -468,18 +501,18 @@ async def delete_template(
     """
     try:
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        # Check ownership
-        if template.author_id != user_id:
+        # Check ownership against the AUTHENTICATED user
+        if template.author_id != current_user.id:
             raise router.permission_denied_error(
                 action="delete_template",
                 resource="WorkflowTemplate",
-                details={"template_id": template_id, "user_id": user_id}
+                details={"template_id": template_id, "user_id": current_user.id}
             )
 
         # Delete related records
@@ -498,6 +531,8 @@ async def delete_template(
         logger.info(f"Deleted template {template_id}")
         return None
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting template {template_id}: {e}")
         db.rollback()
@@ -508,7 +543,6 @@ async def delete_template(
 async def publish_template(
     template_id: str,
     request: PublishTemplateRequest,
-    user_id: str = Query(..., description="User ID publishing the template"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -519,18 +553,18 @@ async def publish_template(
     """
     try:
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        # Check ownership
-        if template.author_id != user_id:
+        # Check ownership against the AUTHENTICATED user
+        if template.author_id != current_user.id:
             raise router.permission_denied_error(
                 action="publish_template",
                 resource="WorkflowTemplate",
-                details={"template_id": template_id, "user_id": user_id}
+                details={"template_id": template_id, "user_id": current_user.id}
             )
 
         # Update visibility
@@ -539,25 +573,27 @@ async def publish_template(
         elif request.visibility == "private":
             template.is_public = False
 
-        # Only admins can set featured
+        # Only admins can set featured (maps to is_approved on the real model)
         if request.featured:
-            # Check if user is an admin
-            user = db.query(User).filter(User.id == user_id).first()
+            # Check if user is an admin (identity from token)
+            user = db.query(User).filter(User.id == current_user.id).first()
             if not user or user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
                 raise router.permission_denied_error(
                     action="feature_template",
                     resource="Template",
                     details={"template_id": template_id, "required_role": "SUPER_ADMIN or WORKSPACE_ADMIN"}
                 )
-            template.is_featured = True
+            template.is_approved = True
 
         template.updated_at = datetime.now()
         db.commit()
         db.refresh(template)
 
         logger.info(f"Published template {template_id} as {request.visibility}")
-        return template
+        return _template_to_response(template)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error publishing template {template_id}: {e}")
         db.rollback()
@@ -568,7 +604,6 @@ async def publish_template(
 async def duplicate_template(
     template_id: str,
     request: DuplicateTemplateRequest,
-    user_id: str = Query(..., description="User ID creating the duplicate"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -580,43 +615,33 @@ async def duplicate_template(
     """
     try:
         original = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not original:
             raise router.not_found_error("Template", template_id)
 
-        # Check if original is public or user owns it
-        if not original.is_public and original.author_id != user_id:
+        # Check if original is public or user owns it (identity from token)
+        if not original.is_public and original.author_id != current_user.id:
             raise router.permission_denied_error(
                 action="duplicate_template",
                 resource="Template",
-                details={"template_id": template_id, "user_id": user_id}
+                details={"template_id": template_id, "user_id": current_user.id}
             )
 
-        # Create duplicate
+        # Create duplicate (real model columns)
         new_template_id = f"template_{uuid.uuid4().hex[:12]}"
         duplicate = WorkflowTemplate(
-            template_id=new_template_id,
+            id=new_template_id,
             name=request.name,
             description=request.description or original.description,
             category=original.category,
-            complexity=original.complexity,
-            tags=original.tags.copy(),
-            author_id=user_id,
+            icon=original.icon,
+            author_id=current_user.id,
+            steps=original.steps or [],
+            input_schema=original.input_schema,
             is_public=False,  # Duplicates start as private
-            is_featured=False,
-            template_json=original.template_json.copy(),
-            inputs_schema=original.inputs_schema.copy() if original.inputs_schema else [],
-            steps_schema=original.steps_schema.copy() if original.steps_schema else [],
-            output_schema=original.output_schema.copy() if original.output_schema else {},
             version="1.0.0",  # Reset version for duplicate
-            parent_template_id=original.template_id,  # Track origin
-            estimated_duration_seconds=original.estimated_duration_seconds,
-            prerequisites=original.prerequisites.copy() if original.prerequisites else [],
-            dependencies=original.dependencies.copy() if original.dependencies else [],
-            permissions=original.permissions.copy() if original.permissions else [],
-            license=original.license,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -625,9 +650,11 @@ async def duplicate_template(
         db.commit()
         db.refresh(duplicate)
 
-        logger.info(f"Duplicated template {template_id} as {new_template_id} for user {user_id}")
-        return duplicate
+        logger.info(f"Duplicated template {template_id} as {new_template_id} for user {current_user.id}")
+        return _template_to_response(duplicate)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error duplicating template {template_id}: {e}")
         db.rollback()
@@ -648,13 +675,13 @@ async def get_template_versions(
     try:
         # Verify template exists
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        # Get versions
+        # Get versions (real TemplateVersion columns)
         versions = db.query(TemplateVersion).filter(
             TemplateVersion.template_id == template_id
         ).order_by(TemplateVersion.created_at.desc()).all()
@@ -662,14 +689,16 @@ async def get_template_versions(
         return [
             {
                 "id": v.id,
-                "version": v.version,
-                "change_description": v.change_description,
-                "changed_by_id": v.changed_by_id,
+                "version": str(v.version_number),
+                "change_description": v.change_summary,
+                "changed_by_id": v.created_by,
                 "created_at": v.created_at.isoformat()
             }
             for v in versions
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting versions for template {template_id}: {e}")
         raise router.internal_error("Internal error")
@@ -689,14 +718,17 @@ async def rate_template(
     """
     try:
         template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.template_id == template_id
+            WorkflowTemplate.id == template_id
         ).first()
 
         if not template:
             raise router.not_found_error("Template", template_id)
 
-        # Update rating
-        template.rating_sum += rating
+        # Update rating — the lean model has no rating_sum column; recompute
+        # the running average from rating/rating_count.
+        template.rating = (
+            (template.rating * template.rating_count) + rating
+        ) / (template.rating_count + 1)
         template.rating_count += 1
         template.updated_at = datetime.now()
 
@@ -709,6 +741,8 @@ async def rate_template(
             "rating_count": template.rating_count
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error rating template {template_id}: {e}")
         db.rollback()

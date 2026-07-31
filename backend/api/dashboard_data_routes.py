@@ -355,6 +355,11 @@ async def get_dashboard_data(
     Returns real dashboard data from the database.
     """
     try:
+        # Identity from the token — a client-supplied user_id for another user
+        # is ignored (cross-user dashboard reads).
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
+
         # Fetch all data
         calendar_events = get_user_upcoming_events(db, user_id, limit)
         tasks = get_user_tasks(db, user_id, limit)
@@ -394,6 +399,8 @@ async def get_dashboard_stats(
     Returns dashboard statistics.
     """
     try:
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
         stats = calculate_dashboard_stats(db, user_id)
         return DashboardStatsResponse(**stats)
 
@@ -413,6 +420,8 @@ async def get_calendar_events(
 ):
     """Get calendar events for the user."""
     try:
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
         events = get_user_upcoming_events(db, user_id, limit)
         return [CalendarEventResponse(**event) for event in events]
 
@@ -433,6 +442,8 @@ async def get_tasks(
 ):
     """Get tasks for the user with optional status filter."""
     try:
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
         all_tasks = get_user_tasks(db, user_id, limit * 2)  # Get more for filtering
 
         # Filter by status if provided
@@ -458,6 +469,8 @@ async def get_messages(
 ):
     """Get messages for the user."""
     try:
+        if user_id and user_id != current_user.id:
+            user_id = current_user.id
         all_messages = get_user_messages(db, user_id, limit * 2)
 
         # Filter by unread status if requested
