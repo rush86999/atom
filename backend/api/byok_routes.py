@@ -108,8 +108,15 @@ class BYOKManager:
             try:
                 with open(BYOK_CONFIG_FILE, "r") as f:
                     data = json.load(f)
+                    from dataclasses import fields
+                    provider_fields = {f.name for f in fields(AIProviderConfig)}
                     for p_data in data.get("providers", []):
-                        provider = AIProviderConfig(**p_data)
+                        # R62: filter to known fields — a single unknown field
+                        # (older/newer writer) used to brick the whole load.
+                        p_data_filtered = {
+                            k: v for k, v in p_data.items() if k in provider_fields
+                        }
+                        provider = AIProviderConfig(**p_data_filtered)
                         self.providers[provider.id] = provider
             except Exception as e:
                 logger.error(f"Failed to load BYOK config: {e}")
@@ -119,14 +126,20 @@ class BYOKManager:
             try:
                 with open(BYOK_KEYS_FILE, "r") as f:
                     data = json.load(f)
+                    from dataclasses import fields
+                    key_fields = {f.name for f in fields(APIKey)}
                     for k_id, k_data in data.get("keys", {}).items():
                         # Convert ISO strings back to datetime
                         if k_data.get("created_at"):
                             k_data["created_at"] = datetime.fromisoformat(k_data["created_at"])
                         if k_data.get("last_used"):
                             k_data["last_used"] = datetime.fromisoformat(k_data["last_used"])
-                        
-                        api_key = APIKey(**k_data)
+
+                        # R62: filter to known fields — same rationale as providers.
+                        k_data_filtered = {
+                            k: v for k, v in k_data.items() if k in key_fields
+                        }
+                        api_key = APIKey(**k_data_filtered)
                         self.api_keys[k_id] = api_key
             except Exception as e:
                 logger.error(f"Failed to load BYOK keys: {e}")
