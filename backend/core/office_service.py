@@ -49,7 +49,7 @@ def _validate_office_path(file_path: str) -> str:
     try:
         resolved = Path(file_path).resolve()
     except (OSError, ValueError) as e:
-        raise ValueError(f"Invalid file path: {e}")
+        raise ValueError("Invalid file path")
     # Resolve symlinks/relative escapes: the resolved path must be under base.
     if base not in resolved.parents and resolved != base:
         raise ValueError(
@@ -144,7 +144,7 @@ class ExcelManager:
                 }
         except Exception as e:
             logger.error(f"Error reading Excel range: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to read Excel range"}
 
     def write_cell(self, file_path: str, cell_path: str, value: Any, is_formula: bool = False) -> Dict[str, Any]:
         """Write value or formula to a cell."""
@@ -216,7 +216,7 @@ class ExcelManager:
             }
         except Exception as e:
             logger.error(f"Error writing Excel cell: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to write Excel cell"}
 
     @staticmethod
     async def insert_rows(file_path: str, sheet_name: str, row: int, count: int = 1) -> Dict[str, Any]:
@@ -318,7 +318,7 @@ class WordManager:
             }
         except Exception as e:
             logger.error(f"Error reading Word document: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to read Word document"}
 
     def modify_document(self, file_path: str, action: str, content: str, options: dict = None) -> Dict[str, Any]:
         """Modify a Word document."""
@@ -357,7 +357,7 @@ class WordManager:
             }
         except Exception as e:
             logger.error(f"Error modifying Word document: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to modify Word document"}
 
 
 class PowerPointManager:
@@ -410,7 +410,7 @@ class PowerPointManager:
             }
         except Exception as e:
             logger.error(f"Error reading PowerPoint: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to read PowerPoint"}
 
     def modify_slides(self, file_path: str, action: str, options: dict) -> Dict[str, Any]:
         """Modify slide deck."""
@@ -443,7 +443,7 @@ class PowerPointManager:
             return {"success": True, "message": f"PowerPoint modified successfully (Action: {action})"}
         except Exception as e:
             logger.error(f"Error modifying PowerPoint: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to modify PowerPoint"}
 
 
 class DocumentRenderer:
@@ -467,7 +467,8 @@ class DocumentRenderer:
                         "warnings": [m.message for m in result.messages]
                     }
             except Exception as e:
-                return {"success": False, "error": f"Failed rendering Word to HTML: {str(e)}"}
+                logger.error(f"Error rendering Word to HTML: {e}")
+                return {"success": False, "error": "Failed rendering Word to HTML"}
 
         elif ext == ".xlsx":
             # Use the workbook runtime for pixel-accurate rendering (LibreOffice
@@ -493,7 +494,8 @@ class DocumentRenderer:
                     "engine": runtime.engine,
                 }
             except Exception as e:
-                return {"success": False, "error": f"Failed rendering Excel to HTML: {str(e)}"}
+                logger.error(f"Error rendering Excel to HTML: {e}")
+                return {"success": False, "error": "Failed rendering Excel to HTML"}
 
         elif ext == ".pptx":
             if not PPTX_AVAILABLE:
@@ -519,7 +521,8 @@ class DocumentRenderer:
                     "html": f"<div class='office-pptx-preview' style='background:#f4f4f4; padding:20px;'>{''.join(html_slides)}</div>"
                 }
             except Exception as e:
-                return {"success": False, "error": f"Failed rendering PPTX to HTML: {str(e)}"}
+                logger.error(f"Error rendering PPTX to HTML: {e}")
+                return {"success": False, "error": "Failed rendering PPTX to HTML"}
 
         return {"success": False, "error": f"Unsupported format: {ext}"}
 

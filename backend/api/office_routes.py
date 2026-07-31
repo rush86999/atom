@@ -6,7 +6,8 @@ document manipulation, visualization, and canvas synchronization.
 """
 
 import logging
-from typing import Any, Dict, Optional
+import uuid
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
