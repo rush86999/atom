@@ -447,6 +447,11 @@ async def authenticate_mobile_user(
     if not user:
         return None
 
+    # R60: reject deactivated/suspended accounts — mirrors login_for_access_token
+    # (R43). Without this, a deactivated user keeps authenticating via mobile.
+    if user.status != UserStatus.ACTIVE:
+        return None
+
     if not verify_password(password, user.hashed_password):
         return None
 

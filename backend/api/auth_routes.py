@@ -28,7 +28,7 @@ from core.auth import (
 )
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import MobileDevice, User
+from core.models import MobileDevice, User, UserStatus
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +268,13 @@ async def authenticate_with_biometric(
         if not user:
             raise router.not_found_error("User", device.user_id)
 
+        # R60: reject deactivated/suspended accounts — mirrors the R43 status
+        # check; a deactivated user must not authenticate via biometrics.
+        if user.status != UserStatus.ACTIVE:
+            raise router.validation_error(
+                "account", "Account is deactivated"
+            )
+
         # Generate tokens
         tokens = create_mobile_token(user, device.id)
 
@@ -336,6 +343,13 @@ async def refresh_mobile_token(
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise router.not_found_error("User", user_id)
+
+        # R60: reject deactivated/suspended accounts — mirrors the R43 status
+        # check; a deactivated user must not keep renewing sessions.
+        if user.status != UserStatus.ACTIVE:
+            raise router.validation_error(
+                "account", "Account is deactivated"
+            )
 
         # Verify device exists and is active
         device = get_mobile_device(device_id, user_id, db)
