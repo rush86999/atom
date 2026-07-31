@@ -1,6 +1,6 @@
 
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
@@ -100,12 +100,16 @@ class ConnectionService:
                     UserConnection.integration_id == integration_id
                 ).first()
 
-                # Calculate expires_at
+                # Calculate expires_at — use timezone-aware UTC to match
+                # get_connection_health_status and _refresh_token_if_needed
+                # (Bug #10: previously used naive datetime.now(timezone.utc) which was
+                # compared against aware datetime.now(timezone.utc), causing
+                # expiry checks to be off by the server's UTC offset).
                 expires_at = None
                 expires_in = credentials.get("expires_in")
                 if expires_in:
                     try:
-                        expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+                        expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Failed to parse expires_in: {e}")
 
@@ -114,7 +118,7 @@ class ConnectionService:
                 if conn:
                     conn.connection_name = name
                     conn.credentials = encrypted_creds
-                    conn.updated_at = datetime.now()
+                    conn.updated_at = datetime.now(timezone.utc)
                     if expires_at:
                         conn.expires_at = expires_at
                     db.commit()
@@ -162,8 +166,8 @@ class ConnectionService:
                         # Recalculate expires_at from new data
                         expires_in = updated_creds.get("expires_in")
                         if expires_in:
-                            conn.expires_at = datetime.now() + timedelta(seconds=int(expires_in))
-                        conn.updated_at = datetime.now()
+                            conn.expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
+                        conn.updated_at = datetime.now(timezone.utc)
                         conn.status = "active" # Mark as active if refresh succeeds
                         db.commit()
                         creds = updated_creds
@@ -173,7 +177,7 @@ class ConnectionService:
                         # were valid. Check if the token is actually expired and
                         # refuse to hand it back.
                         expires_at = conn.expires_at
-                        if expires_at and datetime.now() >= expires_at:
+                        if expires_at and datetime.now(timezone.utc) >= expires_at:
                             logger.error(
                                 f"Token for connection {connection_id} is expired "
                                 f"and refresh failed — refusing to return stale token"
@@ -183,7 +187,7 @@ class ConnectionService:
                             return None
 
                     # Update last used
-                    conn.last_used = datetime.now()
+                    conn.last_used = datetime.now(timezone.utc)
                     db.commit()
                     return creds
                 return None
@@ -206,14 +210,14 @@ class ConnectionService:
         # Check if token is expired or near expiry (within 5 minutes)
         should_refresh = False
         if conn.expires_at:
-            if datetime.now() + timedelta(minutes=5) >= conn.expires_at:
+            if datetime.now(timezone.utc) + timedelta(minutes=5) >= conn.expires_at:
                 should_refresh = True
         else:
             # Heuristic: if last updated > 55 mins ago and we have a refresh token, maybe just refresh?
             # For now, we'll use this heuristic: if token was updated more than 55 minutes ago
             # and we have a refresh token available, proactively refresh it.
             if conn.updated_at:
-                token_age = datetime.now() - conn.updated_at
+                token_age = datetime.now(timezone.utc) - conn.updated_at
                 if token_age > timedelta(minutes=55) and refresh_token:
                     logger.info(
                         f"Token for {conn.integration_id} is {token_age.seconds // 60} minutes old, "
@@ -269,7 +273,7 @@ class ConnectionService:
                 ).first()
                 if conn:
                     conn.connection_name = new_name
-                    conn.updated_at = datetime.now()
+                    conn.updated_at = datetime.now(timezone.utc)
                     db.commit()
                     return True
                 return False
