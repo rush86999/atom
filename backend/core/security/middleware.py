@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
+class _BodyTooLarge(Exception):
+    """Raised when a request body exceeds the configured size cap (R55)."""
+
+
 class InputValidationMiddleware(BaseHTTPMiddleware):
     """
     Middleware to block common malicious patterns (XSS, SQLi, etc.) in request parameters and body.
@@ -35,6 +39,11 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app):
         super().__init__(app)
+        # R55: hard cap on request bodies — request.body() allocates the
+        # ENTIRE payload before any check, so a multi-GB JSON body exhausted
+        # worker memory on every POST/PUT/PATCH. 64 MiB default covers the
+        # 50 MiB multipart uploads allowed by the R21/R50 caps.
+        self.max_body_bytes = int(os.getenv("MAX_BODY_BYTES", str(64 * 1024 * 1024)))
         self.malicious_patterns = [
             r"<script[^>]*>.*?</script>",
             r"javascript:",
@@ -45,6 +54,27 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             r"eval\(",
             r"system\(",
         ]
+
+    async def _read_body_with_limit(self, request: Request) -> bytes:
+        """Stream-read the request body with a hard cap (OOM DoS protection).
+
+        Unlike request.body(), which materializes the entire payload before
+        any size check, this never allocates more than the cap — the stream
+        is drained chunk-by-chunk and aborted as soon as the cap is exceeded.
+        """
+        if hasattr(request, "_body"):
+            # Already materialized by an upstream middleware — cap-check it.
+            if len(request._body) > self.max_body_bytes:
+                raise _BodyTooLarge(len(request._body), self.max_body_bytes)
+            return request._body
+        chunks: list = []
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > self.max_body_bytes:
+                raise _BodyTooLarge(total, self.max_body_bytes)
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     async def dispatch(self, request: Request, call_next):
         # Validate query parameters
@@ -60,7 +90,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         # Validate POST/PUT/PATCH bodies
         if request.method in ["POST", "PUT", "PATCH"]:
             try:
-                body = await request.body()
+                body = await self._read_body_with_limit(request)
                 body_str = body.decode("utf-8", errors="ignore")
                 if self._contains_malicious_content(body_str):
                     security_logger.warning("Malicious content detected in body")
@@ -69,6 +99,11 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                     )
                 # Re-inject body for later handlers
                 request._body = body
+            except _BodyTooLarge:
+                security_logger.warning("Request body exceeds size limit")
+                return JSONResponse(
+                    status_code=413, content={"error": "Request body too large"}
+                )
             except Exception as exc:
                 # SECURITY: fail-closed. If the body scan itself errors, we
                 # cannot guarantee the request is safe — reject rather than
