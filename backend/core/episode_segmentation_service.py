@@ -372,25 +372,27 @@ class EpisodeSegmentationService:
             "feedback_ids": [f.id for f in feedback_records],
         }
 
-        # 4.5. Link back to source records (NEW)
-        # Update CanvasAudit with episode_id
+        # 4.5. Link back to source records — BUT defer the commit until AFTER
+        # segments and LanceDB archival succeed (Bug #11). Previously the
+        # commit here ran before _create_segments, so a segment-creation
+        # failure left dangling episode_id references pointing at an episode
+        # with no segments, and a LanceDB failure left an episode invisible
+        # to semantic retrieval.
         for canvas in canvas_audits:
             canvas.episode_id = episode_id
 
-        # Update AgentFeedback with episode_id
         for feedback in feedback_records:
             feedback.episode_id = episode_id
 
-        self.db.commit()
-
-        # 5. Create segments
+        # 5. Create segments (BEFORE commit so failure rolls back back-links too)
         await self._create_segments(episode, messages, executions, message_boundaries, canvas_context)
 
         # 6. Archive to LanceDB. Pass canvas_context so its presentation_summary
-        # is concatenated into the embedded text (Gap C) — otherwise the
-        # canvas summary sits in metadata as a side channel that semantic
-        # retrieval can never surface.
+        # is concatenated into the embedded text (Gap C).
         await self._archive_to_lancedb(episode, canvas_context)
+
+        # 7. NOW commit — segments + back-links + episode all land together.
+        self.db.commit()
 
         logger.info(f"Created episode {episode['id']} from session {session_id}")
         return episode
