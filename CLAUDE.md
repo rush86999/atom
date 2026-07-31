@@ -192,6 +192,17 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 51 — CSV Injection in Feedback + GL Exports (CWE-1236) (July 31, 2026) ✨
+**Bug hunt round.** R21's `_sanitize_csv_cell` fixed `accounting/export_service.py` but two mounted export paths still wrote user-controlled free text with **no sanitization** — opening the exported CSV in Excel executes attacker-controlled formulas:
+
+**A. `core/feedback_export_service.py:export_to_csv`** (served by `GET /api/feedback/export` via `feedback_phase2`) — `original_output` / `user_correction` are user/agent free text; a comment starting with `=HYPERLINK(...)` became a live formula. DDE payloads (`+cmd|...`) also passed through.
+
+**B. `core/ai_accounting_engine.py:export_general_ledger_csv`** (served by `GET /api/v1/accounting/export/gl` + `/api/ai-accounting/export/gl`) — `description` / `merchant` come from transaction intake (bank feed, manual entry) and were written raw into the **financial** export.
+
+**Fix:** mirrored R21's pattern in both modules — `_CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")` + `_sanitize_csv_cell()` prefixing dangerous cells with a single quote (spreadsheet apps strip it on display and render text). Applied to every cell in both writers (defense in depth, not just the free-text fields).
+
+**Tests:** 5 new tests in `backend/tests/test_round51_csv_injection_exports.py` (formula in `original_output`, DDE in `user_correction`, formula in GL `description` + `merchant`, and an HTTP-surface test on `GET /export/gl` asserting sanitized CSV). Zero regressions (comm-verified: 113→106 failures in affected suites — delta is exactly the 5 RED tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (5 pre-existing errors, line shifts only). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 50 — Business-Facts Upload: Unbounded File Read (OOM DoS) (July 31, 2026) ✨
 **Bug hunt round.** `api/admin/business_facts_routes.py` `POST /api/admin/governance/facts/upload` (mounted twice in `main_api_app.py`) read the **entire upload into memory with no size cap** — R21 capped `document_ingestion_routes` `/parse` + `/upload` but missed this sibling. A multi-GB upload exhausts worker memory (OOM denial of service) and then feeds the whole blob to the OCR/LLM policy-fact-extraction pipeline. Filename sanitization (R7) and the extension allowlist were already in place; the missing piece was the cap.
 
