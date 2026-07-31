@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 53 — Office Sync: Missing Path Containment — Arbitrary File Read/Overwrite (July 31, 2026) ✨
+**Bug hunt round.** R52 fixed `office_service` `str(e)` leaks but exposed a deeper hole: `core/office_sync_service.py` (served by authenticated `POST /sync-update` + `/present` in `office_routes`) passed the **user-supplied `file_path` straight to the filesystem with no containment** — unlike every `OfficeService` entry point, which validates against `ATOM_OFFICE_DIR`:
+
+**A. `sync_canvas_to_file()` docx branch** — `doc.save(file_path)` on an unvalidated path: any authenticated user could **overwrite any existing `.docx` the process can write** (arbitrary file modification).
+
+**B. `broadcast_file_update()`** — rendered + read (and ingested to memory) any existing office file; the rendered HTML was pushed to the caller's own `canvas_id` WebSocket + `CanvasAudit` rows — **arbitrary file-read exfiltration** (read any existing `.docx`/`.xlsx`/`.pptx` on the host).
+
+**C.** `sync_canvas_to_file()` also leaked `str(e)` in its failure dict (R52 class, missed because R52 swept `office_service` not `office_sync_service`).
+
+**Fix:** validate `file_path` with the existing `office_service._validate_office_path()` at BOTH sync entry points (reject out-of-scope paths before any read/write); generic error string on the exception path. Excel-branch sync was already contained transitively via `write_cell` — now contained explicitly at the boundary.
+
+**Tests:** 5 new tests in `backend/tests/test_round53_office_sync_path_containment.py` (victim-docx byte-equality after out-of-scope sync, xlsx rejection, broadcast not reading/ingesting/auditing out-of-scope files, secret-sentinel leak assertion, end-to-end HTTP `POST /sync-update` with byte-equality). Zero regressions (comm-verified: 10→2 failures in affected suites — delta is exactly the 4 RED tests flipping green; `comm -13` empty = no new failures; remaining 2 are pre-existing). mypy baseline identical (2 pre-existing errors, line shift only). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 52 — Office Service str(e) Leaks + Dead Office Router (July 31, 2026) ✨
 **Bug hunt round.** `core/office_service.py` returned raw exception strings in every failure dict, and `api/office_routes.py` (mounted via `safe_import_router`, 14 endpoints) forwarded those dicts verbatim into `HTTPException(detail=...)` — internal exception detail (filesystem paths, openpyxl/docx internals) reached clients on every office failure.
 
