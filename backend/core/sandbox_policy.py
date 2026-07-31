@@ -418,9 +418,13 @@ class PolicyIssuer:
             return replace(
                 policy,
                 tool_whitelist=tuple(
+                    # Bug #1: the `or t == "*"` clause unconditionally preserved
+                    # the wildcard, so the AUTONOMOUS tier (whose floor
+                    # whitelist is ("*",)) could never be narrowed by a tenant
+                    # override. Removed the wildcard-preservation — the override
+                    # can now genuinely restrict autonomous agents to a subset.
                     t for t in policy.tool_whitelist
                     if t in set(overrides.get("tool_whitelist", policy.tool_whitelist))
-                    or t == "*"
                 ),
                 egress_hosts=tuple(
                     h for h in policy.egress_hosts

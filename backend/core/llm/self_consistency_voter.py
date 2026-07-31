@@ -392,15 +392,21 @@ class SelfConsistencyVoter:
         else:
             fields = {"value": str(action_plan)}
 
+        # Bug #13: only match against field NAMES that look like action verbs
+        # (start with an irreversible prefix), not against field VALUES or
+        # benign fields like created_at/updated_at/updated_by that happen to
+        # contain "create_"/"update_" as substrings. This avoids triggering
+        # 3× LLM cost on read-only plans that merely carry timestamps.
+        _BENIGN_FIELD_SUFFIXES = ("_at", "_by", "_time", "_date", "_timestamp", "_count", "_id")
         for key, val in fields.items():
             key_l = str(key).lower()
-            val_l = str(val).lower() if val is not None else ""
-            # Match either the field name or its value against patterns.
-            haystacks = (key_l, val_l)
-            for h in haystacks:
-                for pat in _IRREVERSIBLE_PATTERNS:
-                    if pat in h:
-                        return True
+            # Skip fields that are clearly metadata (timestamps, counters, ids).
+            if any(key_l.endswith(suffix) for suffix in _BENIGN_FIELD_SUFFIXES):
+                continue
+            # Match the field NAME only (not values — values can be anything).
+            for pat in _IRREVERSIBLE_PATTERNS:
+                if key_l.startswith(pat):
+                    return True
         return False
 
     # ------------------------------------------------------------------
