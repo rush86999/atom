@@ -519,9 +519,9 @@ class MemoryManager:
         # Filter by agent and task
         agent_memories = [
             m for m in self._episodic_memory.values()
-            if (m.observation.agent_id == agent_id and
+            if ((m.observation.agent_id if m.observation else None) == agent_id and
                 m.status != MemoryStatus.EXPIRED and
-                (not task_type or m.observation.task_type == task_type))
+                (not task_type or (m.observation.task_type if m.observation else None) == task_type))
         ]
 
         # Sort by recency
@@ -543,7 +543,7 @@ class MemoryManager:
         """
         memories = [
             m for m in self._episodic_memory.values()
-            if (m.observation.agent_id == agent_id and
+            if ((m.observation.agent_id if m.observation else None) == agent_id and
                 m.status != MemoryStatus.EXPIRED and
                 m.quality_score >= min_quality)
         ]
@@ -878,7 +878,7 @@ class MemoryConsolidation:
         # Get candidate memories for consolidation
         candidates = [
             m for m in self.memory_manager._episodic_memory.values()
-            if (m.observation.agent_id == agent_id and
+            if ((m.observation.agent_id if m.observation else None) == agent_id and
                 m.status == MemoryStatus.INDEXED and
                 m.consolidation_level < 2 and
                 m.access_count >= self.memory_manager.consolidation_threshold)
