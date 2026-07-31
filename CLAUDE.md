@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 62 — BYOK Admin Config Load: Unknown Fields Brick the Whole Store (July 31, 2026) ✨
+**Bug hunt round.** `api/byok_routes.BYOKManager._load_configuration` did `AIProviderConfig(**p_data)` / `APIKey(**k_data)` with **no field filtering** — the sibling runtime manager (`core/byok_endpoints`) filters to known dataclass fields, but the admin manager doesn't. A single unknown field in the shared config/keys files (e.g. `supports_vision` from an older writer, or any field added by a future version) raised TypeError and the **ENTIRE provider/key store silently failed to load** — custom providers vanish and stored keys disappear from the admin UI (and the runtime, which reads the same files).
+
+**Fix:** mirror the sibling's pattern — filter provider and key dicts to the known `dataclasses.fields()` before constructing, so forward/backward-incompatible writers degrade gracefully instead of bricking the store.
+
+**Tests:** 3 new tests in `backend/tests/test_round62_byok_config_forward_compat.py` (provider with `supports_vision` still loads with custom name, key with unknown `rotation_count` still loads, cross-manager round-trip guard). Zero regressions (comm-verified: 10→6 failures in affected suites — delta is exactly the 2 RED tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (19 pre-existing errors, line shifts only). `main_api_app` imports clean. 3/3 round tests green.
+
 ### Round 61 — Runtime BYOK Manager: R59 Key-Persistence Gap + Silent Key Swap (July 31, 2026) ✨
 **Bug hunt round.** R59 fixed `api/byok_routes.BYOKManager` (the admin surface) — but the **runtime manager** `core/byok_endpoints.BYOKManager` (used by `byok_handler` for actual LLM provider calls — imported by `lancedb_handler`, `lifecycle_comm_generator`, `lux_config`, `byok_competitive_endpoints`) still:
 
