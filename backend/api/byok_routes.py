@@ -25,6 +25,10 @@ from core.schemas import ApiResponse
 # BYOK Configuration Storage
 BYOK_CONFIG_FILE = "./data/byok_config.json"
 BYOK_KEYS_FILE = "./data/byok_keys.json"
+# R59: the Fernet encryption key must survive restarts — without persistence a
+# fresh random key is generated per process and every stored API key becomes
+# undecryptable (silent bricking of the BYOK system).
+BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
 
 
 @dataclass
@@ -86,11 +90,14 @@ class BYOKManager:
 
     def __init__(self):
         self.providers: Dict[str, AIProviderConfig] = {}
-        self.usage_stats: Dict[str, Dict[str, ProviderUsage]] = {} # tenant_id -> provider_id -> ProviderUsage
+        self.usage_stats: Dict[str, Dict[str, ProviderUsage]] = {}  # tenant_id -> provider_id -> ProviderUsage
         self.api_keys: Dict[str, APIKey] = {}
-        self.encryption_key = os.getenv(
-            "BYOK_ENCRYPTION_KEY", self._generate_encryption_key()
-        )
+        # R59: env override wins; otherwise reuse the persisted key so stored
+        # ciphertext survives process restarts (previously a fresh random key
+        # per start made every stored key undecryptable).
+        self.encryption_key = os.getenv("BYOK_ENCRYPTION_KEY")
+        if not self.encryption_key:
+            self.encryption_key = self._load_or_create_encryption_key()
         self._load_configuration()
         self._initialize_default_providers()
 
@@ -401,6 +408,30 @@ class BYOKManager:
     def _generate_encryption_key(self) -> str:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
+
+    def _load_or_create_encryption_key(self) -> str:
+        """Load the persisted Fernet key, or generate and persist one (0600).
+
+        R59: without persistence every process restart generated a fresh key,
+        making all previously-stored API keys undecryptable.
+        """
+        try:
+            if os.path.exists(BYOK_ENC_KEY_FILE):
+                with open(BYOK_ENC_KEY_FILE, "r") as f:
+                    key = f.read().strip()
+                if key:
+                    return key
+        except Exception as e:
+            logger.error(f"Failed to read BYOK encryption key: {e}")
+        key = self._generate_encryption_key()
+        try:
+            os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENC_KEY_FILE, "w") as f:
+                f.write(key)
+            os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+        except Exception as e:
+            logger.error(f"Failed to persist BYOK encryption key: {e}")
+        return key
 
     def _get_fernet(self):
         """Get Fernet instance with current key"""
