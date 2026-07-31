@@ -1,6 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
+# core.messaging_schemas was archived; skip gracefully instead of aborting
+# collection of the entire grey_box directory.
+pytest.importorskip("core.messaging_schemas", reason="core.messaging_schemas was archived")
+
 from core.messaging_schemas import AgentMessage, TaskRequest
 
 
