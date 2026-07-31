@@ -1394,4 +1394,4 @@ async def estimate_request_cost(request_data: Dict[str, Any], current_user: User
             })
     except Exception as e:
         logger.error(f"Failed to estimate cost: {e}")
-        return ApiResponse(success=False, message=str(e))
+        return ApiResponse(success=False, message="Failed to estimate cost")

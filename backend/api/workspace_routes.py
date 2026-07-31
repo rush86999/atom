@@ -118,7 +118,9 @@ async def create_unified_workspace(
 
         service = WorkspaceSyncService(db)
         workspace = service.create_unified_workspace(
-            user_id=request.user_id,
+            # R54: ownership comes from the token, never from the body — a
+            # client-supplied user_id would create workspaces AS other users.
+            user_id=current_user.id,
             name=request.name,
             description=request.description,
             slack_workspace_id=request.slack_workspace_id,
@@ -138,11 +140,13 @@ async def create_unified_workspace(
             field="workspace",
             message=str(e)
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create unified workspace: {e}")
         raise router.internal_error(
             message="Failed to create unified workspace",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
@@ -160,6 +164,7 @@ async def add_platform_to_workspace(
     """
     try:
         service = WorkspaceSyncService(db)
+        _get_owned_workspace_or_error(db, workspace_id, current_user, "add_platform")
         workspace = service.add_platform_to_workspace(
             workspace_id=workspace_id,
             platform=request.platform,
@@ -176,11 +181,13 @@ async def add_platform_to_workspace(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to add platform to workspace: {e}")
         raise router.internal_error(
             message="Failed to add platform",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
@@ -199,6 +206,7 @@ async def propagate_changes(
     """
     try:
         service = WorkspaceSyncService(db)
+        _get_owned_workspace_or_error(db, workspace_id, current_user, "propagate_change")
         result = service.propagate_change(
             workspace_id=workspace_id,
             source_platform=request.source_platform,
@@ -217,11 +225,13 @@ async def propagate_changes(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to propagate changes: {e}")
         raise router.internal_error(
             message="Failed to propagate changes",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
@@ -239,6 +249,7 @@ async def get_workspace_status(
     """
     try:
         service = WorkspaceSyncService(db)
+        _get_owned_workspace_or_error(db, workspace_id, current_user, "get_workspace_status")
         status = service.get_workspace_sync_status(workspace_id)
 
         return router.success_response(
@@ -251,11 +262,13 @@ async def get_workspace_status(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get workspace status: {e}")
         raise router.internal_error(
             message="Failed to get workspace status",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
@@ -275,8 +288,9 @@ async def list_unified_workspaces(
 
         query = db.query(UnifiedWorkspace)
 
-        if user_id:
-            query = query.filter(UnifiedWorkspace.user_id == user_id)
+        # R54: always scope the list to the authenticated user — a client-
+        # supplied user_id filtered OTHER users' workspaces into the response.
+        query = query.filter(UnifiedWorkspace.user_id == current_user.id)
 
         workspaces = query.order_by(UnifiedWorkspace.updated_at.desc()).all()
 
@@ -286,11 +300,13 @@ async def list_unified_workspaces(
             message=f"Retrieved {len(workspaces)} workspaces"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to list workspaces: {e}")
         raise router.internal_error(
             message="Failed to list workspaces",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
@@ -309,15 +325,9 @@ async def delete_unified_workspace(
     try:
         from core.models import UnifiedWorkspace
 
-        workspace = db.query(UnifiedWorkspace).filter(
-            UnifiedWorkspace.id == workspace_id
-        ).first()
-
-        if not workspace:
-            raise router.not_found_error(
-                resource="UnifiedWorkspace",
-                resource_id=workspace_id
-            )
+        workspace = _get_owned_workspace_or_error(
+            db, workspace_id, current_user, "delete_unified_workspace"
+        )
 
         workspace_name = workspace.name
         db.delete(workspace)
@@ -328,17 +338,45 @@ async def delete_unified_workspace(
             message=f"Unified workspace '{workspace_name}' deleted successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete workspace: {e}")
         raise router.internal_error(
             message="Failed to delete workspace",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+def _get_owned_workspace_or_error(db, workspace_id: str, current_user, action: str):
+    """Fetch a workspace and enforce ownership (R54).
+
+    Returns the workspace when the authenticated user owns it; otherwise
+    raises 404 (not found) or 403 (permission denied). Every workspace-id
+    endpoint must gate through this so cross-user reads/writes — including
+    propagate_change's external-platform side effects — are impossible.
+    """
+    from core.models import UnifiedWorkspace
+
+    workspace = db.query(UnifiedWorkspace).filter(
+        UnifiedWorkspace.id == workspace_id
+    ).first()
+    if not workspace:
+        raise router.not_found_error(
+            resource="UnifiedWorkspace",
+            resource_id=workspace_id
+        )
+    if workspace.user_id != current_user.id:
+        raise router.permission_denied_error(
+            action=action,
+            resource="UnifiedWorkspace",
+        )
+    return workspace
+
 
 def _workspace_to_dict(workspace) -> Dict[str, Any]:
     """Convert UnifiedWorkspace model to dictionary"""
