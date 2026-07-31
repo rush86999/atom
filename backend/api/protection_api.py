@@ -34,9 +34,10 @@ async def get_churn_risk(
             message="Churn risk data retrieved successfully"
         )
     except Exception as e:
+        logger.error(f"Failed to predict churn risk: {e}")
         raise router.internal_error(
             message="Failed to predict churn risk",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 @router.get("/financial")
@@ -60,9 +61,10 @@ async def get_financial_risk(
             message="Financial risk data retrieved successfully"
         )
     except Exception as e:
+        logger.error(f"Failed to get financial risk data: {e}")
         raise router.internal_error(
             message="Failed to get financial risk data",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 @router.get("/growth")
@@ -79,9 +81,10 @@ async def get_growth_readiness(
             message="Growth readiness data retrieved successfully"
         )
     except Exception as e:
+        logger.error(f"Failed to check growth readiness: {e}")
         raise router.internal_error(
             message="Failed to check growth readiness",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
 
 @router.post("/scan")
@@ -143,5 +146,5 @@ async def perform_security_scan(request: ScanRequest, current_user: User = Depen
         logger.error(f"Scan endpoint error: {e}")
         raise router.internal_error(
             message="Security scan failed",
-            details={"error": str(e)}
+            details={"error": "Internal error"}
         )
