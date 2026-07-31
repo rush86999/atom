@@ -140,16 +140,30 @@ class HostShellService:
                 f"This command is not available to agents."
             )
 
-        # Validate working directory
+        # Validate working directory — use resolved-path containment, not
+        # startswith (Bug #9). `startswith("/tmp")` passes for `/tmp_evil`;
+        # `startswith("/Users")` passes for `/Users/../etc`. Resolve both
+        # sides and check parent containment.
         if working_directory:
             allowed_dirs = os.getenv(
                 "ATOM_HOST_MOUNT_DIRS",
                 "/tmp:/home:/Users"
             ).split(":")
 
-            if not any(working_directory.startswith(d) for d in allowed_dirs):
+            from pathlib import Path
+            try:
+                resolved_wd = Path(working_directory).resolve()
+            except (OSError, ValueError):
+                raise PermissionError(f"Invalid working directory: {working_directory}")
+
+            allowed_resolved = [Path(d).resolve() for d in allowed_dirs]
+            if not any(
+                resolved_wd == allowed or allowed in resolved_wd.parents
+                for allowed in allowed_resolved
+            ):
                 raise PermissionError(
-                    f"Working directory '{working_directory}' not in allowed directories: {allowed_dirs}"
+                    f"Working directory '{working_directory}' (resolved to '{resolved_wd}') "
+                    f"is not within allowed directories"
                 )
 
         # Route to appropriate category-specific method
