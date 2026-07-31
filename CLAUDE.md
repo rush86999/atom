@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 59 — BYOK Encryption Key Not Persisted: Stored API Keys Brick on Restart (July 31, 2026) ✨
+**Bug hunt round.** `BYOKManager.__init__` used `BYOK_ENCRYPTION_KEY` env var or generated a **fresh random Fernet key on every process start** — the generated key was never persisted. Every deployment/restart produced a new key, so **all previously-stored BYOK provider keys became permanently undecryptable** (silent bricking: the BYOK system quietly loses every key until re-entered). `_get_fernet` also swaps in a fresh key on decrypt failure, corrupting the key state further.
+
+**Fix:** env override still wins; otherwise `_load_or_create_encryption_key()` reuses the persisted key (`BYOK_ENC_KEY_FILE = ./data/byok_encryption_key`, written **0600** next to the BYOK config) and only generates+persists when absent. Caught mid-round: my own edit accidentally dropped the `self.usage_stats` init line (found by the R47 tenant-dependency suite going 500 — `AttributeError` on the missing attribute); restored + a new guard test asserts `__init__` keeps all pre-existing attributes.
+
+**Tests:** 5 new tests in `backend/tests/test_round59_byok_encryption_key.py` (key stable across manager instances = restart simulation, stored key decrypts after restart, env override precedence, 0600 file mode, attribute-preservation guard). Zero regressions (comm-verified: 19→14 failures in affected suites — delta is exactly the 4 RED tests flipping green; `comm -13` empty = no new failures; the one transient R47 failure was my usage_stats oops, fixed in-round). mypy baseline identical (19 pre-existing errors, line shifts only). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 58 — Office /present + /sync-update: Attribution Spoofing + Dead Broadcast Path (July 31, 2026) ✨
 **Bug hunt round.** `present_coedit` and `sync_update` (`api/office_routes.py`) passed the **client-supplied `req.user_id`** into `broadcast_file_update` / `sync_canvas_to_file`, which attribute `CanvasAudit` rows AND agent-memory ingestion to that user_id — any authenticated user could **forge audit trails** (canvas updates attributed to a victim) and **poison another user's memory store** (document content ingested under the victim's id).
 
