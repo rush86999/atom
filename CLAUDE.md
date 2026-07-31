@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 55 — Unbounded Request Bodies: OOM DoS via Huge JSON Payloads (July 31, 2026) ✨
+**Bug hunt round.** `InputValidationMiddleware` (registered on the real app) reads the **entire POST/PUT/PATCH body into memory with no size cap** — FastAPI/Starlette impose no default body limit, so every JSON-accepting endpoint was an OOM amplification point: a multi-GB JSON body was fully allocated (and regex-scanned) before any handler ran.
+
+**Fix:** the middleware now stream-reads the body with a hard cap (`_read_body_with_limit` — drains the ASGI stream chunk-by-chunk and aborts as soon as the cap is exceeded, never allocating more than the cap) and returns **413** when exceeded. Cap: `MAX_BODY_BYTES` (env-overridable, **64 MiB default** — sized to cover the 50 MiB multipart uploads the R21/R50 caps allow). Handles the already-materialized case (upstream `request._body`) with a length check. Keeps the R52-era fail-closed scan behavior.
+
+**Tests:** 4 new tests in `backend/tests/test_round55_body_size_limit.py` (oversized rejection with env cap + default cap, small-body regression, source guard asserting stream+cap). Zero regressions (comm-verified: 27→22 failures in affected suites — delta is exactly the 3 RED tests flipping green; `comm -13` empty = no new failures). mypy baseline identical (6 pre-existing errors, line shifts only). `main_api_app` imports clean. 4/4 round tests green.
+
 ### Round 54 — Workspace Routes: Identity Spoofing + Missing Ownership + str(e) (July 31, 2026) ✨
 **Bug hunt round.** `api/workspace_routes.py` (mounted at `/api/v1/workspaces`) trusted client-supplied identity and skipped ownership checks on every endpoint:
 
@@ -659,6 +666,7 @@ ATOM_SANDBOX_JUDGE_CIRCUIT_COOLDOWN_SECONDS=120
 
 # Security (Rounds 18-40)
 MAX_UPLOAD_BYTES=52428800              # Document upload size cap (50 MiB default)
+MAX_BODY_BYTES=67108864               # Request-body cap for POST/PUT/PATCH (64 MiB default, R55)
 ATOM_BOOTSTRAP_PASSWORD_FILE=          # Where generated admin password is written (0600)
 SHOPIFY_WEBHOOK_SECRET=                # Shopify HMAC verification (fail-closed if missing)
 ATOM_WHATSAPP_WEBHOOK_SECRET=          # Communication webhook secrets (env, never hardcode)
