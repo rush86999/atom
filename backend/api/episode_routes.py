@@ -43,19 +43,19 @@ class TemporalRetrievalRequest(BaseModel):
     agent_id: str
     time_range: str = "7d"  # 1d, 7d, 30d, 90d
     user_id: Optional[str] = None
-    limit: int = 50
+    limit: int = Field(default=50, le=200)
 
 
 class SemanticRetrievalRequest(BaseModel):
     agent_id: str
     query: str
-    limit: int = 10
+    limit: int = Field(default=10, le=100)
 
 
 class ContextualRetrievalRequest(BaseModel):
     agent_id: str
     current_task: str
-    limit: int = 5
+    limit: int = Field(default=5, le=50)
 
 
 class EpisodeFeedbackRequest(BaseModel):
@@ -68,7 +68,7 @@ class CanvasTypeRetrievalRequest(BaseModel):
     canvas_type: str  # 'sheets', 'charts', 'generic', etc.
     action: Optional[str] = None  # 'present', 'submit', 'close', etc.
     time_range: str = "30d"
-    limit: int = 10
+    limit: int = Field(default=10, le=100)
 
 
 class CanvasAwareRetrievalRequest(BaseModel):
@@ -76,13 +76,13 @@ class CanvasAwareRetrievalRequest(BaseModel):
     query: str
     canvas_type: Optional[str] = None
     canvas_context_detail: str = "summary"  # "summary" | "standard" | "full"
-    limit: int = 10
+    limit: int = Field(default=10, le=100)
 
 
 class BusinessDataRetrievalRequest(BaseModel):
     agent_id: str
     filters: Dict[str, Any]  # e.g., {"approval_status": "approved", "revenue": {"$gt": 1000000}}
-    limit: int = 10
+    limit: int = Field(default=10, le=100)
 
 
 class FeedbackSubmissionRequest(BaseModel):

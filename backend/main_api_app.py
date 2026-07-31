@@ -640,18 +640,11 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to start Supervision System or Webhook Renewal workers: {e}")
 
-    # 10. Start Webhook Processing Worker (CRITICAL for real-time ingestion)
-    # This is OUTSIDE the supervision try block so it always starts independently
-    try:
-        from core.webhook_processing_worker import get_webhook_worker
-
-        logger.info("[STARTUP] About to start Webhook Processing Worker...")
-        webhook_worker = get_webhook_worker()
-        logger.info("[STARTUP] Webhook worker instance created")
-        _spawn_background_task(webhook_worker.run())
-        logger.info("✓ Webhook Processing Worker running (processes ingestion:webhook:jobs queue)")
-    except Exception as e:
-        logger.error(f"CRITICAL: Failed to start Webhook Processing Worker: {e}")
+    # 10. Webhook Processing Worker — module does not exist (never created).
+    # The old try/except silently swallowed the ImportError on every startup,
+    # logging "CRITICAL: Failed to start" while the feature was entirely inert.
+    # Removed to stop the misleading startup log. If the worker is needed,
+    # implement core/webhook_processing_worker.py and re-add this block.
 
     # 11. Start POMDP Memory Consolidation (offline "sleep-inspired" cycle)
     # Runs every CONSOLIDATION_INTERVAL_HOURS (6h). Previously the service

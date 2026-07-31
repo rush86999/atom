@@ -54,11 +54,16 @@ async def add_subscription(
     """
     from core.financial_ops_engine import SaaSSubscription, cost_detector
 
+    try:
+        _last_used = datetime.fromisoformat(request.last_used)
+    except (ValueError, TypeError):
+        raise router.validation_error("last_used", "Invalid ISO date format")
+
     sub = SaaSSubscription(
         id=request.id,
         name=request.name,
         monthly_cost=request.monthly_cost,
-        last_used=datetime.fromisoformat(request.last_used),
+        last_used=_last_used,
         user_count=request.user_count,
         active_users=request.active_users,
         category=request.category
@@ -167,11 +172,16 @@ async def add_invoice(
     """
     from core.financial_ops_engine import Invoice, invoice_reconciler
 
+    try:
+        _inv_date = datetime.fromisoformat(request.date)
+    except (ValueError, TypeError):
+        raise router.validation_error("date", "Invalid ISO date format")
+
     inv = Invoice(
         id=request.id,
         vendor=request.vendor,
         amount=request.amount,
-        date=datetime.fromisoformat(request.date),
+        date=_inv_date,
         contract_id=request.contract_id
     )
     invoice_reconciler.add_invoice(inv)
@@ -199,12 +209,18 @@ async def add_contract(
     """
     from core.financial_ops_engine import Contract, invoice_reconciler
 
+    try:
+        _start = datetime.fromisoformat(request.start_date)
+        _end = datetime.fromisoformat(request.end_date)
+    except (ValueError, TypeError):
+        raise router.validation_error("start_date/end_date", "Invalid ISO date format")
+
     contract = Contract(
         id=request.id,
         vendor=request.vendor,
         monthly_amount=request.monthly_amount,
-        start_date=datetime.fromisoformat(request.start_date),
-        end_date=datetime.fromisoformat(request.end_date)
+        start_date=_start,
+        end_date=_end
     )
     invoice_reconciler.add_contract(contract)
     logger.info(f"Contract added: {request.id} by agent {agent_id or 'system'}")

@@ -94,10 +94,15 @@ async def add_bank_entry(
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
 
+        try:
+            parsed_date = datetime.fromisoformat(request.date)
+        except (ValueError, TypeError):
+            raise router.validation_error("date", "Invalid ISO date format")
+
         entry = ReconciliationEntry(
             id=request.id,
             source=request.source,
-            date=datetime.fromisoformat(request.date),
+            date=parsed_date,
             amount=request.amount,
             description=request.description
         )
@@ -110,7 +115,7 @@ async def add_bank_entry(
         )
 
     except Exception as e:
-        if e.__class__.__name__ == 'HTTPException':
+        if isinstance(e, HTTPException):
             raise
         logger.error(f"Failed to add bank entry: {e}")
         raise router.internal_error(message="Failed to add bank entry", details={"error": "Internal error"})
@@ -158,10 +163,15 @@ async def add_ledger_entry(
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
 
+        try:
+            parsed_date = datetime.fromisoformat(request.date)
+        except (ValueError, TypeError):
+            raise router.validation_error("date", "Invalid ISO date format")
+
         entry = ReconciliationEntry(
             id=request.id,
             source=request.source,
-            date=datetime.fromisoformat(request.date),
+            date=parsed_date,
             amount=request.amount,
             description=request.description
         )
@@ -174,7 +184,7 @@ async def add_ledger_entry(
         )
 
     except Exception as e:
-        if e.__class__.__name__ == 'HTTPException':
+        if isinstance(e, HTTPException):
             raise
         logger.error(f"Failed to add ledger entry: {e}")
         raise router.internal_error(message="Failed to add ledger entry", details={"error": "Internal error"})
@@ -267,7 +277,9 @@ async def resolve_anomaly(
     try:
         from core.reconciliation_engine import reconciliation_engine
 
-        reconciliation_engine.resolve_anomaly(anomaly_id)
+        resolved = reconciliation_engine.resolve_anomaly(anomaly_id)
+        if not resolved:
+            raise router.not_found_error("Anomaly", anomaly_id)
         return {"status": "resolved", "id": anomaly_id}
     except Exception as e:
         logger.error(f"Failed to resolve anomaly: {e}")

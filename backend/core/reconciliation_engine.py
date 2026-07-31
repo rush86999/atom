@@ -320,12 +320,13 @@ class ReconciliationEngine:
             return [a for a in self._anomalies if not a.resolved]
         return self._anomalies
     
-    def resolve_anomaly(self, anomaly_id: str):
-        """Mark anomaly as resolved"""
+    def resolve_anomaly(self, anomaly_id: str) -> bool:
+        """Mark anomaly as resolved. Returns True if found, False otherwise."""
         for a in self._anomalies:
             if a.id == anomaly_id:
                 a.resolved = True
-                break
+                return True
+        return False
 
 # Global instance
 reconciliation_engine = ReconciliationEngine()
