@@ -19,8 +19,15 @@ class TestProjectRoutes:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        return TestClient(app)
+        """Create test client (Round 37: project endpoints now require auth)."""
+        from core.auth import get_current_user
+
+        def override_get_current_user():
+            return Mock(id="test-user")
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        yield TestClient(app)
+        app.dependency_overrides.pop(get_current_user, None)
 
     @patch('api.project_routes.mcp_service')
     def test_get_unified_tasks_success(self, mock_mcp_service, client):
@@ -165,12 +172,13 @@ class TestProjectRoutes:
         response = client.get("/api/projects/unified-tasks")
 
         assert response.status_code == 200
-        # Verify service was called
+        # Verify service was called with the AUTHENTICATED user (Round 38: the
+        # client-supplied default_user param is no longer trusted).
         mock_mcp_service.execute_tool.assert_called_once_with(
             "local-tools",
             "get_tasks",
             {},
-            {"user_id": "default_user"}
+            {"user_id": "test-user"}
         )
 
     @patch('api.project_routes.mcp_service')
@@ -280,6 +288,7 @@ class TestProjectRoutes:
         response = client.get("/api/projects/unified-tasks")
 
         assert response.status_code == 200
-        # Verify default user is used
+        # Verify the authenticated user's identity is used (Round 38: the
+        # default_user param is no longer trusted).
         call_args = mock_mcp_service.execute_tool.call_args
-        assert call_args[0][3]["user_id"] == "default_user"
+        assert call_args[0][3]["user_id"] == "test-user"

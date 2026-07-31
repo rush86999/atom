@@ -27,8 +27,7 @@ async def get_vendor_drift(
         )
     except Exception as e:
         raise router.internal_error(
-            message="Failed to detect vendor drift",
-            details={"error": str(e)}
+            message="Failed to detect vendor drift"
         )
 
 @router.get("/pricing-opportunities")
@@ -45,8 +44,7 @@ async def get_pricing_opportunities(
         )
     except Exception as e:
         raise router.internal_error(
-            message="Failed to get pricing opportunities",
-            details={"error": str(e)}
+            message="Failed to get pricing opportunities"
         )
 
 @router.get("/subscription-waste")
@@ -63,6 +61,5 @@ async def get_subscription_waste(
         )
     except Exception as e:
         raise router.internal_error(
-            message="Failed to identify subscription waste",
-            details={"error": str(e)}
+            message="Failed to identify subscription waste"
         )

@@ -4,12 +4,19 @@ from fastapi import Body, Depends
 from sqlalchemy.orm import Session
 
 from core.active_intervention_service import active_intervention_service
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.business_health_service import business_health_service
 from core.cross_system_reasoning import CrossSystemReasoningEngine
 from core.database import get_db
 
-router = BaseAPIRouter(prefix="/api/business-health", tags=["operational-intelligence"])
+# Round 37: these endpoints expose business/financial forensics and can execute
+# active interventions — they must be authenticated (were fully anonymous).
+router = BaseAPIRouter(
+    prefix="/api/business-health",
+    tags=["operational-intelligence"],
+    dependencies=[Depends(get_current_user)],
+)
 logger = logging.getLogger(__name__)
 
 @router.get("/priorities")

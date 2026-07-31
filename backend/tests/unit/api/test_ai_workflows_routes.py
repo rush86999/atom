@@ -36,8 +36,13 @@ except ImportError:
 @pytest.fixture
 def app():
     """Create test FastAPI app with AI workflows routes."""
+    from unittest.mock import MagicMock
+    from core.auth import get_current_user
+
     app = FastAPI()
     app.include_router(router)
+    # Round 37: endpoints are authenticated — override the dependency.
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
     return app
 
 

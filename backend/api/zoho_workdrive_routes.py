@@ -4,13 +4,20 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from integrations.zoho_workdrive_service import ZohoWorkDriveService
 
 logger = logging.getLogger(__name__)
 
-# Initialize router
-router = BaseAPIRouter(prefix="/api/zoho-workdrive", tags=["zoho-workdrive"])
+# Round 37: Zoho WorkDrive endpoints read/ingest a user's cloud files. They were
+# fully anonymous and trusted a client-supplied user_id, allowing cross-user
+# file access. Identity now comes from the token.
+router = BaseAPIRouter(
+    prefix="/api/zoho-workdrive",
+    tags=["zoho-workdrive"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Initialize service
 zoho_service = ZohoWorkDriveService()
@@ -25,30 +32,30 @@ class IngestRequest(BaseModel):
     file_id: str = Field(..., description="Zoho WorkDrive file ID")
 
 @router.get("/teams", summary="List Zoho WorkDrive teams")
-async def get_teams(user_id: str = Query(..., description="User ID")):
+async def get_teams(current_user: User = Depends(get_current_user)):
     """Get teams for the authenticated Zoho user"""
     try:
-        teams = await zoho_service.get_teams(user_id)
+        teams = await zoho_service.get_teams(current_user.id)
         return router.success_response(data=teams)
     except Exception as e:
         logger.error(f"Error fetching Zoho teams: {e}")
         raise router.internal_error(message="Error fetching Zoho teams", details={"error": "Internal error"})
 
 @router.post("/files/list", summary="List files in a folder")
-async def list_files(request: FileListRequest):
+async def list_files(request: FileListRequest, current_user: User = Depends(get_current_user)):
     """List files and folders in a specific parent ID"""
     try:
-        files = await zoho_service.list_files(request.user_id, request.parent_id)
+        files = await zoho_service.list_files(current_user.id, request.parent_id)
         return router.success_response(data=files)
     except Exception as e:
         logger.error(f"Error listing Zoho files: {e}")
         raise router.internal_error(message="Error listing Zoho files", details={"error": "Internal error"})
 
 @router.post("/ingest", summary="Ingest file to ATOM memory")
-async def ingest_file(request: IngestRequest):
+async def ingest_file(request: IngestRequest, current_user: User = Depends(get_current_user)):
     """Download and ingest a file into ATOM knowledge base"""
     try:
-        result = await zoho_service.ingest_file_to_memory(request.user_id, request.file_id)
+        result = await zoho_service.ingest_file_to_memory(current_user.id, request.file_id)
         return result
     except Exception as e:
         logger.error(f"Error ingesting Zoho file: {e}")

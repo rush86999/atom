@@ -93,9 +93,13 @@ def mock_template_manager():
 def test_client(mock_template_manager):
     """FastAPI TestClient with mocked dependencies."""
     from api.workflow_template_routes import router
+    from core.auth import get_current_user
 
     app = FastAPI()
     app.include_router(router)
+
+    # Round 38: template mutations require auth — override the dependency.
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
 
     # Mock get_template_manager function
     with patch('api.workflow_template_routes.get_template_manager', return_value=mock_template_manager):

@@ -70,8 +70,13 @@ class TestDataIngestionRoutes:
     @pytest.fixture
     def app(self):
         """Create FastAPI app with router"""
+        from unittest.mock import MagicMock
+        from core.auth import get_current_user
+
         app = FastAPI()
         app.include_router(router)
+        # Round 37: data-ingestion endpoints require auth — override the dependency.
+        app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
         return app
 
     @patch("core.hybrid_data_ingestion.get_hybrid_ingestion_service")

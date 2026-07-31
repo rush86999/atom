@@ -18,13 +18,21 @@ from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AgentFeedback, User
+from core.models import AgentFeedback
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/feedback/batch", tags=["Feedback Batch"])
+# Round 37: feedback adjudication affects agent-training data and exposes user
+# feedback content — it must be authenticated. The acting identity is taken
+# from the token, never from the request body.
+router = BaseAPIRouter(
+    prefix="/api/feedback/batch",
+    tags=["Feedback Batch"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # ============================================================================
@@ -82,7 +90,8 @@ class PendingFeedbackResponse(BaseModel):
 @router.post("/approve")
 async def batch_approve_feedback(
     request: BatchOperationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Batch approve multiple feedback entries.
@@ -139,7 +148,7 @@ async def batch_approve_feedback(
 
     logger.info(
         f"Batch approve completed: {processed} processed, {failed} failed, "
-        f"user={request.user_id}"
+        f"user={current_user.id}"
     )
 
     return router.success_response(
@@ -157,7 +166,8 @@ async def batch_approve_feedback(
 @router.post("/reject")
 async def batch_reject_feedback(
     request: BatchOperationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Batch reject multiple feedback entries.
@@ -214,7 +224,7 @@ async def batch_reject_feedback(
 
     logger.info(
         f"Batch reject completed: {processed} processed, {failed} failed, "
-        f"user={request.user_id}"
+        f"user={current_user.id}"
     )
 
     return BatchOperationResponse(
@@ -229,7 +239,8 @@ async def batch_reject_feedback(
 @router.post("/update-status")
 async def batch_update_feedback_status(
     request: BulkStatusUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Batch update feedback status to any state.
@@ -296,7 +307,7 @@ async def batch_update_feedback_status(
 
     logger.info(
         f"Batch status update completed: {processed} processed, {failed} failed, "
-        f"new_status={request.new_status}, user={request.user_id}"
+        f"new_status={request.new_status}, user={current_user.id}"
     )
 
     return BatchOperationResponse(

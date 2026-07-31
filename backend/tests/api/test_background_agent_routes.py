@@ -31,9 +31,13 @@ def client() -> TestClient:
     Create TestClient with background agent routes.
 
     Isolated to avoid SQLAlchemy metadata conflicts.
+    Round 37: background-agent endpoints require auth — override the dependency.
     """
+    from core.auth import get_current_user
+
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
     return TestClient(app)
 
 

@@ -462,7 +462,7 @@ async def parse_document_file(
             total_chars=0,
             page_count=0,
             method="error",
-            error=str(e)
+            error="Document parsing failed"
         )
 
 
