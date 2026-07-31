@@ -258,6 +258,16 @@ async def upload_and_extract(
     # SECURITY: sanitize filename to prevent path traversal
     safe_filename = _sanitize_filename(file.filename)
 
+    # SECURITY: enforce upload size cap BEFORE reading into memory (OOM DoS
+    # protection, mirrors document_ingestion R21 pattern). MAX_UPLOAD_BYTES is
+    # in bytes; default 50 MiB.
+    MAX_FILE_SIZE = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
+    if file.size is not None and file.size > MAX_FILE_SIZE:
+        raise router.validation_error(
+            field="file",
+            message=f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB",
+        )
+
     # Validate file type
     allowed_extensions = ['.pdf', '.docx', '.doc', '.txt', '.png', '.tiff', '.tif', '.jpeg', '.jpg']
     ext = os.path.splitext(safe_filename)[1].lower()
@@ -273,6 +283,11 @@ async def upload_and_extract(
 
     try:
         content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise router.validation_error(
+                field="file",
+                message=f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB",
+            )
         with open(temp_path, 'wb') as f:
             f.write(content)
 
