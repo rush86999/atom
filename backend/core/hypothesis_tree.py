@@ -353,6 +353,9 @@ class HypothesisTree:
         # Add node
         self.nodes[node.id] = node
         self.total_tokens_used += node.metrics.tokens_used
+        # Bug #10: total_cost_usd was never incremented, so the cost-budget
+        # guard at line 350 never tripped. Now accumulate the node's cost.
+        self.total_cost_usd += getattr(node.metrics, 'cost_usd', 0.0)
 
         # Update parent's children list
         if node.parent_id and node.parent_id in self.nodes:

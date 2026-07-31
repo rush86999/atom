@@ -326,7 +326,7 @@ class MemoryConsolidationService:
         expired = 0
 
         for memory in self.memory_manager._episodic_memory.values():
-            if memory.observation.agent_id != agent_id:
+            if (memory.observation.agent_id if memory.observation else None) != agent_id:
                 continue
 
             if memory.created_at < cutoff_date:
@@ -369,7 +369,7 @@ class MemoryConsolidationService:
         # Get high-quality, frequently accessed memories
         high_quality_memories = [
             m for m in self.memory_manager._episodic_memory.values()
-            if (m.observation.agent_id == agent_id and
+            if ((m.observation.agent_id if m.observation else None) == agent_id and
                 m.quality_score >= ConsolidationConfig.HIGH_QUALITY_THRESHOLD and
                 m.access_count >= ConsolidationConfig.REPLAY_THRESHOLD and
                 m.status != MemoryStatus.EXPIRED)
@@ -420,7 +420,7 @@ class MemoryConsolidationService:
         # Get consolidated memories
         consolidated_memories = [
             m for m in self.memory_manager._episodic_memory.values()
-            if (m.observation.agent_id == agent_id and
+            if ((m.observation.agent_id if m.observation else None) == agent_id and
                 m.status == MemoryStatus.CONSOLIDATED)
         ]
 
@@ -430,7 +430,7 @@ class MemoryConsolidationService:
 
         # Group by task type
         for memory in consolidated_memories:
-            task_type = memory.observation.task_type or "UNKNOWN"
+            task_type = (memory.observation.task_type if memory.observation else None) or "UNKNOWN"
             if task_type not in task_groups:
                 task_groups[task_type] = []
             task_groups[task_type].append(memory)

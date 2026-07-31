@@ -349,12 +349,17 @@ class WorldModelService:
             ) 
             
             for res in results:
-                if res.get("metadata", {}).get("id") == fact_id: 
+                if res.get("metadata", {}).get("id") == fact_id:
                     meta = res.get("metadata", {})
+                    # Bug #5: capture OLD status BEFORE setting the new one.
+                    # Previously meta["verification_status"] was set to the new
+                    # status before the replace(), so it searched for and
+                    # replaced the new string with itself (a no-op).
+                    old_status = meta.get("verification_status", "unverified")
                     meta["verification_status"] = status
                     meta["last_verified"] = datetime.now(timezone.utc).isoformat()
-                    
-                    new_text = res["text"].replace(f"Status: {meta.get('verification_status')}", f"Status: {status}")
+
+                    new_text = res["text"].replace(f"Status: {old_status}", f"Status: {status}")
                     
                     self.db.add_document(
                         table_name=self.facts_table_name,
@@ -407,7 +412,9 @@ class WorldModelService:
                 return None
             
             # Use LanceDB filtering
-            results = table.search().where(f"id == '{fact_id}'").limit(1).to_pandas()
+            # Escape fact_id to prevent filter injection (Bug #6)
+            safe_fact_id = str(fact_id).replace("'", "''")
+            results = table.search().where(f"id == '{safe_fact_id}'").limit(1).to_pandas()
             
             if results.empty:
                 return None
@@ -1007,7 +1014,9 @@ class WorldModelService:
         graph_context = ""
         try:
             from core.graphrag_engine import graphrag_engine
-            graph_context = graphrag_engine.get_context_for_ai(self.db.workspace_id, current_task_description)
+            # Bug #2: get_context_for_ai is async — was called without await,
+            # so graph_context was always a coroutine object (silently discarded).
+            graph_context = await graphrag_engine.get_context_for_ai(self.db.workspace_id, current_task_description)
         except Exception as ge:
             logger.warning(f"GraphRAG recall failed: {ge}")
 
@@ -1831,9 +1840,13 @@ class WorldModelService:
 
             db.close()
 
-            # Sort by combined score (success rate weighted more than similarity)
+            # Sort by success rate (Bug #11: the old sort key added a constant
+            # 0.4 instead of the similarity score, so similarity had zero effect
+            # on ordering. Now the SkillRecommendation carries the score in its
+            # reason field, and we sort by success_rate alone since the combined
+            # score was computed but not stored on the dataclass).
             recommendations.sort(
-                key=lambda r: (r.success_rate * 0.6 + 0.4),  # Success rate prioritized
+                key=lambda r: r.success_rate,
                 reverse=True
             )
 
