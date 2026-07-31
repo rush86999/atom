@@ -20,7 +20,7 @@ from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import (
-    OAuthToken,
+    IntegrationToken,
     SocialMediaAudit,
     SocialPostHistory,
     User
@@ -199,7 +199,7 @@ async def post_to_twitter(
         logger.error(f"Twitter posting failed: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "error": "Posting failed"
         }
 
 
@@ -318,7 +318,7 @@ async def post_to_linkedin(
         logger.error(f"LinkedIn posting failed: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "error": "Posting failed"
         }
 
 
@@ -389,7 +389,7 @@ async def post_to_facebook(
         logger.error(f"Facebook posting failed: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "error": "Posting failed"
         }
 
 
@@ -554,11 +554,14 @@ async def create_social_post(
                 config = PlatformConfig.get_platform(platform)
                 oauth_provider = config.get("oauth_provider", platform)
 
-                # Look up OAuth token
-                oauth_token = db.query(OAuthToken).filter(
-                    OAuthToken.user_id == current_user.id,
-                    OAuthToken.provider == oauth_provider,
-                    OAuthToken.status == "active"
+                # Look up OAuth token (IntegrationToken — the model with a
+                # provider column; OAuthToken is the OAuth-client token store
+                # and has no provider/status/access_token columns, so the
+                # previous lookup raised AttributeError on every request).
+                oauth_token = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == current_user.id,
+                    IntegrationToken.provider == oauth_provider,
+                    IntegrationToken.status == "active"
                 ).first()
 
                 if not oauth_token:
@@ -634,26 +637,27 @@ async def create_social_post(
 
                 if result.get("success"):
                     successful_posts += 1
-                    # Update last_used timestamp
-                    oauth_token.last_used = datetime.utcnow()
+                    # IntegrationToken has no last_used column; updated_at is
+                    # maintained automatically by SQLAlchemy onupdate.
 
             except ValueError as e:
+                logger.error(f"Failed to post to {platform}: {e}")
                 platform_results[platform] = {
                     "success": False,
-                    "error": str(e)
+                    "error": "Posting failed"
                 }
             except Exception as e:
                 logger.error(f"Failed to post to {platform}: {e}", exc_info=True)
                 platform_results[platform] = {
                     "success": False,
-                    "error": str(e)
+                    "error": "Posting failed"
                 }
 
         # Commit any token updates and audit entries
         db.commit()
 
         # Generate post ID
-        post_id = str(uuid.uuid4())
+        post_id = str(uuid4())
 
         logger.info(
             f"Social post created: user={current_user.id}, "
@@ -678,8 +682,7 @@ async def create_social_post(
     except Exception as e:
         logger.error(f"Social post creation failed: {e}", exc_info=True)
         raise router.internal_error(
-            message="Failed to create social post",
-            details={"error": str(e)}
+            message="Failed to create social post"
         )
 
 
@@ -711,10 +714,10 @@ async def list_connected_accounts(
             oauth_provider = config.get("oauth_provider", platform_name)
             social_providers.add(oauth_provider)
 
-        tokens = db.query(OAuthToken).filter(
-            OAuthToken.user_id == current_user.id,
-            OAuthToken.provider.in_(social_providers),
-            OAuthToken.status == "active"
+        tokens = db.query(IntegrationToken).filter(
+            IntegrationToken.user_id == current_user.id,
+            IntegrationToken.provider.in_(social_providers),
+            IntegrationToken.status == "active"
         ).all()
 
         accounts = []
@@ -730,8 +733,8 @@ async def list_connected_accounts(
                     "platform": platform_name,
                     "provider": token.provider,
                     "token_id": token.id,
-                    "scopes": token.scopes,
-                    "last_used": token.last_used.isoformat() if token.last_used else None,
+                    "scopes": token.scope,
+                    "last_used": token.updated_at.isoformat() if token.updated_at else None,
                 })
 
         return {

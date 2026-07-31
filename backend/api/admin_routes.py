@@ -1353,8 +1353,9 @@ async def bulk_resolve_conflicts(
                 errors.append(f"Conflict {conflict_id}: Failed to resolve")
 
         except Exception as e:
+            logger.error(f"Failed to resolve conflict {conflict_id}: {e}")
             failed_count += 1
-            errors.append(f"Conflict {conflict_id}: {str(e)}")
+            errors.append(f"Conflict {conflict_id}: Failed to resolve")
 
     return BulkResolveConflictsResponse(
         success=(failed_count == 0),

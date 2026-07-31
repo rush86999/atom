@@ -192,6 +192,23 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 41 — str(e) Leak Sweep + Broken Social Posting Pipeline (July 31, 2026) ✨
+**Bug hunt round.** Re-grepped `str(e)` reaching clients in *mounted* routers — R18 fixed 992 leaks, but code added since R19-40 re-introduced them.
+
+**A. `api/canvas_recording_routes.py`** — start/event/stop/get/list returned `message=f"Failed to ...: {str(e)}"` (R38's sweep missed these 5) → generic messages, logs retain `{e}`.
+
+**B. `api/social_media_routes.py`** — per-platform poster exceptions surfaced `{"error": str(e)}` in `platform_results` (5 sites: twitter/linkedin/facebook + loop ValueError/Exception handlers) and the outer 500 handler leaked via `details={"error": str(e)}` → all generic.
+
+**C. `api/admin_routes.py`** — `bulk_resolve_conflicts` appended `f"Conflict {id}: {str(e)}"` to the client-visible errors list → generic "Failed to resolve" (logger keeps detail).
+
+**D. BONUS — broken social posting pipeline (2 latent bugs found by the leak tests):**
+- `post_id = str(uuid.uuid4())` with only `from uuid import uuid4` imported → **every successful post 500'd AFTER the platform post was already sent** (double-effect: post fires, client sees failure, may retry → duplicate posts). Fixed → `str(uuid4())`.
+- The entire OAuth token path queried **phantom `OAuthToken` columns** (`provider`, `status`, `access_token`, `scopes`, `last_used` — none exist on the model; it has `is_active`/`access_token_hash`/`scope`/`last_used_at`) → `AttributeError` on EVERY request: social posting could never succeed and `GET /connected-accounts` always 500'd. Root cause: code was written against a legacy schema. Fixed by switching to the real `IntegrationToken` model (has `provider`, `access_token` encrypted-at-rest, `status`, `scope`). `api/oauth_routes.py` (unmounted dead code) writes the same phantom schema — flagged, not exploitable today.
+
+**Reviewed, NOT leaks:** `validate_content` echoing the client's own platform name; `recording_review_routes` echoing the client's own recording_id; `device_capabilities` flow-control only. `api/line_routes.py` + `api/archive/*` leaks are unmounted dead code.
+
+**Tests:** 11 new tests in `backend/tests/test_round41_leak_sweep.py` (sentinel-based leak assertions across 3 routers + happy-path regression for the uuid bug + connected-accounts 200 regression). Zero regressions vs baseline (comm-verified: 36 passed/28 skipped/63 errors identical pre/post — the 63 are pre-existing SQLAlchemy-2.0 fixture breakage in test_admin_routes.py etc.). mypy improved 19→18 errors (uuid fix), zero new. 161 tests green across rounds 38-41.
+
 ### Round 40 — Third-Pass Auth Sweep: Never-Touched Routers + Route Shadowing (July 31, 2026) ✨
 **Bug hunt round.** Extended `backend/scripts/audit_all_route_auth.py` matcher (now recognizes `require_permission(Permission.X)` calls, `get_super_admin`, `get_current_session_token`, `admin` param names) and swept the remaining *mounted* routers that prior rounds never touched.
 

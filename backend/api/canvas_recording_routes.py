@@ -127,7 +127,7 @@ async def start_recording(
     except Exception as e:
         logger.error(f"Failed to start recording: {e}")
         raise router.internal_error(
-            message=f"Failed to start recording: {str(e)}"
+            message="Failed to start recording"
         )
 
 
@@ -170,7 +170,7 @@ async def record_event(
     except Exception as e:
         logger.error(f"Failed to record event: {e}")
         raise router.internal_error(
-            message=f"Failed to record event: {str(e)}"
+            message="Failed to record event"
         )
 
 
@@ -205,7 +205,7 @@ async def stop_recording(
     except Exception as e:
         logger.error(f"Failed to stop recording: {e}")
         raise router.internal_error(
-            message=f"Failed to stop recording: {str(e)}"
+            message="Failed to stop recording"
         )
 
 
@@ -246,7 +246,7 @@ async def get_recording(
             raise
         logger.error(f"Failed to get recording: {e}")
         raise router.internal_error(
-            message=f"Failed to get recording: {str(e)}"
+            message="Failed to get recording"
         )
 
 
@@ -286,7 +286,7 @@ async def list_recordings(
     except Exception as e:
         logger.error(f"Failed to list recordings: {e}")
         raise router.internal_error(
-            message=f"Failed to list recordings: {str(e)}"
+            message="Failed to list recordings"
         )
 
 
