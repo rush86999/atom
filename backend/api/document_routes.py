@@ -134,18 +134,31 @@ async def upload_document(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
 
-        content_bytes = await file.read()
         filename = file.filename
         file_ext = filename.split(".")[-1].lower() if "." in filename else "txt"
 
-        # Upload guardrails: cap size (50 MB) and restrict file types to
-        # prevent memory-DoS via huge uploads and arbitrary file ingestion.
+        # Upload guardrails: check size BEFORE reading into memory (M5 fix).
         MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
         ALLOWED_EXTENSIONS = {
             "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
             "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
             "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
         }
+        # Check declared size first (SpooledTemporaryFile reports it).
+        if file.size is not None and file.size > MAX_UPLOAD_SIZE:
+            raise router.error_response(
+                error_code="FILE_TOO_LARGE",
+                message=f"File exceeds the {MAX_UPLOAD_SIZE // (1024*1024)} MB upload limit",
+                status_code=413,
+            )
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise router.error_response(
+                error_code="UNSUPPORTED_FILE_TYPE",
+                message=f"File type '{file_ext}' is not supported",
+                status_code=415,
+            )
+
+        content_bytes = await file.read()
         if len(content_bytes) > MAX_UPLOAD_SIZE:
             raise router.error_response(
                 error_code="FILE_TOO_LARGE",

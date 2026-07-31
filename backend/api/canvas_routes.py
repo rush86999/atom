@@ -575,6 +575,19 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
         await websocket.close(code=1008, reason="Invalid or expired token")
         return
 
+    # C2 fix: verify the user owns (or can access) this canvas before
+    # allowing WS state injection. Previously any authenticated user who
+    # knew a canvas_id could broadcast state_update to its viewers.
+    from core.models import Canvas
+    db = SessionLocal()
+    try:
+        canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if canvas and canvas.created_by != user.id:
+            await websocket.close(code=1008, reason="Not authorized for this canvas")
+            return
+    finally:
+        db.close()
+
     await manager.connect(canvas_id, websocket)
     try:
         while True:
@@ -582,4 +595,6 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
             if data.get("type") == "canvas:state_update":
                 await manager.broadcast_state(canvas_id, data.get("state", {}))
     except WebSocketDisconnect:
+        manager.disconnect(canvas_id, websocket)
+    except Exception:
         manager.disconnect(canvas_id, websocket)

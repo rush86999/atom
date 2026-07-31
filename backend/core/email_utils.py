@@ -149,7 +149,7 @@ def validate_email_with_plus_addressing(email: str) -> bool:
 
     # Allow + in local part
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not True
+    return re.match(pattern, email) is not None
 
 
 # ==============================================================================
