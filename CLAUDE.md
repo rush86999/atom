@@ -192,6 +192,15 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 52 — Office Service str(e) Leaks + Dead Office Router (July 31, 2026) ✨
+**Bug hunt round.** `core/office_service.py` returned raw exception strings in every failure dict, and `api/office_routes.py` (mounted via `safe_import_router`, 14 endpoints) forwarded those dicts verbatim into `HTTPException(detail=...)` — internal exception detail (filesystem paths, openpyxl/docx internals) reached clients on every office failure.
+
+**A. str(e) sweep (`core/office_service.py`):** 9 `except Exception` sites (Excel read/write, Word read/modify, PPTX read/modify, 3 HTML-render paths) + `_validate_office_path` embedding `OSError` text (`Invalid file path: [Errno 13] ...`) → all now return operation-descriptive generic strings (`"Failed to read Excel range"`, etc.); logger retains `{e}`. Render sites previously had NO logger line — added.
+
+**B. BONUS — dead office router (2 latent bugs):** the module was written against unimported names — `List` (used in `ExcelPivotTableRequest`, missing from the `typing` import) made the module raise `NameError` at import. `safe_import_router` swallows non-ImportError exceptions in dev (silently mounting an EMPTY router → all 14 office endpoints 404'd; the file's own comment claims the endpoints were auth-hardened but the router never loaded) and **raises in production (`ENVIRONMENT=production`) → app startup crash**. `uuid` was also missing (fires when `POST /present` runs). Both imports added; `office_routes.py` now mypy-clean (10 errors → 0 on that file).
+
+**Tests:** 6 new tests in `backend/tests/test_round52_office_error_leaks.py` (secret-sentinel leak assertions for read_range/write_cell/read_document + end-to-end HTTP `GET /excel` with real service+route + module-import regression; pptx/mammoth tests skip when libs absent). Zero regressions (comm-verified: 12→4 failures in affected suites — delta is exactly the 5 RED tests + 3 pre-existing `test_office_service.py` tests flipping green; `comm -13` empty = no new failures; the 3 office tests also fail standalone at baseline — pre-existing `data_only` read-back flakiness). mypy improved 10→7 (fixed 3 `List` errors, zero new). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 51 — CSV Injection in Feedback + GL Exports (CWE-1236) (July 31, 2026) ✨
 **Bug hunt round.** R21's `_sanitize_csv_cell` fixed `accounting/export_service.py` but two mounted export paths still wrote user-controlled free text with **no sanitization** — opening the exported CSV in Excel executes attacker-controlled formulas:
 
