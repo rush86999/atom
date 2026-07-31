@@ -86,6 +86,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """Check if client has exceeded rate limit"""
         current_time = time.time()
 
+        # Evict stale entries periodically to prevent unbounded growth (#2 fix).
+        # An attacker rotating X-Forwarded-For could otherwise create one
+        # permanent dict entry per fake IP → OOM.
+        if len(self.clients) > 10000:
+            stale = [ip for ip, d in self.clients.items() if current_time > d.get("reset_time", 0)]
+            for ip in stale:
+                del self.clients[ip]
+
         # Get or create client data
         if client_ip not in self.clients:
             self.clients[client_ip] = {
@@ -178,7 +186,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 request._body = body
 
             except Exception as e:
-                logger.warning(f"Could not read request body for security check: {e}")
+                security_logger.warning(f"Could not read request body for security check: {e}")
                 # If we can't read body, continue
 
         return await call_next(request)

@@ -28,12 +28,16 @@ def execute_agent_background(task_data: Dict[str, Any]):
         # Create a new event loop for this thread if necessary
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-        result = loop.run_until_complete(atom.execute(
-            request=request,
-            context=context,
-            trigger_mode=AgentTriggerMode(trigger_mode_str)
-        ))
+
+        try:
+            result = loop.run_until_complete(atom.execute(
+                request=request,
+                context=context,
+                trigger_mode=AgentTriggerMode(trigger_mode_str)
+            ))
+        finally:
+            # #7 fix: close the loop to prevent resource leak across many invocations.
+            loop.close()
         
         logger.info(f"Background worker: Execution completed for {tenant_id}")
         return result
