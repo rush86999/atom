@@ -64,28 +64,34 @@ def _compile(pattern: str) -> "re.Pattern[str]":
     return re.compile(pattern, re.IGNORECASE | re.MULTILINE)
 
 
+# Bug #4 fix: credential-read tripwires anchored only on `cat`. Any file-read
+# command (head, tail, less, more, cp, od, strings, xxd, sort, tac, nl, cut,
+# dd, or shell redirect) reads the same secrets and matched none of the patterns.
+# Broadened the command prefix to a group of common file-read tools.
+_CRED_READ_CMDS = r"(?:cat|head|tail|less|more|cp|od|strings|xxd|sort|tac|nl|cut|dd|base64|hexdump|bat)"
+
 _TRIPWIRES: Tuple[TripwirePattern, ...] = (
     # --- Credential reads (Phase C red-team primary surface) ----------
     TripwirePattern(
         id="cred_ssh_key",
         category="CREDENTIAL",
-        regex=_compile(r"\bcat\s+[^\s]*\.ssh[/\\]|"
-                       r"\bcat\s+[^\s]*id_(rsa|ed25519|ecdsa)\b|"
-                       r"\bcat\s+[^\s]*authorized_keys\b"),
+        regex=_compile(rf"\b{_CRED_READ_CMDS}\s+[^\s]*\.ssh[/\\]|"
+                       rf"\b{_CRED_READ_CMDS}\s+[^\s]*id_(rsa|ed25519|ecdsa)\b|"
+                       rf"\b{_CRED_READ_CMDS}\s+[^\s]*authorized_keys\b"),
         description="reading SSH private keys or authorized_keys",
     ),
     TripwirePattern(
         id="cred_aws",
         category="CREDENTIAL",
-        regex=_compile(r"\bcat\s+[^\s]*\.aws[/\\](credentials|config)\b|"
+        regex=_compile(rf"\b{_CRED_READ_CMDS}\s+[^\s]*\.aws[/\\](credentials|config)\b|"
                        r"\bprintenv\s+AWS_SECRET_ACCESS_KEY\b"),
         description="reading AWS credentials",
     ),
     TripwirePattern(
         id="cred_env_file",
         category="CREDENTIAL",
-        regex=_compile(r"\bcat\s+[^\s]*\.env(\.|$|\s)|"
-                       r"\bcat\s+/etc/(env|environment)\b"),
+        regex=_compile(rf"\b{_CRED_READ_CMDS}\s+[^\s]*\.env(\.|$|\s)|"
+                       rf"\b{_CRED_READ_CMDS}\s+/etc/(env|environment)\b"),
         description="reading .env or /etc/environment files",
     ),
     TripwirePattern(
@@ -203,6 +209,10 @@ _TRIPWIRES: Tuple[TripwirePattern, ...] = (
     ),
 
     # --- Data exfiltration via HTTP ----------------------------------
+    # Bug #2 fix: the negative lookahead used `\b` after the host, which
+    # treats `.` as a word boundary — `api.anthropic.com.evil.com` passes.
+    # Changed to `[/\s\"']` (require a path-separator / quote / space after
+    # the allowlisted host) so subdomain lookalikes are caught.
     TripwirePattern(
         id="exfil_curl_to_external",
         category="EXFIL",
@@ -214,7 +224,7 @@ _TRIPWIRES: Tuple[TripwirePattern, ...] = (
                        r"files\.pythonhosted\.org|"
                        r"github\.com|"
                        r"raw\.githubusercontent\.com"
-                       r")\b)"),
+                       r")[/\s\"'])"),
         description="HTTP request to non-allowlisted host (exfil)",
     ),
 )
@@ -279,12 +289,24 @@ def all_patterns() -> Tuple[TripwirePattern, ...]:
 
 
 def check_python_ast(code: str) -> Optional[str]:
-    """Analyze python code using AST. Returns validation error message or None if safe."""
+    """Analyze python code using AST. Returns validation error message or None if safe.
+
+    Bug #14 fix: on SyntaxError, do NOT fall through to check_js_ast — that
+    runs JS regex patterns against plain prose, causing false positives like
+    blocking a tool call whose args mention "process.env.SECRET" in
+    documentation text. Only run the JS checker if the input looks like JS/TS
+    code (contains common JS syntax markers), not for every non-Python string.
+    """
     import ast
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return check_js_ast(code)
+        # Only run JS AST check if the string looks like JS/TS code, not prose.
+        # Quick heuristic: must contain at least one JS-specific construct.
+        _JS_MARKERS = ("function ", "const ", "let ", "var ", "=>", "require(", "module.exports", "console.log", "document.", "window.")
+        if any(marker in code for marker in _JS_MARKERS):
+            return check_js_ast(code)
+        return None  # plain text / unknown language — don't tripwire prose
         
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -410,6 +432,26 @@ def check(
             },
         )
     except Exception as e:  # noqa: BLE001
+        # Bug #12: under enforced mode, a tripwire exception should FAIL CLOSED
+        # (block the call) rather than fail open to ALLOWED — a broken security
+        # check is worse than a blocked tool call. In shadow mode, fail open
+        # is acceptable (don't block legitimate work during a tooling bug).
+        if sandbox_config.is_sandbox_force_enforce_enabled():
+            logger.error(
+                "tripwire check raised under ENFORCEMENT for %s — failing CLOSED: %s",
+                tool_name, e,
+            )
+            return SandboxDecision(
+                decision=DENIED,
+                phase="C",
+                tool_name=tool_name,
+                args_hash=args_hash,
+                violation_type=VT_TRIPWIRE,
+                violation_detail=f"tripwire internal error (fail-closed): {e}",
+                enforced=True,
+                killrun_triggered=True,
+                metadata_json={"error": str(e), "fail_closed": True},
+            )
         logger.debug("tripwire check failed open for %s: %s", tool_name, e)
         return SandboxDecision(
             decision=ALLOWED,

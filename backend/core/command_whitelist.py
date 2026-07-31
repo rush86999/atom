@@ -66,8 +66,12 @@ COMMAND_WHITELIST = {
         "maturity_levels": ["SUPERVISED", "AUTONOMOUS"]
     },
     CommandCategory.NETWORK: {
-        "commands": ["curl", "wget", "ping", "nslookup", "dig", "netstat"],
-        "maturity_levels": ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
+        # Bug #10: curl/wget were available to ALL tiers including STUDENT
+        # (lowest trust), contradicting sandbox_policy which gives STUDENT
+        # zero egress. Moved curl/wget to SUPERVISED+ only; kept diagnostic
+        # commands (ping/nslookup/dig/netstat) available to INTERN+.
+        "commands": ["ping", "nslookup", "dig", "netstat"],
+        "maturity_levels": ["INTERN", "SUPERVISED", "AUTONOMOUS"]
     },
     CommandCategory.BLOCKED: {
         "commands": [

@@ -647,6 +647,26 @@ async def browser_navigate(
         }
 
     try:
+        # SSRF guard: block navigation to private/internal/link-local addresses
+        # (Bug #6). Previously url was passed straight to Playwright with no
+        # validation — cloud metadata, localhost, internal services all reachable.
+        from urllib.parse import urlparse
+        import ipaddress
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return {"success": False, "error": f"URL scheme '{parsed.scheme}' not allowed"}
+        hostname = parsed.hostname or ""
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return {"success": False, "error": "Navigation to private/internal addresses is blocked"}
+        except ValueError:
+            pass  # DNS name — allow (DNS rebinding is a residual risk)
+
+        # Validate wait_until (Bug #7)
+        if wait_until not in ("load", "domcontentloaded", "networkidle", "commit"):
+            wait_until = "load"
+
         # Navigate to URL
         response = await session.page.goto(url, wait_until=wait_until, timeout=30000)
 
