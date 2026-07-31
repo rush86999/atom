@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 60 — Mobile Auth Paths Accept Deactivated Users: R43 Status Gap (July 31, 2026) ✨
+**Bug hunt round.** R43 added the `user.status != UserStatus.ACTIVE` rejection to `get_current_user`/`get_current_user_ws`/`login_for_access_token` — but the **three mobile authentication paths never got it**, so a deactivated (departed/removed) employee who keeps their password and device can continue authenticating indefinitely:
+
+**A. `core/auth.py:authenticate_mobile_user`** (`POST /mobile/login`) — password login issued fresh token pairs for DELETED/SUSPENDED users + registered devices.
+
+**B. `api/auth_routes.py:refresh_mobile_token`** (`POST /mobile/refresh`) — renewed token pairs forever for deactivated users whose device row is still active.
+
+**C. `api/auth_routes.py:authenticate_with_biometric`** (`POST /mobile/biometric/authenticate`) — same gap.
+
+**Fix:** mirrors R43 at all three entry points — non-ACTIVE users get `None`/`validation_error` before any token minting. Added the missing `UserStatus` import to `auth_routes`.
+
+**Tests:** 3 new tests in `backend/tests/test_round60_mobile_auth_user_status.py` (login-level rejection of a DELETED user via `authenticate_mobile_user`, HTTP `mobile/refresh` rejection with a crafted refresh JWT, HTTP biometric rejection with mocked device+signature). Zero regressions (comm-verified: 100→96 failures in affected suites — delta is exactly the 3 RED tests flipping green; the one FAILED→ERROR mode change in `test_auth_routes.py::test_register_biometric_success` is a pre-existing flaky test hitting the shared dev DB — `UNIQUE constraint failed: mobile_devices.device_token` — confirmed failing at baseline standalone too). mypy baseline identical (26 pre-existing, zero new). `main_api_app` imports clean. 3/3 round tests green.
+
 ### Round 59 — BYOK Encryption Key Not Persisted: Stored API Keys Brick on Restart (July 31, 2026) ✨
 **Bug hunt round.** `BYOKManager.__init__` used `BYOK_ENCRYPTION_KEY` env var or generated a **fresh random Fernet key on every process start** — the generated key was never persisted. Every deployment/restart produced a new key, so **all previously-stored BYOK provider keys became permanently undecryptable** (silent bricking: the BYOK system quietly loses every key until re-entered). `_get_fernet` also swaps in a fresh key on decrypt failure, corrupting the key state further.
 
