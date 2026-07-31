@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 54 — Workspace Routes: Identity Spoofing + Missing Ownership + str(e) (July 31, 2026) ✨
+**Bug hunt round.** `api/workspace_routes.py` (mounted at `/api/v1/workspaces`) trusted client-supplied identity and skipped ownership checks on every endpoint:
+
+**A. `POST /unified`** — `create_unified_workspace(user_id=request.user_id)` created workspaces **owned by any user_id the client supplied** (attribution spoofing). → now `user_id=current_user.id`; body field kept for backward compat but ignored.
+
+**B. `GET /unified?user_id=X`** — list filtered by the client-supplied `user_id` → **cross-user workspace read** (names, platform configs, sync state). → always scoped to `current_user.id`.
+
+**C. `GET /unified/{id}`, `POST /unified/{id}/platforms`, `POST /unified/{id}/sync`, `DELETE /unified/{id}`** — **zero ownership checks**: any user could read/modify/delete ANY user's workspace and — worst — `propagate_change` writes changes to **external connected platforms** (cross-user state corruption + external side effects). → new `_get_owned_workspace_or_error()` gate on all four (404 if missing, 403 if `workspace.user_id != current_user.id`).
+
+**D. 5 `str(e)` leaks** in `details={"error": str(e)}` (R41 class) → generic; plus the same leak on `POST /api/ai/pricing/estimate` (`byok_routes` — `ApiResponse(message=str(e))`). Also added `except HTTPException: raise` so the ownership gates aren't swallowed into 500s (R42 lesson).
+
+**Tests:** 7 new tests in `backend/tests/test_round54_workspace_identity.py` (token-identity assertion via captured kwargs, filter bind-param inspection, 403s for get/delete/sync on others' workspaces with service-not-called assertions, 2 secret-sentinel leak tests incl. HTTP `POST /api/ai/pricing/estimate`). Zero regressions (comm-verified: 140→126 failures in affected suites — delta is exactly the 7 RED tests flipping green; `comm -13` empty = no new failures; the 51+25 byok/workspace suite failures are pre-existing and identical in both runs). mypy baseline identical (25 pre-existing errors, line shifts only). `main_api_app` imports clean. 7/7 round tests green.
+
 ### Round 53 — Office Sync: Missing Path Containment — Arbitrary File Read/Overwrite (July 31, 2026) ✨
 **Bug hunt round.** R52 fixed `office_service` `str(e)` leaks but exposed a deeper hole: `core/office_sync_service.py` (served by authenticated `POST /sync-update` + `/present` in `office_routes`) passed the **user-supplied `file_path` straight to the filesystem with no containment** — unlike every `OfficeService` entry point, which validates against `ATOM_OFFICE_DIR`:
 
