@@ -195,9 +195,23 @@ class ConnectionService:
                 logger.error(f"Error retrieving connection credentials: {e}")
                 return None
 
+    # H2 fix: per-connection locks prevent concurrent refresh races where
+    # two requests for the same expired credential each fire a refresh,
+    # and for providers that rotate refresh tokens (Google, Microsoft), the
+    # second request uses an already-invalidated token → permanent breakage.
+    _refresh_locks: dict = {}
+
+    def _get_refresh_lock(self, conn_id: str):
+        """Get or create an asyncio.Lock for a specific connection."""
+        import asyncio
+        if conn_id not in self._refresh_locks:
+            self._refresh_locks[conn_id] = asyncio.Lock()
+        return self._refresh_locks[conn_id]
+
     async def _refresh_token_if_needed(self, conn: UserConnection, creds: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Checks if the token is expired and refreshes it using refresh_token if available.
+        Serializes refresh per-connection to prevent race conditions (H2).
         """
         if not creds:
             return None
@@ -210,7 +224,11 @@ class ConnectionService:
         # Check if token is expired or near expiry (within 5 minutes)
         should_refresh = False
         if conn.expires_at:
-            if datetime.now(timezone.utc) + timedelta(minutes=5) >= conn.expires_at:
+            # H3 fix: ensure both sides are timezone-aware before comparison.
+            expires = conn.expires_at
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) + timedelta(minutes=5) >= expires:
                 should_refresh = True
         else:
             # Heuristic: if last updated > 55 mins ago and we have a refresh token, maybe just refresh?
@@ -220,7 +238,7 @@ class ConnectionService:
                 token_age = datetime.now(timezone.utc) - conn.updated_at
                 if token_age > timedelta(minutes=55) and refresh_token:
                     logger.info(
-                        f"Token for {conn.integration_id} is {token_age.seconds // 60} minutes old, "
+                        f"Token for {conn.integration_id} is {int(token_age.total_seconds()) // 60} minutes old, "
                         f"proactively refreshing"
                     )
                     should_refresh = True
@@ -234,33 +252,33 @@ class ConnectionService:
             return None
 
         import httpx
-        try:
-            logger.info(f"Attempting to refresh token for {conn.integration_id} (Connection: {conn.id})")
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    config["token_url"],
-                    data={
-                        "grant_type": "refresh_token",
-                        "refresh_token": refresh_token,
-                        "client_id": config["client_id"],
-                        "client_secret": config["client_secret"]
-                    }
-                )
-                if resp.status_code == 200:
-                    new_token_data = resp.json()
-                    # Merge new data into old
-                    updated_creds = {**creds, **new_token_data}
-                    return updated_creds
-                else:
-                    logger.error(f"Refresh failed for {conn.integration_id}: {resp.text}")
-                    # Update status to error/expired
-                    with get_db_session() as db:
-                        conn_to_update = db.query(UserConnection).get(conn.id)
-                        if conn_to_update:
-                            conn_to_update.status = "error"
-                            db.commit()
-        except Exception as e:
-            logger.error(f"Error during token refresh: {e}")
+        # H2 fix: acquire per-connection lock so concurrent callers serialize.
+        async with self._get_refresh_lock(conn.id):
+            try:
+                logger.info(f"Attempting to refresh token for {conn.integration_id} (Connection: {conn.id})")
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        config["token_url"],
+                        data={
+                            "grant_type": "refresh_token",
+                            "refresh_token": refresh_token,
+                            "client_id": config["client_id"],
+                            "client_secret": config["client_secret"]
+                        }
+                    )
+                    if resp.status_code == 200:
+                        new_token_data = resp.json()
+                        updated_creds = {**creds, **new_token_data}
+                        return updated_creds
+                    else:
+                        logger.error(f"Refresh failed for {conn.integration_id}: {resp.text}")
+                        with get_db_session() as db:
+                            conn_to_update = db.query(UserConnection).get(conn.id)
+                            if conn_to_update:
+                                conn_to_update.status = "error"
+                                db.commit()
+            except Exception as e:
+                logger.error(f"Error during token refresh: {e}")
             
         return None
 
