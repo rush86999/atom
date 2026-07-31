@@ -192,6 +192,15 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 58 — Office /present + /sync-update: Attribution Spoofing + Dead Broadcast Path (July 31, 2026) ✨
+**Bug hunt round.** `present_coedit` and `sync_update` (`api/office_routes.py`) passed the **client-supplied `req.user_id`** into `broadcast_file_update` / `sync_canvas_to_file`, which attribute `CanvasAudit` rows AND agent-memory ingestion to that user_id — any authenticated user could **forge audit trails** (canvas updates attributed to a victim) and **poison another user's memory store** (document content ingested under the victim's id).
+
+**A. Identity fix:** both handlers now take `current_user: User = Depends(get_current_user)` and use `current_user.id` (body field kept for backward compat, ignored). Also fixed a missing `User` import.
+
+**B. BONUS — R53 regression found by the new tests:** R53's containment edit had accidentally swallowed the ENTIRE `broadcast_file_update` body into the `except ValueError: return` block — the render/audit/WebSocket-broadcast path was **dead code** since R53 (the function always exited after validation; `/present` silently stopped writing `CanvasAudit` rows, memory ingestion, and UI broadcasts). R58's audit test caught it (db.add never called); restructured the function so the body runs after the containment check. `sync_canvas_to_file` verified structurally sound.
+
+**Tests:** 3 new tests in `backend/tests/test_round58_office_present_identity.py` (token-identity assertions via captured kwargs on both endpoints, end-to-end `CanvasAudit.user_id` check through the real service — which doubles as the dead-code regression guard). Zero regressions (comm-verified: 11→6 failures in affected suites — delta is exactly the 3 RED tests flipping green; `comm -13` empty = no new failures; remaining 6 pre-existing). mypy baseline identical (2 pre-existing errors). `main_api_app` imports clean. 3/3 round tests green.
+
 ### Round 57 — Test-Infra: Stale `from main import app` Breaks Suite Collection (July 31, 2026) ✨
 **Test-infra round.** `tests/property_tests/conftest.py:13` did `from main import app` — there is **no `main.py`** (the real app is `main_api_app.py`; the CLAUDE.md quick-reference is stale). Every consumer of its `db_session` fixture — `tests/security/`, `tests/scenarios/`, `tests/integration/websocket/`, `tests/integration/test_websocket_integration.py` — failed collection with `ModuleNotFoundError`, so whole suites never ran (flagged pre-existing since R44).
 
