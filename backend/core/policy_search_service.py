@@ -88,20 +88,22 @@ class PGPolicySearchService:
             threshold = datetime.now(timezone.utc) - timedelta(hours=24)
             stmt = stmt.where(GovernanceDocument.last_verified < threshold)
 
-        # Step 3: Fetch candidate documents
+        # Step 3: Fetch candidate documents — limit the query itself to avoid
+        # loading the entire table into memory (M6 fix). Fetch limit*3 to give
+        # the similarity ranking enough headroom, then truncate after sort.
+        stmt = stmt.limit(limit * 3)
         results = self.db.execute(stmt).scalars().all()
 
         # Step 4: Calculate similarity and sort
         documents_with_similarity = []
         for doc in results:
             doc_embedding = doc.embedding
-            # Handle potential JSON storage if pgvector not active
             if isinstance(doc_embedding, str):
                 try:
                     doc_embedding = json.loads(doc_embedding)
                 except Exception:
                     continue
-            
+
             if doc_embedding:
                 similarity = self._cosine_similarity(doc_embedding, query_embedding)
                 documents_with_similarity.append((doc, similarity))

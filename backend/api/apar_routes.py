@@ -3,6 +3,7 @@ AP/AR API Routes - Phase 41
 """
 
 from datetime import datetime
+from decimal import Decimal
 import io
 import logging
 from typing import Any, Dict, List, Optional
@@ -19,7 +20,7 @@ router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"], dependencies=[Depends(get
 
 class APIntakeRequest(BaseModel):
     vendor: str
-    amount: float
+    amount: Decimal  # M8: was float — money precision drift
     due_date: Optional[str] = None
     line_items: List[Dict[str, Any]] = []
     payment_terms: str = "Net 30"
@@ -27,7 +28,7 @@ class APIntakeRequest(BaseModel):
 
 class ARGenerateRequest(BaseModel):
     customer: str
-    amount: float
+    amount: Decimal  # M8: was float
     due_date: Optional[str] = None
     line_items: List[Dict[str, Any]] = []
     source: str = "manual"
