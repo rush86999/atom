@@ -133,7 +133,7 @@ class TestInstallEndpoint:
     ):
         """Test successful package installation with approved packages."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -169,7 +169,7 @@ class TestInstallEndpoint:
     ):
         """Test that STUDENT agents are blocked from package installation."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -201,7 +201,7 @@ class TestInstallEndpoint:
     ):
         """Test that installation fails when vulnerabilities are detected."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -238,7 +238,7 @@ class TestInstallEndpoint:
     ):
         """Test that invalid requirement strings return 400 error."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -270,7 +270,7 @@ class TestExecuteEndpoint:
     ):
         """Test successful execution with installed packages."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -298,7 +298,7 @@ class TestExecuteEndpoint:
     ):
         """Test that execution fails when image not found."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -330,7 +330,7 @@ class TestCleanupEndpoint:
     def test_cleanup_removes_image(self, mock_installer):
         """Test successful image cleanup."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
         mock_installer.cleanup_skill_image.return_value = True
@@ -344,7 +344,7 @@ class TestCleanupEndpoint:
     def test_cleanup_idempotent(self, mock_installer):
         """Test that cleanup is idempotent (returns success even if image not found)."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
         mock_installer.cleanup_skill_image.return_value = False
@@ -366,7 +366,7 @@ class TestStatusEndpoint:
     def test_status_returns_image_details(self, mock_docker, mock_installer):
         """Test that status endpoint returns image details."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -393,7 +393,7 @@ class TestStatusEndpoint:
     def test_status_when_image_not_found(self, mock_docker):
         """Test status endpoint when image does not exist."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
 
         client = TestClient(app)
 
@@ -425,7 +425,7 @@ class TestAuditEndpoint:
     ):
         """Test that audit endpoint lists package operations."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
         from core.models import SkillExecution
         from datetime import datetime
 

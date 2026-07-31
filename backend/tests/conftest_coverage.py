@@ -11,7 +11,7 @@ try:
     APP_AVAILABLE = True
 except ImportError:
     try:
-        from main import app
+        from main_api_app import app
         APP_AVAILABLE = True
     except ImportError:
         from fastapi import FastAPI

@@ -72,7 +72,7 @@ class TestMarketingRoutes:
     @pytest.fixture
     def client(self):
         """Create test client"""
-        from main import app as main_app
+        from main_api_app import app as main_app
         return TestClient(main_app)
 
     def test_get_marketing_summary_success(self, client, mock_db, mock_user, mock_lead):
@@ -348,7 +348,7 @@ class TestMarketingDataValidation:
     @pytest.fixture
     def client(self):
         """Create test client"""
-        from main import app as main_app
+        from main_api_app import app as main_app
         return TestClient(main_app)
 
     def test_marketing_summary_high_intent_leads_format(self, client):

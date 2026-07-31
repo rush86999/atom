@@ -24,9 +24,9 @@ class TestFreshInstallSchemaCreation:
 
     def test_startup_calls_create_all(self):
         """The startup hook must call Base.metadata.create_all()."""
-        import main as main_mod
+        import main_api_app as main_mod
 
-        src = inspect.getsource(main_mod._startup_bootstrap)
+        src = inspect.getsource(main_mod.lifespan)
         assert "create_all" in src, (
             "Startup must call Base.metadata.create_all() to create tables "
             "on fresh installs where alembic chain is incomplete"

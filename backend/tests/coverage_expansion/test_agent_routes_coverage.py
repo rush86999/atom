@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from fastapi.testclient import TestClient
 
-from main import app
+from main_api_app import app
 
 
 class TestAgentRoutesCoverage:

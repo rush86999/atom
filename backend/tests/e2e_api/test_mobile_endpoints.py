@@ -25,7 +25,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from main import app
+from main_api_app import app
 from core.models import User, AgentRegistry
 from core.auth import get_password_hash
 from datetime import datetime

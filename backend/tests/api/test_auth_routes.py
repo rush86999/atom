@@ -84,7 +84,7 @@ def test_device(db_session: Session, test_user: User):
 @pytest.fixture
 def client():
     """Create TestClient for auth routes"""
-    from main import app
+    from main_api_app import app
     app.include_router(router)
     with TestClient(app) as test_client:
         yield test_client

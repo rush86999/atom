@@ -870,7 +870,7 @@ def test_client():
         from fastapi.testclient import TestClient
         # Try to import the app
         try:
-            from main import app
+            from main_api_app import app
         except ImportError:
             # Fallback to creating a mock app
             from fastapi import FastAPI
@@ -1032,7 +1032,7 @@ def async_client():
     try:
         from httpx import AsyncClient
         try:
-            from main import app
+            from main_api_app import app
         except ImportError:
             from fastapi import FastAPI
             app = FastAPI()
@@ -1576,7 +1576,7 @@ async def async_client():
     Use this fixture in async tests that need to make API calls.
     """
     from fastapi.testclient import TestClient
-    from main import app
+    from main_api_app import app
 
     async with TestClient(app) as client:
         yield client

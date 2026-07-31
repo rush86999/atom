@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch, MagicMock
 import uuid
 import re
 
-from main import app
+from main_api_app import app
 from core.database import SessionLocal
 from core.models import AgentRegistry, AgentStatus, User, UserRole, UserStatus
 from core.auth import create_access_token

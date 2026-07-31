@@ -48,7 +48,7 @@ def admin_user():
 @pytest.fixture
 def client():
     """Test client for the router"""
-    from main import app
+    from main_api_app import app
     app.include_router(router)
     return TestClient(app)
 

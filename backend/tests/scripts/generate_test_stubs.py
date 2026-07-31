@@ -67,7 +67,7 @@ def test_{function_name}_{scenario}({fixture_arg}):
         "imports": [
             "import pytest",
             "from fastapi.testclient import TestClient",
-            "from main import app",  # Adjust based on actual app location
+            "from main_api_app import app",  # Adjust based on actual app location
         ],
         "fixture_template": """
 @pytest.fixture

@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 # Import the main FastAPI app (with fallback)
 try:
-    from main import app
+    from main_api_app import app
 except ImportError:
     # Fallback to creating a mock app
     from fastapi import FastAPI

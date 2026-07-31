@@ -72,7 +72,7 @@ def test_rate_limiting_enforcement():
     print("\n=== Rate Limiting Enforcement Test ===")
 
     # Import app here to avoid import issues
-    from main import app
+    from main_api_app import app
     client = TestClient(app)
 
     # Hit health check endpoint 100 times rapidly
@@ -135,7 +135,7 @@ def test_rate_limit_per_user():
     """
     print("\n=== Per-User Rate Limiting Test ===")
 
-    from main import app
+    from main_api_app import app
 
     # Simulate 3 different users with different auth tokens
     users = {
@@ -222,7 +222,7 @@ def test_rate_limit_recovery():
     """
     print("\n=== Rate Limit Recovery Test ===")
 
-    from main import app
+    from main_api_app import app
     client = TestClient(app)
 
     url = "/health/live"  # Use health check as example
@@ -280,7 +280,7 @@ def test_rate_limit_burst_traffic():
     """
     print("\n=== Burst Traffic Rate Limiting Test ===")
 
-    from main import app
+    from main_api_app import app
     client = TestClient(app)
 
     url = "/health/live"
@@ -338,7 +338,7 @@ def test_rate_limit_different_endpoints():
     """
     print("\n=== Cross-Endpoint Rate Limiting Test ===")
 
-    from main import app
+    from main_api_app import app
 
     endpoints = [
         ("GET", "/health/live", None, "Health Check"),

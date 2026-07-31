@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 def api_test_client():
     """Create FastAPI test client."""
     from fastapi.testclient import TestClient
-    from main import app
+    from main_api_app import app
     return TestClient(app)
 
 
@@ -34,7 +34,7 @@ class TestAdminAPIRoutes:
 
         # Override super admin dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from api.admin_routes import get_super_admin
 
             def override_get_super_admin():
@@ -80,7 +80,7 @@ class TestCanvasAPIRoutes:
 
         # Override current user dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from core.auth import get_current_user
 
             def override_get_current_user():
@@ -146,7 +146,7 @@ class TestAgentAPIRoutes:
 
         # Override current user dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from core.auth import get_current_user
 
             def override_get_current_user():
@@ -185,7 +185,7 @@ class TestBrowserAPIRoutes:
 
         # Override current user dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from core.auth import get_current_user
 
             def override_get_current_user():
@@ -228,7 +228,7 @@ class TestWorkflowAPIRoutes:
 
         # Override current user dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from core.auth import get_current_user
 
             def override_get_current_user():
@@ -279,7 +279,7 @@ class TestAnalyticsAPIRoutes:
 
         # Override current user dependency if it exists
         try:
-            from main import app
+            from main_api_app import app
             from core.auth import get_current_user
 
             def override_get_current_user():

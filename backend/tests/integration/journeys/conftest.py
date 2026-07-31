@@ -37,7 +37,7 @@ def real_auth_client():
     from sqlalchemy.pool import StaticPool
     from core.database import get_db
     from core.models import Base
-    import main as main_module
+    import main_api_app as main_module
     import core.database as db_module
 
     engine = create_engine(

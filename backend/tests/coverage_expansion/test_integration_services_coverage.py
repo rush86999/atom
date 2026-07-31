@@ -310,7 +310,7 @@ class TestDiscordRoutesCoverage:
     def test_client(self):
         """Get FastAPI test client."""
         from fastapi.testclient import TestClient
-        from main import app
+        from main_api_app import app
         return TestClient(app)
 
     # Test: Discord webhook endpoint

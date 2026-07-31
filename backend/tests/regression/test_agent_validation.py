@@ -12,7 +12,7 @@ Bug References:
 
 import pytest
 from fastapi.testclient import TestClient
-from main import app
+from main_api_app import app
 from core.database import get_db
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
