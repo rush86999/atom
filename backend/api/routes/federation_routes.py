@@ -98,7 +98,8 @@ async def resolve_did(did: str) -> Dict[str, Any]:
             "document": result.to_dict() if hasattr(result, "to_dict") else str(result),
         }
     except Exception as e:
-        return {"did": did, "resolved": False, "error": str(e)}
+        logger.error(f"DID resolution failed: {e}")
+        return {"did": did, "resolved": False, "error": "DID resolution failed"}
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +192,8 @@ async def security_health() -> Dict[str, Any]:
     try:
         return get_federation_security().get_health_status()
     except Exception as e:
-        return {"healthy": False, "error": str(e)}
+        logger.error(f"Federation security health check failed: {e}")
+        return {"healthy": False, "error": "Security health check failed"}
 
 
 @router.get("/security/stats")
@@ -201,4 +203,5 @@ async def security_stats() -> Dict[str, Any]:
     try:
         return get_zero_trust_manager().get_statistics()
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Failed to get security stats: {e}")
+        return {"error": "Security statistics unavailable"}

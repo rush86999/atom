@@ -361,7 +361,7 @@ async def check_database_connectivity(db=Depends(get_db)) -> Dict[str, Any]:
                 "timestamp": datetime.utcnow().isoformat(),
                 "database": {
                     "connected": False,
-                    "error": str(e)
+                    "error": "Database connection failed"
                 }
             }
         )
@@ -401,7 +401,7 @@ async def _check_disk_space() -> Dict[str, Any]:
         logger.error(f"Disk space check failed: {e}")
         return {
             "healthy": False,
-            "message": f"Disk check error: {str(e)}",
+            "message": "Disk check error",
             "free_gb": 0,
         }
 

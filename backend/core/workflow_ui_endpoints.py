@@ -708,9 +708,8 @@ async def get_executions():
         # Fallback if orchestrator not available/path issue
         return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"success": False, "error": str(e), "executions": []}
+        logger.error(f"Failed to load executions: {e}")
+        return {"success": False, "error": "Failed to load executions", "executions": []}
 
 @router.post("/execute")
 async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):

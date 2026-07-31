@@ -353,7 +353,7 @@ async def edit_workflow_natural_language(
             logger.error(f"Fallback parsing also failed: {fallback_error}")
             return WorkflowEditResponse(
                 success=False,
-                message=f"Could not understand the command. Error: {str(e)[:100]}",
+                message="Could not understand the command.",
                 modified_workflow=None,
                 changes=[]
             )
@@ -413,7 +413,7 @@ async def execute_workflow(
             started_at=started_at,
             completed_at=datetime.now().isoformat(),
             results=[],
-            errors=[str(e)]
+            errors=["Internal error"]
         )
 
 @router.post("/workflows/conductor/execute")
