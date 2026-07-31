@@ -366,9 +366,16 @@ class EpisodeRetrievalService:
         for ep in semantic_episodes:
             scored[ep["id"]] = scored.get(ep["id"], 0) + 0.7  # Semantic weight
 
-        # 4. Apply canvas/feedback boosts
+        # 4. Apply canvas/feedback boosts — batch-fetch all candidate episodes
+        # in ONE query instead of N+1 individual queries (Bug #12).
+        candidate_ids = list(scored.keys())
+        episodes_map = {}
+        if candidate_ids:
+            episodes = self.db.query(Episode).filter(Episode.id.in_(candidate_ids)).all()
+            episodes_map = {ep.id: ep for ep in episodes}
+
         for ep_id, score in scored.items():
-            ep = self.db.query(Episode).filter(Episode.id == ep_id).first()
+            ep = episodes_map.get(ep_id)
             if not ep:
                 continue
 
@@ -377,25 +384,23 @@ class EpisodeRetrievalService:
                 scored[ep_id] += 0.1
 
             # Feedback boost: positive feedback gets +0.2, negative gets -0.3
-            # This matches the feedback-aware boosting requirements
             if ep.aggregate_feedback_score:
-                if ep.aggregate_feedback_score > 0:  # Positive feedback
+                if ep.aggregate_feedback_score > 0:
                     scored[ep_id] += 0.2
-                elif ep.aggregate_feedback_score < 0:  # Negative feedback
+                elif ep.aggregate_feedback_score < 0:
                     scored[ep_id] -= 0.3
-                # Neutral feedback (score near 0) gets no adjustment
 
         # 5. Sort by score and return top N
         sorted_ids = sorted(scored.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-        # 6. Filter by requirements and build results
+        # 6. Filter by requirements and build results — reuse the batch-fetched
+        # map (no second N+1 loop).
         filtered_episodes = []
         for ep_id, score in sorted_ids:
-            ep = self.db.query(Episode).filter(Episode.id == ep_id).first()
+            ep = episodes_map.get(ep_id)
             if not ep:
                 continue
 
-            # Apply filters
             if require_canvas and ep.canvas_action_count == 0:
                 continue
             if require_feedback and not ep.feedback_ids:
