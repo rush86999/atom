@@ -192,6 +192,13 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 50 — Business-Facts Upload: Unbounded File Read (OOM DoS) (July 31, 2026) ✨
+**Bug hunt round.** `api/admin/business_facts_routes.py` `POST /api/admin/governance/facts/upload` (mounted twice in `main_api_app.py`) read the **entire upload into memory with no size cap** — R21 capped `document_ingestion_routes` `/parse` + `/upload` but missed this sibling. A multi-GB upload exhausts worker memory (OOM denial of service) and then feeds the whole blob to the OCR/LLM policy-fact-extraction pipeline. Filename sanitization (R7) and the extension allowlist were already in place; the missing piece was the cap.
+
+**Fix:** mirrored R21's pattern — `MAX_UPLOAD_BYTES` (env-overridable, 50 MiB default) checked on the declared `file.size` BEFORE reading and again on `len(content)` after reading, raising `router.validation_error` (422).
+
+**Tests:** 4 new tests in `backend/tests/test_round50_business_facts_upload_size.py` (oversized rejection with env cap + default cap, small-upload regression through the mocked extraction pipeline, source-level guard mirroring R21's inspection test). Zero regressions (comm-verified: 85→80 failures in affected suites — delta is exactly the 3 RED tests flipping green; `comm -13` empty = no new failures). mypy: `Success: no issues` on the changed file. `main_api_app` imports clean. 4/4 round tests green.
+
 ### Round 49 — Financial Amount Validation: Non-Positive Amounts Accepted (July 31, 2026) ✨
 **Bug hunt round.** Mounted financial routers accepted non-positive amounts with no validation, silently corrupting ledgers and inverting guardrails:
 
