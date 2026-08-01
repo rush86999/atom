@@ -162,6 +162,11 @@ class WorkflowDefinition:
     start_step: str
     triggers: List[str] = field(default_factory=list)
     version: str = "1.0"
+    # R69: opt-in for event-triggered execution when the workflow contains
+    # critical steps (EMAIL_SEND / terminal / browser). First-party flows that
+    # legitimately send email on external events set this True; third-party
+    # definitions stay False and are skipped by trigger_event.
+    allow_event_critical: bool = False
 
 class AdvancedWorkflowOrchestrator:
     """Advanced workflow orchestrator with complex multi-step processing"""
@@ -950,7 +955,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 )
             ],
             start_step="analyze_inbound_email",
-            triggers=["EMAIL_RECEIVED"]
+            triggers=["EMAIL_RECEIVED"],
+            # R69: first-party flow legitimately sends mail on the external
+            # EMAIL_RECEIVED event — opt in to event-triggered critical execution.
+            allow_event_critical=True
         )
 
         # Workflow 7: Autonomous Multi-Party Interview Scheduling (Phase 2)
@@ -1028,7 +1036,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 )
             ],
             start_step="extract_interview_request",
-            triggers=["INTERVIEW_REQUESTED"]
+            triggers=["INTERVIEW_REQUESTED"],
+            # R69: first-party flow sends interview invites — opt in to
+            # event-triggered critical execution (and Gmail webhook resume).
+            allow_event_critical=True
         )
 
         # Register workflows
@@ -1051,10 +1062,22 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         for workflow_id, workflow in self.workflows.items():
             if event_type in (workflow.triggers or []):
                 logger.info(f"Found matching workflow for event '{event_type}': {workflow_id}")
+                # R69: event publishers are external (shopify/universal webhooks,
+                # graphrag, bytewax) — never let an event auto-fire a workflow
+                # with critical steps unless the definition opted in explicitly.
+                from core.workflow_security import has_critical_step  # lazy import
+                if has_critical_step(getattr(workflow, "steps", None)) and not getattr(
+                    workflow, "allow_event_critical", False
+                ):
+                    logger.warning(
+                        "Skipping event-triggered critical workflow %s",
+                        getattr(workflow, "workflow_id", "?"),
+                    )
+                    continue
                 # Start workflow in a separate background task
                 asyncio.create_task(self.execute_workflow(workflow_id, data))
                 triggered_count += 1
-        
+
         return triggered_count
 
     async def generate_dynamic_workflow(self, user_query: str) -> Dict[str, Any]:
