@@ -20,6 +20,32 @@ logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/docs", tags=["canvas_docs"])
 
 
+def _get_owned_docs_canvas_or_error(db, canvas_id: str, current_user) -> None:
+    """Ownership gate for document canvases (R66).
+
+    The canvas owner is the creator of the EARLIEST audit row for the
+    canvas; cross-user reads/writes (documents, comments) are forbidden.
+    """
+    from sqlalchemy import asc
+
+    from core.models import CanvasAudit
+
+    first = db.query(CanvasAudit).filter(
+        CanvasAudit.canvas_id == canvas_id,
+        CanvasAudit.canvas_type == "docs"
+    ).order_by(asc(CanvasAudit.created_at)).first()
+    if not first:
+        raise router.not_found_error(
+            resource="DocumentCanvas",
+            resource_id=canvas_id
+        )
+    if first.user_id != current_user.id:
+        raise router.permission_denied_error(
+            action="access_document_canvas",
+            resource="DocumentCanvas",
+        )
+
+
 # Request/Response Models
 class CreateDocumentRequest(BaseModel):
     """Request to create a document canvas."""
@@ -71,7 +97,8 @@ async def create_document_canvas(request: CreateDocumentRequest, current_user: U
     """
     service = DocumentationCanvasService(db)
     result = service.create_document_canvas(
-        user_id=request.user_id,
+        # R66: ownership comes from the token, never from the body.
+        user_id=current_user.id,
         title=request.title,
         content=request.content,
         canvas_id=request.canvas_id,
@@ -104,6 +131,9 @@ async def get_document_canvas(canvas_id: str, current_user: User = Depends(get_c
     from sqlalchemy import desc
 
     from core.models import CanvasAudit
+
+    # R66: ownership gate — documents are private to their creator.
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,
@@ -142,9 +172,11 @@ async def update_document_content(canvas_id: str, request: UpdateDocumentRequest
     Updates the document content and optionally creates a new version.
     """
     service = DocumentationCanvasService(db)
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     result = service.update_document_content(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        # R66: token identity, never the client-supplied user_id.
+        user_id=current_user.id,
         content=request.content,
         changes=request.changes,
         create_version=request.create_version
@@ -164,16 +196,23 @@ async def update_document_content(canvas_id: str, request: UpdateDocumentRequest
 
 
 @router.post("/{canvas_id}/comment")
-async def add_comment(canvas_id: str, request: AddCommentRequest, db: Session = Depends(get_db)):
+async def add_comment(
+    canvas_id: str,
+    request: AddCommentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Add a comment to a document.
 
     Adds a comment with optional text selection for inline comments.
     """
     service = DocumentationCanvasService(db)
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     result = service.add_comment(
         canvas_id=canvas_id,
-        user_id=request.user_id,
+        # R66: token identity — this endpoint previously had NO auth at all.
+        user_id=current_user.id,
         content=request.content,
         selection=request.selection
     )
@@ -192,17 +231,24 @@ async def add_comment(canvas_id: str, request: AddCommentRequest, db: Session = 
 
 
 @router.post("/{canvas_id}/comment/resolve")
-async def resolve_comment(canvas_id: str, request: ResolveCommentRequest, db: Session = Depends(get_db)):
+async def resolve_comment(
+    canvas_id: str,
+    request: ResolveCommentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Resolve a comment.
 
     Marks a comment as resolved.
     """
     service = DocumentationCanvasService(db)
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     result = service.resolve_comment(
         canvas_id=canvas_id,
         comment_id=request.comment_id,
-        user_id=request.user_id
+        # R66: token identity — this endpoint previously had NO auth at all.
+        user_id=current_user.id
     )
 
     if not result.get("success"):

@@ -14,6 +14,28 @@ logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
 
 
+def _get_owned_email_canvas_or_error(db, canvas_id: str, current_user) -> None:
+    """Ownership gate for email canvases (R66).
+
+    Email canvases hold drafts/messages; only the creator may read/write.
+    """
+    from sqlalchemy import asc
+
+    from core.models import CanvasAudit
+
+    first = db.query(CanvasAudit).filter(
+        CanvasAudit.canvas_id == canvas_id,
+        CanvasAudit.canvas_type == "email"
+    ).order_by(asc(CanvasAudit.created_at)).first()
+    if not first:
+        raise router.not_found_error("Email Canvas", canvas_id)
+    if first.user_id != current_user.id:
+        raise router.permission_denied_error(
+            action="access_email_canvas",
+            resource="EmailCanvas",
+        )
+
+
 class CreateEmailRequest(BaseModel):
     user_id: str
     subject: str
@@ -137,6 +159,9 @@ async def get_email_canvas(canvas_id: str, current_user: User = Depends(get_curr
     from sqlalchemy import desc
 
     from core.models import CanvasAudit
+
+    # R66: only the canvas owner may read email canvas state.
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,

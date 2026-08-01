@@ -14,6 +14,32 @@ logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/terminal", tags=["canvas_terminal"])
 
 
+def _get_owned_terminal_canvas_or_error(db, canvas_id: str, current_user) -> None:
+    """Ownership gate for terminal canvases (R66).
+
+    The canvas owner is the creator of the EARLIEST audit row; terminal
+    output (commands + output) must not be readable/writable cross-user.
+    """
+    from sqlalchemy import asc
+
+    from core.models import CanvasAudit
+
+    first = db.query(CanvasAudit).filter(
+        CanvasAudit.canvas_id == canvas_id,
+        CanvasAudit.canvas_type == "terminal"
+    ).order_by(asc(CanvasAudit.created_at)).first()
+    if not first:
+        raise router.not_found_error(
+            resource="TerminalCanvas",
+            resource_id=canvas_id
+        )
+    if first.user_id != current_user.id:
+        raise router.permission_denied_error(
+            action="access_terminal_canvas",
+            resource="TerminalCanvas",
+        )
+
+
 class CreateTerminalRequest(BaseModel):
     user_id: str
     command: str
@@ -57,6 +83,8 @@ async def create_terminal_canvas(request: CreateTerminalRequest, current_user: U
 async def add_output(canvas_id: str, request: AddOutputRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add command output to the terminal."""
     service = TerminalCanvasService(db)
+    # R66: only the canvas owner may append output.
+    _get_owned_terminal_canvas_or_error(db, canvas_id, current_user)
     result = service.add_output(
         canvas_id=canvas_id,
         user_id=current_user.id,
@@ -83,6 +111,9 @@ async def get_terminal_canvas(canvas_id: str, current_user: User = Depends(get_c
     from sqlalchemy import desc
 
     from core.models import CanvasAudit
+
+    # R66: only the canvas owner may read terminal output.
+    _get_owned_terminal_canvas_or_error(db, canvas_id, current_user)
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,
