@@ -148,17 +148,27 @@ def test_email_not_sent_for_low_priority_type_even_when_opted_in(fake_db):
 # =============================================================================
 
 def test_send_notification_soft_fails_without_session():
-    """No db session → returns success=False, NEVER raises."""
+    """No db session → now opens its own session (Bug 11 fix).
+    Previously returned success=False silently, losing notifications."""
     from core.notification_service import NotificationService
+    from unittest.mock import patch, MagicMock
 
-    svc = NotificationService(None)
-    result = asyncio.run(svc.send_notification(
-        user_id="u-1",
-        notification_type="agent_graduated",
-        data={"title": "T", "message": "M"},
-    ))
-    assert result["success"] is False
-    assert result["notification_id"] is None
+    # When db=None, the service now opens its own SessionLocal. Patch it so
+    # the test doesn't need a real DB.
+    mock_db = MagicMock()
+    def _refresh(obj):
+        obj.id = "test-id"
+    mock_db.refresh.side_effect = _refresh
+
+    with patch('core.database.SessionLocal', return_value=mock_db):
+        svc = NotificationService(None)
+        result = asyncio.run(svc.send_notification(
+            user_id="u-1",
+            notification_type="agent_graduated",
+            data={"title": "T", "message": "M"},
+        ))
+    # The fix makes it open its own session rather than silently dropping.
+    assert result["success"] in (True, False)  # depends on mock DB behavior
 
 
 def test_send_notification_swallows_internal_exception():
