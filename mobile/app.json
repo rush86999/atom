@@ -34,7 +34,7 @@
         "usesNonExemptEncryption": false
       },
       "entitlements": {
-        "com.apple.developerveloperassociated-domains": [
+        "com.apple.developer.associated-domains": [
           {
             "applinks": ["https://atom-platform.com"]
           }
@@ -99,7 +99,9 @@
         "projectId": "your-project-id-here"
       },
       "apiBaseURL": "https://api.atom-platform.com",
+      "apiUrl": "https://api.atom-platform.com",
       "websocketURL": "wss://api.atom-platform.com",
+      "socketUrl": "wss://api.atom-platform.com",
       "environment": "production"
     },
     "updates": {

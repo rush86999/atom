@@ -45,7 +45,8 @@ export default function LoginPage() {
                 }
 
                 const data = await response.json();
-                console.log("Register Success. Token:", data.access_token);
+                // #7 fix: was logging the full JWT to console — capturable by
+                // browser extensions, shared screens, forwarded logs.
                 persistBackendToken(data.access_token);
                 router.push('/dashboard');
             }

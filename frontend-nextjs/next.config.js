@@ -22,12 +22,18 @@ const nextConfig = {
     NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000",
     PYTHON_BACKEND_URL: "http://127.0.0.1:8000",
   },
-  compress: false, // Disable compression to prevent zlib Array buffer errors
+  // #11 fix: re-enable compression (the zlib issue was from an old Next.js
+  // version — 14+ handles this correctly). Keep TS/ESLint ignores for now
+  // (the codebase has ~100 type errors that would block CI) but flag them
+  // as a known tech-debt item.
+  compress: true,
   reactStrictMode: true,
   eslint: {
+    // TODO: fix existing ESLint errors then set to false
     ignoreDuringBuilds: true,
   },
   typescript: {
+    // TODO: fix existing type errors then set to false
     ignoreBuildErrors: true,
   },
   output: 'standalone',
@@ -37,19 +43,17 @@ const nextConfig = {
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
   outputFileTracingRoot: process.cwd(),
 
-  // Disable SWC minification to work around "erator is not defined" bug
-  // See: Phase 247-02 SUMMARY.md for details
-  productionBrowserSourceMaps: true,
+  // #11 fix: source maps and minification were disabled as a workaround for
+  // an old SWC bug. Modern Next.js handles both correctly. Re-enable for
+  // production performance and security (unminified bundles expose logic).
+  productionBrowserSourceMaps: false,
 
   experimental: {
     externalDir: true,
   },
 
-  // Disable minification via webpack configuration
+  // Re-enable minification (was disabled via a workaround for an old SWC bug).
   webpack: (config, { isServer }) => {
-    // Disable minification for both client and server
-    config.optimization = config.optimization || {};
-    config.optimization.minimize = false;
     return config;
   },
 
