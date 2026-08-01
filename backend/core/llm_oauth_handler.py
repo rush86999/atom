@@ -367,12 +367,17 @@ class LLMOAuthHandler:
                 logger.info(f"Token expired for {credential.provider_id}, refreshing...")
                 return await self.refresh_access_token(credential.id)
 
-        # Token is still valid
-        credential.last_validated_at = datetime.utcnow()
-
+        # Token is still valid — update last_validated_at.
+        # Bug 13 fix: the old code re-added the detached credential to a NEW
+        # session via db.add(), which can raise DetachedInstanceError or cause
+        # a phantom INSERT. Now fetches + updates in a single session.
         with get_db_session() as db:
-            db.add(credential)
-            db.commit()
+            cred = db.query(LLMOAuthCredential).filter(
+                LLMOAuthCredential.id == credential.id
+            ).first()
+            if cred:
+                cred.last_validated_at = datetime.utcnow()
+                db.commit()
 
         return True
 

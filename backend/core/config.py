@@ -133,10 +133,22 @@ class SecurityConfig:
     def __post_init__(self):
         environment = os.getenv('ENVIRONMENT', 'development')
 
-        # Check if using default secret key
-        if environment == 'production' and self.secret_key == "atom-secret-key-change-in-production":
-            logger.error("🚨 CRITICAL: Using default SECRET_KEY in production!")
-            self._log_security_event("default_secret_key", "critical", {"environment": environment})
+        # Bug 14 fix: in production with the default SECRET_KEY, generate a
+        # random key instead of continuing with a publicly-known secret.
+        # The old code logged a critical event but kept using the default,
+        # allowing full JWT auth bypass.
+        if environment == 'production' and (
+            self.secret_key == "atom-secret-key-change-in-production"
+            or not os.getenv('SECRET_KEY')
+        ):
+            import secrets as _secrets
+            self.secret_key = _secrets.token_urlsafe(32)
+            logger.critical(
+                "🚨 CRITICAL: SECRET_KEY not configured in production! "
+                "Generated a RANDOM temporary key — existing JWTs are invalidated. "
+                "Set the SECRET_KEY environment variable for stable authentication."
+            )
+            self._log_security_event("default_secret_key_replaced", "critical", {"environment": environment})
 
         # For development, generate secure random key if not set
         elif environment == 'development' and not os.getenv('SECRET_KEY'):
