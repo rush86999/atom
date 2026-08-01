@@ -735,7 +735,7 @@ class LanceDBHandler:
                     "source": source,
                     "metadata": metadata,
                     "created_at": datetime.now(timezone.utc).isoformat(),
-                    "vector": embedding.tolist(),
+                    "vector": embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
                 }
                 records.append(record)
 
@@ -1333,7 +1333,7 @@ class ChatHistoryManager:
                 filter_expr = f"metadata LIKE '%{safe_sid}%'"
 
             results = self.db.search(
-                table_name=self.table_name, query=query, limit=limit, filter_expression=filter_expr
+                table_name=self.table_name, query=query, limit=limit, filter_str=filter_expr
             )
 
             # Exact session_id post-filter: the LIKE pre-filter is substring, so

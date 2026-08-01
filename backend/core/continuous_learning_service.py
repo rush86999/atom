@@ -134,9 +134,13 @@ class ContinuousLearningService:
                     else:
                         learning.avg_rating = float(feedback.rating)
 
-            # Recalculate success rate before adjustment
+            # Bug 4 fix: AgentLearning has no success_rate column. Store in
+            # parameters_json so the computed value is actually persisted.
             if learning.total_feedback > 0:
-                learning.success_rate = (learning.total_feedback - learning.negative_feedback) / learning.total_feedback
+                _success_rate = (learning.total_feedback - learning.negative_feedback) / learning.total_feedback
+                if not learning.parameters_json:
+                    learning.parameters_json = {}
+                learning.parameters_json["success_rate"] = round(_success_rate, 4)
 
             # Adjust parameters based on feedback
             learning.parameters_json = self._adjust_parameters(

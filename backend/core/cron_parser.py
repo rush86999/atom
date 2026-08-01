@@ -132,8 +132,12 @@ class CronParser:
         if not self._matches_field(dt.month, cron_month, 1, 12):
             return False
 
-        # Check weekday (0=Sunday, 6=Saturday)
-        if not self._matches_field(dt.weekday(), cron_weekday, 0, 6):
+        # Check weekday — cron convention is 0=Sunday..6=Saturday, but Python's
+        # datetime.weekday() is 0=Monday..6=Sunday. Bug 9: the old code used
+        # dt.weekday() directly, causing every weekday schedule to fire on the
+        # wrong day (off by one). Convert to cron convention: Sunday=0.
+        cron_weekday_val = (dt.weekday() + 1) % 7  # Mon(0)->1, Sun(6)->0
+        if not self._matches_field(cron_weekday_val, cron_weekday, 0, 6):
             return False
 
         return True
