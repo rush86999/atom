@@ -6,17 +6,21 @@ Supports >98% marketing claim validation with comprehensive evidence
 
 import asyncio
 from datetime import datetime, timedelta
+import logging
 import random
 import time
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.auth import get_current_user, User
 from core.burnout_detection_engine import BurnoutDetectionEngine, WellnessScore
 from core.email_followup_engine import FollowUpCandidate, followup_engine
 from core.industry_workflow_templates import Industry, IndustryWorkflowEngine
 from core.workflow_engine import WorkflowEngine
 from core.workforce_analytics import WorkforceAnalyticsService
+
+logger = logging.getLogger(__name__)
 
 # Module-level singletons used by the handlers below.
 burnout_engine = BurnoutDetectionEngine()
@@ -354,7 +358,7 @@ async def get_analytics_status():
     }
 
 @router.get("/burnout-risk", response_model=WellnessScore)
-async def get_burnout_risk():
+async def get_burnout_risk(current_user: User = Depends(get_current_user)):
     """
     Get user burnout and overload risk assessment.
     """
@@ -436,7 +440,7 @@ async def get_email_followups():
     return candidates
 
 @router.get("/deadline-risk", response_model=WellnessScore)
-async def get_deadline_risk():
+async def get_deadline_risk(current_user: User = Depends(get_current_user)):
     """
     Identify tasks likely to miss deadlines.
     """

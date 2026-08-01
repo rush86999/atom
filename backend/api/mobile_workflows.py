@@ -6,7 +6,7 @@ Mobile-optimized endpoints for workflow access on mobile devices
 from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import BackgroundTasks, Depends, Query
+from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import WorkflowExecution, WorkflowExecutionLog
+from core.workflow_security import require_workflow_executor
 
 logger = logging.getLogger(__name__)
 
@@ -241,13 +242,18 @@ async def trigger_workflow_mobile(
                 details={"workflow_id": request.workflow_id, "status": workflow_dict.get('status')}
             )
 
-        # Create execution record
+        # R68: critical MCP steps require WORKFLOW_MANAGE — members get 403
+        # before the engine's _run_execution starts.
+        await require_workflow_executor(current_user, workflow_dict.get("steps") or [])
+
+        # Create execution record (fields must match the WorkflowExecution
+        # model — this latent route was constructing with non-existent columns).
         execution = WorkflowExecution(
             execution_id=f"exec_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
             workflow_id=request.workflow_id,
-            triggered_by=user_id,
+            # R68: never trust the spoofable Query user_id — attribute to the caller.
+            user_id=current_user.id,
             status='running',
-            started_at=datetime.now(),
             input_data=str(request.parameters) if request.parameters else None
         )
 
@@ -320,6 +326,11 @@ async def trigger_workflow_mobile(
             workflow_id=request.workflow_id
         )
 
+    except HTTPException:
+        # R68: the critical-step gate must reach the client as 403, not be
+        # masked as an internal error.
+        db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Error triggering workflow: {e}")
         db.rollback()

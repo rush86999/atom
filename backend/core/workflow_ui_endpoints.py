@@ -8,7 +8,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import WorkflowTemplate
+from core.models import User, WorkflowTemplate
+from core.rbac_service import Permission
+from core.security_dependencies import require_permission
+from core.workflow_security import require_workflow_executor_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -573,11 +576,19 @@ async def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
     }
 
 @router.post("/workflows/{workflow_id}/execute")
-async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundTasks, payload: Dict[str, Any] = None):
+async def execute_workflow_by_id(
+    workflow_id: str,
+    background_tasks: BackgroundTasks,
+    payload: Dict[str, Any] = None,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     """Execute a workflow by ID"""
     from advanced_workflow_orchestrator import get_orchestrator
     orchestrator = get_orchestrator()
-    
+
+    # R68: same critical-step gate as every other trigger path.
+    await require_workflow_executor_orchestrator(current_user, orchestrator, workflow_id)
+
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
     input_data = payload or {}
     input_data["_ui_workflow_id"] = workflow_id
@@ -712,7 +723,11 @@ async def get_executions():
         return {"success": False, "error": "Failed to load executions", "executions": []}
 
 @router.post("/execute")
-async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+async def execute_workflow(
+    payload: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     from advanced_workflow_orchestrator import (
         WorkflowContext,
         WorkflowDefinition,
@@ -790,6 +805,11 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             orchestrator_id = workflow_id # Use the ID we just registered
         else:
              logger.warning(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
+
+    # R68: gate AFTER the mock-bridge block so the effective (bridged) steps
+    # are checked — a mock workflow bridged to an EMAIL_SEND definition must
+    # not slip past a pre-bridge check on the raw UI payload.
+    await require_workflow_executor_orchestrator(current_user, orchestrator, orchestrator_id)
 
     # Generate Execution ID for immediate UI feedback
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"

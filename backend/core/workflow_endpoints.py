@@ -9,8 +9,9 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.models import User
-from core.rbac_service import Permission, RBACService
+from core.rbac_service import Permission
 from core.security_dependencies import require_permission
+from core.workflow_security import require_workflow_executor
 
 # Import AI workflow editor for natural language processing
 logger = logging.getLogger(__name__)
@@ -24,62 +25,13 @@ except ImportError as e:
 
 router = APIRouter()
 
-# R67: Workflows whose steps contain critical MCP actions (local machine
+# R67/R68: Workflows whose steps contain critical MCP actions (local machine
 # exec, browser automation, messaging) execute the same tools the agent
 # governance layer gates to AUTONOMOUS maturity (core/mcp_service.py
 # critical_tools). The workflow trigger routes are role-routed only
 # (WORKFLOW_RUN is granted to every member), so these steps must require
-# the same role as workflow creation (WORKFLOW_MANAGE, TEAM_LEAD+).
-_CRITICAL_MCP_TOOLS = {
-    "read_codebase",
-    "write_code_file",
-    "list_directory_recursive",
-    "terminal_command",
-    "propose_command",
-    "run_local_terminal",
-    "browser_navigate",
-    "browser_action",
-    "email_send",
-    "whatsapp_send_message",
-}
-
-
-def _has_critical_mcp_step(steps: Optional[List[Dict[str, Any]]]) -> bool:
-    """True when any step executes a critical MCP tool.
-
-    Checks both workflow-file steps (``service == "mcp"`` with ``action`` or
-    ``parameters.tool_name``) and conductor steps (which carry the tool name
-    in ``parameters`` without a ``service`` key). A templated (``${...}``) or
-    missing tool name on an mcp step is treated as critical: the effective
-    tool cannot be proven benign statically (input templating via
-    ``_resolve_parameters`` can inject the tool name at runtime).
-    """
-    for step in steps or []:
-        if not isinstance(step, dict):
-            continue
-        params = step.get("parameters") or {}
-        tool_name = params.get("tool_name") or step.get("action")
-        service = (step.get("service") or str(step.get("step_type") or "")).lower()
-        if service == "mcp":
-            if not tool_name or "${" in str(tool_name) or tool_name in _CRITICAL_MCP_TOOLS:
-                return True
-        elif tool_name and ("${" in str(tool_name) or tool_name in _CRITICAL_MCP_TOOLS):
-            return True
-    return False
-
-
-async def _require_workflow_executor(user: User, steps: Optional[List[Dict[str, Any]]]) -> None:
-    """R67 gate: workflows with critical MCP steps require WORKFLOW_MANAGE
-    (TEAM_LEAD+), mirroring the agent-path maturity gates those tools go
-    through. Members get 403 before any execution/scheduling starts."""
-    if _has_critical_mcp_step(steps) and not RBACService.check_permission(
-        user, Permission.WORKFLOW_MANAGE
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Workflows with critical MCP actions "
-            "require WORKFLOW_MANAGE",
-        )
+# the same role as workflow creation (WORKFLOW_MANAGE, TEAM_LEAD+). The gate
+# lives in core/workflow_security.py so every trigger path shares it.
 
 # Simple file-based storage for MVP
 WORKFLOWS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workflows.json")
@@ -459,7 +411,7 @@ async def execute_with_conductor(
 
     # R67: the conductor executes raw caller-supplied steps through the live
     # engine — gate critical MCP steps exactly like workflow execution.
-    await _require_workflow_executor(user, steps)
+    await require_workflow_executor(user, steps)
 
     conductor = get_conductor_agent()
 
@@ -522,7 +474,7 @@ async def execute_workflow(
     # R67: critical MCP steps (terminal, browser, messaging) execute local
     # machine actions — the same tool set agent governance gates. Members
     # may run ordinary workflows only.
-    await _require_workflow_executor(user, workflow.get("steps") or [])
+    await require_workflow_executor(user, workflow.get("steps") or [])
 
     # Create execution record
     started_at = datetime.now().isoformat()
@@ -585,7 +537,7 @@ async def resume_workflow(
         raise HTTPException(status_code=404, detail="Workflow definition not found")
 
     # R67: resuming re-executes the remaining steps — same critical-tool gate.
-    await _require_workflow_executor(user, workflow.get("steps") or [])
+    await require_workflow_executor(user, workflow.get("steps") or [])
 
     success = await engine.resume_workflow(execution_id, workflow, input_data)
     
@@ -643,7 +595,7 @@ async def schedule_workflow(
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    await _require_workflow_executor(user, workflow.get("steps") or [])
+    await require_workflow_executor(user, workflow.get("steps") or [])
 
     try:
         trigger_type = schedule_config.get('trigger_type')

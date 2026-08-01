@@ -8,8 +8,13 @@ import asyncio
 import logging
 from typing import Any, Dict, List
 from advanced_workflow_orchestrator import WorkflowContext, WorkflowStatus, get_orchestrator
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.models import User
+from core.rbac_service import Permission
+from core.security_dependencies import require_permission
+from core.workflow_security import require_workflow_executor_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +61,19 @@ class WorkflowStatsResponse(BaseModel):
 @router.post("/execute", response_model=WorkflowExecutionResponse)
 async def execute_advanced_workflow(
     request: WorkflowExecutionRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
 ):
     """Execute a complex advanced workflow"""
 
+    orchestrator = get_orchestrator()
+    # R68: same critical-step gate as every other trigger path — members are
+    # refused before the orchestrator runs TERMINAL/BROWSER/EMAIL_SEND nodes.
+    await require_workflow_executor_orchestrator(current_user, orchestrator, request.workflow_id)
+
     try:
         # Execute workflow
-        context = await get_orchestrator().execute_workflow(
+        context = await orchestrator.execute_workflow(
             request.workflow_id,
             request.input_data,
             request.execution_context
@@ -115,7 +126,9 @@ async def get_workflow_stats():
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-customer-support")
-async def demo_customer_support_workflow():
+async def demo_customer_support_workflow(
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     """Execute demo customer support workflow"""
 
     demo_input = {
@@ -124,8 +137,12 @@ async def demo_customer_support_workflow():
         "priority": "urgent"
     }
 
+    orchestrator = get_orchestrator()
+    # R68: demo workflows contain EMAIL_SEND — members get 403 (secured, not removed).
+    await require_workflow_executor_orchestrator(current_user, orchestrator, "customer_support_automation")
+
     try:
-        context = await get_orchestrator().execute_workflow(
+        context = await orchestrator.execute_workflow(
             "customer_support_automation",
             demo_input
         )
@@ -161,7 +178,9 @@ async def demo_customer_support_workflow():
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-project-management")
-async def demo_project_management_workflow():
+async def demo_project_management_workflow(
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     """Execute demo project management workflow"""
 
     demo_input = {
@@ -171,8 +190,12 @@ async def demo_project_management_workflow():
         "timeline": "Q1 2024"
     }
 
+    orchestrator = get_orchestrator()
+    # R68: demo workflows contain EMAIL_SEND — members get 403 (secured, not removed).
+    await require_workflow_executor_orchestrator(current_user, orchestrator, "project_management_automation")
+
     try:
-        context = await get_orchestrator().execute_workflow(
+        context = await orchestrator.execute_workflow(
             "project_management_automation",
             demo_input
         )
@@ -207,7 +230,9 @@ async def demo_project_management_workflow():
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/demo-sales-lead")
-async def demo_sales_lead_workflow():
+async def demo_sales_lead_workflow(
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     """Execute demo sales lead processing workflow"""
 
     demo_input = {
@@ -216,8 +241,12 @@ async def demo_sales_lead_workflow():
         "company_size": "enterprise"
     }
 
+    orchestrator = get_orchestrator()
+    # R68: demo workflows contain EMAIL_SEND — members get 403 (secured, not removed).
+    await require_workflow_executor_orchestrator(current_user, orchestrator, "sales_lead_processing")
+
     try:
-        context = await get_orchestrator().execute_workflow(
+        context = await orchestrator.execute_workflow(
             "sales_lead_processing",
             demo_input
         )

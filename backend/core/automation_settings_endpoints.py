@@ -1,8 +1,9 @@
 
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.auth import get_current_user, User
 from core.automation_settings import get_automation_settings
 
 router = APIRouter(prefix="/api/v1/settings/automations", tags=["Settings"])
@@ -14,13 +15,16 @@ class AutomationSettingsUpdate(BaseModel):
     pipelines: Optional[Dict[str, Any]] = None
 
 @router.get("/")
-async def get_settings():
+async def get_settings(current_user: User = Depends(get_current_user)):
     """Get current automation settings"""
     manager = get_automation_settings()
     return manager.get_settings()
 
 @router.post("/")
-async def update_settings(update: AutomationSettingsUpdate):
+async def update_settings(
+    update: AutomationSettingsUpdate,
+    current_user: User = Depends(get_current_user),
+):
     """Update global automation settings"""
     manager = get_automation_settings()
     

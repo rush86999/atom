@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Body, Depends, Request
+from fastapi import Body, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from core.api_governance import ActionComplexity, require_governance
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.workflow_security import require_workflow_executor_definition
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +336,12 @@ async def execute_template(
 
         workflow_id = workflow_data.get("workflow_id")
 
+        # R68: governance maturity (SUPERVISED+) is not a role gate — critical
+        # MCP steps still require WORKFLOW_MANAGE (TEAM_LEAD+).
+        await require_workflow_executor_definition(
+            current_user, workflow_data.get("workflow_definition") or {}
+        )
+
         # 2. Execute via orchestrator
         import asyncio
         from advanced_workflow_orchestrator import get_orchestrator
@@ -366,6 +373,10 @@ async def execute_template(
             message=str(e),
             details={"template_id": template_id}
         )
+    except HTTPException:
+        # R68: the critical-step gate must reach the client as 403, not be
+        # masked as an internal error.
+        raise
     except Exception as e:
         logger.error(f"Failed to execute template: {e}")
         raise router.internal_error(

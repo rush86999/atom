@@ -1,10 +1,14 @@
 import logging
 from typing import Any, Dict, List, Optional
 from ai.data_intelligence import DataIntelligenceEngine, PlatformType
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
+from core.workflow_security import (
+    require_critical_tool,
+    require_workflow_executor_orchestrator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -185,13 +189,17 @@ async def execute_insight_action(request: Dict[str, Any], current_user: User = D
     try:
         action_type = request.get("action_type")
         payload = request.get("action_payload", {})
-        user_id = request.get("user_id", "default_user")
+        # R68: never trust a client-supplied user_id — attribute to the caller.
+        user_id = current_user.id
 
         if action_type == "workflow":
             from advanced_workflow_orchestrator import get_orchestrator
             orchestrator = get_orchestrator()
             workflow_id = payload.get("workflow_id")
             inputs = payload.get("inputs", {})
+
+            # R68: same critical-step gate as every other trigger path.
+            await require_workflow_executor_orchestrator(current_user, orchestrator, workflow_id)
 
             logger.info(f"Executing workflow action: {workflow_id}")
             result = await orchestrator.execute_workflow(workflow_id, inputs)
@@ -204,6 +212,10 @@ async def execute_insight_action(request: Dict[str, Any], current_user: User = D
             from integrations.mcp_service import mcp_service
             tool_name = payload.get("tool_name")
             arguments = payload.get("arguments", {})
+
+            # R68: direct MCP tool execution — critical tools (terminal,
+            # browser, email, file write) require WORKFLOW_MANAGE.
+            await require_critical_tool(current_user, tool_name)
 
             logger.info(f"Executing tool action: {tool_name}")
             result = await mcp_service.execute_tool(
@@ -218,6 +230,11 @@ async def execute_insight_action(request: Dict[str, Any], current_user: User = D
             )
 
         raise router.validation_error("action_type", f"Unsupported action type: {action_type}")
+    except HTTPException:
+        # R68: permission gates (require_critical_tool /
+        # require_workflow_executor_orchestrator) must reach the client as 403,
+        # not be masked as an internal error.
+        raise
     except Exception as e:
         logger.error(f"Error executing insight action: {e}")
         raise router.internal_error("Internal error")

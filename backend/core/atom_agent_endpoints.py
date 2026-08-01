@@ -34,6 +34,7 @@ from core.auth import get_current_user
 from core.chat_context_manager import get_chat_context_manager
 from core.chat_session_manager import get_chat_session_manager
 from core.models import User
+from core.workflow_security import has_critical_step, require_workflow_executor
 
 # Import Episode integration for auto-creation
 from core.episode_integration import trigger_episode_creation
@@ -548,9 +549,9 @@ async def chat_with_agent(
         if intent == "LIST_WORKFLOWS":
             result = await handle_list_workflows(request)
         elif intent == "RUN_WORKFLOW":
-            result = await handle_run_workflow(request, entities)
+            result = await handle_run_workflow(request, entities, current_user)
         elif intent == "SCHEDULE_WORKFLOW":
-            result = await handle_schedule_workflow(request, entities)
+            result = await handle_schedule_workflow(request, entities, current_user)
         elif intent == "GET_HISTORY":
             result = await handle_get_history(request, entities)
         elif intent == "CANCEL_SCHEDULE":
@@ -963,17 +964,40 @@ async def handle_list_workflows(request: ChatRequest) -> Dict[str, Any]:
         }
     }
 
-async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+async def _gate_workflow_permission(user: Optional[User], workflow: Dict[str, Any], action: str) -> Optional[Dict[str, Any]]:
+    """Gate a workflow for terminal/browser/messaging steps (R68).
+
+    Returns a refusal dict when the caller lacks WORKFLOW_MANAGE (or when there
+    is no caller context — fail closed on critical workflows), else None so the
+    caller proceeds. ``user`` is optional for backward compatibility with
+    internal callers; the chat dispatch site always passes ``current_user``.
+    """
+    if user is None:
+        if has_critical_step(workflow.get("steps") or []):
+            return {"success": False, "response": {"message": f"Insufficient permissions to {action} this workflow (requires WORKFLOW_MANAGE).", "actions": []}}
+        return None
+    try:
+        await require_workflow_executor(user, workflow.get("steps") or [])
+        return None
+    except HTTPException:
+        return {"success": False, "response": {"message": f"Insufficient permissions to {action} this workflow (requires WORKFLOW_MANAGE).", "actions": []}}
+
+async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any], user: Optional[User] = None) -> Dict[str, Any]:
     """Execute a specified workflow"""
     workflow_ref = entities.get("workflow_ref", "")
     if not workflow_ref:
         return {"success": False, "response": {"message": "Please specify which workflow to run.", "actions": []}}
-    
+
     workflows = load_workflows()
     workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['workflow_id']), None)
-    
+
     if not workflow:
         return {"success": False, "response": {"message": f"Workflow '{workflow_ref}' not found.", "actions": []}}
+
+    # R68: critical MCP steps (terminal/browser/messaging) require WORKFLOW_MANAGE.
+    refusal = await _gate_workflow_permission(user, workflow, "run")
+    if refusal:
+        return refusal
 
     try:
         if AutomationEngine is None:
@@ -992,7 +1016,7 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any]) ->
     except Exception as e:
         return {"success": False, "response": {"message": f"❌ Failed: {str(e)}", "actions": []}}
 
-async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any], user: Optional[User] = None) -> Dict[str, Any]:
     """Schedule a workflow using natural language time expression"""
     workflow_ref = entities.get("workflow_ref") or entities.get("workflow_name")
     time_expression = entities.get("time_expression") or entities.get("schedule")
@@ -1035,6 +1059,12 @@ async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any
             }
         }
     
+    # R68: scheduling defers execution with no per-run auth — gate critical
+    # MCP steps up front so members cannot queue terminal/email workflows.
+    refusal = await _gate_workflow_permission(user, workflow, "schedule")
+    if refusal:
+        return refusal
+
     # Register with scheduler
     job_id = f"{workflow['workflow_id']}_{uuid.uuid4().hex[:8]}"
     
@@ -1344,12 +1374,17 @@ async def execute_generated_workflow(
     current_user: User = Depends(get_current_user)
 ):
     """Execute a workflow generated via chat."""
-    try:
-        workflows = load_workflows()
-        workflow = next((w for w in workflows if w['id'] == request.workflow_id), None)
-        if not workflow:
-            return {"success": False, "error": "Workflow not found"}
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w['id'] == request.workflow_id), None)
+    if not workflow:
+        return {"success": False, "error": "Workflow not found"}
 
+    # R68: critical MCP steps (terminal/browser/messaging) require
+    # WORKFLOW_MANAGE. Gated before the try so the 403 is not masked as an
+    # "Internal server error".
+    await require_workflow_executor(current_user, workflow.get("steps") or [])
+
+    try:
         if AutomationEngine is None:
             return {"success": False, "error": "AutomationEngine not available (missing dependencies)"}
 
