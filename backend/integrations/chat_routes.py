@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-# The chat orchestrator is a module-level singleton with tenant_id="default",
-# so BYOK outcome observations record feedback under this key. Explicit user
-# feedback and dashboard reads MUST use the same key, otherwise the dashboard
-# only sees thumbs feedback and misses the bulk of the signal.
-CHAT_ROUTING_TENANT_KEY = "default"
+# The chat orchestrator is a module-level singleton, so BYOK outcome
+# observations record feedback under this key. Explicit user feedback and
+# dashboard reads MUST use the same key, otherwise the dashboard only sees
+# thumbs feedback and misses the bulk of the signal.
+# Now imports from personal_scope (the single source of truth) instead of
+# re-declaring "default" — see TENANT_ID_STRATEGY.md.
+from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
 
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()
