@@ -75,7 +75,11 @@ export default function TeamChatPanel({
         const token = localStorage.getItem('auth_token');
         if (!token) return;
 
-        const ws = new WebSocket(`ws://localhost:5061/ws?token=${token}`);
+        // #9 fix: was hardcoded ws://localhost:5061 (wrong port, insecure,
+        // no env). Now derives from NEXT_PUBLIC_API_URL.
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+        const wsBase = apiBase.replace(/^http/, 'ws');
+        const ws = new WebSocket(`${wsBase}/ws?token=${token}`);
         wsRef.current = ws;
 
         ws.onopen = () => {

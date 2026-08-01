@@ -39,7 +39,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://localhost:* ; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:"
+      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://localhost:* ; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:"
     }
   }
 }
