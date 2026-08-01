@@ -3,8 +3,11 @@ Webhook API Routes for Real-Time Communication Ingestion
 Provides endpoints for Slack, Teams, and Gmail webhooks.
 """
 
+import hmac
 import logging
-from fastapi import BackgroundTasks, Request
+import os
+from typing import Optional
+from fastapi import BackgroundTasks, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from core.base_routes import BaseAPIRouter
@@ -16,6 +19,23 @@ router = BaseAPIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 # Get webhook processor
 webhook_processor = get_webhook_processor()
+
+
+def _require_webhook_secret(env_var: str):
+    """Shared-secret dependency for external webhook endpoints.
+
+    R69: these endpoints previously had no auth and handlers never called the
+    (weak, dev-only) platform verifiers. Require a Bearer token compared in
+    constant time against an env secret; FAIL CLOSED (401) when unset.
+    """
+    async def _check(authorization: Optional[str] = Header(None)):
+        secret = os.getenv(env_var)
+        if not secret:
+            raise HTTPException(status_code=401, detail="Webhook not configured")
+        token = (authorization or "").removeprefix("Bearer ").strip()
+        if not token or not hmac.compare_digest(token, secret):
+            raise HTTPException(status_code=401, detail="Invalid webhook token")
+    return _check
 
 
 @router.post("/slack")
@@ -48,7 +68,8 @@ async def slack_webhook(
 @router.post("/teams")
 async def teams_webhook(
     request: Request,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    _: None = Depends(_require_webhook_secret("ATOM_TEAMS_WEBHOOK_SECRET")),
 ):
     """
     Receive Microsoft Teams webhook events for real-time message processing.
@@ -67,7 +88,8 @@ async def teams_webhook(
 @router.post("/gmail")
 async def gmail_webhook(
     request: Request,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    _: None = Depends(_require_webhook_secret("ATOM_GMAIL_WEBHOOK_SECRET")),
 ):
     """
     Receive Gmail push notifications for real-time email processing.

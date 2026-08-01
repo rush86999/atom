@@ -523,11 +523,29 @@ class WebhookProcessor:
                                     # Find the execution context
                                     if state.workflow_execution_id in orchestrator.active_contexts:
                                         wf_ctx = orchestrator.active_contexts[state.workflow_execution_id]
+                                        # R69: refuse to auto-resume workflows whose
+                                        # definition has critical steps unless the
+                                        # definition opted in (allow_event_critical).
+                                        from core.workflow_security import has_critical_step
+                                        _wf_def = None
+                                        for _wf in orchestrator.workflows.values():
+                                            if any(
+                                                getattr(_s, "step_id", None) == "wait_for_reply"
+                                                for _s in getattr(_wf, "steps", None) or []
+                                            ):
+                                                _wf_def = _wf
+                                                break
+                                        if _wf_def is not None and has_critical_step(getattr(_wf_def, "steps", None)) and not getattr(_wf_def, "allow_event_critical", False):
+                                            logger.warning(
+                                                "Refusing to auto-resume critical workflow %s via Gmail webhook",
+                                                getattr(_wf_def, "workflow_id", "?"),
+                                            )
+                                            continue
                                         wf_ctx.variables.update(resume_context)
                                         # Also simulate step approval
                                         if "wait_for_reply" in wf_ctx.results:
                                             wf_ctx.results["wait_for_reply"]["status"] = "waiting_approval" # Setup for resume
-                                            
+
                                         logger.info(f"Resuming autonomous_interview_scheduler execution: {state.workflow_execution_id}")
                                         await orchestrator.resume_workflow(state.workflow_execution_id, "wait_for_reply")
                                         
