@@ -229,3 +229,66 @@ async def require_critical_tool(user: User, tool_name: Any) -> None:
             detail="Insufficient permissions. Critical MCP tools require "
             "WORKFLOW_MANAGE",
         )
+
+
+# R69: MCP tools that trigger whole workflows are a bare workflow-execution
+# surface — the target definition can contain critical steps, so the trigger
+# tool itself requires WORKFLOW_MANAGE regardless of the tool name's own
+# criticality.
+WORKFLOW_TRIGGER_TOOLS = {"trigger_workflow"}
+
+
+async def require_workflow_trigger_tool(user: User, tool_name: Any) -> None:
+    """Gate workflow-triggering MCP tools (e.g. ``trigger_workflow``).
+
+    WORKFLOW_MANAGE holders are exempt. For everyone else a
+    workflow-triggering tool name is refused with 403.
+    """
+    if RBACService.check_permission(user, Permission.WORKFLOW_MANAGE):
+        return
+    tool = str(tool_name or "")
+    if tool in WORKFLOW_TRIGGER_TOOLS:
+        raise HTTPException(
+            status_code=403,
+            detail="Workflow-triggering tools require WORKFLOW_MANAGE",
+        )
+
+
+# R69: AutomationEngine definitions execute ``nodes[].config.actionType``
+# (send_email, run_agent_task, ...) — a surface invisible to
+# ``has_critical_definition`` which only inspects ``steps``. These action
+# types drive the same critical local-machine / messaging sinks.
+CRITICAL_AUTOMATION_ACTION_TYPES = {
+    "send_email",
+    "run_agent_task",
+    "terminal",
+    "browser",
+    "write",
+    "send_message",
+}
+
+
+def has_critical_automation_nodes(defn: Any) -> bool:
+    """True when an AutomationEngine definition has a critical action node.
+
+    Inspects ``nodes[].config.actionType`` (dict or object defs). Used at the
+    scheduler fire time to catch definitions whose critical actions are
+    invisible to ``has_critical_definition``.
+    """
+    if defn is None:
+        return False
+    if isinstance(defn, dict):
+        nodes = defn.get("nodes") or []
+    else:
+        nodes = getattr(defn, "nodes", None) or []
+    for node in nodes:
+        if isinstance(node, dict):
+            config = node.get("config") or {}
+        else:
+            config = getattr(node, "config", None) or {}
+        if not isinstance(config, dict):
+            config = {}
+        action_type = config.get("actionType")
+        if action_type in CRITICAL_AUTOMATION_ACTION_TYPES:
+            return True
+    return False
