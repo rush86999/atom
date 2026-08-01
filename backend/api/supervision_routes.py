@@ -17,10 +17,32 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.auth import get_current_user, User
-from core.models import AgentExecution, SupervisionSession
+from core.models import AgentExecution, SupervisionSession, UserRole
 from core.supervision_service import SupervisionService, SupervisionEvent
 
 logger = logging.getLogger(__name__)
+
+# R65: supervision actions (intervene, rate/complete, autonomous-approve) are
+# governance operations — any authenticated user could otherwise pause/terminate
+# executions, manipulate agent confidence (maturity), or trigger autonomous
+# approval+execution of proposals. Mirror the approve_workflow role gate (R39).
+_SUPERVISOR_ROLES = [
+    UserRole.TEAM_LEAD.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.SUPER_ADMIN.value,
+]
+
+
+def _require_supervisor(db, current_user: User) -> None:
+    """Require a supervisor-grade role (TEAM_LEAD+), 403 otherwise."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role not in _SUPERVISOR_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+        )
 
 router = APIRouter(prefix="/api/supervision", tags=["supervision"])
 
@@ -173,6 +195,9 @@ async def intervene_in_session(
     supervision_service = SupervisionService(db)
 
     try:
+        # R65: supervisor role gate — intervene controls live executions.
+        _require_supervisor(db, current_user)
+
         result = await supervision_service.intervene(
             session_id=session_id,
             intervention_type=request.intervention_type,
@@ -190,6 +215,8 @@ async def intervene_in_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Internal error"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -213,6 +240,10 @@ async def complete_supervision_session(
     supervision_service = SupervisionService(db)
 
     try:
+        # R65: supervisor role gate — completing a session rates the agent and
+        # boosts its confidence (maturity system input).
+        _require_supervisor(db, current_user)
+
         outcome = await supervision_service.complete_supervision(
             session_id=session_id,
             supervisor_rating=supervisor_rating,
@@ -232,6 +263,8 @@ async def complete_supervision_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Internal error"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -373,6 +406,10 @@ async def autonomous_approve_proposal(
     proposal_service = ProposalService(db)
 
     try:
+        # R65: supervisor role gate — autonomous approval EXECUTES the
+        # proposal's action; only supervisors may trigger it.
+        _require_supervisor(db, current_user)
+
         result = await proposal_service.autonomous_approve_or_reject(
             proposal_id=proposal_id
         )
@@ -384,6 +421,8 @@ async def autonomous_approve_proposal(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Internal error"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
