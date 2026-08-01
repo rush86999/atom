@@ -182,7 +182,14 @@ async def oauth_callback(
     
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
-        
+
+    # Bug 3 fix: validate the state parameter against what we sent at initiation.
+    # The old code sent state=f"{provider}_oauth" but never checked it on
+    # callback — classic OAuth CSRF (attacker forges a callback to bind a
+    # victim's token to the attacker's account).
+    if not state or state != f"{provider}_oauth":
+        raise HTTPException(status_code=400, detail="Invalid or missing OAuth state parameter")
+
     await _handle_callback_logic(provider, code, configs[provider], request, db)
     
     # Redirect to frontend

@@ -73,47 +73,55 @@ class EvolutionEngine:
         """Trigger AlphaEvolverEngine for the underperforming skill."""
         try:
             from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+            from core.database import SessionLocal
 
-            engine = AlphaEvolverEngine(db=self.db)
+            # Bug 11 fix: the old code passed self.db (a shared Session from
+            # __init__) to AlphaEvolverEngine — concurrent skill-execution
+            # events share one session, causing InvalidRequestError and cross-
+            # event data corruption. Now opens a fresh session per event.
+            _db = SessionLocal()
+            try:
+                engine = AlphaEvolverEngine(db=_db)
 
-            # We need the skill's source code to mutate it.
-            # Attempt to retrieve it from the skill registry.
-            skill_code = self._get_skill_code(event.skill_id, event.tenant_id)
-            if not skill_code:
-                logger.warning(
-                    f"Cannot optimize skill {event.skill_id}: source code not found"
+                # We need the skill's source code to mutate it.
+                skill_code = self._get_skill_code(event.skill_id, event.tenant_id)
+                if not skill_code:
+                    logger.warning(
+                        f"Cannot optimize skill {event.skill_id}: source code not found"
+                    )
+                    return
+
+                mutation = await engine.generate_tool_mutation(
+                    tenant_id=event.tenant_id,
+                    tool_name=event.skill_name or event.skill_id,
+                    parent_tool_id=None,
+                    base_code=skill_code,
+                    mutation_prompt=(
+                        f"Optimize this skill for: {reason}. "
+                        f"Current latency: {event.execution_seconds:.2f}s. "
+                        f"Current token usage: {event.token_usage}."
+                    ),
                 )
-                return
 
-            mutation = await engine.generate_tool_mutation(
-                tenant_id=event.tenant_id,
-                tool_name=event.skill_name or event.skill_id,
-                parent_tool_id=None,
-                base_code=skill_code,
-                mutation_prompt=(
-                    f"Optimize this skill for: {reason}. "
-                    f"Current latency: {event.execution_seconds:.2f}s. "
-                    f"Current token usage: {event.token_usage}."
-                ),
+                # Auto-validate the mutation
+                exec_result = await engine.sandbox_execute_mutation(
+                    mutation_id=mutation.id,
+                    tenant_id=event.tenant_id,
+                    inputs={},
             )
 
-            # Auto-validate the mutation
-            exec_result = await engine.sandbox_execute_mutation(
-                mutation_id=mutation.id,
-                tenant_id=event.tenant_id,
-                inputs={},
-            )
-
-            if exec_result.get("success"):
-                logger.info(
-                    f"EvolutionEngine: Mutation {mutation.id} passed sandbox. "
-                    f"Queued for review."
-                )
-            else:
-                logger.info(
-                    f"EvolutionEngine: Mutation {mutation.id} failed sandbox. "
-                    f"Discarding."
-                )
+                if exec_result.get("success"):
+                    logger.info(
+                        f"EvolutionEngine: Mutation {mutation.id} passed sandbox. "
+                        f"Queued for review."
+                    )
+                else:
+                    logger.info(
+                        f"EvolutionEngine: Mutation {mutation.id} failed sandbox. "
+                        f"Discarding."
+                    )
+            finally:
+                _db.close()
 
         except Exception as e:
             logger.error(f"EvolutionEngine optimization failed: {e}")
