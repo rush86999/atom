@@ -82,36 +82,44 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         if expires_in:
             expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
             
-        current_user = get_current_user(request, db)
-        
-        # Upsert token
+        # Bug 1+2 fix: the old code (a) called get_current_user without await,
+        # binding a coroutine instead of a User, and (b) set non-existent
+        # columns on OAuthToken (provider, access_token, refresh_token, scopes,
+        # expires_at, status). The model has access_token_hash, refresh_token_hash,
+        # scope (singular), client_id, tenant_id, is_active.
+        # Now: await the call, hash the tokens, use the correct columns.
+        import hashlib
+        current_user = await get_current_user(request, db)
+
+        _access_hash = hashlib.sha256(access_token.encode()).hexdigest()
+        _refresh_hash = hashlib.sha256(refresh_token.encode()).hexdigest() if refresh_token else None
+
         existing_token = db.query(OAuthToken).filter(
             OAuthToken.user_id == current_user.id,
-            OAuthToken.provider == provider
+            OAuthToken.client_id == f"{provider}_client"
         ).first()
-        
+
         if existing_token:
-            existing_token.access_token = access_token
-            if refresh_token:
-                existing_token.refresh_token = refresh_token
-            existing_token.scopes = scopes
-            existing_token.expires_at = expires_at
-            existing_token.last_used = datetime.utcnow()
-            existing_token.status = "active"
+            existing_token.access_token_hash = _access_hash
+            if _refresh_hash:
+                existing_token.refresh_token_hash = _refresh_hash
+            existing_token.scope = " ".join(scopes) if scopes else ""
+            existing_token.access_token_expires_at = expires_at
+            existing_token.is_active = True
         else:
             new_token = OAuthToken(
                 id=str(uuid.uuid4()),
+                client_id=f"{provider}_client",
+                tenant_id=current_user.tenant_id or "default",
                 user_id=current_user.id,
-                provider=provider,
-                access_token=access_token,
-                refresh_token=refresh_token,
-                token_type=token_type,
-                scopes=scopes,
-                expires_at=expires_at,
-                status="active"
+                access_token_hash=_access_hash,
+                refresh_token_hash=_refresh_hash,
+                scope=" ".join(scopes) if scopes else "",
+                access_token_expires_at=expires_at,
+                is_active=True
             )
             db.add(new_token)
-            
+
         db.commit()
         return token_data
         
@@ -193,7 +201,7 @@ async def list_oauth_tokens(
     db: Session = Depends(get_db)
 ):
     """List all connected OAuth integrations for the current user."""
-    current_user = get_current_user(request, db)
+    current_user = await get_current_user(request, db)
     query = db.query(OAuthToken).filter(OAuthToken.user_id == current_user.id)
     
     if provider:
@@ -219,7 +227,7 @@ async def revoke_oauth_token(
     db: Session = Depends(get_db)
 ):
     """Revoke an OAuth integration."""
-    current_user = get_current_user(request, db)
+    current_user = await get_current_user(request, db)
     token = db.query(OAuthToken).filter(
         OAuthToken.user_id == current_user.id,
         OAuthToken.provider == provider

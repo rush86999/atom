@@ -62,11 +62,16 @@ class FitnessService:
 
         score = 0.0
 
-        # Penalize syntax errors
+        # Bug 12 fix: don't reward "survived syntax check" with a flat +0.2
+        # when execution actually crashed. The old code gave +0.2 to any code
+        # without a syntax error, even if it raised NameError/TypeError at
+        # runtime — inflating fitness for broken mutations. Now the reward
+        # is gated on execution success.
         if proxy_signals.get("syntax_error", False):
             score -= 1.0
-        else:
-            score += 0.2  # Survived syntax check
+        elif proxy_signals.get("execution_success", False):
+            score += 0.2  # Survived syntax check AND ran without error
+        # else: no syntax error but execution failed → no bonus (neutral)
 
         # Reward successful execution
         if proxy_signals.get("execution_success", False):

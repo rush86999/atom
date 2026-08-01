@@ -125,9 +125,11 @@ class OAuthHandler:
                 
                 if response.status_code != 200:
                     logger.error(f"Token exchange failed: {response.status_code} - {response.text}")
+                    # Bug 8 fix: response.text may contain access_token or internal
+                    # details. Don't leak to the client.
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Failed to exchange code for tokens: {response.text}"
+                        detail=f"Failed to exchange code for tokens (HTTP {response.status_code})"
                     )
                 
                 return response.json()
