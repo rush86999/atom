@@ -294,8 +294,9 @@ class IMGovernanceService:
                 # Don't raise - audit log failure shouldn't break webhooks
                 logger.error(f"Failed to create IM audit log: {e}")
 
-        # Fire-and-forget async task
-        asyncio.create_task(_do_log())
+        # Fire-and-forget with strong reference to prevent GC cancellation.
+        _task = asyncio.create_task(_do_log())
+        _task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
 
     def _extract_sender_id(self, request: Request, body_bytes: bytes, platform: str) -> Optional[str]:
         """

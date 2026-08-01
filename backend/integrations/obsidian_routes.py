@@ -18,7 +18,7 @@ async def get_obsidian_status(
     try:
         validate_url(plugin_url)
     except SSRFError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid plugin_url: {e}")
+        raise HTTPException(status_code=400, detail="Invalid plugin configuration")
     service = ObsidianService(api_token=api_token, plugin_url=plugin_url)
     return service.test_connection()
 

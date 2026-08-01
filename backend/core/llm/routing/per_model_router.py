@@ -330,8 +330,9 @@ class PerModelRouter:
                 pkl_path = meta_path.with_suffix(".pkl")
                 estimator = None
                 if pkl_path.exists():
+                    from core.llm.routing.restricted_pickle import restricted_load
                     with open(pkl_path, "rb") as f:
-                        estimator = pickle.load(f)
+                        estimator = restricted_load(f)
                 self.predictors[model_id] = estimator
                 self.stats[model_id] = PredictorStats(
                     model_id=model_id,

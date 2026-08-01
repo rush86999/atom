@@ -12,6 +12,7 @@ import asyncio
 import json
 from datetime import datetime, timezone
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Union
 import uuid
@@ -546,8 +547,9 @@ class WorkflowEngine:
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
 
-        # Resume execution
-        asyncio.create_task(self._run_execution(execution_id, workflow))
+        # Resume execution — strong ref to prevent GC cancellation
+        _task = asyncio.create_task(self._run_execution(execution_id, workflow))
+        _task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
         return True
 
     async def cancel_execution(self, execution_id: str) -> bool:

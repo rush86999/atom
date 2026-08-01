@@ -42,7 +42,7 @@ async def capabilities() -> Dict[str, Any]:
     except AttributeError:
         return {"operations": [], "message": "no capabilities method"}
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
 
 
@@ -55,4 +55,4 @@ async def get_contacts(token: str = Query(None), organization_id: str = Query(No
         return {"success": True, "data": result}
     except Exception as exc:
         logger.warning("zoho_books /contacts failed: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")

@@ -119,7 +119,7 @@ async def setup_shopify_webhooks(
     try:
         validate_url(webhook_base_url)
     except SSRFError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid webhook_base_url: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook configuration")
     results = await shopify_service.register_webhooks(access_token, shop, webhook_base_url)
     return {"ok": True, "results": results}
 

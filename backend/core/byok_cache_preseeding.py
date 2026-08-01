@@ -363,12 +363,10 @@ async def preseed_governance_cache(
     try:
         cache = get_governance_cache()
         db = SessionLocal()
-
         # Get sample agents for different maturity levels
         agents = db.query(AgentRegistry).limit(10).all()
 
         if not agents:
-            # Create dummy agents for pre-seeding if none exist
             logger.warning("No agents found in database, using dummy agents for pre-seeding")
             agents = [
                 AgentRegistry(
@@ -382,10 +380,8 @@ async def preseed_governance_cache(
         actions_cached = 0
         directories_cached = 0
 
-        # Cache common agent actions
         for agent in agents:
             for action in COMMON_AGENT_ACTIONS:
-                # Pre-seed cache with sample decision
                 cache.set(
                     agent_id=agent.id,
                     action_type=action,
@@ -396,7 +392,6 @@ async def preseed_governance_cache(
                 )
                 actions_cached += 1
 
-        # Cache common directory permissions
         for agent in agents:
             for directory in COMMON_DIRECTORIES:
                 cache.cache_directory(
@@ -436,10 +431,15 @@ async def preseed_governance_cache(
         logger.error(f"Failed to pre-seed governance cache: {e}")
         return {
             "success": False,
-            "error": str(e),
+            "error": "Internal error during cache pre-seeding",
             "actions_cached": 0,
             "directories_cached": 0,
         }
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 async def preseed_cache_aware_router(
