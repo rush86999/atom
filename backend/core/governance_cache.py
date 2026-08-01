@@ -60,9 +60,12 @@ class GovernanceCache:
         # OrderedDict for LRU eviction
         self._cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
 
-        # Dual locks: threading.Lock for sync methods, asyncio.Lock for async methods
+        # #1 fix: previously used dual locks (threading.Lock for sync +
+        # asyncio.Lock for async) protecting the SAME dict — sync and async
+        # callers could mutate _cache concurrently with zero mutual exclusion.
+        # Now a single threading.Lock guards all access (async methods also
+        # use it; the lock is held for O(1) dict ops so blocking is negligible).
         self._lock = threading.Lock()
-        self._async_lock = asyncio.Lock()
 
         # Statistics
         self._hits = 0
@@ -101,7 +104,7 @@ class GovernanceCache:
     async def _expire_stale(self):
         """Remove expired entries from cache (async-safe)."""
         try:
-            async with self._async_lock:
+            with self._lock:
                 now = time.time()
                 expired_keys = []
 
@@ -344,7 +347,7 @@ class GovernanceCache:
         """
         key = self._make_key(agent_id, action_type)
 
-        async with self._async_lock:
+        with self._lock:
             if key not in self._cache:
                 self._misses += 1
                 if action_type.startswith("dir:"):
@@ -389,7 +392,7 @@ class GovernanceCache:
         key = self._make_key(agent_id, action_type)
 
         try:
-            async with self._async_lock:
+            with self._lock:
                 if len(self._cache) >= self.max_size and key not in self._cache:
                     oldest_key = next(iter(self._cache))
                     del self._cache[oldest_key]
@@ -414,7 +417,7 @@ class GovernanceCache:
             action_type: Specific action type to invalidate (None = all actions)
         """
         try:
-            async with self._async_lock:
+            with self._lock:
                 if action_type:
                     key = self._make_key(agent_id, action_type)
                     if key in self._cache:
@@ -438,7 +441,7 @@ class GovernanceCache:
 
     async def clear_async(self):
         """Clear all cache entries (async-safe)."""
-        async with self._async_lock:
+        with self._lock:
             count = len(self._cache)
             self._cache.clear()
             logger.info(f"Cleared {count} cache entries")
@@ -488,7 +491,7 @@ class GovernanceCache:
         Returns:
             Dict with hit rate, size, and other metrics
         """
-        async with self._async_lock:
+        with self._lock:
             total_requests = self._hits + self._misses
             hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0
 
