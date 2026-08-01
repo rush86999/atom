@@ -18,10 +18,16 @@ class RestrictedUnpickler(pickle.Unpickler):
     """
 
     # Allowed module prefixes for sklearn/numpy/scipy model objects.
+    # Note: bare names ("numpy", "scipy") are included because numpy/scipy
+    # pickle globals sometimes use the top-level module name with the class
+    # as the symbol (e.g. "numpy" + "ndarray", "numpy" + "dtype",
+    # "numpy.core.multiarray" + "_reconstruct").
     _ALLOWED_PREFIXES = (
         "sklearn.",
         "numpy.",
+        "numpy",
         "scipy.",
+        "scipy",
         "collections",
         "builtins",
     )
