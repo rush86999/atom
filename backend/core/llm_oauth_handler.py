@@ -449,8 +449,21 @@ class LLMOAuthHandler:
             import base64
 
             if not self.encryption_key:
-                # Generate warning but allow operation in development
-                logger.warning("No encryption key configured - storing tokens in plain text (INSECURE)")
+                # Bug 7 fix: refuse to store tokens in plaintext by default.
+                # The old code warned but stored plaintext — a DB read = full
+                # account compromise. In production this MUST fail; in dev we
+                # still warn loudly but raise to force configuration.
+                _env = os.getenv("ENVIRONMENT", "development")
+                if _env == "production":
+                    raise ValueError(
+                        "LLMOAuthHandler.encryption_key not configured. "
+                        "Set BYOK_ENCRYPTION_KEY for production. Refusing to "
+                        "store OAuth tokens in plaintext."
+                    )
+                logger.warning(
+                    "No encryption key configured — storing tokens in PLAINTEXT "
+                    "(development only). Set BYOK_ENCRYPTION_KEY for secure storage."
+                )
                 return token
 
             try:

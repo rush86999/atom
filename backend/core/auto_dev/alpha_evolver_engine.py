@@ -332,9 +332,22 @@ class AlphaEvolverEngine(BaseLearningEngine):
                 }
             )
 
-            # Progressive evolution: use winning code as next base
+            # Bug 10 fix: only promote the mutation as the new base if execution
+            # succeeded AND the output is non-trivial (not empty/just comments).
+            # Previously any non-crashing mutation was promoted, including ones
+            # that produced no useful output — causing unbounded code growth
+            # when the LLM was unavailable (appended "# Mutation skipped" each
+            # iteration, which always "passed" sandbox).
             if exec_result.get("success"):
-                current_code = mutation.mutated_code
+                _output = (exec_result.get("output") or "").strip()
+                _mutated = mutation.mutated_code.strip()
+                # Reject no-op mutations: if the mutation only added comments
+                # or whitespace, don't promote it.
+                _code_lines = [l for l in _mutated.split("\n") if l.strip() and not l.strip().startswith("#")]
+                if _code_lines and _output:
+                    current_code = mutation.mutated_code
+                else:
+                    logger.info(f"Mutation {mutation.id} produced no useful output — not promoting")
 
         return results
 
