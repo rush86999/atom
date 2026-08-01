@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 67 — Workflow-Executed MCP Actions Bypass Governance: Agent-Action Auth (July 31, 2026) ✨
+**Bug hunt round.** The meta-agent path runs every tool call through `AgentGovernanceService` (maturity + complexity + HITL — terminal/browser/messaging tools require AUTONOMOUS maturity), but the workflow trigger routes (`core/workflow_endpoints.py`) only require `WORKFLOW_RUN` — **granted to every member** (`core/rbac_service.py:52`). A workflow with an `mcp` step (`run_local_terminal` / `terminal_command` / `write_code_file` / `browser_navigate` / `email_send` ...) executed **local-machine actions with zero governance**: `workflow_engine._execute_mcp_action` calls `integrations.mcp_service.mcp_service.execute_tool` with no context, so the `if agent_id:` governance gate in `core/mcp_service.py` never fires. `input.*` templating (`_resolve_parameters`) also lets callers inject tool names at runtime.
+
+**A. Role gate (all four trigger routes):** `execute_workflow`, `execute_with_conductor`, `resume_workflow`, `schedule_workflow` now run `_require_workflow_executor()` — steps with critical MCP tools (or a templated/missing tool name on an `mcp` step — unprovable statically) require `WORKFLOW_MANAGE` (TEAM_LEAD+, the SAME role needed to *create* a workflow). Members get 403 before any execution/scheduling starts. Shared `_CRITICAL_MCP_TOOLS` set mirrors `core/mcp_service.py` critical_tools.
+
+**B. `_execute_mcp_action` str(e) leak** (R41/R52/R63 class) → generic `"MCP action failed"`; logger retains `{e}`.
+
+**BONUS — two latent bugs the round tests surfaced:**
+- **Route shadowing (R40 class):** `POST /workflows/conductor/execute` was declared AFTER `POST /workflows/{workflow_id}/execute`, so "conductor" was captured as a workflow_id — the conductor route was **unreachable** (every request 404'd "Workflow not found"). Moved above the parameterized route.
+- **Permanently-422 strategy parse:** `ExecutionStrategy(strategy.upper())` vs lowercase enum values (`"sequential"`) — even when reachable, every conductor request 422'd. Now `.lower()`.
+
+**Tests:** 10 new tests in `backend/tests/test_round67_workflow_governance.py` (member 403 + engine-not-called for execute/schedule/resume, conductor member 403 + team_lead 200, templated-tool-name 403, benign + benign-mcp member 200 regression guards, engine leak sentinel). Zero regressions (comm-verified: 37 failure lines byte-identical pre/post across 12 affected workflow/round suites; `comm -13` empty). mypy identical (64/64 errors, line shifts only). `main_api_app` imports clean. 10/10 round tests green.
+
 ### Round 66 — Canvas Docs/Terminal/Email: Missing Auth + Identity Spoofing + IDOR (July 31, 2026) ✨
 **Bug hunt round.** The canvas-family routers (mounted: `/api/canvas/docs`, `/api/canvas/terminal`, `/api/canvas/email`) carry the R24-era auth fix but still have gaps:
 
