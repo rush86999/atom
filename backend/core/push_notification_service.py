@@ -5,7 +5,7 @@ Integrates with Firebase Cloud Messaging (FCM) and Apple Push Notification Servi
 to send push notifications to mobile devices for agent events, alerts, and system updates.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import time
@@ -84,7 +84,7 @@ class PushNotificationService:
                 # Update existing device
                 existing_device.platform = platform
                 existing_device.device_info = device_info or {}
-                existing_device.last_active = datetime.utcnow()
+                existing_device.last_active = datetime.now(timezone.utc)
                 existing_device.status = "active"
                 if t_id:
                     existing_device.tenant_id = t_id
@@ -107,8 +107,8 @@ class PushNotificationService:
                     platform=platform,
                     status="active",
                     device_info=device_info or {},
-                    created_at=datetime.utcnow(),
-                    last_active=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc),
+                    last_active=datetime.now(timezone.utc)
                 )
 
                 self.db.add(device)

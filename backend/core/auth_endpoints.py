@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import logging
 import secrets
@@ -188,7 +188,7 @@ async def login_for_access_token(
         )
         
         # Update last login
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.commit()
 
         audit_service.log_event(
@@ -315,7 +315,7 @@ async def forgot_password(
     # Generate token
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
     # Save to DB
     reset_token = PasswordResetToken(
@@ -350,7 +350,7 @@ async def verify_token(
     reset_token = db.query(PasswordResetToken).filter(
         PasswordResetToken.token_hash == token_hash,
         PasswordResetToken.is_used == False,
-        PasswordResetToken.expires_at > datetime.utcnow()
+        PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
     if not reset_token:
@@ -369,7 +369,7 @@ async def reset_password(
     reset_token = db.query(PasswordResetToken).filter(
         PasswordResetToken.token_hash == token_hash,
         PasswordResetToken.is_used == False,
-        PasswordResetToken.expires_at > datetime.utcnow()
+        PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
     if not reset_token:

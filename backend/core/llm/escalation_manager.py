@@ -20,7 +20,7 @@ Created: 2026-02-20
 """
 
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple
 import logging
 
@@ -307,7 +307,7 @@ class EscalationManager:
         )
 
         # Set cooldown timestamp
-        self.escalation_log[current_tier.value] = datetime.utcnow()
+        self.escalation_log[current_tier.value] = datetime.now(timezone.utc)
 
         logger.info(
             f"Escalated from {current_tier.value} to {target_tier.value} "
@@ -332,7 +332,7 @@ class EscalationManager:
         Example:
             >>> manager = EscalationManager()
             >>> # Assume escalation just happened
-            >>> manager.escalation_log["standard"] = datetime.utcnow()
+            >>> manager.escalation_log["standard"] = datetime.now(timezone.utc)
             >>> manager._is_on_cooldown(CognitiveTier.STANDARD)
             True
         """
@@ -342,7 +342,7 @@ class EscalationManager:
         last_escalation = self.escalation_log[tier.value]
         cooldown_expiry = last_escalation + timedelta(minutes=ESCALATION_COOLDOWN)
 
-        return datetime.utcnow() < cooldown_expiry
+        return datetime.now(timezone.utc) < cooldown_expiry
 
     def _record_escalation(
         self,
@@ -456,6 +456,6 @@ class EscalationManager:
 
         last_escalation = self.escalation_log[tier.value]
         cooldown_expiry = last_escalation + timedelta(minutes=ESCALATION_COOLDOWN)
-        remaining = (cooldown_expiry - datetime.utcnow()).total_seconds()
+        remaining = (cooldown_expiry - datetime.now(timezone.utc)).total_seconds()
 
         return max(0.0, remaining)

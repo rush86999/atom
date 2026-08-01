@@ -6,7 +6,7 @@ Enables cross-system insights without manual configuration.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import json
 import logging
@@ -200,7 +200,7 @@ class HybridDataIngestionService:
         stats.total_calls += 1
         if success:
             stats.successful_calls += 1
-        stats.last_used = datetime.utcnow()
+        stats.last_used = datetime.now(timezone.utc)
         
         # Check if we should auto-enable sync
         if not stats.auto_sync_enabled:
@@ -278,7 +278,7 @@ class HybridDataIngestionService:
         
         # Check if sync is needed (unless forced)
         if not force and stats and stats.last_synced:
-            minutes_since_sync = (datetime.utcnow() - stats.last_synced).total_seconds() / 60
+            minutes_since_sync = (datetime.now(timezone.utc) - stats.last_synced).total_seconds() / 60
             if minutes_since_sync < stats.sync_frequency_minutes:
                 return {"skipped": True, "reason": "Recently synced"}
         
@@ -287,7 +287,7 @@ class HybridDataIngestionService:
         results = {
             "integration_id": integration_id,
             "workspace_id": self.workspace_id,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "records_fetched": 0,
             "records_ingested": 0,
             "entities_extracted": 0,
@@ -352,7 +352,7 @@ class HybridDataIngestionService:
                                 "integration_id": integration_id,
                                 "record_id": record.get("id", "unknown"),
                                 "record_type": record.get("type", "unknown"),
-                                "synced_at": datetime.utcnow().isoformat()
+                                "synced_at": datetime.now(timezone.utc).isoformat()
                             },
                             user_id=record.get("user_id", "system"),
                             extract_knowledge=True
@@ -396,13 +396,13 @@ class HybridDataIngestionService:
                     results["success"] = True
                     results["partial"] = True
                     if stats:
-                        stats.last_synced = datetime.utcnow()
+                        stats.last_synced = datetime.now(timezone.utc)
             else:
                 results["success"] = True
                 if stats:
-                    stats.last_synced = datetime.utcnow()
+                    stats.last_synced = datetime.now(timezone.utc)
 
-            results["completed_at"] = datetime.utcnow().isoformat()
+            results["completed_at"] = datetime.now(timezone.utc).isoformat()
             
             logger.info(
                 f"Sync completed for {integration_id}: "
@@ -1287,7 +1287,7 @@ class HybridDataIngestionService:
                         if not stats.last_synced:
                             should_sync = True
                         else:
-                            minutes_since = (datetime.utcnow() - stats.last_synced).total_seconds() / 60
+                            minutes_since = (datetime.now(timezone.utc) - stats.last_synced).total_seconds() / 60
                             should_sync = minutes_since >= stats.sync_frequency_minutes
                         
                         if should_sync:

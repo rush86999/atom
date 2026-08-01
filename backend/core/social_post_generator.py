@@ -9,7 +9,7 @@ import os
 import asyncio
 import logging
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 
@@ -105,7 +105,7 @@ class SocialPostGenerator:
             return False
 
         last_post = self._rate_limit_tracker[agent_id]
-        time_since_last = datetime.utcnow() - last_post
+        time_since_last = datetime.now(timezone.utc) - last_post
 
         if time_since_last < timedelta(minutes=self.rate_limit_minutes):
             return True
@@ -119,10 +119,10 @@ class SocialPostGenerator:
         Args:
             agent_id: Agent ID to update
         """
-        self._rate_limit_tracker[agent_id] = datetime.utcnow()
+        self._rate_limit_tracker[agent_id] = datetime.now(timezone.utc)
 
         # Cleanup old entries (older than 1 hour)
-        cutoff = datetime.utcnow() - timedelta(hours=1)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
         self._rate_limit_tracker = {
             k: v for k, v in self._rate_limit_tracker.items()
             if v > cutoff

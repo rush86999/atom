@@ -16,7 +16,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Set
 
@@ -355,7 +355,7 @@ def _create_audit_entry(session: Session, instance: Any, action: str) -> Optiona
         old_values = _extract_values(instance, action, 'old') if action in ['update', 'delete'] else None
         new_values = _extract_values(instance, action, 'new') if action in ['create', 'update'] else None
         agent_maturity = _get_agent_maturity(session)
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         # Compute hash using HashChainIntegrity (real cryptographic hash)
         entry_hash = HashChainIntegrity.compute_entry_hash(

@@ -4,7 +4,7 @@ Chat Session Manager for ATOM
 Manages chat session metadata (Hybrid: DB + JSON fallback)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -134,7 +134,7 @@ class ChatSessionManager:
         if not session_id:
             session_id = str(uuid.uuid4())
             
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         
         # 1. Database Path
         if self.use_db:
@@ -144,8 +144,8 @@ class ChatSessionManager:
                         id=session_id,
                         user_id=user_id,
                         metadata_json=metadata or {},
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow(),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
                         message_count=0
                     )
                     db.add(new_session)
@@ -238,7 +238,7 @@ class ChatSessionManager:
                 try:
                     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                     if session:
-                        session.updated_at = datetime.utcnow()
+                        session.updated_at = datetime.now(timezone.utc)
                         if history is not None:
                             session.message_count = len(history)
                             # Ideally, messages are stored in ChatMessage table separately.
@@ -262,7 +262,7 @@ class ChatSessionManager:
         updated = False
         for session in sessions:
             if session['session_id'] == session_id:
-                session['last_active'] = datetime.utcnow().isoformat()
+                session['last_active'] = datetime.now(timezone.utc).isoformat()
                 if history is not None:
                     session['history'] = history
                     session['message_count'] = len(history)
@@ -276,8 +276,8 @@ class ChatSessionManager:
              new_session = {
                 "session_id": session_id,
                 "user_id": "default",
-                "created_at": datetime.utcnow().isoformat(),
-                "last_active": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_active": datetime.now(timezone.utc).isoformat(),
                 "metadata": {"source": "recovered"},
                 "message_count": len(history) if history else 0,
                 "history": history or []
@@ -393,7 +393,7 @@ class ChatSessionManager:
                     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                     if session:
                         session.title = new_title
-                        session.updated_at = datetime.utcnow()
+                        session.updated_at = datetime.now(timezone.utc)
                         db.commit()
                         # We continue to file sync for hybrid safety if desired,
                         # but usually for true hybrid we just rely on DB if active.
@@ -410,7 +410,7 @@ class ChatSessionManager:
         for session in sessions:
             if session['session_id'] == session_id:
                 session['title'] = new_title
-                session['last_active'] = datetime.utcnow().isoformat()
+                session['last_active'] = datetime.now(timezone.utc).isoformat()
                 updated = True
                 break
         

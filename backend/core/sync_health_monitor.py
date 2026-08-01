@@ -4,7 +4,7 @@ Health check service for Atom SaaS sync subsystem
 Monitors sync status, WebSocket connection, and overall system health
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
@@ -82,7 +82,7 @@ class SyncHealthMonitor:
             "failed_checks": failed_checks,
             "degraded_checks": degraded_checks,
             "total_checks": len(health_status["checks"]),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
         }
 
         return health_status
@@ -107,7 +107,7 @@ class SyncHealthMonitor:
                 }
 
             last_sync = sync_state.last_sync
-            age_minutes = (datetime.utcnow() - last_sync).total_seconds() / 60
+            age_minutes = (datetime.now(timezone.utc) - last_sync).total_seconds() / 60
 
             # Healthy if within 1x interval, degraded if within 2x, unhealthy if >2x
             if age_minutes <= self.expected_sync_interval_minutes:
