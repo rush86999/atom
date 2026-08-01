@@ -4,6 +4,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from integrations.mcp_service import mcp_service
 from core.auth import get_current_user
+from core.models import User
+from core.workflow_security import require_critical_tool, require_workflow_trigger_tool
 
 # MCP endpoints expose connected-server/tool metadata and can execute arbitrary
 # tools — they must be authenticated. Previously none of them had a
@@ -28,12 +30,20 @@ async def list_server_tools(server_id: str):
 async def execute_mcp_action(
     server_id: str = Body(...),
     tool_name: str = Body(...),
-    arguments: Dict[str, Any] = Body({})
+    arguments: Dict[str, Any] = Body({}),
+    current_user: User = Depends(get_current_user),
 ):
     """Executes an action on an MCP server."""
     try:
+        # R69: critical MCP tools (browser, terminal, email, file write) and
+        # workflow-triggering tools require WORKFLOW_MANAGE. The router-level
+        # dependency authenticates; the per-handler gate authorizes.
+        await require_critical_tool(current_user, tool_name)
+        await require_workflow_trigger_tool(current_user, tool_name)
         result = await mcp_service.execute_tool(server_id, tool_name, arguments)
         return {"status": "success", "result": result}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"MCP Tool Execution Error: {e}")
         raise HTTPException(status_code=500, detail="Internal error")

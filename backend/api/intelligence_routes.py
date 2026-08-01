@@ -8,6 +8,7 @@ from core.auth import get_current_user, User
 from core.workflow_security import (
     require_critical_tool,
     require_workflow_executor_orchestrator,
+    require_workflow_trigger_tool,
 )
 
 logger = logging.getLogger(__name__)
@@ -216,6 +217,9 @@ async def execute_insight_action(request: Dict[str, Any], current_user: User = D
             # R68: direct MCP tool execution — critical tools (terminal,
             # browser, email, file write) require WORKFLOW_MANAGE.
             await require_critical_tool(current_user, tool_name)
+            # R69: workflow-triggering tools (trigger_workflow) are a bare
+            # workflow-execution surface — also WORKFLOW_MANAGE only.
+            await require_workflow_trigger_tool(current_user, tool_name)
 
             logger.info(f"Executing tool action: {tool_name}")
             result = await mcp_service.execute_tool(

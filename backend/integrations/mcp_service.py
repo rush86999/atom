@@ -1314,18 +1314,31 @@ class MCPService(IntegrationService):
 
             elif tool_name == "trigger_workflow":
                 from advanced_workflow_orchestrator import get_orchestrator
+                from core.workflow_security import (
+                    has_critical_step,
+                    resolve_orchestrator_steps,
+                )
                 orchestrator = get_orchestrator()
-                
+
                 wf_id = arguments.get("workflow_id")
                 input_data = arguments.get("input_data", {})
-                
+
                 if not wf_id:
                      return {"error": "workflow_id is required"}
-                     
+                # R69 defense-in-depth: the route already gates trigger_workflow to
+                # WORKFLOW_MANAGE. This service-level gate fails closed for target
+                # workflows with critical MCP steps (or an unresolvable definition)
+                # so non-route callers cannot drive critical execution.
+                _steps = resolve_orchestrator_steps(orchestrator, wf_id)
+                if _steps is None or has_critical_step(_steps):
+                    return {
+                        "error": "Workflow has critical MCP actions or could not be resolved; execution refused."
+                    }
+
                 # Trigger via execute_workflow (async)
                 # Since execute_tool is async, we can await it
                 context = await orchestrator.execute_workflow(wf_id, input_data)
-                
+
                 return {
                     "status": context.status.value,
                     "execution_id": context.workflow_id,
@@ -1837,10 +1850,21 @@ class MCPService(IntegrationService):
 
             elif tool_name == "trigger_workflow":
                 from advanced_workflow_orchestrator import get_orchestrator
+                from core.workflow_security import (
+                    has_critical_step,
+                    resolve_orchestrator_steps,
+                )
                 orchestrator = get_orchestrator()
                 wf_id = arguments.get("workflow_id")
                 input_data = arguments.get("input_data", {})
                 if not wf_id: return {"error": "workflow_id is required"}
+                # R69 defense-in-depth: same fail-closed gate as the other
+                # trigger_workflow branch.
+                _steps = resolve_orchestrator_steps(orchestrator, wf_id)
+                if _steps is None or has_critical_step(_steps):
+                    return {
+                        "error": "Workflow has critical MCP actions or could not be resolved; execution refused."
+                    }
                 context = await orchestrator.execute_workflow(wf_id, input_data)
                 return {
                     "status": context.status.value,
