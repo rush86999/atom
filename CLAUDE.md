@@ -192,6 +192,19 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 65 — Supervision Endpoints: Missing Role Gate — Governance Integrity (July 31, 2026) ✨
+**Bug hunt round.** `api/supervision_routes.py` (mounted at `/api/supervision`) let **any authenticated user** act as a supervisor on three state-changing endpoints:
+
+**A. `POST /sessions/{id}/intervene`** — pause/correct/**terminate** any agent execution session (cross-user execution control).
+
+**B. `POST /sessions/{id}/complete`** — rate sessions and **boost agent confidence** (maturity-system input — repeated 5-star ratings push agents toward higher governance tiers).
+
+**C. `POST /proposals/{id}/autonomous-approve`** — trigger autonomous review which **EXECUTES the proposal's action on approval** — any member could fast-track governance-gated actions (browser automation, state changes) through the LLM reviewer, bypassing the maturity gates.
+
+**Fix:** new `_require_supervisor()` gate (TEAM_LEAD/WORKSPACE_ADMIN/SUPER_ADMIN, mirroring `agent_governance_routes.approve_workflow` from R39) on all three endpoints; added `except HTTPException: raise` so the 403s aren't swallowed into 500s (R42 lesson).
+
+**Tests:** 5 new tests in `backend/tests/test_round65_supervision_role_gate.py` (member 403s with service-not-called assertions on all three endpoints, TEAM_LEAD intervene positive, SUPER_ADMIN autonomous-approve positive). Zero regressions (comm-verified: 57→51 failures in affected suites — delta is exactly the 3 RED tests flipping green; `comm -13` empty = no new failures; the 30 `test_supervision_routes.py` failures are pre-existing and identical in both runs). mypy clean (0/0, identical). `main_api_app` imports clean. 5/5 round tests green.
+
 ### Round 64 — Health/Federation/Workflow str(e) Leak Sweep (July 31, 2026) ✨
 **Bug hunt round.** Systematic `str(e)` sweep of mounted modules (script cross-referenced against the mounted-module list) found 8 remaining leak sites in 4 files:
 
