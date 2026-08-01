@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -46,7 +46,7 @@ class DeviceNodeService:
             node.capabilities = capabilities
             node.metadata_json = metadata
             node.status = 'online'
-            node.last_seen = datetime.utcnow()
+            node.last_seen = datetime.now(timezone.utc)
             logger.info(f"Updated device node: {name} ({device_id})")
         else:
             # Create
@@ -58,7 +58,7 @@ class DeviceNodeService:
                 capabilities=capabilities,
                 metadata_json=metadata,
                 status='online',
-                last_seen=datetime.utcnow()
+                last_seen=datetime.now(timezone.utc)
             )
             db.add(node)
             logger.info(f"Registered new device node: {name} ({device_id})")
@@ -77,7 +77,7 @@ class DeviceNodeService:
         ).first()
         
         if node:
-            node.last_seen = datetime.utcnow()
+            node.last_seen = datetime.now(timezone.utc)
             node.status = 'online'
             db.commit()
             
@@ -85,7 +85,7 @@ class DeviceNodeService:
         """
         Get all online nodes for a workspace.
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
         return db.query(DeviceNode).filter(
             DeviceNode.workspace_id == workspace_id,
             DeviceNode.last_seen > cutoff

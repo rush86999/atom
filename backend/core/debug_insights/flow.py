@@ -15,7 +15,7 @@ Example insights:
 
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
@@ -102,7 +102,7 @@ class FlowInsightGenerator:
                     affected_components=[
                         {"type": e.component_type, "id": e.component_id} for e in events
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             if flow_analysis["has_errors"]:
@@ -128,7 +128,7 @@ class FlowInsightGenerator:
                     affected_components=[
                         {"type": e.component_type, "id": e.component_id} for e in events
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # Flow completed successfully
@@ -148,7 +148,7 @@ class FlowInsightGenerator:
                 affected_components=[
                     {"type": e.component_type, "id": e.component_id} for e in events
                 ],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -227,7 +227,7 @@ class FlowInsightGenerator:
                         ],
                         scope="component",
                         affected_components=[{"type": component_type, "id": component_id}],
-                        generated_at=datetime.utcnow(),
+                        generated_at=datetime.now(timezone.utc),
                     )
                 )
 
@@ -308,7 +308,7 @@ class FlowInsightGenerator:
                         ],
                         scope="distributed",
                         affected_components=[],
-                        generated_at=datetime.utcnow(),
+                        generated_at=datetime.now(timezone.utc),
                     )
                 )
 
@@ -385,7 +385,7 @@ class FlowInsightGenerator:
                             ],
                             scope="component",
                             affected_components=[{"type": "workflow", "id": workflow_id}],
-                            generated_at=datetime.utcnow(),
+                            generated_at=datetime.now(timezone.utc),
                         )
                     )
 
@@ -445,7 +445,7 @@ class FlowInsightGenerator:
 
     def _parse_time_range(self, time_range: str) -> datetime:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

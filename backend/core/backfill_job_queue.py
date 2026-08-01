@@ -284,7 +284,7 @@ class BackfillJobQueue:
             mapping={
                 "progress": str(progress),
                 "message": message or "",
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }
         )
 

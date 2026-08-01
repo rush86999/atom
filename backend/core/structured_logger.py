@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from contextvars import ContextVar
 
@@ -109,7 +109,7 @@ class StructuredLogger:
 
         # Add timestamp if not provided
         if 'timestamp' not in context:
-            context['timestamp'] = datetime.utcnow().isoformat()
+            context['timestamp'] = datetime.now(timezone.utc).isoformat()
 
         # Add logger name
         context['logger'] = self.logger.name
@@ -184,7 +184,7 @@ class StructuredFormatter(logging.Formatter):
         log_entry = {
             'level': record.levelname,
             'message': record.getMessage(),
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'logger': record.name,
             'module': record.module,
             'function': record.funcName,

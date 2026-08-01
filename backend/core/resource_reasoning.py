@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -114,7 +114,7 @@ class ResourceReasoningEngine:
                 db.query(ProjectTask)
                 .filter(ProjectTask.assigned_to == user_id)
                 .filter(ProjectTask.status != "completed")
-                .filter(ProjectTask.due_date < datetime.utcnow())
+                .filter(ProjectTask.due_date < datetime.now(timezone.utc))
                 .count()
             )
             

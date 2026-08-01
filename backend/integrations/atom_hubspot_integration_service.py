@@ -379,7 +379,7 @@ class AtomHubSpotIntegrationService:
             self.analytics_metrics['leads_generated_today'] += 1
             self.analytics_metrics['lead_sources'][contact_data.get('source', 'direct')] += 1
             self.analytics_metrics['lead_stages'][contact_data.get('lifecycle_stage', 'lead')] += 1
-            today = datetime.utcnow().strftime('%Y-%m-%d')
+            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
             self.analytics_metrics['daily_leads'][today] += 1
             # Security and compliance check
             if self.hubspot_config['enable_enterprise_features']:
@@ -598,7 +598,7 @@ class AtomHubSpotIntegrationService:
             start_time = time.time()
             
             # Calculate date range
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=7)  # Default to 7 days
             
             # Generate analytics based on type
@@ -636,7 +636,7 @@ class AtomHubSpotIntegrationService:
                 metrics=analytics_data,
                 insights=analytics_data.get('insights', []),
                 recommendations=analytics_data.get('recommendations', []),
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 metadata={'generated_by': 'atom_hubspot_integration'}
             )
             
@@ -897,7 +897,7 @@ class AtomHubSpotIntegrationService:
             campaign_id = campaign.get('id')
             if campaign_id:
                 self.campaign_performance[campaign_id] = {
-                    'created_at': datetime.utcnow(),
+                    'created_at': datetime.now(timezone.utc),
                     'status': campaign.get('status'),
                     'metrics': {}
                 }

@@ -6,7 +6,7 @@ Uses Web Speech API on frontend or Whisper for backend transcription.
 import asyncio
 import base64
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import io
 import logging
 from typing import Any, Dict, Optional
@@ -95,7 +95,7 @@ class VoiceService:
             confidence=0.95,
             language=language,
             duration_seconds=len(audio_bytes) / 16000,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
     
     async def _transcribe_with_whisper(self, *args, **kwargs):
@@ -116,7 +116,7 @@ class VoiceService:
             confidence=0.0,
             language=language,
             duration_seconds=0.0,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
     
     async def process_voice_command(
@@ -144,7 +144,7 @@ class VoiceService:
                 confidence=0.9,
                 language="en",
                 duration_seconds=0.0,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
         elif audio_bytes:
             transcription = await self.transcribe_audio(audio_bytes)

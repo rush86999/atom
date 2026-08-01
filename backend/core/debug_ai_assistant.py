@@ -27,7 +27,7 @@ Example:
 import asyncio
 import re
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -211,7 +211,7 @@ class DebugAIAssistant:
                                 DebugEvent.component_type == component_type,
                                 DebugEvent.component_id == component_id,
                                 DebugEvent.level.in_(["ERROR", "CRITICAL"]),
-                                DebugEvent.timestamp >= datetime.utcnow() - timedelta(hours=1),
+                                DebugEvent.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1),
                             )
                         )
                         .order_by(DebugEvent.timestamp.desc())
@@ -304,7 +304,7 @@ class DebugAIAssistant:
                 pass
 
             # Get recent errors
-            time_filter = datetime.utcnow() - timedelta(hours=1)
+            time_filter = datetime.now(timezone.utc) - timedelta(hours=1)
 
             errors = (
                 self.db.query(DebugEvent)
@@ -475,7 +475,7 @@ class DebugAIAssistant:
 
                 # Analyze data flow
                 # Get all components involved in this operation
-                time_filter = datetime.utcnow() - timedelta(hours=1)
+                time_filter = datetime.now(timezone.utc) - timedelta(hours=1)
 
                 components = (
                     self.db.query(
@@ -531,7 +531,7 @@ class DebugAIAssistant:
         """Handle questions about error patterns."""
         try:
             # Get error pattern insights
-            time_filter = datetime.utcnow() - timedelta(hours=24)
+            time_filter = datetime.now(timezone.utc) - timedelta(hours=24)
 
             insights = (
                 self.db.query(DebugInsight)

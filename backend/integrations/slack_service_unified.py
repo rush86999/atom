@@ -5,7 +5,7 @@ Complete Slack service with consistent error handling and rate limiting
 
 import asyncio
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import hashlib
 import hmac
@@ -104,7 +104,7 @@ class SlackUnifiedService:
             if endpoint in self.rate_limits:
                 rate_limit = self.rate_limits[endpoint]
                 if rate_limit.remaining <= 1:
-                    wait_time = (rate_limit.reset_time - datetime.utcnow()).total_seconds()
+                    wait_time = (rate_limit.reset_time - datetime.now(timezone.utc)).total_seconds()
                     if wait_time > 0:
                         await asyncio.sleep(wait_time)
             
@@ -540,7 +540,7 @@ class SlackUnifiedService:
                 "search.messages",
                 "files.list"
             ],
-            "initialized_at": datetime.utcnow().isoformat()
+            "initialized_at": datetime.now(timezone.utc).isoformat()
         }
     
     async def close(self):

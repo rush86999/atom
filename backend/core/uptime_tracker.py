@@ -17,7 +17,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -111,7 +111,7 @@ class UptimeTracker:
         Args:
             start_time: Service start time (defaults to now)
         """
-        self.start_time = start_time or datetime.utcnow()
+        self.start_time = start_time or datetime.now(timezone.utc)
         self.downtime_events: List[DowntimeEvent] = []
         self.current_downtime_start: Optional[datetime] = None
         self._last_health_check: Optional[datetime] = None
@@ -128,7 +128,7 @@ class UptimeTracker:
         Returns:
             UptimeMetrics object with current health status
         """
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         self._last_health_check = current_time
 
         # Calculate uptime
@@ -224,7 +224,7 @@ class UptimeTracker:
             logger.warning("Downtime already in progress, ignoring start event")
             return
 
-        self.current_downtime_start = datetime.utcnow()
+        self.current_downtime_start = datetime.now(timezone.utc)
         logger.error(
             f"DOWNTIME STARTED: {reason} at {self.current_downtime_start.isoformat()}, "
             f"components: {affected_components or ['unknown']}"
@@ -240,7 +240,7 @@ class UptimeTracker:
             logger.warning("No downtime in progress, ignoring end event")
             return
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         duration = (end_time - self.current_downtime_start).total_seconds()
 
         # Create downtime event

@@ -11,7 +11,7 @@ Features:
 - Agent-controlled view orchestration
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -99,7 +99,7 @@ class ViewCoordinator:
                 state.active_views.append(browser_view)
 
             state.layout = "split_vertical"
-            state.updated_at = datetime.utcnow()
+            state.updated_at = datetime.now(timezone.utc)
             self.db.commit()
 
             # Broadcast view switch
@@ -198,7 +198,7 @@ class ViewCoordinator:
                 state.active_views.append(terminal_view)
 
             state.layout = "split_horizontal"
-            state.updated_at = datetime.utcnow()
+            state.updated_at = datetime.now(timezone.utc)
             self.db.commit()
 
             # Broadcast view switch
@@ -265,7 +265,7 @@ class ViewCoordinator:
 
             if state:
                 state.layout = layout
-                state.updated_at = datetime.utcnow()
+                state.updated_at = datetime.now(timezone.utc)
                 self.db.commit()
 
             # Broadcast layout change
@@ -349,7 +349,7 @@ class ViewCoordinator:
             existing_view_ids = [v.get("view_id") for v in state.active_views]
             if view["view_id"] not in existing_view_ids:
                 state.active_views.append(view)
-                state.updated_at = datetime.utcnow()
+                state.updated_at = datetime.now(timezone.utc)
                 self.db.commit()
 
             # Broadcast view activation
@@ -437,7 +437,7 @@ class ViewCoordinator:
                     v for v in state.active_views
                     if v.get("view_id") != view_id
                 ]
-                state.updated_at = datetime.utcnow()
+                state.updated_at = datetime.now(timezone.utc)
                 self.db.commit()
 
             # Broadcast view close

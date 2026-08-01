@@ -16,7 +16,7 @@ import json
 import os
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 from contextlib import asynccontextmanager
 
@@ -197,7 +197,7 @@ class DebugCollector:
                 message=message,
                 data=data or {},
                 event_metadata=event_metadata or {},
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
 
             # Add to buffer
@@ -258,7 +258,7 @@ class DebugCollector:
                 state_data=state_data,
                 diff_from_previous=diff_from_previous,
                 snapshot_type=snapshot_type,
-                captured_at=datetime.utcnow(),
+                captured_at=datetime.now(timezone.utc),
             )
 
             # Add to buffer

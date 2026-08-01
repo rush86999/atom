@@ -5,7 +5,7 @@ This is distinct from user-defined workflow triggers - it's AI-driven.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 from typing import Any, Dict, List, Optional, Tuple
@@ -169,7 +169,7 @@ class AITriggerCoordinator:
             "reasoning": reasoning,
             "source": source,
             "memory_used": bool(memory_insights.get("experiences")),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         # 7. If triggering, actually trigger the agent

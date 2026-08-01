@@ -15,7 +15,7 @@ Example insights:
 
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
@@ -118,7 +118,7 @@ class ConsistencyInsightGenerator:
                     affected_components=[
                         {"type": component_type, "id": comp_id} for comp_id in component_ids
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # All components have data - check timing consistency
@@ -152,7 +152,7 @@ class ConsistencyInsightGenerator:
                         affected_components=[
                             {"type": component_type, "id": comp_id} for comp_id in component_ids
                         ],
-                        generated_at=datetime.utcnow(),
+                        generated_at=datetime.now(timezone.utc),
                     )
 
             # All good - data consistent
@@ -172,7 +172,7 @@ class ConsistencyInsightGenerator:
                 affected_components=[
                     {"type": component_type, "id": comp_id} for comp_id in component_ids
                 ],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -252,7 +252,7 @@ class ConsistencyInsightGenerator:
                     affected_components=[
                         {"type": component_type, "id": comp_id} for comp_id in component_ids
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             return None
@@ -317,7 +317,7 @@ class ConsistencyInsightGenerator:
                     ],
                     scope="distributed",
                     affected_components=[{"type": component_type}],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # Replication complete
@@ -334,7 +334,7 @@ class ConsistencyInsightGenerator:
                 confidence_score=1.0,
                 scope="distributed",
                 affected_components=[{"type": component_type}],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -403,7 +403,7 @@ class ConsistencyInsightGenerator:
                             ],
                             scope="distributed",
                             affected_components=[],
-                            generated_at=datetime.utcnow(),
+                            generated_at=datetime.now(timezone.utc),
                         )
                     )
 
@@ -451,7 +451,7 @@ class ConsistencyInsightGenerator:
 
     def _parse_time_range(self, time_range: str) -> datetime:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

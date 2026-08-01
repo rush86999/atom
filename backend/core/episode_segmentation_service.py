@@ -9,7 +9,7 @@ Automatically segments agent interactions into coherent episodes using:
 Archives episodes to LanceDB for semantic search.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import logging
 import os
@@ -1706,7 +1706,7 @@ Topics: {', '.join(episode.topics)}
             # Create skill episode segment
             segment = EpisodeSegment(
                 id=str(uuid.uuid4()),
-                episode_id=f"skill_{skill_name}_{agent_id[:8]}_{int(datetime.utcnow().timestamp())}",
+                episode_id=f"skill_{skill_name}_{agent_id[:8]}_{int(datetime.now(timezone.utc).timestamp())}",
                 segment_type="skill_execution",
                 sequence_order=0,
                 content=self._format_skill_content(skill_name, result, error),

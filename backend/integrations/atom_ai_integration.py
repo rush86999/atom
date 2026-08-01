@@ -40,7 +40,7 @@ class AIConversationContext:
     platform: str
     messages: List[Dict[str, Any]]
     metadata: Dict[str, Any]
-    last_updated: datetime = datetime.utcnow()
+    last_updated: datetime = datetime.now(timezone.utc)
 
 class AtomAIIntegration:
     """Main AI integration class for unified communication ecosystem"""
@@ -729,7 +729,7 @@ class AtomAIIntegration:
                     'message_id': result.get('message_id'),
                     'channel_id': result.get('channel_id'),
                     'workspace_id': result.get('workspace_id'),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 await self.atom_memory.store(memory_data)
             
@@ -801,7 +801,7 @@ class AIConversationManager:
                              workspace_id: str = None) -> str:
         """Start new AI conversation"""
         try:
-            conversation_id = f"ai_conv_{user_id}_{platform}_{int(datetime.utcnow().timestamp())}"
+            conversation_id = f"ai_conv_{user_id}_{platform}_{int(datetime.now(timezone.utc).timestamp())}"
             
             context = AIConversationContext(
                 conversation_id=conversation_id,
@@ -810,7 +810,7 @@ class AIConversationManager:
                 messages=[],
                 metadata={
                     'workspace_id': workspace_id,
-                    'created_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.now(timezone.utc).isoformat()
                 }
             )
             
@@ -834,7 +834,7 @@ class AIConversationManager:
             context.messages.append({
                 'role': 'user',
                 'content': message,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             })
             
             # Get AI response using unified LLMService
@@ -852,11 +852,11 @@ class AIConversationManager:
                 context.messages.append({
                     'role': 'assistant',
                     'content': response_text,
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 })
                 
                 # Update conversation
-                context.last_updated = datetime.utcnow()
+                context.last_updated = datetime.now(timezone.utc)
                 self.conversations[conversation_id] = context
                 
                 return {

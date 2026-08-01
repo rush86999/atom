@@ -376,7 +376,7 @@ class AtomWhatsAppIntegration:
                     'success': True,
                     'channel_id': channel_id,
                     'message': message,
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'platform': 'whatsapp',
                     'metadata': metadata or {},
                     'message_id': response.json().get('messages', [{}])[0].get('id')

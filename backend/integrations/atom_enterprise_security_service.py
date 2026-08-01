@@ -297,8 +297,8 @@ class AtomEnterpriseSecurityService:
                 rules=policy_data['rules'],
                 enforcement_actions=policy_data['enforcement_actions'],
                 exceptions=policy_data.get('exceptions', []),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
                 created_by=user_id
             )
             # Validate policy
@@ -391,7 +391,7 @@ class AtomEnterpriseSecurityService:
                     source_ip=source_ip,
                     user_id=user_id,
                     session_id=session_id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     description=threat_info['description'],
                     indicators=threat_info.get('indicators', []),
                     metadata=threat_info.get('metadata', {})
@@ -452,7 +452,7 @@ class AtomEnterpriseSecurityService:
                 result=event_data['result'],
                 ip_address=event_data['ip_address'],
                 user_agent=event_data.get('user_agent', ''),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 metadata=event_data.get('metadata', {})
             )
             
@@ -520,7 +520,7 @@ class AtomEnterpriseSecurityService:
                 findings=findings,
                 recommendations=recommendations,
                 artifacts=compliance_analysis.get('artifacts', []),
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
                 generated_by='enterprise_security_service'
             )
             
@@ -1011,7 +1011,7 @@ class AtomEnterpriseSecurityService:
     
     async def _block_ip(self, ip_address: str, duration: int):
         """Block IP address"""
-        self.blocked_ips[ip_address] = datetime.utcnow() + timedelta(seconds=duration)
+        self.blocked_ips[ip_address] = datetime.now(timezone.utc) + timedelta(seconds=duration)
         
         # Log security event
         await self._log_security_audit(
@@ -1043,7 +1043,7 @@ class AtomEnterpriseSecurityService:
         # Update user security context
         if user_id in self.user_security_contexts:
             self.user_security_contexts[user_id]['locked'] = True
-            self.user_security_contexts[user_id]['locked_at'] = datetime.utcnow()
+            self.user_security_contexts[user_id]['locked_at'] = datetime.now(timezone.utc)
         
         # Log security event
         await self._log_security_audit(

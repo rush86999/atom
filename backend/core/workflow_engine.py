@@ -335,9 +335,9 @@ class WorkflowEngine:
 
                         # Execute step
                         try:
-                            start_step_time = datetime.utcnow()
+                            start_step_time = datetime.now(timezone.utc)
                             output = await self._execute_step(step, resolved_params)
-                            duration_ms = int((datetime.utcnow() - start_step_time).total_seconds() * 1000)
+                            duration_ms = int((datetime.now(timezone.utc) - start_step_time).total_seconds() * 1000)
                             self._validate_output_schema(step, output)
                             
                             # Extract resource_id from output
@@ -389,7 +389,7 @@ class WorkflowEngine:
                             # Track step failure in analytics
                             try:
                                 # Calculate duration for failed step if start_step_time was set
-                                duration_ms = int((datetime.utcnow() - start_step_time).total_seconds() * 1000) if 'start_step_time' in locals() else None
+                                duration_ms = int((datetime.now(timezone.utc) - start_step_time).total_seconds() * 1000) if 'start_step_time' in locals() else None
                                 analytics.track_step_execution(
                                     workflow_id=workflow.get("id", "unknown"),
                                     execution_id=execution_id,
@@ -491,7 +491,7 @@ class WorkflowEngine:
                 ))
 
                 # Track success
-                duration = (datetime.utcnow() - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 analytics.track_workflow_execution(
                     workflow_id=workflow.get("id", "unknown"),
                     success=True,
@@ -507,7 +507,7 @@ class WorkflowEngine:
                     await ws_manager.notify_workflow_status(user_id, execution_id, "PARTIAL")
 
                 # Track partial completion
-                duration = (datetime.utcnow() - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 analytics.track_workflow_execution(
                     workflow_id=workflow.get("id", "unknown"),
                     success=False,
@@ -523,7 +523,7 @@ class WorkflowEngine:
                 await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e)})
 
             # Track failure
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             analytics.track_workflow_execution(
                 workflow_id=workflow.get("id", "unknown"),
                 success=False,
@@ -571,7 +571,7 @@ class WorkflowEngine:
         user_id = workflow.get("created_by", "default")
         workspace_id = workflow.get("workspace_id", "default")
         tenant_id = workflow.get("tenant_id", "default")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         
         try:
             await self.state_manager.update_execution_status(execution_id, "RUNNING")
@@ -711,8 +711,8 @@ class WorkflowEngine:
                             workflow_id=workflow.get("id", "unknown"),
                             step_id=step["id"],
                             step_type=step.get("type", "action"),
-                            start_time=datetime.utcnow(),
-                            end_time=datetime.utcnow(),
+                            start_time=datetime.now(timezone.utc),
+                            end_time=datetime.now(timezone.utc),
                             duration_ms=0,
                             status="running",
                             trigger_data=resolved_params
@@ -764,7 +764,7 @@ class WorkflowEngine:
                                 WorkflowExecutionLog.step_id == step_id
                             ).first()
                             if step_exec:
-                                end_time = datetime.utcnow()
+                                end_time = datetime.now(timezone.utc)
                                 step_exec.status = "completed"
                                 step_exec.end_time = end_time
                                 step_exec.duration_ms = int((end_time - step_exec.start_time).total_seconds() * 1000)
@@ -806,7 +806,7 @@ class WorkflowEngine:
                     ))
 
                     # Track failure
-                    duration = (datetime.utcnow() - start_time).total_seconds()
+                    duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                     analytics.track_workflow_execution(
                         workflow_id=workflow.get("id", "unknown"),
                         success=False,
@@ -843,7 +843,7 @@ class WorkflowEngine:
             ))
             
             # Track success
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             analytics.track_workflow_execution(
                 workflow_id=workflow.get("id", "unknown"),
                 success=True,
@@ -868,7 +868,7 @@ class WorkflowEngine:
             await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e)})
             
             # Track failure
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             analytics.track_workflow_execution(
                 workflow_id=workflow.get("id", "unknown"),
                 success=False,

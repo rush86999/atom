@@ -12,7 +12,7 @@ Key Features:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -91,7 +91,7 @@ class AuditTrailValidator:
             'audited_operations': total_audits,
             'missing_audits': [],
             'coverage_percentage': 100.0,
-            'validated_at': datetime.utcnow().isoformat()
+            'validated_at': datetime.now(timezone.utc).isoformat()
         }
 
     def check_missing_audits(
@@ -194,7 +194,7 @@ class AuditTrailValidator:
             'valid_entries': len(audits) - len(invalid_entries),
             'invalid_entries': invalid_entries,
             'valid': len(invalid_entries) == 0,
-            'validated_at': datetime.utcnow().isoformat()
+            'validated_at': datetime.now(timezone.utc).isoformat()
         }
 
     def get_audit_statistics(
@@ -248,7 +248,7 @@ class AuditTrailValidator:
             'success_rate': success_count / len(audits) if audits else 0.0,
             'oldest_entry': audits[0].timestamp.isoformat() if audits else None,
             'newest_entry': audits[-1].timestamp.isoformat() if audits else None,
-            'generated_at': datetime.utcnow().isoformat()
+            'generated_at': datetime.now(timezone.utc).isoformat()
         }
 
     def check_model_coverage(self) -> Dict[str, Any]:
@@ -315,5 +315,5 @@ class AuditTrailValidator:
             'valid': len(violations) == 0,
             'total_entries': len(audits),
             'violations': violations,
-            'validated_at': datetime.utcnow().isoformat()
+            'validated_at': datetime.now(timezone.utc).isoformat()
         }

@@ -127,7 +127,7 @@ class AnalyticsReport:
         if self.visualizations is None:
             self.visualizations = []
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.recipients is None:
             self.recipients = []
 
@@ -253,7 +253,7 @@ class SlackAnalyticsEngine:
             insights = {
                 'metric': metric.value,
                 'time_range': time_range.value,
-                'generated_at': datetime.utcnow().isoformat(),
+                'generated_at': datetime.now(timezone.utc).isoformat(),
                 'data_points': len(data)
             }
             
@@ -285,7 +285,7 @@ class SlackAnalyticsEngine:
                 'id': report.id,
                 'name': report.name,
                 'description': report.description,
-                'generated_at': datetime.utcnow().isoformat(),
+                'generated_at': datetime.now(timezone.utc).isoformat(),
                 'time_range': report.time_range.value,
                 'granularity': report.granularity.value,
                 'metrics': []
@@ -512,7 +512,7 @@ class SlackAnalyticsEngine:
                     # Use overall average
                     predicted_value = df['value'].mean()
                 
-                prediction_time = datetime.utcnow() + timedelta(hours=hour+1)
+                prediction_time = datetime.now(timezone.utc) + timedelta(hours=hour+1)
                 predictions.append({
                     'timestamp': prediction_time.isoformat(),
                     'predicted_value': predicted_value,
@@ -986,7 +986,7 @@ class SlackAnalyticsEngine:
     
     def _get_date_range(self, time_range: AnalyticsTimeRange) -> Tuple[datetime, datetime]:
         """Get start and end dates for time range"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if time_range == AnalyticsTimeRange.TODAY:
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1265,7 +1265,7 @@ class SlackAnalyticsEngine:
         if timestamps:
             self.training_texts_timestamps.extend(timestamps)
         else:
-            self.training_texts_timestamps.extend([datetime.utcnow()] * count)
+            self.training_texts_timestamps.extend([datetime.now(timezone.utc)] * count)
 
         logger.info(f"Added {count} texts to training corpus. Total: {len(self.training_texts)}")
 

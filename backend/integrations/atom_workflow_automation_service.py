@@ -410,8 +410,8 @@ class AtomWorkflowAutomationService:
                 conditions=automation_data['conditions'],
                 actions=automation_data['actions'],
                 schedule=automation_data.get('schedule'),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
                 created_by=user_id,
                 last_executed=None,
                 execution_count=0,
@@ -500,7 +500,7 @@ class AtomWorkflowAutomationService:
                 triggered_by=triggered_by,
                 trigger_context=trigger_context,
                 status=AutomationStatus.RUNNING,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 completed_at=None,
                 execution_time=0.0,
                 result={},
@@ -606,7 +606,7 @@ class AtomWorkflowAutomationService:
                     execution.actions_executed.append({
                         'action': action,
                         'result': action_result,
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
                     # Check if execution should stop
                     if action_result.get('stop_execution', False):
@@ -632,7 +632,7 @@ class AtomWorkflowAutomationService:
             
             # Update execution
             execution.status = AutomationStatus.COMPLETED if success_rate >= 0.8 else AutomationStatus.FAILED
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             execution.execution_time = (execution.completed_at - execution.started_at).total_seconds()
             execution.result = {
                 'success_rate': success_rate,
@@ -1725,8 +1725,8 @@ class AtomWorkflowAutomationService:
                     status=AutomationStatus(row[7]),
                     enabled=row[8],
                     created_by=row[9],
-                    created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.utcnow(),
-                    updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.utcnow(),
+                    created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.now(timezone.utc),
+                    updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.now(timezone.utc),
                     schedule=row[12],
                     next_run=datetime.fromisoformat(row[13]) if row[13] else None,
                     last_run=datetime.fromisoformat(row[14]) if row[14] else None,
@@ -1769,7 +1769,7 @@ class AtomWorkflowAutomationService:
     async def _scheduler_loop(self):
         """Background scheduler loop"""
         while self.scheduler_running:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 # Check automations that need to run
                 for automation_id, automation in self.automations.items():
                     if automation.enabled and automation.next_run:
@@ -1914,7 +1914,7 @@ class AtomWorkflowAutomationService:
                     if automation.next_run:
                         next_run = automation.next_run + timedelta(days=1)
                     else:
-                        next_run = datetime.utcnow() + timedelta(days=1)
+                        next_run = datetime.now(timezone.utc) + timedelta(days=1)
                     automation.next_run = next_run
                     self.scheduled_automations[automation.automation_id] = {
                         'schedule': schedule,

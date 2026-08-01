@@ -573,9 +573,9 @@ async def close_debug_session(
             status_code=404
         )
 
-    from datetime import datetime
+    from datetime import datetime, timezone
     session.active = False
-    session.closed_at = datetime.utcnow()
+    session.closed_at = datetime.now(timezone.utc)
     db.commit()
 
     return router.success_response(
@@ -878,9 +878,9 @@ def _get_storage(db: Session) -> HybridDebugStorage:
 
 def _parse_time_range(time_range: str):
     """Parse time range string to datetime."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if time_range == "last_1h":
         return now - timedelta(hours=1)

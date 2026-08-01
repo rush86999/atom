@@ -8,7 +8,7 @@ import logging
 import uuid
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
@@ -99,14 +99,14 @@ class EntityTypeService:
         merges.append({
             "source_slug": source_type.slug,
             "source_reasoning": source_type.metadata_json.get("discovery_reasoning") if source_type.metadata_json else None,
-            "date": datetime.utcnow().isoformat(),
+            "date": datetime.now(timezone.utc).isoformat(),
             "nodes_count": nodes_updated
         })
         target_type.metadata_json["merges"] = merges
         
         # 3. Mark source as deleted/deactive
         source_type.is_active = False
-        source_type.description = f"Merged into {target_slug} on {datetime.utcnow().isoformat()}"
+        source_type.description = f"Merged into {target_slug} on {datetime.now(timezone.utc).isoformat()}"
         
         try:
             self.db.commit()

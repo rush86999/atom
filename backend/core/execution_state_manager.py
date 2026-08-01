@@ -7,7 +7,7 @@ Supports both SQLite and PostgreSQL backends.
 MIGRATED: Now uses SQLAlchemy async ORM instead of raw SQL via database_manager
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -33,7 +33,7 @@ class ExecutionStateManager:
     async def create_execution(self, workflow_id: str, input_data: Dict[str, Any]) -> str:
         """Initialize a new execution state"""
         execution_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         async with get_async_db_session() as db:
             execution = WorkflowExecution(
@@ -73,12 +73,12 @@ class ExecutionStateManager:
         if step_id not in steps:
             steps[step_id] = {
                 "id": step_id,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
 
         step_state = steps[step_id]
         step_state["status"] = status
-        step_state["updated_at"] = datetime.utcnow().isoformat()
+        step_state["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         if output is not None:
             step_state["output"] = output
@@ -96,7 +96,7 @@ class ExecutionStateManager:
                     steps=json.dumps(steps),
                     outputs=json.dumps(state["outputs"]),
                     version=WorkflowExecution.version + 1,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(timezone.utc)
                 )
             )
             await db.commit()
@@ -111,7 +111,7 @@ class ExecutionStateManager:
                     status=status,
                     error=error,
                     version=WorkflowExecution.version + 1,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(timezone.utc)
                 )
             )
             await db.commit()
@@ -132,7 +132,7 @@ class ExecutionStateManager:
                 .values(
                     input_data=json.dumps(current_inputs),
                     version=WorkflowExecution.version + 1,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(timezone.utc)
                 )
             )
             await db.commit()

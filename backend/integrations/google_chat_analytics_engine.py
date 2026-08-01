@@ -540,7 +540,7 @@ class GoogleChatAnalyticsEngine:
                     },
                     metadata={
                         'data_source': 'mock_generator',
-                        'generation_time': datetime.utcnow().isoformat()
+                        'generation_time': datetime.now(timezone.utc).isoformat()
                     }
                 )
                 data_points.append(data_point)
@@ -603,7 +603,7 @@ class GoogleChatAnalyticsEngine:
     
     def _get_time_range_boundaries(self, time_range: GoogleChatAnalyticsTimeRange) -> Tuple[datetime, datetime]:
         """Get start and end time for time range"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         mapping = {
             GoogleChatAnalyticsTimeRange.LAST_24_HOURS: (now - timedelta(hours=24), now),

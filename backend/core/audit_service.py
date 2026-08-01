@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import json
 import logging
@@ -295,7 +295,7 @@ class AuditService:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         db.add(audit)
@@ -324,7 +324,7 @@ class AuditService:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         db.add(audit)
@@ -352,7 +352,7 @@ class AuditService:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         db.add(audit)
@@ -383,7 +383,7 @@ class AuditService:
             event_type=data.get("event_type", audit_subtype),
             security_level=data.get("security_level", SecurityLevel.LOW.value),
             threat_level=data.get("threat_level", ThreatLevel.NONE.value),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             user_id=data.get("user_id"),
             user_email=data.get("user_email"),
             workspace_id=data.get("workspace_id", "default"),

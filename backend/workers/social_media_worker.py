@@ -6,7 +6,7 @@ Processes posts at their scheduled time and logs results to the database.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ async def process_scheduled_post(
             return {"error": "Post not found in database"}
 
         history.status = "posting"
-        history.posted_at = datetime.utcnow()
+        history.posted_at = datetime.now(timezone.utc)
         db.commit()
 
         # Get platform poster functions
@@ -122,7 +122,7 @@ async def process_scheduled_post(
                     logger.error(f"Failed to post to {platform}: {result.get('error')}")
 
                 # Update last_used timestamp
-                oauth_token.last_used = datetime.utcnow()
+                oauth_token.last_used = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(f"Error posting to {platform}: {e}", exc_info=True)
@@ -144,7 +144,7 @@ async def process_scheduled_post(
             logger.error(f"Post {post_id} failed completely")
 
         history.platform_results = platform_results
-        history.posted_at = datetime.utcnow()
+        history.posted_at = datetime.now(timezone.utc)
         db.commit()
 
         return {

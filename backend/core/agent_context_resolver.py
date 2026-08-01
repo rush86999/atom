@@ -10,7 +10,7 @@ Implements multi-layer fallback to determine which agent governs a request:
 This ensures all actions have proper agent attribution for governance and audit trails.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
@@ -57,7 +57,7 @@ class AgentContextResolver:
             "requested_agent_id": requested_agent_id,
             "action_type": action_type,
             "resolution_path": [],
-            "resolved_at": datetime.utcnow().isoformat()
+            "resolved_at": datetime.now(timezone.utc).isoformat()
         }
 
         agent = None

@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone
 from enum import Enum
 import json
 import os
@@ -75,7 +76,7 @@ class TrajectoryRecorder:
             content="Generated Final Response",
             metadata={"result": result}
         ))
-        self.trace.end_time = datetime.datetime.utcnow()
+        self.trace.end_time = datetime.datetime.now(timezone.utc)
 
     async def save(self, directory: str = "logs/traces"):
         """Save trace to a JSON file"""

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -108,7 +108,7 @@ class AIDocumentProcessor:
         )
 
         ai_request = AIRequest(
-            request_id=f"extraction_{datetime.utcnow().timestamp()}",
+            request_id=f"extraction_{datetime.now(timezone.utc).timestamp()}",
             task_type=AITaskType.NATURAL_LANGUAGE_COMMANDS,
             model_type=AIModelType.GPT_4,
             service_type=AIServiceType.OPENAI,
@@ -181,12 +181,12 @@ class AIDocumentProcessor:
     def _parse_date(self, date_str: Optional[str]) -> datetime:
         """Robust date parsing using dateparser"""
         if not date_str:
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
         try:
             dt = dateparser.parse(date_str)
-            return dt if dt else datetime.utcnow()
+            return dt if dt else datetime.now(timezone.utc)
         except (ValueError, TypeError, AttributeError):
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
 
     async def _perform_ocr(self, document) -> Optional[str]:
         """

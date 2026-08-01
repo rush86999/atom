@@ -5,7 +5,7 @@ API endpoints for user activity tracking and state management.
 Frontend sends heartbeats every 30 seconds to track user availability.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -148,7 +148,7 @@ async def get_user_state(
             return UserStateResponse(
                 user_id=user_id,
                 state=state.value,
-                last_activity_at=datetime.utcnow().isoformat(),
+                last_activity_at=datetime.now(timezone.utc).isoformat(),
                 manual_override=False,
                 manual_override_expires_at=None
             )

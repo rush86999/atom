@@ -271,8 +271,8 @@ class AtomEnterpriseUnifiedService:
                 triggers=workflow_data['triggers'],
                 steps=workflow_data['steps'],
                 actions=workflow_data['actions'],
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
                 created_by=user_id,
                 status='active',
                 metadata=workflow_data.get('metadata', {}),
@@ -412,7 +412,7 @@ class AtomEnterpriseUnifiedService:
             
             # Update audit trail
             enterprise_workflow.audit_trail.append({
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'user_id': user_id,
                 'trigger_context': trigger_context,
                 'execution_results': execution_results,

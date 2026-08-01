@@ -19,7 +19,7 @@ Example:
 
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -93,7 +93,7 @@ class DebugMonitor:
                 health_score = max(0, 100 - (error_rate * 100))
 
             # Get active operations (events in last 5 minutes)
-            recent_time = datetime.utcnow() - timedelta(minutes=5)
+            recent_time = datetime.now(timezone.utc) - timedelta(minutes=5)
             active_operations = (
                 self.db.query(
                     func.count(func.distinct(DebugEvent.correlation_id))
@@ -114,7 +114,7 @@ class DebugMonitor:
                 "active_operations": active_operations or 0,
                 "components": components,
                 "time_range": time_range,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -227,7 +227,7 @@ class DebugMonitor:
                 "error_rate": (error_events / total_events * 100) if total_events and total_events > 0 else 0,
                 "recent_insights": component_insights[:5],
                 "time_range": time_range,
-                "analyzed_at": datetime.utcnow().isoformat(),
+                "analyzed_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -259,7 +259,7 @@ class DebugMonitor:
             List of active operations
         """
         try:
-            recent_time = datetime.utcnow() - timedelta(minutes=5)
+            recent_time = datetime.now(timezone.utc) - timedelta(minutes=5)
 
             # Get operations with recent activity
             operations = (
@@ -287,7 +287,7 @@ class DebugMonitor:
                 # Determine status
                 if error_count > 0:
                     status = "errors"
-                elif (datetime.utcnow() - last_activity).total_seconds() > 60:
+                elif (datetime.now(timezone.utc) - last_activity).total_seconds() > 60:
                     status = "stalled"
                 else:
                     status = "active"
@@ -532,7 +532,7 @@ class DebugMonitor:
 
     def _parse_time_range(self, time_range: str) -> datetime:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

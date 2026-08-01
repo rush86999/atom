@@ -588,7 +588,7 @@ class AtomVideoAIService:
                 video_class=None,
                 content_rating=None,
                 quality_score=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=summarization_time,
                 metadata={
                     'model': 'blip+gpt4',
@@ -608,7 +608,7 @@ class AtomVideoAIService:
                 sentiment="neutral",
                 topics=topics,
                 platform=request.platform,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 metadata={'captions': captions}
             )
             self.video_summaries[summary.summary_id] = summary
@@ -670,7 +670,7 @@ class AtomVideoAIService:
                 video_class=video_class,
                 content_rating=None,
                 quality_score=quality_score,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=analysis_time,
                 metadata={
                     'models': ['yolo', 'video_classification'],
@@ -688,7 +688,7 @@ class AtomVideoAIService:
                 quality_metrics={'overall_score': quality_score},
                 content_flags=[],
                 platform=request.platform,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 metadata={'frame_count': len(frames)}
             )
             self.video_analyses[analysis.analysis_id] = analysis
@@ -749,7 +749,7 @@ class AtomVideoAIService:
                 video_class=None,
                 content_rating=None,
                 quality_score=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=detection_time,
                 metadata={
                     'model': 'yolo',
@@ -1072,7 +1072,7 @@ class AtomVideoAIService:
             video_class=None,
             content_rating=None,
             quality_score=None,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             processing_time=0.0,
             metadata={'error': error_message}
         )

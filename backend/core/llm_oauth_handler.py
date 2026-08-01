@@ -14,7 +14,7 @@ Supports: Google AI Studio, OpenAI, Anthropic, Hugging Face
 import logging
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 import httpx
@@ -192,7 +192,7 @@ class LLMOAuthHandler:
             if existing:
                 # Deactivate existing credential
                 existing.is_active = False
-                existing.revoked_at = datetime.utcnow()
+                existing.revoked_at = datetime.now(timezone.utc)
                 logger.info(f"Deactivated existing OAuth credential for {provider_id}")
 
             # Calculate expiration
@@ -200,10 +200,10 @@ class LLMOAuthHandler:
             refresh_expires_at = None
 
             if "expires_in" in tokens:
-                expires_at = datetime.utcnow() + timedelta(seconds=tokens["expires_in"])
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
 
             if "refresh_token_expires_in" in tokens:
-                refresh_expires_at = datetime.utcnow() + timedelta(
+                refresh_expires_at = datetime.now(timezone.utc) + timedelta(
                     seconds=tokens["refresh_token_expires_in"]
                 )
 
@@ -256,7 +256,7 @@ class LLMOAuthHandler:
 
             if credential:
                 # Update last_used_at
-                credential.last_used_at = datetime.utcnow()
+                credential.last_used_at = datetime.now(timezone.utc)
                 credential.usage_count = (credential.usage_count or 0) + 1
                 db.commit()
 
@@ -333,11 +333,11 @@ class LLMOAuthHandler:
 
                 # Update expiration
                 if "expires_in" in tokens:
-                    credential.expires_at = datetime.utcnow() + timedelta(
+                    credential.expires_at = datetime.now(timezone.utc) + timedelta(
                         seconds=tokens["expires_in"]
                     )
 
-                credential.last_validated_at = datetime.utcnow()
+                credential.last_validated_at = datetime.now(timezone.utc)
                 db.commit()
 
                 logger.info(f"Successfully refreshed token for {credential.provider_id}")
@@ -362,7 +362,7 @@ class LLMOAuthHandler:
         """
         # Check if token is expired or will expire soon (< 5 minutes)
         if credential.expires_at:
-            expiry_threshold = datetime.utcnow() + timedelta(minutes=5)
+            expiry_threshold = datetime.now(timezone.utc) + timedelta(minutes=5)
             if credential.expires_at < expiry_threshold:
                 logger.info(f"Token expired for {credential.provider_id}, refreshing...")
                 return await self.refresh_access_token(credential.id)
@@ -376,7 +376,7 @@ class LLMOAuthHandler:
                 LLMOAuthCredential.id == credential.id
             ).first()
             if cred:
-                cred.last_validated_at = datetime.utcnow()
+                cred.last_validated_at = datetime.now(timezone.utc)
                 db.commit()
 
         return True
@@ -400,7 +400,7 @@ class LLMOAuthHandler:
                 return False
 
             credential.is_active = False
-            credential.revoked_at = datetime.utcnow()
+            credential.revoked_at = datetime.now(timezone.utc)
             db.commit()
 
             logger.info(f"Revoked OAuth credential {credential_id}")

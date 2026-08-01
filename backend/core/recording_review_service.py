@@ -5,7 +5,7 @@ Integrates canvas recording playback and review with agent governance and learni
 Analyzes recordings to update agent confidence, provide feedback, and drive learning.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -115,7 +115,7 @@ class RecordingReviewService:
                 lessons_learned=lessons_learned,
                 confidence_delta=analysis["confidence_delta"],
                 reviewed_by=reviewer_id,
-                reviewed_at=datetime.utcnow(),
+                reviewed_at=datetime.now(timezone.utc),
                 auto_reviewed=auto_reviewed,
                 auto_review_confidence=auto_review_confidence,
                 training_value=analysis.get("training_value", "medium")
@@ -478,7 +478,7 @@ class RecordingReviewService:
                 learnings=review.lessons_learned or review.feedback,
                 agent_role=recording.recording_metadata.get("agent_name", "Unknown"),
                 specialty=None,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
 
             await wm.record_experience(experience)
@@ -550,7 +550,7 @@ class RecordingReviewService:
         """
         from datetime import timedelta
 
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         reviews = self.db.query(CanvasRecordingReview).filter(
             CanvasRecordingReview.agent_id == agent_id,

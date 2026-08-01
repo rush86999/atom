@@ -21,7 +21,7 @@ Key Features:
 import hashlib
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -231,7 +231,7 @@ class HashChainIntegrity:
             'total_entries': len(entries),
             'first_break': first_break,
             'break_count': break_count,
-            'verified_at': datetime.utcnow().isoformat()
+            'verified_at': datetime.now(timezone.utc).isoformat()
         }
 
     def detect_tampering(
@@ -275,7 +275,7 @@ class HashChainIntegrity:
             'tampered_accounts': tampered_accounts,
             'total_breaks': total_breaks,
             'details': details,
-            'scanned_at': datetime.utcnow().isoformat()
+            'scanned_at': datetime.now(timezone.utc).isoformat()
         }
 
     def get_chain_status(
@@ -330,7 +330,7 @@ class HashChainIntegrity:
             },
             'breaks': verification['break_count'],
             'status': 'valid' if verification['is_valid'] else 'tampered',
-            'checked_at': datetime.utcnow().isoformat()
+            'checked_at': datetime.now(timezone.utc).isoformat()
         }
 
     def recompute_hash(
@@ -389,5 +389,5 @@ class HashChainIntegrity:
             'old_hash': old_hash,
             'new_hash': new_hash,
             'hash_changed': old_hash != new_hash,
-            'recomputed_at': datetime.utcnow().isoformat()
+            'recomputed_at': datetime.now(timezone.utc).isoformat()
         }

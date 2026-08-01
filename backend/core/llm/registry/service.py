@@ -7,7 +7,7 @@ models with proper tenant isolation.
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
@@ -201,7 +201,7 @@ class LLMRegistryService:
             existing.output_price_per_token = model_data.get('output_price_per_token')
             existing.capabilities = model_data.get('capabilities', [])
             existing.provider_metadata = model_data.get('provider_metadata', {})
-            existing.last_refreshed_at = datetime.utcnow()
+            existing.last_refreshed_at = datetime.now(timezone.utc)
 
             logger.debug(f"Updated model: {provider}/{model_name}")
             return existing
@@ -216,7 +216,7 @@ class LLMRegistryService:
                 output_price_per_token=model_data.get('output_price_per_token'),
                 capabilities=model_data.get('capabilities', []),
                 provider_metadata=model_data.get('provider_metadata', {}),
-                last_refreshed_at=datetime.utcnow()
+                last_refreshed_at=datetime.now(timezone.utc)
             )
 
             self.db.add(new_model)
@@ -853,7 +853,7 @@ class LLMRegistryService:
             return None
 
         model.is_deprecated = True
-        model.deprecated_at = datetime.utcnow()
+        model.deprecated_at = datetime.now(timezone.utc)
         model.deprecation_reason = reason
         self.db.commit()
 
@@ -893,7 +893,7 @@ class LLMRegistryService:
         model.is_deprecated = False
         model.deprecated_at = None
         model.deprecation_reason = None
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
         self.db.commit()
 
         logger.info(f"Restored {provider}/{model_name} from deprecated status")

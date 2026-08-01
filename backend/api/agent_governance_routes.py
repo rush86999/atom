@@ -4,7 +4,7 @@ Exposes endpoints for frontend to query and interact with agent governance.
 Used by AgentWorkflowGenerator.tsx to check maturity levels and approval requirements.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
@@ -303,7 +303,7 @@ async def check_workflow_deployment(request: WorkflowApprovalRequest, current_us
             )
         else:
             # Generate approval request
-            approval_id = f"apr_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{agent_id[:8]}"
+            approval_id = f"apr_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{agent_id[:8]}"
             
             # Determine required approver role
             approver_role = "team_lead" if maturity in ["intern", "supervised"] else "admin"
@@ -339,7 +339,7 @@ async def submit_workflow_for_approval(request: WorkflowApprovalRequest, current
         maturity = get_maturity_level_from_score(score)
         
         # Generate approval request
-        approval_id = f"apr_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{agent_id[:8]}"
+        approval_id = f"apr_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{agent_id[:8]}"
         
         # In production, this would:
         # 1. Create a HITLAction record
@@ -457,7 +457,7 @@ async def approve_workflow(
                 "approval_id": approval_id,
                 "status": "approved",
                 "approved_by": current_user.id,
-                "approved_at": datetime.utcnow().isoformat()
+                "approved_at": datetime.now(timezone.utc).isoformat()
             },
             message="Action approved successfully"
         )
@@ -494,7 +494,7 @@ async def reject_workflow(
                 "approval_id": approval_id,
                 "status": "rejected",
                 "rejected_by": current_user.id,
-                "rejected_at": datetime.utcnow().isoformat(),
+                "rejected_at": datetime.now(timezone.utc).isoformat(),
                 "reason": reason
             },
             message="Action rejected"
@@ -693,7 +693,7 @@ async def generate_workflow_from_description(
                 {"type": "ai_node", "action": "analyze"},
                 {"type": "action", "service": "slack", "action": "send_message"}
             ],
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         # Check if direct deployment is allowed

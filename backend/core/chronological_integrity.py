@@ -26,7 +26,7 @@ Usage:
 
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from core.models import FinancialAudit
@@ -137,7 +137,7 @@ class ChronologicalIntegrityValidator:
             'violations': violations,
             'total_entries': len(audits),
             'accounts_checked': accounts_checked,
-            'validated_at': datetime.utcnow().isoformat()
+            'validated_at': datetime.now(timezone.utc).isoformat()
         }
 
     def detect_gaps(
@@ -237,7 +237,7 @@ class ChronologicalIntegrityValidator:
             'gaps': gaps,
             'total_gaps': len(gaps),
             'accounts_with_gaps': list(accounts_with_gaps),
-            'checked_at': datetime.utcnow().isoformat()
+            'checked_at': datetime.now(timezone.utc).isoformat()
         }
 
     def detect_out_of_order(
@@ -304,7 +304,7 @@ class ChronologicalIntegrityValidator:
             'has_out_of_order': len(out_of_order) > 0,
             'entries': out_of_order,
             'total_checked': len(audits),
-            'checked_at': datetime.utcnow().isoformat()
+            'checked_at': datetime.now(timezone.utc).isoformat()
         }
 
     def _check_sequence_timestamp_order(
@@ -430,7 +430,7 @@ class ChronologicalIntegrityValidator:
             'time_gaps': time_gaps,
             'threshold_seconds': threshold_seconds,
             'total_gaps': len(time_gaps),
-            'checked_at': datetime.utcnow().isoformat()
+            'checked_at': datetime.now(timezone.utc).isoformat()
         }
 
     def validate_integrity(
@@ -490,5 +490,5 @@ class ChronologicalIntegrityValidator:
             'sequence_gaps': gaps,
             'out_of_order': out_of_order,
             'time_gaps': time_gaps,
-            'validated_at': datetime.utcnow().isoformat()
+            'validated_at': datetime.now(timezone.utc).isoformat()
         }

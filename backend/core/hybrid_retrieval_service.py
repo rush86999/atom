@@ -10,7 +10,7 @@ Fallback: Return coarse results if reranking fails or times out
 GPU Support: Automatically uses CUDA when available, falls back to CPU with 200ms timeout
 """
 from typing import List, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 import logging
 import asyncio
@@ -115,7 +115,7 @@ class HybridRetrievalService:
         - Reranking: <150ms (if enabled)
         - Total: <200ms
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Stage 1: Coarse search with FastEmbed
         logger.info(f"[HYBRID] Stage 1: Coarse search (top-{coarse_top_k})")
@@ -130,7 +130,7 @@ class HybridRetrievalService:
             logger.warning("[HYBRID] No coarse results found")
             return []
 
-        coarse_duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+        coarse_duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
         logger.info(f"[HYBRID] Coarse search: {len(coarse_results)} results in {coarse_duration:.1f}ms")
 
         # Stage 2: Rerank with Sentence Transformers (if enabled)
@@ -156,8 +156,8 @@ class HybridRetrievalService:
                         timeout=0.200  # 200ms timeout
                     )
 
-                    rerank_duration = (datetime.utcnow() - start_time).total_seconds() * 1000 - coarse_duration
-                    total_duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+                    rerank_duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000 - coarse_duration
+                    total_duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
                     logger.info(
                         f"[HYBRID] Reranking: {len(reranked_results)} results in "
@@ -169,7 +169,7 @@ class HybridRetrievalService:
 
                 except asyncio.TimeoutError:
                     # CPU reranking too slow, fall back to coarse results
-                    rerank_duration = (datetime.utcnow() - start_time).total_seconds() * 1000 - coarse_duration
+                    rerank_duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000 - coarse_duration
                     logger.warning(
                         f"[HYBRID] Reranking timeout after {rerank_duration:.1f}ms (>200ms target). "
                         "Falling back to coarse results for better performance."

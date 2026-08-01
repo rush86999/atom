@@ -6,7 +6,7 @@ Executions are queued and auto-executed when users return online.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -75,7 +75,7 @@ class SupervisedQueueService:
         """
         # Set default expiry if not provided
         if not expires_at:
-            expires_at = datetime.utcnow() + timedelta(hours=DEFAULT_QUEUE_EXPIRY_HOURS)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=DEFAULT_QUEUE_EXPIRY_HOURS)
 
         # Create queue entry
         queue_entry = SupervisedExecutionQueue(
@@ -133,7 +133,7 @@ class SupervisedQueueService:
             pending_queues = self.db.query(SupervisedExecutionQueue).filter(
                 SupervisedExecutionQueue.user_id.in_(available_user_ids),
                 SupervisedExecutionQueue.status == QueueStatus.pending,
-                SupervisedExecutionQueue.expires_at > datetime.utcnow()
+                SupervisedExecutionQueue.expires_at > datetime.now(timezone.utc)
             ).order_by(
                 SupervisedExecutionQueue.priority.desc(),
                 SupervisedExecutionQueue.created_at.asc()
@@ -283,7 +283,7 @@ class SupervisedQueueService:
         """
         expired_queues = self.db.query(SupervisedExecutionQueue).filter(
             SupervisedExecutionQueue.status == QueueStatus.pending,
-            SupervisedExecutionQueue.expires_at < datetime.utcnow()
+            SupervisedExecutionQueue.expires_at < datetime.now(timezone.utc)
         ).all()
 
         count = 0
@@ -437,7 +437,7 @@ class SupervisedQueueService:
             agent_name=agent.name,
             status="running",
             input_data=queue_entry.execution_context,
-            started_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc)
         )
 
         self.db.add(execution)
@@ -450,7 +450,7 @@ class SupervisedQueueService:
         # Priority: P1 (Critical) - affects production functionality
         # See: docs/archive/implementation/FUTURE_WORK.md
         execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
+        execution.completed_at = datetime.now(timezone.utc)
         execution.output_summary = f"Executed from queue entry {queue_entry.id}"
         self.db.commit()
 

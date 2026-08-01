@@ -16,7 +16,7 @@ import asyncio
 import logging
 import psutil
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -77,7 +77,7 @@ async def liveness_probe() -> Dict[str, Any]:
     """
     return {
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -170,7 +170,7 @@ async def readiness_probe() -> Dict[str, Any]:
     if all_healthy:
         return {
             "status": "ready",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": checks,
         }
     else:
@@ -179,7 +179,7 @@ async def readiness_probe() -> Dict[str, Any]:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "status": "not_ready",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "checks": checks,
             }
         )
@@ -337,7 +337,7 @@ async def check_database_connectivity(db=Depends(get_db)) -> Dict[str, Any]:
 
         health_status = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "database": {
                 "connected": True,
                 "query_time_ms": round(query_time, 2),
@@ -358,7 +358,7 @@ async def check_database_connectivity(db=Depends(get_db)) -> Dict[str, Any]:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "status": "unhealthy",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "database": {
                     "connected": False,
                     "error": "Database connection failed"

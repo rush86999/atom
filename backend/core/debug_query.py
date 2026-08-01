@@ -27,7 +27,7 @@ Example:
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -153,7 +153,7 @@ class DebugQuery:
                 "error_rate": error_events / total_events if total_events > 0 else 0,
                 "insights": [self._insight_to_dict(i) for i in insights],
                 "time_range": time_range,
-                "analyzed_at": datetime.utcnow().isoformat(),
+                "analyzed_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Cache result
@@ -509,7 +509,7 @@ class DebugQuery:
                     and_(
                         DebugEvent.component_id == component_id,
                         DebugEvent.level.in_(["ERROR", "CRITICAL"]),
-                        DebugEvent.timestamp >= datetime.utcnow() - timedelta(hours=1),
+                        DebugEvent.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1),
                     )
                 )
                 .order_by(desc(DebugEvent.timestamp))
@@ -564,7 +564,7 @@ class DebugQuery:
 
     def _parse_time_range(self, time_range: str) -> datetime:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range.endswith("h"):
             hours = int(time_range[:-1])

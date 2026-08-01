@@ -182,16 +182,16 @@ class AtomChatInterface:
         """Process incoming message and generate response"""
         try:
             # Get or create conversation context
-            conversation_id = context.get('conversation_id', f"conv_{user_id}_{int(datetime.utcnow().timestamp())}")
+            conversation_id = context.get('conversation_id', f"conv_{user_id}_{int(datetime.now(timezone.utc).timestamp())}")
             chat_context = self._get_context(conversation_id, user_id)
             
             # Create chat message
             chat_message = ChatMessage(
-                id=f"msg_{int(datetime.utcnow().timestamp())}",
+                id=f"msg_{int(datetime.now(timezone.utc).timestamp())}",
                 user_id=user_id,
                 user_name=user_name,
                 message=message,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 channel=context.get('channel', 'default'),
                 context=context or {},
                 source=source
@@ -457,7 +457,7 @@ class AtomChatInterface:
                 'type': 'user_memory',
                 'user_id': message.user_id,
                 'content': content,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'context': message.context
             }
             
@@ -605,7 +605,7 @@ class AtomChatInterface:
                     'type': 'conversation_context',
                     'conversation_id': context.conversation_id,
                     'data': asdict(context),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 await self.memory_service.store(context_data)
             except Exception as e:

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import Request
 
 from core.mock_mode import get_mock_mode_manager
@@ -23,7 +23,7 @@ async def get_auth_url(state: Optional[str] = None):
         url = zoom_auth_handler.get_authorization_url(state)
         return {
             "url": url,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         logger.error(f"Failed to generate Zoom OAuth URL: {e}")
@@ -40,7 +40,7 @@ async def handle_oauth_callback(code: str):
             "access_token": token_data.get("access_token"),
             "refresh_token": token_data.get("refresh_token"),
             "expires_in": token_data.get("expires_in"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         logger.error(f"Zoom OAuth callback failed: {e}")
@@ -65,7 +65,7 @@ async def zoom_status(user_id: str = "test_user"):
             "user_id": user_id,
             "status": "connected" if status.get("connected") else "disconnected",
             "message": "Zoom integration is available" if status.get("connected") else "Zoom integration not connected",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": status
         }
     except Exception as e:
@@ -82,7 +82,7 @@ async def zoom_health(user_id: str = "test_user"):
             "ok": True,
             "status": "healthy",
             "service": "zoom",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "is_mock": True
         }
     try:
@@ -94,7 +94,7 @@ async def zoom_health(user_id: str = "test_user"):
             "ok": health.get("ok", True),
             "status": health.get("status", "healthy"),
             "service": "zoom",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "is_mock": False,
             "oauth_connected": oauth_status.get("connected", False),
             "has_access_token": oauth_status.get("has_access_token", False)
@@ -106,7 +106,7 @@ async def zoom_health(user_id: str = "test_user"):
             "status": "unhealthy",
             "service": "zoom",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 @router.post("/meetings")
@@ -132,7 +132,7 @@ async def create_zoom_meeting(meeting: ZoomMeetingRequest):
             "join_url": meeting_data.get("join_url"),
             "start_time": meeting_data.get("start_time"),
             "duration": meeting_data.get("duration"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except HTTPException:
         raise
@@ -161,7 +161,7 @@ async def list_zoom_meetings(user_id: str = "me", type: str = "scheduled", page_
             "meetings": meetings_data.get("meetings", []),
             "total": meetings_data.get("total_records", 0),
             "page_size": meetings_data.get("page_size", page_size),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except HTTPException:
         raise
@@ -184,7 +184,7 @@ async def list_zoom_users(status: str = "active", page_size: int = 30):
             "users": users_data.get("users", []),
             "total_records": users_data.get("total_records", 0),
             "page_size": users_data.get("page_size", page_size),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except HTTPException:
         raise
@@ -213,7 +213,7 @@ async def list_zoom_recordings(user_id: str = "me", from_date: str = None, to_da
             "ok": True,
             "recordings": recordings_data.get("meetings", []), # Zoom API returns recordings in "meetings" field for user recordings
             "total_records": recordings_data.get("total_records", 0),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except HTTPException:
         raise

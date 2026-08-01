@@ -8,7 +8,7 @@ Handles OAuth flows for Google, LinkedIn, Microsoft, Salesforce, Slack, GitHub, 
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -80,7 +80,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         expires_in = token_data.get("expires_in")
         expires_at = None
         if expires_in:
-            expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
             
         # Bug 1+2 fix: the old code (a) called get_current_user without await,
         # binding a coroutine instead of a User, and (b) set non-existent

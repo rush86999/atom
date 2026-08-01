@@ -2,7 +2,7 @@
 Meeting Attendance API Routes
 Handles meeting attendance tracking and status
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -140,7 +140,7 @@ async def create_meeting_attendance(
         user_id=current_user.id,
         platform=request.platform,
         meeting_identifier=request.meeting_identifier,
-        status_timestamp=datetime.utcnow(),
+        status_timestamp=datetime.now(timezone.utc),
         current_status_message=request.current_status_message
     )
 
@@ -193,7 +193,7 @@ async def update_meeting_attendance(
     if request.error_details is not None:
         attendance.error_details = request.error_details
 
-    attendance.status_timestamp = datetime.utcnow()
+    attendance.status_timestamp = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(attendance)

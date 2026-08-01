@@ -6,7 +6,7 @@ Supports: Excel, PDF, DOC/DOCX, TXT, CSV, Markdown files
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import io
 import json
@@ -432,7 +432,7 @@ class AutoDocumentIngestionService:
                         "file_type": file_ext,
                         "file_size": len(content),
                         "integration_id": source,
-                        "ingested_at": datetime.utcnow().isoformat(),
+                        "ingested_at": datetime.now(timezone.utc).isoformat(),
                     },
                     user_id=user_id,
                     extract_knowledge=True,
@@ -473,7 +473,7 @@ class AutoDocumentIngestionService:
         
         # Check if sync is due
         if not force and settings.last_sync:
-            minutes_since = (datetime.utcnow() - settings.last_sync).total_seconds() / 60
+            minutes_since = (datetime.now(timezone.utc) - settings.last_sync).total_seconds() / 60
             if minutes_since < settings.sync_frequency_minutes:
                 return {"skipped": True, "reason": "Recently synced"}
         
@@ -481,7 +481,7 @@ class AutoDocumentIngestionService:
         
         results = {
             "integration_id": integration_id,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "files_found": 0,
             "files_ingested": 0,
             "files_skipped": 0,
@@ -497,7 +497,7 @@ class AutoDocumentIngestionService:
             for file_info in files:
                 # LAMBDA SAFEGUARD: Check if we are approaching timeout (10 mins)
                 # If running longer than 10 minutes, stop and let the next scheduled run pick up the rest
-                if (datetime.utcnow() - datetime.fromisoformat(results["started_at"])).total_seconds() > 600:
+                if (datetime.now(timezone.utc) - datetime.fromisoformat(results["started_at"])).total_seconds() > 600:
                     logger.warning(f"Ingestion time limit reached (10m) for {integration_id}. Stopping early.")
                     results["errors"].append("Time limit reached - continuing in next run")
                     break
@@ -552,7 +552,7 @@ class AutoDocumentIngestionService:
                                 "file_size": file_size,
                                 "integration_id": integration_id,
                                 "external_id": external_id,
-                                "ingested_at": datetime.utcnow().isoformat()
+                                "ingested_at": datetime.now(timezone.utc).isoformat()
                             },
                             user_id="system",
                             extract_knowledge=True
@@ -561,7 +561,7 @@ class AutoDocumentIngestionService:
                         if success:
                             # Record ingestion
                             self.ingested_docs[external_id] = IngestedDocument(
-                                id=f"doc_{datetime.utcnow().timestamp()}",
+                                id=f"doc_{datetime.now(timezone.utc).timestamp()}",
                                 file_name=file_info.get("name", ""),
                                 file_path=file_info.get("path", ""),
                                 file_type=file_ext,
@@ -569,7 +569,7 @@ class AutoDocumentIngestionService:
                                 workspace_id=self.workspace_id,
                                 file_size_bytes=file_size,
                                 content_preview=text[:500],
-                                ingested_at=datetime.utcnow(),
+                                ingested_at=datetime.now(timezone.utc),
                                 external_id=external_id,
                                 external_modified_at=file_info.get("modified_at")
                             )
@@ -579,8 +579,8 @@ class AutoDocumentIngestionService:
                 except Exception as file_err:
                     results["errors"].append(f"{file_info.get('name')}: {str(file_err)}")
             
-            settings.last_sync = datetime.utcnow()
-            results["completed_at"] = datetime.utcnow().isoformat()
+            settings.last_sync = datetime.now(timezone.utc)
+            results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
             
             # TRIGGER AGENT IF FILES WERE INGESTED

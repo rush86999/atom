@@ -132,7 +132,7 @@ class SlackWorkflowAutomation:
                     'type': 'slack_workflow',
                     'workflow_id': workflow.id,
                     'data': asdict(workflow),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 self.memory_service.store(memory_data)
             
@@ -183,13 +183,13 @@ class SlackWorkflowAutomation:
         if not workflow:
             raise ValueError(f"Workflow not found: {workflow_id}")
         
-        execution_id = f"exec_{workflow_id}_{int(datetime.utcnow().timestamp())}"
+        execution_id = f"exec_{workflow_id}_{int(datetime.now(timezone.utc).timestamp())}"
         execution = WorkflowExecution(
             id=execution_id,
             workflow_id=workflow_id,
             trigger_data=trigger_data,
             status='running',
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             action_results=[]
         )
         
@@ -198,7 +198,7 @@ class SlackWorkflowAutomation:
         try:
             # Update workflow execution count
             workflow.execution_count += 1
-            workflow.last_executed = datetime.utcnow()
+            workflow.last_executed = datetime.now(timezone.utc)
             
             # Execute actions
             for action in workflow.actions:
@@ -210,7 +210,7 @@ class SlackWorkflowAutomation:
             
             # Mark execution as completed
             execution.status = 'completed'
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             
             # Store execution in ATOM memory
             if self.memory_service:
@@ -219,7 +219,7 @@ class SlackWorkflowAutomation:
                     'execution_id': execution_id,
                     'workflow_id': workflow_id,
                     'data': asdict(execution),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 self.memory_service.store(memory_data)
             
@@ -228,7 +228,7 @@ class SlackWorkflowAutomation:
         except Exception as e:
             execution.status = 'failed'
             execution.error_message = str(e)
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             
             logger.error(f"Workflow execution failed: {execution_id} - {e}")
             
@@ -247,7 +247,7 @@ class SlackWorkflowAutomation:
                 'action_id': action.id,
                 'type': action.type.value,
                 'status': 'success',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
             if action.type == WorkflowActionType.SEND_MESSAGE:
@@ -296,7 +296,7 @@ class SlackWorkflowAutomation:
                 'type': action.type.value,
                 'status': 'failed',
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
     
     async def _send_message(self, action: SlackWorkflowAction, trigger_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -421,7 +421,7 @@ class SlackWorkflowAutomation:
         
         # This would integrate with your task management system
         # For now, simulate task creation
-        task_id = f"task_{int(datetime.utcnow().timestamp())}"
+        task_id = f"task_{int(datetime.now(timezone.utc).timestamp())}"
         
         return {
             'task_id': task_id,
@@ -438,7 +438,7 @@ class SlackWorkflowAutomation:
         
         # This would integrate with your email service
         # For now, simulate email sending
-        email_id = f"email_{int(datetime.utcnow().timestamp())}"
+        email_id = f"email_{int(datetime.now(timezone.utc).timestamp())}"
         
         return {
             'email_id': email_id,
@@ -589,7 +589,7 @@ class SlackWorkflowAutomation:
             # Check additional conditions
             for condition_key, condition_value in trigger.conditions.items():
                 if condition_key == 'time_range':
-                    current_time = datetime.utcnow().hour
+                    current_time = datetime.now(timezone.utc).hour
                     start_hour = condition_value.get('start', 0)
                     end_hour = condition_value.get('end', 23)
                     if not (start_hour <= current_time <= end_hour):

@@ -242,7 +242,7 @@ class AtomGoogleChatIntegration:
                         'ok': True,
                         'message_id': google_chat_result.get('message_id'),
                         'platform': 'Google Chat',
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'channel_id': channel_id,
                         'workspace_id': workspace_id
                     }
@@ -419,7 +419,7 @@ class AtomGoogleChatIntegration:
             
             return {
                 'ok': True,
-                'workflow_id': f"gc_workflow_{int(datetime.utcnow().timestamp())}",
+                'workflow_id': f"gc_workflow_{int(datetime.now(timezone.utc).timestamp())}",
                 'platform': 'google_chat',
                 'message': 'Google Chat workflow created successfully'
             }
@@ -655,7 +655,7 @@ class AtomGoogleChatIntegration:
                 'user_email': message_data.get('user_email'),
                 'channel_id': message_data.get('space_id'),
                 'workspace_id': message_data.get('space_id'),
-                'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                 'thread_id': message_data.get('thread_id'),
                 'annotations': message_data.get('annotations', []),
                 'attachments': message_data.get('attachment', []),
@@ -690,7 +690,7 @@ class AtomGoogleChatIntegration:
                     'user_email': message_data.get('user_email'),
                     'channel_id': message_data.get('space_id'),
                     'workspace_id': message_data.get('space_id'),
-                    'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                    'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                     'platform': platform,
                     'has_thread': bool(message_data.get('thread_id')),
                     'has_cards': bool(message_data.get('card_v2')),
@@ -716,7 +716,7 @@ class AtomGoogleChatIntegration:
                 'event_type': event_type,
                 'platform': 'google_chat',
                 'data': event_data,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'options': options or {}
             }
             
@@ -1568,7 +1568,7 @@ class AtomGoogleChatIntegration:
                 "space_name": space_name,
                 "webhook_url": webhook_url,
                 "state": state,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
 
             logger.info(f"Webhook configured for space {space_name}: {webhook_url}")
@@ -1752,7 +1752,7 @@ class AtomGoogleChatIntegration:
                 "is_initialized": self.is_initialized,
                 "active_spaces_count": len(self.active_spaces) if is_active else 0,
                 "has_analytics": self.google_chat_analytics is not None,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         except Exception as e:
@@ -1760,7 +1760,7 @@ class AtomGoogleChatIntegration:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 # Global Google Chat integration instance

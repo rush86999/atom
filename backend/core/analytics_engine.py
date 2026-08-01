@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
@@ -125,7 +125,7 @@ class AnalyticsEngine:
         metric.total_duration_seconds += duration_seconds
         metric.total_time_saved_seconds += time_saved_seconds
         metric.total_business_value += business_value
-        metric.last_executed = datetime.utcnow().isoformat()
+        metric.last_executed = datetime.now(timezone.utc).isoformat()
         
         self._save_data()
         
@@ -140,7 +140,7 @@ class AnalyticsEngine:
             metric.error_count += 1
             
         metric.total_response_time_ms += response_time_ms
-        metric.last_called = datetime.utcnow().isoformat()
+        metric.last_called = datetime.now(timezone.utc).isoformat()
         
         # Simple status logic
         if metric.error_rate > 10:
