@@ -8,6 +8,47 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::path::Path as StdPath;
+
+// #2 fix: allowlist of safe commands the renderer may execute via the
+// execute_command IPC. Any command not in this set is rejected.
+fn is_allowed_command(cmd: &str) -> bool {
+    let allowed = [
+        "git", "ls", "cat", "echo", "pwd", "node", "npm", "npx",
+        "python3", "python", "pip", "cargo", "rustc", "make",
+        "mkdir", "touch", "cp", "mv", "head", "tail", "wc",
+        "grep", "find", "which", "whoami", "date", "env",
+    ];
+    // Strip path prefix — only the binary name matters.
+    let base = cmd.rsplit('/').next().unwrap_or(cmd);
+    allowed.contains(&base)
+}
+
+// #3 fix: validate that a file path is within an allowed directory tree.
+// Prevents reading ~/.ssh/id_rsa, browser cookie DBs, writing to ~/.bashrc, etc.
+fn is_path_allowed(path: &str) -> bool {
+    let resolved = match StdPath::new(path).canonicalize() {
+        Ok(p) => p,
+        Err(_) => StdPath::new(path).to_path_buf(), // may not exist yet (for writes)
+    };
+
+    // Allow only within: cwd, home/atom, tmp, and the app data dir.
+    let cwd = env::current_dir().unwrap_or_default();
+    let home = env::var("HOME").unwrap_or_default();
+    let allowed_roots = vec![
+        cwd.clone(),
+        StdPath::new(&home).join(".atom"),
+        StdPath::new(&home).join("atom"),
+        StdPath::new("/tmp").to_path_buf(),
+    ];
+
+    for root in &allowed_roots {
+        if resolved.starts_with(root) {
+            return true;
+        }
+    }
+    false
+}
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
@@ -166,6 +207,13 @@ async fn get_system_info() -> Result<serde_json::Value, String> {
 // File operations commands
 #[tauri::command]
 async fn read_file_content(path: String) -> Result<serde_json::Value, String> {
+    // #3 fix: reject paths outside allowed directories.
+    if !is_path_allowed(&path) {
+        return Ok(json!({
+            "success": false,
+            "error": "Access denied: path is outside allowed directories"
+        }));
+    }
     match fs::read_to_string(&path) {
         Ok(content) => Ok(json!({
             "success": true,
@@ -182,6 +230,13 @@ async fn read_file_content(path: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 async fn write_file_content(path: String, content: String) -> Result<serde_json::Value, String> {
+    // #3 fix: reject paths outside allowed directories.
+    if !is_path_allowed(&path) {
+        return Ok(json!({
+            "success": false,
+            "error": "Access denied: path is outside allowed directories"
+        }));
+    }
     // Create parent directories if they don't exist
     if let Some(parent) = Path::new(&path).parent() {
         if let Err(e) = fs::create_dir_all(parent) {
@@ -277,6 +332,14 @@ async fn execute_command(
     args: Vec<String>,
     working_dir: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    // #2 fix: reject commands not in the allowlist.
+    if !is_allowed_command(&command) {
+        return Ok(json!({
+            "success": false,
+            "error": format!("Command '{}' is not in the allowlist", command),
+            "exit_code": -1
+        }));
+    }
     let mut cmd = Command::new(&command);
 
     if let Some(dir) = working_dir {

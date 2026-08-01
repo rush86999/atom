@@ -32,8 +32,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
         // Determine WebSocket URL based on current environment
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-        // In a real app, token would be fetched from auth context
-        const token = 'demo-token';
+        // #12 fix: use real auth token instead of 'demo-token'.
+        const token = localStorage.getItem('auth_token') || '';
         const socket = new WebSocket(`${protocol}//${host}/ws?token=${token}`);
 
         socket.onopen = () => {
