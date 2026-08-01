@@ -10,10 +10,14 @@ Test coverage for workflow UI API endpoints including:
 """
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from sqlalchemy.orm import Session
 from datetime import datetime
+
+from core.auth import get_current_user as auth_get_current_user
+from core.database import get_db
 
 from core.workflow_ui_endpoints import (
     router,
@@ -546,8 +550,14 @@ class TestWorkflowExecution:
 
     def test_get_executions(self):
         """GET /executions returns active workflow executions."""
-        # Arrange
-        client = TestClient(router)
+        # Arrange — R69: endpoint now requires auth; build an authed client.
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(
+            id="u-69", email="u@example.com", role="member", tenant_id="tenant-69"
+        )
+        app.dependency_overrides[get_db] = lambda: MagicMock()
+        client = TestClient(app, raise_server_exceptions=False)
 
         # Act
         response = client.get("/executions")
@@ -621,8 +631,14 @@ class TestWorkflowExecution:
 
     def test_debug_orchestrator_state(self):
         """GET /debug/state returns orchestrator debug information."""
-        # Arrange
-        client = TestClient(router)
+        # Arrange — R69: endpoint now requires auth; build an authed client.
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(
+            id="u-69", email="u@example.com", role="member", tenant_id="tenant-69"
+        )
+        app.dependency_overrides[get_db] = lambda: MagicMock()
+        client = TestClient(app, raise_server_exceptions=False)
 
         # Act
         response = client.get("/debug/state")
