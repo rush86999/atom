@@ -18,14 +18,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks/shopify", tags=["shopify_webhooks"])
 
 def verify_shopify_webhook(data: bytes, hmac_header: str):
-    secret = os.getenv("SHOPIFY_API_SECRET")
+    # R69: read the documented var first; tolerate the legacy name. When no
+    # secret is configured the webhook FAILS CLOSED (previously it skipped
+    # verification and returned True, letting anyone forge shopify events).
+    secret = os.getenv("SHOPIFY_WEBHOOK_SECRET") or os.getenv("SHOPIFY_API_SECRET")
     if not secret:
-        logger.warning("SHOPIFY_API_SECRET not set, skipping verification")
-        return True
-        
+        logger.warning("Shopify webhook secret not set; refusing to verify webhook")
+        return False
+
     digest = hmac.new(secret.encode('utf-8'), data, hashlib.sha256).digest()
     computed_hmac = base64.b64encode(digest)
-    
+
     return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
 
 async def get_workspace_id(shop_domain: str, db: Session) -> str:
@@ -49,7 +52,7 @@ async def shopify_order_created(
     data = await request.body()
     
     # Verify Webhook
-    if x_shopify_hmac_sha256 and not verify_shopify_webhook(data, x_shopify_hmac_sha256):
+    if not x_shopify_hmac_sha256 or not verify_shopify_webhook(data, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="Invalid HMAC")
 
     payload = json.loads(data)
@@ -136,7 +139,7 @@ async def shopify_order_updated(
     db: Session = Depends(get_db)
 ):
     data = await request.body()
-    if x_shopify_hmac_sha256 and not verify_shopify_webhook(data, x_shopify_hmac_sha256):
+    if not x_shopify_hmac_sha256 or not verify_shopify_webhook(data, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="Invalid HMAC")
 
     payload = json.loads(data)
@@ -184,7 +187,7 @@ async def shopify_refund_created(
     db: Session = Depends(get_db)
 ):
     data = await request.body()
-    if x_shopify_hmac_sha256 and not verify_shopify_webhook(data, x_shopify_hmac_sha256):
+    if not x_shopify_hmac_sha256 or not verify_shopify_webhook(data, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="Invalid HMAC")
 
     payload = json.loads(data)
