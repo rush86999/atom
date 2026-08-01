@@ -1737,9 +1737,10 @@ class WorkflowEngine:
             }
 
         except Exception as e:
+            logger.error(f"Workflow MCP action '{action}' failed: {e}")
             return {
                 "action": action,
-                "error": str(e),
+                "error": "MCP action failed",
                 "status": "error"
             }
 

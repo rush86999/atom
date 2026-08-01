@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.models import User
-from core.rbac_service import Permission
+from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
 
 # Import AI workflow editor for natural language processing
@@ -23,6 +23,63 @@ except ImportError as e:
     AI_EDITOR_AVAILABLE = False
 
 router = APIRouter()
+
+# R67: Workflows whose steps contain critical MCP actions (local machine
+# exec, browser automation, messaging) execute the same tools the agent
+# governance layer gates to AUTONOMOUS maturity (core/mcp_service.py
+# critical_tools). The workflow trigger routes are role-routed only
+# (WORKFLOW_RUN is granted to every member), so these steps must require
+# the same role as workflow creation (WORKFLOW_MANAGE, TEAM_LEAD+).
+_CRITICAL_MCP_TOOLS = {
+    "read_codebase",
+    "write_code_file",
+    "list_directory_recursive",
+    "terminal_command",
+    "propose_command",
+    "run_local_terminal",
+    "browser_navigate",
+    "browser_action",
+    "email_send",
+    "whatsapp_send_message",
+}
+
+
+def _has_critical_mcp_step(steps: Optional[List[Dict[str, Any]]]) -> bool:
+    """True when any step executes a critical MCP tool.
+
+    Checks both workflow-file steps (``service == "mcp"`` with ``action`` or
+    ``parameters.tool_name``) and conductor steps (which carry the tool name
+    in ``parameters`` without a ``service`` key). A templated (``${...}``) or
+    missing tool name on an mcp step is treated as critical: the effective
+    tool cannot be proven benign statically (input templating via
+    ``_resolve_parameters`` can inject the tool name at runtime).
+    """
+    for step in steps or []:
+        if not isinstance(step, dict):
+            continue
+        params = step.get("parameters") or {}
+        tool_name = params.get("tool_name") or step.get("action")
+        service = (step.get("service") or str(step.get("step_type") or "")).lower()
+        if service == "mcp":
+            if not tool_name or "${" in str(tool_name) or tool_name in _CRITICAL_MCP_TOOLS:
+                return True
+        elif tool_name and ("${" in str(tool_name) or tool_name in _CRITICAL_MCP_TOOLS):
+            return True
+    return False
+
+
+async def _require_workflow_executor(user: User, steps: Optional[List[Dict[str, Any]]]) -> None:
+    """R67 gate: workflows with critical MCP steps require WORKFLOW_MANAGE
+    (TEAM_LEAD+), mirroring the agent-path maturity gates those tools go
+    through. Members get 403 before any execution/scheduling starts."""
+    if _has_critical_mcp_step(steps) and not RBACService.check_permission(
+        user, Permission.WORKFLOW_MANAGE
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Workflows with critical MCP actions "
+            "require WORKFLOW_MANAGE",
+        )
 
 # Simple file-based storage for MVP
 WORKFLOWS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workflows.json")
@@ -367,55 +424,9 @@ class ExecutionResult(BaseModel):
     results: List[Dict[str, Any]] = []
     errors: List[str] = []
 
-@router.post("/workflows/{workflow_id}/execute", response_model=ExecutionResult)
-async def execute_workflow(
-    workflow_id: str, 
-    background_tasks: BackgroundTasks,
-    input_data: Optional[Dict[str, Any]] = None,
-    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
-):
-    """Execute a workflow by ID"""
-    from core.workflow_engine import get_workflow_engine
-
-    # Load workflow
-    workflows = load_workflows()
-    workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
-    if not workflow:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
-    # Create execution record
-    started_at = datetime.now().isoformat()
-    
-    try:
-        # Initialize engine
-        engine = get_workflow_engine()
-        
-        # Execute workflow (starts in background)
-        execution_id = await engine.start_workflow(workflow, input_data or {}, background_tasks)
-        
-        return ExecutionResult(
-            execution_id=execution_id,
-            workflow_id=workflow_id,
-            status="running",
-            started_at=started_at,
-            completed_at=None,
-            results=[],
-            errors=[]
-        )
-    except Exception as e:
-        logger.error(f"Workflow execution failed: {e}")
-        # Generate a temporary ID for error reporting if start_workflow failed before returning ID
-        temp_id = str(uuid.uuid4())
-        return ExecutionResult(
-            execution_id=temp_id,
-            workflow_id=workflow_id,
-            status="failed",
-            started_at=started_at,
-            completed_at=datetime.now().isoformat(),
-            results=[],
-            errors=["Internal error"]
-        )
-
+# R67 route-shadowing fix: this static path MUST be registered before
+# /workflows/{workflow_id}/execute — otherwise "conductor" is captured as a
+# workflow_id and the route is unreachable (404 "Workflow not found").
 @router.post("/workflows/conductor/execute")
 async def execute_with_conductor(
     steps: List[Dict[str, Any]] = Body(...),
@@ -436,13 +447,19 @@ async def execute_with_conductor(
     )
 
     try:
-        strategy_enum = ExecutionStrategy(strategy.upper())
+        # R67: enum values are lowercase — upper() could never match, so the
+        # conductor route 422'd on every request even with a valid strategy.
+        strategy_enum = ExecutionStrategy(strategy.lower())
     except ValueError:
         valid = [s.value for s in ExecutionStrategy]
         raise HTTPException(
             status_code=422,
             detail=f"Invalid strategy '{strategy}'. Must be one of: {valid}",
         )
+
+    # R67: the conductor executes raw caller-supplied steps through the live
+    # engine — gate critical MCP steps exactly like workflow execution.
+    await _require_workflow_executor(user, steps)
 
     conductor = get_conductor_agent()
 
@@ -486,6 +503,60 @@ async def execute_with_conductor(
         "strategy_used": strategy_enum.value,
     }
 
+@router.post("/workflows/{workflow_id}/execute", response_model=ExecutionResult)
+async def execute_workflow(
+    workflow_id: str, 
+    background_tasks: BackgroundTasks,
+    input_data: Optional[Dict[str, Any]] = None,
+    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
+):
+    """Execute a workflow by ID"""
+    from core.workflow_engine import get_workflow_engine
+
+    # Load workflow
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    # R67: critical MCP steps (terminal, browser, messaging) execute local
+    # machine actions — the same tool set agent governance gates. Members
+    # may run ordinary workflows only.
+    await _require_workflow_executor(user, workflow.get("steps") or [])
+
+    # Create execution record
+    started_at = datetime.now().isoformat()
+    
+    try:
+        # Initialize engine
+        engine = get_workflow_engine()
+        
+        # Execute workflow (starts in background)
+        execution_id = await engine.start_workflow(workflow, input_data or {}, background_tasks)
+        
+        return ExecutionResult(
+            execution_id=execution_id,
+            workflow_id=workflow_id,
+            status="running",
+            started_at=started_at,
+            completed_at=None,
+            results=[],
+            errors=[]
+        )
+    except Exception as e:
+        logger.error(f"Workflow execution failed: {e}")
+        # Generate a temporary ID for error reporting if start_workflow failed before returning ID
+        temp_id = str(uuid.uuid4())
+        return ExecutionResult(
+            execution_id=temp_id,
+            workflow_id=workflow_id,
+            status="failed",
+            started_at=started_at,
+            completed_at=datetime.now().isoformat(),
+            results=[],
+            errors=["Internal error"]
+        )
+
 @router.post("/workflows/{execution_id}/resume")
 async def resume_workflow(
     execution_id: str, 
@@ -512,7 +583,10 @@ async def resume_workflow(
     
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow definition not found")
-        
+
+    # R67: resuming re-executes the remaining steps — same critical-tool gate.
+    await _require_workflow_executor(user, workflow.get("steps") or [])
+
     success = await engine.resume_workflow(execution_id, workflow, input_data)
     
     if not success:
@@ -562,7 +636,15 @@ async def schedule_workflow(
     - input_data: Optional input data
     """
     from ai.workflow_scheduler import workflow_scheduler
-    
+
+    # R67: scheduling defers execution with no per-run auth — gate critical
+    # MCP steps up front so members cannot queue terminal workflows.
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    await _require_workflow_executor(user, workflow.get("steps") or [])
+
     try:
         trigger_type = schedule_config.get('trigger_type')
         trigger_config = schedule_config.get('trigger_config')
