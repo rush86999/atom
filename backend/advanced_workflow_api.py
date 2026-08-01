@@ -350,7 +350,10 @@ class AgentWorkflowRequest(BaseModel):
     user_id: str = "default_user"
 
 @router.post("/generate-from-agent")
-async def generate_workflow_from_agent(request: AgentWorkflowRequest):
+async def generate_workflow_from_agent(
+    request: AgentWorkflowRequest,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+):
     """
     Generate a real workflow from a user prompt using Queen Agent.
     Bridges the NLU routing and Queen blueprinting with the Workflow Engine.
@@ -359,27 +362,34 @@ async def generate_workflow_from_agent(request: AgentWorkflowRequest):
         from core.llm_service import LLMService
         from ai.nlp_engine import NaturalLanguageEngine, RouteCategory
         from core.agents.queen_agent import QueenAgent
-        
+
+        # R69: identity comes from the token — never from the spoofable body
+        # fields (the tenant_id/user_id body fields are kept for backward
+        # compat but ignored).
+        tenant_id = current_user.tenant_id
+        user_id = current_user.id
+
         # 1. Classify Route (using standard NLU Engine)
         nlu = NaturalLanguageEngine()
-        route = await nlu.classify_route(request.prompt, tenant_id=request.tenant_id)
-        
+        route = await nlu.classify_route(request.prompt, tenant_id=tenant_id)
+
         # 2. Use Queen Agent to design blueprint
         # In OS, we use workspace_id as the primary identifier, but preserve tenant_id for compatibility.
-        llm = LLMService(tenant_id=request.tenant_id)
-        queen = QueenAgent(db=None, llm=llm, tenant_id=request.tenant_id)
-        
+        llm = LLMService(tenant_id=tenant_id)
+        queen = QueenAgent(db=None, llm=llm, tenant_id=tenant_id)
+
         execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
-        
+
         blueprint = await queen.generate_blueprint(
-            goal=request.prompt, 
-            tenant_id=request.tenant_id,
+            goal=request.prompt,
+            tenant_id=tenant_id,
+            user_id=user_id,
             execution_mode=execution_mode
         )
-        
+
         # 3. Realize into Orchestrator
-        workflow_id = await queen.realize_blueprint(blueprint, tenant_id=request.tenant_id)
-        
+        workflow_id = await queen.realize_blueprint(blueprint, tenant_id=tenant_id)
+
         # 4. Return the result for UI rendering
         return {
             "workflow_id": workflow_id,
@@ -390,6 +400,8 @@ async def generate_workflow_from_agent(request: AgentWorkflowRequest):
             "nodes": blueprint.get("nodes", []),
             "blueprint": blueprint
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to generate workflow from agent: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal error")
