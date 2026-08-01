@@ -131,10 +131,11 @@ Every fix = failing test first. Full narrative in git history; this is the searc
 | 66 | Canvas family | anon comment endpoints; spoofed `user_id`; IDOR on docs/terminal/email | 7 |
 | 67 | Workflow-executed MCP bypass | `WORKFLOW_RUN` granted to all → ungoverned local tool execution; critical MCP tools need `WORKFLOW_MANAGE`; bonus: conductor route shadowing + 422 strategy parse | 10 |
 | 68 | Workflow trigger-path sweep | extended the R67 critical-step gate (`core/workflow_security.py`) to every trigger path (advanced_workflow_api + demos, workflow-ui, intelligence `/execute`, atom-agent chat handlers + `/execute-generated`, template `/execute`, mobile `/trigger`) and added auth to anonymous analytics/automation triggers; mobile trigger + intelligence no longer trust spoofable `user_id` | 62 |
+| 69 | Async/unguarded execution + unauth sweep | MCP `/execute` critical-tool + `trigger_workflow` gate (`WORKFLOW_MANAGE`, service-level fail-closed for critical-step targets); `trigger_event` skips critical workflows unless `allow_event_critical`; Shopify webhooks fail-closed HMAC (`SHOPIFY_WEBHOOK_SECRET`); `/generate-from-agent` auth + token identity; scheduler critical `nodes[].config.actionType` sink (`has_critical_automation_nodes`) + `authorized` threading; Teams/Gmail webhook shared-secret auth + Gmail resume gate; sales/messaging/workflow-ui/canvas-docs/marketing/oauth-config-status route auth | 60 |
 
 **Feature rounds**: 41 (match-confidence, see #36), 42 (self-consistency shadow, see #37), 43–47 (sandbox layer, see #38 — 166 tests) — all landed in shadow mode (compute + audit on, enforcement off).
 
-**Rounds 38–67 policy**: zero-regression verified via `comm -13` on failure lists; mypy baseline unchanged; `main_api_app` imports clean. Audit docs: `docs/FRONTEND_SECURITY_AUDIT.md`, `docs/MOBILE_SECURITY_AUDIT.md`.
+**Rounds 38–69 policy**: zero-regression verified via `comm -13` on failure lists; mypy baseline unchanged; `main_api_app` imports clean. Audit docs: `docs/FRONTEND_SECURITY_AUDIT.md`, `docs/MOBILE_SECURITY_AUDIT.md`.
 
 ---
 
@@ -240,12 +241,13 @@ ATOM_SANDBOX_VM_MEM_MB=256   ATOM_SANDBOX_VM_VCPUS=1   ATOM_SANDBOX_VM_BOOT_TIME
 ATOM_SANDBOX_PROVENANCE_ENABLED=false   ATOM_SANDBOX_JUDGE_ENABLED=false   # Phase E
 ATOM_SANDBOX_JUDGE_TIMEOUT_SECONDS=2.0   ATOM_SANDBOX_JUDGE_CIRCUIT_THRESHOLD=5   ATOM_SANDBOX_JUDGE_CIRCUIT_COOLDOWN_SECONDS=120
 
-# Security (Rounds 18-67)
+# Security (Rounds 18-69)
 MAX_UPLOAD_BYTES=52428800                # 50 MiB upload cap
 MAX_BODY_BYTES=67108864                 # 64 MiB POST/PUT/PATCH body cap (R55)
 ATOM_BOOTSTRAP_PASSWORD_FILE=            # generated admin password, written 0600
 SHOPIFY_WEBHOOK_SECRET=   ATOM_WHATSAPP_WEBHOOK_SECRET=   ATOM_SLACK_WEBHOOK_SECRET=
 ATOM_DISCORD_WEBHOOK_SECRET=   ATOM_TELEGRAM_WEBHOOK_SECRET=    # fail-closed if missing
+ATOM_TEAMS_WEBHOOK_SECRET=   ATOM_GMAIL_WEBHOOK_SECRET=   ATOM_SCHEDULER_SECRET=   # R69 webhook/scheduler shared secrets — fail-closed if missing
 ```
 
 ---
