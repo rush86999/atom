@@ -92,10 +92,15 @@ class AgentMarketplaceService:
 
         try:
             # 2. Instantiate local Agent
+            # #10 fix: validate/truncate remote data before writing to fixed-width
+            # VARCHAR columns (name=String(100), description=String(500)).
+            _name = str(template_data.get("name", ""))[:100]
+            _desc = str(template_data.get("description", ""))[:500]
+            _display = f"{_name} (Marketplace)"[:100]
             new_agent = AgentRegistry(
-                name=template_data["name"],
-                display_name=f"{template_data['name']} (Marketplace)",
-                description=template_data["description"],
+                name=_name,
+                display_name=_display,
+                description=_desc,
                 category=template_data.get("category", "General"),
                 role="agent",
                 type="marketplace",

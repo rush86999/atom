@@ -2872,26 +2872,40 @@ class BYOKHandler:
                 # This was the last provider, fall through to error handling
                 break
 
-        # All providers failed - mark execution as failed and yield error
-        logger.error(f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}")
+        # All providers failed — mark execution as failed and yield error.
+        # #4 fix: wrap post-loop error path so CancelledError (client
+        # disconnect, a BaseException) still cleans up the execution record.
+        try:
+            logger.error(f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}")
 
-        if agent_execution and governance_enabled and db:
-            try:
-                agent_execution.status = "failed"
-                agent_execution.error_message = f"All providers failed. Last: {str(last_error)}"
-                agent_execution.completed_at = datetime.now()
-                db.commit()
+            if agent_execution and governance_enabled and db:
+                try:
+                    agent_execution.status = "failed"
+                    agent_execution.error_message = f"All providers failed. Last: {str(last_error)}"
+                    agent_execution.completed_at = datetime.now()
+                    db.commit()
 
-                # Record failure for confidence scoring
-                from core.agent_governance_service import AgentGovernanceService
-                governance = AgentGovernanceService(db)
-                await governance.record_outcome(agent_id, success=False)
+                    # Record failure for confidence scoring
+                    from core.agent_governance_service import AgentGovernanceService
+                    governance = AgentGovernanceService(db)
+                    await governance.record_outcome(agent_id, success=False)
 
-            except Exception as tracking_error:
-                logger.error(f"Failed to track LLM stream failure: {tracking_error}")
+                except Exception as tracking_error:
+                    logger.error(f"Failed to track LLM stream failure: {tracking_error}")
 
-        # Yield final error message
-        yield f"\n\n[Error: All LLM providers failed. Last error: {str(last_error)}]"
+            # Yield final error message
+            yield f"\n\n[Error: All LLM providers failed. Last error: {str(last_error)}]"
+        except BaseException:
+            # Client disconnect / CancelledError: mark execution as failed.
+            if agent_execution is not None and getattr(agent_execution, 'status', None) == "running":
+                try:
+                    agent_execution.status = "failed"
+                    agent_execution.error_message = "Stream interrupted"
+                    agent_execution.completed_at = datetime.now(timezone.utc)
+                    db.commit()
+                except Exception:
+                    pass
+            raise
 
     async def generate_embedding(
         self,

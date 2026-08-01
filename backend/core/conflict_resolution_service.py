@@ -317,7 +317,8 @@ class ConflictResolutionService:
         self,
         severity: Optional[Severity] = None,
         conflict_type: Optional[ConflictType] = None,
-        limit: int = 100
+        limit: int = 100,
+        offset: int = 0
     ) -> list[ConflictLog]:
         """
         Get unresolved conflicts from database.
@@ -326,6 +327,7 @@ class ConflictResolutionService:
             severity: Filter by severity (optional)
             conflict_type: Filter by conflict type (optional)
             limit: Maximum number of conflicts to return
+            offset: Number of conflicts to skip (for pagination)
 
         Returns:
             List of unresolved ConflictLog records
@@ -340,7 +342,22 @@ class ConflictResolutionService:
         if conflict_type:
             query = query.filter(ConflictLog.conflict_type == conflict_type)
 
-        return query.order_by(ConflictLog.created_at.desc()).limit(limit).all()
+        return query.order_by(ConflictLog.created_at.desc()).offset(offset).limit(limit).all()
+
+    def count_unresolved_conflicts(
+        self,
+        severity: Optional[Severity] = None,
+        conflict_type: Optional[ConflictType] = None,
+    ) -> int:
+        """Get the total count of unresolved conflicts (for pagination metadata)."""
+        query = self.db.query(ConflictLog).filter(
+            ConflictLog.resolved_at.is_(None)
+        )
+        if severity:
+            query = query.filter(ConflictLog.severity == severity)
+        if conflict_type:
+            query = query.filter(ConflictLog.conflict_type == conflict_type)
+        return query.count()
 
     def get_conflict_by_id(self, conflict_id: int) -> Optional[ConflictLog]:
         """

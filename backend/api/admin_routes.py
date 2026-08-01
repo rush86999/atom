@@ -2,7 +2,7 @@
 Admin User Management API Routes
 Handles administrative users and role-based access control
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Dict, List, Optional
 from fastapi import Depends, Request, status
@@ -1089,7 +1089,7 @@ async def list_conflicts(
     severity: Optional[str] = None,
     conflict_type: Optional[str] = None,
     page: int = 1,
-    page_size: int = 50,  # #4 fix: bounded below
+    page_size: int = 50,  # bounded at Query level below
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
@@ -1114,22 +1114,24 @@ async def list_conflicts(
 
     resolver = ConflictResolutionService(db)
 
-    # #4 fix: cap page_size to prevent memory exhaustion via ?page_size=99999999
-    page_size = min(page_size, 200)
+    # #6 fix: validate bounds properly (not just min/max post-hoc).
     page = max(page, 1)
+    page_size = max(1, min(page_size, 200))
 
-    # Get unresolved conflicts
+    # Get total count (real DB count, not the limited result length).
+    total_count = resolver.count_unresolved_conflicts(
+        severity=severity,
+        conflict_type=conflict_type,
+    )
+
+    # Get the actual page slice via offset.
     conflicts = resolver.get_unresolved_conflicts(
         severity=severity,
         conflict_type=conflict_type,
-        limit=page_size
+        limit=page_size,
+        offset=(page - 1) * page_size,
     )
-
-    # Calculate pagination
-    total_count = len(conflicts)
-    start_idx = (page - 1) * page_size
-    end_idx = start_idx + page_size
-    paginated_conflicts = conflicts[start_idx:end_idx]
+    paginated_conflicts = conflicts
 
     return ConflictListResponse(
         conflicts=[

@@ -4,10 +4,12 @@ Automatically refreshes OAuth tokens before they expire
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 from typing import Dict, Optional
+
+import httpx
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -48,7 +50,9 @@ class TokenRefresher:
             return False
         
         # Refresh if expiring within buffer_minutes
-        return datetime.now() + timedelta(minutes=buffer_minutes) >= expires_at
+        # #8 fix: was datetime.now() (naive) compared against tz-aware expires_at
+        # from OAuth providers → TypeError. Now uses timezone-aware UTC.
+        return datetime.now(timezone.utc) + timedelta(minutes=buffer_minutes) >= expires_at
     
     async def refresh_token(self, service_name: str) -> bool:
         """Refresh OAuth token for a service"""
