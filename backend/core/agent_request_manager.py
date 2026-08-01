@@ -13,7 +13,7 @@ Features:
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -94,7 +94,7 @@ class AgentRequestManager:
 
             # Calculate expiration
             timeout = expires_in or self.REQUEST_TIMEOUTS.get(urgency, 600)
-            expires_at = datetime.utcnow() + timedelta(seconds=timeout)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=timeout)
 
             # Create options
             options = [
@@ -227,7 +227,7 @@ class AgentRequestManager:
 
             # Calculate expiration
             timeout = expires_in or self.REQUEST_TIMEOUTS.get(urgency, 3600)
-            expires_at = datetime.utcnow() + timedelta(seconds=timeout)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=timeout)
 
             # Create request data
             request_data = {
@@ -319,7 +319,7 @@ class AgentRequestManager:
                 ).first()
 
                 if request_log and request_log.expires_at:
-                    timeout = int((request_log.expires_at - datetime.utcnow()).total_seconds())
+                    timeout = int((request_log.expires_at - datetime.now(timezone.utc)).total_seconds())
                 else:
                     timeout = 600  # Default 10 minutes
 
@@ -384,15 +384,15 @@ class AgentRequestManager:
                 return
 
             # Check if expired
-            if request_log.expires_at and datetime.utcnow() > request_log.expires_at:
+            if request_log.expires_at and datetime.now(timezone.utc) > request_log.expires_at:
                 logger.warning(f"Request {request_id} has expired")
                 return
 
             # Update log
             request_log.user_response = response
-            request_log.responded_at = datetime.utcnow()
+            request_log.responded_at = datetime.now(timezone.utc)
             request_log.response_time_seconds = (
-                datetime.utcnow() - request_log.created_at
+                datetime.now(timezone.utc) - request_log.created_at
             ).total_seconds()
             self.db.commit()
 

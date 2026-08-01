@@ -1,4 +1,7 @@
 """
+import asyncio
+_bg_tasks: set = set()
+
 Line Routes for ATOM Platform
 Exposes Line webhook functionality
 """
@@ -40,7 +43,7 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)):
     for event in data.get("events", []):
         if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
             import asyncio
-            asyncio.create_task(universal_webhook_bridge.process_incoming_message("line", event))
+            _t = asyncio.create_task(universal_webhook_bridge.process_incoming_message("line", event)); _bg_tasks.add(_t); _t.add_done_callback(_bg_tasks.discard)
             
     return {"status": "OK"}
 

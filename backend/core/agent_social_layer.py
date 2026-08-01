@@ -8,7 +8,7 @@ Expanded to full communication matrix: human↔agent, agent↔agent, directed me
 
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -402,7 +402,7 @@ class AgentSocialLayer:
         if not db:
             return []
 
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         # Get recent posts
         posts = db.query(SocialPost).filter(
@@ -688,7 +688,7 @@ class AgentSocialLayer:
             channel_type=channel_type,
             is_public=is_public,
             created_by=creator_id,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(channel)
         db.commit()
@@ -1311,7 +1311,7 @@ class AgentSocialLayer:
 
         try:
             # Get posts in last 30 days
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
             posts = db.query(SocialPost).filter(
                 SocialPost.author_id == agent_id,
                 SocialPost.author_type == "agent",
@@ -1398,7 +1398,7 @@ class AgentSocialLayer:
                     "from_maturity": from_maturity,
                     "to_maturity": to_maturity,
                     "post_id": str(post["id"]),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 },
                 ["global", "alerts"]
             )
@@ -1491,7 +1491,7 @@ class AgentSocialLayer:
             return True, None
 
         try:
-            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
 
             post_count = db.query(SocialPost).filter(
                 SocialPost.author_id == agent_id,
@@ -1564,7 +1564,7 @@ class AgentSocialLayer:
                 }
 
             # Count posts last hour
-            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
             posts_last_hour = db.query(SocialPost).filter(
                 SocialPost.author_id == agent_id,
                 SocialPost.author_type == "agent",
@@ -1577,7 +1577,7 @@ class AgentSocialLayer:
                 "max_posts_per_hour": max_posts,
                 "posts_last_hour": posts_last_hour,
                 "remaining_posts": max(0, max_posts - posts_last_hour),
-                "reset_at": (datetime.utcnow() + timedelta(hours=1)).isoformat()
+                "reset_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
             }
 
         except Exception as e:

@@ -1,4 +1,7 @@
 """
+import asyncio
+_bg_tasks: set = set()
+
 Twilio Integration Routes for ATOM Platform
 Uses the real twilio_service.py for all operations
 """
@@ -144,7 +147,7 @@ async def twilio_webhook(request: Request):
         import asyncio
 
         from .universal_webhook_bridge import universal_webhook_bridge
-        asyncio.create_task(universal_webhook_bridge.process_incoming_message("twilio", data))
+        _t = asyncio.create_task(universal_webhook_bridge.process_incoming_message("twilio", data)); _bg_tasks.add(_t); _t.add_done_callback(_bg_tasks.discard)
         
         # Twilio expects a TwiML response (even if empty)
         from fastapi.responses import Response

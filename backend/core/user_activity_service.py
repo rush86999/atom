@@ -6,7 +6,7 @@ Determines if users are available to supervise INTERN and SUPERVISED agents.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -77,7 +77,7 @@ class UserActivityService:
                 id=f"ua_{uuid.uuid4()}",
                 user_id=user_id,
                 state=UserState.offline,
-                last_activity_at=datetime.utcnow()
+                last_activity_at=datetime.now(timezone.utc)
             )
             self.db.add(activity)
             self.db.commit()
@@ -97,12 +97,12 @@ class UserActivityService:
                 session_token=session_token,
                 user_agent=user_agent,
                 ip_address=ip_address,
-                last_heartbeat=datetime.utcnow()
+                last_heartbeat=datetime.now(timezone.utc)
             )
             self.db.add(session)
         else:
             # Update existing session
-            session.last_heartbeat = datetime.utcnow()
+            session.last_heartbeat = datetime.now(timezone.utc)
             session.terminated_at = None  # Clear termination if resuming
 
         self.db.commit()
@@ -135,7 +135,7 @@ class UserActivityService:
         # Check if manual override is active
         if activity.manual_override:
             if activity.manual_override_expires_at:
-                if datetime.utcnow() < activity.manual_override_expires_at:
+                if datetime.now(timezone.utc) < activity.manual_override_expires_at:
                     return activity.state
                 else:
                     # Manual override expired, clear it
@@ -179,7 +179,7 @@ class UserActivityService:
                 id=f"ua_{uuid.uuid4()}",
                 user_id=user_id,
                 state=state,
-                last_activity_at=datetime.utcnow(),
+                last_activity_at=datetime.now(timezone.utc),
                 manual_override=True,
                 manual_override_expires_at=expires_at
             )
@@ -318,7 +318,7 @@ class UserActivityService:
         if not session:
             return False
 
-        session.terminated_at = datetime.utcnow()
+        session.terminated_at = datetime.now(timezone.utc)
         self.db.commit()
 
         # Recalculate activity state for user
@@ -345,7 +345,7 @@ class UserActivityService:
             return
 
         # Update last activity time
-        activity.last_activity_at = datetime.utcnow()
+        activity.last_activity_at = datetime.now(timezone.utc)
 
         # Set to online (heartbeat means user is actively using the system)
         if activity.state != UserState.online:
@@ -372,7 +372,7 @@ class UserActivityService:
             return
 
         # Check if user has any active sessions with recent heartbeat
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         active_sessions = self.db.query(UserActivitySession).filter(
             UserActivitySession.activity_id == activity.id,
             UserActivitySession.terminated_at.is_(None)
@@ -436,7 +436,7 @@ class UserActivityService:
         """
         # Get all activities that need state recalculation
         # (no manual override, updated more than 1 minute ago)
-        cutoff_time = datetime.utcnow() - timedelta(minutes=1)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=1)
 
         activities = self.db.query(UserActivity).filter(
             UserActivity.manual_override == False,
@@ -484,7 +484,7 @@ class UserActivityService:
         Returns:
             Number of sessions cleaned up
         """
-        cutoff_time = datetime.utcnow() - timedelta(seconds=SESSION_STALE_THRESHOLD)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=SESSION_STALE_THRESHOLD)
 
         stale_sessions = self.db.query(UserActivitySession).filter(
             UserActivitySession.terminated_at.is_(None),
@@ -493,7 +493,7 @@ class UserActivityService:
 
         count = 0
         for session in stale_sessions:
-            session.terminated_at = datetime.utcnow()
+            session.terminated_at = datetime.now(timezone.utc)
             count += 1
 
         self.db.commit()

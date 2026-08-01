@@ -1,3 +1,5 @@
+# DEPRECATED: This module has no live callers and 10 functions have NameError (tenant_id
+# missing from signature). Do not import without fixing the signatures first.
 """Query Helpers for LLM Model Registry
 
 This module provides optimized query functions for filtering LLM models
