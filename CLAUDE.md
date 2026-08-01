@@ -192,6 +192,17 @@ All fixes use Red-Green-Refactor: failing test first, minimal fix, regression te
 - `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (Phase E)
 - `ATOM_SANDBOX_FORCE_ENFORCE=false` (master shadow switch — KillRun only fires when both `TRIPWIRES_ENABLED=true` AND `FORCE_ENFORCE=true`).
 
+### Round 66 — Canvas Docs/Terminal/Email: Missing Auth + Identity Spoofing + IDOR (July 31, 2026) ✨
+**Bug hunt round.** The canvas-family routers (mounted: `/api/canvas/docs`, `/api/canvas/terminal`, `/api/canvas/email`) carry the R24-era auth fix but still have gaps:
+
+**A. `canvas_docs_routes` `POST /{canvas_id}/comment` + `/comment/resolve` had NO auth dependency at all** — unauthenticated comment write/resolve on any document canvas (R24 fixed 4 routes but missed these two). Now `current_user`-gated with token identity.
+
+**B. `canvas_docs_routes` create + update used the client-supplied `request.user_id`** (attribution spoofing, R42 class) → token identity (body field ignored).
+
+**C. IDOR across the family** — `get_document_canvas`, `get_terminal_canvas`, `get_email_canvas` (terminal output / email drafts / document content readable cross-user), plus `add_output`/`add_comment`/`resolve_comment`/`update` writes to any canvas. New `_get_owned_*_canvas_or_error()` gates on every canvas-id endpoint (owner = creator of the EARLIEST CanvasAudit row; 403 for others).
+
+**Tests:** 7 new tests in `backend/tests/test_round66_canvas_ownership.py` (401s for the two formerly-anonymous comment endpoints, token-identity assertion on create via captured kwargs, 403s for docs/terminal/email gets + add_output with service-not-called assertions). Zero regressions (comm-verified: 74→60 failures in affected suites — delta is exactly the 7 RED tests flipping green; `comm -13` empty = no new failures; the remaining 60 are pre-existing canvas-suite failures identical in both runs). mypy clean (0/0, identical). `main_api_app` imports clean. 7/7 round tests green.
+
 ### Round 65 — Supervision Endpoints: Missing Role Gate — Governance Integrity (July 31, 2026) ✨
 **Bug hunt round.** `api/supervision_routes.py` (mounted at `/api/supervision`) let **any authenticated user** act as a supervisor on three state-changing endpoints:
 
