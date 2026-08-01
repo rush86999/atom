@@ -3,7 +3,7 @@ Dashboard Data API Routes
 Provides real dashboard data by querying database models
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -374,7 +374,7 @@ async def get_dashboard_data(
                 "messages": messages
             },
             stats=DashboardStatsResponse(**stats),
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
     except Exception as e:
@@ -492,5 +492,5 @@ async def dashboard_health():
     return {
         "status": "healthy",
         "service": "dashboard-data",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }

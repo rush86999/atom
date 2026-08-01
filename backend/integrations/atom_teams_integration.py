@@ -232,7 +232,7 @@ class AtomTeamsIntegration:
                         'ok': True,
                         'message_id': teams_result.get('message_id'),
                         'platform': 'Microsoft Teams',
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'channel_id': channel_id,
                         'workspace_id': workspace_id
                     }
@@ -430,7 +430,7 @@ class AtomTeamsIntegration:
             # Create Teams-specific workflow
             if teams_workflow_engine:  # Would import from teams_workflow_engine
                 teams_workflow = TeamsWorkflow(
-                    id=f"teams_workflow_{int(datetime.utcnow().timestamp())}",
+                    id=f"teams_workflow_{int(datetime.now(timezone.utc).timestamp())}",
                     name=workflow_data['name'],
                     description=workflow_data.get('description', ''),
                     triggers=[
@@ -444,7 +444,7 @@ class AtomTeamsIntegration:
                         if action_data.get('platform') == 'microsoft_teams'
                     ],
                     created_by=workflow_data.get('created_by', 'system'),
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     category=workflow_data.get('category', 'teams'),
                     tags=workflow_data.get('tags', [])
                 )
@@ -625,7 +625,7 @@ class AtomTeamsIntegration:
                 'user_email': message_data.get('user_email'),
                 'channel_id': message_data.get('channel_id'),
                 'workspace_id': message_data.get('workspace_id'),
-                'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                 'importance': message_data.get('importance', 'normal'),
                 'subject': message_data.get('subject'),
                 'thread_id': message_data.get('thread_id'),
@@ -662,7 +662,7 @@ class AtomTeamsIntegration:
                     'user_email': message_data.get('user_email'),
                     'channel_id': message_data.get('channel_id'),
                     'workspace_id': message_data.get('workspace_id'),
-                    'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                    'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                     'importance': message_data.get('importance', 'normal'),
                     'platform': platform,
                     'has_thread': bool(message_data.get('thread_id')),
@@ -687,7 +687,7 @@ class AtomTeamsIntegration:
                 'event_type': event_type,
                 'platform': 'microsoft_teams',
                 'data': event_data,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'options': options or {}
             }
             

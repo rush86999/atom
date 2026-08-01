@@ -275,7 +275,7 @@ class AtomDiscordIntegration:
                         'ok': True,
                         'message_id': discord_result.get('message_id'),
                         'platform': 'Discord',
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'channel_id': channel_id,
                         'workspace_id': workspace_id
                     }
@@ -454,7 +454,7 @@ class AtomDiscordIntegration:
             
             return {
                 'ok': True,
-                'workflow_id': f"discord_workflow_{int(datetime.utcnow().timestamp())}",
+                'workflow_id': f"discord_workflow_{int(datetime.now(timezone.utc).timestamp())}",
                 'platform': 'discord',
                 'message': 'Discord workflow created successfully'
             }
@@ -729,7 +729,7 @@ class AtomDiscordIntegration:
                 'user_discriminator': message_data.get('user_discriminator'),
                 'channel_id': message_data.get('channel_id'),
                 'workspace_id': message_data.get('workspace_id'),
-                'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                 'edited_timestamp': message_data.get('edited_timestamp'),
                 'reactions': message_data.get('reactions', []),
                 'attachments': message_data.get('attachments', []),
@@ -764,7 +764,7 @@ class AtomDiscordIntegration:
                     'user_discriminator': message_data.get('user_discriminator'),
                     'channel_id': message_data.get('channel_id'),
                     'workspace_id': message_data.get('workspace_id'),
-                    'timestamp': message_data.get('timestamp') or datetime.utcnow().isoformat(),
+                    'timestamp': message_data.get('timestamp') or datetime.now(timezone.utc).isoformat(),
                     'platform': platform,
                     'has_attachments': bool(message_data.get('attachments')),
                     'has_embeds': bool(message_data.get('embeds')),
@@ -791,7 +791,7 @@ class AtomDiscordIntegration:
                 'event_type': event_type,
                 'platform': 'discord',
                 'data': event_data,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'options': options or {}
             }
             
@@ -952,7 +952,7 @@ class AtomDiscordIntegration:
                 'platform': platform,
                 'channel_id': channel_id,
                 'state': state,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
 
             # Check for conflicts (user in voice on multiple platforms)
@@ -963,7 +963,7 @@ class AtomDiscordIntegration:
                 state=state
             )
 
-            unified_workspace.updated_at = datetime.utcnow()
+            unified_workspace.updated_at = datetime.now(timezone.utc)
             self.db.commit()
 
             logger.info(
@@ -1025,7 +1025,7 @@ class AtomDiscordIntegration:
                 unified_workspace.metadata['voice_conflicts'].append({
                     'user_id': user_id,
                     'platforms': [platform] + [c['platform'] for c in conflicts],
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 })
 
         except Exception as e:

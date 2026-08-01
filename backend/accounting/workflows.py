@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List
 from accounting.models import Entity, Invoice, InvoiceStatus
@@ -20,7 +20,7 @@ class CollectionAgent:
         """
         Identify invoices that are past their due date and trigger follow-ups.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         overdue_invoices = self.db.query(Invoice).filter(
             Invoice.workspace_id == workspace_id,
             Invoice.status == InvoiceStatus.OPEN,
@@ -61,7 +61,7 @@ class CollectionAgent:
 
     def _generate_reminder_message(self, invoice: Invoice) -> str:
         """AI-assisted (template for now) reminder generation"""
-        days_overdue = (datetime.utcnow() - invoice.due_date).days
+        days_overdue = (datetime.now(timezone.utc) - invoice.due_date).days
         return (
             f"Hello {invoice.customer.name}, this is a reminder that Invoice {invoice.invoice_number} "
             f"for ${invoice.amount:,.2f} is now {days_overdue} days overdue. "
@@ -75,7 +75,7 @@ class CollectionAgent:
             Invoice.status.in_([InvoiceStatus.OPEN, InvoiceStatus.OVERDUE])
         ).all()
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         report = {
             "current": 0.0,      # 0-30 days
             "overdue_30": 0.0,   # 31-60 days

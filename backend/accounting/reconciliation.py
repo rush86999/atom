@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Tuple
 from accounting.models import Account, Transaction, TransactionStatus
@@ -46,7 +46,7 @@ class ReconciliationService:
         # 1. Fetch external transactions from Stripe — paginated (M3 fix).
         # Previously fetched a single page of 100, missing charges beyond that.
         created_filter = {
-            "gte": int((datetime.utcnow() - timedelta(days=days_to_look_back)).timestamp())
+            "gte": int((datetime.now(timezone.utc) - timedelta(days=days_to_look_back)).timestamp())
         }
         stripe_charges = []
         _has_more = True
@@ -68,7 +68,7 @@ class ReconciliationService:
         internal_transactions = self.db.query(Transaction).filter(
             Transaction.workspace_id == workspace_id,
             Transaction.source == "stripe",
-            Transaction.transaction_date >= (datetime.utcnow() - timedelta(days=days_to_look_back))
+            Transaction.transaction_date >= (datetime.now(timezone.utc) - timedelta(days=days_to_look_back))
         ).all()
 
         internal_ids = {tx.external_id for tx in internal_transactions}

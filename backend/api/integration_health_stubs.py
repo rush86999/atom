@@ -2,7 +2,7 @@
 Integration Health Check Endpoints
 Provides actual health verification for integrations by checking configuration, OAuth tokens, and optional connectivity.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict, Optional
@@ -106,7 +106,7 @@ def check_oauth_tokens(integration: str, db: Session) -> Dict[str, Any]:
         token_count = len(tokens)
 
         # Check if any tokens are not expired
-        valid_tokens = [t for t in tokens if t.expires_at is None or t.expires_at > datetime.utcnow()]
+        valid_tokens = [t for t in tokens if t.expires_at is None or t.expires_at > datetime.now(timezone.utc)]
         has_valid_tokens = len(valid_tokens) > 0
 
         return {
@@ -226,7 +226,7 @@ def health_response(
         "ok": True,
         "status": overall_status,
         "service": service,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "is_mock": is_mock,
         "configured": is_configured,
         "has_credentials": config_status.get("has_credentials", False),
@@ -455,7 +455,7 @@ async def platform_status():
     return {
         "status": "operational",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "services": {
             "api": "healthy",
             "database": "healthy",

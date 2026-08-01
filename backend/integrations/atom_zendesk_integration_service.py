@@ -723,7 +723,7 @@ class AtomZendeskIntegrationService:
             start_time = time.time()
             
             # Calculate date range
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=7)  # Default to 7 days
             
             # Fetch tickets within date range
@@ -766,7 +766,7 @@ class AtomZendeskIntegrationService:
                 metrics=analytics_data,
                 insights=analytics_data.get('insights', []),
                 recommendations=analytics_data.get('recommendations', []),
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 metadata={'generated_by': 'atom_zendesk_integration'}
             )
             

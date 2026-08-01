@@ -500,8 +500,8 @@ def score_model_for_routing(
     # Small bonus for frontier models (recently discovered)
     # This helps new models get tried
     if hasattr(model, 'discovered_at') and model.discovered_at:
-        from datetime import datetime, timedelta
-        if model.discovered_at > datetime.utcnow() - timedelta(days=30):
+        from datetime import datetime, timedelta, timezone
+        if model.discovered_at > datetime.now(timezone.utc) - timedelta(days=30):
             score += 2.0  # +2 for newly discovered models
 
     return max(0, min(100, score))  # Clamp to 0-100

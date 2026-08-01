@@ -50,7 +50,7 @@ import gzip
 import logging
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -151,7 +151,7 @@ class AuditLogger:
             ip_address: Client IP address (optional)
         """
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "user_id": user_id,
             "agent_id": agent_id,
             "action": action,
@@ -384,7 +384,7 @@ class AuditLogger:
         Compresses logs older than today with gzip.
         Should be called daily (e.g., via cron or scheduler).
         """
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
 
         # Check if current log file exists
         if not self._log_path.exists():
@@ -430,7 +430,7 @@ class AuditLogger:
 
         Should be called daily (e.g., via cron or scheduler).
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=self._retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self._retention_days)
         removed_count = 0
 
         # Find all audit log files (including rotated)
@@ -447,7 +447,7 @@ class AuditLogger:
                         "Old audit log removed",
                         extra={
                             "file": str(log_file),
-                            "age_days": (datetime.utcnow() - mtime).days
+                            "age_days": (datetime.now(timezone.utc) - mtime).days
                         }
                     )
 

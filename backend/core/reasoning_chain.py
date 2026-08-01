@@ -4,7 +4,7 @@ Enhanced with feedback capabilities for agent learning.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 from typing import Any, Dict, List, Optional
@@ -168,7 +168,7 @@ class ReasoningTracker:
         chain_id = execution_id or str(uuid.uuid4())
         self._chains[chain_id] = ReasoningChain(
             execution_id=chain_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             agent_id=agent_id
         )
         self._current_chain_id = chain_id
@@ -201,7 +201,7 @@ class ReasoningTracker:
             outputs=outputs or {},
             confidence=confidence,
             duration_ms=duration_ms,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata=metadata or {},
             agent_id=agent_id
         )
@@ -332,7 +332,7 @@ class ReasoningTracker:
             return None
         
         chain = self._chains[target_chain_id]
-        chain.completed_at = datetime.utcnow()
+        chain.completed_at = datetime.now(timezone.utc)
         chain.final_outcome = outcome
         chain.total_duration_ms = (
             (chain.completed_at - chain.started_at).total_seconds() * 1000

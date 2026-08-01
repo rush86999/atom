@@ -11,7 +11,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 import logging
 from enum import Enum
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from services.agent_service import agent_service
 
 # LLM Service Integration
@@ -817,7 +817,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         try:
             from core.unified_task_endpoints import create_task, CreateTaskRequest, get_current_user
             import asyncio
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             from unittest.mock import MagicMock
             
             # 1. Use NLP to extract title and description
@@ -1056,7 +1056,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         result["answer"] = "Here is your current AR aging report summary."
                     elif result["intent"] == "check_close_readiness":
                         agent = CloseChecklistAgent(db)
-                        period = result.get("params", {}).get("period", datetime.utcnow().strftime("%Y-%m"))
+                        period = result.get("params", {}).get("period", datetime.now(timezone.utc).strftime("%Y-%m"))
                         result["close_check"] = await agent.run_close_check(workspace_id, period)
                         result["answer"] = f"Here is the close readiness report for {period}."
                     elif result["intent"] == "get_tax_estimate":

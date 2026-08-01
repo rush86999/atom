@@ -8,7 +8,7 @@ Includes:
 - Execution records for audit trail
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -159,7 +159,7 @@ def format_salesforce_response(data: Dict[str, Any]) -> Dict[str, Any]:
         "ok": True,
         "data": data,
         "service": "salesforce",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -172,7 +172,7 @@ def format_salesforce_error_response(error_msg: str) -> Dict[str, Any]:
             "message": error_msg,
             "service": "salesforce",
         },
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -201,7 +201,7 @@ async def salesforce_health_check():
             "ok": True,  # Required format for validator
             "status": "healthy" if connected else "degraded",
             "service": "salesforce",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "available": True,
             "connected": connected,
             "is_mock": False
@@ -742,7 +742,7 @@ async def sync_stripe_payments_with_salesforce(
             "payment_id": payment_data.get("id"),
             "opportunity_id": opportunity_id,
             "amount": payment_data.get("amount"),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         return format_salesforce_response(result)
     except Exception as e:

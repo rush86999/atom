@@ -386,8 +386,8 @@ class AtomQuickBooksIntegrationService:
                     'CustomerRef': {
                         'value': invoice_data.get('customer_id')
                     },
-                    'TxnDate': invoice_data.get('issue_date', datetime.utcnow()).strftime('%Y-%m-%d'),
-                    'DueDate': invoice_data.get('due_date', datetime.utcnow()).strftime('%Y-%m-%d'),
+                    'TxnDate': invoice_data.get('issue_date', datetime.now(timezone.utc)).strftime('%Y-%m-%d'),
+                    'DueDate': invoice_data.get('due_date', datetime.now(timezone.utc)).strftime('%Y-%m-%d'),
                     'Line': invoice_data.get('line_items', []),
                     'TxnTaxDetail': {
                         'TotalTax': invoice_data.get('tax_amount', 0)
@@ -489,7 +489,7 @@ class AtomQuickBooksIntegrationService:
                     'CustomerRef': {
                         'value': payment_data.get('customer_id')
                     },
-                    'TxnDate': payment_data.get('date', datetime.utcnow()).strftime('%Y-%m-%d'),
+                    'TxnDate': payment_data.get('date', datetime.now(timezone.utc)).strftime('%Y-%m-%d'),
                     'TotalAmt': payment_data.get('amount', 0.0),
                     'CurrencyRef': {
                         'value': payment_data.get('currency', 'USD')
@@ -616,7 +616,7 @@ class AtomQuickBooksIntegrationService:
                     'AccountRef': {
                         'value': expense_data.get('account_id')
                     },
-                    'TxnDate': expense_data.get('date', datetime.utcnow()).strftime('%Y-%m-%d'),
+                    'TxnDate': expense_data.get('date', datetime.now(timezone.utc)).strftime('%Y-%m-%d'),
                     'TotalAmt': expense_data.get('amount', 0.0),
                     'CurrencyRef': {
                         'value': expense_data.get('currency', 'USD')
@@ -829,7 +829,7 @@ class AtomQuickBooksIntegrationService:
                 data=report_data,
                 insights=report_data.get('insights', []),
                 recommendations=report_data.get('recommendations', []),
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
                 metadata={'generated_by': 'atom_quickbooks_integration'}
             )
             
@@ -1030,7 +1030,7 @@ class AtomQuickBooksIntegrationService:
                 risk_score += 30
                 risk_factors.append('High amount')
             # Check for unusual time
-            payment_time = payment_data.get('date', datetime.utcnow())
+            payment_time = payment_data.get('date', datetime.now(timezone.utc))
             if payment_time.hour < 6 or payment_time.hour > 22:
                 risk_score += 20
                 risk_factors.append('Unusual payment time')

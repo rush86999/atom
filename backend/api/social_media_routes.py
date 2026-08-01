@@ -6,7 +6,7 @@ Supports Twitter (X), LinkedIn, Facebook, and other platforms.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import uuid4
 
@@ -107,7 +107,7 @@ def rate_limit_check(user_id: str, db: Session) -> bool:
     Max 10 posts per hour per user across all platforms.
     """
     # Count posts in last hour
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent_posts = db.query(SocialPostHistory).filter(
         SocialPostHistory.user_id == user_id,
         SocialPostHistory.created_at >= one_hour_ago,
@@ -497,7 +497,7 @@ async def create_social_post(
             )
 
         # Handle scheduled posts
-        if payload.scheduled_for and payload.scheduled_for > datetime.utcnow():
+        if payload.scheduled_for and payload.scheduled_for > datetime.now(timezone.utc):
             from core.task_queue import enqueue_scheduled_post
 
             post_id = str(uuid.uuid4())
@@ -764,7 +764,7 @@ async def get_rate_limit_status(
     try:
 
         # Count posts in last hour
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
         recent_posts = db.query(SocialPostHistory).filter(
             SocialPostHistory.user_id == current_user.id,
             SocialPostHistory.created_at >= one_hour_ago,

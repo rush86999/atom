@@ -16,7 +16,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from core.logging_context import (
@@ -165,7 +165,7 @@ class FleetTracingService:
                 "trace_id": trace_id,
                 "span_id": span_id,
                 "root_task": root_task[:200],  # Truncate to prevent log bloat
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
 
@@ -234,7 +234,7 @@ class FleetTracingService:
                 "span_id": context.span_id,
                 "parent_span_id": context.parent_span_id,
                 "task_description": task_description[:200],  # Truncate
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
 
@@ -269,7 +269,7 @@ class FleetTracingService:
             "chain_id": context.chain_id,
             "agent_id": context.agent_id,
             "status": status,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Add result summary if provided (truncate to prevent log bloat)

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from accounting.models import (
@@ -55,7 +55,7 @@ class FPAService:
         """
         Generate a 13-week weekly cash flow forecast.
         """
-        start_date = datetime.utcnow()
+        start_date = datetime.now(timezone.utc)
         current_cash = self.get_current_cash_balance(workspace_id)
         
         # 1. Analyze historical burn/profit (last 12 weeks)

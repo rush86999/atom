@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import uuid
@@ -60,7 +60,7 @@ class GoalEngine:
                     
                     sub_tasks = []
                     # Map blueprint nodes to sub-tasks
-                    now = datetime.utcnow()
+                    now = datetime.now(timezone.utc)
                     days_total = (target_date - now).days
                     if days_total < 1: days_total = 7
                     
@@ -103,7 +103,7 @@ class GoalEngine:
         # In a real implementation, this would call an LLM with the goal context
         # For now, we use a template-based mock decomposition
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         days_total = (target_date - now).days
         if days_total < 1: days_total = 7
         
@@ -145,7 +145,7 @@ class GoalEngine:
         goal.progress = (len(completed) / len(goal.sub_tasks)) * 100
         
         # Update goal status based on progress and sub-task health
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         is_at_risk = any(st.due_date < now and st.status != "COMPLETED" for st in goal.sub_tasks)
         if is_at_risk:
             goal.status = "AT_RISK"
@@ -157,7 +157,7 @@ class GoalEngine:
     async def check_for_escalations(self) -> List[Dict[str, Any]]:
         """Identify goals that are behind and need intervention"""
         escalations = []
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         for goal_id, goal in self.goals.items():
             for st in goal.sub_tasks:

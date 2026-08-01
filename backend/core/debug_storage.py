@@ -16,7 +16,7 @@ import asyncio
 import gzip
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -399,7 +399,7 @@ class HybridDebugStorage:
         """Archive old data from PostgreSQL to compressed JSON files."""
         try:
             # Archive events older than retention period
-            cutoff_time = datetime.utcnow() - timedelta(hours=DEBUG_EVENT_RETENTION_HOURS)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=DEBUG_EVENT_RETENTION_HOURS)
 
             old_events = self.db.query(DebugEvent).filter(
                 DebugEvent.timestamp < cutoff_time
@@ -437,7 +437,7 @@ class HybridDebugStorage:
             # Redis handles hot tier cleanup via TTL
 
             # Clean up old archived files
-            archive_cutoff = datetime.utcnow() - timedelta(days=90)
+            archive_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
             for archive_file in self.archive_path.glob("*.json.gz"):
                 file_mtime = datetime.fromtimestamp(archive_file.stat().st_mtime)
                 if file_mtime < archive_cutoff:
@@ -624,7 +624,7 @@ class HybridDebugStorage:
 
     def _parse_time_range(self, time_range: str) -> Optional[datetime]:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

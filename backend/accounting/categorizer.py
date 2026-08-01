@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -134,7 +134,7 @@ class AICategorizer:
 
         proposal.is_accepted = True
         proposal.reviewed_by = user_id
-        proposal.reviewed_at = datetime.utcnow()
+        proposal.reviewed_at = datetime.now(timezone.utc)
         
         # LEARNING LAYER: Create or update a rule
         # Extract a simplified merchant name from description

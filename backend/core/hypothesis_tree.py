@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 
 def _now_utc() -> datetime:
-    """Timezone-aware UTC now. Replaces datetime.utcnow() (deprecated in 3.12+,
+    """Timezone-aware UTC now. Replaces datetime.now(timezone.utc) (deprecated in 3.12+,
     returns naive datetimes that break arithmetic against the aware DB timestamps)."""
     return datetime.now(timezone.utc)
 from enum import Enum

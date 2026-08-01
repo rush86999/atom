@@ -8,7 +8,7 @@ Phase 61 Plan 04 - Conflict Resolution
 """
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -541,7 +541,7 @@ class ConflictResolutionService:
         # Update conflict record
         conflict.resolution_strategy = strategy
         conflict.resolved_data = resolved_data
-        conflict.resolved_at = datetime.utcnow()
+        conflict.resolved_at = datetime.now(timezone.utc)
         conflict.resolved_by = resolved_by
 
         self.db.commit()

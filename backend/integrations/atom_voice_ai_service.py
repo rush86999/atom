@@ -518,7 +518,7 @@ class AtomVoiceAIService:
                 emotion=None,
                 speaker_id=None,
                 translation=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=transcription_time,
                 metadata={'model': 'whisper', 'segments': result.get('segments', [])}
             )
@@ -568,7 +568,7 @@ class AtomVoiceAIService:
                     'target_language': target_lang,
                     'translated_text': translated_text
                 },
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=translation_time,
                 metadata={
                     'transcription_model': 'whisper',
@@ -624,7 +624,7 @@ class AtomVoiceAIService:
                 emotion=None,
                 speaker_id=None,
                 translation=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=command_time,
                 metadata={
                     'matched_command': matched_command,
@@ -673,7 +673,7 @@ class AtomVoiceAIService:
                 emotion=None,
                 speaker_id=None,
                 translation=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=sentiment_time,
                 metadata={
                     'sentiment_model': self.voice_config['sentiment_model'],
@@ -738,7 +738,7 @@ class AtomVoiceAIService:
                 emotion=emotion,
                 speaker_id=None,
                 translation=None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 processing_time=emotion_time,
                 metadata={
                     'emotion_model': 'librosa_features',
@@ -972,7 +972,7 @@ class AtomVoiceAIService:
             emotion=None,
             speaker_id=None,
             translation=None,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             processing_time=0.0,
             metadata={'error': error_message}
         )

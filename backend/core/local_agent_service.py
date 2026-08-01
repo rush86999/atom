@@ -15,7 +15,7 @@ import httpx
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.directory_permission import check_directory_permission
 from core.command_whitelist import validate_command, get_command_category
@@ -116,7 +116,7 @@ class LocalAgentService:
                 "stderr": validation["reason"],
                 "timed_out": False,
                 "duration_seconds": 0,
-                "executed_at": datetime.utcnow().isoformat(),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
                 "operation_type": "blocked",
                 "maturity_level": maturity_level_str,
                 "command_whitelist_valid": False,
@@ -170,7 +170,7 @@ class LocalAgentService:
                 "stderr": directory_permission["reason"],
                 "timed_out": False,
                 "duration_seconds": 0,
-                "executed_at": datetime.utcnow().isoformat(),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
                 "operation_type": "blocked",
                 "maturity_level": maturity_level_str,
                 "command_whitelist_valid": True,
@@ -197,7 +197,7 @@ class LocalAgentService:
                 "stderr": f"Approval required for {maturity_level_str} maturity level",
                 "timed_out": False,
                 "duration_seconds": 0,
-                "executed_at": datetime.utcnow().isoformat(),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
                 "operation_type": "suggest_only",
                 "maturity_level": maturity_level_str,
                 "command_whitelist_valid": True,
@@ -230,7 +230,7 @@ class LocalAgentService:
             "stderr": execution_result["stderr"],
             "timed_out": execution_result.get("timed_out", False),
             "duration_seconds": execution_result.get("duration_seconds", 0),
-            "executed_at": datetime.utcnow().isoformat(),
+            "executed_at": datetime.now(timezone.utc).isoformat(),
             "operation_type": execution_result.get("operation_type", "execute"),
             "maturity_level": maturity_level_str,
             "command_whitelist_valid": True
@@ -332,7 +332,7 @@ class LocalAgentService:
             operation_type = detected_operation
 
         # Start process with shell=False (safe)
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         process = await asyncio.create_subprocess_exec(
             *command_parts,
             stdout=asyncio.subprocess.PIPE,
@@ -365,7 +365,7 @@ class LocalAgentService:
                 stdout, stderr = b"", b""
             timed_out = True
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         duration_seconds = (end_time - start_time).total_seconds()
 
         # Decode output

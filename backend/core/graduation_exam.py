@@ -9,7 +9,7 @@ This service handles:
 - Agent promotion and demotion
 - Promotion history tracking
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -224,7 +224,7 @@ class GraduationExamService:
             avg_confidence_score=readiness.avg_confidence_score,
             success_rate=readiness.success_rate,
             episodes_analyzed=readiness.episodes_analyzed,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         # ============================================================
@@ -285,12 +285,12 @@ class GraduationExamService:
         if passed:
             # Promote agent
             agent.status = target_level
-            agent.last_promotion_at = datetime.utcnow()
+            agent.last_promotion_at = datetime.now(timezone.utc)
             agent.promotion_count = (agent.promotion_count or 0) + 1
             agent.last_exam_id = exam.id
 
             exam.promoted = True
-            exam.promoted_at = datetime.utcnow()
+            exam.promoted_at = datetime.now(timezone.utc)
 
             # Record promotion history
             self._record_promotion_history(
@@ -307,7 +307,7 @@ class GraduationExamService:
             logger.info(f"Agent {agent_id} promoted from {current_level} to {target_level}")
         else:
             exam.promoted = False
-            agent.exam_eligible_at = datetime.utcnow() + timedelta(hours=6)
+            agent.exam_eligible_at = datetime.now(timezone.utc) + timedelta(hours=6)
             agent.last_exam_id = exam.id
 
             logger.info(f"Agent {agent_id} failed graduation exam: {exam.failure_reason}")
@@ -388,7 +388,7 @@ class GraduationExamService:
 
         # Update agent
         agent.status = new_level
-        agent.last_promotion_at = datetime.utcnow()
+        agent.last_promotion_at = datetime.now(timezone.utc)
         agent.promotion_count = (agent.promotion_count or 0) + 1
 
         # Get current readiness for audit trail
@@ -626,7 +626,7 @@ class GraduationExamService:
             edge_case.times_tested += 1
             if passed:
                 edge_case.times_passed += 1
-            edge_case.last_tested_at = datetime.utcnow()
+            edge_case.last_tested_at = datetime.now(timezone.utc)
 
         all_passed = passed_count == len(edge_cases)
 
@@ -733,7 +733,7 @@ class GraduationExamService:
             exam_id=exam_id,
             promoted_by=promoted_by,
             justification=justification,
-            promoted_at=datetime.utcnow()
+            promoted_at=datetime.now(timezone.utc)
         )
 
         self.db.add(history)

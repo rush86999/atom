@@ -1,6 +1,7 @@
 
 import asyncio
 import datetime
+from datetime import timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -689,7 +690,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                     learnings=f"Failed with error: {str(e)}",
                     agent_role=agent.category,
                     specialty=None,
-                    timestamp=datetime.datetime.utcnow()
+                    timestamp=datetime.datetime.now(timezone.utc)
                 ))
                 raise e
 

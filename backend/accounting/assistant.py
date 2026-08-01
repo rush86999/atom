@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -31,7 +31,7 @@ class AccountingAssistant:
         
         # 1. Use AI to understand intent and extract parameters
         ai_request = AIRequest(
-            request_id=f"finance_query_{int(datetime.utcnow().timestamp())}",
+            request_id=f"finance_query_{int(datetime.now(timezone.utc).timestamp())}",
             task_type=AITaskType.NATURAL_LANGUAGE_COMMANDS,
             model_type=AIModelType.GPT_4,
             service_type=AIServiceType.OPENAI,
@@ -116,7 +116,7 @@ class AccountingAssistant:
         cash_balance = self.ledger.get_account_balance(cash_account.id)
 
         # Calculate monthly burn from actual expense transactions (last 30 days)
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         monthly_burn = self.db.query(JournalEntry).join(Transaction).filter(
             Transaction.workspace_id == workspace_id,
             Transaction.transaction_date >= thirty_days_ago,

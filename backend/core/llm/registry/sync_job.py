@@ -13,7 +13,7 @@ Manual trigger available via API for immediate sync when needed.
 """
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
@@ -85,7 +85,7 @@ class ModelSyncJob:
             >>> print(f"Success: {result['success']}")
             >>> print(f"Created: {result['created']}, Updated: {result['updated']}")
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         self.logger.info(f"Starting sync job for tenant {tenant_id}")
 
         result = {
@@ -104,8 +104,8 @@ class ModelSyncJob:
             if not self.should_sync(tenant_id, self.db, interval_hours=720):
                 self.logger.info(f"Sync not needed for tenant {tenant_id} (recently synced)")
                 result['success'] = True
-                result['sync_timestamp'] = datetime.utcnow()
-                result['duration_seconds'] = (datetime.utcnow() - start_time).total_seconds()
+                result['sync_timestamp'] = datetime.now(timezone.utc)
+                result['duration_seconds'] = (datetime.now(timezone.utc) - start_time).total_seconds()
                 return result
 
             # Fetch and store models using existing service
@@ -120,8 +120,8 @@ class ModelSyncJob:
             result['created'] = stats.get('created', 0)
             result['updated'] = stats.get('updated', 0)
             result['failed'] = stats.get('failed', 0)
-            result['sync_timestamp'] = datetime.utcnow()
-            result['duration_seconds'] = (datetime.utcnow() - start_time).total_seconds()
+            result['sync_timestamp'] = datetime.now(timezone.utc)
+            result['duration_seconds'] = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             self.logger.info(
                 f"Sync complete for tenant {tenant_id}: "
@@ -132,7 +132,7 @@ class ModelSyncJob:
         except Exception as e:
             self.logger.error(f"Sync failed for tenant {tenant_id}: {e}", exc_info=True)
             result['error'] = str(e)
-            result['duration_seconds'] = (datetime.utcnow() - start_time).total_seconds()
+            result['duration_seconds'] = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         return result
 
@@ -151,7 +151,7 @@ class ModelSyncJob:
             >>> job._update_sync_timestamp('tenant-123')
         """
         try:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
 
             # Update all models for tenant
             updated = self.db.query(LLMModel).filter(
@@ -206,7 +206,7 @@ class ModelSyncJob:
 
             # Check if enough time has passed
             last_sync = latest_sync[0]
-            time_since_sync = datetime.utcnow() - last_sync
+            time_since_sync = datetime.now(timezone.utc) - last_sync
             hours_since_sync = time_since_sync.total_seconds() / 3600
 
             should_sync = hours_since_sync >= interval_hours

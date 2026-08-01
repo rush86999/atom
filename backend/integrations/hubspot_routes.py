@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import List, Optional
@@ -953,7 +953,7 @@ async def get_analytics():
                 HubSpotRecentActivity(
                     type=a.get('type', 'Activity'),
                     description=a.get('description', ''),
-                    timestamp=a.get('timestamp', datetime.utcnow().isoformat()),
+                    timestamp=a.get('timestamp', datetime.now(timezone.utc).isoformat()),
                     contact=a.get('contact', '')
                 ) for a in m.get('recent_activities', [])
             ] or [

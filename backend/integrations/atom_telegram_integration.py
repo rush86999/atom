@@ -355,7 +355,7 @@ class AtomTelegramIntegration:
                 'success': True,
                 'channel_id': channel_id,
                 'message': message,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'platform': 'telegram',
                 'metadata': metadata or {}
             }

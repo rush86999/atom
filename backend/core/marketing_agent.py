@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -64,7 +64,7 @@ class RetentionEngine:
         try:
             # Prototype logic: If a customer had a 'COMPLETED' appointment/order > 6 months ago 
             # and nothing since, trigger a nudge.
-            six_months_ago = datetime.utcnow() - timedelta(days=180)
+            six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
             
             # Find customers with no recent activity but past activity
             # (In a real app, this would use many more signals)

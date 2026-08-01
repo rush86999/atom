@@ -14,7 +14,7 @@ import asyncio
 import os
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 from pathlib import Path
 
@@ -594,7 +594,7 @@ class FFmpegService:
 
             # Update status to running
             job.status = "running"
-            job.started_at = datetime.utcnow()
+            job.started_at = datetime.now(timezone.utc)
             job.progress = 10
             db.commit()
 
@@ -608,7 +608,7 @@ class FFmpegService:
                 if job:
                     job.status = "completed"
                     job.progress = 100
-                    job.completed_at = datetime.utcnow()
+                    job.completed_at = datetime.now(timezone.utc)
                     job.result = result
                     db.commit()
 
@@ -626,7 +626,7 @@ class FFmpegService:
                 if job:
                     job.status = "failed"
                     job.error = str(e)
-                    job.completed_at = datetime.utcnow()
+                    job.completed_at = datetime.now(timezone.utc)
                     db.commit()
 
                     logger.error(

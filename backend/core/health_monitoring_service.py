@@ -5,7 +5,7 @@ Monitors agent operations, integration health, and system metrics.
 Provides real-time health status with proactive alerting.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -89,7 +89,7 @@ class HealthMonitoringService:
                 }
 
             # Get recent executions
-            cutoff_time = datetime.utcnow() - timedelta(hours=1)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
             recent_executions = self.db.query(AgentExecution).filter(
                 and_(
                     AgentExecution.agent_id == agent_id,
@@ -300,7 +300,7 @@ class HealthMonitoringService:
                 "total_integrations": total_integrations,
                 "healthy_integrations": healthy_integrations,
                 "alerts": alerts,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         except Exception as e:
@@ -316,7 +316,7 @@ class HealthMonitoringService:
                 "total_integrations": 0,
                 "healthy_integrations": 0,
                 "alerts": {"critical": 0, "warning": 0, "info": 0},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e)
             }
 
@@ -359,7 +359,7 @@ class HealthMonitoringService:
                     "message": f"High CPU usage: {system_metrics['cpu_usage']}%",
                     "source_type": "system",
                     "source_id": "system",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "action_required": True,
                     "acknowledged": False
                 })
@@ -372,7 +372,7 @@ class HealthMonitoringService:
                     "message": f"High memory usage: {system_metrics['memory_usage']}%",
                     "source_type": "system",
                     "source_id": "system",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "action_required": True,
                     "acknowledged": False
                 })
@@ -385,7 +385,7 @@ class HealthMonitoringService:
                     "message": f"High queue depth: {system_metrics['queue_depth']} operations pending",
                     "source_type": "system",
                     "source_id": "system",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "action_required": False,
                     "acknowledged": False
                 })
@@ -407,7 +407,7 @@ class HealthMonitoringService:
                             "message": f"Agent {agent.name} has high error rate: {agent_health['metrics']['error_rate']:.1%}",
                             "source_type": "agent",
                             "source_id": agent.id,
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "action_required": True,
                             "acknowledged": False
                         })
@@ -468,7 +468,7 @@ class HealthMonitoringService:
                     "data": {
                         "alert_id": alert_id,
                         "acknowledged_by": user_id,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                 }
             )
@@ -505,7 +505,7 @@ class HealthMonitoringService:
             ]
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             history = []
 
             if health_type == "agent" and entity_id:
@@ -631,7 +631,7 @@ class HealthMonitoringService:
                 "integration_id": integration.id,
                 "integration_name": integration.name,
                 "status": "error",
-                "last_used": datetime.utcnow().isoformat(),
+                "last_used": datetime.now(timezone.utc).isoformat(),
                 "latency_ms": 0,
                 "error_rate": 1.0,
                 "health_trend": "declining",
@@ -707,7 +707,7 @@ class HealthMonitoringService:
                             "agents": agent_health_list,
                             "integrations": integration_health,
                             "alerts": alerts[:5],  # Limit to top 5
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     }
                 )

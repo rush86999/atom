@@ -7,7 +7,7 @@ Supports pausing/resuming when parameters are missing.
 MIGRATED: Now uses SQLAlchemy async ORM instead of deprecated database_manager
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -39,7 +39,7 @@ class ChatProcessManager:
     ) -> str:
         """Initialize a new chat process"""
         process_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         async with get_async_db_session() as db:
             process = ChatProcess(
@@ -146,7 +146,7 @@ class ChatProcessManager:
             process.outputs = current_outputs
             process.status = new_status
             process.missing_parameters = missing_parameters or []
-            process.updated_at = datetime.utcnow()
+            process.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
 
@@ -188,7 +188,7 @@ class ChatProcessManager:
             process.inputs = current_inputs
             process.missing_parameters = missing_params
             process.status = "active" if len(missing_params) == 0 else "paused"
-            process.updated_at = datetime.utcnow()
+            process.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
 
@@ -210,7 +210,7 @@ class ChatProcessManager:
 
             if process:
                 process.status = "cancelled"
-                process.updated_at = datetime.utcnow()
+                process.updated_at = datetime.now(timezone.utc)
                 await db.commit()
 
     async def get_user_processes(self, user_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:

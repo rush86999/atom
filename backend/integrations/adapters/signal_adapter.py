@@ -4,7 +4,7 @@ Signal Adapter for ATOM Messaging Platform
 Provides integration with Signal secure messaging platform using Signal REST API.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -116,7 +116,7 @@ class SignalAdapter:
 
             return {
                 'ok': True,
-                'message_id': result.get('timestamp', str(datetime.utcnow().timestamp())),
+                'message_id': result.get('timestamp', str(datetime.now(timezone.utc).timestamp())),
                 'recipient': recipient_number,
                 'timestamp': result.get('timestamp'),
                 'payload': result

@@ -368,7 +368,7 @@ class WorkflowExecutionEngine:
                 trigger_data=trigger_data,
                 status=WorkflowExecutionStatus.PENDING,
                 priority=priority,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 execution_context={
                     'workflow_name': workflow.name,
                     'workflow_version': workflow.version,
@@ -460,7 +460,7 @@ class WorkflowExecutionEngine:
                         'action_type': action.type.value,
                         'status': 'success',
                         'result': result,
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
                     
                     self._log_execution(execution, "info", f"Successfully executed action {action.id}")
@@ -477,7 +477,7 @@ class WorkflowExecutionEngine:
                         'action_type': action.type.value,
                         'status': 'timeout',
                         'error': error_msg,
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
                 
                 except Exception as e:
@@ -492,12 +492,12 @@ class WorkflowExecutionEngine:
                         'action_type': action.type.value,
                         'status': 'failed',
                         'error': error_msg,
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
             # Execution completed successfully
             execution.status = WorkflowExecutionStatus.COMPLETED
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             
             self._log_execution(execution, "info", "Workflow execution completed successfully")
             
@@ -510,7 +510,7 @@ class WorkflowExecutionEngine:
             # Execution failed
             execution.status = WorkflowExecutionStatus.FAILED
             execution.error_message = str(e)
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             
             self._log_execution(execution, "error", f"Workflow execution failed: {str(e)}")
             
@@ -538,7 +538,7 @@ class WorkflowExecutionEngine:
         # Extract variables from trigger data
         trigger_variables = {
             'trigger': trigger_data,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'execution_id': execution.id,
             'workflow_id': workflow.id,
             'workflow_name': workflow.name
@@ -621,7 +621,7 @@ class WorkflowExecutionEngine:
                     return {
                         'channel': channel,
                         'message': message,
-                        'timestamp': result.get('timestamp', datetime.utcnow().isoformat()),
+                        'timestamp': result.get('timestamp', datetime.now(timezone.utc).isoformat()),
                         'message_id': result.get('message_id', f"msg_{uuid.uuid4().hex[:8]}"),
                         'method': 'slack_api'
                     }
@@ -632,7 +632,7 @@ class WorkflowExecutionEngine:
         return {
             'channel': channel,
             'message': message,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'message_id': f"msg_{uuid.uuid4().hex[:8]}",
             'method': 'mock'
         }
@@ -655,7 +655,7 @@ class WorkflowExecutionEngine:
                     return {
                         'user_id': user_id,
                         'message': message,
-                        'timestamp': result.get('timestamp', datetime.utcnow().isoformat()),
+                        'timestamp': result.get('timestamp', datetime.now(timezone.utc).isoformat()),
                         'message_id': result.get('message_id', f"dm_{uuid.uuid4().hex[:8]}"),
                         'method': 'slack_api'
                     }
@@ -666,7 +666,7 @@ class WorkflowExecutionEngine:
         return {
             'user_id': user_id,
             'message': message,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'message_id': f"dm_{uuid.uuid4().hex[:8]}",
             'method': 'mock'
         }
@@ -692,7 +692,7 @@ class WorkflowExecutionEngine:
                         'channel_name': channel_name,
                         'is_private': is_private,
                         'channel_id': result.get('channel_id', f"C{uuid.uuid4().hex[:8]}"),
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'method': 'slack_api'
                     }
             except Exception as e:
@@ -703,7 +703,7 @@ class WorkflowExecutionEngine:
             'channel_name': channel_name,
             'is_private': is_private,
             'channel_id': f"C{uuid.uuid4().hex[:8]}",
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'method': 'mock'
         }
 
@@ -729,7 +729,7 @@ class WorkflowExecutionEngine:
                     'channel': channel,
                     'invited_users': result.get('invited_users', user_ids),
                     'failed_users': result.get('failed_users', []),
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'method': 'slack_api'
                 }
             except Exception as e:
@@ -740,7 +740,7 @@ class WorkflowExecutionEngine:
             'channel': channel,
             'invited_users': user_ids,
             'failed_users': [],
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'method': 'mock'
         }
 
@@ -765,7 +765,7 @@ class WorkflowExecutionEngine:
                         'channel': channel,
                         'message_ts': message_ts,
                         'emoji': emoji,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'method': 'slack_api'
                     }
             except Exception as e:
@@ -776,7 +776,7 @@ class WorkflowExecutionEngine:
             'channel': channel,
             'message_ts': message_ts,
             'emoji': emoji,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'method': 'mock'
         }
 
@@ -798,7 +798,7 @@ class WorkflowExecutionEngine:
                     return {
                         'channel': channel,
                         'message_ts': message_ts,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'method': 'slack_api'
                     }
             except Exception as e:
@@ -808,7 +808,7 @@ class WorkflowExecutionEngine:
         return {
             'channel': channel,
             'message_ts': message_ts,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'method': 'mock'
         }
     
@@ -825,7 +825,7 @@ class WorkflowExecutionEngine:
             'description': description,
             'assignee': assignee,
             'status': 'open',
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_update_status(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -837,7 +837,7 @@ class WorkflowExecutionEngine:
         return {
             'status_text': status_text,
             'emoji': emoji,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_call_api(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -853,7 +853,7 @@ class WorkflowExecutionEngine:
             'method': method,
             'status_code': 200,
             'response': {'success': True},
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_send_email(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -867,7 +867,7 @@ class WorkflowExecutionEngine:
             'to': to,
             'subject': subject,
             'email_id': f"email_{uuid.uuid4().hex[:8]}",
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_execute_script(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -881,7 +881,7 @@ class WorkflowExecutionEngine:
             'args': args,
             'exit_code': 0,
             'output': 'Script executed successfully',
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_update_spreadsheet(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -895,7 +895,7 @@ class WorkflowExecutionEngine:
             'spreadsheet_id': spreadsheet_id,
             'range': range,
             'updated_cells': len(values),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_create_meeting(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -912,7 +912,7 @@ class WorkflowExecutionEngine:
             'attendees': attendees,
             'start_time': start_time,
             'duration': duration,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     async def _handle_unknown_action(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
@@ -928,7 +928,7 @@ class WorkflowExecutionEngine:
     def _log_execution(self, execution: WorkflowExecution, level: str, message: str):
         """Log execution event"""
         log_entry = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'level': level,
             'message': message
         }
@@ -971,7 +971,7 @@ class WorkflowExecutionEngine:
                 trigger_data={},
                 status=WorkflowExecutionStatus.RUNNING,
                 priority=WorkflowExecutionPriority.NORMAL,
-                started_at=datetime.utcnow()
+                started_at=datetime.now(timezone.utc)
             )
         
         # Check history

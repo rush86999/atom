@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from accounting.models import (
@@ -108,7 +108,7 @@ class CloseChecklistAgent:
         ).first()
 
         close_record.is_closed = True
-        close_record.closed_at = datetime.utcnow()
+        close_record.closed_at = datetime.now(timezone.utc)
         close_record.closed_by = user_id
         
         self.db.commit()

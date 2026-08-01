@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from service_delivery.models import Project, ProjectTask
@@ -43,7 +43,7 @@ class WorkforceAnalyticsService:
         """
         db = self.db or get_db_session()
         try:
-            start_date = datetime.utcnow() - timedelta(days=days)
+            start_date = datetime.now(timezone.utc) - timedelta(days=days)
             
             # 1. Total Completed Tasks
             completed_tasks = (
@@ -103,7 +103,7 @@ class WorkforceAnalyticsService:
                     })
             
             # Add logic for 'Stalled' tasks (> 7 days in progress)
-            seven_days_ago = datetime.utcnow() - timedelta(days=7)
+            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
             stalled_tasks = (
                 db.query(ProjectTask)
                 .filter(ProjectTask.workspace_id == workspace_id)

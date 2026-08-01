@@ -5,7 +5,7 @@ Provides project health metrics and monitoring.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import uuid4
 
@@ -421,7 +421,7 @@ async def check_project_health(
             overall_status=overall_status,
             metrics=metrics,
             recommendations=recommendations,
-            checked_at=datetime.utcnow(),
+            checked_at=datetime.now(timezone.utc),
             time_range_days=payload.time_range_days
         )
 

@@ -1,6 +1,6 @@
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -74,8 +74,8 @@ class StakeholderEngagementEngine:
                 memory_manager.initialize()
             
             # Fetch last 30 days of comms to identify active contacts
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-            recent_comms = memory_manager.get_communications_by_timeframe(thirty_days_ago, datetime.utcnow())
+            thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+            recent_comms = memory_manager.get_communications_by_timeframe(thirty_days_ago, datetime.now(timezone.utc))
             
             for comm in recent_comms:
                 # Need to identify who is 'the other person'
@@ -130,7 +130,7 @@ class StakeholderEngagementEngine:
             else:
                 last_interaction = last_ts
                 
-            days_since = (datetime.utcnow() - last_interaction).days
+            days_since = (datetime.now(timezone.utc) - last_interaction).days
             
             return {
                 "last_interaction": last_interaction.isoformat(),

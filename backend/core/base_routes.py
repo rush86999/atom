@@ -23,7 +23,7 @@ Usage:
         )
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 import traceback
@@ -86,7 +86,7 @@ class BaseAPIRouter(APIRouter):
         response = {
             "success": True,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if message:
@@ -176,7 +176,7 @@ class BaseAPIRouter(APIRouter):
             "error": {
                 "code": error_code,
                 "message": message,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         }
 
@@ -486,7 +486,7 @@ class BaseAPIRouter(APIRouter):
         log_data = {
             "endpoint": endpoint,
             "method": method,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if user_id:
@@ -526,7 +526,7 @@ async def atom_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 "error": {
                     "code": "HTTP_ERROR",
                     "message": str(detail),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             }
         )
@@ -552,7 +552,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         "error": {
             "code": "INTERNAL_ERROR",
             "message": "An internal error occurred" if not debug_mode else str(exc),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
 

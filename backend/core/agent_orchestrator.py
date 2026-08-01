@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from datetime import timezone
 import json
 import logging
 import time
@@ -95,7 +96,7 @@ class AgentOrchestrator:
             step_data = {
                 "loop": i + 1,
                 "thought": thought,
-                "timestamp": datetime.datetime.utcnow().isoformat()
+                "timestamp": datetime.datetime.now(timezone.utc).isoformat()
             }
             
             # 2. ACT / FINALIZE

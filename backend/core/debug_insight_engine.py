@@ -15,7 +15,7 @@ Features:
 import asyncio
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
@@ -217,7 +217,7 @@ class DebugInsightEngine:
                         {"type": component_type, "id": comp_id}
                         for comp_id in missing_components
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # Compare latest state across components
@@ -262,7 +262,7 @@ class DebugInsightEngine:
                     affected_components=[
                         {"type": component_type, "id": comp_id} for comp_id in component_ids
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # All consistent
@@ -277,7 +277,7 @@ class DebugInsightEngine:
                 affected_components=[
                     {"type": component_type, "id": comp_id} for comp_id in component_ids
                 ],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -326,7 +326,7 @@ class DebugInsightEngine:
                                     suggestions=["Review state data for consistency"],
                                     scope="component",
                                     affected_components=[{"type": snapshot.component_type, "id": snapshot.component_id}],
-                                    generated_at=datetime.utcnow(),
+                                    generated_at=datetime.now(timezone.utc),
                                 )
                             )
 
@@ -386,7 +386,7 @@ class DebugInsightEngine:
                                 }
                                 for e in error_events
                             ],
-                            generated_at=datetime.utcnow(),
+                            generated_at=datetime.now(timezone.utc),
                         )
                     )
 
@@ -453,7 +453,7 @@ class DebugInsightEngine:
                                 {"type": e.component_type, "id": e.component_id}
                                 for e in pattern_events
                             ],
-                            generated_at=datetime.utcnow(),
+                            generated_at=datetime.now(timezone.utc),
                         )
                     )
 
@@ -517,7 +517,7 @@ class DebugInsightEngine:
                             {"type": op["event"].component_type, "id": op["event"].component_id}
                             for op in slow_operations
                         ],
-                        generated_at=datetime.utcnow(),
+                        generated_at=datetime.now(timezone.utc),
                     )
                 )
 
@@ -577,7 +577,7 @@ class DebugInsightEngine:
                             ],
                             scope="system",
                             affected_components=[],
-                            generated_at=datetime.utcnow(),
+                            generated_at=datetime.now(timezone.utc),
                         )
                     )
 
@@ -621,7 +621,7 @@ class DebugInsightEngine:
 
     def _parse_time_range(self, time_range: str) -> Optional[datetime]:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

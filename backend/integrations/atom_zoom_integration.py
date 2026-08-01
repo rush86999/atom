@@ -376,7 +376,7 @@ class AtomZoomIntegration:
                 if self.zoom_config['enable_enterprise_features']:
                     await self._log_message_event('chat_message_sent', channel_id, {
                         'message': message,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'metadata': metadata or {}
                     })
             
@@ -513,7 +513,7 @@ class AtomZoomIntegration:
     async def _get_oauth_token(self):
         """Get OAuth token"""
         try:
-            if self.oauth_token and self.oauth_token_expires and datetime.utcnow() < self.oauth_token_expires:
+            if self.oauth_token and self.oauth_token_expires and datetime.now(timezone.utc) < self.oauth_token_expires:
                 return
             
             # Deprecated: Server-to-Server OAuth (Client Credentials)
@@ -871,7 +871,7 @@ class AtomZoomIntegration:
                 return {
                     'success': True,
                     'message_id': response.json().get('message_id'),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
             else:
                 return {
@@ -981,7 +981,7 @@ class AtomZoomIntegration:
                 topic=topic,
                 meeting_type=ZoomMeetingType.INSTANT,
                 host_id=host_id,
-                start_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
                 duration=0,
                 timezone='UTC',
                 agenda=topic,
@@ -990,7 +990,7 @@ class AtomZoomIntegration:
                 password=None,
                 waiting_room=False,
                 security_level=self.zoom_config['security_level'],
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 status='started',
                 metadata={}
             )
@@ -1025,7 +1025,7 @@ class AtomZoomIntegration:
             if meeting_id in self.active_meetings:
                 meeting = self.active_meetings[meeting_id]
                 meeting.status = 'ended'
-                meeting.duration = int((datetime.utcnow() - meeting.start_time).total_seconds())
+                meeting.duration = int((datetime.now(timezone.utc) - meeting.start_time).total_seconds())
                 
                 # Trigger automation
                 if self.zoom_config['enable_enterprise_features']:

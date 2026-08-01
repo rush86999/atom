@@ -21,7 +21,7 @@ Usage (GEA group evolution):
 import logging
 import json
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.database import SessionLocal
 from core.models import AgentRegistry, AgentFeedback, HITLAction, HITLActionStatus
@@ -55,13 +55,13 @@ class SelfEvolutionService:
             # 1. Fetch recent user feedback
             feedbacks = db.query(AgentFeedback).filter(
                 AgentFeedback.agent_id == agent_id,
-                AgentFeedback.created_at >= datetime.utcnow() - timedelta(days=7)
+                AgentFeedback.created_at >= datetime.now(timezone.utc) - timedelta(days=7)
             ).all()
 
             # 2. Fetch recent HITL actions
             hitls = db.query(HITLAction).filter(
                 HITLAction.agent_id == agent_id,
-                HITLAction.created_at >= datetime.utcnow() - timedelta(days=7)
+                HITLAction.created_at >= datetime.now(timezone.utc) - timedelta(days=7)
             ).all()
 
             approval_rate = 0.0
@@ -87,7 +87,7 @@ class SelfEvolutionService:
                 "recent_feedback_count": len(feedbacks),
                 "detected_bottleneck": bottleneck,
                 "recommendation": recommendation,
-                "last_analysis": datetime.utcnow().isoformat()
+                "last_analysis": datetime.now(timezone.utc).isoformat()
             }
         finally:
             db.close()
@@ -103,7 +103,7 @@ class SelfEvolutionService:
                 config = agent.configuration or {}
                 evolution_history = config.get("evolution_history", [])
                 evolution_history.append({
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "insight": insight
                 })
                 config["evolution_history"] = evolution_history

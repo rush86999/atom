@@ -10,7 +10,7 @@ Changes: Removed Stripe, billing enforcement, tenant isolation, hard-stop blocki
 
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from core.database import SessionLocal
 from core.models import User
 
@@ -80,7 +80,7 @@ class PersonalBudgetService:
             from core.models import AgentExecution
             
             # Get current month's start
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             
             # Query total spend from agent executions
@@ -120,7 +120,7 @@ class PersonalBudgetService:
         current_spend = self.get_current_spend_usd()
         
         # Calculate daily spend rate
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         days_in_month = now.day  # Current day of month (1-31)
         daily_spend = current_spend / max(days_in_month, 1)  # Avoid division by zero
         

@@ -18,7 +18,7 @@ Governance: SUPERVISED+ maturity level required
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -113,7 +113,7 @@ class SpotifyService:
 
             # Calculate token expiration (Spotify tokens expire in 1 hour)
             expires_in = token_data.get("expires_in", 3600)
-            expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
             # Check if OAuth token already exists for this user
             existing_token = (
@@ -132,7 +132,7 @@ class SpotifyService:
                 existing_token.expires_at = expires_at
                 existing_token.scopes = token_data.get("scope", "").split()
                 existing_token.status = "active"
-                existing_token.last_used = datetime.utcnow()
+                existing_token.last_used = datetime.now(timezone.utc)
                 logger.info(f"Updated Spotify OAuth token for user {user_id}")
             else:
                 # Create new token record
@@ -146,7 +146,7 @@ class SpotifyService:
                     scopes=token_data.get("scope", "").split(),
                     expires_at=expires_at,
                     status="active",
-                    last_used=datetime.utcnow(),
+                    last_used=datetime.now(timezone.utc),
                 )
                 self.db.add(new_token)
                 logger.info(f"Created Spotify OAuth token for user {user_id}")
@@ -212,8 +212,8 @@ class SpotifyService:
             # Update token
             expires_in = token_data.get("expires_in", 3600)
             oauth_token.access_token = token_data["access_token"]
-            oauth_token.expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-            oauth_token.last_used = datetime.utcnow()
+            oauth_token.expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            oauth_token.last_used = datetime.now(timezone.utc)
 
             self.db.commit()
 
@@ -265,7 +265,7 @@ class SpotifyService:
             # Reload token after refresh
             self.db.refresh(oauth_token)
 
-        oauth_token.last_used = datetime.utcnow()
+        oauth_token.last_used = datetime.now(timezone.utc)
         self.db.commit()
 
         return oauth_token.access_token

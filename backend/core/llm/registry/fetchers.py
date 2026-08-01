@@ -10,7 +10,7 @@ Fetchers use async HTTP with proper error handling and timeout management.
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 
 from .rate_limiter import APIClientWithRetry, RateLimiter
@@ -249,7 +249,7 @@ class ModelMetadataFetcher:
                 "litellm": litellm_results if isinstance(litellm_results, dict) else {},
                 "openrouter": openrouter_results if isinstance(openrouter_results, dict) else {},
                 "metadata": {
-                    "fetched_at": datetime.utcnow().isoformat(),
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
                     "litellm_count": len(litellm_results) if isinstance(litellm_results, dict) else 0,
                     "openrouter_count": len(openrouter_results) if isinstance(openrouter_results, dict) else 0
                 }
@@ -267,7 +267,7 @@ class ModelMetadataFetcher:
                 "litellm": {},
                 "openrouter": {},
                 "metadata": {
-                    "fetched_at": datetime.utcnow().isoformat(),
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
                     "litellm_count": 0,
                     "openrouter_count": 0,
                     "error": str(e)

@@ -16,7 +16,7 @@ Security Features:
 - Graceful degradation with security-first approach
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address, ip_network
 import logging
 import os
@@ -352,8 +352,8 @@ class JWTVerifier:
 
         payload = {
             "sub": subject,
-            "iat": datetime.utcnow(),
-            "exp": datetime.utcnow() + expires_delta,
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + expires_delta,
             "jti": jti,  # JWT ID for revocation
         }
 

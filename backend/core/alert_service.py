@@ -6,7 +6,7 @@ Supports sliding window evaluation and hysteresis to prevent alert flapping.
 """
 import logging
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from enum import Enum
 
@@ -123,7 +123,7 @@ class AlertThresholdService:
         metrics = get_integration_metrics()
 
         # Calculate error rate over sliding window
-        window_start = datetime.utcnow() - timedelta(seconds=configuration.window_seconds)
+        window_start = datetime.now(timezone.utc) - timedelta(seconds=configuration.window_seconds)
         error_rate = self._calculate_error_rate_in_window(
             metrics, tenant_id, connector_id, window_start
         )
@@ -145,9 +145,9 @@ class AlertThresholdService:
                 actual_value=error_rate,
                 threshold=threshold,
                 severity=AlertSeverity.CRITICAL if error_rate > threshold * 2 else AlertSeverity.WARNING,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 window_start=window_start,
-                window_end=datetime.utcnow()
+                window_end=datetime.now(timezone.utc)
             )
             self._set_alert_state(tenant_id, connector_id, "error_rate", "violated")
         elif current_state == "violated" and error_rate < clear_threshold:
@@ -204,9 +204,9 @@ class AlertThresholdService:
                 actual_value=p95_latency,
                 threshold=threshold,
                 severity=AlertSeverity.WARNING,
-                timestamp=datetime.utcnow(),
-                window_start=datetime.utcnow() - timedelta(seconds=300),
-                window_end=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc),
+                window_start=datetime.now(timezone.utc) - timedelta(seconds=300),
+                window_end=datetime.now(timezone.utc)
             )
 
         return None
@@ -270,7 +270,7 @@ class AlertThresholdService:
                 connector_id=connector_id,
                 status=status,
                 violations=violations,
-                evaluated_at=datetime.utcnow()
+                evaluated_at=datetime.now(timezone.utc)
             ))
 
         return results
@@ -499,7 +499,7 @@ class AlertThresholdService:
                 f"The alert condition has been resolved:\n"
                 f"*Connector:* {connector_id}\n"
                 f"*Metric:* {metric_type}\n"
-                f"*Cleared at:* {datetime.utcnow().isoformat()}\n"
+                f"*Cleared at:* {datetime.now(timezone.utc).isoformat()}\n"
             )
 
             results = {}

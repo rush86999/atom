@@ -10,7 +10,7 @@ Provides mobile-specific authentication endpoints:
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -139,7 +139,7 @@ async def mobile_login(
 
             if device:
                 device.device_info = request.device_info
-                device.last_active = datetime.utcnow()
+                device.last_active = datetime.now(timezone.utc)
                 db.commit()
 
         logger.info(f"Mobile login successful for {request.email}")
@@ -195,7 +195,7 @@ async def register_biometric(
         device_info["biometric_challenge"] = challenge
         device_info["biometric_enabled"] = False  # Will be enabled after first successful auth
         device.device_info = device_info
-        device.last_active = datetime.utcnow()
+        device.last_active = datetime.now(timezone.utc)
         db.commit()
 
         logger.info(f"Biometric registration initiated for device {device.id}")
@@ -280,9 +280,9 @@ async def authenticate_with_biometric(
 
         # Mark biometric as enabled
         device_info["biometric_enabled"] = True
-        device_info["last_biometric_auth"] = datetime.utcnow().isoformat()
+        device_info["last_biometric_auth"] = datetime.now(timezone.utc).isoformat()
         device.device_info = device_info
-        device.last_active = datetime.utcnow()
+        device.last_active = datetime.now(timezone.utc)
         db.commit()
 
         logger.info(f"Biometric authentication successful for user {user.email}")
@@ -438,7 +438,7 @@ async def delete_mobile_device(
         # Mark as inactive instead of deleting
         device.status = "inactive"
         device.notification_enabled = False
-        device.last_active = datetime.utcnow()
+        device.last_active = datetime.now(timezone.utc)
         db.commit()
 
         logger.info(f"Device {device_id} unregistered by user {current_user.email}")

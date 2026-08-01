@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
@@ -110,7 +110,7 @@ class MessagingActionDispatcher:
         proposal.status = 'approved' if is_approval else 'rejected'
         proposal.approver_type = 'user'
         proposal.approver_id = user.id
-        proposal.reviewed_at = datetime.utcnow()
+        proposal.reviewed_at = datetime.now(timezone.utc)
         proposal.approval_reason = payload.get("value") or ("Approved" if is_approval else "Rejected")
         
         db.commit()

@@ -5,7 +5,7 @@ Provides consistent error responses and exception handling across all API endpoi
 Integrates with core/exceptions.py AtomException hierarchy.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 import traceback
@@ -145,7 +145,7 @@ def api_error(
         "error_code": error_code.value,
         "message": message,
         "details": details or {},
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     if request_id:
@@ -190,7 +190,7 @@ def success_response(
         "success": True,
         "data": data,
         "message": message,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -236,7 +236,7 @@ def paginated_response(
             "has_next": page < total_pages,
             "has_prev": page > 1
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -281,7 +281,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         error_code=error_code.value,
         message=error_message,
         details={"traceback": traceback.format_exc()} if os.getenv("ENVIRONMENT") == "development" else None,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         request_id=request_id
     )
 
@@ -342,7 +342,7 @@ async def atom_exception_handler(request: Request, exc: AtomException) -> JSONRe
         error_code=exc.error_code.value,
         message=exc.message,
         details=exc.details if exc.details else None,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         request_id=request_id
     )
 
@@ -462,7 +462,7 @@ class InvoiceError(Exception):
         self.message = message
         self.code = code
         self.details = details or {}
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         # Set http_status from HTTP_STATUS_MAP
         self.http_status = HTTP_STATUS_MAP.get(code, 500)
         super().__init__(self.message)

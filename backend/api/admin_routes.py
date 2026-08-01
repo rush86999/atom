@@ -350,7 +350,7 @@ async def update_admin_last_login(
         raise router.not_found_error("AdminUser", admin_id)
 
     # Update last login
-    admin.last_login = datetime.utcnow()
+    admin.last_login = datetime.now(timezone.utc)
     db.commit()
 
     return UpdateLastLoginResponse(message="Last login updated")

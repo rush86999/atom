@@ -14,7 +14,7 @@ Performance: <1ms cached lookups via GovernanceCache integration
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from sqlalchemy.orm import Session
@@ -218,7 +218,7 @@ class PackageGovernanceService:
         if package:
             # Update existing package entry
             package.status = self.STATUS_PENDING
-            package.updated_at = datetime.utcnow()
+            package.updated_at = datetime.now(timezone.utc)
             logger.info(f"Updated {package_type} package {package_id} to pending status")
         else:
             # Create new package registry entry
@@ -281,8 +281,8 @@ class PackageGovernanceService:
             package.status = self.STATUS_ACTIVE
             package.min_maturity = min_maturity
             package.approved_by = approved_by
-            package.approved_at = datetime.utcnow()
-            package.updated_at = datetime.utcnow()
+            package.approved_at = datetime.now(timezone.utc)
+            package.updated_at = datetime.now(timezone.utc)
             logger.info(
                 f"Approved {package_type} package {package_id} for maturity {min_maturity}+ "
                 f"by {approved_by}"
@@ -297,7 +297,7 @@ class PackageGovernanceService:
                 status=self.STATUS_ACTIVE,
                 min_maturity=min_maturity,
                 approved_by=approved_by,
-                approved_at=datetime.utcnow()
+                approved_at=datetime.now(timezone.utc)
             )
             db.add(package)
             logger.info(
@@ -343,7 +343,7 @@ class PackageGovernanceService:
             # Update existing package
             package.status = self.STATUS_BANNED
             package.ban_reason = reason
-            package.updated_at = datetime.utcnow()
+            package.updated_at = datetime.now(timezone.utc)
             logger.warning(f"Banned {package_type} package {package_id}: {reason}")
         else:
             # Create new banned package

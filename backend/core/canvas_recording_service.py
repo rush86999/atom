@@ -11,7 +11,7 @@ Features:
 - Playback and review support
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -118,7 +118,7 @@ class CanvasRecordingService:
                 recording_metadata={
                     "agent_name": agent.name if agent else "Unknown",
                     "agent_maturity": agent.status if agent else None,
-                    "started_at": datetime.utcnow().isoformat()
+                    "started_at": datetime.now(timezone.utc).isoformat()
                 }
             )
 
@@ -192,7 +192,7 @@ class CanvasRecordingService:
 
             # Add event
             event = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "event_type": event_type,
                 "data": event_data
             }
@@ -202,7 +202,7 @@ class CanvasRecordingService:
             events_list.append(event)
             recording.events = events_list
 
-            recording.updated_at = datetime.utcnow()
+            recording.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             # Don't refresh here - let the next query get fresh data
 
@@ -240,17 +240,17 @@ class CanvasRecordingService:
 
             # Calculate duration
             started_at = recording.started_at
-            duration_seconds = (datetime.utcnow() - started_at).total_seconds()
+            duration_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
 
             # Update recording
             recording.status = status
-            recording.stopped_at = datetime.utcnow()
+            recording.stopped_at = datetime.now(timezone.utc)
             recording.duration_seconds = duration_seconds
             recording.summary = summary or self._generate_summary(recording)
             recording.event_count = len(recording.events)
 
             # Calculate retention date
-            recording.expires_at = datetime.utcnow() + timedelta(days=RECORDING_RETENTION_DAYS)
+            recording.expires_at = datetime.now(timezone.utc) + timedelta(days=RECORDING_RETENTION_DAYS)
 
             self.db.commit()
 
@@ -472,7 +472,7 @@ class CanvasRecordingService:
                 recording.flagged_for_review = True
                 recording.flag_reason = flag_reason
                 recording.flagged_by = flagged_by
-                recording.flagged_at = datetime.utcnow()
+                recording.flagged_at = datetime.now(timezone.utc)
 
                 # Update tags list
                 tags_list = recording.tags if recording.tags else []

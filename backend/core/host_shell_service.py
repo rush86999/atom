@@ -19,7 +19,7 @@ import asyncio
 import os
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from core.models import ShellSession, AgentRegistry
@@ -485,7 +485,7 @@ class HostShellService:
             command=command,
             command_whitelist_valid=True,
             working_directory=working_directory,
-            started_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc)
         )
 
         db.add(session)
@@ -534,7 +534,7 @@ class HostShellService:
             session.stdout = stdout.decode("utf-8", errors="replace")
             session.stderr = stderr.decode("utf-8", errors="replace")
             session.timed_out = timed_out
-            session.completed_at = datetime.utcnow()
+            session.completed_at = datetime.now(timezone.utc)
             session.duration_seconds = (
                 session.completed_at - session.started_at
             ).total_seconds()
@@ -559,7 +559,7 @@ class HostShellService:
 
         except Exception as e:
             # Log failure
-            session.completed_at = datetime.utcnow()
+            session.completed_at = datetime.now(timezone.utc)
             session.stderr = str(e)
             session.exit_code = -1
             db.commit()

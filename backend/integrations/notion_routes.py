@@ -3,7 +3,7 @@ Notion Integration Routes
 Complete Notion OAuth integration with secure token storage
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 from typing import Dict, List, Optional
@@ -168,7 +168,7 @@ async def handle_oauth_callback(
         ).update({"status": "revoked"})
 
         # Notion access tokens don't expire, but we set a default for safety
-        expires_at = datetime.utcnow() + timedelta(days=365)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=365)
 
         # Store new token
         notion_token = NotionToken(
@@ -248,7 +248,7 @@ async def get_notion_access_token(
 
     if notion_token:
         # Check if token is expired
-        if notion_token.expires_at and notion_token.expires_at < datetime.utcnow():
+        if notion_token.expires_at and notion_token.expires_at < datetime.now(timezone.utc):
             logging.warning(f"Notion token for user {current_user.id} is expired")
             # Mark as expired
             notion_token.status = "expired"
@@ -259,7 +259,7 @@ async def get_notion_access_token(
             )
 
         # Update last_used timestamp
-        notion_token.last_used = datetime.utcnow()
+        notion_token.last_used = datetime.now(timezone.utc)
         db.commit()
 
         logging.info(f"Using Notion access token from database for user {current_user.id}")

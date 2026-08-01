@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, Optional
 from accounting.categorizer import AICategorizer
@@ -75,7 +75,7 @@ class TransactionIngestor:
 
         transaction = self.ledger.record_transaction(
             workspace_id=workspace_id,
-            transaction_date=datetime.utcnow(),
+            transaction_date=datetime.now(timezone.utc),
             description=description,
             entries=entries,
             source="stripe",

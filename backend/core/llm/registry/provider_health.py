@@ -8,7 +8,7 @@ import logging
 import json
 from enum import Enum
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.cache import UniversalCacheService
 
@@ -84,7 +84,7 @@ class ProviderHealthService:
         data['success_count'] = data.get('success_count', 0) + 1
         data['consecutive_successes'] = data.get('consecutive_successes', 0) + 1
         data['consecutive_failures'] = 0  # Reset failure streak
-        data['last_success_ts'] = datetime.utcnow().isoformat()
+        data['last_success_ts'] = datetime.now(timezone.utc).isoformat()
 
         # Update rolling average latency
         current_avg = data.get('avg_latency_ms', latency_ms)
@@ -125,7 +125,7 @@ class ProviderHealthService:
         data['error_count'] = data.get('error_count', 0) + 1
         data['consecutive_failures'] = data.get('consecutive_failures', 0) + 1
         data['consecutive_successes'] = 0  # Reset success streak
-        data['last_error_ts'] = datetime.utcnow().isoformat()
+        data['last_error_ts'] = datetime.now(timezone.utc).isoformat()
         data['last_error'] = error
 
         # Update state based on error type and patterns

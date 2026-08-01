@@ -13,7 +13,7 @@ import hmac
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, Request, status
@@ -279,7 +279,7 @@ class IMGovernanceService:
                     signature_valid=signature_valid,
                     governance_check_passed=governance_check_passed,
                     agent_maturity_level=agent_maturity_level,
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
 
                 self.db.add(audit_log)
@@ -379,7 +379,7 @@ class IMGovernanceService:
         Returns:
             True if within rate limit, False if exceeded
         """
-        now = datetime.utcnow().timestamp()
+        now = datetime.now(timezone.utc).timestamp()
 
         # Get or initialize request history for this key
         if key not in self._rate_limit_store:
@@ -413,7 +413,7 @@ class IMGovernanceService:
         key = f"{platform}:{sender_id}"
         requests = self._rate_limit_store.get(key, [])
 
-        now = datetime.utcnow().timestamp()
+        now = datetime.now(timezone.utc).timestamp()
         # Remove old requests
         requests[:] = [req_time for req_time in requests if now - req_time < self.rate_limit_window]
 

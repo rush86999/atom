@@ -15,7 +15,7 @@ Example insights:
 
 import asyncio
 from collections import defaultdict, Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
@@ -113,7 +113,7 @@ class ErrorCausalityInsightGenerator:
                     affected_components=[
                         {"type": error_event.component_type, "id": error_event.component_id}
                     ],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             # Analyze the chain
@@ -160,7 +160,7 @@ class ErrorCausalityInsightGenerator:
                 affected_components=[
                     {"type": e.component_type, "id": e.component_id} for e in chain
                 ],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -243,7 +243,7 @@ class ErrorCausalityInsightGenerator:
                     {"type": e.component_type, "id": e.component_id}
                     for e, _ in propagation_order
                 ],
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -344,7 +344,7 @@ class ErrorCausalityInsightGenerator:
                         ],
                         scope="distributed",
                         affected_components=affected_components,
-                        generated_at=datetime.utcnow(),
+                        generated_at=datetime.now(timezone.utc),
                     )
                 )
 
@@ -515,7 +515,7 @@ class ErrorCausalityInsightGenerator:
                     ],
                     scope="component",
                     affected_components=[{"type": component_type}],
-                    generated_at=datetime.utcnow(),
+                    generated_at=datetime.now(timezone.utc),
                 )
 
             return None
@@ -530,7 +530,7 @@ class ErrorCausalityInsightGenerator:
 
     def _parse_time_range(self, time_range: str) -> datetime:
         """Parse time range string to datetime."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if time_range == "last_1h":
             return now - timedelta(hours=1)

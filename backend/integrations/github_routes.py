@@ -93,7 +93,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
                                     "ok": False,
                                     "error": "GitHub token expired",
                                     "error_code": "OAUTH_TOKEN_EXPIRED",
-                                    "timestamp": datetime.utcnow().isoformat()
+                                    "timestamp": datetime.now(timezone.utc).isoformat()
                                 }
                             )
                         return None
@@ -142,7 +142,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
                     "ok": False,
                     "error": "GitHub authentication required. Please connect your GitHub account.",
                     "error_code": "OAUTH_TOKEN_INVALID",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
 
@@ -232,7 +232,7 @@ async def health_check():
                 "ok": False,
                 "status": "unhealthy",
                 "error": "GitHub services not available",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         
         # Test GitHub service
@@ -244,14 +244,14 @@ async def health_check():
                 "message": "GitHub API is accessible",
                 "service_available": GITHUB_AVAILABLE,
                 "service_info": service_info,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             return {
                 "ok": False,
                 "status": "degraded",
                 "error": f"GitHub service error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
     except Exception as e:
@@ -259,7 +259,7 @@ async def health_check():
             "ok": False,
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 @router.post("/repositories")
@@ -324,7 +324,7 @@ async def list_repositories(request: RepoRequest, current_user: User = Depends(g
                 }
             },
             'endpoint': 'list_repositories',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -396,7 +396,7 @@ async def create_repository(request: CreateRepoRequest, current_user: User = Dep
                 'message': 'Repository created successfully'
             },
             'endpoint': 'create_repository',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -472,7 +472,7 @@ async def list_issues(request: IssueRequest, current_user: User = Depends(get_cu
                 }
             },
             'endpoint': 'list_issues',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -536,7 +536,7 @@ async def create_issue(request: CreateIssueRequest, current_user: User = Depends
                 'message': 'Issue created successfully'
             },
             'endpoint': 'create_issue',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -613,7 +613,7 @@ async def list_pull_requests(request: PullRequestRequest, current_user: User = D
                 }
             },
             'endpoint': 'list_pull_requests',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -685,7 +685,7 @@ async def create_pull_request(request: CreatePullRequestRequest, current_user: U
                 'message': 'Pull request created successfully'
             },
             'endpoint': 'create_pull_request',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     
@@ -741,7 +741,7 @@ async def get_user_profile(request: UserRequest, current_user: User = Depends(ge
                 'user': tokens['user_info']
             },
             'endpoint': 'get_user_profile',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': 'github_api'
         }
     

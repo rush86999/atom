@@ -4,7 +4,7 @@ Transaction ingestion, AI categorization, and Chart of Accounts learning.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 import logging
@@ -385,7 +385,7 @@ class AIAccountingEngine:
     def export_trial_balance_json(self) -> Dict[str, Any]:
         """Export summarized balances for all accounts"""
         report = {
-            "export_date": datetime.utcnow().isoformat(),
+            "export_date": datetime.now(timezone.utc).isoformat(),
             "standard": "Multi-Standard (GAAP/IFRS Ready)",
             "accounts": []
         }

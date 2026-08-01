@@ -5,7 +5,7 @@ Extends the existing ExecutionStateManager with multi-step, pause/resume, and mu
 MIGRATED: Now uses SQLAlchemy async ORM instead of raw SQL via database_manager
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import json
 import logging
@@ -232,7 +232,7 @@ class EnhancedExecutionStateManager(ExecutionStateManager):
                     {
                         "execution_id": state.execution_id,
                         "enhanced_data": json.dumps(enhanced_data),
-                        "updated_at": datetime.utcnow().isoformat()
+                        "updated_at": datetime.now(timezone.utc).isoformat()
                     }
                 )
             else:
@@ -247,7 +247,7 @@ class EnhancedExecutionStateManager(ExecutionStateManager):
                         "execution_id": state.execution_id,
                         "workflow_id": state.workflow_id,
                         "enhanced_data": json.dumps(enhanced_data),
-                        "updated_at": datetime.utcnow().isoformat()
+                        "updated_at": datetime.now(timezone.utc).isoformat()
                     }
                 )
             await db.commit()

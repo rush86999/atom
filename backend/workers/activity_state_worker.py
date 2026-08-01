@@ -12,7 +12,7 @@ State Transitions:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_db
 from core.user_activity_service import UserActivityService
@@ -102,7 +102,7 @@ class ActivityStateWorker:
 
         try:
             # Find expired manual overrides
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             expired = db.query(UserActivity).filter(
                 UserActivity.manual_override == True,
                 UserActivity.manual_override_expires_at.isnot(None),

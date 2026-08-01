@@ -5163,14 +5163,14 @@ class PasswordResetToken(Base):
     def is_valid(self) -> bool:
         """Check if token is valid (not used and not expired)"""
         from datetime import datetime
-        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.utcnow()
+        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now(timezone.utc)
         return not self.used and now < self.expires_at
 
     def mark_as_used(self, ip_address: str = None):
         """Mark token as used"""
         from datetime import datetime
         self.used = True
-        self.used_at = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.utcnow()
+        self.used_at = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now(timezone.utc)
         self.used_ip = ip_address
 
 # ========================================================================

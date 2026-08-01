@@ -8,7 +8,7 @@ when agents complete significant operations.
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -85,7 +85,7 @@ class OperationTrackerHooks:
             return False
 
         last_post = OperationTrackerHooks._rate_limit_tracker[agent_id]
-        time_since_last = datetime.utcnow() - last_post
+        time_since_last = datetime.now(timezone.utc) - last_post
 
         return time_since_last < timedelta(minutes=OperationTrackerHooks.RATE_LIMIT_MINUTES)
 
@@ -97,10 +97,10 @@ class OperationTrackerHooks:
         Args:
             agent_id: Agent ID to update
         """
-        OperationTrackerHooks._rate_limit_tracker[agent_id] = datetime.utcnow()
+        OperationTrackerHooks._rate_limit_tracker[agent_id] = datetime.now(timezone.utc)
 
         # Cleanup old entries (older than 1 hour)
-        cutoff = datetime.utcnow() - timedelta(hours=OperationTrackerHooks.CLEANUP_INTERVAL_HOURS)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=OperationTrackerHooks.CLEANUP_INTERVAL_HOURS)
         OperationTrackerHooks._rate_limit_tracker = {
             k: v for k, v in OperationTrackerHooks._rate_limit_tracker.items()
             if v > cutoff

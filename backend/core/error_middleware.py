@@ -16,7 +16,7 @@ Integration:
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -68,7 +68,7 @@ class ErrorStatistics:
             "type": error_type,
             "endpoint": endpoint,
             "status_code": status_code,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         # Keep only last 100 errors
@@ -336,7 +336,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             "error": {
                 "code": self._get_error_code(exc, error_info),
                 "message": self._get_error_message(exc, error_info),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "request_id": request_context.get("path", "unknown")
             }
         }
