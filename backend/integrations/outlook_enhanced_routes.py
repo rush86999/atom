@@ -42,6 +42,6 @@ async def capabilities() -> Dict[str, Any]:
     except AttributeError:
         return {"operations": [], "message": "no capabilities method"}
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
 

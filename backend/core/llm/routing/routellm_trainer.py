@@ -393,8 +393,9 @@ class RouteLLMTrainer:
             return False
 
         try:
+            from core.llm.routing.restricted_pickle import restricted_load
             with open(model_file, 'rb') as f:
-                self.model = pickle.load(f)
+                self.model = restricted_load(f)
 
             logger.info(f"Model loaded from {model_file}")
             return True
