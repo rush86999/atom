@@ -31,6 +31,7 @@ from operations.system_intelligence_service import SystemIntelligenceService
 from pydantic import BaseModel
 
 from core.auth import get_current_user
+from core.rbac_service import Permission, RBACService
 from core.chat_context_manager import get_chat_context_manager
 from core.chat_session_manager import get_chat_session_manager
 from core.models import User
@@ -1065,27 +1066,33 @@ async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any
     if refusal:
         return refusal
 
+    # R69: capture whether the scheduling user may run critical definitions.
+    authorized = bool(user) and RBACService.check_permission(user, Permission.WORKFLOW_MANAGE)
+
     # Register with scheduler
     job_id = f"{workflow['workflow_id']}_{uuid.uuid4().hex[:8]}"
-    
+
     try:
         if schedule_info["schedule_type"] == "cron":
             workflow_scheduler.schedule_workflow_cron(
                 job_id=job_id,
                 workflow_id=workflow['workflow_id'],
-                cron_expression=schedule_info["cron_expression"]
+                cron_expression=schedule_info["cron_expression"],
+                authorized=authorized
             )
         elif schedule_info["schedule_type"] == "interval":
             workflow_scheduler.schedule_workflow_interval(
                 job_id=job_id,
                 workflow_id=workflow['workflow_id'],
-                interval_minutes=schedule_info["interval_minutes"]
+                interval_minutes=schedule_info["interval_minutes"],
+                authorized=authorized
             )
         elif schedule_info["schedule_type"] == "date":
             workflow_scheduler.schedule_workflow_once(
                 job_id=job_id,
                 workflow_id=workflow['workflow_id'],
-                run_date=schedule_info["run_date"]
+                run_date=schedule_info["run_date"],
+                authorized=authorized
             )
             
         return {

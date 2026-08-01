@@ -112,46 +112,66 @@ class WorkflowScheduler:
         self.engine = engine
 
     @staticmethod
-    async def _execute_job(workflow_id: str, input_data: Dict[str, Any] = None):
-        """Internal job function to execute a workflow"""
+    async def _execute_job(workflow_id: str, input_data: Dict[str, Any] = None, authorized: bool = False):
+        """Internal job function to execute a workflow.
+
+        R69: the schedule caller decides whether the scheduler may run critical
+        definitions (steps or AutomationEngine nodes). Critical executions only
+        fire when the scheduling user held WORKFLOW_MANAGE at schedule time —
+        otherwise the fire is a no-op.
+        """
         logger.info(f"Executing scheduled workflow: {workflow_id}")
-        
+
         try:
             # Instantiate engine on demand to ensure fresh state and avoid circular imports at module level
             from ai.automation_engine import AutomationEngine
             engine = AutomationEngine()
-            
+
             # Load workflows
             from core.workflow_endpoints import load_workflows
+            from core.workflow_security import (
+                has_critical_automation_nodes,
+                has_critical_definition,
+            )
             workflows = load_workflows()
             workflow_def = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
-            
+
             if workflow_def:
+                # R69: skip critical definitions (orchestrator steps OR
+                # AutomationEngine nodes) unless the scheduler was authorized.
+                if (has_critical_definition(workflow_def) or has_critical_automation_nodes(workflow_def)) and not authorized:
+                    logger.warning(
+                        "Skipping scheduled critical workflow %s (schedule not authorized for WORKFLOW_MANAGE)",
+                        workflow_id,
+                    )
+                    return
                 # Execute with a special execution ID prefix
                 execution_id = f"sched_{datetime.now().strftime('%Y%m%d%H%M%S')}_{workflow_id[:8]}"
                 await engine.execute_workflow_definition(workflow_def, input_data or {}, execution_id=execution_id)
                 logger.info(f"Scheduled execution {execution_id} completed")
             else:
                 logger.error(f"Scheduled workflow {workflow_id} not found")
-                
+
         except Exception as e:
             logger.error(f"Error executing scheduled workflow {workflow_id}: {e}")
 
-    def schedule_workflow(self, workflow_id: str, trigger_type: str, trigger_config: Dict[str, Any], input_data: Dict[str, Any] = None) -> str:
+    def schedule_workflow(self, workflow_id: str, trigger_type: str, trigger_config: Dict[str, Any], input_data: Dict[str, Any] = None, authorized: bool = False) -> str:
         """
         Schedule a workflow execution.
-        
+
         Args:
             workflow_id: ID of the workflow to schedule
             trigger_type: 'cron', 'interval', or 'date'
             trigger_config: Configuration for the trigger (e.g. cron expression)
             input_data: Optional input data for the workflow
-            
+            authorized: R69 — True only when the scheduling user held
+                WORKFLOW_MANAGE, allowing critical definitions to fire.
+
         Returns:
             job_id: The ID of the scheduled job
         """
         job_id = f"job_{workflow_id}_{datetime.now().timestamp()}"
-        
+
         trigger = None
         if trigger_type == 'cron':
             trigger = CronTrigger(**trigger_config)
@@ -161,46 +181,46 @@ class WorkflowScheduler:
             trigger = DateTrigger(**trigger_config)
         else:
             raise ValueError(f"Unsupported trigger type: {trigger_type}")
-            
+
         self.scheduler.add_job(
             self._execute_job,
             trigger=trigger,
-            args=[workflow_id, input_data],
+            args=[workflow_id, input_data, authorized],
             id=job_id,
             replace_existing=True
         )
         return job_id
 
-    def schedule_workflow_cron(self, job_id: str, workflow_id: str, cron_expression: str):
+    def schedule_workflow_cron(self, job_id: str, workflow_id: str, cron_expression: str, authorized: bool = False):
         """Schedule a workflow using cron expression"""
         self.scheduler.add_job(
             self._execute_job,
             CronTrigger.from_crontab(cron_expression),
-            args=[workflow_id],
+            args=[workflow_id, None, authorized],
             id=job_id,
             replace_existing=True
         )
         logger.info(f"Scheduled cron job {job_id} for workflow {workflow_id}: {cron_expression}")
         return job_id
 
-    def schedule_workflow_interval(self, job_id: str, workflow_id: str, interval_minutes: int):
+    def schedule_workflow_interval(self, job_id: str, workflow_id: str, interval_minutes: int, authorized: bool = False):
         """Schedule a workflow using interval"""
         self.scheduler.add_job(
             self._execute_job,
             IntervalTrigger(minutes=interval_minutes),
-            args=[workflow_id],
+            args=[workflow_id, None, authorized],
             id=job_id,
             replace_existing=True
         )
         logger.info(f"Scheduled interval job {job_id} for workflow {workflow_id}: {interval_minutes}m")
         return job_id
 
-    def schedule_workflow_once(self, job_id: str, workflow_id: str, run_date: str):
+    def schedule_workflow_once(self, job_id: str, workflow_id: str, run_date: str, authorized: bool = False):
         """Schedule a workflow once at a specific date"""
         self.scheduler.add_job(
             self._execute_job,
             DateTrigger(run_date=run_date),
-            args=[workflow_id],
+            args=[workflow_id, None, authorized],
             id=job_id,
             replace_existing=True
         )

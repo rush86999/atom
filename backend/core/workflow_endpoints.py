@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.models import User
-from core.rbac_service import Permission
+from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
 from core.workflow_security import require_workflow_executor
 
@@ -605,7 +605,11 @@ async def schedule_workflow(
         if not trigger_type or not trigger_config:
             raise HTTPException(status_code=400, detail="Missing trigger_type or trigger_config")
             
-        job_id = workflow_scheduler.schedule_workflow(workflow_id, trigger_type, trigger_config, input_data)
+        # R69: record whether the scheduling user may run critical definitions.
+        # The scheduler fire skips critical defs unless authorized was captured
+        # as True (WORKFLOW_MANAGE) at schedule time.
+        authorized = RBACService.check_permission(user, Permission.WORKFLOW_MANAGE)
+        job_id = workflow_scheduler.schedule_workflow(workflow_id, trigger_type, trigger_config, input_data, authorized=authorized)
         
         return {"success": True, "job_id": job_id, "message": f"Workflow scheduled with ID {job_id}"}
         
