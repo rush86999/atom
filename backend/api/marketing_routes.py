@@ -134,7 +134,7 @@ async def score_lead(
     return scoring_result
 
 @router.get("/reputation/analyze")
-async def analyze_reputation(interaction: str):
+async def analyze_reputation(interaction: str, current_user: User = Depends(get_current_user)):
     """
     Analyzes an interaction and suggests a feedback strategy (Public vs Private).
     """
@@ -142,7 +142,7 @@ async def analyze_reputation(interaction: str):
     return strategy
 
 @router.get("/gmb/weekly-post/suggest")
-async def suggest_gmb_post(business_name: str, location: str, events: List[str] = Query(None)):
+async def suggest_gmb_post(business_name: str, location: str, events: List[str] = Query(None), current_user: User = Depends(get_current_user)):
     """
     Suggests a weekly GMB post.
     """

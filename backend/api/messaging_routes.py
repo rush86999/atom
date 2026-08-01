@@ -5,10 +5,12 @@ Provides REST endpoints for proactive messaging, scheduled messages,
 and condition monitoring features.
 """
 
+import hmac
+import os
 from datetime import datetime, timezone
 import logging
 from typing import List, Optional
-from fastapi import BackgroundTasks, Depends, HTTPException, status
+from fastapi import BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -26,6 +28,15 @@ from core.proactive_messaging_service import ProactiveMessagingService
 logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/v1/messaging", tags=["messaging"])
+
+
+def _require_scheduler_secret(x_scheduler_secret: Optional[str] = Header(None)):
+    """Internal shared-secret gate (R69). Fail closed 401 when the env secret is
+    unset or mismatched — constant-time comparison, not a presence-only check."""
+    secret = os.getenv("ATOM_SCHEDULER_SECRET")
+    if not secret or not x_scheduler_secret or not hmac.compare_digest(x_scheduler_secret, secret):
+        raise HTTPException(status_code=401, detail="Invalid scheduler secret")
+    return True
 
 
 # ============================================================================
@@ -121,6 +132,7 @@ async def send_proactive_message(
 @router.post("/proactive/schedule", response_model=ProactiveMessageResponse)
 async def schedule_proactive_message(
     request: CreateProactiveMessageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -276,6 +288,7 @@ async def get_message_history(
 @router.get("/proactive/{message_id}", response_model=ProactiveMessageResponse)
 async def get_proactive_message(
     message_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get a specific proactive message by ID."""
@@ -292,6 +305,7 @@ async def get_proactive_message(
 @router.post("/proactive/_send_scheduled")
 async def send_scheduled_messages(
     background_tasks: BackgroundTasks,
+    _: bool = Depends(_require_scheduler_secret),
     db: Session = Depends(get_db),
 ):
     """

@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
 from core.models import User, WorkflowTemplate
 from core.rbac_service import Permission
@@ -628,7 +629,7 @@ async def create_workflow_definition(payload: Dict[str, Any]):
     return {"success": True, "workflow": new_workflow.dict()}
 
 @router.get("/executions")
-async def get_executions():
+async def get_executions(current_user: User = Depends(get_current_user)):
     # Fetch real executions from the orchestrator
     try:
         from advanced_workflow_orchestrator import WorkflowStatus, get_orchestrator
@@ -871,7 +872,7 @@ async def cancel_execution(execution_id: str):
             return {"success": True}
     raise HTTPException(status_code=404, detail="Execution not found")
 @router.get("/debug/state")
-async def get_orchestrator_state():
+async def get_orchestrator_state(current_user: User = Depends(get_current_user)):
     """Debug endpoint to inspect orchestrator memory"""
     from advanced_workflow_orchestrator import get_orchestrator
     orchestrator = get_orchestrator()

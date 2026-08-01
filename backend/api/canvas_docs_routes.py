@@ -265,7 +265,7 @@ async def resolve_comment(
 
 
 @router.get("/{canvas_id}/versions")
-async def get_document_versions(canvas_id: str, db: Session = Depends(get_db)):
+async def get_document_versions(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Get version history for a document.
 
@@ -315,7 +315,7 @@ async def restore_version(canvas_id: str, request: RestoreVersionRequest, curren
 
 
 @router.get("/{canvas_id}/toc")
-async def get_table_of_contents(canvas_id: str, db: Session = Depends(get_db)):
+async def get_table_of_contents(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Generate table of contents from document headings.
 

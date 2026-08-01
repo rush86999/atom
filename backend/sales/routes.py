@@ -7,9 +7,15 @@ from sales.lead_manager import LeadManager
 from sales.models import CallTranscript, Deal, Lead
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
 
-router = APIRouter(prefix="/api/sales", tags=["Sales Automation"])
+# R69: whole-router auth — every sales route mutates state / runs AI analysis.
+router = APIRouter(
+    prefix="/api/sales",
+    tags=["Sales Automation"],
+    dependencies=[Depends(get_current_user)],
+)
 
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(

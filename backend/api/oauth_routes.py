@@ -248,7 +248,7 @@ async def revoke_oauth_token(
     return {"status": "success", "message": f"Revoked {provider} integration"}
 
 @router.get("/config-status")
-async def oauth_config_status():
+async def oauth_config_status(current_user: User = Depends(get_current_user)):
     """Check configuration status of all OAuth providers."""
     configs = {
         "google": GOOGLE_OAUTH_CONFIG,
