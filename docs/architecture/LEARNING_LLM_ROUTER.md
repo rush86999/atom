@@ -100,6 +100,12 @@ Double-checked locking for thread safety.
 Without the singleton, every call constructed a throwaway router and predictors
 were trained and immediately garbage-collected — the engine was inert.
 
+**Predictor cache key dimensions:** `f"{tenant_id}:{task_type}:{intent}"`. The
+third dimension (intent) comes from the [intent detector](COGNITIVE_TIER_SYSTEM.md#intent-detection-domain-classifier)
+and lets per-model predictors learn intent-specific preferences (e.g. DeepSeek wins
+coding intents even within the same `task_type`). When intent is not detected, it
+defaults to `"_"` — no behavior change from the pre-intent two-dimensional key.
+
 ### Per-model predictors (`core/llm/routing/per_model_router.py`)
 
 Model identity enters routing through **which predictor you query**, not

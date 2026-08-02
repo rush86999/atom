@@ -216,6 +216,42 @@ if quality < 80:
     response = await service.handle_escalation(prompt, tier, response)
 ```
 
+### Intent Detection (Domain Classifier)
+
+**File:** `core/llm/intent_detector.py`
+
+The cognitive tier system answers *"how hard is this?"* — the **intent detector** answers
+*"what kind of task is this?"*. It classifies prompts into 6 routing-relevant domains that
+complement complexity for model selection:
+
+| Intent | Example | Routing effect |
+|--------|---------|----------------|
+| `coding` | "debug this function" | Floor tier at VERSATILE (strong models needed) |
+| `data_analysis` | "analyze this CSV with pandas" | Floor tier at STANDARD |
+| `web_browsing` | "search the web for prices" | No tier nudge (capability-based routing) |
+| `creative_writing` | "write a poem" | Floor tier at STANDARD |
+| `reasoning` | "prove this theorem step by step" | Floor tier at VERSATILE |
+| `conversation` | "hello, how are you" | Cap tier at STANDARD (avoid spending on frontier models) |
+
+**Signals** (weighted, mirrors the cognitive tier classifier's approach):
+1. **Keyword matching** — per-category compiled regex with weights
+2. **Structural signals** — code fences (→coding), URLs (→web_browsing), reasoning connectives (→reasoning)
+3. **Tool-prefix heuristics** — `browser_`/`code_`/`sql_` tool names boost the matching category
+4. **Session stickiness** — 3-turn agreement window adds a bias so an ambiguous turn doesn't flip
+
+**Output:** `IntentResult(category: Optional[str], confidence: float)`. Category is `None`
+when no signal clears its activation threshold (weak/ambiguous prompt) — callers fall back
+to default routing.
+
+**Integration** (two additive seams):
+1. **Tier nudge** in `CognitiveTierService.select_tier`: after complexity classification,
+   before preference clamping. A coding/reasoning intent floors the tier at VERSATILE;
+   conversation caps at STANDARD. The preference min/max clamp still constrains the nudged tier.
+2. **Learning-router cache key**: intent becomes a third dimension (`f"{tenant}:{task}:{intent}"`)
+   so per-model predictors learn intent-specific preferences (e.g. DeepSeek wins coding intents).
+
+Can be overridden per-request via the `x-atom-intent` header (see [Routing Headers](../reference/ROUTING_HEADERS.md)).
+
 ### Database Models
 
 #### CognitiveTierPreference

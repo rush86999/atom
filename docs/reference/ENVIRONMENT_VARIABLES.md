@@ -144,6 +144,7 @@ Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
 | `ATOM_LEARNING_ROUTER` | `false` | — | Re-rank model candidates from observed outcomes. Master gate for the learning router singleton. |
 | `ATOM_EMA_ROUTER_ENABLED` | `false` | — | When true (requires `ATOM_LEARNING_ROUTER=true`), blends an EMA (online telemetry) term into the score **alongside** the ML predictor — they are no longer mutually exclusive. EMA telemetry is always collected while the learning router is on; this flag only controls whether it influences the routing decision. Accepts `1`/`true`/`yes`/`on`. |
 | `ATOM_EMA_ALPHA` | `0.2` | — | EMA smoothing factor in (0, 1]. Higher = more responsive to recent feedback; lower = more stable. |
+| `ATOM_LLM_HEALER_ENABLED` | `false` | — | Enable the LLM-based fallback healer for provider 4xx errors. Rule-based healing is **always on**; this flag only enables the optional LLM-generated patch path (when no rule matches). See [Request Self-Healing](../architecture/REQUEST_SELF_HEALING.md). |
 | `ATOM_DAILY_BUDGET` | unset | — | Daily spend cap. Budget enforcement uses a rolling **daily window** (per calendar date): spend resets at the start of each day, so a breach today does not block generation tomorrow. |
 | `ATOM_MONTHLY_BUDGET` | unset | — | Monthly spend cap. |
 
