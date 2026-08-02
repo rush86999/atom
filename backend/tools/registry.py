@@ -38,7 +38,8 @@ class ToolMetadata:
         parameters: Dict[str, Any] = None,
         examples: List[Dict[str, Any]] = None,
         author: str = "Atom Team",
-        tags: List[str] = None
+        tags: List[str] = None,
+        cacheable: bool = False
     ):
         self.name = name
         self.function = function
@@ -52,6 +53,9 @@ class ToolMetadata:
         self.examples = examples or []
         self.author = author
         self.tags = tags or []
+        # R72 Workstream H: idempotent read-only tools may be memoized for
+        # ATOM_TOOL_CACHE_TTL seconds. Never True for state-changing tools.
+        self.cacheable = cacheable
         self.registered_at = datetime.now()
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,6 +83,7 @@ class ToolMetadata:
             "examples": self.examples,
             "author": self.author,
             "tags": self.tags,
+            "cacheable": self.cacheable,
             "registered_at": self.registered_at.isoformat(),
             "function_path": f"{self.function.__module__}.{self.function.__name__}"
         }
@@ -110,7 +115,8 @@ class ToolRegistry:
         parameters: Dict[str, Any] = None,
         examples: List[Dict[str, Any]] = None,
         author: str = "Atom Team",
-        tags: List[str] = None
+        tags: List[str] = None,
+        cacheable: bool = False
     ) -> ToolMetadata:
         """
         Register a tool with metadata.
@@ -128,6 +134,9 @@ class ToolRegistry:
             examples: Usage examples
             author: Tool author
             tags: Search tags
+            cacheable: True for idempotent read-only tools whose results may
+                be memoized for a short TTL (R72 Workstream H). Never True
+                for state-changing tools.
 
         Returns:
             ToolMetadata: Registered tool metadata
@@ -150,7 +159,8 @@ class ToolRegistry:
             parameters=parameters,
             examples=examples,
             author=author,
-            tags=tags
+            tags=tags,
+            cacheable=cacheable
         )
 
         self._tools[name] = metadata
@@ -292,6 +302,16 @@ class ToolRegistry:
                     maturity_map = {1: "STUDENT", 2: "INTERN", 3: "SUPERVISED", 4: "AUTONOMOUS"}
                     maturity_required = maturity_map.get(complexity, "INTERN")
 
+                    # R72 Workstream H: heuristic for idempotent read-only
+                    # tools (safe to memoize briefly). Conservative — only
+                    # read/list/get/fetch/search verbs are flagged; mutating
+                    # verbs (create/update/send/delete/execute) stay uncached.
+                    cacheable = any(
+                        keyword in name for keyword in ["read", "get", "fetch", "list", "search"]
+                    ) and not any(
+                        keyword in name for keyword in ["write", "create", "update", "delete", "send"]
+                    )
+
                     # Extract docstring
                     description = inspect.getdoc(obj) or ""
 
@@ -304,7 +324,8 @@ class ToolRegistry:
                         complexity=complexity,
                         maturity_required=maturity_required,
                         author="Atom Team (Auto-discovered)",
-                        tags=[category, "auto-discovered"]
+                        tags=[category, "auto-discovered"],
+                        cacheable=cacheable
                     )
 
                     discovered_count += 1
@@ -465,7 +486,8 @@ class ToolRegistry:
                 "canvas_id": {"type": "str", "description": "Canvas ID to read"},
             },
             author="Atom Team",
-            tags=["canvas", "read", "crud", "NEW"]
+            tags=["canvas", "read", "crud", "NEW"],
+            cacheable=True  # idempotent read — safe to memoize briefly
         )
 
         # update_canvas_content
@@ -523,7 +545,8 @@ class ToolRegistry:
                 "include_deleted": {"type": "bool", "optional": True, "description": "Include deleted"},
             },
             author="Atom Team",
-            tags=["canvas", "list", "crud", "NEW"]
+            tags=["canvas", "list", "crud", "NEW"],
+            cacheable=True  # idempotent list — safe to memoize briefly
         )
 
     def _register_browser_tools(self):

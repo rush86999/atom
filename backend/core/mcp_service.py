@@ -2,11 +2,42 @@ import logging
 import json
 import asyncio
 import os
+import hashlib
+import time
 import httpx
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# R72 Workstream H — read-only tool-result memoization.
+#
+# Bounded LRU+TTL cache keyed on (tool_name, tenant_id, canonical-args).
+# Only idempotent read-only tools participate (ToolMetadata.cacheable or the
+# explicit whitelist below). Errors are never cached. The sandbox and
+# governance checks always run BEFORE the cache lookup, so a cache hit can
+# never bypass a governance block or a sandbox violation.
+# ---------------------------------------------------------------------------
+_MAX_TOOL_CACHE_ENTRIES = 256
+
+# Coding-agent / hardcoded read-only tools not present in the ToolRegistry
+# but safe to memoize. read_codebase + list_directory_recursive are pure
+# workspace reads; get_all_tools is a metadata listing. Every mutating tool
+# (write_code_file, terminal_command, run_local_terminal, browser_*, ...)
+# is deliberately excluded.
+_CACHEABLE_READ_ONLY_TOOLS = frozenset(
+    {"read_codebase", "list_directory_recursive", "get_all_tools"}
+)
+
+
+def _is_error_result(result: Any) -> bool:
+    """True when a tool result is an error dict — never cached."""
+    if isinstance(result, dict) and result.get("error"):
+        return True
+    if isinstance(result, str) and result.strip().lower().startswith("error:"):
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +219,8 @@ class MCPService:
             self.servers = {}
             self.tools_cache: Dict[str, List[MCPTool]] = {}
             self.workspace_tools: Dict[str, List[str]] = {} # workspace_id -> [tool_names]
+            # R72 Workstream H: cache_key -> (expires_monotonic, result)
+            self._tool_cache: Dict[str, tuple] = {}
             
             # Initialize the tool registry for local tools
             try:
@@ -379,13 +412,82 @@ class MCPService:
         return all_tools
 
     async def call_tool(
-        self, 
-        tool_name: str, 
-        arguments: Dict[str, Any], 
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
         context: Optional[Dict[str, Any]] = None
     ) -> Any:
         """Standard entry point for agents to call tools."""
         return await self.execute_tool(tool_name, arguments, context)
+
+    # ------------------------------------------------------------------
+    # R72 Workstream H — read-only tool-result memoization helpers.
+    # ------------------------------------------------------------------
+    def _tool_is_cacheable(self, tool_name: str) -> bool:
+        """True if this tool's results may be memoized.
+
+        Resolution order: ToolRegistry metadata (authoritative, carries the
+        ``cacheable`` flag) → the hardcoded read-only whitelist for tools the
+        registry doesn't own (coding-agent workspace reads).
+        """
+        if self.tool_registry is not None:
+            meta = self.tool_registry.get(tool_name)
+            if meta is not None:
+                return bool(meta.cacheable)
+        return tool_name in _CACHEABLE_READ_ONLY_TOOLS
+
+    @staticmethod
+    def _tool_cache_key(
+        tool_name: str,
+        arguments: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> str:
+        """Stable cache key: tool + tenant + canonical-args hash.
+
+        tenant_id is included so two tenants reading the same path never
+        share a memoized result (read_codebase content is tenant-scoped).
+        """
+        tenant_id = context.get("tenant_id", "default")
+        payload = json.dumps(
+            {"args": arguments, "tenant_id": tenant_id},
+            sort_keys=True,
+            default=str,
+        )
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return f"{tool_name}:{digest}"
+
+    def _tool_cache_get(self, key: str) -> Any:
+        """Return a live cache entry or None (expired entries are purged)."""
+        item = self._tool_cache.get(key)
+        if item is None:
+            return None
+        expires_at, result = item
+        if expires_at < time.monotonic():
+            del self._tool_cache[key]
+            return None
+        return result
+
+    def _tool_cache_put(self, key: str, result: Any) -> None:
+        """Store a result under ``key`` with the configured TTL, bounded LRU."""
+        from core.hallucination_config import get_tool_cache_ttl
+
+        ttl = get_tool_cache_ttl()
+        if ttl <= 0:
+            return
+        expires_at = time.monotonic() + ttl
+        if key not in self._tool_cache and len(self._tool_cache) >= _MAX_TOOL_CACHE_ENTRIES:
+            # Evict expired entries first, then the oldest live entry.
+            now = time.monotonic()
+            expired = [k for k, (e, _) in self._tool_cache.items() if e < now]
+            for k in expired:
+                del self._tool_cache[k]
+            if len(self._tool_cache) >= _MAX_TOOL_CACHE_ENTRIES:
+                oldest = min(
+                    self._tool_cache,
+                    key=lambda k: self._tool_cache[k][0],
+                )
+                del self._tool_cache[oldest]
+        self._tool_cache[key] = (expires_at, result)
 
     async def execute_tool(
         self, 
@@ -467,8 +569,22 @@ class MCPService:
                         "violation_type": decision.violation_type,
                     }
 
+        # 2c. R72 Workstream H — read-only tool-result memoization.
+        #
+        # Governance + sandbox run BEFORE this lookup (see above), so a cache
+        # hit can never bypass a block. Only cacheable read-only tools are
+        # considered; the flag defaults ON. Errors are never cached.
+        from core.hallucination_config import is_tool_cache_enabled
+
+        tool_cache_key = None
+        if is_tool_cache_enabled() and self._tool_is_cacheable(tool_name):
+            tool_cache_key = self._tool_cache_key(tool_name, arguments, context)
+            cached = self._tool_cache_get(tool_cache_key)
+            if cached is not None:
+                logger.debug(f"MCP: tool cache HIT {tool_name}")
+                return cached
+
         # 3. Execution: Coding Agent Service
-        from core.coding_agent_service import coding_agent_service
         tenant_id = context.get("tenant_id", "default")
 
         coding_tool_map = {
@@ -487,6 +603,11 @@ class MCPService:
         _MAX_TOOL_OUTPUT = 32 * 1024
         try:
             if tool_name in coding_tool_map:
+                # Import lazily: the coding-agent service is an optional
+                # Hive-parity module. Importing it unconditionally would
+                # raise ModuleNotFoundError for every non-coding tool.
+                from core.coding_agent_service import coding_agent_service
+
                 logger.info(f"MCP: Executing Coding Tool {tool_name}")
                 result = await coding_tool_map[tool_name]()
             elif tool_name == "run_local_terminal":
@@ -514,6 +635,10 @@ class MCPService:
                     if isinstance(v, str) and len(v) > _MAX_TOOL_OUTPUT:
                         logger.warning(f"MCP tool {tool_name} field '{k}' returned {len(v)} bytes — truncating")
                         result[k] = v[:_MAX_TOOL_OUTPUT] + "\n... [truncated]"
+
+            # Memoize successful read-only results only.
+            if tool_cache_key is not None and not _is_error_result(result):
+                self._tool_cache_put(tool_cache_key, result)
 
             return result
 
