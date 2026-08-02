@@ -212,6 +212,7 @@ class ToolCall(BaseModel):
 class ReActStep(BaseModel):
     thought: str = Field(..., description="The reasoning behind the current action or final answer")
     action: Optional[ToolCall] = Field(None, description="The tool to call if further action is needed")
+    actions: Optional[List[ToolCall]] = Field(None, description="Multiple INDEPENDENT tools to execute in parallel in this step (Workstream G). Tools that depend on each other's output must NOT be batched here.")
     final_answer: Optional[str] = Field(None, description="The final response if the task is complete")
     confidence: float = Field(0.9, description="Confidence score for this step")
 
@@ -662,6 +663,15 @@ class AtomMetaAgent:
             final_answer = None
             status = "success"
 
+            # Workstream G — in-loop parallel tool execution (default ON).
+            try:
+                from core.hallucination_config import (
+                    is_parallel_tools_enabled as _is_parallel_tools_enabled,
+                )
+            except Exception:  # pragma: no cover - defensive
+                _is_parallel_tools_enabled = lambda: False
+            _parallel_tools_enabled = _is_parallel_tools_enabled()
+
             for current_step in range(1, max_steps + 1):
                 step_start = datetime.now(timezone.utc)
                 # Generate next step using instructor for structured output
@@ -701,6 +711,12 @@ class AtomMetaAgent:
                     execution_history += f"Final Answer: {react_step.final_answer}\n"
                     break
             
+                # Workstream G degradation: if parallel tools are disabled but
+                # the model emitted `actions`, promote the first action so the
+                # step still executes through the single-action path.
+                if react_step.actions and not _parallel_tools_enabled:
+                    react_step.action = react_step.actions[0]
+
                 # Safety: If no action and no final answer, we are stuck - convert thought to final answer
                 if not react_step.action:
                     final_answer = react_step.thought or "I'm sorry, I'm unable to proceed with that request."
@@ -710,7 +726,70 @@ class AtomMetaAgent:
                     if step_callback: await step_callback(step_record)
                     steps.append(step_record)
                     break
-            
+
+                # ── Parallel tool execution (Workstream G) ──────────────────
+                # Multiple independent tools emitted via `actions` — execute in
+                # parallel with all-or-nothing HITL batch approval, persist one
+                # AgentReasoningStep per tool (same step_number), and stream
+                # each result to the UI. `continue` skips the single-action
+                # path + the default persistence below.
+                if react_step.actions and _parallel_tools_enabled:
+                    parallel_results = await self._execute_parallel_tools(
+                        react_step.actions, context, step_callback
+                    )
+                    for p_index, pr in enumerate(parallel_results):
+                        p_tool = pr["tool_name"]
+                        p_params = pr.get("params") or {}
+                        p_record = {
+                            "execution_id": execution_id,
+                            "step": current_step,
+                            "step_type": "parallel",
+                            "thought": react_step.thought,
+                            "action": {"tool": p_tool, "params": p_params},
+                            "output": str(pr["output"])[:500],
+                            "confidence": step_record["confidence"],
+                            "duration_ms": (datetime.now(timezone.utc) - step_start).total_seconds() * 1000,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "_verified_kind": pr.get("verified_kind", "unverified"),
+                            "_verified_evidence": pr.get("verified_evidence"),
+                        }
+                        execution_history += f"Action: {p_tool}({json.dumps(p_params)})\n"
+                        execution_history += f"Observation: {pr['output']}\n"
+                        if pr.get("verified_kind") == "failed_verification":
+                            execution_history += (
+                                f"[CRITIQUE] The action {p_tool} failed "
+                                f"verification: "
+                                f"{pr.get('verified_evidence') or 'no evidence provided'}. "
+                                f"Re-plan before retrying.\n"
+                            )
+                        elif _is_error_observation(pr["output"]):
+                            execution_history += (
+                                f"[CRITIQUE] The action {p_tool} returned an error: "
+                                f"{str(pr['output'])[:200]}. Re-plan before retrying.\n"
+                            )
+                        if step_callback:
+                            await step_callback(p_record)
+                        # One AgentReasoningStep per tool (same step_number);
+                        # turn-fact extraction fires ONCE per batch.
+                        p_record["id"] = self._persist_reasoning_step(
+                            execution_id=execution_id,
+                            step_number=current_step,
+                            step_type="parallel",
+                            thought=react_step.thought,
+                            action_dict={"tool": p_tool, "params": p_params},
+                            observation=str(pr["output"])[:500],
+                            confidence=step_record["confidence"],
+                            verified_kind=pr.get("verified_kind", "unverified"),
+                            verification_evidence=pr.get("verified_evidence"),
+                            duration_ms=p_record["duration_ms"],
+                            request=request,
+                            final_answer=final_answer,
+                            context=context,
+                            dispatch_turn_fact=(p_index == 0),
+                        )
+                        steps.append(p_record)
+                    continue
+
                 # Execute action if provided
                 if react_step.action:
                     tool_name = react_step.action.tool
@@ -789,76 +868,26 @@ class AtomMetaAgent:
                     step_record["duration_ms"] = (datetime.now(timezone.utc) - step_start).total_seconds() * 1000
                     if step_callback: await step_callback(step_record)
             
-                # Persist Step to DB (Phase 6: Learning Loop)
-                try:
-                    with SessionLocal() as db:
-                        db_step = AgentReasoningStep(
-                            id=str(uuid.uuid4()),
-                            execution_id=execution_id,
-                            step_number=current_step,
-                            step_type=step_record["step_type"],
-                            thought=react_step.thought,
-                            action=react_step.action.model_dump() if react_step.action else None,
-                            observation=step_record.get("output"),
-                            confidence=step_record["confidence"],
-                            verified=step_record.get("_verified_kind", "unverified"),
-                            verification_evidence=step_record.get("_verified_evidence"),
-                            duration_ms=step_record["duration_ms"]
-                        )
-                        db.add(db_step)
-                        db.commit()
-                        # Add DB ID to record for UI feedback binding
-                        step_record["id"] = db_step.id
-
-                        # ── Per-turn fact extraction (sync_turn hook) ──────────────
-                        # Fire-and-forget: a slow extraction must never block the
-                        # ReAct loop. STUDENT maturity is gated inside the extractor.
-                        if _TURN_FACT_EXTRACTION_ENABLED:
-                            try:
-                                extractor = get_turn_fact_extractor(
-                                    workspace_id=self.workspace_id,
-                                    tenant_id=self.tenant_id,
-                                )
-                                maturity = None
-                                if getattr(self, "graduation_service", None):
-                                    try:
-                                        maturity = self.graduation_service.get_maturity(
-                                            self.tenant_id, "atom_main", "fact_extraction"
-                                        )
-                                    except Exception:
-                                        maturity = None
-
-                                task = asyncio.create_task(
-                                    extractor.extract_from_turn(
-                                        user_request=request,
-                                        thought=react_step.thought,
-                                        action=(
-                                            react_step.action.model_dump()
-                                            if react_step.action
-                                            else None
-                                        ),
-                                        observation=step_record.get("output"),
-                                        final_answer=final_answer,
-                                        execution_id=execution_id,
-                                        reasoning_step_id=db_step.id,
-                                        session_id=context.get("session_id")
-                                        if context
-                                        else None,
-                                        user_id=context.get("user_id") if context else None,
-                                        maturity=maturity,
-                                    )
-                                )
-                                _pending_extraction_tasks.add(task)
-
-                                def _discard_extraction_task(t, _set=_pending_extraction_tasks):
-                                    _set.discard(t)
-
-                                task.add_done_callback(_discard_extraction_task)
-                            except Exception as e:
-                                logger.debug(f"turn_fact extraction dispatch failed: {e}")
-                except Exception as e:
-                    logger.error(f"Failed to persist reasoning step: {e}")
-                    # traceback.print_exc()
+                # Persist Step to DB (Phase 6: Learning Loop) + per-turn fact
+                # extraction (sync_turn hook), via the shared helper so the
+                # parallel branch reuses the exact same persistence semantics.
+                step_record["id"] = self._persist_reasoning_step(
+                    execution_id=execution_id,
+                    step_number=current_step,
+                    step_type=step_record["step_type"],
+                    thought=react_step.thought,
+                    action_dict=(
+                        react_step.action.model_dump() if react_step.action else None
+                    ),
+                    observation=step_record.get("output"),
+                    confidence=step_record["confidence"],
+                    verified_kind=step_record.get("_verified_kind", "unverified"),
+                    verification_evidence=step_record.get("_verified_evidence"),
+                    duration_ms=step_record["duration_ms"],
+                    request=request,
+                    final_answer=final_answer,
+                    context=context,
+                )
 
                 steps.append(step_record)
         
@@ -1034,10 +1063,11 @@ AVAILABLE TOOLS:
 
 FORMAT: You must respond with structured output containing:
 - thought: Your reasoning about what to do next
-- action: If you need to use a tool, provide {{"tool": "tool_name", "params": {{...}}}}
+- action: If you need to use a SINGLE tool, provide {{"tool": "tool_name", "params": {{...}}}}
+- actions: If you need to use MULTIPLE INDEPENDENT tools at once, provide [{{"tool": "tool_name", "params": {{...}}}}, ...]. Only use this when the tools do NOT depend on each other's output — they run in parallel.
 - final_answer: If you have enough information to answer, provide the response
 
-Only provide EITHER action OR final_answer, not both.
+Only provide EITHER action OR actions OR final_answer, not multiple.
 
 POWERS:
 - You can INGEST KNOWLEDGE from text and files (PDF, CSV, Excel) into your long-term memory.
@@ -1201,56 +1231,64 @@ What is your next step?"""
             final_answer=raw_response
         )
 
-    async def _execute_tool_with_governance(self, tool_name: str, args: Dict, 
-                                            context: Dict, step_callback: Optional[callable]) -> str:
-        """Execute a tool via MCP with governance checks"""
+    async def _execute_tool_with_governance(self, tool_name: str, args: Dict,
+                                            context: Dict, step_callback: Optional[callable],
+                                            pre_approved: bool = False) -> str:
+        """Execute a tool via MCP with governance checks
+
+        ``pre_approved`` (Workstream G): when True, the governance/HITL check is
+        skipped — the caller (the parallel-tools batch) has already run it and
+        obtained all-or-nothing approval for the whole batch. Byte-identical to
+        the previous behavior when False.
+        """
         try:
             # 1. Governance Check
-            db = SessionLocal()
-            try:
-                gov = AgentGovernanceService(db)
-                # 1. Governance Check (async variant: the sync can_perform_action
-                # can't await the budget check inside a running loop, so it
-                # would skip budget enforcement entirely — a spend bypass).
-                auth_check = await gov.can_perform_action_async("atom_main", tool_name)
-                
-                # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
-                # The user must accept or modify any state-changing task.
-                complexity = auth_check.get("action_complexity", 2)
-                if complexity > 1:
-                    auth_check["requires_human_approval"] = True
-                    auth_check["reason"] = f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' requires confirmation."
+            if not pre_approved:
+                db = SessionLocal()
+                try:
+                    gov = AgentGovernanceService(db)
+                    # 1. Governance Check (async variant: the sync can_perform_action
+                    # can't await the budget check inside a running loop, so it
+                    # would skip budget enforcement entirely — a spend bypass).
+                    auth_check = await gov.can_perform_action_async("atom_main", tool_name)
 
-                if auth_check.get("requires_human_approval"):
-                    # request_approval's signature is (agent_id, action_type,
-                    # params, reason, chain_id=None) — it reads workspace_id off
-                    # the service instance (self.workspace_id). Passing it as a
-                    # kwarg raised TypeError every time, which the outer except
-                    # masked as "Tool error" — making the entire HITL approval
-                    # gate dead for the meta-agent.
-                    action_id = gov.request_approval(
-                        agent_id="atom_main",
-                        action_type=tool_name,
-                        params=args,
-                        reason=auth_check["reason"],
-                    )
-                    
-                    if step_callback:
-                        await step_callback({
-                            "type": "hitl_paused",
-                            "action_id": action_id,
-                            "tool": tool_name,
-                            "reason": auth_check["reason"]
-                        })
-                    
-                    approved = await self._wait_for_approval(action_id)
-                    if not approved:
-                        return f"Action {tool_name} was REJECTED or timed out."
-                        
-                elif not auth_check["allowed"]:
-                    return f"Governance blocked: {auth_check['reason']}"
-            finally:
-                db.close()
+                    # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
+                    # The user must accept or modify any state-changing task.
+                    complexity = auth_check.get("action_complexity", 2)
+                    if complexity > 1:
+                        auth_check["requires_human_approval"] = True
+                        auth_check["reason"] = f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' requires confirmation."
+
+                    if auth_check.get("requires_human_approval"):
+                        # request_approval's signature is (agent_id, action_type,
+                        # params, reason, chain_id=None) — it reads workspace_id off
+                        # the service instance (self.workspace_id). Passing it as a
+                        # kwarg raised TypeError every time, which the outer except
+                        # masked as "Tool error" — making the entire HITL approval
+                        # gate dead for the meta-agent.
+                        action_id = gov.request_approval(
+                            agent_id="atom_main",
+                            action_type=tool_name,
+                            params=args,
+                            reason=auth_check["reason"],
+                        )
+
+                        if step_callback:
+                            await step_callback({
+                                "type": "hitl_paused",
+                                "action_id": action_id,
+                                "tool": tool_name,
+                                "reason": auth_check["reason"]
+                            })
+
+                        approved = await self._wait_for_approval(action_id)
+                        if not approved:
+                            return f"Action {tool_name} was REJECTED or timed out."
+
+                    elif not auth_check["allowed"]:
+                        return f"Governance blocked: {auth_check['reason']}"
+                finally:
+                    db.close()
             
             # SPECIAL TOOLS (Internal)
             if tool_name == "trigger_workflow":
@@ -1656,24 +1694,309 @@ Provide your Mentorship Guidance:"""
         max_wait = 600 # Default 10 mins
         interval = 5
         elapsed = 0
-        
+
         while elapsed < max_wait:
             db = SessionLocal()
             try:
                 gov = AgentGovernanceService(db)
                 status_info = gov.get_approval_status(action_id)
-                
+
                 if status_info["status"] == HITLActionStatus.APPROVED.value:
                     return True
                 if status_info["status"] == HITLActionStatus.REJECTED.value:
                     return False
             finally:
                 db.close()
-                
+
             await asyncio.sleep(interval)
             elapsed += interval
-            
+
         return False # Timeout
+
+    async def _wait_for_all_approvals(self, action_ids: List[str]) -> bool:
+        """All-or-nothing HITL batch approval (Workstream G).
+
+        Polls every action in the batch; returns True only when ALL are
+        APPROVED. Any REJECTION (or the batch timeout) returns False — the
+        caller must NOT execute any tool in the batch.
+        """
+        max_wait = 600  # Default 10 mins
+        interval = 5
+        elapsed = 0
+
+        while elapsed < max_wait:
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                all_approved = True
+                for action_id in action_ids:
+                    status_info = gov.get_approval_status(action_id)
+                    if status_info["status"] == HITLActionStatus.REJECTED.value:
+                        return False
+                    if status_info["status"] != HITLActionStatus.APPROVED.value:
+                        all_approved = False
+                if all_approved:
+                    return True
+            finally:
+                db.close()
+
+            await asyncio.sleep(interval)
+            elapsed += interval
+
+        return False  # Timeout
+
+    async def _execute_parallel_tools(
+        self,
+        actions: List["ToolCall"],
+        context: Dict,
+        step_callback: Optional[callable],
+    ) -> List[Dict[str, Any]]:
+        """Execute multiple independent tools in parallel (Workstream G).
+
+        Governance is checked once per tool up front; any tool with complexity
+        > 1 forces HITL batch approval. The batch is ALL-OR-NOTHING: if any
+        approval is rejected, NO tool in the batch executes. ``mcp_tool_search``
+        is executed serially because it mutates ``session_tools`` (a shared
+        mutable that would race under ``asyncio.gather``). Each returned record
+        maps one-to-one to an ``AgentReasoningStep`` in the loop.
+
+        When ``ATOM_PARALLEL_TOOLS=false``, falls back to sequential execution
+        of the batch (each tool through the normal governance path).
+        """
+        from core.hallucination_config import (
+            get_max_parallel_tools,
+            is_parallel_tools_enabled,
+        )
+
+        if not is_parallel_tools_enabled():
+            records = []
+            for act in actions[: get_max_parallel_tools()]:
+                observation = await self._execute_tool_with_governance(
+                    act.tool, act.params, context, step_callback
+                )
+                records.append({
+                    "tool_name": act.tool,
+                    "params": act.params,
+                    "output": observation,
+                    "verified_kind": "unverified",
+                    "verified_evidence": None,
+                })
+            return records
+
+        max_tools = get_max_parallel_tools()
+        # mcp_tool_search mutates session_tools — must never run under gather.
+        serial_actions = [a for a in actions if a.tool == "mcp_tool_search"]
+        parallel_actions = [a for a in actions if a.tool != "mcp_tool_search"][:max_tools]
+
+        # 1. Governance pre-check for the whole batch (all-or-nothing).
+        action_ids: List[str] = []
+        blocked: List["ToolCall"] = []
+        with SessionLocal() as db:
+            gov = AgentGovernanceService(db)
+            for act in parallel_actions:
+                auth_check = await gov.can_perform_action_async("atom_main", act.tool)
+                complexity = auth_check.get("action_complexity", 2)
+                if complexity > 1:
+                    auth_check["requires_human_approval"] = True
+                    auth_check["reason"] = (
+                        f"Meta-Agent is in Propose-Only mode. Action "
+                        f"'{act.tool}' requires confirmation."
+                    )
+                if auth_check.get("requires_human_approval"):
+                    action_id = gov.request_approval(
+                        agent_id="atom_main",
+                        action_type=act.tool,
+                        params=act.params,
+                        reason=auth_check["reason"],
+                    )
+                    action_ids.append(action_id)
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": act.tool,
+                            "reason": auth_check["reason"],
+                            "parallel_batch": True,
+                        })
+                elif not auth_check["allowed"]:
+                    blocked.append(act)
+
+        if blocked:
+            names = ", ".join(a.tool for a in blocked)
+            return [
+                {
+                    "tool_name": a.tool,
+                    "params": a.params,
+                    "output": f"Governance blocked: {a.tool} (batch blocked by {names}).",
+                    "verified_kind": "blocked",
+                    "verified_evidence": None,
+                }
+                for a in parallel_actions
+            ]
+
+        if action_ids:
+            approved = await self._wait_for_all_approvals(action_ids)
+            if not approved:
+                return [
+                    {
+                        "tool_name": a.tool,
+                        "params": a.params,
+                        "output": f"Action {a.tool} was REJECTED or timed out (parallel batch).",
+                        "verified_kind": "rejected",
+                        "verified_evidence": None,
+                    }
+                    for a in parallel_actions
+                ]
+
+        # 2. Execute the parallel batch. Governance already granted above.
+        results = await asyncio.gather(
+            *[
+                self._execute_tool_with_governance(
+                    a.tool, a.params, context, step_callback, pre_approved=True
+                )
+                for a in parallel_actions
+            ],
+            return_exceptions=True,
+        )
+
+        records: List[Dict[str, Any]] = []
+        for act, res in zip(parallel_actions, results):
+            if isinstance(res, Exception):
+                observation = f"Tool error for {act.tool}. Please try again."
+                verified_kind = "error"
+                verified_evidence = None
+            else:
+                observation = res
+                try:
+                    _vo = parse_tool_outcome(observation)
+                    verified_kind = _vo.kind
+                    verified_evidence = _vo.evidence
+                except Exception:
+                    verified_kind = "unverified"
+                    verified_evidence = None
+            records.append({
+                "tool_name": act.tool,
+                "params": act.params,
+                "output": observation,
+                "verified_kind": verified_kind,
+                "verified_evidence": verified_evidence,
+            })
+
+        # 3. Serial tool-search actions (mutate session_tools — no race).
+        for act in serial_actions:
+            try:
+                found_tools = await self.mcp.search_tools(
+                    act.params.get("query", ""), limit=5
+                )
+                existing_names = {t["name"] for t in self.session_tools}
+                new_tools = [t for t in found_tools if t["name"] not in existing_names]
+                self.session_tools.extend(new_tools)
+                observation = (
+                    f"Found {len(new_tools)} new tools (total: "
+                    f"{len(self.session_tools)}). They have been added to your "
+                    f"toolkit for the next step: {[t['name'] for t in new_tools]}"
+                )
+            except Exception as e:
+                observation = f"Tool search failed: {e}"
+            records.append({
+                "tool_name": act.tool,
+                "params": act.params,
+                "output": observation,
+                "verified_kind": "unverified",
+                "verified_evidence": None,
+            })
+
+        return records
+
+    def _persist_reasoning_step(
+        self,
+        execution_id: str,
+        step_number: int,
+        step_type: str,
+        thought: str,
+        action_dict: Optional[Dict[str, Any]],
+        observation: Optional[str],
+        confidence: float,
+        verified_kind: str,
+        verification_evidence: Optional[str],
+        duration_ms: float,
+        request: str,
+        final_answer: Optional[str],
+        context: Optional[Dict],
+        dispatch_turn_fact: bool = True,
+    ) -> str:
+        """Persist one AgentReasoningStep + fire-and-forget per-turn fact extraction.
+
+        ``dispatch_turn_fact`` (Workstream G): the parallel branch fires turn-fact
+        extraction ONCE per batch (first tool's step) to avoid N redundant
+        extraction calls for the same thought. Returns the DB row id (or ""
+        when persistence failed).
+        """
+        step_id = ""
+        try:
+            with SessionLocal() as db:
+                db_step = AgentReasoningStep(
+                    id=str(uuid.uuid4()),
+                    execution_id=execution_id,
+                    step_number=step_number,
+                    step_type=step_type,
+                    thought=thought,
+                    action=action_dict,
+                    observation=observation,
+                    confidence=confidence,
+                    verified=verified_kind,
+                    verification_evidence=verification_evidence,
+                    duration_ms=duration_ms,
+                )
+                db.add(db_step)
+                db.commit()
+                step_id = db_step.id
+
+                # ── Per-turn fact extraction (sync_turn hook) ──────────────
+                # Fire-and-forget: a slow extraction must never block the
+                # ReAct loop. STUDENT maturity is gated inside the extractor.
+                if dispatch_turn_fact and _TURN_FACT_EXTRACTION_ENABLED:
+                    try:
+                        extractor = get_turn_fact_extractor(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                        )
+                        maturity = None
+                        if getattr(self, "graduation_service", None):
+                            try:
+                                maturity = self.graduation_service.get_maturity(
+                                    self.tenant_id, "atom_main", "fact_extraction"
+                                )
+                            except Exception:
+                                maturity = None
+
+                        task = asyncio.create_task(
+                            extractor.extract_from_turn(
+                                user_request=request,
+                                thought=thought,
+                                action=action_dict,
+                                observation=observation,
+                                final_answer=final_answer,
+                                execution_id=execution_id,
+                                reasoning_step_id=db_step.id,
+                                session_id=context.get("session_id")
+                                if context
+                                else None,
+                                user_id=context.get("user_id") if context else None,
+                                maturity=maturity,
+                            )
+                        )
+                        _pending_extraction_tasks.add(task)
+
+                        def _discard_extraction_task(t, _set=_pending_extraction_tasks):
+                            _set.discard(t)
+
+                        task.add_done_callback(_discard_extraction_task)
+                    except Exception as e:
+                        logger.debug(f"turn_fact extraction dispatch failed: {e}")
+        except Exception as e:
+            logger.error(f"Failed to persist reasoning step: {e}")
+        return step_id
 
     async def _record_execution(self, request: str, result: Dict, 
                                 trigger_mode: AgentTriggerMode):

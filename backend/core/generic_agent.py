@@ -134,17 +134,33 @@ class GenericAgent:
                 nonlocal final_answer, status
                 current_step = 0
                 execution_history = ""
-                
+
+                # Workstream G — in-loop parallel tool execution (default ON).
+                try:
+                    from core.hallucination_config import (
+                        is_parallel_tools_enabled as _is_parallel_tools_enabled,
+                    )
+                except Exception:  # pragma: no cover - defensive
+                    _is_parallel_tools_enabled = lambda: False
+                _parallel_tools_enabled = _is_parallel_tools_enabled()
+
                 while current_step < max_steps:
                     current_step += 1
-                    
+
                     # Plan/Think - Use instructor for structured parsing
                     react_step = await self._react_step(task_input, memory_context, execution_history, context)
-                    
+
                     thought = react_step.thought
                     action = react_step.action.model_dump() if react_step.action else None
                     answer = react_step.final_answer
-                    
+
+                    # Workstream G degradation: if parallel tools are disabled
+                    # but the model emitted `actions`, promote the first action
+                    # so the step still executes through the single-action path.
+                    if react_step.actions and not _parallel_tools_enabled:
+                        react_step.action = react_step.actions[0]
+                        action = react_step.action.model_dump()
+
                     step_record = {
                         "step": current_step,
                         "thought": thought,
@@ -152,22 +168,59 @@ class GenericAgent:
                         "output": None,
                         "timestamp": datetime.now(timezone.utc).isoformat()
                     }
-                    
+
                     # Stream if callback provided
                     if step_callback:
                         await step_callback(step_record)
-                    
+
                     # Accumulate history for next turn
                     if thought:
                         execution_history += f"Thought: {thought}\n"
-                    
+
                     if answer:
                         step_record["final_answer"] = answer
                         final_answer = answer
                         steps.append(step_record)
                         execution_history += f"Final Answer: {answer}\n"
                         break
-                    
+
+                    # ── Parallel tool execution (Workstream G) ──────────────
+                    # Multiple independent tools emitted via `actions` — execute
+                    # in parallel with all-or-nothing HITL batch approval and
+                    # stream each result. `continue` skips the single-action path.
+                    if react_step.actions and _parallel_tools_enabled:
+                        parallel_results = await self._execute_parallel_tools(
+                            react_step.actions, context, step_callback
+                        )
+                        for pr in parallel_results:
+                            p_tool = pr["tool_name"]
+                            p_params = pr.get("params") or {}
+                            p_record = {
+                                "step": current_step,
+                                "thought": thought,
+                                "action": {"tool": p_tool, "params": p_params},
+                                "output": str(pr["output"])[:500],
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            }
+                            if step_callback:
+                                await step_callback(p_record)
+                            execution_history += (
+                                f"Action: {p_tool}({json.dumps(p_params)})\n"
+                                f"Observation: {pr['output']}\n"
+                            )
+                            try:
+                                from core.atom_meta_agent import _is_error_observation
+                            except Exception:  # pragma: no cover - defensive
+                                _is_error_observation = lambda _o: False  # type: ignore
+                            if _is_error_observation(pr["output"]):
+                                execution_history += (
+                                    f"[CRITIQUE] The action {p_tool} returned an "
+                                    f"error: {str(pr['output'])[:200]}. Re-plan "
+                                    f"before retrying.\n"
+                                )
+                            steps.append(p_record)
+                        continue
+
                     if action:
                         # Execute Tool
                         execution_history += f"Action: {json.dumps(action)}\n"
@@ -417,10 +470,11 @@ AVAILABLE TOOLS:
 
 FORMAT: You must respond with structured output containing:
 - thought: Your reasoning about what to do next
-- action: If you need to use a tool, provide {{"tool": "tool_name", "params": {{...}}}}
+- action: If you need to use a SINGLE tool, provide {{"tool": "tool_name", "params": {{...}}}}
+- actions: If you need to use MULTIPLE INDEPENDENT tools at once, provide [{{"tool": "tool_name", "params": {{...}}}}, ...]. Only use this when the tools do NOT depend on each other's output — they run in parallel.
 - final_answer: If you have enough information to answer, provide the response
 
-Only provide EITHER action OR final_answer, not both.
+Only provide EITHER action OR actions OR final_answer, not multiple.
 
 ORCHESTRATION POWERS:
 - You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
@@ -565,44 +619,50 @@ What is your next step?"""
             final_answer=raw_response if "answer" in raw_response.lower() else None
         )
         
-    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None) -> Any:
-        """Execute a tool via MCP with Governance Check"""
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
+        """Execute a tool via MCP with Governance Check
+
+        ``pre_approved`` (Workstream G): when True, the governance/HITL check is
+        skipped — the caller (the parallel-tools batch) has already run it and
+        obtained all-or-nothing approval for the whole batch.
+        """
         try:
             # 1. Governance Maturity Check
-            with get_db_session() as db:
-                gov = AgentGovernanceService(db)
-                # Async variant: the sync can_perform_action can't await the
-                # budget check inside a running loop (spend-limit bypass).
-                auth_check = await gov.can_perform_action_async(self.id, tool_name)
+            if not pre_approved:
+                with get_db_session() as db:
+                    gov = AgentGovernanceService(db)
+                    # Async variant: the sync can_perform_action can't await the
+                    # budget check inside a running loop (spend-limit bypass).
+                    auth_check = await gov.can_perform_action_async(self.id, tool_name)
 
-                if auth_check.get("requires_human_approval"):
-                    # Create HITL Action
-                    action_id = gov.request_approval(
-                        agent_id=self.id,
-                        action_type=tool_name,
-                        params=args,
-                        reason=auth_check["reason"]
-                    )
+                    if auth_check.get("requires_human_approval"):
+                        # Create HITL Action
+                        action_id = gov.request_approval(
+                            agent_id=self.id,
+                            action_type=tool_name,
+                            params=args,
+                            reason=auth_check["reason"]
+                        )
 
-                    logger.info(f"Action {tool_name} requires approval. Pausing agent...")
+                        logger.info(f"Action {tool_name} requires approval. Pausing agent...")
 
-                    if step_callback:
-                        await step_callback({
-                            "type": "hitl_paused",
-                            "action_id": action_id,
-                            "tool": tool_name,
-                            "reason": auth_check["reason"]
-                        })
+                        if step_callback:
+                            await step_callback({
+                                "type": "hitl_paused",
+                                "action_id": action_id,
+                                "tool": tool_name,
+                                "reason": auth_check["reason"]
+                            })
 
-                    # Wait for approval
-                    approved = await self._wait_for_approval(action_id)
-                    if not approved:
-                        return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
+                        # Wait for approval
+                        approved = await self._wait_for_approval(action_id)
+                        if not approved:
+                            return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
 
-                    logger.info(f"Action {tool_name} APPROVED. Proceeding...")
+                        logger.info(f"Action {tool_name} APPROVED. Proceeding...")
 
-                elif not auth_check["allowed"]:
-                    return f"Governance Error: {auth_check['reason']}"
+                    elif not auth_check["allowed"]:
+                        return f"Governance Error: {auth_check['reason']}"
 
             # 2. Execute via MCP Service (Dynamic Resolution)
             return await self.mcp.call_tool(tool_name, args, context=context)
@@ -699,6 +759,173 @@ What is your next step?"""
             elapsed += interval
 
         return False # Timeout
+
+    async def _wait_for_all_approvals(self, action_ids: List[str]) -> bool:
+        """All-or-nothing HITL batch approval (Workstream G).
+
+        Returns True only when ALL actions are APPROVED; any REJECTION (or the
+        batch timeout) returns False — the caller must NOT execute any tool.
+        """
+        max_wait = self.config.get("hitl_timeout", 600)
+        interval = 5
+        elapsed = 0
+
+        while elapsed < max_wait:
+            with get_db_session() as db:
+                gov = AgentGovernanceService(db)
+                all_approved = True
+                for action_id in action_ids:
+                    status_info = gov.get_approval_status(action_id)
+                    if status_info["status"] == HITLActionStatus.REJECTED.value:
+                        return False
+                    if status_info["status"] != HITLActionStatus.APPROVED.value:
+                        all_approved = False
+                if all_approved:
+                    return True
+
+            await asyncio.sleep(interval)
+            elapsed += interval
+
+        return False  # Timeout
+
+    async def _execute_parallel_tools(
+        self,
+        actions: List[ToolCall],
+        context: Dict,
+        step_callback: Optional[callable],
+    ) -> List[Dict[str, Any]]:
+        """Execute multiple independent tools in parallel (Workstream G).
+
+        Mirror of ``AtomMetaAgent._execute_parallel_tools``. Governance is
+        checked once per tool up front; any tool requiring approval forces HITL
+        batch approval (all-or-nothing). ``mcp_tool_search`` is executed
+        serially (it mutates ``session_tools`` — would race under gather).
+        Falls back to sequential execution when ``ATOM_PARALLEL_TOOLS=false``.
+        """
+        from core.hallucination_config import (
+            get_max_parallel_tools,
+            is_parallel_tools_enabled,
+        )
+
+        if not is_parallel_tools_enabled():
+            records = []
+            for act in actions[: get_max_parallel_tools()]:
+                observation = await self._step_act(
+                    act.tool, act.params, context, step_callback
+                )
+                records.append({
+                    "tool_name": act.tool,
+                    "params": act.params,
+                    "output": observation,
+                    "verified_kind": "unverified",
+                    "verified_evidence": None,
+                })
+            return records
+
+        max_tools = get_max_parallel_tools()
+        serial_actions = [a for a in actions if a.tool == "mcp_tool_search"]
+        parallel_actions = [a for a in actions if a.tool != "mcp_tool_search"][:max_tools]
+
+        # 1. Governance pre-check for the whole batch (all-or-nothing).
+        action_ids: List[str] = []
+        with get_db_session() as db:
+            gov = AgentGovernanceService(db)
+            for act in parallel_actions:
+                auth_check = await gov.can_perform_action_async(self.id, act.tool)
+                if auth_check.get("requires_human_approval"):
+                    action_id = gov.request_approval(
+                        agent_id=self.id,
+                        action_type=act.tool,
+                        params=act.params,
+                        reason=auth_check["reason"],
+                    )
+                    action_ids.append(action_id)
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": act.tool,
+                            "reason": auth_check["reason"],
+                            "parallel_batch": True,
+                        })
+                elif not auth_check["allowed"]:
+                    # Blocked — the whole batch is aborted (all-or-nothing).
+                    return [
+                        {
+                            "tool_name": a.tool,
+                            "params": a.params,
+                            "output": f"Governance Error: {auth_check['reason']}",
+                            "verified_kind": "blocked",
+                            "verified_evidence": None,
+                        }
+                        for a in parallel_actions
+                    ]
+
+        if action_ids:
+            approved = await self._wait_for_all_approvals(action_ids)
+            if not approved:
+                return [
+                    {
+                        "tool_name": a.tool,
+                        "params": a.params,
+                        "output": (
+                            f"Governance Error: Action {a.tool} was REJECTED "
+                            f"by user or timed out (parallel batch)."
+                        ),
+                        "verified_kind": "rejected",
+                        "verified_evidence": None,
+                    }
+                    for a in parallel_actions
+                ]
+
+        # 2. Execute the parallel batch. Governance already granted above.
+        results = await asyncio.gather(
+            *[
+                self._step_act(
+                    a.tool, a.params, context, step_callback, pre_approved=True
+                )
+                for a in parallel_actions
+            ],
+            return_exceptions=True,
+        )
+
+        records: List[Dict[str, Any]] = []
+        for act, res in zip(parallel_actions, results):
+            if isinstance(res, Exception):
+                observation = f"Tool Execution Failed: {res}. You can try to correct parameters or move to next step."
+            else:
+                observation = res
+            records.append({
+                "tool_name": act.tool,
+                "params": act.params,
+                "output": observation,
+                "verified_kind": "unverified",
+                "verified_evidence": None,
+            })
+
+        # 3. Serial tool-search actions (mutate session_tools — no race).
+        for act in serial_actions:
+            try:
+                found_tools = await self.mcp.search_tools(
+                    act.params.get("query", ""), limit=5
+                )
+                self.session_tools.extend(found_tools)
+                observation = (
+                    f"Found {len(found_tools)} new tools (total: "
+                    f"{len(self.session_tools)}). They have been added to your "
+                    f"toolkit for the next step: {[t['name'] for t in found_tools]}"
+                )
+            except Exception as e:
+                observation = f"Tool search failed: {e}"
+            records.append({
+                "tool_name": act.tool,
+                "params": act.params,
+                "output": observation,
+                "verified_kind": "unverified",
+                "verified_evidence": None,
+            })
+
+        return records
 
     def _get_registry_model(self) -> AgentRegistry:
         """Helper to reconstruct the model for passing to services"""
