@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T16:45:46Z",
+  "timestamp": "2026-08-02T17:30:00Z",
   "phase": "R72-hermes-gap-closure",
   "phase_name": "R72 Hermes Gap Closure (9 gaps + channel binding)",
   "phase_dir": ".planning",
   "plan": "R72 Hermes Gap Closure",
-  "task": 9,
+  "task": 10,
   "total_tasks": 10,
   "status": "paused",
   "completed_tasks": [
@@ -16,17 +16,17 @@
     {"id": 6, "name": "H: Tool-result memoization (read-only whitelist)", "status": "done", "commit": "793289dd3"},
     {"id": 5, "name": "B: /learn endpoint (workflow->skill distillation)", "status": "done", "commit": "e4fbe855d"},
     {"id": 7, "name": "I: Channel binding fix (cross-channel context leak)", "status": "done", "commit": "54361bc59"},
-    {"id": 8, "name": "F: Mixture-of-Agents (default ON)", "status": "done", "commit": "0ebc610a1"}
+    {"id": 8, "name": "F: Mixture-of-Agents (default ON)", "status": "done", "commit": "0ebc610a1"},
+    {"id": 9, "name": "G: In-loop parallel tool execution (default ON)", "status": "done", "commit": "235237645"}
   ],
   "remaining_tasks": [
-    {"id": 9, "name": "G: In-loop parallel tool execution (default ON)", "status": "not_started"},
     {"id": 10, "name": "J: Docs update", "status": "not_started"}
   ],
   "blockers": [
     {"description": "Pre-existing react-loop suite failures (33 tests) patch nonexistent core.atom_meta_agent.LLMService", "type": "technical", "workaround": "ignore or fix patch targets in separate test-infra commit"},
     {"description": "backend/atom_dev.db-journal shows deleted (test byproduct)", "type": "technical", "workaround": "leave out of commits"},
     {"description": "tests/standalone/test_tool_registry_verification.py has 6 pre-existing errors (missing 'registry' fixture)", "type": "technical", "workaround": "unrelated to R72; fixture was never defined"},
-    {"description": "Pre-existing tests/unit/llm/test_self_consistency_voter.py::test_C5_is_irreversible_detection (asserts OLD value-matching; code intentionally name-matches per Bug #13) + test_provider_family_invariant.py::test_D1 (harness/await mismatch) — both fail at HEAD, verified via git stash", "type": "technical", "workaround": "not caused by R72 F; C5 tests superseded behavior, D1 needs same AwaitableResult harness fix as cascade"}
+    {"description": "Pre-existing tests/unit/llm/test_self_consistency_voter.py::test_C5_is_irreversible_detection + test_provider_family_invariant.py::test_D1 fail at HEAD (verified via git stash)", "type": "technical", "workaround": "not caused by R72; superseded/harness tests"}
   ],
   "human_actions_pending": [],
   "decisions": [
@@ -41,6 +41,6 @@
     "backend/chat_sessions.json (test byproduct — do not commit)",
     ".planning/HANDOFF.json (tracked; state refresh)"
   ],
-  "next_action": "Workstream G (parallel tools, default ON): add actions: Optional[List[ToolCall]] to BOTH ReActStep copies (react_models.py + atom_meta_agent.py local copy); hallucination_config.py is_parallel_tools_enabled()/get_max_parallel_tools() (default true/4, already present); prompt-format doc; parallel branch in atom_meta_agent + generic_agent loops with all-or-nothing HITL batch approval + asyncio.gather over _execute_tool_with_governance(pre_approved=True); serialize mcp_tool_search; one AgentReasoningStep per tool; tests/unit/test_parallel_tools.py (P1-P10). Then J (docs) last.",
-  "context_notes": "R72 gap-closure plan, 8/10 workstreams committed (D, A, C, E, H, B, I, F). F landed at 0ebc610a1: MoA default ON in generate_structured_response via provider_model/allow_moa kwargs + dispatch guard (_moa_eligible COMPLEX/ADVANCED or code/analysis/reasoning, >=2 options, no vision/pin) + generate_structured_moa (N per-provider samples pinned + 1 best-ranked aggregator, fallback best valid) + SelfConsistencyVoter.is_irreversible audit + voter recursion guards (allow_moa=False). tests/unit/llm/test_moa.py M1-M11 (11/11) + test_cascade_routing.py B1-B9 (9/9 after harness fix: get_ranked_providers is sync returning AwaitableResult, mocks must wrap lists) + test_byok_handler/routes 38 pass; main_api_app imports clean. New pre-existing failures discovered at HEAD (git-stash verified): test_C5_is_irreversible_detection (tests superseded value-matching) and test_D1_provider_family_invariant (harness). venv is backend/venv/bin/python. G is the last architectural wave; J (docs) last."
+  "next_action": "Workstream J (docs, LAST): update HERMES_COMPARISON.md gap matrix (mark 1-9 closed), CLAUDE.md env vars (ATOM_MOA_*, ATOM_PARALLEL_TOOLS, ATOM_MAX_PARALLEL_TOOLS, ATOM_SKILL_INJECTION_ENABLED, ATOM_TOOL_CACHE_*; TURN_FACT_* defaults), ENVIRONMENT_VARIABLES.md, CONTEXT_MEMORY.md defaults. Then full regression + mark R72 complete.",
+  "context_notes": "G landed at 235237645: actions field on both ReActStep copies; all-or-nothing HITL batch approval (_wait_for_all_approvals); asyncio.gather over _execute_tool_with_governance(pre_approved=True)/_step_act(pre_approved=True); mcp_tool_search serialized; ATOM_MAX_PARALLEL_TOOLS cap (default 4); one AgentReasoningStep per tool via shared _persist_reasoning_step; turn-fact once per batch (dispatch_turn_fact); prompt-format docs; flag-off degrades to first single action. tests/unit/test_parallel_tools.py P1-P10 (10/10); main_api_app imports clean; meta-agent suites identical to baseline (37 failed/24 errors pre-existing, zero new). Only J (docs) remains."
 }
