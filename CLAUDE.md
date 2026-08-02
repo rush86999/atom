@@ -217,9 +217,9 @@ EMERGENCY_GOVERNANCE_BYPASS=false
 PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=1
 
 # Per-turn fact extraction (docs/architecture/CONTEXT_MEMORY.md)
-TURN_FACT_EXTRACTION_ENABLED=false       # 1 fast-model call/turn
+TURN_FACT_EXTRACTION_ENABLED=true        # 1 fast-model call/turn (R72 D: default ON)
 TURN_FACT_PRE_COMPRESS_ENABLED=true      # pre-truncation queue, free — default ON
-TURN_FACT_VECTOR_RECALL_ENABLED=false    # LanceDB semantic recall
+TURN_FACT_VECTOR_RECALL_ENABLED=true     # LanceDB semantic recall (R72 D: default ON)
 TURN_FACT_MAX_PER_TURN=5   TURN_FACT_EXTRACTION_SAMPLE_RATE=1.0   TURN_FACT_QUEUE_MAXSIZE=100
 
 # Hallucination mitigation (PR #548 + Round 42)
@@ -227,6 +227,15 @@ ATOM_CASCADE_ROUTING=false               # retry structured-gen on same family
 ATOM_SELF_CONSISTENCY=false              # master switch
 ATOM_SELF_CONSISTENCY_SAMPLES=3   ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL=false
 ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD=0.85   ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD=0.50
+
+# R72 reasoning-loop upgrades (all deterministic gains default ON; LLM judge stays opt-in)
+ATOM_MOA_ENABLED=true                    # Mixture-of-Agents on hard structured tasks (F)
+ATOM_MOA_SAMPLES=3                       # samples drawn per MoA vote (min 2)
+ATOM_PARALLEL_TOOLS=true                 # in-loop parallel tool execution (G)
+ATOM_MAX_PARALLEL_TOOLS=4                # max tools per parallel batch (G)
+ATOM_SKILL_INJECTION_ENABLED=true        # prompt-time skill auto-injection (C)
+ATOM_TOOL_CACHE_ENABLED=true             # read-only tool-result memoization (H)
+ATOM_TOOL_CACHE_TTL=30                   # cache TTL seconds (H)
 
 # Execution Sandbox Layer (Rounds 43-47; all default OFF = shadow mode)
 ATOM_SANDBOX_ENABLED=false               # master (Phase A+)

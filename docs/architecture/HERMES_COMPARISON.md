@@ -27,7 +27,7 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 
 | Dimension | Atom | Hermes | Notes |
 |---|:---:|:---:|---|
-| **Per-turn fact extraction** | ◐ | ✅ | Atom implemented (`turn_fact_extractor.py`); Hermes is the reference design. Atom defaults OFF. |
+| **Per-turn fact extraction** | ✅ | ✅ | Atom implemented (`turn_fact_extractor.py`); Hermes is the reference design. Defaults **ON** since R72 Workstream D (`TURN_FACT_EXTRACTION_ENABLED=true`). |
 | **Pre-compression extraction** | ✅ | ✅ | Both have `on_pre_compress` hooks. |
 | **Memory-provider ABC** | ❌ | ✅ | Hermes formalizes the interface; Atom hardcodes SQL+LanceDB backend. Deferred as premature. |
 | **Agent-callable memory tools** | ✅ | ✅ | `memory_remember` / `memory_forget` (Atom) vs `lancedb_remember` / `mem0_*` (Hermes). |
@@ -46,10 +46,12 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Cognitive-tier cost routing** | ✅ | ◐ | Atom 5-tier routing. Hermes has aux-model only. |
 | **Production observability** | ✅ | ❌ | Prometheus, `/health/*`, structlog. Hermes has WARNING logs. |
 | **Browser / device automation** | ✅ | ❌ | Playwright + device capabilities. |
-| **Procedural skill authoring** | ◐ | ✅ | Hermes writes/refines skills from experience. Atom has graduation + marketplace but skills are dev-authored. |
+| **Procedural skill authoring** | ✅ | ✅ | Hermes writes/refines skills from experience. Atom: `/learn` endpoint distills workflows→skills (R72 B) + prompt-time skill auto-injection (R72 C) + graduation/marketplace. |
 | **BYOK + OAuth mgmt** | ✅ | ◐ | Atom: encrypted multi-provider credentials. Hermes: "your model of choice." |
-| **Reflection / self-correction** | ❌ | ❌ | Neither documents it. |
-| **Parallel tool calls** | ❌ | ❌ | Neither documents it. |
+| **Reflection / self-correction** | ✅ | ❌ | Atom: in-loop self-correction — deterministic `[CRITIQUE]` on error observations + ActionJudge wiring (R72 A). Hermes has none. |
+| **Parallel tool calls** | ✅ | ❌ | Atom: in-loop parallel tool execution with all-or-nothing HITL batch approval (R72 G, default ON). Hermes is sequential. |
+| **Tool-result memoization** | ✅ | ❌ | Atom: read-only-whitelist result cache (R72 H, default ON). Hermes has none. |
+| **Self-consistency / Mixture-of-Agents** | ✅ | ❌ | Atom: N-sample majority vote (R42) + MoA on hard structured tasks (R72 F, default ON). Hermes is single-pass. |
 | **Sleep-like offline consolidation** | ◐ | ◐ | Atom has episode decay/similarity consolidation. Hermes has LanceDB background compaction. Neither has a true forgetting curve. |
 
 ---
@@ -141,21 +143,21 @@ These are capabilities Hermes lacks or doesn't document — **not gaps to close,
 ## Where Hermes is stronger
 
 1. **Memory-provider formalism** — the 7-hook ABC is a clean, documented contract. Atom has the hooks but no ABC (deferred).
-2. **Curated markdown notes** — `MEMORY.md` / `USER.md` frozen into the system prompt is a cheap, token-efficient way to carry durable context. Atom's SQL-fetched `DURABLE FACTS` block is fresher but costs a query per turn.
+2. **Curated markdown notes** — `MEMORY.md` / `USER.md` frozen into the system prompt is a cheap, token-efficient way to carry durable context. Atom's SQL-fetched `DURABLE FACTS` block is fresher but costs a query per turn. R72 Workstream E added a per-workspace **FieldGuide** memory snapshot injected into the agent prompt — a functional analog of Hermes' curated markdown.
 3. **Rolling summary update** — passing the previous summary and asking the LLM to update (vs. regenerate) is better than single-pass over long sessions. Atom has nothing here (deferred — see compression above).
 4. **Hybrid retrieval + cross-encoder reranker** — BM25+vector fusion with RRF/linear + 17M-param reranker. LongMemEval benchmark: 0.68 acc (hybrid+reranker) vs 0.66 (pure vector). Atom is pure vector.
 5. **Zero-latency prefetch** — Mem0 injects previous-turn cached results instantly while next-turn search runs in background. Atom's prefetch is synchronous (10-20ms).
-6. **Procedural skill authoring** — Hermes writes/refines skills from experience (Voyager-style). Atom's skills are developer-authored (graduation + marketplace, not agent-authored).
+6. **Procedural skill authoring** — Hermes writes/refines skills from experience (Voyager-style). R72 Workstream B added Atom's `/learn` endpoint (workflow→skill distillation) and Workstream C auto-injects relevant skills at prompt time, so the remaining gap is narrower: Atom distills from executed workflows, Hermes from open-ended experience.
 
 ---
 
 ## Where both are weak
 
-Opportunities — but not Hermes-derived, so not tracked as gaps:
+Opportunities — the three rows below were closed in R72; the rest remain open:
 
-- **Reflection / self-correction** — neither documents a critique/backtracking phase in the reasoning loop. Atom's episodic outcome-prefilter (retrieve past failures similar to the current state) is a building block, not a full self-correction loop.
-- **Parallel tool calls** — both are sequential
-- **Tool-result caching** — neither has it
+- **Reflection / self-correction** — Atom now has an in-loop self-correction phase (deterministic `[CRITIQUE]` on error/failed-verification observations appended to `execution_history` so the model re-plans, plus the opt-in LLM ActionJudge for pre-action review). Hermes still has none. A full backtracking/plan-revision loop remains open for both.
+- **Parallel tool calls** — Atom now executes independent tool batches in parallel (R72 G). Hermes remains sequential.
+- **Tool-result caching** — Atom now memoizes read-only-whitelist tool results (R72 H). Hermes has none.
 - **Sleep-like offline consolidation** — both have approximate versions (episode decay / LanceDB compaction); neither has a true forgetting curve
 - **Distributed tracing** — Atom has structured logs + Prometheus; no OpenTelemetry. Hermes has neither.
 - **Full state-diff verification** — Atom's verified-outcome contract distinguishes "tool said success" from "tool proved success via evidence" and gates graduation on the latter, but it does not yet snapshot world state before/after an action to compute a real diff. That's the "full" tier described in [Context Memory](CONTEXT_MEMORY.md) — deferred until the minimum-viable contract proves its value.
@@ -240,7 +242,7 @@ This section is intentionally blunt.
 
 **Choose Atom if:** you need multi-tenant business automation with governed agents (maturity levels, HITL supervision, audit trails), rich canvas presentations, multi-agent orchestration, browser/device automation, production observability, or cost-routed multi-provider LLM.
 
-**Neither is a good fit if:** you need reflection/self-correction in the reasoning loop, parallel tool execution, distributed tracing, or sleep-like offline memory consolidation — both are weak here.
+**Neither is a good fit if:** you need a true forgetting curve / sleep-like offline consolidation, distributed tracing (OpenTelemetry), or full pre/post state-diff verification of every action — those remain open on both sides. (Reflection/self-correction and parallel tool execution were closed for Atom in R72.)
 
 ---
 

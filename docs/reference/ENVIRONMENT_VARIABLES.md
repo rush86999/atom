@@ -156,12 +156,30 @@ See [`docs/architecture/CONTEXT_MEMORY.md`](../architecture/CONTEXT_MEMORY.md).
 
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
-| `TURN_FACT_EXTRACTION_ENABLED` | `false` | — | Per-turn LLM extraction (1 fast-model call/turn). |
+| `TURN_FACT_EXTRACTION_ENABLED` | `true` | — | Per-turn LLM extraction (1 fast-model call/turn). Default flipped ON in R72 Workstream D. |
 | `TURN_FACT_PRE_COMPRESS_ENABLED` | `true` | — | Pre-truncation queue (free, additive). |
-| `TURN_FACT_VECTOR_RECALL_ENABLED` | `false` | — | LanceDB-backed semantic recall. |
+| `TURN_FACT_VECTOR_RECALL_ENABLED` | `true` | — | LanceDB-backed semantic recall. Default flipped ON in R72 Workstream D. |
 | `TURN_FACT_MAX_PER_TURN` | `5` | — | Cap facts persisted per turn. |
 | `TURN_FACT_EXTRACTION_SAMPLE_RATE` | `1.0` | — | Dial down in cost crunch (0.0 = off). |
 | `TURN_FACT_QUEUE_MAXSIZE` | `100` | — | Queue capacity (overflow drops, never blocks). |
+
+---
+
+## 7b. R72 Reasoning-Loop Upgrades
+
+All deterministic reasoning-loop gains from R72 default **ON**; the LLM
+ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
+`core/hallucination_config.py`.
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_MOA_ENABLED` | `true` | — | Mixture-of-Agents on hard structured tasks (Workstream F). |
+| `ATOM_MOA_SAMPLES` | `3` | — | Samples drawn per MoA vote (min 2). |
+| `ATOM_PARALLEL_TOOLS` | `true` | — | In-loop parallel tool execution (Workstream G). |
+| `ATOM_MAX_PARALLEL_TOOLS` | `4` | — | Max tools in a single parallel batch (Workstream G). |
+| `ATOM_SKILL_INJECTION_ENABLED` | `true` | — | Prompt-time skill auto-injection (Workstream C). |
+| `ATOM_TOOL_CACHE_ENABLED` | `true` | — | Read-only tool-result memoization (Workstream H). |
+| `ATOM_TOOL_CACHE_TTL` | `30` | — | Cache TTL in seconds (Workstream H). |
 
 ---
 

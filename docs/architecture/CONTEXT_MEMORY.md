@@ -1,6 +1,6 @@
 # Context Memory: Per-Turn Fact Extraction
 
-> **Status:** Implemented (Phase 1-7 + gap-analysis follow-on). Extraction + vector recall default OFF; pre-compress queue ON.
+> **Status:** Implemented (Phase 1-7 + gap-analysis follow-on + R72 Workstream D). Extraction + vector recall default **ON** since R72; pre-compress queue ON.
 > **Evidence base:** Mem0 / Hermes deep-dive on production context-compression failures.
 > **Related code:** `backend/core/turn_fact_extractor.py`, `turn_fact_queue.py`, `turn_fact_vector_store.py`, `turn_fact_categories.py`, `backend/tools/memory_tool.py`
 
@@ -116,7 +116,7 @@ The extraction prompt forbids generic paraphrases ("the user said X") and transi
 
 Injects a `DURABLE FACTS (survive compression):` block into the assembled prompt. Up to 5 facts, most-recent-first. Fits the `<50ms agent resolution` target.
 
-### Tier 2 — LanceDB semantic recall (opt-in)
+### Tier 2 — LanceDB semantic recall (default ON since R72 Workstream D)
 
 `prefetch_relevant_facts()` is called **once** at `execute()` entry (not per `_react_step` — avoids N× embedding cost). Embeds the query, searches the LanceDB `turn_facts` table, hydrates from SQL via `vector_id`. Skipped for trivial queries ("hi", "thanks"). Gated by `TURN_FACT_VECTOR_RECALL_ENABLED`.
 
@@ -189,9 +189,9 @@ Postgres and Redis/Valkey support is retained for production parity and WebSocke
 
 | Flag | Default | Rationale |
 |---|---|---|
-| `TURN_FACT_EXTRACTION_ENABLED` | `false` | Costs 1 LLM call/turn; opt-in until telemetry validates |
+| `TURN_FACT_EXTRACTION_ENABLED` | `true` | 1 fast-model call/turn; flipped ON by default in R72 Workstream D |
 | `TURN_FACT_PRE_COMPRESS_ENABLED` | `true` | Free (queue + worker); strictly additive |
-| `TURN_FACT_VECTOR_RECALL_ENABLED` | `false` | Adds embedding latency; opt-in |
+| `TURN_FACT_VECTOR_RECALL_ENABLED` | `true` | Adds embedding latency; flipped ON by default in R72 Workstream D |
 | `LANCEDB_CLOUD_ENABLED` | `false` | Personal = embedded; SaaS flips to true |
 | `TURN_FACT_MAX_PER_TURN` | `5` | Hard cap per turn |
 | `TURN_FACT_EXTRACTION_SAMPLE_RATE` | `1.0` | Dial down in cost crunch |
