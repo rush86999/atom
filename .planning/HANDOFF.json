@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T01:57:51Z",
+  "timestamp": "2026-08-02T02:20:00Z",
   "phase": "306-tdd-bug-discovery-coverage",
   "phase_name": "TDD Bug Discovery & Coverage Completion",
   "phase_dir": ".planning/phases/306-tdd-bug-discovery-coverage",
   "plan": "LLM-Gateway-vs-Manifest",
-  "task": 8,
+  "task": 10,
   "total_tasks": 11,
   "status": "paused",
   "completed_tasks": [
@@ -16,11 +16,11 @@
     {"id": 5, "name": "A5: /api/gateway/keys CRUD (plaintext-once, ownership-gated)", "status": "done"},
     {"id": 6, "name": "A6: wiring into main_api_app (guarded) + env vars + docs", "status": "done"},
     {"id": 7, "name": "A7: tests (22 passing: gateway auth/routes/wire-format, chat_completion, B1 regression)", "status": "done"},
+    {"id": 8, "name": "B: Spend alerts + full-body log viewer", "status": "done", "progress": "B1 signature fix; B2 send_budget_alert notification; B3 gateway threshold alerts (50/80/90/100%, fire-once/day, ATOM_GATEWAY_BUDGET_ALERTS); B4 GatewayRequestLog hooks + /api/v1/gateway/logs viewer + retention sweep. 15 new tests (37 total passing)."},
     {"id": 9, "name": "C: 6 OpenAI-compatible providers (xai/cerebras/fireworks/huggingface/nvidia_nim/zai)", "status": "done"},
     {"id": 11, "name": "Cross-cutting docs + CI hygiene + verification (app imports clean, no str(e) leaks)", "status": "done"}
   ],
   "remaining_tasks": [
-    {"id": 8, "name": "B: Spend alerts + full-body log viewer", "status": "in_progress", "progress": "B1 fixed + regression tested; GatewayRequestLog model added. B2/B3/B4 not started."},
     {"id": 10, "name": "D: Subscription-credential reuse (OAuth/subscription flows)", "status": "not_started"}
   ],
   "blockers": [
@@ -44,15 +44,21 @@
     "backend/core/llm/byok_handler.py",
     "backend/core/models.py",
     "backend/main_api_app.py",
+    "backend/core/personal_budget_service.py",
+    "backend/core/periodic_tasks.py",
     "backend/alembic/versions/20260801_add_gateway_models.py",
     "backend/api/gateway_key_routes.py",
+    "backend/api/gateway_log_routes.py",
     "backend/api/openai_gateway_routes.py",
     "backend/core/llm/gateway/",
     "backend/tests/test_round70_budget_notification_fix.py",
     "backend/tests/test_round70_gateway.py",
+    "backend/tests/test_round70_budget_alert_notification.py",
+    "backend/tests/test_round70_gateway_budget_alerts.py",
+    "backend/tests/test_round70_gateway_logs.py",
     "backend/tests/unit/core/test_byok_chat_completion.py",
     "docs/architecture/LLM_GATEWAY.md"
   ],
-  "next_action": "Implement Phase B2-B4: B2 personal_budget_service send_budget_alert NotificationService call; B3 gateway threshold alerts (50/80/90/100%, fire-once per workspace-day, ATOM_GATEWAY_BUDGET_ALERTS); B4 GatewayRequestLog write hooks + /api/v1/gateway/logs endpoints (owner-scoped) + pii redaction + retention sweep in periodic_tasks.",
-  "context_notes": "Implemented the core deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phase A (OpenAI/Anthropic-compatible gateway), B1 (budget-notification fix, discovered + fixed a deeper broken admin-join query), and Phase C (6 new providers). 22 tests passing; main_api_app imports clean (ALL IMPORTS OK). Deferred: B2-B4 log-viewer/alerts, Phase D subscription reuse, Bedrock stretch. Critical: context was ~75% exhausted when pausing; resuming agent should re-run the 22-test set first, then continue with B2-B4."
+  "next_action": "Implement Phase D (task 10): Subscription-credential reuse — OAuth->subscription->BYOK->ENV credential priority, credential_type column, connect flow, security deferrals doc. First commit the completed Phase A/B/C work (37 tests passing) as a checkpoint.",
+  "context_notes": "Implemented the core deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phase A (OpenAI/Anthropic-compatible gateway), B1 (budget-notification fix), Phase B B2-B4 (spend alerts + log viewer), and Phase C (6 new providers). 37 tests passing (22 Phase A + 15 new B2-B4); main_api_app imports clean (ALL IMPORTS OK). Deferred: Phase D subscription reuse, Bedrock stretch. NOTE: during this session an accidental `git stash pop` of pre-existing stash stash@{0} (governance-wip) was fully reverted — verify git status matches expected gateway files before committing."
 }

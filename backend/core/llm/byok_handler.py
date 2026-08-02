@@ -174,6 +174,25 @@ class NoProvidersConfiguredError(ValueError):
         }
 
 
+class GatewayBlockedError(Exception):
+    """Raised by the LLM gateway when a request is blocked by a hard guard
+    (trial expired or budget exceeded). Maps to an HTTP 429 on the gateway
+    surface. The ``reason`` is exposed to clients (it is safe, non-sensitive);
+    internal detail stays in logs.
+    """
+
+    def __init__(self, reason: str, message: str = "Request blocked"):
+        super().__init__(message)
+        self.reason = reason
+        self.message = message
+
+
+class AllProvidersFailedError(Exception):
+    """Raised when every provider in the fallback chain failed for a
+    non-streaming gateway completion. The message is logged server-side only
+    and never leaked to the client (the gateway maps this to a generic 502)."""
+
+
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
     # Budget tier - cheapest, good for simple tasks
@@ -656,6 +675,13 @@ class BYOKHandler:
             "mistral": {"base_url": "https://api.mistral.ai/v1"},
             # Groq — ultra-fast inference, OpenAI-compatible
             "groq": {"base_url": "https://api.groq.com/openai/v1"},
+            # Phase C: six OpenAI-compatible providers (all expose /v1)
+            "xai": {"base_url": "https://api.x.ai/v1"},          # Grok
+            "cerebras": {"base_url": "https://api.cerebras.ai/v1"},
+            "fireworks": {"base_url": "https://api.fireworks.ai/inference/v1"},
+            "huggingface": {"base_url": "https://router.huggingface.co/v1"},
+            "nvidia_nim": {"base_url": "https://integrate.api.nvidia.com/v1"},
+            "zai": {"base_url": "https://api.z.ai/api/paas/v4"},
         }
 
         # Separate sync and async clients
@@ -3080,6 +3106,259 @@ class BYOKHandler:
                 except Exception:
                     pass
             raise
+
+    async def chat_completion(
+        self,
+        messages: List[Dict],
+        model: str,
+        provider_id: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        task_type: Optional[str] = "chat",
+        agent_id: Optional[str] = None,
+        extra_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Non-streaming chat completion with fallback + self-heal (gateway).
+
+        Mirrors ``stream_completion``'s fallback/heal shape but returns a full
+        OpenAI-compatible completion dict instead of yielding tokens. The full
+        message history is passed through untouched (no flattening) so
+        multi-turn gateway callers (Claude Code, Hermes, OpenAI-SDK apps) get
+        correct context.
+
+        Args:
+            messages: Chat messages in OpenAI format (full history).
+            model: Model name.
+            provider_id: Primary provider identifier.
+            temperature: Sampling temperature.
+            max_tokens: Maximum tokens to generate.
+            task_type: Task type hint (for routing/feedback).
+            agent_id: Optional agent ID for cost tracking.
+            extra_kwargs: Extra kwargs forwarded to the provider (e.g. ``stop``).
+
+        Returns:
+            OpenAI-shaped completion dict with ``choices`` and ``usage``.
+
+        Raises:
+            GatewayBlockedError: Trial expired or budget exceeded.
+            ValueError: No clients / no providers configured.
+            AllProvidersFailedError: Every provider in the fallback chain failed.
+        """
+        if not self.async_clients and not self.clients:
+            raise ValueError("No available providers. No clients initialized. Completion unavailable.")
+
+        # Hard guards (mapped to 429 by the gateway).
+        try:
+            if llm_usage_tracker.is_budget_exceeded(self.workspace_id):
+                raise GatewayBlockedError("budget_exceeded", "Budget exceeded")
+        except GatewayBlockedError:
+            raise
+        except Exception:
+            pass  # tracker check is best-effort
+        trial_check = getattr(llm_usage_tracker, "is_trial_expired", None)
+        if callable(trial_check):
+            try:
+                if trial_check(self.workspace_id):
+                    raise GatewayBlockedError("trial_expired", "Trial expired")
+            except GatewayBlockedError:
+                raise
+            except Exception:
+                pass
+
+        provider_order = self._get_provider_fallback_order(provider_id)
+        if not provider_order:
+            raise ValueError(f"No available providers for completion. Requested: {provider_id}")
+
+        last_error: Optional[Exception] = None
+        prompt_str = ""
+        for _m in reversed(messages):
+            if isinstance(_m, dict) and _m.get("role") == "user":
+                content = _m.get("content", "")
+                prompt_str = content if isinstance(content, str) else str(content)
+                break
+        decision_id = self._stash_decision_features(prompt_str, task_type)
+
+        base_kwargs: Dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if extra_kwargs:
+            base_kwargs.update({k: v for k, v in extra_kwargs.items() if v is not None})
+
+        for attempt_provider_id in provider_order:
+            heal_attempted = False
+            client = self.async_clients.get(attempt_provider_id)
+            if not client:
+                client = self.clients.get(attempt_provider_id)
+            if not client:
+                logger.warning(f"No client available for provider: {attempt_provider_id}")
+                continue
+
+            # Skip fallback providers that don't serve this model (same
+            # heuristic as stream_completion). The requested primary is always
+            # tried regardless.
+            if attempt_provider_id != provider_id and not self._provider_serves_model(
+                attempt_provider_id, model
+            ):
+                logger.debug(
+                    f"Skipping fallback to {attempt_provider_id}: does not serve model '{model}'"
+                )
+                continue
+
+            logger.info(f"Attempting completion with provider: {attempt_provider_id} (requested: {provider_id})")
+            try:
+                request_start = datetime.now()
+                response = await client.chat.completions.create(**base_kwargs)
+                latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
+
+                choice = response.choices[0] if getattr(response, "choices", None) else None
+                content = ""
+                if choice is not None:
+                    content = getattr(choice.message, "content", "") or ""
+                finish_reason = getattr(choice, "finish_reason", None) or "stop"
+
+                usage = getattr(response, "usage", None)
+                prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+                completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+                total_tokens = (prompt_tokens or 0) + (completion_tokens or 0)
+
+                cost: Optional[float] = None
+                try:
+                    fetcher = get_pricing_fetcher()
+                    cost = fetcher.estimate_cost(model, prompt_tokens or 0, completion_tokens or 0)
+                    if cost is None:
+                        cost = get_llm_cost(model, prompt_tokens or 0, completion_tokens or 0)
+                    if cost and cost > 0:
+                        llm_usage_tracker.record(
+                            workspace_id=self.workspace_id,
+                            provider=attempt_provider_id,
+                            model=model,
+                            input_tokens=prompt_tokens or 0,
+                            output_tokens=completion_tokens or 0,
+                            cost_usd=cost,
+                            savings_usd=0.0,
+                            agent_id=agent_id,
+                            complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
+                        )
+                except Exception as cost_err:
+                    logger.warning(f"Could not attribute LLM cost: {cost_err}")
+
+                self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                    content=content, finish_reason=finish_reason,
+                    success=True, cost=cost, latency_ms=latency_ms,
+                    routing_result_id=decision_id,
+                )
+                self._last_used_model = model
+                self._last_used_provider = attempt_provider_id
+
+                return {
+                    "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                    "object": "chat.completion",
+                    "created": int(datetime.now().timestamp()),
+                    "model": model,
+                    "provider": attempt_provider_id,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": content},
+                            "finish_reason": finish_reason,
+                            "logprobs": None,
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": prompt_tokens or 0,
+                        "completion_tokens": completion_tokens or 0,
+                        "total_tokens": total_tokens,
+                    },
+                }
+
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
+                try:
+                    latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
+                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                except Exception:
+                    pass
+
+                # --- Self-healing autofix (rule-based, single attempt) ---
+                if not heal_attempted:
+                    heal_attempted = True
+                    try:
+                        from core.llm.routing.request_healer import get_request_healer
+                        healer = get_request_healer()
+                        heal_result = healer.heal(e, dict(base_kwargs), attempt_provider_id, model)
+                        if heal_result.patched_kwargs is not None:
+                            logger.info(
+                                f"[SelfHeal] retrying {attempt_provider_id}/{model} "
+                                f"with patch={heal_result.rule} keys={heal_result.patched_keys}"
+                            )
+                            try:
+                                healed_response = await client.chat.completions.create(**heal_result.patched_kwargs)
+                                healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
+                                healed_content = ""
+                                if healed_choice is not None:
+                                    healed_content = getattr(healed_choice.message, "content", "") or ""
+                                healed_finish = getattr(healed_choice, "finish_reason", None) or "stop"
+                                healed_usage = getattr(healed_response, "usage", None)
+                                hp = getattr(healed_usage, "prompt_tokens", 0) if healed_usage else 0
+                                hc = getattr(healed_usage, "completion_tokens", 0) if healed_usage else 0
+                                try:
+                                    heal_cost = get_pricing_fetcher().estimate_cost(model, hp, hc)
+                                except Exception:
+                                    heal_cost = None
+                                self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=0.0)
+                                await self._record_outcome_feedback(
+                                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                                    content=healed_content, finish_reason=healed_finish,
+                                    success=True, cost=heal_cost, latency_ms=0.0,
+                                    routing_result_id=decision_id,
+                                )
+                                self._last_used_model = model
+                                self._last_used_provider = attempt_provider_id
+                                return {
+                                    "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                                    "object": "chat.completion",
+                                    "created": int(datetime.now().timestamp()),
+                                    "model": model,
+                                    "provider": attempt_provider_id,
+                                    "choices": [
+                                        {
+                                            "index": 0,
+                                            "message": {"role": "assistant", "content": healed_content},
+                                            "finish_reason": healed_finish,
+                                            "logprobs": None,
+                                        }
+                                    ],
+                                    "usage": {
+                                        "prompt_tokens": hp,
+                                        "completion_tokens": hc,
+                                        "total_tokens": hp + hc,
+                                    },
+                                }
+                            except Exception as retry_err:
+                                logger.warning(
+                                    f"[SelfHeal] retry FAILED for {attempt_provider_id}/{model}: {retry_err} "
+                                    f"(rule={heal_result.rule})"
+                                )
+                                last_error = retry_err
+                    except Exception:
+                        logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+
+                await self._record_outcome_feedback(
+                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                    content=None, finish_reason=None,
+                    success=False, cost=None, latency_ms=0.0,
+                    exception=e, routing_result_id=decision_id,
+                )
+
+        raise AllProvidersFailedError(
+            f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"
+        )
 
     async def generate_embedding(
         self,

@@ -867,11 +867,13 @@ except Exception as e:
 
         @app.get("/")
         async def root():
+            # NOTE: `except ... as e` unbinds `e` when the handler exits, so this
+            # closure must not reference it (NameError). The startup failure
+            # detail also stays server-side (logged above) instead of leaking.
             return {
                 "status": "degraded",
                 "error": "Application failed to initialize",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "details": str(e),
             }
 
         @app.get("/alive")
@@ -3117,6 +3119,20 @@ try:
         logger.info("✓ BYOK API Routes Loaded")
     except Exception as e:
         logger.warning(f"BYOK API routes failed to load: {e}")
+
+    # 24b. LLM Gateway Routes (Phase A — OpenAI/Anthropic-compatible surface).
+    # Guarded so a gateway import failure never blocks the whole app.
+    try:
+        from api.openai_gateway_routes import router as gateway_router
+        from api.gateway_key_routes import router as gateway_key_router
+        from api.gateway_log_routes import router as gateway_log_router
+
+        app.include_router(gateway_router, tags=["LLM Gateway"])
+        app.include_router(gateway_key_router, tags=["LLM Gateway Keys"])
+        app.include_router(gateway_log_router, tags=["LLM Gateway Logs"])
+        logger.info("✓ LLM Gateway Routes Loaded")
+    except Exception as e:
+        logger.warning(f"LLM Gateway routes failed to load: {e}")
 
     # 25. SSO API Routes (Phase 76)
     try:

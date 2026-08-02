@@ -6432,6 +6432,86 @@ class PublicApiKey(Base):
     creator = relationship("User", backref="created_api_keys")
 
 
+class GatewayApiKey(Base):
+    """
+    Gateway API Key model for the inbound OpenAI/Anthropic-compatible gateway
+    (Phase A). Authenticates external AI tools (Claude Code, Hermes, any
+    OpenAI-SDK app) against Atom's BYOK routing layer.
+
+    Keys use the format ``atom_sk_{UUIDv4}`` and are hashed with SHA-256 before
+    storage — plaintext is never persisted (the same pattern as PublicApiKey).
+    The owner chain key -> user -> tenant -> workspace provides attribution and
+    scoping for the gateway identity (see core/llm/gateway/auth.py).
+    """
+    __tablename__ = "gateway_api_keys"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)  # SHA-256 hex
+    key_prefix = Column(String(12), nullable=False, index=True)  # "atom_sk_" + 4 chars
+
+    # Owner / attribution
+    name = Column(String(255), nullable=False, default="default")
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    workspace_id = Column(String, nullable=True)
+
+    # Key properties
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    # Rate limiting
+    rate_limit_per_minute = Column(Integer, default=60)  # Default: 60 requests/minute
+
+    # Expiration / lifecycle
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    last_used = Column(DateTime(timezone=True), nullable=True)
+    last_rotated = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Usage tracking
+    total_requests = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", backref="gateway_api_keys")
+    tenant = relationship("Tenant", backref="gateway_api_keys")
+
+
+class GatewayRequestLog(Base):
+    """
+    Full-body request/response log for the LLM gateway (Phase B).
+
+    Metadata is always recorded; request/response bodies are only persisted
+    when ``ATOM_GATEWAY_LOG_BODIES=true`` and are redacted through
+    core/pii_redactor.py before storage (PII stripped, auth headers dropped).
+    """
+    __tablename__ = "gateway_request_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    api_key_id = Column(String, nullable=True, index=True)
+
+    request_json = Column(Text, nullable=True)
+    response_json = Column(Text, nullable=True)
+    provider = Column(String(100), nullable=True, index=True)
+    model = Column(String(200), nullable=True, index=True)
+    stream = Column(Boolean, default=False, nullable=False)
+    status_code = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    cost_usd = Column(Float, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Relationships
+    user = relationship("User", backref="gateway_request_logs")
+    tenant = relationship("Tenant", backref="gateway_request_logs")
+
+
 class PausedAgentTask(Base):
     """
     Paused Agent Task model for citation freshness tracking.

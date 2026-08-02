@@ -84,6 +84,7 @@
 37. **Self-Consistency Voter + Shadow Audit** — `core/llm/self_consistency_voter.py`, `core/hallucination_config.py`, `core/llm_service.py`: N-sample (Wang et al. 2022) majority vote; `VoteResult` tri-state mirrors #36; audit row per vote; shadow mode; force-proposal gating is the caller's job. Kill switch `ATOM_SELF_CONSISTENCY=false`. See `docs/architecture/SELF_CONSISTENCY_VOTER.md`
 38. **Execution Sandbox Layer** — `core/sandbox_policy.py`, `sandbox_config.py`, `sandbox_audit.py`, `sandbox_fs.py`, `sandbox_caps.py`, `sandbox_tripwire.py`, `sandbox_killrun.py`, `sandbox_egress_proxy.py`, `sandbox_runtime/`, `core/provenance.py`, `core/llm/action_judge.py`: deterministic blast-radius layer, 5 phases (policy → FS scope → tripwires/caps/KillRun → Firecracker/E2B runtime + egress proxy → provenance tagging + LLM ActionJudge). All shadow mode (default off); 166 tests. Kill switches per phase (`ATOM_SANDBOX_*`, see env vars). See `docs/architecture/SANDBOX_LAYER.md`
 39. **Office Automation & Canvas Co-Editing** — `core/office_service.py`, `core/workbook_runtime.py`, `core/office_sync_service.py`, `api/office_routes.py`, `tools/office_tool.py`: read/write/render docx/xlsx/pptx; formula-evaluating Excel runtime (LibreOffice → `formulas` → openpyxl); bi-directional canvas/file co-editing + sync. See `docs/architecture/WORKBOOK_RUNTIME.md`
+40. **LLM Gateway (OpenAI/Anthropic-compatible)** — `core/llm/gateway/`, `api/openai_gateway_routes.py`, `api/gateway_key_routes.py`: inbound `/v1/chat/completions` + `/v1/messages` over BYOK routing; `atom_sk_*` keys (SHA-256 only, `GatewayApiKey`); SSE adapters; wire-format translators; header overrides (`x-atom-model`/`x-atom-tier`/`x-atom-intent`); `ATOM_GATEWAY_ENABLED` master switch. See `docs/architecture/LLM_GATEWAY.md`
 
 ---
 
@@ -248,6 +249,16 @@ ATOM_BOOTSTRAP_PASSWORD_FILE=            # generated admin password, written 060
 SHOPIFY_WEBHOOK_SECRET=   ATOM_WHATSAPP_WEBHOOK_SECRET=   ATOM_SLACK_WEBHOOK_SECRET=
 ATOM_DISCORD_WEBHOOK_SECRET=   ATOM_TELEGRAM_WEBHOOK_SECRET=    # fail-closed if missing
 ATOM_TEAMS_WEBHOOK_SECRET=   ATOM_GMAIL_WEBHOOK_SECRET=   ATOM_SCHEDULER_SECRET=   # R69 webhook/scheduler shared secrets — fail-closed if missing
+
+# LLM Gateway (Phase A, R70) — docs/architecture/LLM_GATEWAY.md
+ATOM_GATEWAY_ENABLED=true                # master switch for /v1/* inbound surface
+ATOM_GATEWAY_PREFER_COST=true            # cost-aware routing default
+ATOM_GATEWAY_LOG_BODIES=false            # Phase B: persist full bodies (redacted)
+ATOM_GATEWAY_DEFAULT_MAX_TOKENS=1000
+ATOM_GATEWAY_BUDGET_ALERTS=false         # Phase B: threshold spend alerts
+ATOM_GATEWAY_LOG_RETENTION_DAYS=30       # Phase B: log sweep retention
+# Phase C providers: XAI_API_KEY, CEREBRAS_API_KEY, FIREWORKS_API_KEY,
+# HUGGINGFACE_API_KEY, NVIDIA_NIM_API_KEY, ZAI_API_KEY
 ```
 
 ---

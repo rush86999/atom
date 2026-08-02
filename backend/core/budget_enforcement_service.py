@@ -563,22 +563,25 @@ class BudgetEnforcementService:
         Send enforcement notification to admin users.
         """
         try:
-            from core.models import User, Permission, CustomRole
+            from core.models import User
             from core.models import Workspace
 
-            # Get admin users
-            admin_users = self.db.query(User).join(
-                User.custom_role
-            ).join(
-                CustomRole.permissions
-            ).filter(
-                Permission.scope == 'billing',
-                Permission.action == 'manage',
-                User.tenant_id == tenant_id
-            ).all()
+            # Get admin users. NOTE: the previous query joined
+            # `User.custom_role` / `CustomRole.permissions`, relationships that
+            # don't exist on the model (commented out at models.py:454) — it
+            # ALWAYS raised AttributeError before reaching send_notification,
+            # so no enforcement notification ever delivered. Query by the
+            # `role` column instead (present at models.py:434).
+            try:
+                admin_users = self.db.query(User).filter(
+                    User.tenant_id == tenant_id,
+                    User.role.in_(["admin", "owner", "billing_admin"]),
+                ).all()
+            except Exception:
+                admin_users = []
 
             if not admin_users:
-                # Fallback to tenant owner
+                # Fallback to any tenant user
                 admin_users = self.db.query(User).filter(
                     User.tenant_id == tenant_id
                 ).limit(1).all()
@@ -615,22 +618,28 @@ Enforcement Mode: {mode_labels.get(mode, mode)}
 {details}
 """
 
-            # Send to all admin users
+            # Send to all admin users. NOTE: NotificationService.send_notification
+            # has a 3-arg signature (user_id, notification_type, data) — the
+            # previous 7-kwarg call raised TypeError (swallowed by the outer
+            # except), so NO enforcement notification ever delivered. Fixed here.
             for user in admin_users:
                 await self.notification_service.send_notification(
-                    user_id=str(user.id),
-                    workspace_id=str(workspace.id),
-                    title=title,
-                    message=message,
-                    notification_type='error',
-                    channels=['email', 'in_app'],
-                    metadata={
-                        'enforcement_mode': mode,
-                        'current_spend': current_spend,
-                        'budget_limit': budget_limit,
-                        'utilization_percent': utilization_percent,
-                        'alert_type': 'budget_enforcement'
-                    }
+                    str(user.id),
+                    "budget_enforcement",
+                    {
+                        "title": title,
+                        "message": message,
+                        "workspace_id": str(workspace.id),
+                        "tenant_id": tenant_id,
+                        "priority": "high",
+                        "metadata": {
+                            "enforcement_mode": mode,
+                            "current_spend": current_spend,
+                            "budget_limit": budget_limit,
+                            "utilization_percent": utilization_percent,
+                            "alert_type": "budget_enforcement",
+                        },
+                    },
                 )
 
             logger.info(

@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v12.0
-milestone_name: TDD & Quality Culture
+milestone_name: milestone
 status: executing
-last_updated: "2026-04-30T21:05:00.000Z"
+last_updated: "2026-08-02T01:35:56.857Z"
 progress:
   total_phases: 12
-  completed_phases: 4
-  total_plans: 20
-  completed_plans: 17
-  percent: 85
+  completed_phases: 3
+  total_plans: 21
+  completed_plans: 15
+  percent: 25
 ---
 
 # STATE: Atom v12.0 TDD & Quality Culture
@@ -151,21 +151,25 @@ progress:
 
 ## Session Continuity
 
-**Current Session:** 2026-04-30T12:00:00.000Z
+**Current Session:** 2026-08-02T02:00:00.000Z — resumed from HANDOFF.json (task 8/11, plan LLM-Gateway-vs-Manifest)
 
-**Previous Session:** 2026-04-29T19:00:00.000Z
+**Previous Session:** 2026-08-02T01:57:51Z — paused at task 8/11 with 22 tests passing
+
+**Resume note:** Session resumed, proceeding to Task 8 (Phase B2-B4: spend alerts + GatewayRequestLog log viewer). See `.planning/HANDOFF.json` and `.planning/phases/306-tdd-bug-discovery-coverage/.continue-here.md` for full context.
 
 **Milestone Progress:** v11.0 → v12.0 → Phase 307 Complete
 
 **What Was Accomplished This Session (Phase 307):**
 
 **Phase 307: Backend Coverage - Critical Paths**
+
 - Duration: 1 day (April 30, 2026)
 - Result: Substantially Complete (9/14 files, 80% progress)
 - Coverage: Backend 36.7% → ~48% (+11.3pp, short of 50% target by 2.3pp)
 - Achievement: MAJOR COVERAGE EXPANSION
 
 **Test Files Created (9 total, 6,000+ lines):**
+
 1. Queen Agent: 94 tests, +74pp coverage (94% total) ✅ EXCEEDED
 2. Agent Routes: 90+ tests, +35pp coverage ✅ EXCEEDED
 3. Authentication: 43+ tests, +28pp coverage ✅ EXCEEDED
@@ -177,6 +181,7 @@ progress:
 9. Entity Type Service: 45 tests, +25pp estimated ✅ GOOD
 
 **PostgreSQL Infrastructure Complete (Plan 307-07):**
+
 - docker-compose.test.yml: PostgreSQL 15 test database on port 5434
 - tests/fixtures/postgresql.py: 483 lines of pytest fixtures
 - Session-scoped and function-scoped fixtures
@@ -185,6 +190,7 @@ progress:
 - Infrastructure ready for advanced testing
 
 **Execution Methodology:**
+
 - Wave-based parallel execution (3 waves)
 - Wave 1: Plans 01-03 (Queen Agent, Agent Routes, Authentication)
 - Wave 2: Plans 04-05 (LLM/BYOK, Episode/World Model)
@@ -193,6 +199,7 @@ progress:
 - Total time: ~4 hours of active agent execution
 
 **Commits (10 total):**
+
 - e512648c3: feat(307-01): Queen Agent test suite
 - f8cde3261: feat(307-03): Agent Routes expansion
 - fa43c77ed: feat(307-02): Authentication logic
@@ -205,6 +212,7 @@ progress:
 - ccdcbeb2: feat(307-07): PostgreSQL test infrastructure
 
 **Key Learnings:**
+
 1. Wave-based parallel execution is highly effective (3 waves vs sequential)
 2. PostgreSQL dependencies (JSONB, recursive CTEs) block SQLite testing
 3. Mock-based testing works for unit tests, insufficient for integration
@@ -212,6 +220,7 @@ progress:
 5. Coverage gains exceeded expectations on 5/9 completed files
 
 **Next Steps:**
+
 1. ✅ PostgreSQL test infrastructure complete (Plan 307-07)
 2. Run tests with PostgreSQL to measure accurate coverage
 3. Verify 50%+ backend coverage target achieved

@@ -8,13 +8,36 @@ Ported from atom-saas
 Changes: Removed Stripe, billing enforcement, tenant isolation, hard-stop blocking
 """
 
+import asyncio
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
 from core.database import SessionLocal
 from core.models import User
+from core.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
+
+
+def _run_coroutine_safely(coro):
+    """Drive a coroutine from sync code without breaking a running loop.
+
+    Personal-budget alerts are triggered from sync service code (agent
+    execution). ``NotificationService.send_notification`` is async, so we run
+    it to completion when no loop is running and fire-and-forget otherwise.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        loop.run_until_complete(coro)
+        return
+    # Already inside a running loop: schedule without blocking.
+    asyncio.ensure_future(coro)
 
 
 class PersonalBudgetService:
@@ -177,9 +200,78 @@ class PersonalBudgetService:
                 f"Spent: ${current_spend:.2f} of ${budget_limit_usd:.2f}. "
                 f"Remaining: ${budget_limit_usd - current_spend:.2f}."
             )
+            self._send_budget_alert_notification(
+                usage_percent, current_spend, budget_limit_usd, threshold_percent
+            )
             return True
-        
+
         return False
+
+    def _send_budget_alert_notification(
+        self,
+        usage_percent: float,
+        current_spend: float,
+        budget_limit_usd: float,
+        threshold_percent: float,
+    ) -> None:
+        """
+        Deliver an in-app budget alert via NotificationService (best-effort).
+
+        Uses the 3-arg ``send_notification(user_id, notification_type, data)``
+        contract — never 7 kwargs. Notification glitches are logged at DEBUG
+        and never propagate, so a failed alert can't break execution.
+        """
+        try:
+            user_id = self._get_alert_recipient_id()
+            if not user_id:
+                logger.debug("Budget alert notification skipped: no recipient user")
+                return
+
+            notification_service = NotificationService()
+            _run_coroutine_safely(
+                notification_service.send_notification(
+                    str(user_id),
+                    "budget_alert",
+                    {
+                        "title": f"Budget Alert: {usage_percent:.0f}% used",
+                        "message": (
+                            f"Budget alert: {usage_percent:.1f}% of your monthly budget is used. "
+                            f"Spent ${current_spend:.2f} of ${budget_limit_usd:.2f}."
+                        ),
+                        "priority": "high",
+                        "metadata": {
+                            "alert_type": "budget_alert",
+                            "usage_percent": round(usage_percent, 2),
+                            "current_spend": round(current_spend, 4),
+                            "budget_limit": round(budget_limit_usd, 4),
+                            "threshold_percent": threshold_percent,
+                        },
+                    },
+                )
+            )
+        except Exception as e:
+            logger.debug(f"Budget alert notification skipped: {e}")
+
+    def _get_alert_recipient_id(self) -> Optional[str]:
+        """
+        Resolve the user to receive budget alerts.
+
+        Prefers the first admin user (same rule as ``_get_budget_limit``);
+        falls back to any user if no admin exists.
+        """
+        try:
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.is_admin == True).first()
+                if user:
+                    return str(user.id)
+                user = db.query(User).first()
+                return str(user.id) if user else None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.debug(f"Could not resolve budget alert recipient: {e}")
+            return None
     
     def is_budget_exceeded(self) -> bool:
         """

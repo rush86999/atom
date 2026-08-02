@@ -3,13 +3,36 @@ Periodic System Tasks
 Executed by the SQS Worker on a schedule (Heartbeat).
 """
 import logging
-from saas.models import Workspace
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.config import get_config
+from core.models import Workspace
 
 logger = logging.getLogger(__name__)
+
+
+async def run_gateway_log_sweep():
+    """
+    Retention sweep for the LLM gateway request log (Phase B4).
+
+    Deletes ``GatewayRequestLog`` rows older than ``ATOM_GATEWAY_LOG_RETENTION_DAYS``
+    (default 30). Uses its own engine/session so it can run in the worker
+    heartbeat without sharing the request-bound session.
+    """
+    try:
+        config = get_config()
+        engine = create_engine(config.database_url)
+        SessionLocal = sessionmaker(bind=engine)
+        with SessionLocal() as db:
+            from core.llm.gateway.request_logger import sweep_gateway_logs
+
+            deleted = sweep_gateway_logs(db)
+            logger.info(f"Gateway log sweep complete: deleted {deleted} rows")
+            return {"gateway_logs_deleted": deleted}
+    except Exception as e:
+        logger.warning(f"Gateway log sweep failed: {e}")
+        return {"error": str(e)}
 
 async def run_global_ingestion_pulse():
     """
@@ -29,7 +52,7 @@ async def run_global_ingestion_pulse():
     logger.info("❤️ Global Ingestion Heartbeat Started")
     
     try:
-        with get_db_session() as db:
+        with SessionLocal() as db:
             workspaces = db.query(Workspace).all()
             logger.info(f"Found {len(workspaces)} workspaces to check")
             
