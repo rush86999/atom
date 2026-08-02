@@ -7,7 +7,7 @@
   "plan": "R72 Hermes Gap Closure",
   "task": 10,
   "total_tasks": 10,
-  "status": "paused",
+  "status": "complete",
   "completed_tasks": [
     {"id": 1, "name": "D: Memory defaults ON (TURN_FACT_EXTRACTION + VECTOR_RECALL)", "status": "done", "commit": "9c67a3620"},
     {"id": 2, "name": "A: In-loop verification + self-correction + ActionJudge wiring", "status": "done", "commit": "4c8fac36c"},
@@ -20,7 +20,7 @@
     {"id": 9, "name": "G: In-loop parallel tool execution (default ON)", "status": "done", "commit": "235237645"}
   ],
   "remaining_tasks": [
-    {"id": 10, "name": "J: Docs update", "status": "not_started"}
+    {"id": 10, "name": "J: Docs update", "status": "done", "commit": "5a4cddc7a"}
   ],
   "blockers": [
     {"description": "Pre-existing react-loop suite failures (33 tests) patch nonexistent core.atom_meta_agent.LLMService", "type": "technical", "workaround": "ignore or fix patch targets in separate test-infra commit"},
@@ -41,6 +41,6 @@
     "backend/chat_sessions.json (test byproduct — do not commit)",
     ".planning/HANDOFF.json (tracked; state refresh)"
   ],
-  "next_action": "Workstream J (docs, LAST): update HERMES_COMPARISON.md gap matrix (mark 1-9 closed), CLAUDE.md env vars (ATOM_MOA_*, ATOM_PARALLEL_TOOLS, ATOM_MAX_PARALLEL_TOOLS, ATOM_SKILL_INJECTION_ENABLED, ATOM_TOOL_CACHE_*; TURN_FACT_* defaults), ENVIRONMENT_VARIABLES.md, CONTEXT_MEMORY.md defaults. Then full regression + mark R72 complete.",
-  "context_notes": "G landed at 235237645: actions field on both ReActStep copies; all-or-nothing HITL batch approval (_wait_for_all_approvals); asyncio.gather over _execute_tool_with_governance(pre_approved=True)/_step_act(pre_approved=True); mcp_tool_search serialized; ATOM_MAX_PARALLEL_TOOLS cap (default 4); one AgentReasoningStep per tool via shared _persist_reasoning_step; turn-fact once per batch (dispatch_turn_fact); prompt-format docs; flag-off degrades to first single action. tests/unit/test_parallel_tools.py P1-P10 (10/10); main_api_app imports clean; meta-agent suites identical to baseline (37 failed/24 errors pre-existing, zero new). Only J (docs) remains."
+  "next_action": "R72 COMPLETE. All 10 workstreams done (D,A,C,E,H,B,I,F,G,J). Suggested next: full repo regression pass, then /gsd:complete-milestone or next milestone planning.",
+  "context_notes": "J landed at 5a4cddc7a: HERMES_COMPARISON.md matrix updated (fact extraction default ON, self-correction A, parallel G, memoization H, MoA F, /learn+skill-injection B/C, FieldGuide E all closed; both-are-weak + when-to-choose refreshed); ENVIRONMENT_VARIABLES.md new 7b R72 table (ATOM_MOA_*, ATOM_PARALLEL_TOOLS, ATOM_MAX_PARALLEL_TOOLS, ATOM_SKILL_INJECTION_ENABLED, ATOM_TOOL_CACHE_*); TURN_FACT_* defaults flipped true in CLAUDE.md + CONTEXT_MEMORY.md. R72 fully implemented and committed."
 }
