@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from core.database import get_db
 from core.auth import get_current_user, User
-from core.models import UserState
+from core.models import UserActivity, UserState
 from core.user_activity_service import UserActivityService
 from sqlalchemy.orm import Session
 
@@ -138,10 +138,9 @@ async def get_user_state(
         state = await service.get_user_state(user_id)
 
         # Get activity record for full response
-        activity = await service.get_user_state(user_id)
-        activity_record = db.query(service.db.query(UserActivity).filter(
+        activity_record = db.query(UserActivity).filter(
             UserActivity.user_id == user_id
-        ).first()).first() if hasattr(service, 'db') else None
+        ).first()
 
         if not activity_record:
             # Create minimal response

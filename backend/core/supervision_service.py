@@ -8,8 +8,12 @@ Provides monitoring, intervention, and outcome tracking.
 import asyncio
 from datetime import datetime, timedelta
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from core.feedback_service import FeedbackService
+    from core.supervisor_learning_service import SupervisorLearningService
 
 from core.models import (
     AgentExecution,

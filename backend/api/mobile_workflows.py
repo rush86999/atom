@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
 from core.database import get_db
-from core.models import WorkflowExecution, WorkflowExecutionLog
+from core.models import Workflow, WorkflowExecution, WorkflowExecutionLog
 from core.workflow_security import require_workflow_executor
 
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ async def trigger_workflow_mobile(
         # Verify workflow exists
         workflow_dict = _load_workflow_definition(db, request.workflow_id)
         if not workflow_dict:
-            raise router.not_found_error("Workflow", workflow_id)
+            raise router.not_found_error("Workflow", request.workflow_id)
 
         if workflow_dict.get("status") != 'active':
             raise router.validation_error(

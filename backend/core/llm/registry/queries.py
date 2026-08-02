@@ -1,5 +1,8 @@
-# DEPRECATED: This module has no live callers and 10 functions have NameError (tenant_id
-# missing from signature). Do not import without fixing the signatures first.
+# NOTE: This module currently has no live callers (kept for the registry API).
+# The tenant_id signature/body mismatch was repaired in the round-70 sweep:
+# helpers now take tenant_id again, matching the rest of the registry service.
+# Atom is single-tenant (Personal Edition) but tenant_id stays on all models
+# and query filters for SaaS schema parity — see docs/architecture/TENANT_ID_STRATEGY.md.
 """Query Helpers for LLM Model Registry
 
 This module provides optimized query functions for filtering LLM models
@@ -31,6 +34,7 @@ JSON_MODE = 'json_mode'
 
 def query_by_capability(
     db: Session,
+    tenant_id: str,
     capability: str
 ) -> List[LLMModel]:
     """
@@ -67,6 +71,7 @@ def query_by_capability(
 
 def query_by_all_capabilities(
     db: Session,
+    tenant_id: str,
     capabilities: List[str]
 ) -> List[LLMModel]:
     """
@@ -111,6 +116,7 @@ def query_by_all_capabilities(
 
 def query_by_any_capability(
     db: Session,
+    tenant_id: str,
     capabilities: List[str]
 ) -> List[LLMModel]:
     """
@@ -143,6 +149,7 @@ def query_by_any_capability(
 
 def query_by_metadata(
     db: Session,
+    tenant_id: str,
     metadata_path: str,
     metadata_value: Any
 ) -> List[LLMModel]:
@@ -178,6 +185,7 @@ def query_by_metadata(
 
 def get_capable_models(
     db: Session,
+    tenant_id: str,
     required_capabilities: Optional[List[str]] = None,
     any_capability: Optional[str] = None,
     any_capabilities: Optional[List[str]] = None
@@ -236,6 +244,7 @@ def get_capable_models(
 
 def explain_query(
     db: Session,
+    tenant_id: str,
     capability: str
 ) -> str:
     """
@@ -270,6 +279,7 @@ def explain_query(
 
 def get_index_usage_stats(
     db: Session,
+    tenant_id: str,
     capability: str
 ) -> Dict[str, Any]:
     """
@@ -290,7 +300,7 @@ def get_index_usage_stats(
         print(f"Execution time: {stats['execution_time']}ms")
         print(f"Rows returned: {stats['row_count']}")
     """
-    explain_output = explain_query(db, capability)
+    explain_output = explain_query(db, tenant_id, capability)
 
     # Parse EXPLAIN ANALYZE output
     stats = {
@@ -335,6 +345,7 @@ QUALITY_AUTO_INCLUSION_THRESHOLD = 80.0
 
 def get_models_by_quality_range(
     db: Session,
+    tenant_id: str,
     min_quality: float = 0.0,
     max_quality: float = 100.0,
     limit: Optional[int] = None
@@ -373,6 +384,7 @@ def get_models_by_quality_range(
 
 def get_frontier_models(
     db: Session,
+    tenant_id: str,
     min_quality: float = QUALITY_AUTO_INCLUSION_THRESHOLD,
     capabilities: Optional[List[str]] = None,
     exclude_experimental: bool = True
@@ -432,6 +444,7 @@ def get_frontier_models(
 
 def get_auto_include_models(
     db: Session,
+    tenant_id: str,
     provider: Optional[str] = None
 ) -> List[LLMModel]:
     """Get models that should be auto-included in BPC routing.

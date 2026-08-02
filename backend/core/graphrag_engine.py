@@ -104,13 +104,6 @@ class GraphRAGEngine:
             "entities": 0,
         }
 
-    def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
-        """Get the registry configuration for a canonical type."""
-        t_lower = entity_type.lower()
-        if t_lower in ENTITY_REGISTRY:
-            return ENTITY_REGISTRY[t_lower]
-        return None
-
     def _validate_search_input(self, name: str, max_length: int = 500) -> str:
         """
         Validate and sanitize search input.

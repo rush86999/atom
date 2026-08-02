@@ -6,7 +6,7 @@ model metadata from LiteLLM and OpenRouter APIs on a scheduled basis.
 The sync job runs every 1 month (720 hours) to:
 - Fetch latest model pricing and metadata from external APIs
 - Update the database with new/changed models
-- Update last_sync_timestamp for monitoring
+- Update last_refreshed_at for monitoring
 - Refresh the Redis cache
 
 Manual trigger available via API for immediate sync when needed.
@@ -58,10 +58,10 @@ class ModelSyncJob:
         Execute the sync job for a tenant.
 
         This method:
-        1. Checks if sync is needed (based on last_sync_timestamp)
+        1. Checks if sync is needed (based on last_refreshed_at)
         2. Fetches models from LiteLLM and OpenRouter APIs
         3. Upserts models to database
-        4. Updates last_sync_timestamp
+        4. Updates last_refreshed_at
         5. Refreshes cache
 
         Args:
@@ -111,7 +111,7 @@ class ModelSyncJob:
             # Fetch and store models using existing service
             stats = await self.registry_service.fetch_and_store(tenant_id)
 
-            # Update last_sync_timestamp for all models
+            # Update last_refreshed_at for all models
             self._update_sync_timestamp(tenant_id)
 
             # Build result
@@ -136,9 +136,9 @@ class ModelSyncJob:
 
         return result
 
-    def _update_sync_timestamp(self) -> None:
+    def _update_sync_timestamp(self, tenant_id: str) -> None:
         """
-        Update last_sync_timestamp in database for all models.
+        Update last_refreshed_at in database for all models.
 
         Sets the timestamp for all models in the tenant to indicate
         they were just synchronized from external APIs.
@@ -157,12 +157,12 @@ class ModelSyncJob:
             updated = self.db.query(LLMModel).filter(
                 LLMModel.tenant_id == tenant_id
             ).update(
-                {'last_sync_timestamp': current_time},
+                {'last_refreshed_at': current_time},
                 synchronize_session=False
             )
 
             self.db.commit()
-            self.logger.debug(f"Updated last_sync_timestamp for {updated} models in tenant {tenant_id}")
+            self.logger.debug(f"Updated last_refreshed_at for {updated} models in tenant {tenant_id}")
 
         except Exception as e:
             self.logger.error(f"Failed to update sync timestamp for tenant {tenant_id}: {e}")
@@ -170,7 +170,7 @@ class ModelSyncJob:
             raise
 
     @staticmethod
-    def should_sync(db: Session, interval_hours: int = 720) -> bool:
+    def should_sync(tenant_id: str, db: Session, interval_hours: int = 720) -> bool:
         """
         Check if sync is needed based on last sync timestamp.
 
@@ -193,10 +193,10 @@ class ModelSyncJob:
         """
         try:
             # Get most recent sync timestamp for tenant
-            latest_sync = db.query(LLMModel.last_sync_timestamp).filter(
+            latest_sync = db.query(LLMModel.last_refreshed_at).filter(
                 LLMModel.tenant_id == tenant_id
             ).order_by(
-                LLMModel.last_sync_timestamp.desc()
+                LLMModel.last_refreshed_at.desc()
             ).first()
 
             # No models exist - sync needed

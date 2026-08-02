@@ -3,6 +3,7 @@ Enhanced Integration Capabilities Endpoints
 API endpoints for advanced data mapping, bulk operations, and integration analytics
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
@@ -18,6 +19,8 @@ from .integration_data_mapper import (
     TransformationType,
     get_data_mapper,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

@@ -557,7 +557,7 @@ What is your next step?"""
         except Exception as e:
             error_msg = str(e)
             if "not found" in error_msg.lower():
-                return f"Error: Tool '{tool_name}' not found on server '{server_id}'. Check tool name."
+                return f"Error: Tool '{tool_name}' not found. Check tool name."
             elif "validation" in error_msg.lower() or "invalid" in error_msg.lower():
                 return f"Error: Invalid arguments for '{tool_name}': {error_msg}. Please check schema and retry."
             elif "timeout" in error_msg.lower():

@@ -11,7 +11,7 @@ quotes, POs, price lists, and invoices it generates.
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from core.office_service import OfficeService
 from core.office_sync_service import OfficeSyncService
 

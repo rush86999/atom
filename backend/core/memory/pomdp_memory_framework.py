@@ -744,7 +744,7 @@ class ExperienceCalculator:
         if metrics.recent_intervention_rate <= max_intervention:
             readiness_score += 0.25
         else:
-            gaps.append(f"Intervention rate {metrics.recent_intervention_rate:.2%} exceeds {max_intervention_rate*100:.0f}%")
+            gaps.append(f"Intervention rate {metrics.recent_intervention_rate:.2%} exceeds {max_intervention*100:.0f}%")
 
         # Check constitutional score (from memory quality)
         min_constitutional = target_criteria.get("min_constitutional_score", 0.70)

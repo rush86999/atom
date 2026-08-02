@@ -18,7 +18,10 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
 from core.docling_processor import get_docling_processor
@@ -29,6 +32,7 @@ from core.integration_constants import MULTI_ENTITY_INTEGRATIONS
 from core.lancedb_handler import LanceDBHandler
 from core.models import DiscoveredEntity, DocumentIngestion, Tenant, UserConnection
 from core.multi_entity_llm_extractor import MultiEntityLLMExtractor
+from core.openie_schema_discovery import CORE_ENTITY_SCHEMAS
 from core.schema_discovery_service import SchemaDiscoveryService
 from core.usage_tracking_service import UsageTrackingService
 

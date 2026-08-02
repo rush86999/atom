@@ -7,7 +7,7 @@ with agent governance and learning systems.
 
 import logging
 from typing import Optional
-from fastapi import Depends, status
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 

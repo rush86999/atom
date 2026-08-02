@@ -3,7 +3,7 @@ Token Storage Utility
 Provides secure storage and retrieval for OAuth tokens to enable background workflow execution.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import os
@@ -87,7 +87,6 @@ class TokenStorage:
         
         # Calculate expiry if expires_in is present
         if 'expires_in' in token_data and 'expires_at' not in token_data:
-            from datetime import timedelta
             expires_in = int(token_data['expires_in'])
             token_data['expires_at'] = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
         

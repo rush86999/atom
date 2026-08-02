@@ -6,7 +6,12 @@ Replaces SecretsRedactor for social layer PII detection.
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    # presidio's anonymize() return type (hash operator output is post-processed
+    # into readable placeholders by _add_placeholders).
+    from presidio_anonymizer.entities import EngineResult as AnonymizedResult
 
 logger = logging.getLogger(__name__)
 

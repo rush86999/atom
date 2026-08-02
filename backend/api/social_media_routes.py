@@ -472,7 +472,7 @@ async def create_social_post(
                         governance_check_passed=False,
                         required_approval=required_approval,
                         approval_granted=False,
-                        request_id=str(uuid.uuid4())
+                        request_id=str(uuid4())
                     )
                     db.add(audit)
                     db.commit()
@@ -500,7 +500,7 @@ async def create_social_post(
         if payload.scheduled_for and payload.scheduled_for > datetime.now(timezone.utc):
             from core.task_queue import enqueue_scheduled_post
 
-            post_id = str(uuid.uuid4())
+            post_id = str(uuid4())
 
             # Enqueue the scheduled post
             job_id = enqueue_scheduled_post(

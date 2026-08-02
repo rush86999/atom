@@ -3,6 +3,7 @@ Atom Meta-Agent - Central Orchestrator for ATOM Platform
 The main intelligent agent that can spawn specialty agents and access all platform features.
 """
 
+import json
 import logging
 import uuid
 import asyncio

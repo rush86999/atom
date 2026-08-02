@@ -61,6 +61,7 @@ Respond ONLY with the raw JSON Schema object.
             }
 
 _instance: Optional[EntitySchemaSuggestionService] = None
+_instance_lock = threading.Lock()
 
 def get_entity_schema_suggestion_service() -> EntitySchemaSuggestionService:
     global _instance

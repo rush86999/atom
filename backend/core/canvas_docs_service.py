@@ -56,6 +56,7 @@ class DocumentationCanvasService:
         content: str,
         canvas_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        layout: str = "document",
         enable_comments: bool = True,
         enable_versioning: bool = True
     ) -> Dict[str, Any]:

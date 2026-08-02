@@ -7,7 +7,7 @@ import io
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, File, Query, UploadFile
+from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter

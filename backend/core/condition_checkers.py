@@ -15,6 +15,14 @@ from core.models import AgentExecution, ConditionMonitor, TeamMessage
 
 logger = logging.getLogger(__name__)
 
+# Condition type identifiers. ConditionMonitor.condition_type is persisted as a
+# plain string (see condition_monitoring_service), so dispatch compares strings.
+CONDITION_TYPE_INBOX_VOLUME = "inbox_volume"
+CONDITION_TYPE_TASK_BACKLOG = "task_backlog"
+CONDITION_TYPE_API_METRICS = "api_metrics"
+CONDITION_TYPE_DATABASE_QUERY = "database_query"
+CONDITION_TYPE_COMPOSITE = "composite"
+
 
 class ConditionCheckers:
     """
@@ -46,15 +54,15 @@ class ConditionCheckers:
         """
         condition_type = monitor.condition_type
 
-        if condition_type == ConditionMonitorType.INBOX_VOLUME.value:
+        if condition_type == CONDITION_TYPE_INBOX_VOLUME:
             return self._check_inbox_volume(monitor)
-        elif condition_type == ConditionMonitorType.TASK_BACKLOG.value:
+        elif condition_type == CONDITION_TYPE_TASK_BACKLOG:
             return self._check_task_backlog(monitor)
-        elif condition_type == ConditionMonitorType.API_METRICS.value:
+        elif condition_type == CONDITION_TYPE_API_METRICS:
             return self._check_api_metrics(monitor)
-        elif condition_type == ConditionMonitorType.DATABASE_QUERY.value:
+        elif condition_type == CONDITION_TYPE_DATABASE_QUERY:
             return self._check_database_query(monitor)
-        elif condition_type == ConditionMonitorType.COMPOSITE.value:
+        elif condition_type == CONDITION_TYPE_COMPOSITE:
             return self._check_composite(monitor)
         else:
             logger.warning(f"Unknown condition type: {condition_type}")

@@ -7,8 +7,12 @@ Ensures efficient resource management and consistent service configuration.
 
 import logging
 import threading
-from typing import Dict, Optional, Any
+from typing import TYPE_CHECKING, Dict, Optional, Any
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from core.push_notifications import PushNotificationService
+    from core.workflow_analytics_engine import WorkflowAnalyticsEngine
 
 from core.agent_governance_service import AgentGovernanceService
 from core.models import User
@@ -355,7 +359,7 @@ class ServiceFactory:
     def get_workflow_analytics_engine(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> "WorkflowAnalyticsEngine":
         """Get or create WorkflowAnalyticsEngine instance."""
         if not hasattr(cls._thread_local, 'workflow_analytics_engine'):
-            from core.workflow_analytics import WorkflowAnalyticsEngine
+            from core.workflow_analytics_engine import WorkflowAnalyticsEngine
             cls._thread_local.workflow_analytics_engine = WorkflowAnalyticsEngine(db, workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.workflow_analytics_engine
 

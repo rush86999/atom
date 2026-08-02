@@ -29,7 +29,10 @@ except (ImportError, BaseException) as e:
     logger.warning(f"Numpy check failed: {e}")
 
 from datetime import datetime, timezone
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, List, Union
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from core.chat_context_manager import ChatContextManager
 
 # Lazy load Pandas to prevent Windows hang
 try:
@@ -502,6 +505,8 @@ class LanceDBHandler:
                 # Fallback to zero vector if embedding fails (though not ideal)
                 vector_size = 1536 if self.embedding_provider == "openai" else 1536
                 if NUMPY_AVAILABLE:
+                    import numpy as np
+
                     embedding = np.zeros(vector_size)
                 else:
                     embedding = [0.0] * vector_size
@@ -1503,11 +1508,20 @@ def embed_documents_batch(
 
 def create_memory_schema(vector_size: int = 384) -> dict[str, Any]:
     """Create standard memory schema for ATOM"""
+    try:
+        from lancedb.pydantic import Vector
+
+        vector_type: Any = Vector(vector_size)
+    except ImportError:
+        # LanceDB unavailable (e.g. minimal install): fall back to a plain
+        # float-list annotation so callers still get a usable schema dict.
+        vector_type = List[float]
+
     return {
         "id": str,
         "text": str,
         "source": str,
         "metadata": str,  # JSON string
         "created_at": str,
-        "vector": Vector(vector_size),
+        "vector": vector_type,
     }

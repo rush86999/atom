@@ -458,7 +458,7 @@ def check(
                 tool_name, e,
             )
             return SandboxDecision(
-                decision=DENIED,
+                decision=BLOCKED,
                 phase="C",
                 tool_name=tool_name,
                 args_hash=args_hash,

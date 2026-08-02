@@ -7,6 +7,7 @@ Monitors delegation chains and executes scaling proposals with budget validation
 
 import logging
 import asyncio
+import os
 import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone, timedelta
@@ -141,14 +142,8 @@ class FleetScalerService:
             chain_id)
 
         if proposal:
-            # 3. Validate budget before creating
-            {"allowed": True, "budget_remaining": float("inf"), "estimated_cost": 0.0, "budget_exceeded": False}
-
-            if False:  # Budget checks disabled in upstream
-                logger.warning(
-                    f"Scaling proposal blocked by budget check: {budget_check['reason']}"
-                )
-                return None
+            # 3. Budget validation is disabled upstream (no budget service wired
+            #    in Personal Edition) — proposals are persisted unconditionally.
 
             # 4. Persist proposal
             await self.proposal_service._persist_proposal(proposal)

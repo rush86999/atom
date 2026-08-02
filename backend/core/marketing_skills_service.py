@@ -46,8 +46,6 @@ class MarketingSkillsService:
             "average_rating": 0.0,
             "status": "ready"
         }
-        
-        return summary
 
     async def suggest_review_response(self, review_text: str, rating: int) -> str:
         """

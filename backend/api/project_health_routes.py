@@ -344,7 +344,7 @@ async def check_project_health(
     try:
 
         # Generate check ID
-        check_id = str(uuid.uuid4())
+        check_id = str(uuid4())
 
         logger.info(
             f"Checking project health: user={current_user.id}, "

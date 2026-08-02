@@ -530,4 +530,5 @@ async def security_middleware(request: Request, call_next):
         )
 
     # Process request
-    response
+    response = await call_next(request)
+    return response

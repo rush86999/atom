@@ -6,7 +6,7 @@ and estimate completion duration based on critical path analysis.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 
 from .task_decomposition_service import TaskDecomposition
@@ -60,7 +60,8 @@ class ComplexityEstimator:
     def estimate_fleet_size(
         self,
         decomposition: TaskDecomposition,
-        tenant_plan: str) -> int:
+        tenant_plan: str,
+        tenant_id: Optional[str] = None) -> int:
         """
         Recommend optimal fleet size based on complexity analysis.
 
@@ -100,7 +101,7 @@ class ComplexityEstimator:
 
         # Factor 4: Historical performance (if available)
         historical_multiplier = 1.0
-        if decomposition.subtasks:
+        if decomposition.subtasks and tenant_id:
             # Get performance for first subtask's domain
             domain = decomposition.subtasks[0].required_domain
             try:

@@ -85,7 +85,10 @@ class AutoApprovalService:
         self.db.commit()
         self.db.refresh(rule)
 
-        logger.info(f"[AutoApproval] Created rule '{rule_name}' for tenant {tenant_id}")
+        logger.info(
+            f"[AutoApproval] Created rule '{rule_name}' "
+            f"(chain={chain_id or 'all'})"
+        )
         return rule
 
     def get_active_rules(

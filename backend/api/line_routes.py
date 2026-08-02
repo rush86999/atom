@@ -6,7 +6,7 @@ Provides REST endpoints for LINE messaging integration.
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Header, Query, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.requests import Request

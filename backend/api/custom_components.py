@@ -231,7 +231,7 @@ async def get_component(
     if "error" in result:
         raise router.not_found_error(
             resource="Component",
-            resource_id=component_id if 'component_id' in locals() else slug,
+            resource_id=component_id,
             details={"error": result.get("error")}
         )
 
@@ -271,7 +271,7 @@ async def get_component_by_slug(
     if "error" in result:
         raise router.not_found_error(
             resource="Component",
-            resource_id=component_id if 'component_id' in locals() else slug,
+            resource_id=slug,
             details={"error": result.get("error")}
         )
 

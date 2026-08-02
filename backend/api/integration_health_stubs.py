@@ -510,7 +510,7 @@ async def google_oauth_init():
     # Return OAuth flow initiation URL
     redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
     scope = "openid profile email"
-    state = str(uuid.uuid4())  # Generate state for CSRF protection
+    state = str(uuid4())  # Generate state for CSRF protection
 
     oauth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"

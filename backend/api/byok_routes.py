@@ -1309,16 +1309,6 @@ async def byok_health_v1(current_user: User = Depends(get_current_user), byok_ma
     return await byok_health_check(byok_manager)
 
 
-    return ApiResponse(success=True, data={
-        "status_code": 200,
-        "available": True,
-        "providers_connected": [p["id"] for p in providers_list if p["has_keys"]],
-        "active_models": sum(1 for p in providers_list if p["active"]),
-        "cost_tracking": "enabled",
-        "providers_list": providers_list
-    })
-
-
 # Dynamic Pricing Endpoints
 
 @router.get("/api/ai/pricing")
