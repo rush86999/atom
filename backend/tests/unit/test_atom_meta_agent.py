@@ -31,6 +31,18 @@ from core.models import AgentRegistry, AgentStatus, User
 # FIXTURES
 # =============================================================================
 
+@pytest.fixture(autouse=True)
+def _disable_turn_fact_dispatch(monkeypatch):
+    """R72 (Aug 2026): durable-memory defaults flipped ON.
+
+    Suppress the real extraction/vector-recall dispatch in atom_meta_agent
+    ReAct-loop tests (they mock SessionLocal / the extractor, so the real
+    FastEmbed/LanceDB + LLM calls would otherwise fire).
+    """
+    import core.atom_meta_agent as ama
+    monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", False)
+    monkeypatch.setattr(ama, "_TURN_FACT_VECTOR_RECALL_ENABLED", False)
+
 @pytest.fixture
 def mock_user():
     """Mock user for testing"""

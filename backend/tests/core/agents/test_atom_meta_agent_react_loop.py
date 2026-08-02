@@ -41,6 +41,20 @@ from core.react_models import ReActStep, ToolCall, ReActObservation
 from fastapi import HTTPException
 
 
+@pytest.fixture(autouse=True)
+def _disable_turn_fact_dispatch(monkeypatch):
+    """R72 (Aug 2026): durable-memory defaults flipped ON.
+
+    The ReAct-loop dispatch is real (extraction + vector prefetch fire from
+    atom_meta_agent.execute). These tests mock SessionLocal / the extractor,
+    so the real FastEmbed/LanceDB + LLM calls must be suppressed. Patch the
+    module aliases that atom_meta_agent reads at import time.
+    """
+    import core.atom_meta_agent as ama
+    monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", False)
+    monkeypatch.setattr(ama, "_TURN_FACT_VECTOR_RECALL_ENABLED", False)
+
+
 @pytest.fixture
 def mock_user():
     """Mock user for testing"""

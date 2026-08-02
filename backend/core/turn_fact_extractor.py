@@ -49,15 +49,20 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Feature flags (defaults match CLAUDE.md)
+#
+# R72 (Aug 2026): durable-memory stack is now ON by default —
+# TURN_FACT_EXTRACTION_ENABLED (per-turn extraction) and
+# TURN_FACT_VECTOR_RECALL_ENABLED (Tier-2 semantic recall). Pre-compress was
+# already ON. See docs/architecture/CONTEXT_MEMORY.md.
 # ---------------------------------------------------------------------------
 TURN_FACT_EXTRACTION_ENABLED = (
-    os.getenv("TURN_FACT_EXTRACTION_ENABLED", "false").lower() == "true"
+    os.getenv("TURN_FACT_EXTRACTION_ENABLED", "true").lower() == "true"
 )
 TURN_FACT_PRE_COMPRESS_ENABLED = (
     os.getenv("TURN_FACT_PRE_COMPRESS_ENABLED", "true").lower() == "true"
 )
 TURN_FACT_VECTOR_RECALL_ENABLED = (
-    os.getenv("TURN_FACT_VECTOR_RECALL_ENABLED", "false").lower() == "true"
+    os.getenv("TURN_FACT_VECTOR_RECALL_ENABLED", "true").lower() == "true"
 )
 TURN_FACT_MAX_PER_TURN = int(os.getenv("TURN_FACT_MAX_PER_TURN", "5"))
 TURN_FACT_EXTRACTION_SAMPLE_RATE = float(
