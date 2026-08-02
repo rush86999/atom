@@ -14,8 +14,18 @@ from core.auth import get_current_user
 from core.database import get_db
 from core.models import User
 
-STATE_OAUTH = "llm:openai:oauth:u-1"
-STATE_SUB = "llm:openai:subscription:u-1"
+# States are now HMAC-signed (6-part: llm:provider:type:user:nonce:sig) to
+# prevent forgery. Build them via the real helper so tests stay in sync with
+# the signing scheme. The nonce is random, so states are fresh per test run.
+from api.llm_oauth_routes import _build_state
+
+
+def _state_oauth(user_id="u-1"):
+    return _build_state("openai", "oauth", user_id)
+
+
+def _state_sub(user_id="u-1"):
+    return _build_state("openai", "subscription", user_id)
 
 
 def _client(db=None, user_id="u-1"):
@@ -96,7 +106,8 @@ class TestConnect:
             )
 
         assert r.status_code == 200
-        assert "llm:openai:subscription:u-1" == r.json()["state"]
+        # State is signed but must still carry the subscription intent.
+        assert "subscription" in r.json()["state"]
 
     def test_unknown_provider_400(self):
         with patch("api.llm_oauth_routes.LLMOAuthHandler") as handler_cls:
@@ -118,7 +129,7 @@ class TestCallback:
         app.dependency_overrides[get_db] = lambda: MagicMock()
         client = TestClient(app, raise_server_exceptions=False)
 
-        r = client.get("/api/v1/llm-oauth/openai/callback", params={"code": "x", "state": STATE_OAUTH})
+        r = client.get("/api/v1/llm-oauth/openai/callback", params={"code": "x", "state": _state_oauth()})
         assert r.status_code == 401
 
     def test_rejects_missing_state(self):
@@ -126,18 +137,31 @@ class TestCallback:
         assert r.status_code == 400
 
     def test_rejects_wrong_provider_in_state(self):
+        # Build a validly-signed state for anthropic, then send it to the
+        # openai callback — provider mismatch must be rejected.
+        wrong_state = _build_state("anthropic", "oauth", "u-1")
         r = _client().get(
             "/api/v1/llm-oauth/openai/callback",
-            params={"code": "x", "state": "llm:anthropic:oauth:u-1"},
+            params={"code": "x", "state": wrong_state},
         )
         assert r.status_code == 400
 
     def test_rejects_state_bound_to_another_user(self):
+        # Build a validly-signed state bound to a different user — must 403.
+        attacker_state = _build_state("openai", "oauth", "attacker-id")
         r = _client(user_id="u-1").get(
             "/api/v1/llm-oauth/openai/callback",
-            params={"code": "x", "state": "llm:openai:oauth:attacker-id"},
+            params={"code": "x", "state": attacker_state},
         )
         assert r.status_code == 403
+
+    def test_rejects_forged_state(self):
+        # An unsigned/forged state (old format without HMAC) must be rejected.
+        r = _client().get(
+            "/api/v1/llm-oauth/openai/callback",
+            params={"code": "x", "state": "llm:openai:oauth:u-1"},
+        )
+        assert r.status_code == 400
 
     def test_stores_oauth_credential(self):
         with patch("api.llm_oauth_routes.LLMOAuthHandler") as handler_cls:
@@ -149,7 +173,7 @@ class TestCallback:
 
             r = _client().get(
                 "/api/v1/llm-oauth/openai/callback",
-                params={"code": "code123", "state": STATE_OAUTH},
+                params={"code": "code123", "state": _state_oauth()},
             )
 
         assert r.status_code == 200
@@ -170,7 +194,7 @@ class TestCallback:
 
             r = _client().get(
                 "/api/v1/llm-oauth/openai/callback",
-                params={"code": "code123", "state": STATE_SUB},
+                params={"code": "code123", "state": _state_sub()},
             )
 
         assert r.status_code == 200
@@ -187,7 +211,7 @@ class TestCallback:
 
             r = _client().get(
                 "/api/v1/llm-oauth/openai/callback",
-                params={"code": "x", "state": STATE_OAUTH},
+                params={"code": "x", "state": _state_oauth()},
             )
 
         assert r.status_code == 500

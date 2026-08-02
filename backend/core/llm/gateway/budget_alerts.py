@@ -28,6 +28,13 @@ _daily_spend: Dict[str, float] = {}
 _fired: Dict[str, Set[int]] = {}
 _today: str = ""
 
+# Serializes the read-modify-write on _daily_spend/_fired so concurrent
+# gateway requests cannot lose updates or double-fire thresholds. A single
+# global lock is sufficient — the critical section is tiny (dict ops + an
+# await for notification, which releases the lock only after the atomic
+# state mutation is complete).
+_spend_lock = asyncio.Lock()
+
 
 def reset_budget_alerts() -> None:
     """Clear in-memory alert state (used by tests)."""
@@ -56,15 +63,30 @@ def resolve_budget_limit(_workspace_id: str) -> float:
         return 100.0
 
 
-def _resolve_recipient_id() -> Optional[str]:
-    """Admin-first recipient (fallback: any user) for gateway alerts."""
+def _resolve_recipient_id(prefer_user_id: Optional[str] = None) -> Optional[str]:
+    """Resolve the alert recipient.
+
+    Preference order:
+      1. ``prefer_user_id`` (the gateway caller whose spend triggered the
+         alert) — so the user whose budget is burning gets notified, not an
+         arbitrary ``db.query(User).first()`` row.
+      2. An admin user (workspace owner).
+      3. None (alert skipped).
+
+    The prior code fell back to ``db.query(User).first()`` (an arbitrary user)
+    when no admin existed — a cross-user notification-leakage vector.
+    """
     try:
         from core.database import SessionLocal
         from core.models import User
 
         db = SessionLocal()
         try:
-            user = db.query(User).filter(User.is_admin == True).first() or db.query(User).first()
+            if prefer_user_id:
+                user = db.query(User).filter(User.id == prefer_user_id).first()
+                if user:
+                    return str(user.id)
+            user = db.query(User).filter(User.is_admin == True).first()
             return str(user.id) if user else None
         finally:
             db.close()
@@ -72,46 +94,66 @@ def _resolve_recipient_id() -> Optional[str]:
         return None
 
 
-async def record_gateway_spend(workspace_id: str, cost_usd: Optional[float]) -> List[int]:
+async def record_gateway_spend(
+    workspace_id: str,
+    cost_usd: Optional[float],
+    user_id: Optional[str] = None,
+) -> List[int]:
     """Account gateway spend and return newly-crossed thresholds (fire-once).
 
     Fires in-app notifications for each threshold the cumulative daily spend
     just crossed. Returns the crossed thresholds (empty when disabled, no cost,
     no budget, or nothing newly crossed).
+
+    ``user_id`` (the gateway caller) is passed to the notifier so the user
+    whose spend crossed the threshold receives the alert, rather than an
+    arbitrary fallback user.
     """
     if not GATEWAY_BUDGET_ALERTS_ENABLED or not cost_usd or cost_usd <= 0:
         return []
     _reset_if_new_day()
 
-    daily = _daily_spend.get(workspace_id, 0.0) + cost_usd
-    _daily_spend[workspace_id] = daily
+    # Serialize the read-modify-write so concurrent requests can't lose spend
+    # updates or double-fire a threshold. The notification await happens
+    # inside the lock but is best-effort and fast.
+    async with _spend_lock:
+        daily = _daily_spend.get(workspace_id, 0.0) + cost_usd
+        _daily_spend[workspace_id] = daily
 
-    limit = resolve_budget_limit(workspace_id)
-    if limit <= 0:
-        return []
+        limit = resolve_budget_limit(workspace_id)
+        if limit <= 0:
+            return []
 
-    usage_percent = (daily / limit) * 100.0
-    fired = _fired.setdefault(workspace_id, set())
-    crossed = [t for t in THRESHOLDS if usage_percent >= t and t not in fired]
+        usage_percent = (daily / limit) * 100.0
+        fired = _fired.setdefault(workspace_id, set())
+        crossed = [t for t in THRESHOLDS if usage_percent >= t and t not in fired]
+        if crossed:
+            fired.update(crossed)
+        # Release-relevant values captured; notification sent after the state
+        # mutation is committed so the lock is held only for the atomic part.
+
     if crossed:
-        fired.update(crossed)
-        await _notify_thresholds(workspace_id, crossed, daily, limit)
+        await _notify_thresholds(workspace_id, crossed, daily, limit, user_id)
     return crossed
 
 
 async def _notify_thresholds(
-    workspace_id: str, thresholds: List[int], daily: float, limit: float
+    workspace_id: str,
+    thresholds: List[int],
+    daily: float,
+    limit: float,
+    user_id: Optional[str] = None,
 ) -> None:
     try:
-        user_id = _resolve_recipient_id()
-        if not user_id:
+        recipient = _resolve_recipient_id(prefer_user_id=user_id)
+        if not recipient:
             logger.debug("Gateway budget alert skipped: no recipient user")
             return
         notifier = NotificationService()
         usage_percent = (daily / limit) * 100.0
         for t in thresholds:
             await notifier.send_notification(
-                str(user_id),
+                str(recipient),
                 "gateway_budget_alert",
                 {
                     "title": f"Gateway budget {t}% used",

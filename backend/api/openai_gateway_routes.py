@@ -128,7 +128,7 @@ async def _log_and_alert(
         request_body=request_body,
         response_body=response_body,
     )
-    await record_gateway_spend(identity.workspace_id, cost)
+    await record_gateway_spend(identity.workspace_id, cost, user_id=identity.user_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -202,6 +202,7 @@ async def _openai_stream(
     acc = ""
     chunk_id = f"chatcmpl_atom_{uuid.uuid4().hex}"
     created = int(time.time())
+    stream_status = 200
     try:
         yield _openai_sse({
             "id": chunk_id, "object": "chat.completion.chunk", "created": created, "model": model,
@@ -211,6 +212,7 @@ async def _openai_stream(
             messages, model, provider, temperature=temperature, max_tokens=max_tokens, task_type="chat"
         ):
             if delta.startswith("\n\n[Error:"):
+                stream_status = 502
                 yield _openai_sse({
                     "id": chunk_id, "object": "chat.completion.chunk", "created": created, "model": model,
                     "choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "stop"}],
@@ -222,7 +224,12 @@ async def _openai_stream(
                 "id": chunk_id, "object": "chat.completion.chunk", "created": created, "model": model,
                 "choices": [{"index": 0, "delta": {"content": delta}, "finish_reason": None}],
             })
-        # finish + usage chunks
+        # finish + usage chunks.
+        # NOTE: this is a rough chars/4 estimate because stream_completion
+        # yields only text deltas, not provider usage. Real usage would require
+        # stream_options.include_usage upstream; for now we estimate so spend
+        # tracking is approximately right rather than fabricated from a
+        # timestamp (the prior bug).
         est = max(1, len(acc) // 4)
         yield _openai_sse({
             "id": chunk_id, "object": "chat.completion.chunk", "created": created, "model": model,
@@ -233,24 +240,29 @@ async def _openai_stream(
             "choices": [{"index": 0, "delta": {}, "finish_reason": None}],
             "usage": {"prompt_tokens": est, "completion_tokens": est, "total_tokens": 2 * est},
         })
-        await _log_and_alert(
-            identity, db, model=model, provider=provider, stream=True, status_code=200,
-            latency_ms=int((time.time() - created) * 1000),
-            usage={"prompt_tokens": est, "completion_tokens": est},
-            response_body={"choices": [{"message": {"content": acc}}]},
-        )
         yield "data: [DONE]\n\n"
     except Exception as e:
         logger.error(f"OpenAI gateway stream failed: {e}")
-        await _log_and_alert(
-            identity, db, model=model, provider=provider, stream=True, status_code=500,
-            latency_ms=int((time.time() - created) * 1000),
-        )
+        stream_status = 500
         yield _openai_sse({
             "id": chunk_id, "object": "chat.completion.chunk", "created": created, "model": model,
             "choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "stop"}],
         })
         yield "data: [DONE]\n\n"
+    finally:
+        # Record spend + log for BOTH clean completion and client disconnect.
+        # Previously this sat only on the success path, so a mid-stream
+        # disconnect consumed provider tokens (billed to the owner) with no
+        # spend record — undercounting budget and leaving the audit log
+        # incomplete. The estimate is best-effort from accumulated text.
+        est = max(1, len(acc) // 4)
+        await _log_and_alert(
+            identity, db, model=model, provider=provider, stream=True,
+            status_code=stream_status,
+            latency_ms=int((time.time() - created) * 1000),
+            usage={"prompt_tokens": est, "completion_tokens": est},
+            response_body={"choices": [{"message": {"content": acc}}]},
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -321,6 +333,8 @@ async def _anthropic_stream(
 ):
     msg_id = f"msg_atom_{uuid.uuid4().hex}"
     created = int(time.time())
+    acc = ""
+    stream_status = 200
     try:
         yield _format_sse("message_start", {
             "type": "message_start", "message": {
@@ -349,29 +363,39 @@ async def _anthropic_stream(
                 yield _format_sse("message_stop", {"type": "message_stop"})
                 yield _format_sse("error", {"type": "error", "error": {"type": "api_error", "message": "Stream failed"}})
                 return
+            acc += delta
             yield _format_sse("content_block_delta", {
                 "type": "content_block_delta", "index": 0,
                 "delta": {"type": "text_delta", "text": delta},
             })
         yield _format_sse("content_block_stop", {"type": "content_block_stop", "index": 0})
+        # Estimate output tokens from accumulated streamed text. The prior
+        # code used ``max(1, created // 1) % 10000`` where ``created`` was the
+        # Unix timestamp — a nonsensical token count that polluted cost
+        # tracking and budget alerts. stream_completion yields only text
+        # deltas (no provider usage), so a chars/4 estimate is the best we
+        # can do without upstream stream_options.
+        est_output = max(1, len(acc) // 4)
         yield _format_sse("message_delta", {
             "type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None},
-            "usage": {"output_tokens": max(1, created // 1) % 10000},
+            "usage": {"output_tokens": est_output},
         })
         yield _format_sse("message_stop", {"type": "message_stop"})
-        await _log_and_alert(
-            identity, db, model=model, provider=provider, stream=True, status_code=200,
-            latency_ms=int((time.time() - created) * 1000),
-        )
     except Exception as e:
         logger.error(f"Anthropic gateway stream failed: {e}")
-        await _log_and_alert(
-            identity, db, model=model, provider=provider, stream=True, status_code=500,
-            latency_ms=int((time.time() - created) * 1000),
-        )
+        stream_status = 500
         yield _format_sse("content_block_stop", {"type": "content_block_stop", "index": 0})
         yield _format_sse("message_stop", {"type": "message_stop"})
         yield _format_sse("error", {"type": "error", "error": {"type": "api_error", "message": "Stream failed"}})
+    finally:
+        # Record spend + log for both clean completion and client disconnect.
+        est_output = max(1, len(acc) // 4)
+        await _log_and_alert(
+            identity, db, model=model, provider=provider, stream=True,
+            status_code=stream_status,
+            latency_ms=int((time.time() - created) * 1000),
+            usage={"prompt_tokens": est_output, "completion_tokens": est_output},
+        )
 
 
 # --------------------------------------------------------------------------- #

@@ -188,18 +188,28 @@ class LLMOAuthHandler:
             Created LLMOAuthCredential instance
         """
         with get_db_session() as db:
-            # Check if credential already exists for this user/provider
+            # Deactivate any existing ACTIVE credential of the SAME type for
+            # this user/provider/tenant. Scoped by credential_type so connecting
+            # a 'subscription' grant does NOT revoke a live 'oauth' grant (and
+            # vice versa). Previously this deactivated ALL active credentials
+            # for the provider regardless of type — a subscription reconnect
+            # silently killed the user's OAuth token.
             existing = db.query(LLMOAuthCredential).filter(
                 LLMOAuthCredential.user_id == user_id,
                 LLMOAuthCredential.provider_id == provider_id,
-                LLMOAuthCredential.is_active == True
-            ).first()
+                LLMOAuthCredential.tenant_id == tenant_id,
+                LLMOAuthCredential.is_active == True,
+                LLMOAuthCredential.credential_type == credential_type,
+            ).all()
 
+            for cred in existing:
+                cred.is_active = False
+                cred.revoked_at = datetime.now(timezone.utc)
             if existing:
-                # Deactivate existing credential
-                existing.is_active = False
-                existing.revoked_at = datetime.now(timezone.utc)
-                logger.info(f"Deactivated existing OAuth credential for {provider_id}")
+                logger.info(
+                    f"Deactivated {len(existing)} existing {credential_type} "
+                    f"credential(s) for {provider_id}"
+                )
 
             # Calculate expiration
             expires_at = None
@@ -243,7 +253,8 @@ class LLMOAuthHandler:
         self,
         user_id: str,
         provider_id: str,
-        credential_type: Optional[str] = None
+        credential_type: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Optional[LLMOAuthCredential]:
         """
         Get active OAuth credentials for a user and provider.
@@ -253,6 +264,10 @@ class LLMOAuthHandler:
             provider_id: Provider identifier
             credential_type: Optional kind filter — "oauth" (includes legacy
                 rows where the column is NULL), "subscription", or None for any.
+            tenant_id: Optional tenant scope. When provided, credentials are
+                filtered to the given tenant (prevents cross-tenant leakage in
+                multi-tenant deployments). When None, all tenants are searched
+                (single-tenant backward compatibility).
 
         Returns:
             LLMOAuthCredential or None if not found
@@ -261,8 +276,11 @@ class LLMOAuthHandler:
             query = db.query(LLMOAuthCredential).filter(
                 LLMOAuthCredential.user_id == user_id,
                 LLMOAuthCredential.provider_id == provider_id,
-                LLMOAuthCredential.is_active == True
+                LLMOAuthCredential.is_active == True,
             )
+
+            if tenant_id is not None:
+                query = query.filter(LLMOAuthCredential.tenant_id == tenant_id)
 
             if credential_type == "oauth":
                 # Legacy rows predate the column (NULL) — they are plain oauth grants.

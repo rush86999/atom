@@ -10,8 +10,11 @@ OAuth-granted flows ship. See docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import os
+import secrets
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -19,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.llm_credential_service import LLMCredentialService
+from core.llm_oauth_config import build_redirect_uri
 from core.llm_oauth_handler import LLMOAuthHandler
 from core.models import User
 from core.security.auth_rate_limit import AuthRateLimiter
@@ -57,9 +61,34 @@ def _encryption_key() -> Optional[bytes]:
     return key.encode() if key else None
 
 
+def _state_hmac_key() -> bytes:
+    """HMAC key for signing OAuth state tokens.
+
+    Uses ``SECRET_KEY`` (falls back to a random key in dev so the flow works
+    without config). The key must be stable across requests in a given process
+    group so a state minted by ``connect`` validates at ``callback``.
+    """
+    import base64
+    raw = os.getenv("SECRET_KEY") or "atom-oauth-state-fallback"
+    return base64.b64encode(hashlib.sha256(raw.encode()).digest())
+
+
 def _build_state(provider_id: str, credential_type: str, user_id: str) -> str:
-    """Encode provider + credential intent + CSRF-bound user in the state."""
-    return f"llm:{provider_id}:{credential_type}:{user_id}"
+    """Build a signed, unforgeable OAuth ``state`` token.
+
+    Format: ``llm:{provider}:{type}:{user_id}:{nonce}:{signature}``. The
+    signature (HMAC-SHA256 over the first four fields) prevents an attacker
+    from forging a state that binds a victim's OAuth grant to their own
+    account, even if they know the victim's user_id. The nonce makes each
+    state unique.
+
+    The callback still requires ``get_current_user`` (a valid JWT), so the
+    state is defense-in-depth on top of the authenticated session.
+    """
+    payload = f"llm:{provider_id}:{credential_type}:{user_id}"
+    nonce = secrets.token_urlsafe(16)
+    sig = hmac.new(_state_hmac_key(), f"{payload}:{nonce}".encode(), hashlib.sha256).hexdigest()
+    return f"{payload}:{nonce}:{sig}"
 
 
 def _parse_state(
@@ -67,24 +96,32 @@ def _parse_state(
 ) -> str:
     """Validate the callback ``state`` and return the credential intent.
 
-    Rejects missing/malformed state (400), wrong provider (400), an invalid
-    credential type (400), and a state bound to a different user (403 — OAuth
-    CSRF: an attacker must not bind a victim's OAuth grant to their account).
+    Verifies the HMAC signature (constant-time), the provider, the credential
+    type, and that the state is bound to the current user. Rejects any
+    tampering with 400, and a user mismatch with 403 (OAuth CSRF: an attacker
+    must not bind a victim's OAuth grant to their account).
     """
     if not state:
         raise HTTPException(status_code=400, detail="Missing OAuth state parameter")
 
     parts = state.split(":")
-    if len(parts) != 4 or parts[0] != "llm":
+    if len(parts) != 6 or parts[0] != "llm":
         raise HTTPException(status_code=400, detail="Invalid OAuth state parameter")
-    if parts[1] != provider_id:
+    payload_provider, cred_type, state_user, nonce, sig = parts[1], parts[2], parts[3], parts[4], parts[5]
+    if payload_provider != provider_id:
         raise HTTPException(status_code=400, detail="OAuth state provider mismatch")
-    if parts[2] not in VALID_CREDENTIAL_TYPES:
+    if cred_type not in VALID_CREDENTIAL_TYPES:
         raise HTTPException(status_code=400, detail="Invalid credential type in state")
-    if parts[3] != user_id:
+    if state_user != user_id:
         raise HTTPException(status_code=403, detail="OAuth state user mismatch")
 
-    return parts[2]
+    # Verify the HMAC signature (constant-time).
+    payload = f"llm:{payload_provider}:{cred_type}:{state_user}"
+    expected_sig = hmac.new(_state_hmac_key(), f"{payload}:{nonce}".encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected_sig):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state signature")
+
+    return cred_type
 
 
 def _credential_service(current_user: User) -> LLMCredentialService:
@@ -114,14 +151,16 @@ async def llm_oauth_connect(
     """
     handler = LLMOAuthHandler(encryption_key=_encryption_key())
     state = _build_state(provider, credential_type, current_user.id)
+    redirect_uri = build_redirect_uri(provider)
     try:
-        result = handler.get_authorization_url(provider, state=state)
+        result = handler.get_authorization_url(provider, state=state, redirect_uri=redirect_uri)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return {
         "authorization_url": result["authorization_url"],
         "state": state,
+        "redirect_uri": redirect_uri,
         "provider_id": provider,
         "credential_type": credential_type,
     }
@@ -137,10 +176,11 @@ async def llm_oauth_callback(
 ):
     """Complete an LLM-provider OAuth flow and persist the credential."""
     credential_type = _parse_state(state, provider, current_user.id)
+    redirect_uri = build_redirect_uri(provider)
 
     handler = LLMOAuthHandler(encryption_key=_encryption_key())
     try:
-        tokens = await handler.exchange_code_for_tokens(provider, code)
+        tokens = await handler.exchange_code_for_tokens(provider, code, redirect_uri=redirect_uri)
         credential = handler.store_oauth_credentials(
             user_id=current_user.id,
             tenant_id=current_user.tenant_id or "default",

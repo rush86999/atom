@@ -19,6 +19,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.agent_integration_gateway import ActionType, agent_integration_gateway
+from core.condition_checkers import CONDITION_TYPE_COMPOSITE
 from core.models import (
     AgentRegistry,
     ConditionAlert,
@@ -92,8 +93,12 @@ class ConditionMonitoringService:
                 detail="threshold_config is required"
             )
 
-        # Validate composite conditions
-        if condition_type == ConditionMonitorType.COMPOSITE.value:
+        # Validate composite conditions.
+        # NOTE: ``ConditionMonitorType`` is a SQLAlchemy table model, NOT an
+        # enum — ``ConditionMonitorType.COMPOSITE.value`` raises AttributeError.
+        # Use the string constant from condition_checkers (mirrors the fix
+        # applied there in the latent-NameError sweep).
+        if condition_type == CONDITION_TYPE_COMPOSITE:
             if not composite_logic or not composite_conditions:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
