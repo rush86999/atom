@@ -1333,8 +1333,8 @@ class BYOKHandler:
         return AwaitableResult(ranked_options)
 
     async def generate_response(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         system_instruction: str = "You are a helpful assistant.",
         model_type: str = "auto",  # "auto", "fast", "quality", or specific model
         temperature: float = 0.7,
@@ -1343,7 +1343,9 @@ class BYOKHandler:
         agent_id: Optional[str] = None, # Phase 65
         chain_id: Optional[str] = None, # NEW Phase 11
         image_payload: Optional[str] = None, # Phase 14: Base64 or URL
-        turn_index: int = 0 # NEW: Deterministic BPC
+        turn_index: int = 0, # NEW: Deterministic BPC
+        cognitive_tier: Optional[str] = None,  # x-atom-tier override
+        intent_override: Optional[str] = None,  # x-atom-intent override
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -1427,22 +1429,33 @@ class BYOKHandler:
                 tenant_plan = "enterprise" # Effectively unrestricted
                 logger.info("Using local/BYOK mode for agentic task demo")
 
-            # Analyze complexity
-            complexity = self.analyze_query_complexity(prompt, task_type)
-            
+            # Analyze complexity (skipped when x-atom-tier override forces a tier)
+            forced_tier_enum: Optional[CognitiveTier] = None
+            if cognitive_tier:
+                try:
+                    forced_tier_enum = CognitiveTier(cognitive_tier.lower())
+                    complexity = "complex"  # placeholder; tier drives selection via cognitive_tier
+                except ValueError:
+                    logger.warning(f"Invalid cognitive_tier override: {cognitive_tier}")
+                    complexity = self.analyze_query_complexity(prompt, task_type)
+            else:
+                complexity = self.analyze_query_complexity(prompt, task_type)
+
             # Identify tool/structured requirements (Phase 6.6)
             requires_tools = agent_id is not None or task_type == "agentic"
-            
+
             # --- Phase 14: Vision Routing ---
             # If image payload exists, we MUST route to a model that supports vision (GPT-4o, Gemini 1.5 Pro)
             # We override the normal routing logic to prioritize Vision-Capable models
             requires_vision = image_payload is not None
-            
-            # Get ranked list of providers
+
+            # Get ranked list of providers (forced_tier_enum drives min-quality
+            # selection when an x-atom-tier override is present)
             options = await self.get_ranked_providers(
                 complexity, task_type, prefer_cost, tenant_plan, is_managed,
                 requires_tools=requires_tools, requires_structured=False,
-                turn_index=turn_index
+                turn_index=turn_index,
+                cognitive_tier=forced_tier_enum,
             )
 
             # --- Intent detection (domain classifier) ---
@@ -1451,7 +1464,7 @@ class BYOKHandler:
             # intent-specific preferences. Best-effort: any error leaves intent
             # as None and routing behaves as before. An explicit override (from
             # the x-atom-intent header path) skips detection.
-            detected_intent = getattr(self, "_intent_override", None)
+            detected_intent = intent_override
             if detected_intent is None:
                 try:
                     from core.llm.intent_detector import get_intent_detector

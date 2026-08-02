@@ -3,11 +3,12 @@ Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from core.models import User
 from core.security_dependencies import get_current_user
+from core.llm.routing_overrides import parse_routing_overrides
 from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
 
 # Configure logging
@@ -194,12 +195,19 @@ async def get_session_details(
 @router.post("/message")
 async def send_chat_message(
     request: ChatMessageRequest,
+    http_request: Request,
     current_user: User = Depends(get_current_user)
 ) -> ChatMessageResponse:
     """
     Send a chat message to the ATOM chat orchestrator (authenticated)
 
     **Security**: Requires authentication and verifies user matches request.user_id
+
+    **Routing overrides**: The following advisory headers are honored
+    (invalid values are ignored, never error):
+        - ``x-atom-tier``: force a cognitive tier
+        - ``x-atom-model``: force a specific model id
+        - ``x-atom-intent``: force an intent label
     """
     try:
         # Override body-supplied user_id with the authenticated user's ID.
@@ -212,13 +220,22 @@ async def send_chat_message(
         if session_id == "new":
             session_id = None
 
+        # Parse optional x-atom-* routing override headers. Best-effort: any
+        # parse error leaves routing_overrides empty and routing is unchanged.
+        try:
+            routing_overrides = parse_routing_overrides(http_request.headers)
+        except Exception:
+            logger.debug("Failed to parse routing override headers", exc_info=True)
+            routing_overrides = {}
+
         # Process the message through the chat orchestrator
         # Use authenticated user_id instead of request.user_id
         response = await chat_orchestrator.process_chat_message(
             user_id=current_user.id,
             message=request.message,
             session_id=session_id,
-            context=request.context
+            context=request.context,
+            routing_overrides=routing_overrides or None,
         )
 
         # Detect the "no LLM provider configured" sentinel and surface it as a
