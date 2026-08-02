@@ -2266,6 +2266,8 @@ class BYOKHandler:
         chain_id: Optional[str] = None, # NEW Phase 11
         image_payload: Optional[str] = None, # Phase 14: Vision Support
         cascade: bool = False,  # Phase 2 hallucination mitigation
+        provider_model: Optional[tuple] = None,  # R72 F: pin a single (provider, model)
+        allow_moa: bool = True,                  # R72 F: opt out of MoA dispatch
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -2285,6 +2287,24 @@ class BYOKHandler:
           fix them. Already-frontier models do NOT escalate (no double-spend).
           Default ``False`` = byte-identical to pre-Phase-2 behavior.
 
+        R72 Workstream F — Mixture-of-Agents (``allow_moa`` / ``provider_model``):
+
+          When ``allow_moa=True`` (default) AND the global
+          ``ATOM_MOA_ENABLED`` flag is on AND this is a genuinely
+          hard/irreversible task (COMPLEX/ADVANCED complexity or a
+          code/analysis/reasoning task type) with >= 2 candidate providers,
+          the handler draws ``ATOM_MOA_SAMPLES`` independent structured
+          samples (one per top-ranked provider) then ONE aggregator call to
+          synthesize the final answer. MoA replaces the outer cascade loop
+          when it fires; each sample still runs with ``cascade`` applied.
+
+          ``provider_model=(provider, model)`` pins the option list to that
+          single tuple (used by MoA samples + the aggregator) and disables
+          MoA dispatch to prevent recursion. ``allow_moa=False`` opts out of
+          MoA entirely (used by the self-consistency voter's own samples).
+          Defaults are chosen so an unmodified call is byte-identical to
+          pre-R72 behavior (MoA only fires for hard tasks when enabled).
+
         Args:
             prompt: The user prompt
             system_instruction: System instruction for the LLM
@@ -2296,6 +2316,10 @@ class BYOKHandler:
             cascade: Opt in to single-retry frontier escalation on
                 schema-validation failures (Phase 2 hallucination
                 mitigation; default off).
+            provider_model: Optional ``(provider, model)`` tuple to pin the
+                option list to a single provider/model (R72 F).
+            allow_moa: Whether Mixture-of-Agents may fire (R72 F; default
+                True). Set False to force the single-attempt path.
 
         Returns:
             Instance of response_model or None if parsing fails
@@ -2359,6 +2383,12 @@ class BYOKHandler:
                 requires_tools=True, requires_structured=True
             )
 
+            # R72 Workstream F — MoA recursion guard: when a (provider, model)
+            # is pinned, reduce the option list to that single tuple so sample
+            # and aggregator calls never re-rank providers.
+            if provider_model is not None:
+                options = [provider_model]
+
             # --- Phase 14.5: Coordinated Vision Logic ---
             if image_payload:
                 primary_provider, primary_model = options[0] if options else (None, None)
@@ -2394,6 +2424,39 @@ class BYOKHandler:
 
             if not options:
                 return None
+
+            # --- R72 Workstream F: Mixture-of-Agents dispatch ---
+            # MoA replaces the outer cascade loop when it fires. Only for
+            # genuinely hard tasks (COMPLEX/ADVANCED or code/analysis/
+            # reasoning) with >= 2 candidate providers. Vision and pinned
+            # provider_model calls never use MoA (both would distort the
+            # sample set / re-trigger recursion).
+            from core.hallucination_config import (
+                get_moa_samples,
+                is_moa_enabled,
+            )
+            if (
+                allow_moa
+                and is_moa_enabled()
+                and provider_model is None
+                and image_payload is None
+                and len(options) >= 2
+                and self._moa_eligible(complexity, task_type)
+            ):
+                return await self.generate_structured_moa(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_model=response_model,
+                    temperature=temperature,
+                    task_type=task_type,
+                    agent_id=agent_id,
+                    chain_id=chain_id,
+                    options=options,
+                    tenant_plan=tenant_plan,
+                    is_managed=is_managed,
+                    complexity=complexity,
+                    cascade=cascade,
+                )
 
             # Stash prompt features for this decision so the structured-output
             # outcome hook can recover REAL features (not task defaults) when
@@ -2617,6 +2680,132 @@ class BYOKHandler:
             logger.error(f"Structured generation failed: {e}")
             return None
 
+
+    def _moa_eligible(self, complexity: QueryComplexity, task_type: Optional[str]) -> bool:
+        """MoA is worth its N-1 extra LLM calls only on genuinely hard tasks."""
+        if complexity in (QueryComplexity.COMPLEX, QueryComplexity.ADVANCED):
+            return True
+        if task_type and task_type.lower() in {"code", "analysis", "reasoning"}:
+            return True
+        return False
+
+    @staticmethod
+    def _render_sample(sample: Any) -> str:
+        """Serialize a structured sample for the aggregator prompt."""
+        try:
+            if hasattr(sample, "model_dump"):
+                return json.dumps(sample.model_dump(), default=str)
+            if hasattr(sample, "dict"):
+                return json.dumps(sample.dict(), default=str)
+        except Exception:
+            pass
+        return str(sample)
+
+    def _build_moa_aggregator_prompt(self, prompt: str, samples: List[Any]) -> str:
+        """Concatenate the original request + N candidate answers so the
+        aggregator can reconcile them into a single best structured answer."""
+        parts = [
+            "[MIXTURE-OF-AGENTS]: synthesize the single best final answer from "
+            "the candidate answers below. Produce exactly one answer of the "
+            "requested form.\n\n[USER REQUEST]:\n" + prompt,
+        ]
+        for i, sample in enumerate(samples, start=1):
+            parts.append(f"\n[CANDIDATE ANSWER {i}]:\n{self._render_sample(sample)}")
+        return "\n".join(parts)
+
+    async def generate_structured_moa(
+        self,
+        prompt: str,
+        system_instruction: str,
+        response_model: Any,
+        temperature: float,
+        task_type: Optional[str],
+        agent_id: Optional[str],
+        chain_id: Optional[str],
+        options: List[tuple],
+        tenant_plan: str,
+        is_managed: bool,
+        complexity: QueryComplexity,
+        cascade: bool,
+    ) -> Any:
+        """Mixture-of-Agents for hard structured tasks (R72 Workstream F).
+
+        Draws ``min(ATOM_MOA_SAMPLES, len(options))`` independent samples,
+        one per top-ranked ``(provider, model)`` pair, then ONE aggregator
+        call on the best-ranked provider to synthesize the final answer.
+
+        Each sample runs the FULL normal path (cascade, cost tracking, outcome
+        feedback) via ``generate_structured_response`` with a pinned
+        ``provider_model`` and ``allow_moa=False`` (no recursion). The
+        aggregator is a final pinned call that sees all candidate answers.
+        Aggregator failure degrades to the best-ranked valid sample.
+
+        Returns ``None`` only when every sample AND the aggregator failed.
+        """
+        from core.hallucination_config import get_moa_samples
+        from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+        n = min(get_moa_samples(), len(options))
+        sample_specs = options[:n]  # best-ranked first
+
+        async def _sample(pair):
+            provider_id, model = pair
+            try:
+                return await self.generate_structured_response(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_model=response_model,
+                    temperature=temperature,
+                    task_type=task_type,
+                    agent_id=agent_id,
+                    chain_id=chain_id,
+                    image_payload=None,
+                    cascade=cascade,
+                    provider_model=pair,
+                    allow_moa=False,
+                )
+            except Exception as e:
+                logger.warning(f"MoA sample failed for {provider_id}/{model}: {e}")
+                return None
+
+        samples = await asyncio.gather(*[_sample(p) for p in sample_specs])
+        valid = [s for s in samples if s is not None]
+        if not valid:
+            return None
+        if len(valid) == 1:
+            return valid[0]
+
+        # Post-hoc irreversibility audit: if the consensus looks destructive,
+        # surface it for observability. Callers already gate irreversible
+        # actions via self-consistency; MoA only records the evidence.
+        try:
+            if SelfConsistencyVoter.is_irreversible(valid[0]):
+                logger.info(
+                    f"MoA consensus for workspace {self.workspace_id} looks "
+                    f"irreversible (audit only)"
+                )
+        except Exception:
+            pass
+
+        # Aggregator: reconcile candidate answers on the best-ranked provider.
+        aggregated_prompt = self._build_moa_aggregator_prompt(prompt, valid)
+        aggregator_result = await self.generate_structured_response(
+            prompt=aggregated_prompt,
+            system_instruction=system_instruction,
+            response_model=response_model,
+            temperature=temperature,
+            task_type=task_type,
+            agent_id=agent_id,
+            chain_id=chain_id,
+            image_payload=None,
+            cascade=cascade,
+            provider_model=sample_specs[0],
+            allow_moa=False,
+        )
+        if aggregator_result is not None:
+            return aggregator_result
+        # Graceful degradation: best-ranked valid sample wins.
+        return valid[0]
 
     async def generate_transcription(
         self,

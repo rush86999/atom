@@ -212,6 +212,8 @@ class SelfConsistencyVoter:
                     chain_id=kwargs.pop("chain_id", None),
                     image_payload=kwargs.pop("image_payload", None),
                     cascade=cascade,
+                    # R72 F: voter samples must never re-trigger MoA.
+                    allow_moa=False,
                     **kwargs,
                 )
             except Exception as exc:
@@ -282,6 +284,8 @@ class SelfConsistencyVoter:
                     chain_id=chain_id,
                     image_payload=image_payload,
                     cascade=cascade,
+                    # R72 F: voter samples must never re-trigger MoA.
+                    allow_moa=False,
                 )
             except Exception as exc:
                 logger.warning(f"Self-consistency sample failed at temp={temp}: {exc}")

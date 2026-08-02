@@ -11,6 +11,7 @@ cascade lives inside BYOKHandler rather than LLMService.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import sys
@@ -58,11 +59,14 @@ def _fake_instructor(monkeypatch):
     # so the "free tier managed AI" early-return never fires.
     fake_db = MagicMock()
     paid_workspace = SimpleNamespace(tenant_id="t-1")
-    paid_tenant = SimpleNamespace(plan_type=SimpleNamespace(value="pro"))
-    fake_db.query.return_value.filter.return_value.first.side_effect = [
+    paid_tenant = SimpleNamespace(id="t-1", plan_type=SimpleNamespace(value="pro"))
+    # Each generate_structured_response call opens its own tenant-plan block
+    # (workspace then tenant lookup); cycle keeps every call fed even when a
+    # MoA dispatch fans out into N sample + 1 aggregator calls.
+    fake_db.query.return_value.filter.return_value.first.side_effect = itertools.cycle([
         paid_workspace,
         paid_tenant,
-    ]
+    ])
 
     class _Ctx:
         def __enter__(self):
@@ -92,9 +96,20 @@ def _make_handler():
 
 
 def _stub_options(handler, options):
-    """Patch the chain of calls that produce the ranked options list."""
+    """Patch the chain of calls that produce the ranked options list.
+
+    ``get_ranked_providers`` is a SYNC method that returns an
+    ``AwaitableResult`` in production, and ``generate_structured_response``
+    does ``await self.get_ranked_providers(...)``. The mock must therefore
+    wrap the option list in ``AwaitableResult`` too — a bare list would make
+    the ``await`` raise ``TypeError: object list can't be used in 'await'
+    expression`` and the handler would bail out before ever calling the
+    instructor client (pre-existing harness break).
+    """
+    from core.llm.byok_handler import AwaitableResult
+
     handler.analyze_query_complexity = MagicMock(return_value=MagicMock(value="standard"))
-    handler.get_ranked_providers = MagicMock(return_value=options)
+    handler.get_ranked_providers = MagicMock(return_value=AwaitableResult(options))
     handler.get_context_window = MagicMock(return_value=8000)
     handler.truncate_to_context = MagicMock(side_effect=lambda p, *a, **k: p)
 
