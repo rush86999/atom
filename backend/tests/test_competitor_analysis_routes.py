@@ -4,6 +4,7 @@ Competitor Analysis Routes - AI-powered competitor analysis using web scraping a
 """
 
 import pytest
+pytest.importorskip("api.competitor_analysis_routes", reason="api.competitor_analysis_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -449,3 +450,4 @@ class TestAnalysisComparison:
 
             # Verify response
             assert response.status_code in [200, 401, 404]
+

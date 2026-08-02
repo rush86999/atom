@@ -4,6 +4,7 @@ Media Control REST API Endpoints - Spotify and Sonos media control
 """
 
 import pytest
+pytest.importorskip("api.media_routes", reason="api.media_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, MagicMock
 from uuid import uuid4
 
@@ -412,3 +413,4 @@ class TestMediaDeletion:
 
             # Verify not found error
             assert response.status_code in [404, 401]
+

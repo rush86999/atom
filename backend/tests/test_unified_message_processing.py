@@ -6,6 +6,7 @@ Tests cross-platform message normalization, deduplication, and threading.
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 import pytest
+pytest.importorskip("core.unified_message_processor", reason="core.unified_message_processor was deleted in dead-code cleanup (zero references)")
 
 from core.unified_message_processor import (
     MessagePriority,
@@ -631,3 +632,4 @@ class TestMessageProcessing:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

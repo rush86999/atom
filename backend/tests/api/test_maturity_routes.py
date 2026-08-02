@@ -13,6 +13,7 @@ Coverage:
 """
 
 import pytest
+pytest.importorskip("api.maturity_routes", reason="api.maturity_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -898,3 +899,4 @@ def test_complete_supervision_invalid_rating(
 
     # Pydantic validation should reject this
     assert response.status_code == 422
+

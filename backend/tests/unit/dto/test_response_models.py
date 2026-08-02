@@ -6,6 +6,7 @@ serialization, and generic type handling.
 """
 
 import pytest
+pytest.importorskip("core.response_models", reason="core.response_models was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from typing import Dict, List, Any
 from pydantic import ValidationError
@@ -425,3 +426,4 @@ class TestHelperFunctions:
         )
 
         assert result["details"] == {}
+

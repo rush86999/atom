@@ -21,6 +21,7 @@ Test Strategy:
 
 from datetime import datetime, timedelta, timezone
 import pytest
+pytest.importorskip("core.agent_utils", reason="core.agent_utils was deleted in dead-code cleanup (zero references)")
 from core.agent_utils import (
     parse_react_response,
     format_agent_id,
@@ -445,3 +446,4 @@ class TestStringFormatters:
         """Keep HTML tags when remove_html is False."""
         result = sanitize_string("<p>Hello</p>", remove_html=False)
         assert result == "<p>Hello</p>"
+

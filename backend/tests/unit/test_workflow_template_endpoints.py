@@ -10,6 +10,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.workflow_template_endpoints", reason="core.workflow_template_endpoints was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime
 
@@ -522,3 +523,4 @@ class TestResponseModels:
         response = client.post("/templates/tpl_123/create-workflow", json=request_data)
         # Endpoint should respond (even with error)
         assert response.status_code in [200, 400, 404]
+

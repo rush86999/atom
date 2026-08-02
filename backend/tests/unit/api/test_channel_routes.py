@@ -20,6 +20,7 @@ Channel Focus: Communication channels, notifications, messaging, subscriptions
 """
 
 import pytest
+pytest.importorskip("api.channel_routes", reason="api.channel_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -429,3 +430,4 @@ class TestErrorHandling:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+

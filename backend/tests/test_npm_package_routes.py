@@ -12,6 +12,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("api.package_routes", reason="api.package_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, MagicMock
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
@@ -685,3 +686,4 @@ class TestNpmUtilityEndpoints:
             data = response.json()
             assert data["skill_id"] == "missing-skill"
             assert data["image_exists"] == False
+

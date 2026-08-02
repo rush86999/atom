@@ -15,6 +15,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.unified_message_processor", reason="core.unified_message_processor was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, Mock
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
@@ -854,3 +855,4 @@ class TestToDict:
         assert len(msg_dict["tags"]) == 2
         assert len(msg_dict["mentions"]) == 1
         assert len(msg_dict["urls"]) == 1
+

@@ -6,6 +6,7 @@ Covers workflow step type reference dictionary and helper functions
 """
 
 import pytest
+pytest.importorskip("core.workflow_step_types", reason="core.workflow_step_types was deleted in dead-code cleanup (zero references)")
 from core.workflow_step_types import (
     STEP_TYPE_REFERENCE,
     get_step_types_by_category,
@@ -227,3 +228,4 @@ class TestEdgeCases:
 # Run tests
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

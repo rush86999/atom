@@ -18,6 +18,8 @@ from sqlalchemy.orm import configure_mappers, sessionmaker
 import core.models
 from core.database import Base
 from core.models import User, Workspace
+import pytest
+pytest.importorskip("core.risk_forecaster", reason="core.risk_forecaster was deleted in dead-code cleanup (zero references)")
 from core.risk_forecaster import ProjectRiskForecaster
 from core.timeline_prediction import TimelinePredictionService
 
@@ -105,3 +107,4 @@ class TestTimelinePrediction(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

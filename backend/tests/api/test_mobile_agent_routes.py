@@ -11,6 +11,7 @@ See Phase 08 Plan 12 for context on API test mock refinement.
 """
 
 import pytest
+pytest.importorskip("api.mobile_agent_routes", reason="api.mobile_agent_routes was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
@@ -431,3 +432,4 @@ def test_manual_episode_retrieval():
 
 
 # Total tests: 35 (actual passing) + 5 (manual/skipped) = 40
+

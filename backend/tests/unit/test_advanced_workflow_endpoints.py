@@ -12,6 +12,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.advanced_workflow_endpoints", reason="core.advanced_workflow_endpoints was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime
 from fastapi.testclient import TestClient
@@ -765,3 +766,4 @@ class TestRequestModels:
 
         assert request.step_id == "step1"
         assert request.inputs == {"input1": "value1"}
+

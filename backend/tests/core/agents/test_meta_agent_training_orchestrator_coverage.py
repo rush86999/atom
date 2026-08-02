@@ -20,6 +20,7 @@ Focus: Session lifecycle, proposal workflow, duration estimation
 """
 
 import pytest
+pytest.importorskip("core.meta_agent_training_orchestrator", reason="core.meta_agent_training_orchestrator was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -1070,3 +1071,4 @@ class TestParametrizedScenarios:
         )
 
         assert risk == expected_risk
+

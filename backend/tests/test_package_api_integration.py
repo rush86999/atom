@@ -12,6 +12,7 @@ Test coverage for Plan 04 (REST API Integration):
 """
 
 import pytest
+pytest.importorskip("api.package_routes", reason="api.package_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import patch, MagicMock, AsyncMock
 from sqlalchemy.orm import Session
 import docker
@@ -940,3 +941,4 @@ class TestRouterRegistration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

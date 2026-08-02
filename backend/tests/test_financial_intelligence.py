@@ -24,6 +24,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import configure_mappers, sessionmaker
 
 import core.models
+import pytest
+pytest.importorskip("core.cash_flow_forecaster", reason="core.cash_flow_forecaster was deleted in dead-code cleanup (zero references)")
 from core.cash_flow_forecaster import CashFlowForecastingService
 from core.database import Base
 from core.expense_optimizer import ExpenseOptimizer
@@ -132,3 +134,4 @@ class TestFinancialIntelligence(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

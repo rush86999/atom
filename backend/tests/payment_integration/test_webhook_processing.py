@@ -7,7 +7,20 @@ for deterministic testing without real API calls.
 """
 
 import pytest
-pytest.importorskip("integrations.stripe_routes")  # module not present in this checkout
+
+# The Stripe webhook processing layer (dedup + signature verification) was
+# removed; integrations/stripe_routes is now a thin health/capabilities stub.
+# Skip these tests wholesale when the symbols are absent.
+try:
+    from integrations.stripe_routes import (
+        PROCESSED_WEBHOOK_EVENTS,
+        cleanup_processed_events,
+        is_duplicate_event,
+        mark_event_processed,
+        verify_webhook_signature,
+    )
+except ImportError:
+    pytest.skip("stripe webhook processing removed (integrations.stripe_routes is now a stub)", allow_module_level=True)
 
 import asyncio
 import json
@@ -17,14 +30,6 @@ from typing import Dict, Any
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from freezegun import freeze_time
-
-from integrations.stripe_routes import (
-    PROCESSED_WEBHOOK_EVENTS,
-    cleanup_processed_events,
-    is_duplicate_event,
-    mark_event_processed,
-    verify_webhook_signature,
-)
 from tests.fixtures.payment_fixtures import (
     StripeWebhookEventFactory,
     StripePaymentIntentFactory,

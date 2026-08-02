@@ -15,6 +15,7 @@ Target Coverage: 25-30%
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 import pytest
+pytest.importorskip("core.unified_message_processor", reason="core.unified_message_processor was deleted in dead-code cleanup (zero references)")
 
 from core.unified_message_processor import (
     UnifiedMessage,
@@ -545,3 +546,4 @@ class TestStatistics:
         assert stats["duplicate_messages"] == 1
         assert "slack" in stats["platforms"]
         assert "teams" in stats["platforms"]
+

@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, Mock, patch
 sys.path.append(os.getcwd())
 
 from core.database import Base
+import pytest
+pytest.importorskip("core.memory_backfill_service", reason="core.memory_backfill_service was deleted in dead-code cleanup (zero references)")
 from core.memory_backfill_service import MemoryBackfillService
 from core.models import EntityTypeDefinition, GraphNode
 from core.schema_validator import SchemaValidator
@@ -518,3 +520,4 @@ class TestMemoryBackfillService(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

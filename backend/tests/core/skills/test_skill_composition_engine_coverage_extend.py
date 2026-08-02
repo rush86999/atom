@@ -14,6 +14,7 @@ Focus areas (building on Phase 183 76% baseline):
 """
 
 import pytest
+pytest.importorskip("core.skill_composition_engine", reason="core.skill_composition_engine was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 from core.skill_composition_engine import SkillCompositionEngine, SkillStep
 from core.models import SkillCompositionExecution
@@ -535,3 +536,4 @@ class TestSkillCompositionEngineExtended:
         assert wf.status == "failed"
         assert "Unexpected error" in wf.error_message
         assert wf.completed_at is not None
+

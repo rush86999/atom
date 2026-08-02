@@ -23,7 +23,6 @@ from pathlib import Path
 import tempfile
 import os
 
-from core.data_ingestion_service import DataIngestionService
 from core.models import User, AgentRegistry, AgentStatus
 from tests.factories.user_factory import UserFactory
 
@@ -1056,3 +1055,4 @@ class TestBusinessRuleValidation:
         )
 
         assert response.status_code in [200, 400, 404]
+

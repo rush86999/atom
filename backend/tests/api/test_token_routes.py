@@ -9,6 +9,7 @@ Comprehensive tests for token management endpoints covering:
 
 import os
 import pytest
+pytest.importorskip("api.token_routes", reason="api.token_routes was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -581,3 +582,4 @@ class TestSecurity:
 
             # Should be forbidden
             assert response.status_code == 403
+

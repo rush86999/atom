@@ -11,6 +11,7 @@ Target: 75%+ coverage (141+ lines of 188)
 """
 
 import pytest
+pytest.importorskip("api.smarthome_routes", reason="api.smarthome_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi import FastAPI
@@ -446,3 +447,4 @@ class TestHomeAssistantEntityTypeEndpoints:
             data = response.json()
             assert data["success"] is True
             assert len(data["groups"]) == 1
+

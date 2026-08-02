@@ -10,6 +10,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.agent_utils", reason="core.agent_utils was deleted in dead-code cleanup (zero references)")
 import time
 from datetime import datetime, timezone
 from core.agent_utils import (
@@ -346,3 +347,4 @@ class TestEdgeCases:
         # Minimum length
         assert truncate_text("Hi", 10) == "Hi"
         assert truncate_text("Hi", 1) == "."
+

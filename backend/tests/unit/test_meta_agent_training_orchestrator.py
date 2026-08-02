@@ -10,6 +10,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.meta_agent_training_orchestrator", reason="core.meta_agent_training_orchestrator was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -593,3 +594,4 @@ class TestEdgeCases:
             assert category in orchestrator.SCENARIO_TEMPLATES
             template = orchestrator.SCENARIO_TEMPLATES[category]
             assert len(template["scenarios"]) >= 3
+

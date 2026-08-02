@@ -20,6 +20,8 @@ from sqlalchemy.orm import configure_mappers, sessionmaker
 import core.models
 from core.database import Base
 from core.models import Workspace
+import pytest
+pytest.importorskip("core.small_biz_scheduler", reason="core.small_biz_scheduler was deleted in dead-code cleanup (zero references)")
 from core.small_biz_scheduler import SmallBizScheduler
 
 
@@ -127,3 +129,4 @@ class TestSmallBizScheduling(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -20,10 +20,16 @@ from core.skill_adapter import (
     NodeJsSkillAdapter,
     create_community_tool
 )
-from core.skill_composition_engine import (
-    SkillCompositionEngine,
-    SkillStep
-)
+try:
+    from core.skill_composition_engine import (
+        SkillCompositionEngine,
+        SkillStep
+    )
+    HAS_SKILL_COMPOSITION = True
+except ImportError:
+    SkillCompositionEngine = None
+    SkillStep = None
+    HAS_SKILL_COMPOSITION = False
 from core.skill_marketplace_service import SkillMarketplaceService
 from core.models import SkillExecution, SkillRating, SkillCache
 
@@ -458,6 +464,7 @@ class TestSkillAdapterErrorPaths:
         assert version == "^4.17.21"
 
 
+@pytest.mark.skipif(not HAS_SKILL_COMPOSITION, reason="core.skill_composition_engine deleted in cleanup")
 class TestSkillCompositionErrorPaths:
     """Tests for SkillCompositionEngine error scenarios"""
 

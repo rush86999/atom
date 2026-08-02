@@ -5,6 +5,7 @@ Covers mobile agent list, creation, execution, filtering, and feedback.
 """
 
 import pytest
+pytest.importorskip("api.mobile_agent_routes", reason="api.mobile_agent_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.orm import Session
@@ -508,3 +509,4 @@ class TestMobileAgentFeedback:
 
         # Should return validation error
         assert response.status_code in [400, 422]
+

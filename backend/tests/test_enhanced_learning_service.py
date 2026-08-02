@@ -12,6 +12,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.enhanced_learning_service", reason="core.enhanced_learning_service was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
@@ -830,3 +831,4 @@ class TestEdgeCases:
 
             # Should create new learning record
             mock_db.add.assert_called_once()
+

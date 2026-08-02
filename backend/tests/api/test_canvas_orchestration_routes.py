@@ -10,6 +10,7 @@ Tests for orchestration canvas endpoints including:
 """
 
 import pytest
+pytest.importorskip("api.canvas_orchestration_routes", reason="api.canvas_orchestration_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 
@@ -538,3 +539,4 @@ class TestCanvasOrchestrationRoutes:
             json={"user_id": "u", "title": "T"}
         )
         assert response.headers["content-type"].startswith("application/json")
+

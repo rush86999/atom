@@ -22,7 +22,12 @@ import json
 
 from core.database import SessionLocal, Base
 from core.models import EntityTypeDefinition, GraphNode, Tenant, Workspace
-from core.memory_backfill_service import MemoryBackfillService
+try:
+    from core.memory_backfill_service import MemoryBackfillService
+    HAS_MEMORY_BACKFILL = True
+except ImportError:
+    MemoryBackfillService = None
+    HAS_MEMORY_BACKFILL = False
 from core.temporary_entity_storage import TemporaryEntityType, TemporaryEntityNode
 from core.backfill_job_queue import BackfillJobQueue, get_backfill_job_queue, BackfillJobType, BackfillJobStatus
 
@@ -75,6 +80,8 @@ def sample_workspace(db, sample_tenant):
 @pytest.fixture
 def backfill_service(db):
     """Create memory backfill service for testing."""
+    if MemoryBackfillService is None:
+        pytest.skip("core.memory_backfill_service deleted in cleanup")
     return MemoryBackfillService(db=db)
 
 

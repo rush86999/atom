@@ -13,6 +13,8 @@ from datetime import datetime
 from typing import Dict, List, Any
 from pydantic import ValidationError
 
+import pytest
+pytest.importorskip("core.response_models", reason="core.response_models was deleted in dead-code cleanup (zero references)")
 from core.response_models import (
     SuccessResponse,
     ErrorResponse,
@@ -265,3 +267,4 @@ if __name__ == "__main__":
     else:
         print("\n✓ All tests passed!")
         sys.exit(0)
+

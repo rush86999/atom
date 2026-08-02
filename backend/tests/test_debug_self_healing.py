@@ -3,6 +3,7 @@ Tests for Self-Healing Module
 """
 
 import pytest
+pytest.importorskip("core.debug_self_healing", reason="core.debug_self_healing was deleted in dead-code cleanup (zero references)")
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -335,3 +336,4 @@ class TestDebugSelfHealer:
 
         result = healer._parse_time_range("last_7d")
         assert (now - result).total_seconds() < 605000  # ~7 days
+

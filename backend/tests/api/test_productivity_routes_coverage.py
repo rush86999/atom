@@ -12,6 +12,7 @@ Target: 75%+ coverage (117+ lines of 156)
 """
 
 import pytest
+pytest.importorskip("api.productivity_routes", reason="api.productivity_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi import FastAPI
@@ -314,3 +315,4 @@ class TestErrorHandling:
         request_data = {}  # Missing required blocks field
         response = client.post("/productivity/notion/pages/page-1/blocks", json=request_data)
         assert response.status_code == 422
+

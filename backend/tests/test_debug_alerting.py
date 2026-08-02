@@ -9,6 +9,7 @@ Test Categories: Alert Generation, Notification Delivery, Incident Management, A
 """
 
 import pytest
+pytest.importorskip("core.debug_alerting", reason="core.debug_alerting was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
@@ -600,3 +601,4 @@ class TestAlertIntegration:
 
 
 # Total: 25 tests
+

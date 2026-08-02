@@ -13,6 +13,7 @@ Pass Rate Target: 95%+
 """
 
 import pytest
+pytest.importorskip("api.cognitive_tier_routes", reason="api.cognitive_tier_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
@@ -231,3 +232,4 @@ class TestEstimateCost:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+

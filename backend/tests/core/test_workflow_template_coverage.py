@@ -1,6 +1,7 @@
 """Test coverage for workflow_template_endpoints.py - Target 60%+ coverage."""
 
 import pytest
+pytest.importorskip("core.workflow_template_endpoints", reason="core.workflow_template_endpoints was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, MagicMock
 from fastapi.testclient import TestClient
 from fastapi import FastAPI, UploadFile
@@ -683,3 +684,4 @@ class TestHelperFunctions:
         assert result["complexity"] == "beginner"
         assert "created_at" in result
         assert "updated_at" in result
+

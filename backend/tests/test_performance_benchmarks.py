@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 import pytest
+pytest.importorskip("core.performance_monitor", reason="core.performance_monitor was deleted in dead-code cleanup (zero references)")
 from unittest.mock import MagicMock, patch
 
 from core.performance_monitor import (
@@ -350,3 +351,4 @@ class TestRegressionDetection:
         result = monitor.check_regression("unknown_operation", 5.0)
 
         assert result["regression"] is False
+

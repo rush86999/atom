@@ -16,6 +16,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.governance_helper", reason="core.governance_helper was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -840,3 +841,4 @@ class TestGovernanceHelperEdgeCases:
                             call_kwargs = mock_update.call_args[1]
                             assert "duration_ms" in call_kwargs
                             assert call_kwargs["duration_ms"] >= 0
+

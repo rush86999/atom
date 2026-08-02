@@ -1,6 +1,7 @@
 """Test coverage for agent_utils.py - Target 60%+ coverage."""
 
 import pytest
+pytest.importorskip("core.agent_utils", reason="core.agent_utils was deleted in dead-code cleanup (zero references)")
 from datetime import datetime, timezone, timedelta
 from core.agent_utils import (
     parse_react_response,
@@ -657,3 +658,4 @@ class TestSanitizeString:
         assert "<script>" not in result
         assert "</script>" not in result
         assert "alert('xss')" in result or "Hello" in result
+

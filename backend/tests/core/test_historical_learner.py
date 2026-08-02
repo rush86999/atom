@@ -6,6 +6,7 @@ File: backend/core/historical_learner.py (52 lines)
 """
 
 import pytest
+pytest.importorskip("core.historical_learner", reason="core.historical_learner was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 import sys
@@ -489,3 +490,4 @@ class TestHistoricalLifecycleLearnerEdgeCases:
 
         call_args = learner.extractor.extract_knowledge.call_args
         assert len(call_args[0][0]) == len(long_text)
+

@@ -6,6 +6,7 @@ and error handling for agent learning and adaptation.
 """
 
 import pytest
+pytest.importorskip("core.learning_service_full", reason="core.learning_service_full was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta
 import asyncio
@@ -507,3 +508,4 @@ class TestLearningServiceErrorHandling:
 
         assert new_exp_id is not None
         assert new_exp_id in learning_service.experiences_cache
+

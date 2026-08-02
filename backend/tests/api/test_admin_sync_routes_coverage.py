@@ -13,6 +13,7 @@ Test count: 30+ tests across 7 test classes
 """
 
 import pytest
+pytest.importorskip("api.sync_admin_routes", reason="api.sync_admin_routes was deleted in dead-code cleanup (zero references)")
 import uuid
 import sqlalchemy
 from datetime import datetime, timezone, timedelta
@@ -535,3 +536,4 @@ class TestGovernanceEnforcement:
 
         response8 = authenticated_client.post("/api/admin/sync/websocket/enable")
         assert response8.status_code == 200
+

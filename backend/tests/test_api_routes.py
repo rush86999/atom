@@ -4,6 +4,7 @@
 import os
 import sys
 import pytest
+pytest.importorskip("core.api_routes", reason="core.api_routes was deleted in dead-code cleanup (zero references)")
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -22,3 +23,4 @@ class TestBasic:
         """Test that api_routes module has expected attributes"""
         # Check for common attributes or functions
         assert hasattr(sys.modules[__name__], '__file__')
+

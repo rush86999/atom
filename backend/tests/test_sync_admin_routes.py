@@ -3,6 +3,7 @@ Test Suite for Atom SaaS Sync Admin API and Health Checks
 Covers admin endpoints, health checks, governance enforcement, and error handling
 """
 import pytest
+pytest.importorskip("api.sync_admin_routes", reason="api.sync_admin_routes was deleted in dead-code cleanup (zero references)")
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 from fastapi import status
@@ -637,3 +638,4 @@ Total: 40 tests covering:
 
 Target Coverage: 85%+
 """
+

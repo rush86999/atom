@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 # Add project root
 sys.path.append(os.getcwd())
 
+import pytest
+pytest.importorskip("core.secret_manager", reason="core.secret_manager was deleted in dead-code cleanup (zero references)")
 from core.secret_manager import get_secret_manager
 from core.websockets import manager as ws_manager
 
@@ -67,3 +69,4 @@ if __name__ == "__main__":
     current_test = TestPhase15Infra()
     current_test.test_secret_manager()
     run_async_tests()
+

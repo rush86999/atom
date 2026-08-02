@@ -3,6 +3,7 @@ Tests for Event-Sourced Architecture - LLM Analysis Integration
 """
 
 import pytest
+pytest.importorskip("core.event_sourced_architecture", reason="core.event_sourced_architecture was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from core.event_sourced_architecture import (
     EventSourcedOrchestrator,
@@ -238,3 +239,4 @@ class TestEventSourcingWithLLM:
         assert event["ai_confidence"] is not None
         assert "ai_reasoning" in event
         assert event["ai_reasoning"] is not None
+

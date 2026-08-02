@@ -12,6 +12,7 @@ Coverage:
 """
 
 import pytest
+pytest.importorskip("core.auto_installer_service", reason="core.auto_installer_service was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.dependency_resolver import DependencyResolver
@@ -333,3 +334,4 @@ class TestImageManagement:
             exists = auto_installer._image_exists("atom-skill:test-v1", "python")
 
             assert exists is False
+

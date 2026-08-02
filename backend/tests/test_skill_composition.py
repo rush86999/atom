@@ -11,6 +11,7 @@ Coverage:
 """
 
 import pytest
+pytest.importorskip("core.skill_composition_engine", reason="core.skill_composition_engine was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.skill_composition_engine import SkillCompositionEngine, SkillStep
@@ -1330,3 +1331,4 @@ class TestWorkflowRollbackDetails:
                 SkillCompositionExecution.workflow_id == "status-rollback-test"
             ).first()
             assert wf.status == "rolled_back"
+

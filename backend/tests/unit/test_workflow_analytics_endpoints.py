@@ -6,6 +6,7 @@ Covers workflow execution tracking, performance metrics, alerts, dashboards, and
 """
 
 import pytest
+pytest.importorskip("core.workflow_analytics_endpoints", reason="core.workflow_analytics_endpoints was deleted in dead-code cleanup (zero references)")
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 from fastapi import FastAPI
@@ -594,3 +595,4 @@ class TestTimelineAndPerformance:
 # Run tests
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

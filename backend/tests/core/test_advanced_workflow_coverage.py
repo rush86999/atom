@@ -1,6 +1,7 @@
 """Test coverage for advanced_workflow_endpoints.py - Target 60%+ coverage."""
 
 import pytest
+pytest.importorskip("core.advanced_workflow_endpoints", reason="core.advanced_workflow_endpoints was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from fastapi import HTTPException, FastAPI
@@ -1104,3 +1105,4 @@ class TestHelperFunctions:
         assert result["state"] == "draft"
         assert "created_at" in result
         assert "updated_at" in result
+

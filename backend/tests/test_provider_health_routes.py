@@ -12,6 +12,7 @@ Test fixtures from backend/tests/conftest.py (db_session, test_token)
 """
 
 import pytest
+pytest.importorskip("api.provider_health_routes", reason="api.provider_health_routes was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
@@ -164,3 +165,4 @@ class TestProviderHealthRoutes:
 
         response = client.get("/api/providers/health")
         assert response.status_code == 200
+

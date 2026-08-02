@@ -6,6 +6,7 @@ Target: 60%+ line coverage (164 lines)
 import json
 import os
 import pytest
+pytest.importorskip("core.local_ocr_service", reason="core.local_ocr_service was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch, MagicMock, mock_open
 from pathlib import Path
 from core.local_ocr_service import (
@@ -499,3 +500,4 @@ class TestOCREngineSpecific:
 
                         assert result["success"] is True
                         assert result["page_count"] == 1
+

@@ -12,6 +12,7 @@ Target: 75%+ coverage (118+ lines of 157)
 """
 
 import pytest
+pytest.importorskip("api.creative_routes", reason="api.creative_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from fastapi import FastAPI
@@ -291,3 +292,4 @@ class TestErrorHandling:
                 "duration": "00:00:30"
             })
             assert response.status_code == 503
+

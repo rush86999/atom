@@ -9,6 +9,7 @@ Test coverage for competitive advantage dashboard engine including:
 """
 
 import pytest
+pytest.importorskip("core.competitive_advantage_dashboard", reason="core.competitive_advantage_dashboard was deleted in dead-code cleanup (zero references)")
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any
 
@@ -428,3 +429,4 @@ class TestEdgeCasesAndValidation:
         # Note: dataclass uses field equality, not object identity
         assert metric1.category == metric2.category
         assert metric1.metric_name == metric2.metric_name
+

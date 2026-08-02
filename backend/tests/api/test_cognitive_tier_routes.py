@@ -15,6 +15,7 @@ Target: 75%+ line coverage on cognitive_tier_routes.py (601 lines)
 """
 
 import pytest
+pytest.importorskip("api.cognitive_tier_routes", reason="api.cognitive_tier_routes was deleted in dead-code cleanup (zero references)")
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
@@ -1065,3 +1066,4 @@ class TestCompareTiers:
         for tier in data["tiers"]:
             assert tier["description"]
             assert len(tier["description"]) > 0
+

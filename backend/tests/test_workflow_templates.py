@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 import pytest
+pytest.importorskip("core.workflow_template_manager", reason="core.workflow_template_manager was deleted in dead-code cleanup (zero references)")
 
 from core.workflow_template_manager import WorkflowTemplate, WorkflowTemplateManager
 
@@ -333,3 +334,4 @@ class TestIndexManagement:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

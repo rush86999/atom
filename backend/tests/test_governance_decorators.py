@@ -5,6 +5,7 @@ Tests for the governance enforcement decorators.
 """
 
 import pytest
+pytest.importorskip("core.governance_decorator", reason="core.governance_decorator was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
@@ -159,3 +160,4 @@ class TestOnFailureBehavior:
                 result = test_function(agent_id="test-agent-123", db=mock_db)
 
                 assert result is None
+

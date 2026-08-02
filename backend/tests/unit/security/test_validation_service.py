@@ -12,6 +12,7 @@ These tests focus on validation functions in core/validation_service.py
 """
 
 import pytest
+pytest.importorskip("core.validation_service", reason="core.validation_service was deleted in dead-code cleanup (zero references)")
 from typing import List, Dict, Any
 
 from core.validation_service import (
@@ -640,3 +641,4 @@ class TestPydanticModels:
                 agent_id="agent_123",
                 message="a" * 100001
             )
+

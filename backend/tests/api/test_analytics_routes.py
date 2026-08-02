@@ -20,6 +20,7 @@ Coverage:
 """
 
 import pytest
+pytest.importorskip("api.workflow_analytics_routes", reason="api.workflow_analytics_routes was deleted in dead-code cleanup (zero references)")
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -501,3 +502,4 @@ def test_workflow_status_response_format(
             data = response.json()
             assert isinstance(data, dict)
             assert "status" in data or "data" in data
+

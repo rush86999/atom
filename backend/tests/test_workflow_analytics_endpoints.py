@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from typing import Any, Dict, Optional
 
 import pytest
+pytest.importorskip("core.workflow_analytics_endpoints", reason="core.workflow_analytics_endpoints was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from sqlalchemy.orm import Session
@@ -538,3 +539,4 @@ def test_generate_analytics_report_success(client, mock_analytics_engine):
     data = response.json()
     assert data["status"] == "success"
     assert "report_id" in data
+

@@ -8,6 +8,7 @@ Phase 323-05: Workflow Automation Triggers
 """
 
 import pytest
+pytest.importorskip("core.workflow_trigger_service", reason="core.workflow_trigger_service was deleted in dead-code cleanup (zero references)")
 import asyncio
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timezone, timedelta
@@ -911,3 +912,4 @@ class TestWorkflowTriggerIntegration:
         assert "po_workflow" in all_triggered
         assert "security_workflow" in all_triggered
         assert "invoice_workflow" in all_triggered
+

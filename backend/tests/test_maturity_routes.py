@@ -12,6 +12,7 @@ Coverage Target: >30% for api/maturity_routes.py
 """
 
 import pytest
+pytest.importorskip("api.maturity_routes", reason="api.maturity_routes was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, MagicMock, patch
 from fastapi.testclient import TestClient
@@ -498,3 +499,4 @@ class TestErrorHandling:
 
             # May succeed or fail
             assert response.status_code in [200, 500]
+

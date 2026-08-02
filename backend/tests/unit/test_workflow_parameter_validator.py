@@ -11,6 +11,7 @@ Tests cover:
 """
 
 import pytest
+pytest.importorskip("core.workflow_parameter_validator", reason="core.workflow_parameter_validator was deleted in dead-code cleanup (zero references)")
 from typing import Dict, Any
 from unittest.mock import Mock
 from datetime import datetime
@@ -776,3 +777,4 @@ class TestParameterizedValidation:
         rule = NumericRule("test", {"min_value": min, "max_value": max})
         is_valid, error = rule.validate(value)
         assert is_valid == expected_valid
+

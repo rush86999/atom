@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, Mock, patch
 from datetime import datetime
 
 import pytest
+pytest.importorskip("core.workflow_parameter_validator", reason="core.workflow_parameter_validator was deleted in dead-code cleanup (zero references)")
 
 from core.workflow_parameter_validator import (
     WorkflowParameterValidator,
@@ -609,3 +610,4 @@ def test_create_file_validation_rules():
     assert rules[0]["type"] == "file"
     assert rules[1]["allowed_types"] == ["pdf", "txt"]
     assert rules[2]["max_size_mb"] == 10
+

@@ -5,6 +5,7 @@ import asyncio
 import os
 from unittest.mock import Mock, MagicMock, patch, call
 import pytest
+pytest.importorskip("core.provider_scheduler", reason="core.provider_scheduler was deleted in dead-code cleanup (zero references)")
 
 from core.provider_scheduler import ProviderScheduler, get_provider_scheduler
 
@@ -306,3 +307,4 @@ class TestProviderScheduler:
             assert call_args[0][0] == "provider_registry"
             assert call_args[0][1] is True  # success
             assert call_args[0][2] == 0  # latency_ms (not measured for sync)
+

@@ -8,6 +8,7 @@ Phase 323-04: Human-in-the-Loop Review System
 """
 
 import pytest
+pytest.importorskip("core.entity_review_service", reason="core.entity_review_service was deleted in dead-code cleanup (zero references)")
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timezone
 
@@ -686,3 +687,4 @@ class TestAPIRequestModels:
         )
         assert request.discovered_type == "InvalidType"
         assert request.reason == "incorrect_type"
+

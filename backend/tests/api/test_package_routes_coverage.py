@@ -5,6 +5,7 @@ Target: 50%+ coverage (373 statements, ~187 lines to cover)
 Focus: Package installation, dependency management, security scanning
 """
 import pytest
+pytest.importorskip("api.package_routes", reason="api.package_routes was deleted in dead-code cleanup (zero references)")
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from unittest.mock import Mock, patch, AsyncMock
@@ -191,3 +192,4 @@ class TestPackageErrorHandling:
             )
 
             assert response.status_code in [200, 409]
+
