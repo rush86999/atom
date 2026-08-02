@@ -388,6 +388,207 @@ class MementoEngine(BaseLearningEngine):
             logger.warning("SkillBuilderService not available")
             return {"error": "SkillBuilderService not available"}
 
+    # --- /learn workflow→skill distillation (R72 Workstream B) ---
+
+    async def analyze_execution(
+        self, execution_id: str, **kwargs
+    ) -> dict[str, Any]:
+        """
+        Analyze a completed agent execution into a success/step trace.
+
+        Unlike ``analyze_episode`` (which assumes a failed episode), this
+        handles ANY outcome (success or failure): it pulls the
+        ``AgentExecution`` row plus its ordered ``AgentReasoningStep`` rows
+        into a structured trace that the LLM can distill a skill from.
+
+        Returns:
+            {
+                "execution_id": str,
+                "agent_id": str | None,
+                "tenant_id": str | None,
+                "status": str,
+                "task_description": str,
+                "result_summary": str | None,
+                "error_trace": str,
+                "steps": list[dict],   # ordered reasoning steps
+                "step_count": int,
+                "tool_calls_attempted": list,
+                "failure_summary": str,
+                "suggested_skill_name": str,
+            }
+        """
+        try:
+            from core.models import AgentExecution, AgentReasoningStep
+
+            execution = (
+                self.db.query(AgentExecution)
+                .filter(AgentExecution.id == execution_id)
+                .first()
+            )
+            if not execution:
+                return {"error": f"Execution {execution_id} not found"}
+
+            steps = (
+                self.db.query(AgentReasoningStep)
+                .filter(AgentReasoningStep.execution_id == execution_id)
+                .order_by(AgentReasoningStep.step_number.asc())
+                .all()
+            )
+
+            step_trace = [
+                {
+                    "step_number": s.step_number,
+                    "step_type": s.step_type,
+                    "thought": s.thought,
+                    "action": s.action,
+                    "observation": s.observation,
+                    "verified": s.verified,
+                }
+                for s in steps
+            ]
+
+            task_desc = execution.input_summary or ""
+            outcome = execution.status or ""
+            error_trace = execution.error_message or ""
+
+            return {
+                "execution_id": execution_id,
+                "agent_id": str(execution.agent_id) if execution.agent_id else None,
+                "tenant_id": str(execution.tenant_id) if execution.tenant_id else None,
+                "status": outcome,
+                "task_description": task_desc,
+                "result_summary": execution.result_summary,
+                "error_trace": error_trace,
+                "steps": step_trace,
+                "step_count": len(step_trace),
+                "tool_calls_attempted": [
+                    s["action"] for s in step_trace if s.get("action")
+                ],
+                "failure_summary": (
+                    f"{outcome}: {task_desc[:100]}. Errors: {error_trace[:200]}"
+                    if error_trace
+                    else f"{outcome}: {task_desc[:100]}"
+                ),
+                "suggested_skill_name": self._suggest_skill_name(
+                    task_desc, error_trace
+                ),
+            }
+        except ImportError:
+            logger.warning("Execution models not available")
+            return {
+                "execution_id": execution_id,
+                "error": "Execution models not available",
+            }
+
+    async def learn_from_execution(
+        self,
+        tenant_id: str,
+        agent_id: str | None,
+        execution_id: str,
+        skill_name: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Distill a completed agent execution into a reusable Python skill.
+
+        Pipeline:
+            1. analyze_execution(execution_id) — success/step trace
+            2. propose_code_change(trace) — LLM generates the skill script
+            3. validate_change(code) — execute in the sandbox
+            4. SkillBuilderService.create_skill_package — write disk package
+            5. SkillRegistryService.import_skill — register/discoverable
+
+        Returns a dict with ``success`` plus the package + registry results.
+        """
+        analysis = await self.analyze_execution(execution_id)
+        if "error" in analysis:
+            return {"success": False, "error": analysis["error"]}
+
+        code = await self.propose_code_change(analysis)
+        if code.startswith("# Skill generation failed"):
+            return {
+                "success": False,
+                "error": "Skill generation failed — LLM unavailable",
+            }
+
+        validation = await self.validate_change(
+            code=code, test_inputs=[{}], tenant_id=tenant_id
+        )
+        if not validation.get("passed"):
+            return {
+                "success": False,
+                "error": "Skill validation failed in sandbox",
+                "validation": validation,
+            }
+
+        name = (
+            skill_name
+            or analysis.get("suggested_skill_name")
+            or f"auto_skill_{uuid.uuid4().hex[:6]}"
+        )
+        safe_name = "".join(c for c in name if c.isalnum() or c in ("-", "_")).lower()
+        if not safe_name:
+            return {"success": False, "error": "Invalid skill name"}
+
+        desc = (
+            description
+            or analysis.get("failure_summary")
+            or f"Skill distilled from execution {execution_id}"
+        )
+
+        # 1. Write a disk package via SkillBuilderService
+        from core.skill_builder_service import SkillBuilderService, SkillMetadata
+
+        builder = SkillBuilderService()
+        package_result = builder.create_skill_package(
+            tenant_id=tenant_id,
+            metadata=SkillMetadata(
+                name=name,
+                description=desc,
+                version="1.0.0",
+                author="Memento-Learn",
+                capabilities=[],
+                instructions=f"Generated from execution {execution_id}.",
+            ),
+            scripts={f"{safe_name}.py": code},
+        )
+        if not package_result.get("success"):
+            return {
+                "success": False,
+                "error": package_result.get("message", "Package creation failed"),
+            }
+
+        # 2. Register in the skill registry so it is discoverable/executable
+        skill_md_content = (
+            f"---\n"
+            f"name: {name}\n"
+            f"description: {desc}\n"
+            f"version: 1.0.0\n"
+            f"author: Memento-Learn\n"
+            f"---\n\n"
+            f"# {name}\n\n"
+            f"{desc}\n\n"
+            f"## Instructions\n"
+            f"Generated from execution {execution_id}.\n\n"
+            f"```python\n{code}\n```\n"
+        )
+        from core.skill_registry_service import SkillRegistryService
+
+        registry = SkillRegistryService(self.db)
+        import_result = await registry.import_skill(
+            source="raw_content",
+            content=skill_md_content,
+            metadata={"imported_by": "learn_endpoint"},
+        )
+
+        return {
+            "success": True,
+            "execution_id": execution_id,
+            "skill_name": name,
+            "package": package_result,
+            "registry": import_result,
+        }
+
     # --- Internal helpers ---
 
     @staticmethod

@@ -2162,6 +2162,14 @@ try:
         logger.warning(f"Failed to load skill routes: {e}")
 
     try:
+        from api.learn_routes import router as learn_router
+
+        app.include_router(learn_router)
+        logger.info("✓ Learn Routes Loaded (workflow→skill distillation)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load learn routes: {e}")
+
+    try:
         from api.skill_routes import router as admin_skill_router
 
         app.include_router(admin_skill_router)
