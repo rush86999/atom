@@ -334,6 +334,31 @@ class GenericAgent:
         
         return execution_result
 
+    def _retrieve_skill_instructions(self, task_input: str) -> str:
+        """Prompt-time skill auto-injection (Workstream C, mirror of meta-agent).
+
+        Returns an empty string when the flag is off / no skills match / DB
+        unavailable — never raises, never blocks the ReAct loop.
+        """
+        try:
+            from core.database import get_db_session
+            from core.hallucination_config import is_skill_injection_enabled
+            from core.skill_retrieval_service import get_skill_retrieval_service
+
+            if not is_skill_injection_enabled():
+                return ""
+            with get_db_session() as skills_db:
+                return get_skill_retrieval_service().retrieve_top_skills(
+                    skills_db,
+                    getattr(self, "tenant_id", None),
+                    self.workspace_id,
+                    task_input,
+                    limit=3,
+                )
+        except Exception as e:
+            logger.debug(f"skill injection skipped: {e}")
+            return ""
+
     async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None) -> ReActStep:
         """
         Generate a single ReAct step with Pydantic validation.
@@ -381,7 +406,11 @@ class GenericAgent:
         if mentorship_mode:
             mentorship_focus = f"\nMENTORSHIP FOCUS: This task has high historical complexity or rejection rates. Be extra cautious, verify all tool outputs, and provide detailed reasoning for every step.\n"
 
+        skill_instructions = self._retrieve_skill_instructions(task_input)
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
+
+{skill_instructions}
 
 AVAILABLE TOOLS:
 {tool_descriptions}
@@ -424,7 +453,16 @@ ORCHESTRATION POWERS:
         if facts:
             fact_summaries = [f"- [Status: {f.verification_status}] {f.fact} (Source: {f.metadata.get('source', 'unknown')})" for f in facts[:3]]
             memory_sections.append(f"TRUSTED BUSINESS FACTS:\n" + "\n".join(fact_summaries))
-        
+
+        # WORKSPACE FIELD GUIDE — curated memory snapshot (Workstream E).
+        try:
+            from core.field_guide_service import get_field_guide_service
+            _guide = get_field_guide_service().get_field_guide_context(self.workspace_id)
+            if _guide:
+                memory_sections.append(_guide)
+        except Exception as e:
+            logger.debug(f"field guide recall failed: {e}")
+
         memory_display = "\n\n".join(memory_sections) if memory_sections else "(No prior context)"
         
         # --- Chaos Engineering: Noise Injection (Phase 6.6) ---

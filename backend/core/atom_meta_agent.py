@@ -427,6 +427,16 @@ class AtomMetaAgent:
                     context.setdefault("prefetched_facts", []).extend(prefetched)
             except Exception as e:
                 logger.debug(f"vector recall prefetch failed: {e}")
+
+        # WORKSPACE FIELD GUIDE — curated memory snapshot (Workstream E).
+        # Read once per execute() (filesystem hit), cached in context, then
+        # consumed in _react_step memory assembly. Never raises.
+        try:
+            from core.field_guide_service import get_field_guide_service
+            context["_field_guide_context"] = get_field_guide_service().get_field_guide_context(self.workspace_id)
+        except Exception as e:
+            context["_field_guide_context"] = ""
+            logger.debug(f"field guide recall failed: {e}")
         
         start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
@@ -982,8 +992,33 @@ class AtomMetaAgent:
 
 
 
-    async def _react_step(self, request: str, memory_context: Dict, 
-                          tool_descriptions: str, execution_history: str, 
+    def _retrieve_skill_instructions(self, request: str) -> str:
+        """Prompt-time skill auto-injection (Workstream C).
+
+        Deterministic keyword retrieval over the skill registry. Returns an
+        empty string when the flag is off / no skills match / DB unavailable —
+        never raises, never blocks the ReAct loop.
+        """
+        try:
+            from core.hallucination_config import is_skill_injection_enabled
+            from core.skill_retrieval_service import get_skill_retrieval_service
+
+            if not is_skill_injection_enabled():
+                return ""
+            with SessionLocal() as skills_db:
+                return get_skill_retrieval_service().retrieve_top_skills(
+                    skills_db,
+                    self.tenant_id,
+                    self.workspace_id,
+                    request,
+                    limit=3,
+                )
+        except Exception as e:
+            logger.debug(f"skill injection skipped: {e}")
+            return ""
+
+    async def _react_step(self, request: str, memory_context: Dict,
+                          tool_descriptions: str, execution_history: str,
                           context: Dict, canvas_text: str = "",
                           turn_index: int = 0) -> ReActStep:
         """
@@ -1037,10 +1072,13 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
 
 {comm_instruction}
 
+{skill_instructions}
+
 {canvas_segment}
 """.format(
             tool_descriptions=tool_descriptions,
             comm_instruction=self._get_communication_instruction(context),
+            skill_instructions=self._retrieve_skill_instructions(request),
             canvas_segment=canvas_segment
         )
         
@@ -1087,7 +1125,29 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
                 )
         except Exception as e:
             logger.debug(f"durable-facts recall failed: {e}")
-        
+
+        # WORKSPACE FIELD GUIDE — curated memory snapshot (Workstream E).
+        # Populated once per execute(); consumed here so agents read the
+        # agent-curated guide alongside durable facts.
+        _guide = context.get("_field_guide_context") or ""
+        if _guide:
+            memory_sections.append(_guide)
+
+        # Tier-2 semantic recall — prefetched once per execute() but never
+        # surfaced (dead-end). Consume it now.
+        prefetched_facts = context.get("prefetched_facts", []) or []
+        if prefetched_facts:
+            _pf = []
+            for f in prefetched_facts[:5]:
+                if isinstance(f, dict):
+                    _pf.append(f.get("fact_text") or f.get("text") or str(f))
+                else:
+                    _pf.append(str(f))
+            if _pf:
+                memory_sections.append(
+                    "SEMANTICALLY RELATED FACTS:\n" + "\n".join(f"- {t[:200]}" for t in _pf)
+                )
+
         memory_display = "\n\n".join(memory_sections) if memory_sections else "(No prior context)"
         
         user_prompt = f"""Request: {request}

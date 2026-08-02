@@ -61,6 +61,63 @@ def _flag(env_var: str) -> bool:
     return os.getenv(env_var, "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _flag_default_true(env_var: str) -> bool:
+    """Env-var flag that defaults to ON (R72 default-ON decisions)."""
+    return os.getenv(env_var, "true").strip().lower() not in {"0", "false", "no", "off"}
+
+
+# ---------------------------------------------------------------------------
+# R72 Hermes-gap-closure flags (default-ON unless noted)
+# ---------------------------------------------------------------------------
+
+
+def is_skill_injection_enabled() -> bool:
+    """Prompt-time skill auto-injection (Workstream C). Default ON."""
+    return _flag_default_true("ATOM_SKILL_INJECTION_ENABLED")
+
+
+def is_moa_enabled() -> bool:
+    """Mixture-of-Agents for complex/irreversible tasks (Workstream F). Default ON."""
+    return _flag_default_true("ATOM_MOA_ENABLED")
+
+
+def get_moa_samples() -> int:
+    """Number of MoA samples drawn (Workstream F). Default 3, min 2."""
+    try:
+        n = int(os.getenv("ATOM_MOA_SAMPLES", "3"))
+    except (TypeError, ValueError):
+        n = 3
+    return max(2, n)
+
+
+def is_parallel_tools_enabled() -> bool:
+    """In-loop parallel tool execution (Workstream G). Default ON."""
+    return _flag_default_true("ATOM_PARALLEL_TOOLS")
+
+
+def get_max_parallel_tools() -> int:
+    """Max tools in a single parallel batch (Workstream G). Default 4."""
+    try:
+        n = int(os.getenv("ATOM_MAX_PARALLEL_TOOLS", "4"))
+    except (TypeError, ValueError):
+        n = 4
+    return max(1, n)
+
+
+def is_tool_cache_enabled() -> bool:
+    """Read-only tool-result memoization (Workstream H). Default ON."""
+    return _flag_default_true("ATOM_TOOL_CACHE_ENABLED")
+
+
+def get_tool_cache_ttl() -> int:
+    """TTL for cached tool results in seconds (Workstream H). Default 30."""
+    try:
+        n = int(os.getenv("ATOM_TOOL_CACHE_TTL", "30"))
+    except (TypeError, ValueError):
+        n = 30
+    return max(0, n)
+
+
 # ---------------------------------------------------------------------------
 # Numeric tunables
 # ---------------------------------------------------------------------------
