@@ -315,10 +315,16 @@ class ChatOrchestrator:
         user_id: str,
         message: str,
         session_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        routing_overrides: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
-        Process a chat message and coordinate across all ATOM features
+        Process a chat message and coordinate across all ATOM features.
+
+        Args:
+            routing_overrides: Optional per-request routing overrides (parsed
+                from x-atom-* headers). May contain ``model``, ``tier``,
+                ``intent`` keys. Threaded through to the LLM call.
         """
         try:
             # Create or get session
@@ -329,7 +335,7 @@ class ChatOrchestrator:
             history = session.get("history", [])[-6:]  # Last 3 turns
 
             # 1. Try Qwen AI conversational response first (real AI reply)
-            ai_response = await self._get_qwen_response(message, history)
+            ai_response = await self._get_qwen_response(message, history, routing_overrides)
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -399,12 +405,21 @@ class ChatOrchestrator:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
 
-    async def _get_qwen_response(self, message: str, history: list) -> Optional[Dict[str, Any]]:
+    async def _get_qwen_response(
+        self,
+        message: str,
+        history: list,
+        routing_overrides: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
         ``None`` on failure.
+
+        ``routing_overrides`` (when present) is unpacked into the
+        ``generate_completion`` call: ``model`` overrides auto-routing,
+        ``tier``/``intent`` are forwarded as kwargs to BYOKHandler.
         """
         if not self.llm_service:
             return None
@@ -436,11 +451,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             messages.append({"role": "user", "content": message})
 
+            # Unpack routing overrides. ``model`` overrides the auto default;
+            # ``tier``/``intent`` are forwarded as kwargs to the BYOK handler.
+            overrides = routing_overrides or {}
+            forced_model = overrides.get("model", "auto")
+            extra_kwargs: Dict[str, Any] = {}
+            if "tier" in overrides:
+                extra_kwargs["cognitive_tier"] = overrides["tier"]
+            if "intent" in overrides:
+                extra_kwargs["intent_override"] = overrides["intent"]
+
             # Use LLMService for completion (delegates Qwen/OpenAI/Anthropic routing internally)
             response_data = await self.llm_service.generate_completion(
                 messages=messages,
-                model="auto", # Use auto-resolution
-                tenant_id=self.tenant_id
+                model=forced_model,  # "auto" unless overridden
+                tenant_id=self.tenant_id,
+                **extra_kwargs,
             )
             
             if response_data.get("success"):
