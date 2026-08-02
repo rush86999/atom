@@ -25,10 +25,13 @@ regular OAuth token, then a subscription-linked grant, then BYOK/env.
   OAuth authorization server (`api/llm_oauth_routes.py`):
   `GET /api/v1/llm-oauth/{provider}/connect` → provider consent screen →
   `GET /api/v1/llm-oauth/{provider}/callback`.
-- The callback validates the `state` parameter (CSRF binding): provider match,
-  a valid credential intent (`oauth`/`subscription`), and a user binding that
-  must equal the authenticated caller. A forged callback can't bind a victim's
-  grant to an attacker's account.
+- The callback validates the `state` parameter (CSRF binding): it is an
+  **HMAC-SHA256-signed token** (`llm:{provider}:{type}:{user_id}:{nonce}:{sig}`,
+  signed with `SECRET_KEY`). The signature is verified in constant time
+  (`hmac.compare_digest`), so a forged or tampered state is rejected even if the
+  attacker knows the victim's `user_id`. The callback also checks the provider
+  and credential intent (`oauth`/`subscription`), so a forged callback can't
+  bind a victim's grant to an attacker's account.
 - Callbacks are rate-limited (20/min/IP) and require a normal JWT
   (`get_current_user`), same posture as `/api/v1/auth/oauth`.
 - Management is owner-scoped: list/revoke only touch the authenticated user's

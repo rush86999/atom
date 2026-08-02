@@ -148,6 +148,10 @@ ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_... claude
   `20260802_credential_type`); `LLMCredentialService.get_credential` priority is
   now OAuth → subscription → BYOK → ENV; connect flow at
   `/api/v1/llm-oauth/*` carries the intent in the OAuth `state` and persists it.
+  The `state` is an **HMAC-SHA256-signed token** (`llm:{provider}:{type}:{user_id}:{nonce}:{sig}`,
+  signed with `SECRET_KEY`) so it is unforgeable — a tampered or re-targeted
+  state is rejected in constant time at the callback. Connect also builds the
+  provider `redirect_uri` via `core.llm_oauth_config.build_redirect_uri`.
   **Security note:** consumer-session **cookie/token capture** is out of scope —
   only OAuth-granted flows ship; see
   `docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md`.

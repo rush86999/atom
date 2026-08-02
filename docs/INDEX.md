@@ -413,6 +413,7 @@
 | [ARCHITECTURE.md](architecture/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
 | CODE_STRUCTURE_OVERVIEW.md | Code structure overview | - |
 | [DATABASE_ARCHITECTURE.md](reference/DATABASE_ARCHITECTURE.md) | Database architecture | - |
+| [LLM_GATEWAY.md](architecture/LLM_GATEWAY.md) | OpenAI/Anthropic-compatible gateway over BYOK routing + subscription reuse | Aug 2, 2026 |
 
 ### API Documentation
 | Document | Description | Last Updated |

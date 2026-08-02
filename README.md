@@ -46,6 +46,25 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ---
 
+## 🛰️ Use Atom as an LLM Gateway ✨ NEW
+
+Atom exposes your BYOK routing as an **OpenAI- and Anthropic-compatible API** — point Claude Code, n8n, or any OpenAI-SDK app at Atom and get routing, fallback, self-healing, cost tracking, budget alerts, and a full request log for free:
+
+```bash
+# Point any OpenAI/Anthropic client at Atom
+ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_... claude
+```
+
+- **Wire-compatible**: `/v1/chat/completions`, `/v1/messages`, `/v1/models` (SSE streaming) — reuse your existing tools, not your existing bills.
+- **Smart routing**: cost-aware provider ranking + per-request overrides (`x-atom-model` / `x-atom-tier` / `x-atom-intent`).
+- **Resilience**: automatic fallback across 12+ providers and self-healing on 4xx errors.
+- **Observability**: per-key rate limits, spend thresholds (50/80/90/100% alerts), and a full redacted request log.
+- **Subscription reuse**: connect ChatGPT Plus / Claude Pro via OAuth (`/api/v1/llm-oauth/*`) and route through your subscription.
+
+[LLM Gateway Docs →](docs/architecture/LLM_GATEWAY.md) · [Security Posture →](docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md)
+
+---
+
 ## Atom vs Hermes Agent: Quick Comparison
 
 Hermes (Nous Research) is an open-source personal agent known for its memory-provider architecture. Atom adopted its strongest ideas (per-turn fact extraction, pre-compression hooks, circuit breaker, FTS5 search) and deliberately avoided its weakest (custom LLM-summarizing compressor — Hermes' own has 3 documented production bugs).
@@ -70,9 +89,6 @@ Hermes (Nous Research) is an open-source personal agent known for its memory-pro
 
 ---
 
-
----
-
 ## Architecture
 
 ### Single-Tenant Deployment
@@ -90,7 +106,7 @@ Atom is designed for **self-hosted deployment**:
 - Fleet recruitment limited by system resources only
 - All governance, routing, and graduation features work identically
 
-Full Architecture Guide →
+[Full Architecture Guide →](docs/development/overview.md)
 
 ### Data Flow & Privacy
 
@@ -263,13 +279,11 @@ Experience-based learning with recursive self-evolution, dual-trigger graduation
 [Agent Graduation Guide →](docs/archive/legacy/AGENT_GRADUATION_GUIDE.md)
 
 ### 💾 Memory & Context (Hermes-style) ✨ New 2026
-Durable-fact extraction layer that survives context compression — the agent remembers what matters across sessions:
-- **Per-turn extraction**: 5 durable-fact categories (exact values, hard constraints, decision reasoning, cross-task deps, implicit preferences) extracted fire-and-forget after each ReAct step
-- **Two-tier recall**: Tier-1 pure-SQL `DURABLE FACTS` prompt block (sub-ms) + Tier-2 LanceDB semantic recall (opt-in) + FTS5 lexical fallback for exact-match queries
-- **Agent memory tools**: `memory_remember` / `memory_forget` let the agent explicitly persist or invalidate facts mid-turn (maturity-gated, deletion-safe)
-- **Pre-compression queue**: drains prompts before truncation drops facts (strictly additive, default ON)
-- **Circuit breaker**: 5 failures → 120s cooldown → half-open probe (prevents extraction storms)
-- **Boundary-protection compression**: head + tail preserved, stale middle elided (deterministic; no buggy LLM-summary phase)
+Durable-fact extraction that survives context compression — the agent remembers what matters across sessions:
+- **Per-turn extraction**: 5 durable-fact categories extracted fire-and-forget after each ReAct step
+- **Two-tier recall**: Tier-1 pure-SQL prompt block (sub-ms) + Tier-2 LanceDB semantic (opt-in) + FTS5 lexical fallback
+- **Agent memory tools**: `memory_remember` / `memory_forget` (maturity-gated, deletion-safe)
+- **Pre-compression queue** drains prompts before truncation (default ON) + **circuit breaker** (5 fails → 120s cooldown) + **boundary-protection compression** (deterministic, no buggy LLM-summary phase)
 
 [Context Memory Design →](docs/architecture/CONTEXT_MEMORY.md) · [Atom vs. Hermes →](docs/architecture/HERMES_COMPARISON.md)
 
@@ -319,43 +333,17 @@ Four advanced multi-agent coordination patterns (derived from Cursor's swarm res
 
 ---
 
-## 🚀 2026 Enhancement Plan
+## 🚀 2026 Enhancements (all shipped ✅)
 
-Based on cutting-edge 2025-2026 AI research, Atom has been enhanced with 5 major feature phases:
+- **Phase 1 — Memory & Graduation**: POMDP memory framework, offline consolidation, quality-weighted graduation.
+- **Phase 2 — GraphRAG**: multi-hop expansion, dynamic graph construction, Leiden community detection.
+- **Phase 3 — Learning-Based LLM Routing**: per-model satisfaction predictors re-rank candidates from observed outcomes; DB-persisted feedback, live `/api/chat/feedback`, routing dashboard at `/settings/routing`; flag-gated (`ATOM_LEARNING_ROUTER`). See [LEARNING_LLM_ROUTER.md](docs/architecture/LEARNING_LLM_ROUTER.md).
+- **Phase 4 — Zero-Trust Federation Identity**: DIDs + Verifiable Credentials + per-request verification at `/api/federation/*` (in-memory state; DB persistence is a documented follow-up).
+- **Phase 5 — Enhanced Orchestration**: Conductor Agent (5 execution strategies), validated Workflow State Machine with rollback, pub/sub Event Bus, 9-primitive composition templates — `POST /api/v1/workflows/conductor/execute`.
 
-**Phase 1: Memory & Graduation** ✅ Complete
-- POMDP memory framework for experience-driven learning
-- Offline memory consolidation (inspired by human sleep)
-- Quality-weighted graduation criteria (20% improvement)
+**Performance**: 27,000+ tests across unit, integration, E2E, and regression suites.
 
-**Phase 2: GraphRAG Enhancement** ✅ Complete
-- Multi-hop expansion with cue-driven activation
-- Dynamic graph construction (incremental updates)
-- Enhanced community detection (Leiden algorithm)
-
-**Phase 3: Learning-Based LLM Routing** ✅ Complete
-- Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes
-- DB-persisted feedback (`llm_routing_feedback`), live `/api/chat/feedback`, quality signals
-- Model visibility badge on chat responses + routing dashboard at `/settings/routing`
-- Flag-gated (`ATOM_LEARNING_ROUTER`, default off) — augments, doesn't replace, the Cognitive Tier System
-- See [docs/architecture/LEARNING_LLM_ROUTER.md](docs/architecture/LEARNING_LLM_ROUTER.md)
-
-**Phase 4: Zero-Trust Federation Identity** ✅ Complete
-- DID (Decentralized Identifiers) for cryptographic identity — reachable via `POST /api/federation/dids`
-- Verifiable Credentials (VCs) for signed claims — reachable via `POST /api/federation/credentials`
-- Zero-trust security framework with per-request verification — reachable via `POST /api/federation/verify`
-- Automatic credential rotation (90-day)
-- Note: identity/federation state is in-memory (resets on restart); DB persistence is a documented follow-up
-
-**Phase 5: Enhanced Orchestration Patterns** ✅ Complete
-- Conductor Agent (5 execution strategies: SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE) — wired into the live workflow engine; reachable via `POST /api/v1/workflows/conductor/execute`
-- Workflow State Machine (validated transitions with rollback)
-- Event Bus (pub/sub event-driven triggering) — every live workflow publishes lifecycle events (WORKFLOW_STARTED/STEP_STARTED/STEP_COMPLETED/STEP_FAILED/WORKFLOW_COMPLETED)
-- Workflow Templates & Composition (9 primitives: SEQUENCE, PARALLEL, CHOICE, MERGE, SPLIT, JOIN, LOOP, TRY_CATCH, COMPENSATE)
-
-**Performance**: 27,000+ tests across unit, integration, E2E, and regression suites; comprehensive validation metrics documented
-
-[Enhancement Plan →](archive/root_files/ATOM_ENHANCEMENT_PLAN.md) | [Validation Metrics →](backend/docs/VALIDATION_METRICS.md)
+[Enhancement Plan →](archive/root_files/ATOM_ENHANCEMENT_PLAN.md) · [Validation Metrics →](backend/docs/VALIDATION_METRICS.md)
 
 ---
 
@@ -448,6 +436,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Agent System](docs/agents/overview.md) - Multi-agent governance and orchestration
 - [Community Skills Guide](docs/integrations/community-skills.md) - 5,000+ skills with Python & npm packages
 - [Office Automation & Co-Editing](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Real-time Excel/Word/PPTX co-editing on Canvas ✨ NEW
+- [LLM Gateway](docs/architecture/LLM_GATEWAY.md) - OpenAI/Anthropic-compatible API over BYOK routing (Phase D: subscription reuse) ✨ NEW
 - [Python Package Support](docs/security/python-packages.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](docs/security/npm-packages.md) - Lodash, Express, 2M+ packages
 - [Episodic Memory](docs/intelligence/episodic-memory.md) - Agent learning system
