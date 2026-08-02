@@ -366,7 +366,9 @@ class TestRerankRoutingResultId:
                 return 0.3
 
         class FakeLearningRouter:
-            _per_model_routers = {"default:question_answering": FakePerModel()}
+            # Cache key now includes the intent dimension (third segment);
+            # intent=None maps to "_" (see _rerank_with_learning).
+            _per_model_routers = {"default:question_answering:_": FakePerModel()}
             _routing_decisions = {}
             _max_routing_decisions = 10000
             def _extract_request_features(self, request):

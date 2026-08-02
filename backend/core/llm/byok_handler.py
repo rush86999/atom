@@ -1445,6 +1445,22 @@ class BYOKHandler:
                 turn_index=turn_index
             )
 
+            # --- Intent detection (domain classifier) ---
+            # Detects the routing-relevant domain (coding, reasoning, etc.) and
+            # feeds it to the learning router so per-model predictors learn
+            # intent-specific preferences. Best-effort: any error leaves intent
+            # as None and routing behaves as before. An explicit override (from
+            # the x-atom-intent header path) skips detection.
+            detected_intent = getattr(self, "_intent_override", None)
+            if detected_intent is None:
+                try:
+                    from core.llm.intent_detector import get_intent_detector
+                    _ir = get_intent_detector().detect(prompt)
+                    if _ir.category is not None and _ir.confidence >= 0.5:
+                        detected_intent = _ir.category
+                except Exception:
+                    logger.debug("Intent detection failed; continuing without", exc_info=True)
+
             # --- Learning-router re-ranking (flag-gated, phase 2 of rollout) ---
             # When enabled and a trained predictor exists for this tenant/task,
             # re-order BPC's already-filtered candidate list using the learned
@@ -1453,7 +1469,7 @@ class BYOKHandler:
             # remains the source of truth for which models are eligible. Cold
             # start (no predictor) leaves BPC order untouched. Best-effort: any
             # error falls back to BPC order so the hot path never breaks.
-            options = await self._rerank_with_learning(options, prompt, task_type)
+            options = await self._rerank_with_learning(options, prompt, task_type, intent=detected_intent)
 
             # Capture the decision id minted by _rerank_with_learning (if any) in
             # a local so EVERY provider attempt in the fallback loop below can
@@ -1765,6 +1781,7 @@ class BYOKHandler:
         options: list,
         prompt: str,
         task_type: Optional[str],
+        intent: Optional[str] = None,
     ) -> list:
         """Re-rank BPC's candidate list using the learned satisfaction signal.
 
@@ -1773,6 +1790,10 @@ class BYOKHandler:
         when no predictor exists for this tenant/task (cold start), or on any
         error. ``options`` is a list of ``(provider_id, model)`` tuples from
         ``get_ranked_providers``.
+
+        ``intent`` (when present) becomes a third dimension in the predictor
+        cache key so per-model predictors learn intent-specific preferences
+        (e.g. DeepSeek winning coding intents within the same task_type).
         """
         if not options or len(options) <= 1:
             # Re-ranking needs at least 2 candidates to matter. Single-provider
@@ -1793,7 +1814,7 @@ class BYOKHandler:
             if learning_router is None:
                 return options
 
-            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}"
+            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}:{intent or '_'}"
             per_model = learning_router._per_model_routers.get(cache_key)
             if per_model is None:
                 return options  # cold start — no predictor for this tenant/task
