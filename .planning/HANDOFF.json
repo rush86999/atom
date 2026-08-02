@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T03:50:27Z",
+  "timestamp": "2026-08-02T01:05:00Z",
   "phase": "306-tdd-bug-discovery-coverage",
   "phase_name": "TDD Bug Discovery & Coverage Completion",
   "phase_dir": ".planning/phases/306-tdd-bug-discovery-coverage",
   "plan": "LLM-Gateway-vs-Manifest",
-  "task": 10,
+  "task": 11,
   "total_tasks": 11,
-  "status": "paused",
+  "status": "complete",
   "completed_tasks": [
     {"id": 1, "name": "A1: GatewayApiKey + GatewayRequestLog models + guarded migration", "status": "done"},
     {"id": 2, "name": "A2: BYOKHandler.chat_completion (full-history, fallback+heal, cost/health/feedback)", "status": "done"},
@@ -18,24 +18,26 @@
     {"id": 7, "name": "A7: tests (22 passing: gateway auth/routes/wire-format, chat_completion, B1 regression)", "status": "done"},
     {"id": 8, "name": "B: Spend alerts + full-body log viewer", "status": "done", "progress": "B1 signature fix; B2 send_budget_alert notification; B3 gateway threshold alerts (50/80/90/100%, fire-once/day, ATOM_GATEWAY_BUDGET_ALERTS); B4 GatewayRequestLog hooks + /api/v1/gateway/logs viewer + retention sweep. 15 new tests (37 total passing)."},
     {"id": 9, "name": "C: 6 OpenAI-compatible providers (xai/cerebras/fireworks/huggingface/nvidia_nim/zai)", "status": "done"},
+    {"id": 10, "name": "D: Subscription-credential reuse (OAuth/subscription flows)", "status": "done", "progress": "credential_type column + guarded migration 20260802_add_credential_type.py; LLMCredentialService.get_credential priority OAuth->subscription->BYOK->ENV + _try_subscription_credential + get_provider_status.has_subscription; LLMOAuthHandler credential_type param/filter (legacy NULL=oauth); api/llm_oauth_routes.py connect flow (state-encoded intent llm:{provider}:{type}:{user_id}, CSRF-bound, rate-limited); main_api_app wiring; docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md. 24 new tests (61 total passing)."},
     {"id": 11, "name": "Cross-cutting docs + CI hygiene + verification (app imports clean, no str(e) leaks)", "status": "done"}
   ],
-  "remaining_tasks": [
-    {"id": 10, "name": "D: Subscription-credential reuse (OAuth/subscription flows)", "status": "not_started"}
-  ],
+  "remaining_tasks": [],
   "blockers": [
     {"description": "AWS Bedrock (Phase C2 stretch) needs AWS creds + boto3 testing — deferred", "type": "external", "workaround": "document as known limitation"},
-    {"description": "Consumer-session cookie/token capture (Phase D) out of scope — needs dedicated threat model", "type": "external", "workaround": "only OAuth-granted flows ship"}
+    {"description": "Consumer-session cookie/token capture (Phase D) out of scope — needs dedicated threat model", "type": "external", "workaround": "only OAuth-granted flows ship; see docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md"}
   ],
   "human_actions_pending": [
     {"action": "Manual smoke test: mint atom_sk_ key, curl /v1/chat/completions and /v1/messages (stream + non-stream) against a running server with real LLM keys", "context": "Verification section of the plan; automated tests mock routing", "blocking": false},
-    {"action": "Optional: Claude Code plug-in test with ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_...", "context": "Verification step 5", "blocking": false}
+    {"action": "Optional: Claude Code plug-in test with ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_...", "context": "Verification step 5", "blocking": false},
+    {"action": "Set OPENAI/ANTHROPIC OAuth client id/secret (core/llm_oauth_config.py) before exercising the /api/v1/llm-oauth/* connect flow live", "context": "Phase D connect flow needs provider OAuth config", "blocking": false}
   ],
   "decisions": [
     {"decision": "Consolidated all Phase-A + wire-format tests into backend/tests/test_round70_gateway.py instead of separate auth/routes/anthropic files", "rationale": "Context-efficient; same coverage, shares make_db/make_client helpers", "phase": "306"},
     {"decision": "Fixed budget_enforcement admin-query join (User.custom_role / CustomRole.permissions don't exist on model) by switching to User.role.in_(['admin','owner','billing_admin']) with tenant fallback", "rationale": "The broken join raised AttributeError before the notification call, so no enforcement notification ever delivered", "phase": "306"},
     {"decision": "map_gateway_error implemented as standalone module function in gateway/__init__.py (not an instance method)", "rationale": "Usable by both route modules and unit tests without constructing a GatewayService", "phase": "306"},
-    {"decision": "Rate limiting is in-memory per-key sliding window (module-global _rate_limit_state)", "rationale": "Matches the repo's personal-edition zero-dependency posture; tests must clear _rate_limit_state", "phase": "306"}
+    {"decision": "Rate limiting is in-memory per-key sliding window (module-global _rate_limit_state)", "rationale": "Matches the repo's personal-edition zero-dependency posture; tests must clear _rate_limit_state", "phase": "306"},
+    {"decision": "Phase D: subscription intent encoded in OAuth state (llm:{provider}:{credential_type}:{user_id}) so callback persists credential_type without server-side state", "rationale": "State is CSRF-bound to the authenticated user (403 mismatch); no extra session storage", "phase": "306"},
+    {"decision": "Phase D: LLMCredentialService + connect flow share BYOK_ENCRYPTION_KEY for Fernet token encryption; legacy NULL credential_type treated as oauth", "rationale": "Consistent encryption both directions; backwards compatible with pre-column rows", "phase": "306"}
   ],
   "uncommitted_files": [
     "CLAUDE.md",
@@ -44,21 +46,28 @@
     "backend/core/llm/byok_handler.py",
     "backend/core/models.py",
     "backend/main_api_app.py",
+    "backend/core/llm_credential_service.py",
+    "backend/core/llm_oauth_handler.py",
     "backend/core/personal_budget_service.py",
     "backend/core/periodic_tasks.py",
     "backend/alembic/versions/20260801_add_gateway_models.py",
+    "backend/alembic/versions/20260802_add_credential_type.py",
     "backend/api/gateway_key_routes.py",
     "backend/api/gateway_log_routes.py",
     "backend/api/openai_gateway_routes.py",
+    "backend/api/llm_oauth_routes.py",
     "backend/core/llm/gateway/",
     "backend/tests/test_round70_budget_notification_fix.py",
     "backend/tests/test_round70_gateway.py",
     "backend/tests/test_round70_budget_alert_notification.py",
     "backend/tests/test_round70_gateway_budget_alerts.py",
     "backend/tests/test_round70_gateway_logs.py",
+    "backend/tests/test_round70_llm_credential_subscription.py",
+    "backend/tests/test_round70_llm_oauth_connect.py",
     "backend/tests/unit/core/test_byok_chat_completion.py",
-    "docs/architecture/LLM_GATEWAY.md"
+    "docs/architecture/LLM_GATEWAY.md",
+    "docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md"
   ],
-  "next_action": "Implement Phase D (task 10): Subscription-credential reuse — OAuth->subscription->BYOK->ENV credential priority, credential_type column, connect flow, security deferrals doc. First commit the completed Phase A/B/C work (37 tests passing) as a checkpoint.",
-  "context_notes": "Implemented the core deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phase A (OpenAI/Anthropic-compatible gateway), B1 (budget-notification fix), Phase B B2-B4 (spend alerts + log viewer), and Phase C (6 new providers). 37 tests passing (22 Phase A + 15 new B2-B4); main_api_app imports clean (ALL IMPORTS OK). Deferred: Phase D subscription reuse, Bedrock stretch. NOTE: during this session an accidental `git stash pop` of pre-existing stash stash@{0} (governance-wip) was fully reverted — verify git status matches expected gateway files before committing."
+  "next_action": "Phase D (task 10) is complete — the full LLM-Gateway-vs-Manifest plan (tasks 1-11) is delivered. 61 tests passing; main_api_app imports clean. Optional: run a manual smoke test of the /v1/* inference surface with a minted atom_sk_ key; commit the Phase D work as a checkpoint.",
+  "context_notes": "Completed the full deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phases A, B (B1-B4), C, and D. Phase D added: credential_type column on LLMOAuthCredential (guarded migration 20260802_add_credential_type.py), LLMCredentialService.get_credential priority OAuth->subscription->BYOK->ENV with _try_subscription_credential, LLMOAuthHandler credential_type support (legacy NULL=oauth), api/llm_oauth_routes.py connect flow (state-encoded intent, CSRF-bound, rate-limited), main_api_app wiring, docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md. 24 new tests (61 total passing); ALL IMPORTS OK. NOTE: an earlier accidental `git stash pop` of pre-existing stash stash@{0} (governance-wip) was fully reverted — verify git status matches expected gateway files before committing. Pre-existing failures unrelated to this work: 2 test_llm_oauth_handler.py get_authorization_url tests (missing OAuth client config env vars) and 7 test_personal_budget.py DB tests."
 }

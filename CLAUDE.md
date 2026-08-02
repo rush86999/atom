@@ -259,6 +259,9 @@ ATOM_GATEWAY_BUDGET_ALERTS=false         # Phase B: threshold spend alerts
 ATOM_GATEWAY_LOG_RETENTION_DAYS=30       # Phase B: log sweep retention
 # Phase C providers: XAI_API_KEY, CEREBRAS_API_KEY, FIREWORKS_API_KEY,
 # HUGGINGFACE_API_KEY, NVIDIA_NIM_API_KEY, ZAI_API_KEY
+# Phase D: subscription-credential reuse (ChatGPT Plus / Claude Pro) at
+# /api/v1/llm-oauth/* — OAuth-granted only; reuses BYOK_ENCRYPTION_KEY for
+# token encryption. See docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md
 ```
 
 ---

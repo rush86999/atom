@@ -151,11 +151,11 @@ progress:
 
 ## Session Continuity
 
-**Current Session:** 2026-08-02T02:00:00.000Z — resumed from HANDOFF.json (task 8/11, plan LLM-Gateway-vs-Manifest)
+**Current Session:** 2026-08-02T01:05:00.000Z — completed Task 10 (Phase D: subscription-credential reuse), the last remaining task of plan LLM-Gateway-vs-Manifest (11/11 tasks done, 61 tests passing)
 
-**Previous Session:** 2026-08-02T01:57:51Z — paused at task 8/11 with 22 tests passing
+**Previous Session:** 2026-08-02T03:50:27Z — paused at task 10/11 with 37 tests passing (Phase A/B/C done)
 
-**Resume note:** Session resumed, proceeding to Task 8 (Phase B2-B4: spend alerts + GatewayRequestLog log viewer). See `.planning/HANDOFF.json` and `.planning/phases/306-tdd-bug-discovery-coverage/.continue-here.md` for full context.
+**Resume note:** Session completed Phase D (subscription-credential reuse): `credential_type` column on `LLMOAuthCredential` + guarded migration `20260802_add_credential_type.py`; `LLMCredentialService.get_credential` priority OAuth→subscription→BYOK→ENV; `LLMOAuthHandler` credential_type support (legacy NULL=oauth); `api/llm_oauth_routes.py` connect flow; `main_api_app` wiring; `docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md`. 24 new tests (61 total passing); `main_api_app` imports clean. See `.planning/HANDOFF.json` and `.planning/phases/306-tdd-bug-discovery-coverage/.continue-here.md`.
 
 **Milestone Progress:** v11.0 → v12.0 → Phase 307 Complete
 

@@ -7231,6 +7231,10 @@ class LLMOAuthCredential(Base):
     refresh_token = Column(Text, nullable=True)  # Encrypted refresh token
     token_type = Column(String(20), default="Bearer")
 
+    # Credential kind (Phase D): "oauth" (default) or "subscription" — a
+    # subscription-linked OAuth grant (ChatGPT Plus / Claude Pro reuse).
+    credential_type = Column(String(20), nullable=False, server_default="oauth", default="oauth")
+
     # Token metadata
     scope = Column(String(500), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)

@@ -2,8 +2,8 @@
 LLM Credential Resolution Service
 
 Unified interface for resolving LLM provider credentials with fallback priority:
-1. OAuth Token (active and not expired)
-2. Refresh OAuth Token (if expired but has refresh token)
+1. OAuth Token (active and not expired; auto-refresh)
+2. Subscription-linked OAuth grant (ChatGPT Plus / Claude Pro reuse)
 3. BYOK API Key
 4. Environment Variable
 
@@ -29,8 +29,9 @@ class LLMCredentialService:
 
     Implements the fallback priority:
     1. OAuth Token (with auto-refresh)
-    2. BYOK API Key
-    3. Environment Variable
+    2. Subscription-linked OAuth grant (Phase D)
+    3. BYOK API Key
+    4. Environment Variable
     """
 
     def __init__(
@@ -53,6 +54,13 @@ class LLMCredentialService:
         self.tenant_id = tenant_id or "default"
         self.workspace_id = workspace_id or "default"
 
+        # Fall back to the persisted BYOK_ENCRYPTION_KEY so tokens stored by the
+        # connect flow are decryptable here (and vice-versa). None in dev keeps
+        # the existing plaintext-at-rest behaviour for local testing.
+        if encryption_key is None:
+            _env_key = os.getenv("BYOK_ENCRYPTION_KEY")
+            encryption_key = _env_key.encode() if _env_key else None
+
         self.oauth_handler = LLMOAuthHandler(encryption_key=encryption_key)
         self.byok_manager = get_byok_manager()
 
@@ -65,15 +73,16 @@ class LLMCredentialService:
 
         Priority:
         1. Active OAuth token (with auto-refresh if expired)
-        2. BYOK API key
-        3. Environment variable
+        2. Subscription-linked OAuth grant (Phase D)
+        3. BYOK API key
+        4. Environment variable
 
         Args:
             provider_id: Provider identifier (google, openai, anthropic, huggingface)
 
         Returns:
             Tuple of (credential_type, credential_value)
-            credential_type is one of: "oauth", "byok", "env"
+            credential_type is one of: "oauth", "subscription", "byok", "env"
 
         Raises:
             ValueError: If no credential is available
@@ -83,6 +92,12 @@ class LLMCredentialService:
         if oauth_token:
             logger.debug(f"Using OAuth credential for {provider_id}")
             return ("oauth", oauth_token)
+
+        # Try subscription-linked grant (ChatGPT Plus / Claude Pro reuse)
+        subscription_token = await self._try_subscription_credential(provider_id)
+        if subscription_token:
+            logger.debug(f"Using subscription credential for {provider_id}")
+            return ("subscription", subscription_token)
 
         # Try BYOK
         byok_key = self._try_byok_credential(provider_id)
@@ -101,9 +116,60 @@ class LLMCredentialService:
             f"Please configure OAuth, BYOK, or environment variable."
         )
 
+    async def _resolve_active_credential(
+        self, provider_id: str, credential_type: str
+    ) -> Optional[str]:
+        """
+        Resolve an active credential of a specific kind (oauth/subscription).
+
+        Args:
+            provider_id: Provider identifier
+            credential_type: "oauth" or "subscription"
+
+        Returns:
+            Decrypted access token if available and valid, None otherwise
+        """
+        if not self.user_id:
+            return None
+
+        try:
+            credential = self.oauth_handler.get_active_credentials(
+                self.user_id, provider_id, credential_type=credential_type
+            )
+
+            if not credential:
+                logger.debug(
+                    f"No {credential_type} credential found for {provider_id}"
+                )
+                return None
+
+            # Validate and refresh if needed
+            is_valid = await self.oauth_handler.validate_and_refresh_if_needed(credential)
+
+            if not is_valid:
+                logger.warning(
+                    f"{credential_type} credential invalid for {provider_id}"
+                )
+                return None
+
+            # Decrypt and return access token
+            access_token = self.oauth_handler.decrypt_access_token(credential)
+            logger.info(
+                f"Using {credential_type} credential for {provider_id} "
+                f"(user: {self.user_id})"
+            )
+
+            return access_token
+
+        except Exception as e:
+            logger.error(
+                f"Error getting {credential_type} credential for {provider_id}: {e}"
+            )
+            return None
+
     async def _try_oauth_credential(self, provider_id: str) -> Optional[str]:
         """
-        Try to get active OAuth credential for provider.
+        Try to get active OAuth token grant for provider.
 
         Args:
             provider_id: Provider identifier
@@ -111,35 +177,22 @@ class LLMCredentialService:
         Returns:
             Access token if available and valid, None otherwise
         """
-        if not self.user_id:
-            return None
+        return await self._resolve_active_credential(provider_id, "oauth")
 
-        try:
-            # Get active credential
-            credential = self.oauth_handler.get_active_credentials(
-                self.user_id, provider_id
-            )
+    async def _try_subscription_credential(self, provider_id: str) -> Optional[str]:
+        """
+        Try to get active subscription-linked OAuth grant (Phase D).
 
-            if not credential:
-                logger.debug(f"No OAuth credential found for {provider_id}")
-                return None
+        Reuses a subscription OAuth grant (ChatGPT Plus / Claude Pro) below a
+        dedicated OAuth token but above BYOK/env.
 
-            # Validate and refresh if needed
-            is_valid = await self.oauth_handler.validate_and_refresh_if_needed(credential)
+        Args:
+            provider_id: Provider identifier
 
-            if not is_valid:
-                logger.warning(f"OAuth credential invalid for {provider_id}")
-                return None
-
-            # Decrypt and return access token
-            access_token = self.oauth_handler.decrypt_access_token(credential)
-            logger.info(f"Using OAuth credential for {provider_id} (user: {self.user_id})")
-
-            return access_token
-
-        except Exception as e:
-            logger.error(f"Error getting OAuth credential for {provider_id}: {e}")
-            return None
+        Returns:
+            Access token if available and valid, None otherwise
+        """
+        return await self._resolve_active_credential(provider_id, "subscription")
 
     def _try_byok_credential(self, provider_id: str) -> Optional[str]:
         """
@@ -320,16 +373,17 @@ class LLMCredentialService:
         status = {
             "provider_id": provider_id,
             "has_oauth": False,
+            "has_subscription": False,
             "has_byok": False,
             "has_env": False,
             "active_method": None,
         }
 
-        # Check OAuth
+        # Check OAuth (dedicated token grant)
         if self.user_id:
             try:
                 credential = self.oauth_handler.get_active_credentials(
-                    self.user_id, provider_id
+                    self.user_id, provider_id, credential_type="oauth"
                 )
                 if credential:
                     status["has_oauth"] = True
@@ -339,6 +393,21 @@ class LLMCredentialService:
                     }
             except Exception as e:
                 logger.debug(f"Error checking OAuth status: {e}")
+
+        # Check subscription-linked grant (Phase D)
+        if self.user_id:
+            try:
+                sub_credential = self.oauth_handler.get_active_credentials(
+                    self.user_id, provider_id, credential_type="subscription"
+                )
+                if sub_credential:
+                    status["has_subscription"] = True
+                    status["subscription_info"] = {
+                        "account_email": sub_credential.account_email,
+                        "expires_at": sub_credential.expires_at.isoformat() if sub_credential.expires_at else None,
+                    }
+            except Exception as e:
+                logger.debug(f"Error checking subscription status: {e}")
 
         # Check BYOK
         try:
@@ -355,6 +424,8 @@ class LLMCredentialService:
         # Determine active method
         if status["has_oauth"]:
             status["active_method"] = "oauth"
+        elif status["has_subscription"]:
+            status["active_method"] = "subscription"
         elif status["has_byok"]:
             status["active_method"] = "byok"
         elif status["has_env"]:

@@ -21,6 +21,10 @@ and identity model are new.
 | GET/DELETE/POST | `/api/gateway/keys/{id}` | key list / revoke / rotate | JWT, owner-scoped |
 | GET | `/api/v1/gateway/logs` | request-log list | JWT, owner-scoped |
 | GET | `/api/v1/gateway/logs/{id}` | single request-log entry | JWT, owner-scoped |
+| GET | `/api/v1/llm-oauth/{provider}/connect` | LLM OAuth initiate (`credential_type=oauth\|subscription`) | JWT |
+| GET | `/api/v1/llm-oauth/{provider}/callback` | LLM OAuth callback (state-validated, rate-limited) | JWT |
+| GET/DELETE | `/api/v1/llm-oauth/credentials[/{id}]` | list / revoke LLM OAuth + subscription credentials | JWT, owner-scoped |
+| GET | `/api/v1/llm-oauth/status` | per-provider credential status | JWT |
 
 Key management routes are the only gateway surface requiring a normal login
 JWT; the `/v1/*` inference endpoints accept gateway keys.
@@ -139,6 +143,11 @@ ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_... claude
   `nvidia_nim`, `zai`) + BYOK defaults/env keys. n8n interop is auto-closed by
   Phase A (point n8n's OpenAI node at Atom's `/v1`). AWS Bedrock is a stretch
   (SigV4) — optional.
-- **Phase D** — subscription-credential reuse (ChatGPT Plus / Claude Pro).
+- **Phase D** — subscription-credential reuse (ChatGPT Plus / Claude Pro)
+  landed: `credential_type` column on `LLMOAuthCredential` (+ guarded migration
+  `20260802_credential_type`); `LLMCredentialService.get_credential` priority is
+  now OAuth → subscription → BYOK → ENV; connect flow at
+  `/api/v1/llm-oauth/*` carries the intent in the OAuth `state` and persists it.
   **Security note:** consumer-session **cookie/token capture** is out of scope —
-  only OAuth-granted flows ship; see `docs/security/`.
+  only OAuth-granted flows ship; see
+  `docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md`.

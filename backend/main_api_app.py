@@ -3126,10 +3126,12 @@ try:
         from api.openai_gateway_routes import router as gateway_router
         from api.gateway_key_routes import router as gateway_key_router
         from api.gateway_log_routes import router as gateway_log_router
+        from api.llm_oauth_routes import router as llm_oauth_router
 
         app.include_router(gateway_router, tags=["LLM Gateway"])
         app.include_router(gateway_key_router, tags=["LLM Gateway Keys"])
         app.include_router(gateway_log_router, tags=["LLM Gateway Logs"])
+        app.include_router(llm_oauth_router, tags=["LLM OAuth"])
         logger.info("✓ LLM Gateway Routes Loaded")
     except Exception as e:
         logger.warning(f"LLM Gateway routes failed to load: {e}")

@@ -12,12 +12,14 @@ Supports: Google AI Studio, OpenAI, Anthropic, Hugging Face
 """
 
 import logging
+import os
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 import httpx
+from sqlalchemy import or_
 
 from core.database import get_db_session
 from core.llm_oauth_config import (
@@ -166,7 +168,8 @@ class LLMOAuthHandler:
         tenant_id: str,
         provider_id: str,
         tokens: Dict[str, any],
-        account_info: Optional[Dict[str, str]] = None
+        account_info: Optional[Dict[str, str]] = None,
+        credential_type: str = "oauth"
     ) -> LLMOAuthCredential:
         """
         Store OAuth credentials in the database.
@@ -177,6 +180,9 @@ class LLMOAuthHandler:
             provider_id: Provider identifier
             tokens: Token response from OAuth exchange
             account_info: Optional account info (email, name)
+            credential_type: "oauth" (default) or "subscription" (Phase D —
+                a subscription-linked OAuth grant such as ChatGPT Plus / Claude
+                Pro reuse).
 
         Returns:
             Created LLMOAuthCredential instance
@@ -222,6 +228,7 @@ class LLMOAuthHandler:
                 account_email=account_info.get("email") if account_info else None,
                 account_name=account_info.get("name") if account_info else None,
                 is_active=True,
+                credential_type=credential_type,
             )
 
             db.add(credential)
@@ -235,7 +242,8 @@ class LLMOAuthHandler:
     def get_active_credentials(
         self,
         user_id: str,
-        provider_id: str
+        provider_id: str,
+        credential_type: Optional[str] = None
     ) -> Optional[LLMOAuthCredential]:
         """
         Get active OAuth credentials for a user and provider.
@@ -243,16 +251,31 @@ class LLMOAuthHandler:
         Args:
             user_id: User ID
             provider_id: Provider identifier
+            credential_type: Optional kind filter — "oauth" (includes legacy
+                rows where the column is NULL), "subscription", or None for any.
 
         Returns:
             LLMOAuthCredential or None if not found
         """
         with get_db_session() as db:
-            credential = db.query(LLMOAuthCredential).filter(
+            query = db.query(LLMOAuthCredential).filter(
                 LLMOAuthCredential.user_id == user_id,
                 LLMOAuthCredential.provider_id == provider_id,
                 LLMOAuthCredential.is_active == True
-            ).first()
+            )
+
+            if credential_type == "oauth":
+                # Legacy rows predate the column (NULL) — they are plain oauth grants.
+                query = query.filter(
+                    or_(
+                        LLMOAuthCredential.credential_type == "oauth",
+                        LLMOAuthCredential.credential_type.is_(None),
+                    )
+                )
+            elif credential_type:
+                query = query.filter(LLMOAuthCredential.credential_type == credential_type)
+
+            credential = query.first()
 
             if credential:
                 # Update last_used_at
