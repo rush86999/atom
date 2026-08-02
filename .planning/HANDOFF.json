@@ -1,73 +1,46 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T01:05:00Z",
-  "phase": "306-tdd-bug-discovery-coverage",
-  "phase_name": "TDD Bug Discovery & Coverage Completion",
-  "phase_dir": ".planning/phases/306-tdd-bug-discovery-coverage",
-  "plan": "LLM-Gateway-vs-Manifest",
-  "task": 11,
-  "total_tasks": 11,
-  "status": "complete",
+  "timestamp": "2026-08-02T16:20:00Z",
+  "phase": "R72-hermes-gap-closure",
+  "phase_name": "R72 Hermes Gap Closure (9 gaps + channel binding)",
+  "phase_dir": ".planning",
+  "plan": "R72 Hermes Gap Closure",
+  "task": 7,
+  "total_tasks": 10,
+  "status": "in_progress",
   "completed_tasks": [
-    {"id": 1, "name": "A1: GatewayApiKey + GatewayRequestLog models + guarded migration", "status": "done"},
-    {"id": 2, "name": "A2: BYOKHandler.chat_completion (full-history, fallback+heal, cost/health/feedback)", "status": "done"},
-    {"id": 3, "name": "A3: gateway package (wire_formats, auth, gateway_service, map_gateway_error)", "status": "done"},
-    {"id": 4, "name": "A4: routes /v1/chat/completions, /v1/messages, /v1/models + SSE adapters", "status": "done"},
-    {"id": 5, "name": "A5: /api/gateway/keys CRUD (plaintext-once, ownership-gated)", "status": "done"},
-    {"id": 6, "name": "A6: wiring into main_api_app (guarded) + env vars + docs", "status": "done"},
-    {"id": 7, "name": "A7: tests (22 passing: gateway auth/routes/wire-format, chat_completion, B1 regression)", "status": "done"},
-    {"id": 8, "name": "B: Spend alerts + full-body log viewer", "status": "done", "progress": "B1 signature fix; B2 send_budget_alert notification; B3 gateway threshold alerts (50/80/90/100%, fire-once/day, ATOM_GATEWAY_BUDGET_ALERTS); B4 GatewayRequestLog hooks + /api/v1/gateway/logs viewer + retention sweep. 15 new tests (37 total passing)."},
-    {"id": 9, "name": "C: 6 OpenAI-compatible providers (xai/cerebras/fireworks/huggingface/nvidia_nim/zai)", "status": "done"},
-    {"id": 10, "name": "D: Subscription-credential reuse (OAuth/subscription flows)", "status": "done", "progress": "credential_type column + guarded migration 20260802_add_credential_type.py; LLMCredentialService.get_credential priority OAuth->subscription->BYOK->ENV + _try_subscription_credential + get_provider_status.has_subscription; LLMOAuthHandler credential_type param/filter (legacy NULL=oauth); api/llm_oauth_routes.py connect flow (state-encoded intent llm:{provider}:{type}:{user_id}, CSRF-bound, rate-limited); main_api_app wiring; docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md. 24 new tests (61 total passing)."},
-    {"id": 11, "name": "Cross-cutting docs + CI hygiene + verification (app imports clean, no str(e) leaks)", "status": "done"}
+    {"id": 1, "name": "D: Memory defaults ON (TURN_FACT_EXTRACTION + VECTOR_RECALL)", "status": "done", "commit": "9c67a3620"},
+    {"id": 2, "name": "A: In-loop verification + self-correction + ActionJudge wiring", "status": "done", "commit": "4c8fac36c"},
+    {"id": 3, "name": "C: Skill auto-injection at prompt time", "status": "done", "commit": "07df489ec"},
+    {"id": 4, "name": "E: FieldGuide memory snapshot + prefetched_facts consumption", "status": "done", "commit": "07df489ec"},
+    {"id": 6, "name": "H: Tool-result memoization (read-only whitelist)", "status": "done", "commit": "793289dd3"},
+    {"id": 5, "name": "B: /learn endpoint (workflow->skill distillation)", "status": "done", "commit": "e4fbe855d"},
+    {"id": 7, "name": "I: Channel binding fix (cross-channel context leak)", "status": "done", "commit": "54361bc59"},
+    {"id": 8, "name": "F: Mixture-of-Agents (default ON)", "status": "done", "commit": "0ebc610a1"}
   ],
-  "remaining_tasks": [],
+  "remaining_tasks": [
+    {"id": 9, "name": "G: In-loop parallel tool execution (default ON)", "status": "not_started"},
+    {"id": 10, "name": "J: Docs update", "status": "not_started"}
+  ],
   "blockers": [
-    {"description": "AWS Bedrock (Phase C2 stretch) needs AWS creds + boto3 testing — deferred", "type": "external", "workaround": "document as known limitation"},
-    {"description": "Consumer-session cookie/token capture (Phase D) out of scope — needs dedicated threat model", "type": "external", "workaround": "only OAuth-granted flows ship; see docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md"}
+    {"description": "Pre-existing react-loop suite failures (33 tests) patch nonexistent core.atom_meta_agent.LLMService", "type": "technical", "workaround": "ignore or fix patch targets in separate test-infra commit"},
+    {"description": "backend/atom_dev.db-journal shows deleted (test byproduct)", "type": "technical", "workaround": "leave out of commits"},
+    {"description": "tests/standalone/test_tool_registry_verification.py has 6 pre-existing errors (missing 'registry' fixture)", "type": "technical", "workaround": "unrelated to R72; fixture was never defined"},
+    {"description": "Pre-existing tests/unit/llm/test_self_consistency_voter.py::test_C5_is_irreversible_detection (asserts OLD value-matching; code intentionally name-matches per Bug #13) + test_provider_family_invariant.py::test_D1 (harness/await mismatch) — both fail at HEAD, verified via git stash", "type": "technical", "workaround": "not caused by R72 F; C5 tests superseded behavior, D1 needs same AwaitableResult harness fix as cascade"}
   ],
-  "human_actions_pending": [
-    {"action": "Manual smoke test: mint atom_sk_ key, curl /v1/chat/completions and /v1/messages (stream + non-stream) against a running server with real LLM keys", "context": "Verification section of the plan; automated tests mock routing", "blocking": false},
-    {"action": "Optional: Claude Code plug-in test with ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_...", "context": "Verification step 5", "blocking": false},
-    {"action": "Set OPENAI/ANTHROPIC OAuth client id/secret (core/llm_oauth_config.py) before exercising the /api/v1/llm-oauth/* connect flow live", "context": "Phase D connect flow needs provider OAuth config", "blocking": false}
-  ],
+  "human_actions_pending": [],
   "decisions": [
-    {"decision": "Consolidated all Phase-A + wire-format tests into backend/tests/test_round70_gateway.py instead of separate auth/routes/anthropic files", "rationale": "Context-efficient; same coverage, shares make_db/make_client helpers", "phase": "306"},
-    {"decision": "Fixed budget_enforcement admin-query join (User.custom_role / CustomRole.permissions don't exist on model) by switching to User.role.in_(['admin','owner','billing_admin']) with tenant fallback", "rationale": "The broken join raised AttributeError before the notification call, so no enforcement notification ever delivered", "phase": "306"},
-    {"decision": "map_gateway_error implemented as standalone module function in gateway/__init__.py (not an instance method)", "rationale": "Usable by both route modules and unit tests without constructing a GatewayService", "phase": "306"},
-    {"decision": "Rate limiting is in-memory per-key sliding window (module-global _rate_limit_state)", "rationale": "Matches the repo's personal-edition zero-dependency posture; tests must clear _rate_limit_state", "phase": "306"},
-    {"decision": "Phase D: subscription intent encoded in OAuth state (llm:{provider}:{credential_type}:{user_id}) so callback persists credential_type without server-side state", "rationale": "State is CSRF-bound to the authenticated user (403 mismatch); no extra session storage", "phase": "306"},
-    {"decision": "Phase D: LLMCredentialService + connect flow share BYOK_ENCRYPTION_KEY for Fernet token encryption; legacy NULL credential_type treated as oauth", "rationale": "Consistent encryption both directions; backwards compatible with pre-column rows", "phase": "306"}
+    {"decision": "MoA + in-loop parallel tools: full implementation, default ON", "rationale": "User-locked decision", "phase": "R72"},
+    {"decision": "TURN_FACT_EXTRACTION_ENABLED + TURN_FACT_VECTOR_RECALL_ENABLED default true", "rationale": "User-locked decision", "phase": "R72"},
+    {"decision": "Skill injection + tool cache default ON; ActionJudge default OFF (ATOM_SANDBOX_JUDGE_ENABLED)", "rationale": "Safety posture: deterministic-only gains default on; LLM judge stays opt-in", "phase": "R72"},
+    {"decision": "Config flags (MoA/parallel/cache/skill-injection) added to core/hallucination_config.py already", "rationale": "F/G/H pick up from here; do not re-add", "phase": "R72"}
   ],
   "uncommitted_files": [
-    "CLAUDE.md",
-    "backend/core/budget_enforcement_service.py",
-    "backend/core/byok_endpoints.py",
-    "backend/core/llm/byok_handler.py",
-    "backend/core/models.py",
-    "backend/main_api_app.py",
-    "backend/core/llm_credential_service.py",
-    "backend/core/llm_oauth_handler.py",
-    "backend/core/personal_budget_service.py",
-    "backend/core/periodic_tasks.py",
-    "backend/alembic/versions/20260801_add_gateway_models.py",
-    "backend/alembic/versions/20260802_add_credential_type.py",
-    "backend/api/gateway_key_routes.py",
-    "backend/api/gateway_log_routes.py",
-    "backend/api/openai_gateway_routes.py",
-    "backend/api/llm_oauth_routes.py",
-    "backend/core/llm/gateway/",
-    "backend/tests/test_round70_budget_notification_fix.py",
-    "backend/tests/test_round70_gateway.py",
-    "backend/tests/test_round70_budget_alert_notification.py",
-    "backend/tests/test_round70_gateway_budget_alerts.py",
-    "backend/tests/test_round70_gateway_logs.py",
-    "backend/tests/test_round70_llm_credential_subscription.py",
-    "backend/tests/test_round70_llm_oauth_connect.py",
-    "backend/tests/unit/core/test_byok_chat_completion.py",
-    "docs/architecture/LLM_GATEWAY.md",
-    "docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md"
+    "backend/.planning/STATE.md (modified by test run)",
+    "backend/atom_dev.db-journal (deleted by test run — do not commit)",
+    "backend/chat_sessions.json (test byproduct — do not commit)",
+    ".planning/HANDOFF.json (tracked; state refresh)"
   ],
-  "next_action": "Phase D (task 10) is complete — the full LLM-Gateway-vs-Manifest plan (tasks 1-11) is delivered. 61 tests passing; main_api_app imports clean. Optional: run a manual smoke test of the /v1/* inference surface with a minted atom_sk_ key; commit the Phase D work as a checkpoint.",
-  "context_notes": "Completed the full deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phases A, B (B1-B4), C, and D. Phase D added: credential_type column on LLMOAuthCredential (guarded migration 20260802_add_credential_type.py), LLMCredentialService.get_credential priority OAuth->subscription->BYOK->ENV with _try_subscription_credential, LLMOAuthHandler credential_type support (legacy NULL=oauth), api/llm_oauth_routes.py connect flow (state-encoded intent, CSRF-bound, rate-limited), main_api_app wiring, docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md. 24 new tests (61 total passing); ALL IMPORTS OK. NOTE: an earlier accidental `git stash pop` of pre-existing stash stash@{0} (governance-wip) was fully reverted — verify git status matches expected gateway files before committing. Pre-existing failures unrelated to this work: 2 test_llm_oauth_handler.py get_authorization_url tests (missing OAuth client config env vars) and 7 test_personal_budget.py DB tests."
+  "next_action": "Workstream G (parallel tools, default ON): add actions: Optional[List[ToolCall]] to BOTH ReActStep copies (react_models.py + atom_meta_agent.py local copy); hallucination_config.py is_parallel_tools_enabled()/get_max_parallel_tools() (default true/4, already present); prompt-format doc; parallel branch in atom_meta_agent + generic_agent loops with all-or-nothing HITL batch approval + asyncio.gather over _execute_tool_with_governance(pre_approved=True); serialize mcp_tool_search; one AgentReasoningStep per tool; tests/unit/test_parallel_tools.py (P1-P10). Then J (docs) last.",
+  "context_notes": "R72 gap-closure plan, 8/10 workstreams committed (D, A, C, E, H, B, I, F). F landed at 0ebc610a1: MoA default ON in generate_structured_response via provider_model/allow_moa kwargs + dispatch guard (_moa_eligible COMPLEX/ADVANCED or code/analysis/reasoning, >=2 options, no vision/pin) + generate_structured_moa (N per-provider samples pinned + 1 best-ranked aggregator, fallback best valid) + SelfConsistencyVoter.is_irreversible audit + voter recursion guards (allow_moa=False). tests/unit/llm/test_moa.py M1-M11 (11/11) + test_cascade_routing.py B1-B9 (9/9 after harness fix: get_ranked_providers is sync returning AwaitableResult, mocks must wrap lists) + test_byok_handler/routes 38 pass; main_api_app imports clean. New pre-existing failures discovered at HEAD (git-stash verified): test_C5_is_irreversible_detection (tests superseded value-matching) and test_D1_provider_family_invariant (harness). venv is backend/venv/bin/python. G is the last architectural wave; J (docs) last."
 }
