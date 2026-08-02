@@ -198,6 +198,21 @@ class GenericAgent:
                         step_record["output"] = observation
                         execution_history += f"Observation: {str(observation)}\n"
 
+                        # ── In-loop self-correction (Workstream A) ────────────
+                        # Mirror of the atom_meta_agent hook: when the observation
+                        # looks like an error / blocked result, append a
+                        # deterministic critique so the model re-plans the next
+                        # step instead of repeating the same failing action.
+                        try:
+                            from core.atom_meta_agent import _is_error_observation
+                        except Exception:  # pragma: no cover - defensive
+                            _is_error_observation = lambda _o: False  # type: ignore
+                        if _is_error_observation(observation):
+                            execution_history += (
+                                f"[CRITIQUE] The action {tool_name} returned an error: "
+                                f"{str(observation)[:200]}. Re-plan before retrying.\n"
+                            )
+
                         # ── SupervisorAgent-style observation filter ─────────
                         # Additive + flag-gated + default OFF. Wrapped in
                         # try/except; failures only logged at debug level. See

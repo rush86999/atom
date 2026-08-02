@@ -46,6 +46,33 @@ from core.turn_fact_extractor import (
 _pending_extraction_tasks: set = set()  # module-level — prevents GC of in-flight tasks
 
 
+def _is_error_observation(observation: Any) -> bool:
+    """Heuristic: does a tool observation look like an error / blocked result?
+
+    Used by the in-loop self-correction hook (Workstream A) to append a
+    deterministic [CRITIQUE] directive when the model should re-plan instead
+    of repeating the same failing action. Conservative marker set — a normal
+    tool result that merely contains the word "error" inside JSON would be a
+    false positive, so we anchor on the platform's canonical failure phrasings.
+    """
+    if observation is None:
+        return False
+    text = str(observation).lower()
+    return any(
+        marker in text
+        for marker in (
+            "tool error.",
+            "tool execution failed",
+            "governance blocked",
+            "governance error",
+            "was rejected",
+            "rejected or timed out",
+            "sandbox blocked",
+            "sandbox error",
+        )
+    )
+
+
 # LLM Integration:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
 # Initialized via get_llm_service() singleton factory for workspace-aware service.
@@ -725,6 +752,25 @@ class AtomMetaAgent:
                             _vo = parse_tool_outcome(observation)
                             step_record["_verified_kind"] = _vo.kind
                             step_record["_verified_evidence"] = _vo.evidence
+
+                            # ── In-loop self-correction (Workstream A) ────────
+                            # When a tool's verification hook explicitly rejected
+                            # the result (or the observation is an error string),
+                            # append a deterministic critique so the model re-plans
+                            # the NEXT step instead of blindly retrying the same
+                            # failing action. Zero LLM cost — the critique is a
+                            # directive the model reads from execution_history.
+                            if _vo.kind == "failed_verification":
+                                execution_history += (
+                                    f"[CRITIQUE] The action {tool_name} failed "
+                                    f"verification: {_vo.evidence or 'no evidence provided'}. "
+                                    f"Re-plan before retrying.\n"
+                                )
+                            elif _is_error_observation(observation):
+                                execution_history += (
+                                    f"[CRITIQUE] The action {tool_name} returned an error: "
+                                    f"{str(observation)[:200]}. Re-plan before retrying.\n"
+                                )
                         except Exception:
                             step_record["_verified_kind"] = "unverified"
                             step_record["_verified_evidence"] = None
@@ -1218,6 +1264,59 @@ What is your next step?"""
                     tool_name,
                     sandbox_decision.violation_type,
                 )
+
+            # ── ActionJudge wiring (Workstream A) ─────────────────────────────
+            # The Phase-E LLM ActionJudge was implemented but never wired into
+            # the meta-agent tool path. Consult it here — but ONLY when
+            # ATOM_SANDBOX_JUDGE_ENABLED is on (default off), so behavior is
+            # byte-identical otherwise. BLOCK → refuse; ESCALATE → route to the
+            # same HITL approval gate used for complex actions.
+            try:
+                from core import sandbox_config as _sc
+            except Exception:  # pragma: no cover
+                _sc = None
+            if _sc is not None and _sc.is_sandbox_judge_enabled():
+                try:
+                    from core.llm.action_judge import ActionJudge, JudgeVerdict
+                    judge = ActionJudge(llm_service=self.llm)
+                    judge_result = await judge.evaluate(
+                        action_description=f"{tool_name}({json.dumps(args, default=str)})",
+                        context=context.get("original_request") or "",
+                        provenance_context=None,
+                    )
+                    if judge_result.verdict == JudgeVerdict.BLOCK:
+                        logger.warning(
+                            "ActionJudge BLOCK: %s -> %s (%s)",
+                            context.get("agent_id", "atom_main"),
+                            tool_name,
+                            judge_result.rationale,
+                        )
+                        return (
+                            f"Action {tool_name} was blocked by the safety judge: "
+                            f"{judge_result.rationale}"
+                        )
+                    if judge_result.verdict == JudgeVerdict.ESCALATE:
+                        with SessionLocal() as judge_db:
+                            gov = AgentGovernanceService(judge_db)
+                            action_id = gov.request_approval(
+                                agent_id="atom_main",
+                                action_type=tool_name,
+                                params=args,
+                                reason=(
+                                    f"Safety judge escalation: {judge_result.rationale}"
+                                ),
+                            )
+                        approved = await self._wait_for_approval(action_id)
+                        if not approved:
+                            return (
+                                f"Action {tool_name} was REJECTED or timed out "
+                                f"after safety-judge escalation."
+                            )
+                except Exception as _judge_err:
+                    logger.debug(
+                        "ActionJudge consult skipped (%s): %s",
+                        tool_name, _judge_err,
+                    )
 
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
