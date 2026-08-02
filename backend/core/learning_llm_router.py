@@ -111,6 +111,10 @@ class RoutingResult:
     # The prompt features used at route time. Echoed back for observability and
     # so callers can attach them to feedback without re-deriving them.
     prompt_features: Dict[str, float] = field(default_factory=dict)
+    # Detected intent/domain category (coding, reasoning, etc.) at route time,
+    # when intent detection ran. None when not detected or detection disabled.
+    # Echoed for observability and may fold into the predictor cache key.
+    intent: Optional[str] = None
 
 
 @dataclass

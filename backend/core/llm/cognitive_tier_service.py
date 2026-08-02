@@ -77,10 +77,16 @@ class CognitiveTierService:
         self,
         prompt: str,
         task_type: Optional[str] = None,
-        user_tier_override: Optional[str] = None
+        user_tier_override: Optional[str] = None,
+        intent_override: Optional[str] = None,
     ) -> CognitiveTier:
         """
         Select the appropriate cognitive tier for a query.
+
+        Args:
+            intent_override: Explicit intent category (e.g. from an
+                ``x-atom-intent`` header). When provided, skips detection and
+                is used directly for tier nudging.
         """
         # Priority 1: User override
         if user_tier_override:
@@ -94,6 +100,29 @@ class CognitiveTierService:
 
         # Classify the query
         classified_tier = self.classifier.classify(prompt, task_type)
+
+        # Intent-driven tier nudge. Runs after complexity classification but
+        # before preference clamping so a coding/reasoning intent can floor the
+        # tier up, and a conversation intent can cap it down. The preference
+        # min/max clamp below still constrains the nudged tier. Skipped when an
+        # explicit user tier override was given (handled above).
+        intent = intent_override
+        if intent is None:
+            try:
+                from core.llm.intent_detector import get_intent_detector
+                result = get_intent_detector().detect(prompt)
+                if result.category is not None and result.confidence >= 0.5:
+                    intent = result.category
+            except Exception:
+                logger.debug("Intent detection unavailable; skipping tier nudge", exc_info=True)
+        if intent:
+            try:
+                from core.llm.intent_detector import get_intent_detector
+                nudged = get_intent_detector().nudge_tier(intent, classified_tier.value)
+                if nudged != classified_tier.value:
+                    classified_tier = CognitiveTier(nudged)
+            except (ValueError, Exception):
+                pass  # invalid tier value — keep the complexity-classified tier
 
         # Priority 3: Apply preference constraints
         if preference:
