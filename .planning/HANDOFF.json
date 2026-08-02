@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-08-02T01:57:51Z",
+  "phase": "306-tdd-bug-discovery-coverage",
+  "phase_name": "TDD Bug Discovery & Coverage Completion",
+  "phase_dir": ".planning/phases/306-tdd-bug-discovery-coverage",
+  "plan": "LLM-Gateway-vs-Manifest",
+  "task": 8,
+  "total_tasks": 11,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "A1: GatewayApiKey + GatewayRequestLog models + guarded migration", "status": "done"},
+    {"id": 2, "name": "A2: BYOKHandler.chat_completion (full-history, fallback+heal, cost/health/feedback)", "status": "done"},
+    {"id": 3, "name": "A3: gateway package (wire_formats, auth, gateway_service, map_gateway_error)", "status": "done"},
+    {"id": 4, "name": "A4: routes /v1/chat/completions, /v1/messages, /v1/models + SSE adapters", "status": "done"},
+    {"id": 5, "name": "A5: /api/gateway/keys CRUD (plaintext-once, ownership-gated)", "status": "done"},
+    {"id": 6, "name": "A6: wiring into main_api_app (guarded) + env vars + docs", "status": "done"},
+    {"id": 7, "name": "A7: tests (22 passing: gateway auth/routes/wire-format, chat_completion, B1 regression)", "status": "done"},
+    {"id": 9, "name": "C: 6 OpenAI-compatible providers (xai/cerebras/fireworks/huggingface/nvidia_nim/zai)", "status": "done"},
+    {"id": 11, "name": "Cross-cutting docs + CI hygiene + verification (app imports clean, no str(e) leaks)", "status": "done"}
+  ],
+  "remaining_tasks": [
+    {"id": 8, "name": "B: Spend alerts + full-body log viewer", "status": "in_progress", "progress": "B1 fixed + regression tested; GatewayRequestLog model added. B2/B3/B4 not started."},
+    {"id": 10, "name": "D: Subscription-credential reuse (OAuth/subscription flows)", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "AWS Bedrock (Phase C2 stretch) needs AWS creds + boto3 testing — deferred", "type": "external", "workaround": "document as known limitation"},
+    {"description": "Consumer-session cookie/token capture (Phase D) out of scope — needs dedicated threat model", "type": "external", "workaround": "only OAuth-granted flows ship"}
+  ],
+  "human_actions_pending": [
+    {"action": "Manual smoke test: mint atom_sk_ key, curl /v1/chat/completions and /v1/messages (stream + non-stream) against a running server with real LLM keys", "context": "Verification section of the plan; automated tests mock routing", "blocking": false},
+    {"action": "Optional: Claude Code plug-in test with ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_...", "context": "Verification step 5", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Consolidated all Phase-A + wire-format tests into backend/tests/test_round70_gateway.py instead of separate auth/routes/anthropic files", "rationale": "Context-efficient; same coverage, shares make_db/make_client helpers", "phase": "306"},
+    {"decision": "Fixed budget_enforcement admin-query join (User.custom_role / CustomRole.permissions don't exist on model) by switching to User.role.in_(['admin','owner','billing_admin']) with tenant fallback", "rationale": "The broken join raised AttributeError before the notification call, so no enforcement notification ever delivered", "phase": "306"},
+    {"decision": "map_gateway_error implemented as standalone module function in gateway/__init__.py (not an instance method)", "rationale": "Usable by both route modules and unit tests without constructing a GatewayService", "phase": "306"},
+    {"decision": "Rate limiting is in-memory per-key sliding window (module-global _rate_limit_state)", "rationale": "Matches the repo's personal-edition zero-dependency posture; tests must clear _rate_limit_state", "phase": "306"}
+  ],
+  "uncommitted_files": [
+    "CLAUDE.md",
+    "backend/core/budget_enforcement_service.py",
+    "backend/core/byok_endpoints.py",
+    "backend/core/llm/byok_handler.py",
+    "backend/core/models.py",
+    "backend/main_api_app.py",
+    "backend/alembic/versions/20260801_add_gateway_models.py",
+    "backend/api/gateway_key_routes.py",
+    "backend/api/openai_gateway_routes.py",
+    "backend/core/llm/gateway/",
+    "backend/tests/test_round70_budget_notification_fix.py",
+    "backend/tests/test_round70_gateway.py",
+    "backend/tests/unit/core/test_byok_chat_completion.py",
+    "docs/architecture/LLM_GATEWAY.md"
+  ],
+  "next_action": "Implement Phase B2-B4: B2 personal_budget_service send_budget_alert NotificationService call; B3 gateway threshold alerts (50/80/90/100%, fire-once per workspace-day, ATOM_GATEWAY_BUDGET_ALERTS); B4 GatewayRequestLog write hooks + /api/v1/gateway/logs endpoints (owner-scoped) + pii redaction + retention sweep in periodic_tasks.",
+  "context_notes": "Implemented the core deliverable of 'Atom: Close LLM-Gateway Gaps vs. Manifest' — Phase A (OpenAI/Anthropic-compatible gateway), B1 (budget-notification fix, discovered + fixed a deeper broken admin-join query), and Phase C (6 new providers). 22 tests passing; main_api_app imports clean (ALL IMPORTS OK). Deferred: B2-B4 log-viewer/alerts, Phase D subscription reuse, Bedrock stretch. Critical: context was ~75% exhausted when pausing; resuming agent should re-run the 22-test set first, then continue with B2-B4."
+}
