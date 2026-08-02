@@ -1548,6 +1548,8 @@ class BYOKHandler:
 
             last_error = None
             for provider_id, model in options:
+                # Per-provider flag: each provider gets at most one self-heal retry.
+                heal_attempted_for_current = False
                 try:
                     import time
                     request_start = time.time()
@@ -1691,6 +1693,65 @@ class BYOKHandler:
                         latency_ms = (time.time() - request_start) * 1000
                         self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
                     except Exception:                         pass  # Don't let health monitoring errors affect primary flow
+
+                    # --- Self-healing autofix (rule-based, single attempt) ---
+                    # If this was a repairable 4xx (param rename, unsupported
+                    # param, context overflow, etc.), try patching the request
+                    # body and retrying ONCE before falling back to the next
+                    # provider. Mirrors the structured-response cascade pattern.
+                    # ``heal_attempted`` is per-provider so each provider gets
+                    # one heal shot.
+                    if not heal_attempted_for_current:
+                        heal_attempted_for_current = True
+                        try:
+                            from core.llm.routing.request_healer import get_request_healer
+                            healer = get_request_healer()
+                            heal_kwargs = {
+                                "model": model,
+                                "messages": messages,
+                                "temperature": temperature,
+                            }
+                            if image_payload and isinstance(messages[-1].get("content"), list):
+                                heal_kwargs["messages"] = messages  # multimodal
+                            heal_result = healer.heal(attempt_err, heal_kwargs, provider_id, model)
+                            if heal_result.patched_kwargs is not None:
+                                logger.info(
+                                    f"[SelfHeal] retrying {provider_id}/{model} with "
+                                    f"patch={heal_result.rule} keys={heal_result.patched_keys}"
+                                )
+                                try:
+                                    response = client.chat.completions.create(
+                                        **heal_result.patched_kwargs
+                                    )
+                                    result = response.choices[0].message.content
+                                    finish_reason = getattr(response.choices[0], "finish_reason", None)
+                                    logger.info(
+                                        f"[SelfHeal] retry SUCCEEDED for {provider_id}/{model} "
+                                        f"(rule={heal_result.rule})"
+                                    )
+                                    # Record success + that a heal was involved.
+                                    latency_ms = (time.time() - request_start) * 1000
+                                    try:
+                                        self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+                                    except Exception:
+                                        pass
+                                    await self._record_outcome_feedback(
+                                        model=model, provider_id=provider_id, task_type=task_type,
+                                        content=result, finish_reason=finish_reason,
+                                        success=True, cost=None, latency_ms=latency_ms,
+                                        routing_result_id=decision_id_for_feedback,
+                                    )
+                                    self._last_used_model = model
+                                    self._last_used_provider = provider_id
+                                    return result
+                                except Exception as retry_err:
+                                    logger.warning(
+                                        f"[SelfHeal] retry FAILED for {provider_id}/{model}: "
+                                        f"{retry_err} (rule={heal_result.rule})"
+                                    )
+                                    last_error = retry_err
+                        except Exception:
+                            logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
 
                     # Learning-router outcome observation for failures.
                     await self._record_outcome_feedback(
@@ -2766,6 +2827,8 @@ class BYOKHandler:
 
         # Try each provider in fallback order
         for attempt_provider_id in provider_order:
+            # Per-provider flag: at most one self-heal stream retry.
+            heal_attempted_stream = False
             # Get client for this provider (prefer async, fallback to sync)
             client = self.async_clients.get(attempt_provider_id)
             if not client:
@@ -2888,6 +2951,83 @@ class BYOKHandler:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
                 except Exception:                     pass  # Don't let health monitoring errors affect primary flow
+
+                # --- Self-healing autofix (rule-based, single attempt) ---
+                # For repairable 4xx errors only. Retries the stream creation
+                # with a patched body once before falling back to the next
+                # provider. Heal is only attempted on the initial stream
+                # creation failure (before any tokens were yielded), never
+                # mid-stream.
+                if not heal_attempted_stream:
+                    heal_attempted_stream = True
+                    try:
+                        from core.llm.routing.request_healer import get_request_healer
+                        healer = get_request_healer()
+                        heal_kwargs = {
+                            "model": model,
+                            "messages": messages,
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                            "stream": True,
+                        }
+                        heal_result = healer.heal(e, heal_kwargs, attempt_provider_id, model)
+                        if heal_result.patched_kwargs is not None:
+                            logger.info(
+                                f"[SelfHeal-stream] retrying {attempt_provider_id}/{model} "
+                                f"with patch={heal_result.rule} keys={heal_result.patched_keys}"
+                            )
+                            try:
+                                stream = await client.chat.completions.create(
+                                    **heal_result.patched_kwargs
+                                )
+                                logger.info(
+                                    f"[SelfHeal-stream] retry SUCCEEDED for "
+                                    f"{attempt_provider_id}/{model} (rule={heal_result.rule})"
+                                )
+                                # The patched stream succeeded — fall through to
+                                # the normal streaming loop below by re-running
+                                # the token iteration. We can't easily re-enter
+                                # the try block, so yield from the patched stream
+                                # inline and return on success.
+                                token_count = 0
+                                _stream_content_parts = []
+                                _stream_content_chars = 0
+                                _STREAM_CONTENT_CAP = 4000
+                                _stream_finish_reason = None
+                                async for chunk in stream:
+                                    if chunk.choices:
+                                        choice = chunk.choices[0]
+                                        delta = choice.delta
+                                        if hasattr(delta, 'content') and delta.content:
+                                            token_count += 1
+                                            if _stream_content_chars < _STREAM_CONTENT_CAP:
+                                                _stream_content_parts.append(delta.content)
+                                                _stream_content_chars += len(delta.content)
+                                            yield delta.content
+                                        if getattr(choice, 'finish_reason', None):
+                                            _stream_finish_reason = choice.finish_reason
+                                latency_ms = (time.time() - request_start) * 1000
+                                try:
+                                    self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                                except Exception:
+                                    pass
+                                await self._record_outcome_feedback(
+                                    model=model, provider_id=attempt_provider_id, task_type=task_type,
+                                    content="".join(_stream_content_parts),
+                                    finish_reason=_stream_finish_reason or "stop",
+                                    success=True, cost=None, latency_ms=latency_ms,
+                                    routing_result_id=stream_decision_id,
+                                )
+                                return
+                            except Exception as retry_err:
+                                logger.warning(
+                                    f"[SelfHeal-stream] retry FAILED for "
+                                    f"{attempt_provider_id}/{model}: {retry_err} "
+                                    f"(rule={heal_result.rule})"
+                                )
+                                last_error = retry_err
+                    except Exception:
+                        logger.debug("[SelfHeal-stream] healer raised; skipping", exc_info=True)
 
                 # Learning-router outcome observation (streaming failure).
                 await self._record_outcome_feedback(
