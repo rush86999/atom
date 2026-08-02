@@ -8130,7 +8130,13 @@ class ChatSession(Base):
     user_id = Column(String, nullable=False, index=True)
     title = Column(String, nullable=True)
     metadata_json = Column(JSONColumn, default={})
-    
+
+    # R72 Workstream I — channel/thread binding. A session created from an
+    # external messaging platform is verifiably locked to one channel/thread
+    # so context never leaks across channels for the same sender.
+    channel_id = Column(String, nullable=True, index=True)
+    thread_id = Column(String, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     message_count = Column(Integer, default=0)

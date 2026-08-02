@@ -801,7 +801,16 @@ class AIConversationManager:
                              workspace_id: str = None) -> str:
         """Start new AI conversation"""
         try:
-            conversation_id = f"ai_conv_{user_id}_{platform}_{int(datetime.now(timezone.utc).timestamp())}"
+            # R72 Workstream I — bind the conversation key to the channel so a
+            # sender on two channels of one platform gets distinct contexts
+            # (mirrors the ChatSession channel binding in chat_orchestrator).
+            channel_part = ""
+            if workspace_id:
+                channel_part = f"_{workspace_id}"
+            conversation_id = (
+                f"ai_conv_{user_id}_{platform}"
+                f"{channel_part}_{int(datetime.now(timezone.utc).timestamp())}"
+            )
             
             context = AIConversationContext(
                 conversation_id=conversation_id,

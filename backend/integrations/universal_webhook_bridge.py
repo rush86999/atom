@@ -105,8 +105,17 @@ class UniversalWebhookBridge:
             }
 
             # Process via orchestrator
-            # Note: We simulate a user session ID based on platform + sender
-            session_id = f"{platform}_{unified_msg.sender_id}"
+            # R72 Workstream I — bind the session key to the CHANNEL/THREAD so a
+            # sender on two channels (or threads) of one platform gets distinct
+            # sessions. Previously `{platform}_{sender_id}` leaked context across
+            # channels. For slack/discord/teams/telegram/whatsapp `recipient_id`
+            # is the channel; platforms where the parser surfaces the bot's own
+            # id as recipient (e.g. signal/line) must expose the real channel in
+            # _standardize_message for the split to be meaningful.
+            session_id = (
+                f"{platform}_{unified_msg.recipient_id}_"
+                f"{unified_msg.sender_id}_{unified_msg.thread_id or ''}"
+            )
             
             response = await orchestrator.process_chat_message(
                 message=unified_msg.text,

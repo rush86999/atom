@@ -329,7 +329,7 @@ class ChatOrchestrator:
         try:
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
-            session = self._get_or_create_session(user_id, session_id)
+            session = self._get_or_create_session(user_id, session_id, context)
 
             # Build conversation history for context
             history = session.get("history", [])[-6:]  # Last 3 turns
@@ -1222,7 +1222,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     ) -> Dict[str, Any]:
         return {"success": True, "data": {"message": "Ecommerce logic here"}}
 
-    def _get_or_create_session(self, user_id: str, session_id: str) -> Dict[str, Any]:
+    def _get_or_create_session(
+        self, user_id: str, session_id: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        # R72 Workstream I — bind the session to the source channel/thread.
+        # The universal webhook bridge passes channel_id/thread_id in context so
+        # a session created from an external platform is verifiably locked to
+        # one channel, preventing cross-channel context leaks for one sender.
+        context = context or {}
+        channel_id = context.get("channel_id") or context.get("recipient_id")
+        thread_id = context.get("thread_id")
+
         # Security: verify ownership — if the session exists but belongs to a
         # different user, reject (prevents cross-user session IDOR).
         if session_id in self.conversation_sessions:
@@ -1233,6 +1243,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 self.conversation_sessions[session_id] = {
                     "id": session_id,
                     "user_id": user_id,
+                    "channel_id": channel_id,
+                    "thread_id": thread_id,
                     "created_at": datetime.now().isoformat(),
                     "history": []
                 }
@@ -1242,6 +1254,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         self.conversation_sessions[session_id] = {
             "id": session_id,
             "user_id": user_id,
+            "channel_id": channel_id,
+            "thread_id": thread_id,
             "created_at": datetime.now().isoformat(),
             "history": []
         }
@@ -1252,6 +1266,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 self.session_manager.create_session(
                     user_id=str(user_id),
                     session_id=session_id,
+                    channel_id=channel_id,
+                    thread_id=thread_id,
                 )
         except Exception as e:
             logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
@@ -1276,6 +1292,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             tenant_id = self.tenant_id or "default"
             if session_id:
                 with get_db_session() as db:
+                    # R72 Workstream I — backfill channel/thread binding on the
+                    # session row (covers legacy sessions created pre-fix).
+                    try:
+                        from core.models import ChatSession as ChatSessionModel
+                        session_row = db.query(ChatSessionModel).filter(
+                            ChatSessionModel.id == session_id
+                        ).first()
+                        if session_row:
+                            if session.get("channel_id") and not session_row.channel_id:
+                                session_row.channel_id = session["channel_id"]
+                            if session.get("thread_id") and not session_row.thread_id:
+                                session_row.thread_id = session["thread_id"]
+                    except Exception:
+                        # Non-fatal: session-row backfill is best-effort.
+                        pass
+
                     # Store the user message.
                     db.add(ChatMessageModel(
                         conversation_id=session_id,

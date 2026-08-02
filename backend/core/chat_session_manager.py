@@ -128,14 +128,16 @@ class ChatSessionManager:
         self,
         user_id: str,
         metadata: Dict[str, Any] = None,
-        session_id: str = None
+        session_id: str = None,
+        channel_id: Optional[str] = None,
+        thread_id: Optional[str] = None
     ) -> str:
         """Create a new chat session."""
         if not session_id:
             session_id = str(uuid.uuid4())
-            
+
         timestamp = datetime.now(timezone.utc).isoformat()
-        
+
         # 1. Database Path
         if self.use_db:
             with get_db_session() as db:
@@ -144,6 +146,10 @@ class ChatSessionManager:
                         id=session_id,
                         user_id=user_id,
                         metadata_json=metadata or {},
+                        # R72 Workstream I — bind the session to its source
+                        # channel/thread so context never leaks cross-channel.
+                        channel_id=channel_id,
+                        thread_id=thread_id,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                         message_count=0
@@ -169,14 +175,19 @@ class ChatSessionManager:
 
         # 2. File Path (Fallback or Primary)
         sessions = self._load_sessions_file()
+        file_metadata = dict(metadata or {})
+        if channel_id:
+            file_metadata["channel_id"] = channel_id
+        if thread_id:
+            file_metadata["thread_id"] = thread_id
         session = {
             "session_id": session_id,
             "user_id": user_id,
             "created_at": timestamp,
             "last_active": timestamp,
-            "metadata": metadata or {},
+            "metadata": file_metadata,
             "message_count": 0,
-            "history": [] 
+            "history": []
         }
         sessions.append(session)
         self._save_sessions_file(sessions)
@@ -213,6 +224,9 @@ class ChatSessionManager:
                             "last_active": session.updated_at.isoformat() if session.updated_at else None,
                             "metadata": session.metadata_json or {},
                             "message_count": session.message_count,
+                            # R72 Workstream I — surface channel/thread binding.
+                            "channel_id": session.channel_id,
+                            "thread_id": session.thread_id,
                             "history": history
                         }
                 except Exception as e:
