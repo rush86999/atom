@@ -33,6 +33,13 @@ def _drop_auth_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _redact_text(text: str) -> str:
+    """Redact PII from text, FAILING CLOSED when the redactor is unavailable.
+
+    When bodies are explicitly logged (``ATOM_GATEWAY_LOG_BODIES=true``) but
+    the PII redactor import fails or raises, returning the raw text would
+    persist prompts (which often contain PII) verbatim. Instead return a
+    placeholder so a redactor failure never leaks raw content.
+    """
     if not text:
         return text
     try:
@@ -40,7 +47,7 @@ def _redact_text(text: str) -> str:
 
         return redact_pii(text)
     except Exception:
-        return text
+        return "[redaction unavailable — body omitted]"
 
 
 def _truncate(text: str) -> str:

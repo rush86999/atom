@@ -3148,13 +3148,26 @@ class BYOKHandler:
             raise ValueError("No available providers. No clients initialized. Completion unavailable.")
 
         # Hard guards (mapped to 429 by the gateway).
+        # FAIL CLOSED: if the budget/trial tracker is unavailable (DB error,
+        # import failure, etc.) we cannot confirm the workspace is within
+        # budget — block the request rather than silently allowing unbounded
+        # spend. Previously this swallowed the tracker exception via
+        # ``except Exception: pass``, disabling the only spend guard on the
+        # gateway path.
         try:
             if llm_usage_tracker.is_budget_exceeded(self.workspace_id):
                 raise GatewayBlockedError("budget_exceeded", "Budget exceeded")
         except GatewayBlockedError:
             raise
-        except Exception:
-            pass  # tracker check is best-effort
+        except Exception as tracker_err:
+            logger.error(
+                f"Budget tracker unavailable for workspace {self.workspace_id}; "
+                f"blocking request (fail-closed): {tracker_err}"
+            )
+            raise GatewayBlockedError(
+                "budget_check_failed",
+                "Unable to verify budget status. Please try again.",
+            )
         trial_check = getattr(llm_usage_tracker, "is_trial_expired", None)
         if callable(trial_check):
             try:
@@ -3162,8 +3175,11 @@ class BYOKHandler:
                     raise GatewayBlockedError("trial_expired", "Trial expired")
             except GatewayBlockedError:
                 raise
-            except Exception:
-                pass
+            except Exception as trial_err:
+                logger.warning(
+                    f"Trial check failed for workspace {self.workspace_id} "
+                    f"(allowing — trial gate is advisory): {trial_err}"
+                )
 
         provider_order = self._get_provider_fallback_order(provider_id)
         if not provider_order:

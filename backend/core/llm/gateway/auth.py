@@ -63,8 +63,16 @@ def hash_api_key(plaintext: str) -> str:
 
 
 def generate_key_prefix(plaintext: str) -> str:
-    """``atom_sk_`` + 4 chars for human identification (never enough to forge)."""
-    return "atom_sk_" + plaintext[-4:]
+    """``atom_sk_`` + 4 random chars for human identification.
+
+    The prefix is generated independently of the secret material (not derived
+    from the key's hex tail) so the stored/displayed prefix cannot narrow a
+    brute-force of the full key. Previously this used ``plaintext[-4:]``,
+    exposing 4 hex chars of the key.
+    """
+    import secrets as _secrets
+    alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+    return "atom_sk_" + "".join(_secrets.choice(alphabet) for _ in range(4))
 
 
 def _check_rate_limit(key_hash: str, limit_per_minute: int) -> None:
@@ -84,6 +92,16 @@ def _check_rate_limit(key_hash: str, limit_per_minute: int) -> None:
                 detail="Rate limit exceeded",
             )
         timestamps.append(now)
+        # Purge dead keys: drop entries whose deque is fully outside the window
+        # so a key used once and never again doesn't leak forever. A key that's
+        # still in use keeps its deque (it'll be repopulated on the next call).
+        if len(_rate_limit_state) > 1000:
+            stale = [
+                k for k, v in _rate_limit_state.items()
+                if not v or now - v[-1] >= _RATE_LIMIT_WINDOW_SECONDS
+            ]
+            for k in stale:
+                _rate_limit_state.pop(k, None)
 
 
 def _extract_secret(request: Request) -> Optional[str]:

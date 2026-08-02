@@ -74,11 +74,26 @@ PROVIDER_DISPLAY_NAMES = {
     "huggingface": "Hugging Face"
 }
 
-# Default OAuth callback URL (can be overridden by environment variable)
+# Default OAuth callback URL (can be overridden by environment variable).
+# The router is mounted at /api/v1/llm-oauth with a /{provider}/callback route,
+# so the per-provider callback path is /api/v1/llm-oauth/{provider}/callback.
+# Callers substitute the {provider} placeholder when building the redirect URI.
 DEFAULT_OAUTH_REDIRECT_URI = os.getenv(
     "LLM_OAUTH_REDIRECT_URI",
-    "http://localhost:8000/api/v1/llm/oauth/callback"
+    "http://localhost:8000/api/v1/llm-oauth/{provider}/callback"
 )
+
+
+def build_redirect_uri(provider_id: str) -> str:
+    """Build the per-provider OAuth redirect URI.
+
+    Substitutes ``{provider}`` in the configured default. When the env var
+    is set to a fixed URI (no placeholder), it is returned as-is.
+    """
+    uri = DEFAULT_OAUTH_REDIRECT_URI
+    if "{provider}" in uri:
+        return uri.replace("{provider}", provider_id)
+    return uri
 
 
 def get_oauth_config(provider_id: str) -> Optional[Dict[str, any]]:

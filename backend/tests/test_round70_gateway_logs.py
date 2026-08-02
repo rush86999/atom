@@ -19,11 +19,26 @@ class TestRequestLogger:
 
     def test_sanitize_body_only_when_enabled(self):
         body = {"messages": [{"content": "hi john@example.com"}]}
-        with patch.object(rl, "GATEWAY_LOG_BODIES", True):
+        # Mock the redactor so the test verifies the LOGGER's contract (redaction
+        # is applied) independent of whether the fallback regex redactor catches
+        # emails in this environment.
+        with patch.object(rl, "GATEWAY_LOG_BODIES", True), \
+             patch("core.pii_redactor.redact_pii", return_value="[REDACTED]"):
             out = rl._sanitize_body(body, True)
             assert out is not None
-            assert "john@example.com" not in out  # PII redacted (or placeholder)
+            assert "john@example.com" not in out  # PII redacted
         assert rl._sanitize_body(body, False) is None
+
+    def test_redaction_fails_closed(self):
+        """When the PII redactor import fails, the body is replaced with a
+        placeholder rather than persisted raw (fail-closed)."""
+        body = {"messages": [{"content": "secret stuff"}]}
+        with patch.object(rl, "GATEWAY_LOG_BODIES", True):
+            with patch("core.pii_redactor.redact_pii", side_effect=ImportError("no redactor")):
+                out = rl._sanitize_body(body, True)
+        assert out is not None
+        assert "secret stuff" not in out
+        assert "redaction unavailable" in out.lower()
 
     def test_truncate(self):
         big = "x" * (rl.MAX_LOG_BODY_CHARS + 10)
