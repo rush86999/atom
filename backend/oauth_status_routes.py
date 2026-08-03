@@ -483,3 +483,17 @@ async def overall_oauth_status():
         "missing_services": validation["missing"],
         "timestamp": datetime.now().isoformat(),
     }
+
+
+from fastapi.responses import RedirectResponse
+
+@router.get("/{provider}/initiate")
+async def redirect_oauth_initiate(provider: str):
+    """Alias/redirect route to the unified v1 initiate endpoint."""
+    provider_map = {
+        "outlook": "microsoft",
+        "teams": "microsoft",
+        "gdrive": "google",
+    }
+    target_provider = provider_map.get(provider, provider)
+    return RedirectResponse(url=f"/api/v1/auth/oauth/{target_provider}/initiate")
