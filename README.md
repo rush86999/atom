@@ -11,7 +11,7 @@
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-204%2B-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-27%2C000%2B-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
 
@@ -58,10 +58,30 @@ ANTHROPIC_BASE_URL=http://localhost:8000 ANTHROPIC_API_KEY=atom_sk_... claude
 - **Wire-compatible**: `/v1/chat/completions`, `/v1/messages`, `/v1/models` (SSE streaming) — reuse your existing tools, not your existing bills.
 - **Smart routing**: cost-aware provider ranking + per-request overrides (`x-atom-model` / `x-atom-tier` / `x-atom-intent`).
 - **Resilience**: automatic fallback across 12+ providers and self-healing on 4xx errors.
+- **Token compression**: RTK engine compresses terminal/build/test output (15-95% savings) — structured business data is never touched. [Docs →](docs/architecture/TOKEN_COMPRESSION.md)
 - **Observability**: per-key rate limits, spend thresholds (50/80/90/100% alerts), and a full redacted request log.
 - **Subscription reuse**: connect ChatGPT Plus / Claude Pro via OAuth (`/api/v1/llm-oauth/*`) and route through your subscription.
+- **MCP server**: exposes routing, compression, and governance as MCP tools at `/mcp` — external AI agents can manage Atom autonomously. [Docs →](docs/architecture/MCP_SERVER.md)
 
 [LLM Gateway Docs →](docs/architecture/LLM_GATEWAY.md) · [Security Posture →](docs/security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md)
+
+---
+
+## ⚡ Smart Routing & Token Compression ✨ NEW
+
+Atom's routing layer now includes five gateway-grade features (all default ON, evidence-based):
+
+| Feature | What it does | Evidence |
+|---------|-------------|----------|
+| **Token compression (RTK)** | Strips ANSI noise, collapses repeated lines, compresses test/build output — **15-95% savings**. Structured data (JSON/SQL/financial records) is never touched. | [TACO](https://arxiv.org/html/2604.19572v2), [Morph](https://morphllm.com/context-compaction) |
+| **Session dedup** | Replaces byte-identical repeated text across turns with reference markers. Zero information loss (exact-match only). | [ICML 2025](https://arxiv.org/html/2505.19433v1) — lossy compression excluded |
+| **LKGP sticky routing** | Remembers which model served the last turn and prefers it for follow-ups — reduces quality variance in multi-turn workflows. | [vLLM #1439](https://github.com/vllm-project/semantic-router/issues/1439), [Vercel](https://vercel.com/i/llm-routing-strategies) |
+| **Fusion routing** | Sends to N models in parallel, judge synthesizes the best answer. Only for COMPLEX-tier one-off tasks — never batch. | [Spheron](https://www.spheron.network/blog/mixture-of-agents-gpu-cloud/) |
+| **MCP server** | Exposes routing/compression/governance as MCP tools so external AI agents manage Atom autonomously. | [Stacklok 2026](https://stacklok.com/wp-content/uploads/2026/01/State-of-MCP-in-Software-2026_FINAL.pdf) |
+
+**Safe for business automation by design**: every feature that touches prompt content preserves structured data integrity. A 1-cent difference in an invoice total is never compressed or deduped (tested).
+
+[Token Compression →](docs/architecture/TOKEN_COMPRESSION.md) · [MCP Server →](docs/architecture/MCP_SERVER.md) · [Routing Strategies →](docs/reference/ROUTING_STRATEGIES.md)
 
 ---
 
@@ -340,6 +360,7 @@ Four advanced multi-agent coordination patterns (derived from Cursor's swarm res
 - **Phase 3 — Learning-Based LLM Routing**: per-model satisfaction predictors re-rank candidates from observed outcomes; DB-persisted feedback, live `/api/chat/feedback`, routing dashboard at `/settings/routing`; flag-gated (`ATOM_LEARNING_ROUTER`). See [LEARNING_LLM_ROUTER.md](docs/architecture/LEARNING_LLM_ROUTER.md).
 - **Phase 4 — Zero-Trust Federation Identity**: DIDs + Verifiable Credentials + per-request verification at `/api/federation/*` (in-memory state; DB persistence is a documented follow-up).
 - **Phase 5 — Enhanced Orchestration**: Conductor Agent (5 execution strategies), validated Workflow State Machine with rollback, pub/sub Event Bus, 9-primitive composition templates — `POST /api/v1/workflows/conductor/execute`.
+- **Phase 6 — Gateway Features**: Token compression (RTK + session-dedup), LKGP sticky routing, fusion routing, MCP server, self-healing autofix, per-request header overrides, intent detector, domain classifier. All default ON, evidence-based. See [Token Compression](docs/architecture/TOKEN_COMPRESSION.md), [MCP Server](docs/architecture/MCP_SERVER.md), [Routing Strategies](docs/reference/ROUTING_STRATEGIES.md), [Self-Healing](docs/architecture/REQUEST_SELF_HEALING.md), [Routing Headers](docs/reference/ROUTING_HEADERS.md).
 
 **Performance**: 27,000+ tests across unit, integration, E2E, and regression suites.
 
@@ -437,6 +458,11 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Community Skills Guide](docs/integrations/community-skills.md) - 5,000+ skills with Python & npm packages
 - [Office Automation & Co-Editing](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Real-time Excel/Word/PPTX co-editing on Canvas ✨ NEW
 - [LLM Gateway](docs/architecture/LLM_GATEWAY.md) - OpenAI/Anthropic-compatible API over BYOK routing (Phase D: subscription reuse) ✨ NEW
+- [Token Compression](docs/architecture/TOKEN_COMPRESSION.md) - RTK tool-output compression + session-dedup (15-95% savings, structured-data safe) ✨ NEW
+- [MCP Server](docs/architecture/MCP_SERVER.md) - MCP tools for external AI agents to manage Atom ✨ NEW
+- [Routing Strategies](docs/reference/ROUTING_STRATEGIES.md) - auto, fusion (panel+judge), LKGP (session-sticky) ✨ NEW
+- [Routing Headers](docs/reference/ROUTING_HEADERS.md) - Per-request x-atom-* header overrides ✨ NEW
+- [Self-Healing Autofix](docs/architecture/REQUEST_SELF_HEALING.md) - Provider 4xx repair (rules + LLM fallback) ✨ NEW
 - [Python Package Support](docs/security/python-packages.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](docs/security/npm-packages.md) - Lodash, Express, 2M+ packages
 - [Episodic Memory](docs/intelligence/episodic-memory.md) - Agent learning system

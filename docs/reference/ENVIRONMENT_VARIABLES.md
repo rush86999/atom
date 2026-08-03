@@ -145,6 +145,16 @@ Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
 | `ATOM_EMA_ROUTER_ENABLED` | `false` | — | When true (requires `ATOM_LEARNING_ROUTER=true`), blends an EMA (online telemetry) term into the score **alongside** the ML predictor — they are no longer mutually exclusive. EMA telemetry is always collected while the learning router is on; this flag only controls whether it influences the routing decision. Accepts `1`/`true`/`yes`/`on`. |
 | `ATOM_EMA_ALPHA` | `0.2` | — | EMA smoothing factor in (0, 1]. Higher = more responsive to recent feedback; lower = more stable. |
 | `ATOM_LLM_HEALER_ENABLED` | `false` | — | Enable the LLM-based fallback healer for provider 4xx errors. Rule-based healing is **always on**; this flag only enables the optional LLM-generated patch path (when no rule matches). See [Request Self-Healing](../architecture/REQUEST_SELF_HEALING.md). |
+| `ATOM_COMPRESSION_ENABLED` | `true` | — | Master gate for token compression (RTK tool-output engine). See [Token Compression](../architecture/TOKEN_COMPRESSION.md). |
+| `COMPRESS_RTK_ENABLED` | `true` | — | Enable the RTK engine (ANSI stripping, test-output compression, repeated-line collapse). Structured data (JSON/SQL) is never compressed. |
+| `COMPRESS_RTK_MAX_SECTION_CHARS` | `8000` | — | Max chars per observation section before truncation (RTK). |
+| `COMPRESS_SESSION_DEDUP_ENABLED` | `true` | — | Enable cross-turn exact-match dedup (replaces byte-identical repeated text with reference markers). Zero information loss. |
+| `COMPRESS_DEDUP_MIN_CHUNK` | `200` | — | Minimum chunk size (chars) to index for session-dedup. |
+| `COMPRESS_DEDUP_MAX_INDEX` | `500` | — | Max entries in the per-session dedup index (LRU eviction). |
+| `ATOM_LKGP_ENABLED` | `true` | — | Enable Last-Known-Good-Path sticky routing (session continuity — prefers the provider/model that served the prior turn). See [Routing Strategies](ROUTING_STRATEGIES.md). |
+| `ATOM_FUSION_ROUTING_ENABLED` | `true` | — | Enable fusion routing (panel+judge). Still requires `x-atom-strategy: fusion` header + COMPLEX tier + non-batch task. See [Routing Strategies](ROUTING_STRATEGIES.md). |
+| `ATOM_FUSION_SAMPLES` | `3` | — | Number of parallel models in fusion routing. |
+| `MCP_SERVER_ENABLED` | `true` | — | Enable the MCP (Model Context Protocol) server at `/mcp`. Exposes routing/compression/governance as MCP tools. See [MCP Server](../architecture/MCP_SERVER.md). |
 | `ATOM_DAILY_BUDGET` | unset | — | Daily spend cap. Budget enforcement uses a rolling **daily window** (per calendar date): spend resets at the start of each day, so a breach today does not block generation tomorrow. |
 | `ATOM_MONTHLY_BUDGET` | unset | — | Monthly spend cap. |
 
