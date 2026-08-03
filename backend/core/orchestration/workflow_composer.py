@@ -298,43 +298,49 @@ class WorkflowComposer:
         return len(errors) == 0, errors
 
     def _get_max_depth(self, root: CompositionNode) -> int:
-        """Get maximum depth of composition tree"""
+        """Get maximum depth of composition tree.
+
+        Iterative BFS to avoid RecursionError on deep composition trees.
+        """
         max_depth = root.depth
-
-        for child in root.children:
-            child_depth = self._get_max_depth(child)
-            max_depth = max(max_depth, child_depth)
-
+        queue: list = [root]
+        while queue:
+            node = queue.pop(0)
+            max_depth = max(max_depth, node.depth)
+            queue.extend(node.children)
         return max_depth
 
     def _detect_cycles(self, root: CompositionNode) -> List[str]:
-        """Detect cyclic dependencies"""
-        cycles = []
-        visited = set()
-        path = []
+        """Detect cyclic dependencies.
 
-        def dfs(node: CompositionNode) -> bool:
+        Iterative DFS (not recursive) to avoid RecursionError on pathological
+        composition trees deeper than Python's default recursion limit (1000).
+        """
+        cycles: List[str] = []
+        visited: set = set()
+        # Stack of (node, path_to_here). path_to_here tracks the current DFS
+        # path so we can report the cycle when we revisit a node on the path.
+        stack: list = [(root, [])]
+
+        while stack:
+            node, path = stack.pop()
+
             if node.node_id in path:
-                # Found cycle
+                # Found cycle — node already on the current path.
                 cycle_start = path.index(node.node_id)
                 cycle = path[cycle_start:] + [node.node_id]
                 cycles.append(" -> ".join(cycle))
-                return True
+                continue
 
             if node.node_id in visited:
-                return False
+                continue
 
             visited.add(node.node_id)
-            path.append(node.node_id)
+            new_path = path + [node.node_id]
 
             for child in node.children:
-                if dfs(child):
-                    return True
+                stack.append((child, new_path))
 
-            path.pop()
-            return False
-
-        dfs(root)
         return cycles
 
     def _validate_primitives(self, root: CompositionNode, errors: List[str]) -> None:

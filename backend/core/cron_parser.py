@@ -171,7 +171,11 @@ class CronParser:
             step = int(step)
 
             if base == "*":
-                return value % step == 0
+                # cron semantics for */N: "every N starting at the field min".
+                # For day-of-month (min 1), */2 means 1,3,5... not 2,4,6...
+                # The prior ``value % step == 0`` matched the wrong values for
+                # any field whose min != 0 (day-of-month, month).
+                return (value - min_val) % step == 0
 
             if "-" in base:
                 parts = base.split("-")
@@ -282,7 +286,14 @@ def natural_language_to_cron(text: str) -> str:
 
 
 def _to_24h_static(hour: str, minute: str, ampm: Optional[str]) -> str:
-    """Static version of _to_24h for use in module-level functions."""
+    """Static version of _to_24h for use in module-level functions.
+
+    Returns the 24-hour-format hour string (e.g. "14"). The minute is NOT
+    included — callers prepend it separately into the cron expression (cron
+    field order is minute-first: "M H * * *"). The ``minute`` param is
+    accepted for symmetry with the instance method ``_to_24h`` (which does
+    return "H M") but is normalized here only for the internal ``m`` variable.
+    """
     h = int(hour)
     m = minute
 
@@ -293,7 +304,7 @@ def _to_24h_static(hour: str, minute: str, ampm: Optional[str]) -> str:
         elif ampm == "am" and h == 12:
             h = 0
 
-    # Normalize minute: "00" -> "0"
+    # Normalize minute: "00" -> "0" (unused in return but kept for clarity)
     if m == "00":
         m = "0"
 

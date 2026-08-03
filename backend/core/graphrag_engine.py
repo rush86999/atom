@@ -931,7 +931,11 @@ class GraphRAGEngine:
                     }
 
                 start_ids = [n.id for n in start_nodes]
-                start_ids_str = ", ".join(f"'{str(id_)}'" for id_ in start_ids)
+                # Escape single quotes via doubling ('') to prevent SQL
+                # injection/filter-breakage. Node IDs are UUIDs (low risk) but
+                # ingest_structured_data accepts caller-supplied data, so
+                # defense-in-depth. Matches the LanceDB handler escape rule.
+                start_ids_str = ", ".join(f"'{str(id_).replace(chr(39), chr(39)+chr(39))}'" for id_ in start_ids)
 
 
                 if is_postgres:
