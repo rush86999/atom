@@ -1790,12 +1790,9 @@ try:
         app.include_router(user_mgmt_router)
         app.include_router(system_health_router)
 
-        # Backward compatibility for the /integrations list
-        try:
-            from api.integrations_catalog_routes import router as catalog_router
-            app.include_router(catalog_router, prefix="")
-        except Exception as e:
-            logger.warning(f"Integrations catalog router not loaded: {e}")
+        # Note: Integrations catalog router is mounted later (L~2492) in its
+        # own try/except block with the proper import. It was previously
+        # referenced here before import, causing a NameError on boot.
 
         # OAuth Status and Authorization Endpoints
         try:
