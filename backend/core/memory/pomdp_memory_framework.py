@@ -25,7 +25,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from uuid import UUID, uuid4
@@ -405,11 +405,18 @@ class MemoryManager:
             self._consolidate_memory(memory)
             processed += 1
 
-        # 3. Check for expired memories
-        cutoff_date = datetime.now() - timedelta(days=self.episodic_retention_days)
-        for memory in self._episodic_memory.values():
-            if memory.created_at < cutoff_date:
-                memory.status = MemoryStatus.EXPIRED
+        # 3. Check for expired memories — actually evict them from the dict,
+        # not just mark them. Previously EXPIRED entries were kept forever,
+        # so _episodic_memory grew unbounded in a long-running agent process.
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.episodic_retention_days)
+        expired_ids = [
+            mid for mid, memory in self._episodic_memory.items()
+            if memory.created_at < cutoff_date or memory.status == MemoryStatus.EXPIRED
+        ]
+        for mid in expired_ids:
+            self._episodic_memory.pop(mid, None)
+        if expired_ids:
+            logger.debug(f"Evicted {len(expired_ids)} expired episodic memories")
 
         logger.debug(f"Manage cycle completed: {processed} memories processed")
         return processed

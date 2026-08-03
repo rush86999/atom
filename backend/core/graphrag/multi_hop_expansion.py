@@ -357,21 +357,32 @@ class MultiHopExpander:
             GraphEdge.workspace_id == workspace_id
         ).all()
 
-        neighbors = []
+        # Batch-fetch all neighbor node IDs in one query to avoid an N+1 storm
+        # (previously one session.query(GraphNode).filter(...) per edge, which
+        # is O(edges) DB round-trips per hop — a dense subgraph could hang).
+        neighbor_ids = []
+        edge_directions = []
         for edge in edges:
-            # Determine direction and get neighbor
             if edge.source_node_id == node.id:
-                neighbor_id = edge.target_node_id
-                direction = "outgoing"
+                neighbor_ids.append(edge.target_node_id)
+                edge_directions.append((edge, "outgoing", edge.target_node_id))
             else:
-                neighbor_id = edge.source_node_id
-                direction = "incoming"
+                neighbor_ids.append(edge.source_node_id)
+                edge_directions.append((edge, "incoming", edge.source_node_id))
 
-            # Get neighbor node
-            neighbor = session.query(GraphNode).filter(
-                GraphNode.id == neighbor_id,
+        neighbor_map = {}
+        if neighbor_ids:
+            # De-duplicate IDs to avoid fetching the same node multiple times.
+            unique_ids = list(set(neighbor_ids))
+            fetched = session.query(GraphNode).filter(
+                GraphNode.id.in_(unique_ids),
                 GraphNode.workspace_id == workspace_id
-            ).first()
+            ).all()
+            neighbor_map = {n.id: n for n in fetched}
+
+        neighbors = []
+        for edge, direction, neighbor_id in edge_directions:
+            neighbor = neighbor_map.get(neighbor_id)
 
             if not neighbor:
                 continue

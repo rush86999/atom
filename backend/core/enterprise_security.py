@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from ipaddress import ip_address
 from typing import Any, Dict, List, Optional, Tuple
+import threading
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, validator
@@ -118,6 +119,12 @@ class EnterpriseSecurity:
         self.failed_login_attempts: Dict[str, List[datetime]] = {}
         self.api_rate_limits: Dict[str, List[datetime]] = {}
         self.suspicious_ips: Dict[str, int] = {}
+        # Guards all shared mutable state (rate limits, login attempts,
+        # suspicious IPs, audit event list). security_middleware calls these
+        # methods from concurrent async handlers, so without a lock the
+        # check-then-append in check_rate_limit is a lost-update race that
+        # lets concurrent requests all pass the limit before any append lands.
+        self._lock = threading.Lock()
 
         # Security configurations
         self.rate_limit_config = RateLimitConfig()
@@ -273,31 +280,40 @@ class EnterpriseSecurity:
         return alert_id
 
     def check_rate_limit(self, identifier: str, timestamp: datetime) -> bool:
-        """Check if request is within rate limits"""
-        if identifier not in self.api_rate_limits:
-            self.api_rate_limits[identifier] = []
+        """Check if request is within rate limits.
 
-        # Clean old requests
-        cutoff_minute = timestamp - timedelta(minutes=1)
-        cutoff_hour = timestamp - timedelta(hours=1)
-        cutoff_day = timestamp - timedelta(days=1)
+        Thread-safe: the check-then-append is atomic under ``self._lock`` so
+        concurrent requests cannot all pass the limit before any append lands.
+        """
+        with self._lock:
+            if identifier not in self.api_rate_limits:
+                self.api_rate_limits[identifier] = []
 
-        recent_requests = self.api_rate_limits[identifier]
-        minute_requests = [r for r in recent_requests if r > cutoff_minute]
-        hour_requests = [r for r in recent_requests if r > cutoff_hour]
-        day_requests = [r for r in recent_requests if r > cutoff_day]
+            # Clean old requests
+            cutoff_minute = timestamp - timedelta(minutes=1)
+            cutoff_hour = timestamp - timedelta(hours=1)
+            cutoff_day = timestamp - timedelta(days=1)
 
-        # Check limits
-        if (
-            len(minute_requests) >= self.rate_limit_config.requests_per_minute
-            or len(hour_requests) >= self.rate_limit_config.requests_per_hour
-            or len(day_requests) >= self.rate_limit_config.requests_per_day
-        ):
-            return False
+            recent_requests = self.api_rate_limits[identifier]
+            minute_requests = [r for r in recent_requests if r > cutoff_minute]
+            hour_requests = [r for r in recent_requests if r > cutoff_hour]
+            day_requests = [r for r in recent_requests if r > cutoff_day]
 
-        # Add current request
-        self.api_rate_limits[identifier].append(timestamp)
-        return True
+            # Replace the list with the cleaned (within-day) set so memory
+            # doesn't grow unbounded for a long-lived identifier.
+            self.api_rate_limits[identifier] = day_requests
+
+            # Check limits
+            if (
+                len(minute_requests) >= self.rate_limit_config.requests_per_minute
+                or len(hour_requests) >= self.rate_limit_config.requests_per_hour
+                or len(day_requests) >= self.rate_limit_config.requests_per_day
+            ):
+                return False
+
+            # Add current request
+            self.api_rate_limits[identifier].append(timestamp)
+            return True
 
     def get_audit_events(
         self,

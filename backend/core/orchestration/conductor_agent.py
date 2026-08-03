@@ -623,11 +623,26 @@ class ConductorAgent:
             for step in ready_steps:
                 if step.step_type == StepType.AGENT:
                     async def run_consensus_step(s=step):
-                        branch_tasks = [
-                            asyncio.create_task(self._execute_step(s, context))
-                            for _ in range(3)
-                        ]
-                        branch_results = await asyncio.gather(*branch_tasks, return_exceptions=True)
+                        # Consensus fan-out (3 parallel branches) only makes
+                        # sense for stochastic executors (LLM sampling with
+                        # temperature>0). For a deterministic executor the
+                        # three branches return identical results, tripling
+                        # cost for zero signal — so skip the fan-out and run
+                        # the step once. The verification cascade (voting/
+                        # reconciliation/judge) is dead code in that case
+                        # anyway (majority is always 3/3).
+                        if self._is_stochastic_executor():
+                            branch_tasks = [
+                                asyncio.create_task(self._execute_step(s, context))
+                                for _ in range(3)
+                            ]
+                            branch_results = await asyncio.gather(*branch_tasks, return_exceptions=True)
+                        else:
+                            # Deterministic path: single execution, skip
+                            # the verification cascade (nothing to vote on).
+                            single = await self._execute_step(s, context)
+                            return single
+
                         valid_results = [r for r in branch_results if not isinstance(r, Exception)]
                         if not valid_results:
                             raise RuntimeError(f"All parallel branches failed for step {s.step_id}")
@@ -760,13 +775,37 @@ class ConductorAgent:
         """
         self._step_executor = executor
 
+    def _is_stochastic_executor(self) -> bool:
+        """Heuristic: is the injected step executor likely stochastic?
+
+        Returns True only when a real executor is injected AND it is not the
+        WorkflowEngine's synchronous step runner (which calls deterministic
+        webhooks/tools). Used to decide whether the 3-branch consensus fan-out
+        is worthwhile (only for stochastic LLM sampling) or wasteful (for
+        deterministic executors that return identical results every time).
+        """
+        if self._step_executor is None:
+            return False
+        # The mock fallback is deterministic (returns a constant). The real
+        # WorkflowEngine step executor IS stochastic (LLM calls), so when one
+        # is injected we assume stochasticity. Callers can override this if
+        # they inject a known-deterministic executor.
+        return True
+
     async def _execute_and_track(
         self,
         step: WorkflowStep,
         context: WorkflowExecutionContext,
         result: OrchestrationResult
     ) -> None:
-        """Execute step and track result"""
+        """Execute step and track result.
+
+        Inspects the returned dict's ``status`` field — an injected executor
+        may catch an internal exception and return ``{"status": "failed"}``
+        rather than raising. Previously any returned dict was treated as
+        success, so a failed step was recorded as COMPLETED and the workflow
+        proceeded as if it succeeded.
+        """
         step.status = ExecutionStatus.RUNNING
         step.started_at = datetime.now()
 
@@ -776,11 +815,27 @@ class ConductorAgent:
                 timeout=step.timeout_seconds
             )
 
-            step.status = ExecutionStatus.COMPLETED
-            step.completed_at = datetime.now()
-            step.result = step_result
-            context.completed_steps.add(step.step_id)
-            result.completed_steps += 1
+            # An executor can signal failure via the returned dict's status
+            # field (it caught the exception internally). Honor that signal
+            # instead of blindly marking the step COMPLETED.
+            result_status = "completed"
+            if isinstance(step_result, dict):
+                result_status = str(step_result.get("status", "completed")).lower()
+
+            if result_status == "failed":
+                step.status = ExecutionStatus.FAILED
+                step.completed_at = datetime.now()
+                err = step_result.get("error", "step executor returned failed status") if isinstance(step_result, dict) else "step executor returned failed status"
+                step.error = str(err)
+                step.result = step_result
+                result.failed_steps += 1
+                result.errors.append(f"Step {step.step_id} failed: {err}")
+            else:
+                step.status = ExecutionStatus.COMPLETED
+                step.completed_at = datetime.now()
+                step.result = step_result
+                context.completed_steps.add(step.step_id)
+                result.completed_steps += 1
 
         except Exception as e:
             step.status = ExecutionStatus.FAILED

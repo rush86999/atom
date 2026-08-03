@@ -30,12 +30,17 @@ import asyncio
 import logging
 import os
 import shutil
+import sys
 from typing import Any, Dict, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
 
 logger = logging.getLogger(__name__)
+
+# Detect Linux once at import (cheap). Referenced by is_available(); defined
+# here at the top so any caller (including module-load-time probes) sees it.
+_IS_LINUX = sys.platform.startswith("linux")
 
 
 # ===========================================================================
@@ -273,11 +278,3 @@ def _write_vm_config(
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
-
-
-# ===========================================================================
-# Module-level: detect Linux once at import (cheap)
-# ===========================================================================
-import sys  # noqa: E402
-
-_IS_LINUX = sys.platform.startswith("linux")
