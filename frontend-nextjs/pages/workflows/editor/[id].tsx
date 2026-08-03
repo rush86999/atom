@@ -22,7 +22,12 @@ export default function WorkflowEditorPage() {
     const fetchWorkflow = async (workflowId: string) => {
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/workflow-templates/${workflowId}`);
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/workflow-templates/${workflowId}`, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
             if (!res.ok) throw new Error('Failed to load workflow');
 
             const template = await res.json();
@@ -109,9 +114,13 @@ export default function WorkflowEditorPage() {
                 steps: steps
             };
 
+            const token = localStorage.getItem('auth_token');
             const res = await fetch(`/api/workflow-templates/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(payload)
             });
 

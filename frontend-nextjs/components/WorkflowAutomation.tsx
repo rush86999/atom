@@ -253,7 +253,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch("/api/workflow-templates/"); // Fixed endpoint with trailing slash
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch("/api/workflow-templates/", {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      }); // Fixed endpoint with trailing slash
       if (response.ok) {
         const data = await response.json();
         // The API returns the list directly, not { success: true, templates: ... }
