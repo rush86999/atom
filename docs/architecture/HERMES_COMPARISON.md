@@ -17,7 +17,7 @@
 | **Deployment** | Single-tenant (Personal / SaaS) | Single-user self-hosted |
 | **Orientation** | Business workflows, integrations, regulated actions | Personal coding/productivity assistant |
 
-These are **different products** — Atom is a multi-tenant business platform; Hermes is a personal agent. Comparisons are most useful where they overlap: memory, context management, reasoning, and production resilience.
+These are **different products** — Atom is a single-tenant business automation platform; Hermes is a personal agent. Comparisons are most useful where they overlap: memory, context management, reasoning, and production resilience.
 
 ---
 
@@ -248,7 +248,7 @@ This section is intentionally blunt.
 
 **Choose Hermes if:** you want a single-user, self-hosted, terminal-first personal coding assistant with mature memory plugins and you're willing to operate it (no governance, no HITL, no observability built in).
 
-**Choose Atom if:** you need multi-tenant business automation with governed agents (maturity levels, HITL supervision, audit trails), rich canvas presentations, multi-agent orchestration, browser/device automation, production observability, or cost-routed multi-provider LLM.
+**Choose Atom if:** you need single-tenant business automation with governed agents (maturity levels, HITL supervision, audit trails), rich canvas presentations, multi-agent orchestration, browser/device automation, production observability, or cost-routed multi-provider LLM.
 
 **Neither is a good fit if:** you need a true forgetting curve / sleep-like offline consolidation, distributed tracing (OpenTelemetry), or full pre/post state-diff verification of every action — those remain open on both sides. (Reflection/self-correction and parallel tool execution were closed for Atom in R72.)
 
