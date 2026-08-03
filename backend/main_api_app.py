@@ -1791,7 +1791,11 @@ try:
         app.include_router(system_health_router)
 
         # Backward compatibility for the /integrations list
-        app.include_router(catalog_router, prefix="")
+        try:
+            from api.integrations_catalog_routes import router as catalog_router
+            app.include_router(catalog_router, prefix="")
+        except Exception as e:
+            logger.warning(f"Integrations catalog router not loaded: {e}")
 
         # OAuth Status and Authorization Endpoints
         try:
