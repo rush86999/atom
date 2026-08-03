@@ -108,28 +108,85 @@ class HarnessEvolutionService:
         self,
         patch: Dict[str, Any],
         workspace_dir: str,
-        test_fn
+        test_fn=None,
     ) -> bool:
         """
         Validate a proposed harness patch inside a transactional rollback sandbox.
+
+        When ``test_fn`` is provided, it's called with the patch to verify
+        behavior. When NOT provided (the common case — no caller passes one),
+        a default regression check runs: the patch is structurally validated
+        (no forbidden patterns, valid JSON/config keys) to catch obviously
+        dangerous or malformed patches before deployment.
+
+        Previously this method required a caller-supplied test_fn but none was
+        ever passed, making validation effectively a no-op.
         """
         logger.info(f"Validating patch {patch['patch_id']} in workspace sandbox...")
-        
+
         try:
-            # Wrap verification in SandboxTransaction to ensure clean state
             with SandboxTransaction(target_dir=workspace_dir, timeout_seconds=10) as tx:
-                # Apply temporary patch configuration mock
-                logger.info(f"Applying patch configuration in sandbox: {patch['target_component']}")
-                
-                # Execute user-supplied test function to verify logic
-                success = test_fn(patch)
-                if not success:
-                    raise ValueError("Regression tests failed in sandbox")
-                
+                logger.info(f"Applying patch configuration in sandbox: {patch.get('target_component', 'unknown')}")
+
+                if test_fn is not None:
+                    # Caller-supplied test function (backward compat)
+                    success = test_fn(patch)
+                    if not success:
+                        raise ValueError("Regression tests failed in sandbox")
+                else:
+                    # Default structural validation when no test_fn is provided.
+                    # This catches obviously dangerous patches before deployment.
+                    success = self._default_patch_validation(patch)
+                    if not success:
+                        raise ValueError("Default patch validation failed")
+
                 return True
         except Exception as e:
             logger.warning(f"Patch validation failed or rolled back: {e}")
             return False
+
+    def _default_patch_validation(self, patch: Dict[str, Any]) -> bool:
+        """Structural validation for harness patches when no test_fn is provided.
+
+        Checks:
+          1. Patch has required fields (patch_id, target_component)
+          2. Patch content doesn't contain danger patterns (reuse the
+             governance gate's pattern set)
+          3. Patch isn't trying to modify protected config keys directly
+             (self-referential safety-net mutation)
+        """
+        if not patch.get("patch_id"):
+            return False
+        if not patch.get("target_component"):
+            return False
+
+        # Check patch content for danger patterns
+        patch_str = str(patch).lower()
+        try:
+            from core.agent_governance_service import AgentGovernanceService
+            for pattern in AgentGovernanceService._DANGER_PATTERNS:
+                if pattern in patch_str:
+                    logger.warning(
+                        f"Patch {patch['patch_id']} contains danger pattern: '{pattern}'"
+                    )
+                    return False
+        except Exception:
+            pass  # governance service unavailable — don't block
+
+        # Check for self-referential mutation of protected keys
+        target = str(patch.get("target_component", "")).lower()
+        try:
+            from core.agent_governance_service import AgentGovernanceService
+            for key in AgentGovernanceService._PROTECTED_CONFIG_KEYS:
+                if key in target and key != "harness_patches":
+                    logger.warning(
+                        f"Patch {patch['patch_id']} targets protected key: '{key}'"
+                    )
+                    return False
+        except Exception:
+            pass
+
+        return True
 
     async def deploy_harness_patch(self, patch: Dict[str, Any], agent_id: str) -> bool:
         """

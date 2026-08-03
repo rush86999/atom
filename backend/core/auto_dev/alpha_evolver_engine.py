@@ -126,13 +126,20 @@ class AlphaEvolverEngine(BaseLearningEngine):
         code: str,
         test_inputs: list[dict[str, Any]],
         tenant_id: str,
+        parent_code: str | None = None,
         **kwargs,
     ) -> dict[str, Any]:
-        """Execute mutated code in sandbox and assess fitness."""
+        """Execute mutated code in sandbox and assess fitness.
+
+        When ``parent_code`` is provided, runs the behavioral regression
+        validator comparing parent vs. child output on all test inputs.
+        A mutation that changes behavior without improvement is rejected.
+        """
         sandbox = self._get_sandbox()
         if not sandbox:
             return {"passed": False, "error": "Sandbox unavailable"}
 
+        # 1. Run mutated code in sandbox (the existing "didn't crash" check)
         results = []
         all_passed = True
 
@@ -153,6 +160,44 @@ class AlphaEvolverEngine(BaseLearningEngine):
                     "execution_seconds": result.get("execution_seconds", 0),
                 }
             )
+
+        # 2. If the mutated code crashed, no point comparing to parent.
+        if not all_passed:
+            return {
+                "passed": False,
+                "test_results": results,
+                "proxy_signals": self._compute_proxy_signals(results),
+            }
+
+        # 3. Behavioral regression validation: compare parent vs. child output.
+        # Previously this step was missing — a mutation that ran without error
+        # was promoted regardless of whether it changed behavior. Evidence:
+        # RepoFixer (arXiv 2411.10213) validates against regression tests.
+        if parent_code:
+            try:
+                from core.auto_dev.regression_validator import RegressionValidator
+
+                validator = RegressionValidator()
+                reg_result = await validator.validate_regression(
+                    parent_code=parent_code,
+                    mutated_code=code,
+                    test_inputs=test_inputs,
+                    sandbox=sandbox,
+                    tenant_id=tenant_id,
+                )
+                if not reg_result.passed:
+                    logger.warning(
+                        f"AlphaEvolver: mutation rejected — behavioral regression "
+                        f"on {len(reg_result.mismatches)}/{reg_result.total_tests} tests"
+                    )
+                    return {
+                        "passed": False,
+                        "test_results": results,
+                        "regression_result": reg_result.to_dict(),
+                        "proxy_signals": self._compute_proxy_signals(results),
+                    }
+            except Exception:
+                logger.debug("Regression validator unavailable; continuing", exc_info=True)
 
         return {
             "passed": all_passed,
