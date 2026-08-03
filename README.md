@@ -330,6 +330,15 @@ Recursive knowledge retrieval via BFS traversal, canonical anchoring to database
 
 [GraphRAG Documentation →](docs/intelligence/graphrag.md)
 
+### 📊 Data Analysis & Predictive Modeling ✨ NEW
+Agent-callable tools for autonomous data analysis — load datasets, run analysis code in the sandbox, and build predictive models, all without ingesting raw data into LLM context:
+- **Dataset management**: Load CSV/Excel/JSON/Parquet, cache by name for cross-turn use (DuckDB for out-of-core datasets)
+- **Code interpreter**: Agent generates pandas/DuckDB/sklearn code; sandbox executes it with AST tripwires + egress proxy
+- **Forecasting**: Linear regression, moving average, exponential smoothing (SUPERVISED maturity, governance notice)
+- **Predictive models**: Regression + classification with sklearn (R², feature importance, coefficients)
+
+[Data Analysis Docs →](docs/architecture/DATA_ANALYSIS.md)
+
 ### 🌐 Community Skills & Package Marketplace ✨
 5,000+ OpenClaw/ClawHub skills with PostgreSQL marketplace, LLM-powered security scanning (21+ malicious patterns), DAG skill composition, Python + npm auto-installation with vulnerability scanning, and supply chain protection
 
@@ -463,6 +472,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Routing Strategies](docs/reference/ROUTING_STRATEGIES.md) - auto, fusion (panel+judge), LKGP (session-sticky) ✨ NEW
 - [Routing Headers](docs/reference/ROUTING_HEADERS.md) - Per-request x-atom-* header overrides ✨ NEW
 - [Self-Healing Autofix](docs/architecture/REQUEST_SELF_HEALING.md) - Provider 4xx repair (rules + LLM fallback) ✨ NEW
+- [Data Analysis & Predictive Modeling](docs/architecture/DATA_ANALYSIS.md) - Code-interpreter tools for agent-driven data analysis ✨ NEW
 - [Python Package Support](docs/security/python-packages.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](docs/security/npm-packages.md) - Lodash, Express, 2M+ packages
 - [Episodic Memory](docs/intelligence/episodic-memory.md) - Agent learning system
