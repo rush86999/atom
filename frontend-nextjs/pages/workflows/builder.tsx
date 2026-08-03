@@ -102,8 +102,12 @@ export default function WorkflowBuilder() {
 
     const fetchTemplates = async () => {
         try {
-            // Use relative path to leverage next.config.js proxy
-            const res = await fetch('/api/workflow-templates');
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch('/api/workflow-templates', {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
             if (res.ok) {
                 const data = await res.json();
                 setTemplates(data);
@@ -148,9 +152,13 @@ export default function WorkflowBuilder() {
         };
 
         try {
+            const token = localStorage.getItem('auth_token');
             const res = await fetch('/api/workflow-templates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(templateData)
             });
 
@@ -177,9 +185,13 @@ export default function WorkflowBuilder() {
         toast({ title: 'Executing...', description: `Running template: ${workflowName}` });
 
         try {
+            const token = localStorage.getItem('auth_token');
             const res = await fetch(`/api/workflow-templates/${currentTemplateId}/execute`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({})
             });
 
@@ -198,7 +210,12 @@ export default function WorkflowBuilder() {
 
     const loadTemplate = async (templateId: string) => {
         try {
-            const res = await fetch(`/api/workflow-templates/${templateId}`);
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/workflow-templates/${templateId}`, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
             if (!res.ok) throw new Error('Failed to load');
 
             const template = await res.json();
