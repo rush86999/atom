@@ -1373,6 +1373,7 @@ class BYOKHandler:
         turn_index: int = 0, # NEW: Deterministic BPC
         cognitive_tier: Optional[str] = None,  # x-atom-tier override
         intent_override: Optional[str] = None,  # x-atom-intent override
+        sticky_hint: Optional[tuple] = None,  # LKGP (provider, model) hint
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -1484,6 +1485,21 @@ class BYOKHandler:
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
             )
+
+            # --- LKGP (Last-Known-Good-Path) sticky boost ---
+            # If the session has a last-known-good (provider, model) from a
+            # prior successful turn AND that pair is in the candidate list,
+            # boost it to position 0 for multi-turn consistency. Evidence:
+            # vLLM #1439, Vercel, LLM Gateway — all recommend session
+            # stickiness. Falls through silently if the sticky pair is absent
+            # or unhealthy.
+            if sticky_hint and len(sticky_hint) == 2:
+                _sp, _sm = sticky_hint
+                sticky_pair = (_sp, _sm)
+                if sticky_pair in options:
+                    options.remove(sticky_pair)
+                    options.insert(0, sticky_pair)
+                    logger.debug(f"[LKGP] boosted {_sp}/{_sm} to position 0")
 
             # --- Intent detection (domain classifier) ---
             # Detects the routing-relevant domain (coding, reasoning, etc.) and
