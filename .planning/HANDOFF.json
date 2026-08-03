@@ -1,46 +1,43 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T17:30:00Z",
-  "phase": "R72-hermes-gap-closure",
-  "phase_name": "R72 Hermes Gap Closure (9 gaps + channel binding)",
+  "timestamp": "2026-08-03T00:04:27Z",
+  "phase": "test-infra-cleanup",
+  "phase_name": "Test-infra cleanup + bug hunting (post-R72)",
   "phase_dir": ".planning",
-  "plan": "R72 Hermes Gap Closure",
-  "task": 10,
-  "total_tasks": 10,
-  "status": "complete",
+  "plan": "Suggested next step from R72 handoff",
+  "task": 2,
+  "total_tasks": 2,
+  "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "D: Memory defaults ON (TURN_FACT_EXTRACTION + VECTOR_RECALL)", "status": "done", "commit": "9c67a3620"},
-    {"id": 2, "name": "A: In-loop verification + self-correction + ActionJudge wiring", "status": "done", "commit": "4c8fac36c"},
-    {"id": 3, "name": "C: Skill auto-injection at prompt time", "status": "done", "commit": "07df489ec"},
-    {"id": 4, "name": "E: FieldGuide memory snapshot + prefetched_facts consumption", "status": "done", "commit": "07df489ec"},
-    {"id": 6, "name": "H: Tool-result memoization (read-only whitelist)", "status": "done", "commit": "793289dd3"},
-    {"id": 5, "name": "B: /learn endpoint (workflow->skill distillation)", "status": "done", "commit": "e4fbe855d"},
-    {"id": 7, "name": "I: Channel binding fix (cross-channel context leak)", "status": "done", "commit": "54361bc59"},
-    {"id": 8, "name": "F: Mixture-of-Agents (default ON)", "status": "done", "commit": "0ebc610a1"},
-    {"id": 9, "name": "G: In-loop parallel tool execution (default ON)", "status": "done", "commit": "235237645"}
+    {"id": 1, "name": "Fix 76 pytest collection errors from dead-code cleanup (importorskip guards)", "status": "done", "commit": "39f2b40bd"},
+    {"id": 2, "name": "Investigate CLAUDE.md #31 Workflow ReDoS Guard discrepancy; correct doc", "status": "done", "commit": "4674ca56d"}
   ],
   "remaining_tasks": [
-    {"id": 10, "name": "J: Docs update", "status": "done", "commit": "5a4cddc7a"}
+    {"id": 3, "name": "Rewrite 33 stale react-loop tests (patch core.atom_meta_agent.LLMService which no longer exists)", "status": "not_started"},
+    {"id": 4, "name": "Repair 82 surfaced stale-test failures in live mixed-file classes (missing fixtures, schema drift, API drift)", "status": "not_started"},
+    {"id": 5, "name": "Full regression pass after collection fix", "status": "not_started"}
   ],
   "blockers": [
-    {"description": "Pre-existing react-loop suite failures (33 tests) patch nonexistent core.atom_meta_agent.LLMService", "type": "technical", "workaround": "ignore or fix patch targets in separate test-infra commit"},
-    {"description": "backend/atom_dev.db-journal shows deleted (test byproduct)", "type": "technical", "workaround": "leave out of commits"},
-    {"description": "tests/standalone/test_tool_registry_verification.py has 6 pre-existing errors (missing 'registry' fixture)", "type": "technical", "workaround": "unrelated to R72; fixture was never defined"},
-    {"description": "Pre-existing tests/unit/llm/test_self_consistency_voter.py::test_C5_is_irreversible_detection + test_provider_family_invariant.py::test_D1 fail at HEAD (verified via git stash)", "type": "technical", "workaround": "not caused by R72; superseded/harness tests"}
+    {"description": "33 react-loop tests in tests/core/agents/test_atom_meta_agent_react_loop.py patch @patch('core.atom_meta_agent.LLMService'); module has no such attribute (resolves via ServiceFactory.get_llm_service at core/atom_meta_agent.py:392)", "type": "technical", "workaround": "Rewriting patch target to core.service_factory.ServiceFactory.get_llm_service cleared AttributeError but exposed deeper stale logic (NoneType.category at atom_meta_agent.py:603) and HANGS the file — must rewrite all 33 tests against new execute() semantics, NOT just patch target"},
+    {"description": "test_data_processing_scenarios.py requests db_engine fixture not defined in tests/scenarios/conftest.py (48 errors)", "type": "technical", "workaround": "fixture only exists in property_tests/regression/e2e conftests"},
+    {"description": "test_mobile_canvas.py User fixture omits role; model has role = Column(String, nullable=False) at core/models.py:434 (14 errors)", "type": "technical", "workaround": "stale test fixture vs schema"},
+    {"description": "test_skill_execution_error_paths.py uses old CommunitySkillTool(name=...) constructor; LangChain BaseTool API drifted (13 failures)", "type": "technical", "workaround": "stale test"},
+    {"description": "test_business_intelligence.py mocked AI returns empty intents (3 failures)", "type": "technical", "workaround": "stale mock"},
+    {"description": "test_memory_backfill.py Redis-based job-queue tests need live Redis (4 failures)", "type": "technical", "workaround": "environment-dependent"},
+    {"description": "backend/atom_dev.db-journal deleted (test byproduct)", "type": "technical", "workaround": "leave out of commits"},
+    {"description": ".planning/STATE.md + backend/.planning/STATE.md + backend/chat_sessions.json modified (pre-existing, unrelated)", "type": "technical", "workaround": "leave out of commits"}
   ],
   "human_actions_pending": [],
   "decisions": [
-    {"decision": "MoA + in-loop parallel tools: full implementation, default ON", "rationale": "User-locked decision", "phase": "R72"},
-    {"decision": "TURN_FACT_EXTRACTION_ENABLED + TURN_FACT_VECTOR_RECALL_ENABLED default true", "rationale": "User-locked decision", "phase": "R72"},
-    {"decision": "Skill injection + tool cache default ON; ActionJudge default OFF (ATOM_SANDBOX_JUDGE_ENABLED)", "rationale": "Safety posture: deterministic-only gains default on; LLM judge stays opt-in", "phase": "R72"},
-    {"decision": "Config flags (MoA/parallel/cache/skill-injection) added to core/hallucination_config.py already", "rationale": "F/G/H pick up from here; do not re-add", "phase": "R72"}
+    {"decision": "ReDoS guard removal is NOT a live regression — archived workflow_parameter_validator.py was never referenced by any production file in git history", "rationale": "Verified via git grep across all revisions; ParameterValidator (test-only) is the only latent surface", "phase": "test-infra"},
+    {"decision": "Reverted react-loop patch-target fix", "rationale": "Mechanical fix exposed deeper stale logic and hangs the file — strictly worse than fast AttributeError; proper fix is full test rewrite", "phase": "test-infra"}
   ],
   "uncommitted_files": [
-    "backend/.planning/STATE.md (modified by test run)",
+    ".planning/STATE.md (pre-existing, unrelated)",
+    "backend/.planning/STATE.md (pre-existing, unrelated)",
     "backend/atom_dev.db-journal (deleted by test run — do not commit)",
-    "backend/chat_sessions.json (test byproduct — do not commit)",
-    ".planning/HANDOFF.json (tracked; state refresh)"
+    "backend/chat_sessions.json (test byproduct — do not commit)"
   ],
-  "next_action": "R72 COMPLETE. All 10 workstreams done (D,A,C,E,H,B,I,F,G,J). Suggested next: full repo regression pass, then /gsd:complete-milestone or next milestone planning.",
-  "context_notes": "J landed at 5a4cddc7a: HERMES_COMPARISON.md matrix updated (fact extraction default ON, self-correction A, parallel G, memoization H, MoA F, /learn+skill-injection B/C, FieldGuide E all closed; both-are-weak + when-to-choose refreshed); ENVIRONMENT_VARIABLES.md new 7b R72 table (ATOM_MOA_*, ATOM_PARALLEL_TOOLS, ATOM_MAX_PARALLEL_TOOLS, ATOM_SKILL_INJECTION_ENABLED, ATOM_TOOL_CACHE_*); TURN_FACT_* defaults flipped true in CLAUDE.md + CONTEXT_MEMORY.md. R72 fully implemented and committed."
+  "next_action": "Resume: rewrite the 33 stale react-loop tests in tests/core/agents/test_atom_meta_agent_react_loop.py against current AtomMetaAgent.execute() ReAct-loop semantics (patch core.service_factory.ServiceFactory.get_llm_service), OR repair the 82 surfaced stale-test failures. Full regression pass after.",
+  "context_notes": "Session did test-infra cleanup: 76 collection errors fixed via importorskip guards (69 pure-dead files + 5 mixed + 1 unused-import removal), pushed 39f2b40bd. Then bug-hunted CLAUDE.md #31 ReDoS guard discrepancy → doc corrected (4674ca56d), pushed. Then investigated 33 react-loop LLMService patch failures → confirmed stale, mechanical fix hangs, reverted. Both commits on origin/main."
 }
