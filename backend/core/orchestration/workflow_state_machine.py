@@ -242,6 +242,15 @@ class WorkflowStateMachine:
         self._transition_logs: Dict[str, List[TransitionLog]] = defaultdict(list)
         self._rollback_plans: Dict[str, RollbackPlan] = {}
         self._snapshots: Dict[str, List[StateSnapshot]] = defaultdict(list)
+        # Per-workflow transition locks. Two concurrent transitions for the
+        # same workflow (e.g. a timeout driver and a user cancellation) can
+        # both read the same current_state, both pass can_transition, and both
+        # write — landing in a state that violates the transition table.
+        # Using threading.Lock (transition() is sync; called from async via
+        # the event loop thread).
+        import threading as _threading
+        self._transition_locks: Dict[str, "_threading.Lock"] = {}
+        self._locks_guard = _threading.Lock()
 
         # Guard functions
         self._guards: Dict[Tuple[WorkflowState, WorkflowState], Callable] = {}
@@ -321,39 +330,55 @@ class WorkflowStateMachine:
         if current_state is None:
             return TransitionResult.FAILED
 
-        # Validate transition
-        if not self.can_transition(workflow_id, to_state):
-            logger.warning(
-                f"Invalid transition: {workflow_id} {current_state.value} -> {to_state.value}"
-            )
-            return TransitionResult.INVALID
-
-        # Check guards
-        guard_key = (current_state, to_state)
-        if guard_key in self._guards:
-            if not self._guards[guard_key](context or {}):
-                logger.info(f"Transition blocked by guard: {workflow_id}")
-                return TransitionResult.BLOCKED
-
-        start_time = datetime.now()
-
-        # Execute pre-action
-        if guard_key in self._pre_actions:
-            try:
-                self._pre_actions[guard_key](workflow_id, context or {})
-            except Exception as e:
-                logger.error(f"Pre-action failed: {e}")
+        # Acquire the per-workflow transition lock so concurrent transitions
+        # (timeout driver vs user cancellation) serialize. The lock is held
+        # for the full validate→guard→write→log sequence.
+        import threading as _threading
+        with self._locks_guard:
+            lock = self._transition_locks.get(workflow_id)
+            if lock is None:
+                lock = _threading.Lock()
+                self._transition_locks[workflow_id] = lock
+        with lock:
+            # Re-read state under the lock — a concurrent transition may have
+            # changed it between our first read and the lock acquisition.
+            current_state = self.get_state(workflow_id)
+            if current_state is None:
                 return TransitionResult.FAILED
 
-        # Execute transition
-        self._workflow_states[workflow_id] = to_state
+            # Validate transition
+            if not self.can_transition(workflow_id, to_state):
+                logger.warning(
+                    f"Invalid transition: {workflow_id} {current_state.value} -> {to_state.value}"
+                )
+                return TransitionResult.INVALID
 
-        # Execute post-action
-        if guard_key in self._post_actions:
-            try:
-                self._post_actions[guard_key](workflow_id, context or {})
-            except Exception as e:
-                logger.error(f"Post-action failed: {e}")
+            # Check guards
+            guard_key = (current_state, to_state)
+            if guard_key in self._guards:
+                if not self._guards[guard_key](context or {}):
+                    logger.info(f"Transition blocked by guard: {workflow_id}")
+                    return TransitionResult.BLOCKED
+
+            start_time = datetime.now()
+
+            # Execute pre-action
+            if guard_key in self._pre_actions:
+                try:
+                    self._pre_actions[guard_key](workflow_id, context or {})
+                except Exception as e:
+                    logger.error(f"Pre-action failed: {e}")
+                    return TransitionResult.FAILED
+
+            # Execute transition
+            self._workflow_states[workflow_id] = to_state
+
+            # Execute post-action
+            if guard_key in self._post_actions:
+                try:
+                    self._post_actions[guard_key](workflow_id, context or {})
+                except Exception as e:
+                    logger.error(f"Post-action failed: {e}")
 
         # Calculate duration
         duration_ms = (datetime.now() - start_time).total_seconds() * 1000

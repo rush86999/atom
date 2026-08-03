@@ -327,6 +327,13 @@ def check_python_ast(code: str) -> Optional[str]:
                 if isinstance(node.func.value, ast.Name):
                     if node.func.value.id in {"os", "sys", "subprocess", "shutil", "importlib", "builtins"}:
                         return f"AST violation: Forbidden system attribute call '{node.func.value.id}.{node.func.attr}()'"
+                # Catch dunder-class traversal calls:
+                # (1).__class__.__base__.__subclasses__()
+                # Previously this was in a second, unreachable ast.Call elif
+                # branch (Python only matches the first elif) — so the
+                # __subclasses__() call check was dead code.
+                if node.func.attr in {"__subclasses__", "__bases__", "__mro__"}:
+                    return f"AST violation: Forbidden dunder-class traversal {node.func.attr}()"
         elif isinstance(node, ast.Subscript):
             # Bug #3: catch globals()["__builtins__"]["eval"] and similar
             # subscript-based reflection that bypassed the Name-level checks.
@@ -346,10 +353,6 @@ def check_python_ast(code: str) -> Optional[str]:
                 if isinstance(node.ctx, ast.Load):
                     # Check if this is part of a chain (parent is also Attribute)
                     pass  # We catch the actual call via the Call handler above
-        elif isinstance(node, ast.Call):
-            # Catch (1).__class__.__base__.__subclasses__() — dunder traversal
-            if isinstance(node.func, ast.Attribute) and node.func.attr == "__subclasses__":
-                return "AST violation: Forbidden dunder-class traversal __subclasses__()"
     return check_js_ast(code)
 
 

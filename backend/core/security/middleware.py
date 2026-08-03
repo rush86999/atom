@@ -153,14 +153,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
-        # Hardened Content Security Policy for HTML routes
+        # Hardened Content Security Policy for HTML routes.
+        # NOTE: 'unsafe-eval' was removed — it permits eval()/Function() and
+        # makes the CSP a no-op against XSS. 'unsafe-inline' is retained for
+        # now (removing it requires nonces/hashes on every inline script,
+        # which is a frontend refactor); connect-src is tightened to 'self'
+        # + ws/wss (no blanket https: that would allow exfil to any HTTPS host).
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; "
             "img-src 'self' data: https:; "
             "font-src 'self' data: fonts.gstatic.com; "
-            "connect-src 'self' ws: wss: https:;"
+            "connect-src 'self' ws: wss:;"
         )
 
         response.headers["Permissions-Policy"] = (
@@ -187,17 +192,17 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         if request.method in ["GET", "HEAD", "OPTIONS"]:
             return await call_next(request)
 
-        # Skip for health checks and integration APIs (they use tenant auth, not cookies)
+        # Skip for health checks and stateless webhook receivers (they use
+        # signed tokens / API keys, not cookies). Narrowed from the prior list
+        # which exempted /api/test/ and broad integration trees — those can
+        # perform state changes and should not be CSRF-exempt in production.
         skip_prefixes = [
             "/health",
             "/alive",
             "/api/health",
-            "/api/auth/",
-            "/api/v1/integrations/",
-            "/api/v1/webhooks/",
+            "/api/auth/",          # login/register issue their own tokens
+            "/api/v1/webhooks/",   # stateless, signed-payload receivers
             "/api/webhooks/",
-            "/api/v1/worker/",
-            "/api/test/",
         ]
         if any(request.url.path.startswith(p) for p in skip_prefixes) or request.url.path in [
             "/health",
@@ -210,26 +215,29 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         if os.environ.get("PYTEST_VERSION") is not None:
             return await call_next(request)
 
-        # Skip CSRF if valid X-Test-Secret is provided (for E2E testing)
+        # Skip CSRF if a valid X-Test-Secret is provided (E2E testing only).
         test_secret = request.headers.get("x-test-secret") or request.headers.get("X-Test-Secret")
-        is_production = (
-            os.getenv("ENVIRONMENT") == "production" or os.getenv("NODE_ENV") == "production"
-        )
 
-        # Also skip for API-authenticated requests (Bearer token in Authorization header)
-        # CSRF is only required for session-based (cookie) authentication
-        auth_header = request.headers.get("Authorization")
+        # CSRF is only required for session-based (cookie) authentication.
+        # Bearer-token (API) requests are not vulnerable to CSRF (the browser
+        # does not auto-attach Bearer tokens). Scope the exemption to Bearer
+        # specifically — the prior ``or auth_header`` exempted ANY Authorization
+        # value, including malformed ones.
+        auth_header = request.headers.get("Authorization", "")
+        is_bearer = auth_header.lower().startswith("bearer ")
 
         # Test bypass: ONLY allow the test-secret bypass during actual pytest
-        # runs (PYTEST_CURRENT_TEST is set by the test runner), not just when
-        # ENVIRONMENT != "production" — the default ENVIRONMENT is "development",
-        # so the old gate was effectively always open.
+        # runs. The hardcoded "bypass-for-verification" literal was removed —
+        # it was a permanent CSRF bypass gated only on a test env var that can
+        # leak (some CI images set PYTEST_VERSION). The bypass now requires the
+        # configured E2E_TEST_SECRET (which defaults to a known test value but
+        # can be rotated).
         _is_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("PYTEST_VERSION") is not None
         if (
             _is_pytest
             and test_secret
-            and test_secret in [os.getenv("E2E_TEST_SECRET", "test-secret-key"), "bypass-for-verification"]
-        ) or auth_header:
+            and test_secret == os.getenv("E2E_TEST_SECRET", "test-secret-key")
+        ) or is_bearer:
             return await call_next(request)
 
         # Check for CSRF token for state-changing requests

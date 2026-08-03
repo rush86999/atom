@@ -237,13 +237,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # 'unsafe-eval' removed (permits eval()/Function() → CSP no-op vs XSS).
+        # connect-src tightened to 'self' + ws/wss (no blanket https:).
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' ws: wss: https:;"
+            "connect-src 'self' ws: wss:;"
         )
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), "
