@@ -294,9 +294,9 @@ Rich interactive presentations (charts, forms, markdown) with live operation vis
 [Office Automation Guide →](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
 
 ### 🧠 Autonomous Self-Evolution & Graduation ✨
-Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
+Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage. Four evolution mechanisms (Memento, AlphaEvolver, HarnessEvolution, GEA) with a unified safety pipeline: governance gate (misevolution defense), behavioral regression validator, and mutation rollback registry.
 
-[Agent Graduation Guide →](docs/archive/legacy/AGENT_GRADUATION_GUIDE.md)
+[Agent Graduation Guide →](docs/archive/legacy/AGENT_GRADUATION_GUIDE.md) | [Harness Evolution →](docs/architecture/HARNESS_EVOLUTION.md)
 
 ### 💾 Memory & Context (Hermes-style) ✨ New 2026
 Durable-fact extraction that survives context compression — the agent remembers what matters across sessions:
