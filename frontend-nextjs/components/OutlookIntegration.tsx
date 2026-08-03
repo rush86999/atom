@@ -166,6 +166,26 @@ const OutlookIntegration: React.FC = () => {
 
     const { toast } = useToast();
 
+    const handleConnect = async () => {
+        try {
+            const response = await fetch("/api/auth/outlook/authorize");
+            if (!response.ok) throw new Error("Failed to get authorization URL");
+            const data = await response.json();
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                throw new Error("No authorization URL returned");
+            }
+        } catch (error) {
+            console.error("Connect error:", error);
+            toast({
+                title: "Error",
+                description: "Failed to initiate Outlook connection.",
+                variant: "destructive",
+            });
+        }
+    };
+
     // Check connection status
     const checkConnection = async () => {
         try {
@@ -467,9 +487,7 @@ const OutlookIntegration: React.FC = () => {
                                 <Button
                                     size="lg"
                                     className="w-full bg-blue-600 hover:bg-blue-700"
-                                    onClick={() =>
-                                        (window.location.href = "/api/auth/outlook/authorize")
-                                    }
+                                    onClick={handleConnect}
                                 >
                                     <ArrowRight className="mr-2 w-4 h-4" />
                                     Connect Outlook Account
