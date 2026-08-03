@@ -1,9 +1,9 @@
 # Atom vs. Hermes Agent — Architecture Comparison
 
 > **Purpose:** Honest, evidence-based comparison to guide feature decisions and onboard contributors. Not a marketing document — both systems have real strengths and real gaps.
-> **Last reviewed:** June 24, 2026
+> **Last reviewed:** August 3, 2026
 > **Sources:** [Mem0 blog](https://mem0.ai/blog/how-hermes-and-claude-handle-context-compression-in-real-production-agents-(and-what-you-should-extract)), [LanceDB blog](https://www.lancedb.com/blog/semantic-memory-for-hermes-agent-with-lancedb), [Hermes official docs](https://hermes-agent.nousresearch.com/docs/developer-guide/architecture), [Hermes repo](https://github.com/NousResearch/hermes-agent)
-> **Related:** [Context Memory design](CONTEXT_MEMORY.md)
+> **Related:** [Context Memory design](CONTEXT_MEMORY.md), [Token Compression](TOKEN_COMPRESSION.md), [Self-Healing](REQUEST_SELF_HEALING.md), [Harness Evolution](HARNESS_EVOLUTION.md), [Data Analysis](DATA_ANALYSIS.md)
 
 ---
 
@@ -31,7 +31,13 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Pre-compression extraction** | ✅ | ✅ | Both have `on_pre_compress` hooks. |
 | **Memory-provider ABC** | ❌ | ✅ | Hermes formalizes the interface; Atom hardcodes SQL+LanceDB backend. Deferred as premature. |
 | **Agent-callable memory tools** | ✅ | ✅ | `memory_remember` / `memory_forget` (Atom) vs `lancedb_remember` / `mem0_*` (Hermes). |
-| **Context compression** | ◐ | ◐ | Both partial. Hermes has an LLM-summary phase (3 documented bugs); Atom has boundary-protection + tool-pair sanitization only (no LLM summary, deliberately). |
+| **Context compression** | ✅ | ◐ | Atom: RTK tool-output compression (15-95% savings, structured-data safe) + session-dedup (exact-match) + boundary-protection + tool-pair sanitization. Hermes has an LLM-summary phase (3 documented bugs). See [Token Compression](TOKEN_COMPRESSION.md). |
+| **Self-healing request repair** | ✅ | ❌ | Atom: rule-based autofix on provider 4xx (param renames, drop unsupported, truncate context) + optional LLM healer. Hermes has none. See [Self-Healing](REQUEST_SELF_HEALING.md). |
+| **Domain/intent detection** | ✅ | ❌ | Atom: 6-category intent detector (coding/reasoning/conversation/etc.) feeding tier nudging + predictor cache key. Hermes has none. |
+| **LKGP sticky routing** | ✅ | ❌ | Atom: session-level last-known-good-path routing for multi-turn consistency. Hermes has none. |
+| **Fusion routing (panel+judge)** | ✅ | ❌ | Atom: N-model parallel + judge synthesis (COMPLEX tier, opt-in only). Hermes has none. |
+| **Per-request routing overrides** | ✅ | ❌ | Atom: x-atom-tier/model/intent headers. Hermes has none. |
+| **MCP server** | ✅ | ❌ | Atom: exposes routing/compression/governance as MCP tools. Hermes has none. See [MCP Server](MCP_SERVER.md). |
 | **FTS5 lexical search** | ✅ | ✅ | Both have SQLite FTS5 session search. |
 | **Hybrid retrieval + reranker** | ❌ | ✅ | Hermes has BM25+vector fusion + cross-encoder reranker. Atom is pure vector (deferred — modest benchmark gain). |
 | **Outcome prefilter (pass/fail)** | ✅ | ❌ | Atom prefilters `WHERE outcome='failure'` BEFORE vector search (native LanceDB). Hermes relies on cosine, which can't separate near-identical success/fail snapshots. |
@@ -39,19 +45,21 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Tier-1 SQL recall** | ✅ | ➖ | Atom injects `DURABLE FACTS` prompt block. Hermes uses curated markdown instead. |
 | **Circuit breaker (memory)** | ✅ | ✅ | Both: trip after N failures, cooldown. Atom half-open probes; Hermes fixed window. |
 | **Maturity / governance** | ✅ | ❌ | Atom: STUDENT→INTERN→SUPERVISED→AUTONOMOUS with action gating. Hermes has none. |
+| **Self-evolution safety** | ✅ | ❌ | Atom: governance gate (30+ danger patterns), regression validator (parent vs. child output), mutation rollback registry, unified evolution pipeline. Hermes has none. See [Harness Evolution](HARNESS_EVOLUTION.md). |
 | **Deterministic sandbox / blast-radius enforcement** | ✅ | ❌ | Atom: 5-phase sandbox layer (Rounds 43-47) — FS scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge. Hermes has none. See [`SANDBOX_LAYER.md`](SANDBOX_LAYER.md). |
 | **HITL supervision** | ✅ | ❌ | Atom has real-time supervision sessions. |
 | **Multi-agent orchestration** | ✅ | ❌ | Atom: Queen + Fleet Admiral + spawnable specialists. Hermes is single-loop. |
 | **Canvas / rich presentations** | ✅ | ❌ | 7 canvas types, WebSocket, a11y. Hermes is terminal + messaging. |
-| **Cognitive-tier cost routing** | ✅ | ◐ | Atom 5-tier routing. Hermes has aux-model only. |
+| **Cognitive-tier cost routing** | ✅ | ◐ | Atom 5-tier routing + learning predictors + EMA + intent detection + offline Pareto tuner. Hermes has aux-model only. |
+| **Data analysis & predictive modeling** | ✅ | ❌ | Atom: code-interpreter tools (pandas/DuckDB/sklearn in sandbox), dataset management, forecasting, regression/classification. Hermes has none. See [Data Analysis](DATA_ANALYSIS.md). |
 | **Production observability** | ✅ | ❌ | Prometheus, `/health/*`, structlog. Hermes has WARNING logs. |
 | **Browser / device automation** | ✅ | ❌ | Playwright + device capabilities. |
 | **Procedural skill authoring** | ✅ | ✅ | Hermes writes/refines skills from experience. Atom: `/learn` endpoint distills workflows→skills (R72 B) + prompt-time skill auto-injection (R72 C) + graduation/marketplace. |
-| **BYOK + OAuth mgmt** | ✅ | ◐ | Atom: encrypted multi-provider credentials. Hermes: "your model of choice." |
+| **BYOK + OAuth mgmt** | ✅ | ◐ | Atom: encrypted multi-provider credentials + subscription reuse (ChatGPT Plus/Claude Pro via OAuth). Hermes: "your model of choice." |
 | **Reflection / self-correction** | ✅ | ❌ | Atom: in-loop self-correction — deterministic `[CRITIQUE]` on error observations + ActionJudge wiring (R72 A). Hermes has none. |
 | **Parallel tool calls** | ✅ | ❌ | Atom: in-loop parallel tool execution with all-or-nothing HITL batch approval (R72 G, default ON). Hermes is sequential. |
 | **Tool-result memoization** | ✅ | ❌ | Atom: read-only-whitelist result cache (R72 H, default ON). Hermes has none. |
-| **Self-consistency / Mixture-of-Agents** | ✅ | ❌ | Atom: N-sample majority vote (R42) + MoA on hard structured tasks (R72 F, default ON). Hermes is single-pass. |
+| **Self-consistency / Mixture-of-Agents** | ✅ | ❌ | Atom: N-sample majority vote (R42) + MoA on hard structured tasks (R72 F, default ON) + fusion routing. Hermes is single-pass. |
 | **Sleep-like offline consolidation** | ◐ | ◐ | Atom has episode decay/similarity consolidation. Hermes has LanceDB background compaction. Neither has a true forgetting curve. |
 
 ---
