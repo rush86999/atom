@@ -331,8 +331,25 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             session = self._get_or_create_session(user_id, session_id, context)
 
-            # Build conversation history for context
+            # Build conversation history for context.
+            # Session-dedup: replace byte-identical repeated text across turns
+            # with reference markers (exact-match only — zero information loss).
+            # Default ON (COMPRESS_SESSION_DEDUP_ENABLED).
             history = session.get("history", [])[-6:]  # Last 3 turns
+            try:
+                from core.llm.compression import SESSION_DEDUP_ENABLED
+                if SESSION_DEDUP_ENABLED and history:
+                    from core.llm.compression.session_dedup import get_or_create_dedup_index
+                    dedup_idx = get_or_create_dedup_index(session)
+                    for h in history:
+                        if h.get("message"):
+                            h["message"], _ = dedup_idx.deduplicate(h["message"])
+                        resp_msg = (h.get("response") or {}).get("message", "")
+                        if resp_msg:
+                            deduped_resp, _ = dedup_idx.deduplicate(resp_msg)
+                            h["response"]["message"] = deduped_resp
+            except Exception:
+                pass  # dedup must never break the chat path
 
             # 1. Try Qwen AI conversational response first (real AI reply)
             ai_response = await self._get_qwen_response(message, history, routing_overrides)
@@ -1280,6 +1297,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "intent": intent,
             "timestamp": datetime.now().isoformat()
         })
+
+        # Session-dedup write-side: index this turn's content so future turns
+        # can reference-match byte-identical repeated text. Exact-match only.
+        try:
+            from core.llm.compression import SESSION_DEDUP_ENABLED
+            if SESSION_DEDUP_ENABLED:
+                from core.llm.compression.session_dedup import get_or_create_dedup_index
+                dedup_idx = get_or_create_dedup_index(session)
+                if message:
+                    dedup_idx.index_text(message)
+                resp_msg = (response or {}).get("message", "")
+                if resp_msg:
+                    dedup_idx.index_text(resp_msg)
+        except Exception:
+            pass  # dedup indexing must never break session updates
 
         # Persist to DB so chat history survives restarts. Previously this was
         # in-memory only — every server restart silently deleted all conversations.
