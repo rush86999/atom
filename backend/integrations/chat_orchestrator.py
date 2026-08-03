@@ -351,8 +351,20 @@ class ChatOrchestrator:
             except Exception:
                 pass  # dedup must never break the chat path
 
-            # 1. Try Qwen AI conversational response first (real AI reply)
-            ai_response = await self._get_qwen_response(message, history, routing_overrides)
+            # 1. Try Qwen AI conversational response first (real AI reply).
+            # LKGP: pass the session's last-known-good provider/model as a
+            # sticky hint so multi-turn conversations stay on the same model.
+            sticky_hint = None
+            try:
+                import os as _os
+                if _os.getenv("ATOM_LKGP_ENABLED", "true").lower() == "true":
+                    _m = session.get("last_known_good_model")
+                    _p = session.get("last_known_good_provider")
+                    if _m and _p:
+                        sticky_hint = (_p, _m)
+            except Exception:
+                pass
+            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint)
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -381,6 +393,13 @@ class ChatOrchestrator:
                 main_message = ai_response["content"]
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
+                # LKGP: remember which provider/model served this turn so the
+                # next turn in the same session prefers it (sticky routing).
+                # Evidence: vLLM #1439, Vercel, LLM Gateway all recommend
+                # session stickiness for multi-turn consistency.
+                if used_model and used_provider and used_model not in ("template", "auto"):
+                    session["last_known_good_model"] = used_model
+                    session["last_known_good_provider"] = used_provider
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
                 # The response came from a template, not an LLM. Label it
@@ -427,12 +446,17 @@ class ChatOrchestrator:
         message: str,
         history: list,
         routing_overrides: Optional[Dict[str, Any]] = None,
+        sticky_hint: Optional[tuple] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
         ``None`` on failure.
+
+        ``sticky_hint`` (when present) is a ``(provider, model)`` tuple from
+        the session's last-known-good path — forwarded to the routing layer
+        as a boost hint for multi-turn consistency (LKGP).
 
         ``routing_overrides`` (when present) is unpacked into the
         ``generate_completion`` call: ``model`` overrides auto-routing,
@@ -477,6 +501,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 extra_kwargs["cognitive_tier"] = overrides["tier"]
             if "intent" in overrides:
                 extra_kwargs["intent_override"] = overrides["intent"]
+            # LKGP: forward the session's last-known-good (provider, model)
+            # as a sticky hint to the routing layer.
+            if sticky_hint:
+                extra_kwargs["sticky_hint"] = sticky_hint
 
             # Use LLMService for completion (delegates Qwen/OpenAI/Anthropic routing internally)
             response_data = await self.llm_service.generate_completion(
