@@ -57,6 +57,13 @@ class NodeMetrics:
     lint_errors: int = 0
     lint_warnings: int = 0
     lines_changed: int = 0
+    # Dollar cost of this node's execution. Populated by callers that know
+    # the model's price; left at 0 when unknown so the tree's cost budget is
+    # conservative (under-counts rather than over-counts). Previously this
+    # field did not exist, so the cost-budget guard in add_node never tripped
+    # (getattr always returned the 0.0 default) and nodes were added without
+    # bound until max_nodes/max_tokens hit.
+    cost_usd: float = 0.0
 
     def __lt__(self, other: NodeMetrics) -> bool:
         """Compare metrics for ranking nodes."""
@@ -353,9 +360,12 @@ class HypothesisTree:
         # Add node
         self.nodes[node.id] = node
         self.total_tokens_used += node.metrics.tokens_used
-        # Bug #10: total_cost_usd was never incremented, so the cost-budget
-        # guard at line 350 never tripped. Now accumulate the node's cost.
-        self.total_cost_usd += getattr(node.metrics, 'cost_usd', 0.0)
+        # Accumulate the node's cost. NodeMetrics.cost_usd is now a real field;
+        # callers that know the model price populate it. When unset (0.0) the
+        # budget is conservative (under-counts). Previously getattr always
+        # returned 0.0 because the field didn't exist, so the cost guard never
+        # tripped and the tree grew without bound.
+        self.total_cost_usd += node.metrics.cost_usd
 
         # Update parent's children list
         if node.parent_id and node.parent_id in self.nodes:

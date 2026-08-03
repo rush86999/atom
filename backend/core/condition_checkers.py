@@ -148,8 +148,30 @@ class ConditionCheckers:
         threshold_value = threshold.get("value", 0.05)
         window_minutes = threshold.get("window", "5m")
 
-        # Calculate time window
-        window_start = datetime.now(timezone.utc) - timedelta(minutes=5)
+        # Parse the configured window into minutes. Supports "5m", "15m",
+        # "1h", "2h". Previously the configured window was captured into
+        # ``window_minutes`` (used only for the display string) while the
+        # actual query cutoff was hardcoded to 5 minutes — so an operator
+        # setting a 1-hour window got a 5-minute measurement.
+        _wm = window_minutes if isinstance(window_minutes, (int, float)) else str(window_minutes)
+        if isinstance(_wm, (int, float)):
+            window_mins_float = float(_wm)
+        elif isinstance(_wm, str):
+            _wm_lower = _wm.strip().lower()
+            try:
+                if _wm_lower.endswith("h"):
+                    window_mins_float = float(_wm_lower[:-1]) * 60
+                elif _wm_lower.endswith("m"):
+                    window_mins_float = float(_wm_lower[:-1])
+                else:
+                    window_mins_float = float(_wm_lower)
+            except ValueError:
+                window_mins_float = 5.0
+        else:
+            window_mins_float = 5.0
+
+        # Calculate time window from the configured value.
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=window_mins_float)
 
         if metric == "error_rate":
             # Count failed vs total executions

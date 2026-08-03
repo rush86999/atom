@@ -802,11 +802,18 @@ class ExperienceCalculator:
             if m.intervention_required
         ]
         total_interventions = len(interventions)
+        recent_intervention_rate = 0.0  # default when no interventions (normal autonomous case)
 
         if total_interventions > 0:
-            # Calculate intervention rate trend (last 10 vs all)
+            # Calculate intervention rate trend (last 10 vs all).
+            # NOTE: divide by len(recent_interventions), not the hardcoded 10
+            # that was here previously — with <10 interventions the rate was
+            # computed against 10 (always too low), distorting graduation gating.
             recent_interventions = interventions[:10]
-            recent_intervention_rate = sum(1 for m in recent_interventions if m.intervention_required) / 10
+            recent_intervention_rate = (
+                sum(1 for m in recent_interventions if m.intervention_required)
+                / max(len(recent_interventions), 1)
+            )
 
             # Calculate improvement trend (compare first half to second half)
             mid_point = len(interventions) // 2

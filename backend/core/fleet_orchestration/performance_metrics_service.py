@@ -100,6 +100,9 @@ class PerformanceMetricsService:
         self.db = db
         self.redis_url = redis_url
         self._redis_client: Optional[redis.Redis] = None
+        # Strong refs to background persistence tasks so they aren't GC'd
+        # (asyncio only keeps a weak ref to create_task results).
+        self._bg_tasks: set = set()
 
     async def _get_redis(self) -> Optional[redis.Redis]:
         """
@@ -171,8 +174,11 @@ class PerformanceMetricsService:
             # Execute pipeline
             await pipe.execute()
 
-            # Schedule non-blocking database persistence
-            asyncio.create_task(self._persist_to_database(chain_id, result))
+            # Schedule non-blocking database persistence. Keep a strong ref
+            # so the task isn't GC'd mid-flight (asyncio holds only a weak ref).
+            _t = asyncio.create_task(self._persist_to_database(chain_id, result))
+            self._bg_tasks.add(_t)
+            _t.add_done_callback(self._bg_tasks.discard)
 
             logger.debug(f"Recorded metrics for chain {chain_id}: {result.total_tasks} tasks, {result.execution_time_ms}ms")
 

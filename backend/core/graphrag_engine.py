@@ -81,6 +81,8 @@ class GraphRAGEngine:
         self.workspace_id = workspace_id or "default"
         self.tenant_id = tenant_id or "default"
         self.db = db
+        # Strong refs for fire-and-forget automation triggers (prevent GC).
+        self._bg_tasks: set = set()
         # Initialize LLMService for unified LLM interactions
         self.llm_service = LLMService(
             workspace_id=self.workspace_id,
@@ -583,10 +585,11 @@ class GraphRAGEngine:
                     
                 session.commit()
                 
-                # Trigger Automation
+                # Trigger Automation. Keep a strong ref so the task isn't
+                # GC'd before the event fires.
                 if AUTOMATION_AVAILABLE:
                     try:
-                        asyncio.create_task(orchestrator.trigger_event("graph_entity_upsert", {
+                        _t = asyncio.create_task(orchestrator.trigger_event("graph_entity_upsert", {
                             "entity_type": entity.entity_type,
                             "entity_id": entity.id,
                             "name": entity.name,
@@ -594,6 +597,8 @@ class GraphRAGEngine:
                             "workspace_id": ws_id,
                             "tenant_id": tid
                         }))
+                        self._bg_tasks.add(_t)
+                        _t.add_done_callback(self._bg_tasks.discard)
                     except Exception as trigger_err:
                         logger.warning(f"Failed to trigger automation: {trigger_err}")
                         

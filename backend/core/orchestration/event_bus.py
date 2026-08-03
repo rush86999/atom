@@ -440,7 +440,13 @@ class EventBus:
 
             except Exception as e:
                 logger.error(f"Delivery failed to {subscription.subscriber_id}: {e}")
-                event.failed_deliveries[subscription.subscriber_id] += 1
+                # Use .get() — failed_deliveries is a dict defaulting to empty, so
+                # the first failure would raise KeyError on `+= 1`, which then
+                # propagated out of this except block and prevented both the
+                # retry-guard and the count from ever recording.
+                event.failed_deliveries[subscription.subscriber_id] = (
+                    event.failed_deliveries.get(subscription.subscriber_id, 0) + 1
+                )
 
                 # Retry logic
                 if event.failed_deliveries[subscription.subscriber_id] < self.config.max_retry_attempts:

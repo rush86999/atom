@@ -3,10 +3,9 @@ Periodic System Tasks
 Executed by the SQS Worker on a schedule (Heartbeat).
 """
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from core.config import get_config
+from core.database import SessionLocal
 from core.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -17,13 +16,11 @@ async def run_gateway_log_sweep():
     Retention sweep for the LLM gateway request log (Phase B4).
 
     Deletes ``GatewayRequestLog`` rows older than ``ATOM_GATEWAY_LOG_RETENTION_DAYS``
-    (default 30). Uses its own engine/session so it can run in the worker
-    heartbeat without sharing the request-bound session.
+    (default 30). Uses the shared ``SessionLocal`` so it doesn't leak a new
+    connection pool per invocation (the prior ``create_engine`` per call was a
+    slow connection leak on the recurring heartbeat).
     """
     try:
-        config = get_config()
-        engine = create_engine(config.database_url)
-        SessionLocal = sessionmaker(bind=engine)
         with SessionLocal() as db:
             from core.llm.gateway.request_logger import sweep_gateway_logs
 
@@ -37,7 +34,7 @@ async def run_gateway_log_sweep():
 async def run_global_ingestion_pulse():
     """
     Heartbeat Task: Triggers document ingestion sync for all active workspaces.
-    
+
     Architecture:
     1. AWS EventBridge fires 'System Heartbeat' every 5 minutes.
     2. API receives pulse -> Dispatches this task to SQS.
@@ -45,12 +42,8 @@ async def run_global_ingestion_pulse():
     4. Dispatches individual 'sync_integration' tasks for each enabled integration.
     5. The individual tasks check Tier Limits (Tier 1 = Skip if <60m, Tier 2 = Sync).
     """
-    config = get_config()
-    engine = create_engine(config.database_url)
-    SessionLocal = sessionmaker(bind=engine)
-    
     logger.info("❤️ Global Ingestion Heartbeat Started")
-    
+
     try:
         with SessionLocal() as db:
             workspaces = db.query(Workspace).all()

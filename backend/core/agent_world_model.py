@@ -584,7 +584,12 @@ class WorldModelService:
         # Semantic search for similar experiences — use the correct LanceDB
         # search API (query + filter_str, not query_text/where).
         # Bug #1: the old call used non-existent kwargs query_text/where → TypeError.
-        _filter = f"task_type = '{task_type}' AND agent_role = '{agent_role}'"
+        # Escape single quotes via doubling ('') to prevent filter
+        # injection/breakage — connector_id/operation_name are integration-
+        # supplied and may contain quotes. LanceDB/DataFusion SQL literal rule.
+        safe_task = task_type.replace("'", "''")
+        safe_role = agent_role.replace("'", "''")
+        _filter = f"task_type = '{safe_task}' AND agent_role = '{safe_role}'"
         results = self.db.search(
             table_name=self.table_name,
             query=f"Integration {connector_id} {operation_name}",
@@ -1324,7 +1329,12 @@ class WorldModelService:
                     continue
 
                 # Calculate canvas boost (NEW: Canvas-Aware Retrieval)
-                base_score = res.get("_score", 0.5)
+                # LanceDB handler returns results keyed "score" (see
+                # lancedb_handler.py search()), not "_score" — the prior key
+                # mismatch meant base_score was ALWAYS the 0.5 default, so
+                # ranking ignored actual semantic similarity and reduced to
+                # ranking by boost only.
+                base_score = res.get("score", res.get("_score", 0.5))
                 canvas_boost = 0.0
                 feedback_boost = 0.0
 

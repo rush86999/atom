@@ -166,13 +166,31 @@ def check_egress(
             )
 
         parsed = urlparse(url)
+        # Reject non-http(s) schemes explicitly. Without this, exotic schemes
+        # (file://, gopher://, ftp://) that urlparse mishandles could bypass
+        # the host allowlist check below.
+        if parsed.scheme not in ("http", "https", ""):
+            return SandboxDecision(
+                decision=BLOCKED,
+                phase="D",
+                violation_type=VT_EGRESS_HOST,
+                violation_detail=f"non-http(s) scheme '{parsed.scheme}' blocked (url={url})",
+                tool_name=tool_name,
+                args_hash=args_hash,
+                enforced=sandbox_config.is_sandbox_force_enforce_enabled(),
+                metadata_json={"url": url, "scheme": parsed.scheme},
+            )
+
         host = normalize_host(parsed.hostname)
         if not host:
             return SandboxDecision(
-                decision=ALLOWED,
+                decision=BLOCKED,
                 phase="D",
+                violation_type=VT_EGRESS_HOST,
+                violation_detail=f"no host in url or host unparseable (url={url})",
                 tool_name=tool_name,
                 args_hash=args_hash,
+                enforced=sandbox_config.is_sandbox_force_enforce_enabled(),
                 metadata_json={"url": url, "reason": "no_host_in_url"},
             )
 
@@ -204,13 +222,16 @@ def check_egress(
                 "allowlist_size": len(allow),
             },
         )
-    except Exception as e:  # noqa: BLE001 — fail open on parse errors
-        logger.debug("egress check failed open for %s: %s", url, e)
+    except Exception as e:  # fail CLOSED — a parse error must not bypass the allowlist
+        logger.warning("egress check failed CLOSED for %s: %s", url, e)
         return SandboxDecision(
-            decision=ALLOWED,
+            decision=BLOCKED,
             phase="D",
+            violation_type=VT_EGRESS_HOST,
+            violation_detail=f"egress check error (url={url}): {e}",
             tool_name=tool_name,
             args_hash=args_hash,
+            enforced=sandbox_config.is_sandbox_force_enforce_enabled(),
             metadata_json={"url": url, "error": str(e)},
         )
 

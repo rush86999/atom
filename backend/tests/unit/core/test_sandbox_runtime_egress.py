@@ -402,20 +402,26 @@ def test_D14_effective_allowlist_union():
 
 
 # ===========================================================================
-# D15: malformed URL → ALLOWED with metadata (fail-open on parse)
+# D15: malformed URL → BLOCKED (fail-closed on parse error)
 # ===========================================================================
 
 
 @pytest.mark.unit
-def test_D15_malformed_url_fail_open(monkeypatch):
+def test_D15_malformed_url_fail_closed(monkeypatch):
+    """A malformed/unparseable URL must be BLOCKED, not ALLOWED.
+
+    Previously the egress proxy failed open on parse errors, meaning a URL
+    that urlparse mishandled (exotic schemes, unicode hosts, IPv6) bypassed
+    the allowlist. This is a security boundary — fail closed.
+    """
     from core.sandbox_egress_proxy import check_egress
-    from core.sandbox_policy import ALLOWED
+    from core.sandbox_policy import BLOCKED
 
     monkeypatch.setenv("ATOM_SANDBOX_EGRESS_ENABLED", "true")
     policy = _policy()
     d = check_egress(policy, url="not-a-url-at-all", tool_name="t")
-    # No host parsed → allowed (caller will hit DNS failure upstream)
-    assert d.decision == ALLOWED
+    # No host parsed → BLOCKED (don't let a malformed URL bypass the allowlist)
+    assert d.decision == BLOCKED
 
 
 # ===========================================================================
