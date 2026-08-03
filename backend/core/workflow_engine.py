@@ -56,6 +56,10 @@ class WorkflowEngine:
         self.max_concurrent_steps = max_concurrent_steps
         self.semaphore = asyncio.Semaphore(max_concurrent_steps)
         self.cancellation_requests = set()
+        # Strong references to background execution tasks. Python's asyncio
+        # only keeps a weak ref to create_task results; without a strong ref
+        # the task can be GC'd and silently cancelled mid-execution.
+        self._background_tasks: set = set()
 
     def _publish_orchestration_event(self, event_type_name: str, workflow_id: str,
                                      execution_id: str, step_id: str = "",
@@ -102,7 +106,9 @@ class WorkflowEngine:
         if background_tasks:
             background_tasks.add_task(self._run_execution, execution_id, workflow)
         else:
-            asyncio.create_task(self._run_execution(execution_id, workflow))
+            task = asyncio.create_task(self._run_execution(execution_id, workflow))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
         return execution_id
 
@@ -548,8 +554,9 @@ class WorkflowEngine:
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
 
         # Resume execution — strong ref to prevent GC cancellation
-        _task = asyncio.create_task(self._run_execution(execution_id, workflow))
-        _task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+        task = asyncio.create_task(self._run_execution(execution_id, workflow))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
         return True
 
     async def cancel_execution(self, execution_id: str) -> bool:

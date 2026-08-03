@@ -801,12 +801,16 @@ class LanceDBHandler:
 
             # 1. Enforce Workspace Isolation
             if self.workspace_id:
-                safe_ws = str(self.workspace_id).replace("'", "\\'")
+                # LanceDB/DataFusion SQL string literals escape single quotes
+                # by doubling them (''), NOT backslash-escaping (\''). The
+                # latter either breaks the filter (parse error → empty results)
+                # or can terminate the literal early. Matches _escape_like.
+                safe_ws = str(self.workspace_id).replace("'", "''")
                 filters.append(f"workspace_id == '{safe_ws}'")
 
             # 2. Apply User Filter
             if user_id:
-                safe_user = str(user_id).replace("'", "\\'")
+                safe_user = str(user_id).replace("'", "''")
                 filters.append(f"user_id == '{safe_user}'")
 
             # 3. Apply Custom Filter
