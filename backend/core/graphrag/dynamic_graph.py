@@ -14,6 +14,7 @@ Implements:
 import hashlib
 import json
 import logging
+import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -266,6 +267,10 @@ class IncrementalUpdateManager:
         self.version_manager = GraphVersionManager(config)
         self.pending_updates: List[GraphUpdate] = []
         self.last_flush = datetime.now()
+        # Guards pending_updates (append in add_update, iterate+clear in
+        # flush_updates). Without a lock, concurrent coroutines/threads can
+        # mutate the list during _group_updates iteration → RuntimeError.
+        self._lock = threading.Lock()
 
     def add_update(
         self,
@@ -295,10 +300,13 @@ class IncrementalUpdateManager:
             metadata={"workspace_id": workspace_id}
         )
 
-        self.pending_updates.append(update)
+        # Check if we should flush under the lock so the decision and the
+        # append are atomic vs a concurrent flush.
+        with self._lock:
+            self.pending_updates.append(update)
+            should_flush = self._should_flush()
 
-        # Check if we should flush
-        if self._should_flush():
+        if should_flush:
             return self.flush_updates(workspace_id, session)
 
         return True
@@ -318,24 +326,37 @@ class IncrementalUpdateManager:
         Returns:
             True if successful
         """
-        if not self.pending_updates:
-            return True
+        # Snapshot the pending list under the lock, then clear it so the
+        # expensive DB work (_flush_impl) runs outside the lock without
+        # blocking concurrent add_update calls. New updates added during the
+        # flush land in the now-empty list and flush on the next cycle.
+        with self._lock:
+            if not self.pending_updates:
+                return True
+            batch, self.pending_updates = self.pending_updates, []
 
         if session is None:
             with get_db_session() as sess:
-                return self._flush_impl(workspace_id, sess)
+                return self._flush_impl(workspace_id, sess, batch)
         else:
-            return self._flush_impl(workspace_id, session)
+            return self._flush_impl(workspace_id, session, batch)
 
     def _flush_impl(
         self,
         workspace_id: str,
-        session: Session
+        session: Session,
+        batch: Optional[List[GraphUpdate]] = None,
     ) -> bool:
-        """Internal flush implementation"""
+        """Internal flush implementation.
+
+        ``batch`` is the snapshot of updates to flush (taken under the lock in
+        ``flush_updates``). When None, falls back to the pending list (for
+        callers that flush synchronously without the lock snapshot).
+        """
+        updates_to_flush = batch if batch is not None else self.pending_updates
         try:
             # Group updates by type for efficiency
-            grouped = self._group_updates(self.pending_updates)
+            grouped = self._group_updates(updates_to_flush)
 
             # Apply updates
             for update_type, updates in grouped.items():
@@ -350,8 +371,12 @@ class IncrementalUpdateManager:
 
             session.commit()
 
-            flushed_count = len(self.pending_updates)
-            self.pending_updates.clear()
+            flushed_count = len(updates_to_flush)
+            # Only clear when we flushed from the live pending list (batch is
+            # None). When a batch snapshot was used, flush_updates already
+            # swapped the list — don't clear updates added since the snapshot.
+            if batch is None:
+                self.pending_updates.clear()
             self.last_flush = datetime.now()
 
             logger.info(f"Flushed {flushed_count} updates for workspace {workspace_id}")

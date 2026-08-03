@@ -14,6 +14,7 @@ Perfect for:
 from datetime import datetime
 from enum import Enum
 import logging
+import threading
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -21,6 +22,27 @@ from sqlalchemy.orm import Session
 from core.models import CanvasAudit
 
 logger = logging.getLogger(__name__)
+
+# Per-canvas serialization lock registry. Canvas mutating methods do a read-
+# modify-write on the "latest audit row": they read the latest row's
+# details_json, mutate it in memory, then INSERT a new row. Two concurrent
+# mutations to the same canvas each read the same latest row, each append
+# their change, and the loser's change is silently lost. This lock
+# serializes mutations per-canvas_id so the second read sees the first's
+# insert. Process-local (sufficient for single-process deployments; a
+# multi-replica deploy would need a DB-level advisory lock).
+_canvas_locks_lock = threading.Lock()
+_canvas_locks: Dict[str, threading.Lock] = {}
+
+
+def _canvas_lock(canvas_id: str) -> threading.Lock:
+    """Return the serialization Lock for a single canvas (creating it if needed)."""
+    with _canvas_locks_lock:
+        lock = _canvas_locks.get(canvas_id)
+        if lock is None:
+            lock = threading.Lock()
+            _canvas_locks[canvas_id] = lock
+        return lock
 
 
 class CanvasTaskStatus(str, Enum):
@@ -259,6 +281,10 @@ class OrchestrationCanvasService:
                 assigned_agent="atom-meta-agent"
             )
         """
+        # Serialize per-canvas so two concurrent add_workflow_node calls don't
+        # both read the same latest audit row and lose one update.
+        _cl = _canvas_lock(canvas_id)
+        _cl.acquire()
         try:
             from sqlalchemy import desc
 
@@ -321,6 +347,8 @@ class OrchestrationCanvasService:
             logger.error(f"Failed to add integration node: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}
+        finally:
+            _cl.release()
 
     def connect_nodes(
         self,
@@ -343,6 +371,8 @@ class OrchestrationCanvasService:
         Returns:
             Dict with connection details
         """
+        _cl = _canvas_lock(canvas_id)
+        _cl.acquire()
         try:
             from sqlalchemy import desc
 
@@ -390,6 +420,8 @@ class OrchestrationCanvasService:
             logger.error(f"Failed to connect nodes: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}
+        finally:
+            _cl.release()
 
     def add_task(
         self,
@@ -414,6 +446,8 @@ class OrchestrationCanvasService:
         Returns:
             Dict with task details
         """
+        _cl = _canvas_lock(canvas_id)
+        _cl.acquire()
         try:
             from sqlalchemy import desc
 
@@ -462,6 +496,8 @@ class OrchestrationCanvasService:
             logger.error(f"Failed to add task: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}
+        finally:
+            _cl.release()
 
     def _task_to_dict(self, task: WorkflowTask) -> Dict[str, Any]:
         """Convert task to dict."""

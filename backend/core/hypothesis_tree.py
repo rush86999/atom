@@ -133,23 +133,38 @@ class HypothesisNode:
         """Check if this node failed validation."""
         return self.status in (NodeStatus.FAILED, NodeStatus.PRUNED)
 
-    def get_ucb1_score(self, exploration_constant: float = 1.41) -> float:
+    def get_ucb1_score(
+        self,
+        exploration_constant: float = 1.41,
+        parent_visits: int = 0,
+    ) -> float:
         """
         Calculate UCB1 score for MCTS node selection.
 
         UCB1 = average_reward + c * sqrt(ln(parent_visits) / visits)
 
         Args:
-            exploration_constant: Controls exploration vs exploitation (default: sqrt(2))
+            exploration_constant: Controls exploration vs exploitation
+                (default: sqrt(2) ≈ 1.41).
+            parent_visits: The parent node's visit count. Required for the
+                correct exploration term. The prior formula used the node's
+                own visit_count in place of the parent's and omitted ln(),
+                which over-explored low-visit nodes.
 
         Returns:
-            UCB1 score for node selection
+            UCB1 score for node selection.
         """
+        import math
+
         if self.visit_count == 0:
             return float('inf')
 
         exploitation = self.total_value / self.visit_count
-        exploration = exploration_constant * (2 * (self.visit_count + 1)) ** 0.5 / self.visit_count
+        # Standard UCB1 exploration term. Fall back to the node's own visit
+        # count when parent_visits isn't supplied (backward-compat), but
+        # callers should pass the real parent visit count.
+        pv = parent_visits if parent_visits > 0 else self.visit_count
+        exploration = exploration_constant * math.sqrt(math.log(max(pv, 1)) / self.visit_count)
 
         return exploitation + exploration
 
