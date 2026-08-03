@@ -149,17 +149,16 @@ df = pd.read_json('{df_json}')
             logger.debug(f"Sandbox unavailable ({sandbox_err}); using local eval")
 
         # Fallback: local pandas eval (dev/test only — NOT for production).
-        # Uses full builtins since this is a dev convenience path; the
-        # production path uses the sandbox with AST tripwires.
+        # Uses a clean global namespace so imports work (the production path
+        # uses the sandbox with AST tripwires; this is just for dev/testing).
         import pandas as pd
-        import builtins as _builtins
-        local_vars = {"df": df, "pd": pd, "json": _builtins.__import__("json")}
+        local_vars: dict = {"df": df, "pd": pd}
         import io as _io
         import contextlib as _contextlib
 
         stdout_capture = _io.StringIO()
         with _contextlib.redirect_stdout(stdout_capture):
-            exec(code, {"__builtins__": _builtins.__dict__}, local_vars)
+            exec(code, {}, local_vars)
 
         output = stdout_capture.getvalue().strip()
         import json as _json
