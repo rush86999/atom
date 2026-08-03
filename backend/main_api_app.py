@@ -3144,6 +3144,15 @@ try:
     except Exception as e:
         logger.warning(f"LLM Gateway routes failed to load: {e}")
 
+    # 24c. MCP Server Routes (Model Context Protocol — exposes routing,
+    # compression, governance as MCP tools for external AI agents).
+    try:
+        from api.mcp_server_routes import router as mcp_router
+        app.include_router(mcp_router, tags=["MCP Server"])
+        logger.info("✓ MCP Server Routes Loaded")
+    except Exception as e:
+        logger.warning(f"MCP Server routes failed to load: {e}")
+
     # 25. SSO API Routes (Phase 76)
     try:
 
