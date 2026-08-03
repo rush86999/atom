@@ -108,8 +108,13 @@ class SelfEvolutionService:
                 })
                 config["evolution_history"] = evolution_history
 
-                if agent.confidence_score > 0.9:
-                    config["elevated_privileges"] = True
+                # NOTE: privilege escalation (config["elevated_privileges"] =
+                # True) was previously auto-set when confidence_score > 0.9.
+                # Removed — privilege escalation must go through the maturity
+                # graduation path (capability_graduation_service), not be
+                # auto-granted by a confidence proxy. Evidence: Lin (2026)
+                # warns that architectural mutation can grant an agent control
+                # over its own privilege process.
 
                 agent.configuration = config
                 db.commit()

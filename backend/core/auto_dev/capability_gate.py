@@ -182,7 +182,11 @@ class AutoDevCapabilityService:
             return count < max_daily
         except Exception as e:
             logger.error(f"Failed to check daily limits: {e}")
-            return True  # Fail open to avoid blocking the system
+            # Fail CLOSED: if we can't verify the daily limit, block the
+            # mutation rather than allowing unbounded evolution. Previously
+            # this returned True (fail-open), disabling the rate limit on any
+            # error — the opposite of safe.
+            return False
 
     def notify_capability_unlocked(
         self, agent_id: str, capability: str
