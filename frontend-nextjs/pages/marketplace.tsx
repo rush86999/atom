@@ -82,7 +82,12 @@ export default function MarketplacePage() {
                 ? `/api/workflow-templates?category=${encodeURIComponent(selectedCategory)}`
                 : '/api/workflow-templates'
 
-            const response = await fetch(url)
+            const token = localStorage.getItem('auth_token')
+            const response = await fetch(url, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            })
             if (!response.ok) {
                 const details = await response.text().catch(() => '')
                 throw new Error(details || `Failed to fetch templates (${response.status})`)
@@ -109,9 +114,13 @@ export default function MarketplacePage() {
 
     const handleImport = async (id: string) => {
         try {
+            const token = localStorage.getItem('auth_token')
             const response = await fetch(`/api/workflow-templates/${id}/import`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
             })
 
             if (response.ok) {
