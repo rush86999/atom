@@ -162,6 +162,22 @@ const nextConfig = {
       },
       // Specific Auth Rewrites (Delegate only these to Python Backend)
       {
+        source: "/api/auth/:service/authorize",
+        destination: "http://127.0.0.1:8000/api/auth/:service/authorize",
+      },
+      {
+        source: "/api/auth/:service/initiate",
+        destination: "http://127.0.0.1:8000/api/auth/:service/initiate",
+      },
+      {
+        source: "/api/auth/:service/status",
+        destination: "http://127.0.0.1:8000/api/auth/:service/status",
+      },
+      {
+        source: "/api/v1/auth/oauth/:path*",
+        destination: "http://127.0.0.1:8000/api/v1/auth/oauth/:path*",
+      },
+      {
         source: "/api/auth/login",
         destination: "http://127.0.0.1:8000/api/auth/login",
       },
