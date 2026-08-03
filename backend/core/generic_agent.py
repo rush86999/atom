@@ -249,6 +249,19 @@ class GenericAgent:
                                     logger.warning(f"Failed to capture screenshot for vision: {se}")
                         
                         step_record["output"] = observation
+                        # RTK compression: compress verbose tool/terminal output
+                        # before it enters the execution history. Lossless for
+                        # structured data (JSON/SQL/API responses skipped).
+                        try:
+                            from core.llm.compression import get_compression_pipeline
+                            _obs_str = str(observation)
+                            _compressed, _rtk_m = (
+                                get_compression_pipeline().compress_tool_output(_obs_str)
+                            )
+                            if _rtk_m.savings_tokens > 0:
+                                observation = _compressed
+                        except Exception:
+                            pass  # compression must never break the agent loop
                         execution_history += f"Observation: {str(observation)}\n"
 
                         # ── In-loop self-correction (Workstream A) ────────────

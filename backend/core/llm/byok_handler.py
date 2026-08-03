@@ -1600,6 +1600,20 @@ class BYOKHandler:
                         messages.append({"role": "user", "content": user_content})
                         logger.info(f"Adding visual payload to request for {model}")
                     else:
+                        # RTK compression: compress terminal/tool output in the
+                        # prompt before sending to the LLM. Only touches free-
+                        # form log/terminal text — structured data (JSON/SQL/API
+                        # responses) is detected and skipped entirely. Default
+                        # ON (ATOM_COMPRESSION_ENABLED + COMPRESS_RTK_ENABLED).
+                        try:
+                            from core.llm.compression import get_compression_pipeline
+                            _compressed_prompt, _rtk_metrics = (
+                                get_compression_pipeline().compress_tool_output(prompt)
+                            )
+                            if _rtk_metrics.savings_tokens > 0:
+                                prompt = _compressed_prompt
+                        except Exception:
+                            pass  # compression must never break the hot path
                         messages.append({"role": "user", "content": prompt})
 
                     # Make the request
