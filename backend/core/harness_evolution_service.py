@@ -134,6 +134,9 @@ class HarnessEvolutionService:
     async def deploy_harness_patch(self, patch: Dict[str, Any], agent_id: str) -> bool:
         """
         Commit the validated harness patch directly into the agent registry configuration.
+
+        Takes a rollback snapshot before deploying so the patch can be reverted
+        on regression via the MutationRollbackRegistry.
         """
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
@@ -142,9 +145,24 @@ class HarnessEvolutionService:
 
         if not agent.configuration:
             agent.configuration = {}
-        
+
         if "harness_patches" not in agent.configuration:
             agent.configuration["harness_patches"] = []
+
+        # Take a rollback snapshot before mutating (Phase 1b).
+        old_patches = list(agent.configuration.get("harness_patches", []))
+        try:
+            from core.auto_dev.mutation_rollback import get_rollback_registry
+            mutation_id = get_rollback_registry().snapshot(
+                agent_id=agent_id,
+                config_key="harness_patches",
+                old_value=old_patches,
+                new_value=patch,
+                source="harness_evolution",
+            )
+            patch["_rollback_mutation_id"] = mutation_id
+        except Exception:
+            pass  # rollback is best-effort; never blocks deployment
 
         # Upsert patch configuration
         patches = agent.configuration["harness_patches"]
@@ -156,6 +174,6 @@ class HarnessEvolutionService:
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(agent, "configuration")
         self.db.commit()
-        
+
         logger.info(f"Successfully deployed patch {patch['patch_id']} to agent {agent_id}")
         return True

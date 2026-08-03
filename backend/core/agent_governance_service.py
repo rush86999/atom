@@ -718,3 +718,117 @@ class AgentGovernanceService:
         # Placeholder for outcome recording logic
         logger.info(f"Recorded outcome for {agent_id}: {'success' if success else 'failure'}")
         self._update_confidence_score(agent_id, positive=success, impact_level="low")
+
+    # =========================================================================
+    # Evolution directive validation (the misevolution defense)
+    # =========================================================================
+    #
+    # Evidence: Shao et al. "Your Agent May Misevolve" (ICLR 2026) shows that
+    # self-evolving agents can degrade in safety alignment, and it's pervasive
+    # without strong mitigation. Lin (2026) warns that architectural mutation
+    # lets an agent modify the process that shapes it.
+    #
+    # The GEA evolution loop calls this method before promoting an evolved
+    # config. Previously it didn't exist → the loop fell back to a 3-phrase
+    # substring blocklist that was trivially bypassable.
+
+    # Expanded danger patterns — any directive matching these is rejected.
+    # Organized by category for clarity and future extension.
+    _DANGER_PATTERNS: List[str] = [
+        # Safety bypass attempts
+        "ignore all rules", "bypass guardrails", "disable safety",
+        "skip safety", "do not follow rules", "remove restrictions",
+        "ignore governance", "act without approval", "skip approval",
+        "override safety", "override governance", "ignore policy",
+        "disregard rules", "no rules apply", "rules do not apply",
+        # Privilege escalation
+        "elevate privileges", "grant elevated", "escalate privileges",
+        "act as admin", "act as root", "full access",
+        "unrestricted access", "remove restrictions",
+        # Self-referential mutation (disabling own safety net)
+        "remove tripwire", "disable tripwire", "weaken tripwire",
+        "disable sandbox", "bypass sandbox", "remove sandbox",
+        "disable governance", "remove governance",
+        "delete validation", "skip validation", "disable validation",
+        "remove guardrails", "weaken guardrails",
+    ]
+
+    # Config keys that are part of the agent's own safety/harness layer.
+    # A mutation that modifies these keys is self-referential (attempting to
+    # alter its own safety net) and must be explicitly reviewed.
+    _PROTECTED_CONFIG_KEYS = frozenset({
+        "ast_tripwire", "sandbox_config", "governance_config",
+        "guardrails", "elevated_privileges", "autonomous_guardrails",
+        "harness_patches", "capability_gate",
+    })
+
+    async def validate_evolution_directive(
+        self,
+        evolved_config: Dict[str, Any],
+        tenant_id: str,
+    ) -> bool:
+        """Validate an evolved agent config against governance policy.
+
+        This is the real implementation of the governance gate that the GEA
+        evolution loop calls before promoting a mutation. Returns True if the
+        config passes all checks; False if it violates any safety rule.
+
+        Checks:
+          1. Danger-pattern scan on system_prompt directives (expanded set)
+          2. Self-referential mutation detection (modifying protected config keys)
+          3. Privilege escalation without maturity (elevated_privileges=True)
+          4. Directive injection (attempts to overwrite governance instructions)
+
+        Evidence: closes the "misevolution" risk identified by Shao et al.
+        (ICLR 2026) and Lin (2026).
+        """
+        violations: List[str] = []
+
+        # 1. Scan system_prompt for danger patterns
+        system_prompt = str(evolved_config.get("system_prompt", "")).lower()
+        for pattern in self._DANGER_PATTERNS:
+            if pattern in system_prompt:
+                violations.append(f"danger pattern in system_prompt: '{pattern}'")
+
+        # 2. Detect self-referential mutation of protected config keys
+        for key in self._PROTECTED_CONFIG_KEYS:
+            if key in evolved_config:
+                # The config contains a mutation targeting a safety/harness key.
+                # This is allowed ONLY if the value hasn't changed from the
+                # agent's current config (i.e., it was carried forward, not
+                # mutated). We can't know the "before" here without a diff,
+                # so we flag it for explicit review.
+                # Exception: harness_patches is allowed (it's the normal patch
+                # delivery mechanism for HarnessEvolutionService).
+                if key != "harness_patches":
+                    violations.append(
+                        f"self-referential mutation of protected config key: '{key}'"
+                    )
+
+        # 3. Privilege escalation check
+        if evolved_config.get("elevated_privileges") is True:
+            # Privilege escalation must go through the maturity graduation path
+            # (capability_graduation_service), not be auto-set by evolution.
+            violations.append(
+                "privilege escalation: elevated_privileges=True set by evolution "
+                "(must go through maturity graduation, not auto-tuning)"
+            )
+
+        # 4. Directive injection: check for attempts to overwrite governance
+        # instructions embedded in the prompt
+        directives = evolved_config.get("evolution_directives", [])
+        if isinstance(directives, list):
+            for d in directives:
+                d_lower = str(d).lower()
+                for pattern in self._DANGER_PATTERNS:
+                    if pattern in d_lower:
+                        violations.append(f"danger pattern in directive: '{pattern}'")
+
+        if violations:
+            logger.warning(
+                f"Evolution directive REJECTED for tenant {tenant_id}: "
+                f"{'; '.join(violations)}"
+            )
+            return False
+
+        return True

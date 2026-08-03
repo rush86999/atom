@@ -574,10 +574,13 @@ class AgentEvolutionLoop:
                 "GEA: GraduationExamService evaluation failed (%s); using proxy score", e
             )
 
-        # Fallback: lightweight proxy
+        # Fallback: lightweight proxy. Uses confidence_score alone — the prior
+        # code padded it with an evolution-count bonus (min(0.05, 0.01 * len(
+        # evolution_history))) which was a perverse incentive: agents that had
+        # been evolved more times got a higher score regardless of quality.
+        # Evidence: SOTA evaluation (Darwin Gödel Machine, RepoFixer) measures
+        # actual task success, not evolution count.
         benchmark_score: float = agent.confidence_score
-        evolution_bonus = min(0.05, 0.01 * len(evolved_config.get("evolution_history", [])))
-        benchmark_score = min(1.0, benchmark_score + evolution_bonus)
         benchmark_passed = benchmark_score >= 0.55
         return benchmark_score, benchmark_passed
 
@@ -596,8 +599,25 @@ class AgentEvolutionLoop:
         Commit the evolved config to the seed agent (in-place update).
         Records the evolution in the agent's configuration.
 
+        Takes a rollback snapshot before deploying so the evolution can be
+        reverted on regression via the MutationRollbackRegistry.
+
         Returns the agent_id of the updated agent.
         """
+        # Take a rollback snapshot of the old config before overwriting (1b).
+        old_config = dict(seed_agent.configuration or {})
+        try:
+            from core.auto_dev.mutation_rollback import get_rollback_registry
+            get_rollback_registry().snapshot(
+                agent_id=seed_agent.id,
+                config_key="configuration",
+                old_value=old_config,
+                new_value=evolved_config,
+                source="gea",
+            )
+        except Exception:
+            pass  # rollback is best-effort
+
         seed_agent.configuration = evolved_config
         seed_agent.self_healed_count = (seed_agent.self_healed_count or 0) + 1
         seed_agent.updated_at = datetime.now(timezone.utc)
