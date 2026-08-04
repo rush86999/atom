@@ -54,13 +54,11 @@ def sample_queue_entry():
     entry.user_id = "user_001"
     entry.trigger_type = "scheduled"
     entry.status = QueueStatus.pending
-    entry.supervisor_type = "user"
     entry.priority = 5
-    entry.attempt_count = 0
-    entry.max_attempts = 3
+    entry.attempts = 0
     entry.expires_at = datetime.now() + timedelta(hours=1)
-    entry.execution_id = None
-    entry.error_message = None
+    entry.execution_result = None
+    entry.last_error = None
     entry.created_at = datetime.now()
     entry.updated_at = datetime.now()
     return entry

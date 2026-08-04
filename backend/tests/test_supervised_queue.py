@@ -5,10 +5,10 @@ Test queue management for SUPERVISED agents when users are unavailable.
 """
 
 import pytest
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.models import (
     AgentRegistry,
     AgentStatus,
@@ -16,6 +16,7 @@ from core.models import (
     SupervisedExecutionQueue,
     User,
     UserActivity,
+    UserRole,
     UserState,
 )
 from core.supervised_queue_service import SupervisedQueueService
@@ -26,22 +27,31 @@ from core.supervised_queue_service import SupervisedQueueService
 # ============================================================================
 
 @pytest.fixture
-def db():
-    """Get database session."""
-    db = next(get_db())
+def db(worker_database):
+    """Get an isolated in-memory database session.
+
+    Uses the root conftest's worker_database (in-memory SQLite, clean per
+    session) instead of ``get_db()``, which points at the real dev DB and
+    would leak test users/queues into it.
+    """
+    SessionLocal = worker_database
+    db = SessionLocal()
     try:
         yield db
     finally:
+        db.rollback()
         db.close()
 
 
 @pytest.fixture
 def test_user(db: Session):
-    """Create test user."""
+    """Create test user with a unique email (session-scoped in-memory DB)."""
+    import uuid
     user = User(
-        email="test@example.com",
+        email=f"test-{uuid.uuid4().hex[:8]}@example.com",
         first_name="Test",
         last_name="User",
+        role=UserRole.MEMBER.value,
         status="ACTIVE"
     )
     db.add(user)
@@ -56,10 +66,11 @@ def test_agent(db: Session, test_user: User):
     agent = AgentRegistry(
         name="Test Supervised Agent",
         description="An agent for testing",
-        agent_type="generic",
         category="testing",
         status=AgentStatus.SUPERVISED.value,
         confidence_score=0.75,
+        module_path="testing",
+        class_name="TestSupervisedAgent",
         user_id=test_user.id
     )
     db.add(agent)
@@ -105,8 +116,7 @@ def test_enqueue_execution_creates_queue_entry(
     assert entry.trigger_type == "automated"
     assert entry.status == QueueStatus.pending
     assert entry.priority == 1
-    assert entry.attempt_count == 0
-    assert entry.max_attempts == 3
+    assert entry.attempts == 0
 
 
 def test_enqueue_execution_with_custom_expiry(
@@ -308,7 +318,10 @@ def test_cancel_queue_entry_unauthorized_user(
 
     # Create another user
     other_user = User(
-        email="other@example.com",
+        email=f"other-{uuid.uuid4().hex[:8]}@example.com",
+        first_name="Other",
+        last_name="User",
+        role=UserRole.MEMBER.value,
         status="ACTIVE"
     )
     db.add(other_user)
@@ -440,7 +453,7 @@ def test_update_queue_status_to_executing(
     ))
 
     assert updated.status == QueueStatus.executing
-    assert updated.execution_id == "exec_123"
+    assert (updated.execution_result or {}).get("execution_id") == "exec_123"
 
 
 def test_update_queue_status_to_failed_with_error(
@@ -467,7 +480,7 @@ def test_update_queue_status_to_failed_with_error(
     ))
 
     assert updated.status == QueueStatus.failed
-    assert updated.error_message == "Execution failed: timeout"
+    assert updated.last_error == "Execution failed: timeout"
 
 
 # ============================================================================
@@ -501,7 +514,7 @@ def test_mark_expired_queues_updates_status(
     # Check entry is marked as failed
     queue_service.db.refresh(entry)
     assert entry.status == QueueStatus.failed
-    assert "expired" in entry.error_message.lower()
+    assert "expired" in entry.last_error.lower()
 
 
 def test_mark_expired_queues_only_marks_pending(
@@ -581,7 +594,10 @@ def test_get_queue_stats_filters_by_user(
 
     # Create another user
     other_user = User(
-        email="other@example.com",
+        email=f"other-{uuid.uuid4().hex[:8]}@example.com",
+        first_name="Other",
+        last_name="User",
+        role=UserRole.MEMBER.value,
         status="ACTIVE"
     )
     db.add(other_user)

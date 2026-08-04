@@ -77,18 +77,21 @@ class SupervisedQueueService:
         if not expires_at:
             expires_at = datetime.now(timezone.utc) + timedelta(hours=DEFAULT_QUEUE_EXPIRY_HOURS)
 
+        # Derive tenant from the owning user (queues are tenant-scoped).
+        owner = self.db.query(User).filter(User.id == user_id).first()
+        tenant_id = owner.tenant_id if owner and owner.tenant_id else "default"
+
         # Create queue entry
         queue_entry = SupervisedExecutionQueue(
             id=f"queue_{uuid.uuid4()}",
+            tenant_id=tenant_id,
             agent_id=agent_id,
             user_id=user_id,
             trigger_type=trigger_type,
             execution_context=execution_context,
             status=QueueStatus.pending,
-            supervisor_type=supervisor_type,
             priority=priority,
-            max_attempts=MAX_QUEUE_ATTEMPTS,
-            attempt_count=0,
+            attempts=0,
             expires_at=expires_at
         )
 
@@ -258,10 +261,10 @@ class SupervisedQueueService:
         queue_entry.status = status
 
         if execution_id:
-            queue_entry.execution_id = execution_id
+            queue_entry.execution_result = {"execution_id": execution_id}
 
         if error_message:
-            queue_entry.error_message = error_message
+            queue_entry.last_error = error_message
 
         self.db.commit()
         self.db.refresh(queue_entry)
@@ -289,7 +292,7 @@ class SupervisedQueueService:
         count = 0
         for queue_entry in expired_queues:
             queue_entry.status = QueueStatus.failed
-            queue_entry.error_message = "Queue entry expired"
+            queue_entry.last_error = "Queue entry expired"
             count += 1
 
         if count > 0:
@@ -372,14 +375,14 @@ class SupervisedQueueService:
         try:
             # Update to executing status
             queue_entry.status = QueueStatus.executing
-            queue_entry.attempt_count += 1
+            queue_entry.attempts += 1
             self.db.commit()
 
             # Create execution record
             execution = await self._create_execution_from_queue(queue_entry)
 
             # Update queue with execution ID
-            queue_entry.execution_id = execution.id
+            queue_entry.execution_result = {"execution_id": execution.id}
             queue_entry.status = QueueStatus.completed
             self.db.commit()
 
@@ -397,12 +400,12 @@ class SupervisedQueueService:
             )
 
             # Check if should retry
-            if queue_entry.attempt_count < queue_entry.max_attempts:
+            if queue_entry.attempts < MAX_QUEUE_ATTEMPTS:
                 queue_entry.status = QueueStatus.pending
-                queue_entry.error_message = f"Attempt {queue_entry.attempt_count} failed: {str(e)}"
+                queue_entry.last_error = f"Attempt {queue_entry.attempts} failed: {str(e)}"
             else:
                 queue_entry.status = QueueStatus.failed
-                queue_entry.error_message = f"Failed after {queue_entry.attempt_count} attempts: {str(e)}"
+                queue_entry.last_error = f"Failed after {queue_entry.attempts} attempts: {str(e)}"
 
             self.db.commit()
 

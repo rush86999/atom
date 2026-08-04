@@ -30,10 +30,8 @@ class QueueEntryResponse(BaseModel):
     user_id: str
     trigger_type: str
     status: str
-    supervisor_type: str
     priority: int
-    attempt_count: int
-    max_attempts: int
+    attempts: int
     expires_at: str
     execution_id: Optional[str]
     error_message: Optional[str]
@@ -117,13 +115,11 @@ async def get_user_queue(
                 user_id=entry.user_id,
                 trigger_type=entry.trigger_type,
                 status=entry.status.value,
-                supervisor_type=entry.supervisor_type,
                 priority=entry.priority,
-                attempt_count=entry.attempt_count,
-                max_attempts=entry.max_attempts,
+                attempts=entry.attempts,
                 expires_at=entry.expires_at.isoformat(),
-                execution_id=entry.execution_id,
-                error_message=entry.error_message,
+                execution_id=(entry.execution_result or {}).get("execution_id"),
+                error_message=entry.last_error,
                 created_at=entry.created_at.isoformat(),
                 updated_at=entry.updated_at.isoformat()
             ))
@@ -205,13 +201,11 @@ async def process_queue_manually(
                 user_id=entry.user_id,
                 trigger_type=entry.trigger_type,
                 status=entry.status.value,
-                supervisor_type=entry.supervisor_type,
                 priority=entry.priority,
-                attempt_count=entry.attempt_count,
-                max_attempts=entry.max_attempts,
+                attempts=entry.attempts,
                 expires_at=entry.expires_at.isoformat(),
-                execution_id=entry.execution_id,
-                error_message=entry.error_message,
+                execution_id=(entry.execution_result or {}).get("execution_id"),
+                error_message=entry.last_error,
                 created_at=entry.created_at.isoformat(),
                 updated_at=entry.updated_at.isoformat()
             ))
@@ -314,13 +308,11 @@ async def get_queue_entry(
         user_id=entry.user_id,
         trigger_type=entry.trigger_type,
         status=entry.status.value,
-        supervisor_type=entry.supervisor_type,
         priority=entry.priority,
-        attempt_count=entry.attempt_count,
-        max_attempts=entry.max_attempts,
+        attempts=entry.attempts,
         expires_at=entry.expires_at.isoformat(),
-        execution_id=entry.execution_id,
-        error_message=entry.error_message,
+        execution_id=(entry.execution_result or {}).get("execution_id"),
+        error_message=entry.last_error,
         created_at=entry.created_at.isoformat(),
         updated_at=entry.updated_at.isoformat()
     )

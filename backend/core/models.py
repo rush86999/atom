@@ -9382,12 +9382,17 @@ if hasattr(User, '__mapper__'):
 # ============================================================================
 
 class QueueStatus(str, enum.Enum):
-    """Status of queued executions"""
-    PENDING = "pending"       # Waiting for user to be available
-    PROCESSING = "processing" # Currently being executed
-    COMPLETED = "completed"   # Successfully executed
-    FAILED = "failed"         # Execution failed
-    EXPIRED = "expired"       # Queue item expired
+    """Status of queued executions.
+
+    Member names are lowercase to match the states used across the service,
+    worker, and API layer (e.g. ``QueueStatus.executing``). ``str``-valued
+    so the DB column stores the raw string ("pending", "executing", ...).
+    """
+    pending = "pending"       # Waiting for user to be available
+    executing = "executing"   # Currently being executed
+    completed = "completed"   # Successfully executed
+    failed = "failed"         # Execution failed
+    cancelled = "cancelled"   # Cancelled by user
 
 
 class SupervisedExecutionQueue(Base):
@@ -9410,7 +9415,7 @@ class SupervisedExecutionQueue(Base):
     priority = Column(Integer, nullable=False, default=0)
     
     # Status tracking
-    status = Column(SQLEnum(QueueStatus, name='queuestatus', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=QueueStatus.PENDING)
+    status = Column(SQLEnum(QueueStatus, name='queuestatus', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=QueueStatus.pending)
     attempts = Column(Integer, nullable=False, default=0)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)
     last_error = Column(Text, nullable=True)
