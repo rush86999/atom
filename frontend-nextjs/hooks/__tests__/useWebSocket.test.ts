@@ -120,6 +120,28 @@ describe('useWebSocket Hook', () => {
       expect(result.current.isConnected).toBe(false);
     });
 
+    test('does NOT auto-reconnect after an unexpected close (characterization)', () => {
+      // Documents the current contract: the hook has no reconnect/backoff
+      // logic. After a close (network drop, server restart, token expiry),
+      // the hook stays disconnected unless the `session` reference changes
+      // (which re-runs the connect effect). This test pins the behavior so a
+      // future reconnect feature is a deliberate, reviewed change.
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      const wsInstance = (global as any).WebSocket.getMockInstances()[0];
+      simulateOpen(wsInstance);
+      expect(result.current.isConnected).toBe(true);
+
+      // Simulate an unexpected close.
+      simulateClose(wsInstance);
+      expect(result.current.isConnected).toBe(false);
+
+      // No new WebSocket should be created — only the original instance exists.
+      const instances = (global as any).WebSocket.getMockInstances();
+      expect(instances).toHaveLength(1);
+      expect(result.current.isConnected).toBe(false);
+    });
+
     test('handles connection errors gracefully', () => {
       const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
 
