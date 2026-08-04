@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/router';
 import { signIn, getSession } from 'next-auth/react';
 import SignIn from '@/pages/auth/signin';
+import { useToast } from '@/components/ui/use-toast';
+import { loginWithBackend, persistBackendToken } from '@/lib/backendAuth';
 
 // Mock next/router
 jest.mock('next/router', () => ({
@@ -23,18 +25,30 @@ jest.mock('@/components/ui/use-toast', () => ({
   })),
 }));
 
+// Mock backendAuth
+jest.mock('@/lib/backendAuth', () => ({
+  loginWithBackend: jest.fn(),
+  persistBackendToken: jest.fn(),
+}));
+
 describe('SignIn Component', () => {
   const mockPush = jest.fn();
   const mockToast = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       pathname: '/auth/signin',
     });
     (getSession as jest.Mock).mockResolvedValue(null);
     (signIn as jest.Mock).mockResolvedValue({ ok: true, error: null });
+    (loginWithBackend as jest.Mock).mockResolvedValue({
+      access_token: 'test-token',
+      token_type: 'bearer',
+    });
+    (persistBackendToken as jest.Mock).mockImplementation(() => {});
   });
 
   describe('Component Import/Export', () => {
@@ -81,7 +95,7 @@ describe('SignIn Component', () => {
     });
 
     it('should render submit button', () => {
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
       expect(submitButton).toBeInTheDocument();
       expect(submitButton).toHaveAttribute('type', 'submit');
     });
@@ -125,11 +139,11 @@ describe('SignIn Component', () => {
     });
 
     it('should show loading state during submission', async () => {
-      (signIn as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 100)));
+      (loginWithBackend as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ access_token: 'test-token', token_type: 'bearer' }), 100)));
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
@@ -142,11 +156,11 @@ describe('SignIn Component', () => {
     });
 
     it('should show error message on authentication failure', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: 'Invalid credentials', ok: false });
+      (loginWithBackend as jest.Mock).mockRejectedValue(new Error('Invalid email or password'));
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'wrongpassword');
@@ -160,11 +174,11 @@ describe('SignIn Component', () => {
 
   describe('Two-Factor Authentication', () => {
     it('should show TOTP input when 2FA is required', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: '2FA_REQUIRED' });
+      (loginWithBackend as jest.Mock).mockResolvedValue({ two_factor_required: true });
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
@@ -177,11 +191,11 @@ describe('SignIn Component', () => {
     });
 
     it('should update TOTP code state on input change', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: '2FA_REQUIRED' });
+      (loginWithBackend as jest.Mock).mockResolvedValue({ two_factor_required: true });
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
@@ -198,13 +212,13 @@ describe('SignIn Component', () => {
     });
 
     it('should show error for invalid 2FA code', async () => {
-      (signIn as jest.Mock)
-        .mockResolvedValueOnce({ error: '2FA_REQUIRED' })
-        .mockResolvedValueOnce({ error: 'INVALID_2FA_CODE' });
+      (loginWithBackend as jest.Mock)
+        .mockResolvedValueOnce({ two_factor_required: true })
+        .mockRejectedValueOnce(new Error('Invalid 2FA code'));
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
@@ -225,11 +239,11 @@ describe('SignIn Component', () => {
     });
 
     it('should return to login form when back button clicked', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: '2FA_REQUIRED' });
+      (loginWithBackend as jest.Mock).mockResolvedValue({ two_factor_required: true });
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
@@ -256,7 +270,7 @@ describe('SignIn Component', () => {
       render(<SignIn />);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
 
@@ -264,14 +278,14 @@ describe('SignIn Component', () => {
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
 
@@ -282,7 +296,7 @@ describe('SignIn Component', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/' });
+        expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/dashboard' });
       });
     });
 
@@ -293,7 +307,7 @@ describe('SignIn Component', () => {
       fireEvent.click(githubButton);
 
       await waitFor(() => {
-        expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/' });
+        expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/dashboard' });
       });
     });
   });
@@ -315,11 +329,11 @@ describe('SignIn Component', () => {
     });
 
     it('should show error with proper ARIA role', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: 'Invalid credentials', ok: false });
+      (loginWithBackend as jest.Mock).mockRejectedValue(new Error('Invalid email or password'));
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'wrongpassword');
@@ -335,7 +349,7 @@ describe('SignIn Component', () => {
   describe('Edge Cases', () => {
     it('should handle empty form submission', async () => {
       render(<SignIn />);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       fireEvent.click(submitButton);
 
@@ -345,29 +359,29 @@ describe('SignIn Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (signIn as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (loginWithBackend as jest.Mock).mockRejectedValue(new Error('Network error'));
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/an unexpected error occurred/i)).toBeInTheDocument();
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
       });
     });
 
     it('should clear error state on new submission', async () => {
-      (signIn as jest.Mock)
-        .mockResolvedValueOnce({ error: 'Invalid credentials', ok: false })
-        .mockResolvedValueOnce({ ok: true, error: null });
+      (loginWithBackend as jest.Mock)
+        .mockRejectedValueOnce(new Error('Invalid email or password'))
+        .mockResolvedValueOnce({ access_token: 'test-token', token_type: 'bearer' });
       render(<SignIn />);
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
 
       // First attempt - should fail
       await userEvent.type(emailInput, 'test@example.com');

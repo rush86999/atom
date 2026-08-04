@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/router';
 import { signIn, getSession } from 'next-auth/react';
 import SignUp from '@/pages/auth/signup';
+import { useToast } from '@/components/ui/use-toast';
 
 // Mock next/router
 jest.mock('next/router', () => ({
@@ -29,12 +30,17 @@ describe('SignUp Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       pathname: '/auth/signup',
     });
     (getSession as jest.Mock).mockResolvedValue(null);
     (signIn as jest.Mock).mockResolvedValue({ ok: true, error: null });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    }) as jest.Mock;
   });
 
   describe('Component Import/Export', () => {
@@ -107,7 +113,7 @@ describe('SignUp Component', () => {
     });
 
     it('should show password requirement hint', () => {
-      expect(screen.getByText(/must be at least 6 characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/must be at least 8 characters/i)).toBeInTheDocument();
     });
   });
 
@@ -197,7 +203,7 @@ describe('SignUp Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/password must be at least 6 characters/i)).toBeInTheDocument();
+        expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
       });
     });
 
@@ -232,16 +238,16 @@ describe('SignUp Component', () => {
   });
 
   describe('Navigation and Routing', () => {
-    it('should redirect to home if session exists', async () => {
+    it('should redirect to dashboard if session exists', async () => {
       (getSession as jest.Mock).mockResolvedValue({ user: { email: 'test@example.com' } });
       render(<SignUp />);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
 
-    it('should redirect to home on successful registration', async () => {
+    it('should redirect to signin on successful registration', async () => {
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email/i);
@@ -256,12 +262,12 @@ describe('SignUp Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/auth/signin');
       });
     });
 
-    it('should redirect to signin page if user already exists', async () => {
-      (signIn as jest.Mock).mockResolvedValue({ error: 'User already exists', ok: false });
+    it('should show error if user already exists', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('User already exists'));
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email/i);
@@ -276,8 +282,9 @@ describe('SignUp Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/auth/signin');
+        expect(screen.getByText(/an account with this email already exists/i)).toBeInTheDocument();
       });
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     it('should navigate to signin page when link clicked', () => {
@@ -346,7 +353,7 @@ describe('SignUp Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (signIn as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email/i);
@@ -361,7 +368,7 @@ describe('SignUp Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/an unexpected error occurred/i)).toBeInTheDocument();
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
       });
     });
 
@@ -439,7 +446,7 @@ describe('SignUp Component', () => {
       await waitFor(() => {
         expect(toastMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            title: 'Welcome to ATOM!',
+            title: 'Account created successfully!',
           })
         );
       });

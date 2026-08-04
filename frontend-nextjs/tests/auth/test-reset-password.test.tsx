@@ -23,10 +23,14 @@ describe('ResetPassword Component', () => {
       query: { token: mockToken },
       pathname: '/auth/reset-password',
     });
-    (global.mockFetch as jest.Mock).mockResolvedValue({
+    global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ valid: true }),
-    });
+    }) as jest.Mock;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('Component Import/Export', () => {
@@ -56,7 +60,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show invalid link message when token is invalid', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({ valid: false }),
       });
@@ -70,7 +74,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show invalid link message when verification fails', async () => {
-      (global.mockFetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       render(<ResetPassword />);
 
@@ -150,7 +154,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should show loading state during submission', async () => {
-      (global.mockFetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
       const passwordInput = screen.getByPlaceholderText(/new password/i);
       const confirmPasswordInput = screen.getByPlaceholderText(/confirm password/i);
       const submitButton = screen.getByRole('button', { name: /reset password/i });
@@ -249,13 +253,14 @@ describe('ResetPassword Component', () => {
     });
 
     it('should redirect to signin after successful reset', async () => {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       jest.useFakeTimers();
       const passwordInput = screen.getByPlaceholderText(/new password/i);
       const confirmPasswordInput = screen.getByPlaceholderText(/confirm password/i);
       const submitButton = screen.getByRole('button', { name: /reset password/i });
 
-      await userEvent.type(passwordInput, 'newPassword123');
-      await userEvent.type(confirmPasswordInput, 'newPassword123');
+      await user.type(passwordInput, 'newPassword123');
+      await user.type(confirmPasswordInput, 'newPassword123');
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -267,12 +272,10 @@ describe('ResetPassword Component', () => {
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/auth/signin');
       });
-
-      jest.useRealTimers();
     });
 
     it('should show error message on failed reset', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ valid: true }),
       }).mockResolvedValueOnce({
@@ -352,7 +355,7 @@ describe('ResetPassword Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ valid: true }),
       }).mockRejectedValueOnce(new Error('Network error'));

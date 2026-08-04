@@ -26,10 +26,14 @@ describe('VerifyEmailPage Component', () => {
       query: { email: testEmail },
       pathname: '/auth/verify-email',
     });
-    (global.mockFetch as jest.Mock).mockResolvedValue({
+    global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
-    });
+    }) as jest.Mock;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('Component Import/Export', () => {
@@ -115,7 +119,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show loading state during verification', async () => {
-      (global.mockFetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
       const codeInput = screen.getByLabelText(/verification code/i);
       const verifyButton = screen.getByRole('button', { name: /verify email/i });
 
@@ -129,7 +133,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show loading state during resend', async () => {
-      (global.mockFetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true, json: async () => ({ success: true }) }), 100)));
       const resendButton = screen.getByRole('button', { name: /resend verification email/i });
 
       fireEvent.click(resendButton);
@@ -141,7 +145,6 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should disable verify button when code is not 6 digits', () => {
-      render(<VerifyEmailPage />);
       const codeInput = screen.getByLabelText(/verification code/i);
       const verifyButton = screen.getByRole('button', { name: /verify email/i });
 
@@ -152,7 +155,6 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should enable verify button when code is 6 digits', async () => {
-      render(<VerifyEmailPage />);
       const codeInput = screen.getByLabelText(/verification code/i);
       const verifyButton = screen.getByRole('button', { name: /verify email/i });
 
@@ -199,11 +201,12 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should redirect to signin after successful verification', async () => {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       jest.useFakeTimers();
       const codeInput = screen.getByLabelText(/verification code/i);
       const verifyButton = screen.getByRole('button', { name: /verify email/i });
 
-      await userEvent.type(codeInput, '123456');
+      await user.type(codeInput, '123456');
       fireEvent.click(verifyButton);
 
       await waitFor(() => {
@@ -215,12 +218,10 @@ describe('VerifyEmailPage Component', () => {
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/auth/signin?verified=true');
       });
-
-      jest.useRealTimers();
     });
 
     it('should show error message on failed verification', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ error: 'Invalid code' }),
       });
@@ -237,7 +238,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show generic error when no error message provided', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({}),
       });
@@ -255,11 +256,8 @@ describe('VerifyEmailPage Component', () => {
   });
 
   describe('Resend Email Flow', () => {
-    beforeEach(() => {
-      render(<VerifyEmailPage />);
-    });
-
     it('should call send-verification-email API on resend', async () => {
+      render(<VerifyEmailPage />);
       const resendButton = screen.getByRole('button', { name: /resend verification email/i });
 
       fireEvent.click(resendButton);
@@ -274,6 +272,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show alert on successful resend', async () => {
+      render(<VerifyEmailPage />);
       const resendButton = screen.getByRole('button', { name: /resend verification email/i });
 
       fireEvent.click(resendButton);
@@ -284,7 +283,8 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show error on failed resend', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValue({
+      render(<VerifyEmailPage />);
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ error: 'Rate limit exceeded' }),
       });
@@ -298,7 +298,7 @@ describe('VerifyEmailPage Component', () => {
       });
     });
 
-    it('should show error when email is missing', () => {
+    it('should disable resend when email is missing', () => {
       (useRouter as jest.Mock).mockReturnValue({
         push: mockPush,
         query: {},
@@ -308,9 +308,7 @@ describe('VerifyEmailPage Component', () => {
       render(<VerifyEmailPage />);
       const resendButton = screen.getByRole('button', { name: /resend verification email/i });
 
-      fireEvent.click(resendButton);
-
-      expect(screen.getByText(/email address is required/i)).toBeInTheDocument();
+      expect(resendButton).toBeDisabled();
     });
   });
 
@@ -327,7 +325,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should show error in Alert component', async () => {
-      (global.mockFetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         json: async () => ({ error: 'Invalid code' }),
       });
@@ -355,7 +353,7 @@ describe('VerifyEmailPage Component', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (global.mockFetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       render(<VerifyEmailPage />);
       const codeInput = screen.getByLabelText(/verification code/i);
@@ -365,12 +363,12 @@ describe('VerifyEmailPage Component', () => {
       fireEvent.click(verifyButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/verification failed/i)).toBeInTheDocument();
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
       });
     });
 
     it('should clear error state on new submission', async () => {
-      (global.mockFetch as jest.Mock)
+      (global.fetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: false,
           json: async () => ({ error: 'Invalid code' }),
@@ -411,7 +409,7 @@ describe('VerifyEmailPage Component', () => {
       });
 
       render(<VerifyEmailPage />);
-      expect(screen.getByText(/your email/i)).toBeInTheDocument();
+      expect(screen.getByText(/enter the 6-digit code sent to your email/i)).toBeInTheDocument();
     });
 
     it('should handle special characters in email', () => {
