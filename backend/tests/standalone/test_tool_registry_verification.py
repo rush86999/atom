@@ -7,8 +7,24 @@ Tests all aspects of the tool registry system.
 from pathlib import Path
 import sys
 
+import pytest
+
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+
+@pytest.fixture(scope="module")
+def registry():
+    """Provide the shared tool registry to the verification steps.
+
+    This script chains the ``test_*`` steps via ``main()`` and hands the
+    registry around explicitly. Under pytest, the steps are collected
+    individually, so expose the same singleton as a fixture.
+    """
+    from tools.registry import get_tool_registry
+
+    return get_tool_registry()
+
 
 def test_imports():
     """Test that all required modules can be imported."""
