@@ -3,7 +3,7 @@ from datetime import datetime
 from ai.data_intelligence import DataIntelligenceEngine, EntityType, PlatformType, UnifiedEntity
 
 
-def test_deal_risk_detection():
+async def test_deal_risk_detection():
     engine = DataIntelligenceEngine()
     
     # 1. Create a high-value deal
@@ -41,15 +41,15 @@ def test_deal_risk_detection():
     engine._create_relationship("deal_1", "task_1", "depends_on", 1.0)
     
     # 4. Detect anomalies
-    anomalies = engine.detect_anomalies()
-    
+    anomalies = await engine.detect_anomalies()
+
     # 5. Verify
     deal_risks = [a for a in anomalies if a.severity == "critical" and "Deal" in a.title]
     assert len(deal_risks) > 0
     assert "Enterprise Deal" in deal_risks[0].description
     assert "task_1" in deal_risks[0].affected_entities
 
-def test_sla_breach_detection():
+async def test_sla_breach_detection():
     engine = DataIntelligenceEngine()
     
     # Create a high priority active task
@@ -67,14 +67,19 @@ def test_sla_breach_detection():
     )
     
     engine.entity_registry["task_2"] = task
-    
-    anomalies = engine.detect_anomalies()
+
+    anomalies = await engine.detect_anomalies()
     
     breaches = [a for a in anomalies if "SLA" in a.title]
     assert len(breaches) > 0
     assert "Urgent Customer Bug" in breaches[0].description
 
 if __name__ == "__main__":
-    test_deal_risk_detection()
-    test_sla_breach_detection()
+    import asyncio
+
+    async def _main() -> None:
+        await test_deal_risk_detection()
+        await test_sla_breach_detection()
+
+    asyncio.run(_main())
     print("All anomaly detection tests passed!")

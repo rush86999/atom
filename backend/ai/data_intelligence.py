@@ -1026,7 +1026,7 @@ class DataIntelligenceEngine:
                             "tool_name": "send_message",
                             "arguments": {
                                 "target": "#ops-alerts",
-                                "message": f"SLA Warning: '{entity.canonical_name}' is stalling. Platform: {entity.source_platforms[0].value if entity.source_platforms else 'Unknown'}"
+                                "message": f"SLA Warning: '{entity.canonical_name}' is stalling. Platform: {next(iter(entity.source_platforms)).value if entity.source_platforms else 'Unknown'}"
                             }
                         }
                     ))
