@@ -106,12 +106,18 @@ function ArtifactIcon({ type, className }: { type: string; className: string }) 
     }
 }
 
-function formatDate(dateStr: string) {
+export function formatDate(dateStr: string) {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 
+    // Guard against unparseable dates (NaN) — previously fell through every
+    // comparison and rendered "Invalid Date" to the user.
+    if (isNaN(diff)) return "";
+    // Future timestamps (clock skew) produce a negative diff; clamp to "Just
+    // now" only for the small near-now window, otherwise show the real date.
+    if (diff < 0) return date.toLocaleDateString();
     if (diff < 60000) return "Just now";
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;

@@ -397,6 +397,16 @@ describe('error-mapping', () => {
       expect(retryable).toBe(true);
     });
 
+    it('should return true for 429 (Too Many Requests) status', () => {
+      // 429 is the canonical retry-with-backoff status (the whole reason
+      // Retry-After exists). It MUST be retryable; otherwise rate-limited
+      // endpoints fail hard to the user instead of backing off.
+      const error = { response: { status: 429 } };
+      const retryable = isRetryableError(error);
+
+      expect(retryable).toBe(true);
+    });
+
     it('should return true for ECONNABORTED', () => {
       const error = { code: 'ECONNABORTED' };
       const retryable = isRetryableError(error);

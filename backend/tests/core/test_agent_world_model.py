@@ -1149,3 +1149,68 @@ class TestAdditionalCoverage:
 
             assert result["status"] == "failed"
             assert "No messages found" in result["error"]
+
+
+# ============================================================================
+# recall_experiences: similarity ranking (BUG-020)
+# ============================================================================
+
+class TestRecallExperiencesRanking:
+    """recall_experiences must rank by semantic similarity to the current task,
+    NOT by stored confidence_score. The db.search results arrive ranked by
+    similarity; re-sorting by confidence discards that ranking and surfaces the
+    most confident (but possibly irrelevant) experiences first."""
+
+    def _make_agent(self):
+        agent = Mock()
+        agent.id = "agent_123"
+        agent.category = "general"
+        return agent
+
+    def _exp_result(self, exp_id, confidence, score, agent_id="agent_123", role="general"):
+        return {
+            "id": exp_id,
+            "text": f"Task: demo\nInput: do something\nLearnings: none",
+            "score": score,
+            "metadata": {
+                "agent_id": agent_id,
+                "agent_role": role,
+                "confidence_score": confidence,
+                "outcome": "success",
+            },
+            "source": agent_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    @pytest.mark.asyncio
+    async def test_ranks_by_similarity_not_confidence(self, world_model_service):
+        """The most SIMILAR experience must come first, even if a less-similar
+        one has higher stored confidence."""
+        agent = self._make_agent()
+        # expA: high confidence (0.95) but LOW similarity (0.2) — irrelevant.
+        # expB: lower confidence (0.5) but HIGH similarity (0.95) — relevant.
+        # db.search returns similarity-ranked results (expB first).
+        world_model_service.db.search = Mock(return_value=[
+            self._exp_result("exp-relevant", confidence=0.5, score=0.95),
+            self._exp_result("exp-confident", confidence=0.95, score=0.2),
+        ])
+        # Second search call (general knowledge) returns empty.
+        # recall_experiences calls self.db.search twice; configure side_effect.
+        world_model_service.db.search = Mock(side_effect=[
+            [self._exp_result("exp-relevant", confidence=0.5, score=0.95),
+             self._exp_result("exp-confident", confidence=0.95, score=0.2)],
+            [],  # documents search
+        ])
+
+        result = await world_model_service.recall_experiences(agent, "do something", limit=2)
+        experiences = result["experiences"]
+
+        assert len(experiences) == 2
+        # The relevant (high-similarity) experience must be first, not the
+        # high-confidence one. The bug re-sorts by confidence, putting the
+        # confident-but-irrelevant one first.
+        assert experiences[0].id == "exp-relevant", (
+            "recall_experiences returned the most confident experience first "
+            "instead of the most similar one"
+        )
+

@@ -117,3 +117,29 @@ describe('ArtifactSidebar', () => {
     ).not.toThrow();
   });
 });
+
+describe('formatDate', () => {
+  // Import the exported helper directly.
+  const { formatDate } = require('../ArtifactSidebar');
+
+  it('returns empty string for an unparseable date (not "Invalid Date")', () => {
+    // A malformed timestamp previously produced NaN, fell through every
+    // comparison, and rendered the literal "Invalid Date" to the user.
+    expect(formatDate('not-a-real-date')).toBe('');
+    expect(formatDate('')).toBe('');
+  });
+
+  it('does not return "Just now" for a far-future timestamp', () => {
+    // Clock skew can put updated_at in the future; the old code returned
+    // "Just now" for any negative diff. It should show the real date.
+    const future = new Date(Date.now() + 86400000 * 7).toISOString(); // +7 days
+    const result = formatDate(future);
+    expect(result).not.toBe('Just now');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('returns "Just now" for a timestamp within the last minute', () => {
+    const recent = new Date(Date.now() - 5000).toISOString(); // 5s ago
+    expect(formatDate(recent)).toBe('Just now');
+  });
+});

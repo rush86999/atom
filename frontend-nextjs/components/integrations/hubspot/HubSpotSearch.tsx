@@ -250,11 +250,14 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
         (item.amount >= filters.minDealAmount &&
           item.amount <= filters.maxDealAmount);
 
-      // Lead score filter
+      // Lead score filter — range semantics ("N+" labels): a contact matches
+      // if its leadScore >= any selected threshold. Previously used exact
+      // match (includes), which returned empty results for all realistic
+      // data (leadScore is typically 0-100, not 1-5).
       const matchesLeadScore =
         filters.leadScores.length === 0 ||
         !("leadScore" in item) ||
-        filters.leadScores.includes(item.leadScore);
+        filters.leadScores.some((threshold: number) => item.leadScore >= threshold);
 
       return (
         matchesSearch &&

@@ -965,16 +965,16 @@ class WorldModelService:
         
         valid_experiences = []
         agent_category = agent.category.lower() if agent.category else "general"
-        
+
         for res in exp_results:
             meta = res.get("metadata", {})
             memory_role = meta.get("agent_role", "").lower()
             creator_id = meta.get("agent_id")
-            
+
             # Scoped Access Logic for Experiences
             is_creator = (creator_id == agent.id)
             is_role_match = (memory_role == agent_category)
-            
+
             if is_creator or is_role_match:
                 # Basic Robustness: Only use experiences that were successful or have high confidence
                 # This prevents "learning from mistakes" in a way that repeats them,
@@ -987,24 +987,33 @@ class WorldModelService:
                 if outcome == "failed" and confidence < 0.8:
                     continue
 
-                valid_experiences.append(AgentExperience(
-                    id=res["id"],
-                    agent_id=creator_id or "unknown",
-                    task_type=meta.get("task_type", "unknown"),
-                    input_summary=res["text"].split("\n")[1].replace("Input: ", "") if "Input: " in res["text"] else "",
-                    outcome=outcome,
-                    learnings=res["text"].split("Learnings: ")[-1] if "Learnings: " in res["text"] else "",
-                    confidence_score=confidence,
-                    feedback_score=meta.get("feedback_score"),
-                    artifacts=meta.get("artifacts", []),
-                    agent_role=meta.get("agent_role", ""),
-                    specialty=meta.get("specialty"),
-                    timestamp=datetime.fromisoformat(res["created_at"])
+                valid_experiences.append((
+                    # Similarity score from the vector search (relevance to the
+                    # current task). Used to rank — NOT confidence_score, which
+                    # reflects past outcome confidence, not current relevance
+                    # (BUG-020: previously sorted by confidence, surfacing the
+                    # most confident but possibly irrelevant experiences).
+                    res.get("score", res.get("_score", 0.5)),
+                    AgentExperience(
+                        id=res["id"],
+                        agent_id=creator_id or "unknown",
+                        task_type=meta.get("task_type", "unknown"),
+                        input_summary=res["text"].split("\n")[1].replace("Input: ", "") if "Input: " in res["text"] else "",
+                        outcome=outcome,
+                        learnings=res["text"].split("Learnings: ")[-1] if "Learnings: " in res["text"] else "",
+                        confidence_score=confidence,
+                        feedback_score=meta.get("feedback_score"),
+                        artifacts=meta.get("artifacts", []),
+                        agent_role=meta.get("agent_role", ""),
+                        specialty=meta.get("specialty"),
+                        timestamp=datetime.fromisoformat(res["created_at"])
+                    )
                 ))
 
-        # Sort by confidence score descending
-        valid_experiences.sort(key=lambda x: x.confidence_score, reverse=True)
-        valid_experiences = valid_experiences[:limit]
+        # Sort by semantic similarity (descending), then truncate. Mirrors the
+        # recall_episodes fix (line ~1387) which sorts by final_score.
+        valid_experiences.sort(key=lambda pair: pair[0], reverse=True)
+        valid_experiences = [exp for _score, exp in valid_experiences[:limit]]
         
         # 2. Search General Knowledge (Documents & Knowledge Graph)
         # This is "Atom's memory" created from ingestion

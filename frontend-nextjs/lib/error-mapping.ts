@@ -261,6 +261,14 @@ export function isRetryableError(error: any): boolean {
     return true;
   }
 
+  // Rate limiting (429) -> retryable with backoff. This is the canonical
+  // retry-with-backoff status (Retry-After). Omitting it made rate-limited
+  // endpoints fail hard instead of backing off — inconsistent with the rest
+  // of this module, which classifies 429 as a retryable severity-error.
+  if (error.response?.status === 429) {
+    return true;
+  }
+
   // Network errors -> retryable
   if (error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT' ||

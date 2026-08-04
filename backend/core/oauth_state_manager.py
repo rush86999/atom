@@ -53,6 +53,11 @@ class OAuthStateManager:
         self.secret_key = secret_key or self._get_secret_key()
         if not self.secret_key:
             raise ValueError("SECRET_KEY must be set for OAuth state management")
+        # Consumed-state tracking (single-use enforcement). A state token is
+        # recorded here on first successful validation and rejected on replay.
+        # Pruned by expiry so the set can't grow unboundedly. Mirrors the auth
+        # token denylist pattern in core/auth.py.
+        self._consumed_tokens: Dict[str, int] = {}  # token -> expires_at (for pruning)
 
     @staticmethod
     def _get_secret_key() -> Optional[str]:
@@ -150,6 +155,14 @@ class OAuthStateManager:
                 logger.warning(f"OAuth state expired (expired at {expires_at_str}, now {now})")
                 raise ValueError("State parameter has expired")
 
+            # Single-use enforcement: reject already-consumed state tokens
+            # (CSRF replay protection). The module advertises single-use; this
+            # is the consumption gate that was previously missing.
+            self._prune_consumed(now)
+            if random_token in self._consumed_tokens:
+                logger.warning("OAuth state replay rejected (token already consumed)")
+                raise ValueError("State parameter has already been used")
+
             # Check if state is too old (negative timestamp = time travel attempt)
             if timestamp > now + 60:  # Allow 60 seconds clock skew
                 logger.warning(f"OAuth state timestamp is in the future (created at {timestamp}, now {now})")
@@ -165,6 +178,9 @@ class OAuthStateManager:
 
             logger.debug(f"Validated OAuth state for user {state_user_id or 'anonymous'}")
 
+            # Mark this state token as consumed so it can't be replayed.
+            self._consumed_tokens[random_token] = int(expires_at_str)
+
             return {
                 "valid": True,
                 "user_id": state_user_id or None,
@@ -179,6 +195,14 @@ class OAuthStateManager:
         except Exception as e:
             logger.error(f"Error validating OAuth state: {e}")
             raise ValueError(f"State validation failed: {str(e)}")
+
+    def _prune_consumed(self, now: int) -> None:
+        """Drop consumed tokens whose TTL has expired (bounded memory)."""
+        if not self._consumed_tokens:
+            return
+        expired = [tok for tok, exp in self._consumed_tokens.items() if exp <= now]
+        for tok in expired:
+            del self._consumed_tokens[tok]
 
     def _compute_checksum(self, token: str, timestamp: int, user_id: Optional[str]) -> str:
         """

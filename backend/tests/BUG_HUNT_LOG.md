@@ -231,3 +231,52 @@ written first (red), the root cause confirmed, then the minimal fix applied
   happened. Sibling functions in the same file already used the conditional-spread pattern.
 - **Fix:** Conditional header spread + `auth_token` fallback + a destructive
   toast on the non-OK path so failures surface to the user.
+
+---
+
+## Round 4 — End-to-end TDD bug hunt (security + retrieval + UX)
+
+### BUG-019 — OAuth state reusable despite claiming single-use (CSRF replay window)
+- **Flow:** Slack OAuth callback (backend, security)
+- **Symptom:** `OAuthStateManager.validate_state` verified HMAC + expiry + user
+  match but never recorded consumed tokens — the docstring promised "Single-use
+  only (consumed on validation)" but the same state validated successfully on
+  every call within its 10-minute TTL. An attacker who captured a state could
+  replay the OAuth callback and bind a Slack credential.
+- **Test:** `tests/test_oauth_state_single_use.py` (3 tests: replay rejected, distinct states work, consumption tracked by token)
+- **Fix:** Added a consumed-token store to `OAuthStateManager`; reject already-consumed tokens; prune by expiry.
+
+### BUG-020 — recall_experiences discards semantic ranking, surfaces most-confident not most-relevant
+- **Flow:** Agent memory recall (backend)
+- **Symptom:** `recall_experiences` received similarity-ranked results from the
+  vector search but re-sorted purely by stored `confidence_score`, then
+  truncated. The most *confident* (but possibly irrelevant) experiences
+  displaced the most *similar* ones. The sibling `recall_episodes` was already
+  fixed to sort by `final_score`; this one wasn't. Consumed by 5 production callers.
+- **Test:** `tests/core/test_agent_world_model.py::TestRecallExperiencesRanking`
+- **Fix:** Capture the similarity score per result and sort by it (descending), mirroring `recall_episodes`.
+
+### BUG-021 — isRetryableError omits 429 (rate-limited endpoints fail hard)
+- **Flow:** REST client retry (frontend lib)
+- **Symptom:** `isRetryableError` returned false for HTTP 429 (Too Many
+  Requests) — the canonical retry-with-backoff status. Rate-limited endpoints
+  failed permanently to the user instead of backing off. Internally
+  inconsistent: the rest of the same module classifies 429 as retryable.
+- **Test:** `lib/__tests__/error-mapping.test.ts` (429 retryable case)
+- **Fix:** Added `status === 429` to the retryable conditions.
+
+### BUG-022 — HubSpotSearch leadScore filter uses exact match despite "N+" range labels
+- **Flow:** HubSpot contact search (frontend)
+- **Symptom:** The UI rendered checkboxes labeled `1+`, `2+`, `3+` (range
+  semantics: "score >= N"), but the filter used `leadScores.includes(score)`
+  (exact match). Realistic lead scores (0-100) never equal 1-5, so selecting
+  any score filter returned an empty result set.
+- **Fix:** Changed to range semantics (`leadScore >= threshold`) matching the labels.
+
+### BUG-023 — ArtifactSidebar formatDate renders "Invalid Date" / wrong "Just now"
+- **Flow:** Chat artifact display (frontend)
+- **Symptom:** An unparseable timestamp produced `NaN`, fell through every
+  comparison, and rendered the literal "Invalid Date" to the user. A future
+  timestamp (clock skew) yielded a negative diff → "Just now".
+- **Test:** `components/chat/__tests__/ArtifactSidebar.test.tsx` (formatDate: NaN→'', future→real date, recent→"Just now")
+- **Fix:** Added `isNaN(diff)` guard (return '') and a `diff < 0` guard (show the real date); exported the helper for direct testing.
