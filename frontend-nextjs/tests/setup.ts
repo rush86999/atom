@@ -204,8 +204,17 @@ global.IntersectionObserverEntry = jest.fn().mockImplementation((entry) => ({
 // Fix for Phase 299-11: Mock XMLHttpRequest to avoid CORS errors in JSDOM
 // JSDOM blocks certain headers like X-Request-ID in CORS preflight
 // We mock XHR to bypass these restrictions in test environment
+//
+// BUG-FIX: This class previously did `extends EventTarget`. With the repo's
+// tsconfig `target: "es5"`, TypeScript transpiles class inheritance with an
+// `__extends` helper whose derived constructor calls `Base.apply(this, ...)`.
+// `EventTarget` is a native class, so that invocation WITHOUT `new` throws
+// `TypeError: Class constructor EventTarget cannot be invoked without 'new'`.
+// MSW's XMLHttpRequestOverride constructs this captured class for every
+// unhandled XHR request, which failed ~150 suites / 1,335 tests. Rewritten as
+// a plain class with an internal listener map (same pattern as MockWebSocket).
 const originalXMLHttpRequest = global.XMLHttpRequest;
-global.XMLHttpRequest = class MockXMLHttpRequest extends EventTarget {
+global.XMLHttpRequest = class MockXMLHttpRequest {
   readyState = 0;
   status = 200;
   statusText = 'OK';
@@ -221,6 +230,7 @@ global.XMLHttpRequest = class MockXMLHttpRequest extends EventTarget {
   _responseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+  _listeners: Record<string, EventListener[]> = {};
 
   open(method: string, url: string) {
     this.readyState = 1;
@@ -267,12 +277,35 @@ global.XMLHttpRequest = class MockXMLHttpRequest extends EventTarget {
   }
 
   overrideMimeType(mime: string) {}
-  addEventListener<K extends keyof XMLHttpRequestEventTargetEventMap>(
-    type: K,
-    listener: (this: XMLHttpRequest, ev: XMLHttpRequestEventTargetEventMap[K]) => any,
-    options?: boolean | AddEventListenerOptions
-  ) {
-    super.addEventListener(type as string, listener as EventListener, options);
+
+  addEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions) {
+    const listeners = (this._listeners[type] = this._listeners[type] || []);
+    if (!listeners.includes(listener)) {
+      listeners.push(listener);
+    }
+  }
+
+  removeEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions) {
+    const listeners = this._listeners[type];
+    if (listeners) {
+      const idx = listeners.indexOf(listener);
+      if (idx !== -1) listeners.splice(idx, 1);
+    }
+  }
+
+  dispatchEvent(event: Event): boolean {
+    // Fire addEventListener listeners (included for MSW's propagateListeners).
+    const listeners = this._listeners[event.type] || [];
+    for (const listener of listeners.slice()) {
+      listener.call(this, event);
+    }
+    // Fire `on<type>` callback properties (used by MSW's propagateCallbacks).
+    const callbackName = `on${event.type}`;
+    const callback = (this as any)[callbackName];
+    if (typeof callback === 'function') {
+      callback.call(this, event);
+    }
+    return true;
   }
 } as any;
 
