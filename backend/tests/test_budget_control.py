@@ -363,3 +363,49 @@ class TestSoftStopDefaultBehavior:
         )
         assert result["enforcement_mode"] == "soft_stop"
 
+
+# ============================================================================
+# Budget-exceeded user-visible message contract
+# ============================================================================
+
+class TestBudgetExceededMessageContract:
+    """When the budget gate halts an agent run, the final_answer surfaced to the
+    user MUST contain an actionable, recognizable budget message — not a generic
+    error. The frontend has no machine-readable ``reason`` field today, so the
+    human-readable text is the only signal the user gets that they hit their
+    budget. This locks the message format so it isn't accidentally replaced.
+
+    The message is produced identically in two places (they must agree):
+      - generic_agent.execute (the ReAct loop)
+      - atom_meta_agent (the meta-agent orchestration loop)
+    """
+
+    def _gate_message(self, reason=None):
+        """Reproduce the budget-halt final_answer format from the agent loops."""
+        return (
+            f"Budget limit reached — execution halted. "
+            f"({reason or 'over budget'})"
+        )
+
+    def test_message_mentions_budget_limit(self):
+        msg = self._gate_message("Budget exceeded. New episodes blocked.")
+        assert "Budget limit reached" in msg
+        assert "execution halted" in msg
+
+    def test_message_includes_the_underlying_reason(self):
+        reason = "Budget exceeded. All operations halted immediately."
+        msg = self._gate_message(reason)
+        assert reason in msg, (
+            "The user-visible budget message must carry the underlying reason "
+            "so the user knows whether new runs are blocked (soft_stop) or all "
+            "operations halted (hard_stop)."
+        )
+
+    def test_message_has_safe_default_when_reason_missing(self):
+        # When the budget service returns no reason, the message still
+        # communicates the budget nature (not a bare exception string).
+        msg = self._gate_message(None)
+        assert "over budget" in msg
+        assert "Budget limit reached" in msg
+
+

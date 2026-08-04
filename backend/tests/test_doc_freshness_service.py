@@ -593,3 +593,53 @@ class TestGraphCascade:
         assert old_doc.freshness_status == "superseded"
         assert old_doc.superseded_by == "new_doc_id"
         assert node.properties.get("superseded_by") == "new_doc_id"
+
+
+# ============================================================================
+# Freshness status values contract (backend canonical set)
+# ============================================================================
+
+class TestFreshnessStatusContract:
+    """Lock the canonical freshness_status value set.
+
+    ``freshness_status`` is a free-text column, but the service, GraphRAG
+    cascade, and (eventually) any frontend type must all agree on the exact
+    set. When a frontend TypeScript union type is added for this feature, it
+    MUST match these values exactly. Drift would silently hide docs or show
+    stale ones.
+    """
+
+    def test_non_fresh_set_is_exactly_four_known_values(self):
+        assert NON_FRESH_STATUSES == frozenset(
+            {"stale", "outdated", "removed", "superseded"}
+        )
+
+    def test_fresh_is_the_complement_of_non_fresh(self):
+        # The full status universe is {fresh} ∪ NON_FRESH_STATUSES.
+        all_statuses = NON_FRESH_STATUSES | {"fresh"}
+        assert all_statuses == {
+            "fresh",
+            "stale",
+            "outdated",
+            "removed",
+            "superseded",
+        }
+
+    def test_compute_freshness_status_only_emits_known_values(self):
+        """The resolver must never return a status outside the canonical set."""
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        cases = [
+            None,                                                # unverified
+            now,                                                 # recent
+            now - timedelta(hours=25),                           # beyond TTL
+            now - timedelta(days=5),                             # outdated
+        ]
+        valid = {"fresh", "stale", "outdated", "removed", "superseded"}
+        for last_verified in cases:
+            result = compute_freshness_status(last_verified, now=now)
+            assert result in valid, (
+                f"compute_freshness_status returned {result!r} (not in canonical set)"
+            )
+
