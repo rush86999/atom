@@ -200,6 +200,19 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 return;
             }
 
+            // Budget-exceeded: surface as a distinct error-type message so the
+            // UI renders a budget-halted alert (not a normal assistant bubble).
+            // Mirrors the no_llm_provider structured-error pattern above.
+            if (data && data.error_code === "budget_exceeded") {
+                setMessages(prev => [...prev, {
+                    id: "budget-exceeded",
+                    type: "error",
+                    content: data.message || "Budget limit reached — execution halted.",
+                    timestamp: new Date(),
+                }]);
+                return;
+            }
+
             // Clear the safety-net timeout on any successful resolution.
             if (processingTimeoutRef.current) {
                 clearTimeout(processingTimeoutRef.current);

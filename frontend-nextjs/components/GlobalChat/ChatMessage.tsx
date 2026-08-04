@@ -1,6 +1,6 @@
+import React, { useState } from 'react';
 import { cn } from "@/lib/utils";
 import { ReasoningChain } from "@/components/Agents/ReasoningChain";
-import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     User,
     Bot,
+    AlertTriangle,
     Play,
     Calendar,
     Mail,
@@ -38,7 +39,7 @@ export interface ChatAction {
 
 export interface ChatMessageData {
     id: string;
-    type: "user" | "assistant" | "system";
+    type: "user" | "assistant" | "system" | "error";
     content: string;
     timestamp: Date | string;
     workflowData?: {
@@ -95,6 +96,30 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
     };
 
     return (
+        <>
+        {message.type === 'error' ? (
+            // Error variant: a distinct amber alert block so the user can tell
+            // their run was halted (e.g. budget-exceeded) at a glance, rather
+            // than reading a normal assistant bubble. role="alert" makes it
+            // accessible and queryable in tests.
+            <div className="flex w-full justify-start gap-2 mb-4 group" role="alert">
+                <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-amber-100 text-amber-700">
+                        <AlertTriangle className="h-4 w-4" />
+                    </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col max-w-[80%] items-start">
+                    <Card className="border-amber-200 bg-amber-50 shadow-sm">
+                        <CardContent className="p-3 text-sm whitespace-pre-wrap text-amber-900">
+                            <Badge variant="outline" className="text-[10px] h-5 mb-2 border-amber-300 text-amber-700">
+                                Error
+                            </Badge>
+                            <div>{message.content}</div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        ) : (
         <div className={cn("flex w-full gap-2 mb-4 group", isUser ? "justify-end" : "justify-start")}>
             {!isUser && (
                 <Avatar className="h-8 w-8">
@@ -229,5 +254,7 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
                 </Avatar>
             )}
         </div>
+        )}
+        </>
     );
 }

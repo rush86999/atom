@@ -258,6 +258,20 @@ async def send_chat_message(
                 "session_id": request.session_id or "unknown",
             }
 
+        # Budget-exceeded short-circuit: surface the structured signal so the
+        # frontend can render a distinct budget-halted UI (mirrors the
+        # no_llm_provider convention above). The orchestrator sets error_code
+        # when the agent's budget gate halted the run.
+        if response.get("error_code") == "budget_exceeded":
+            return {
+                "success": False,
+                "error_code": "budget_exceeded",
+                "message": response.get("message", "Budget limit reached — execution halted."),
+                "failure_reason": response.get("failure_reason"),
+                "recovery_url": response.get("recovery_url", "/settings/billing"),
+                "session_id": response.get("session_id", request.session_id or "unknown"),
+            }
+
         return ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),

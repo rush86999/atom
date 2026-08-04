@@ -417,9 +417,20 @@ class ChatOrchestrator:
                 if response and "suggested_actions" in response:
                     suggested_actions.extend(response.get("suggested_actions", []))
 
+            # Budget-failure precedence: if any feature (agent) reported a
+            # budget_exceeded error, surface it at the top level — overriding
+            # the generic LLM/template message. The user must see their run was
+            # halted, with a machine-readable error_code so the frontend renders
+            # a distinct budget UI (mirrors the no_llm_provider convention).
+            budget_failure = None
+            for resp in feature_responses.values():
+                if resp and resp.get("error_code") == "budget_exceeded":
+                    budget_failure = resp
+                    break
+
             response = {
-                "success": True,
-                "message": main_message,
+                "success": not budget_failure,
+                "message": budget_failure["message"] if budget_failure else main_message,
                 "session_id": session["id"],
                 "intent": intent_analysis["primary_intent"].value,
                 "confidence": intent_analysis["confidence"],
@@ -431,6 +442,10 @@ class ChatOrchestrator:
                 "model": used_model,
                 "provider": used_provider,
             }
+            if budget_failure:
+                response["error_code"] = "budget_exceeded"
+                response["failure_reason"] = budget_failure.get("failure_reason")
+                response["recovery_url"] = "/settings/billing"
 
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
@@ -1425,12 +1440,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 trigger_mode=AgentTriggerMode.MANUAL
             )
             
+            # Propagate the machine-readable budget-failure signal instead of
+            # hardcoding "success". Previously the meta-agent's budget_exceeded
+            # status was silently swallowed here, so no structured signal could
+            # reach the HTTP layer (the user saw a normal assistant bubble).
+            failure_reason = result.get("failure_reason")
             return {
-                "status": "success",
+                "status": "budget_exceeded" if failure_reason else "success",
+                "success": not failure_reason,
+                "error_code": "budget_exceeded" if failure_reason else None,
+                "failure_reason": failure_reason,
                 "message": result.get("final_output"),
                 "actions_taken": result.get("actions_executed", []),
                 "spawned_agent": result.get("spawned_agent"),
-                "feature": "agent"
+                "feature": "agent",
             }
             
         except Exception as e:

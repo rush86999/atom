@@ -662,6 +662,12 @@ class AtomMetaAgent:
             steps = []
             final_answer = None
             status = "success"
+            # Machine-readable budget-failure signal (None unless the budget
+            # gate halted the run). Propagated to result_payload so downstream
+            # hops (orchestrator → HTTP) can surface a structured error_code
+            # instead of relying on the human-readable final_answer string.
+            failure_reason = None
+            failure_mode = None
 
             # Workstream G — in-loop parallel tool execution (default ON).
             try:
@@ -674,6 +680,28 @@ class AtomMetaAgent:
 
             for current_step in range(1, max_steps + 1):
                 step_start = datetime.now(timezone.utc)
+
+                # Spend gate: check the tenant budget BEFORE the expensive LLM
+                # call (not just before tools). When the enforcement mode denies
+                # the action (hard_stop, or soft_stop without an active episode),
+                # break the loop cleanly with a budget-exceeded final answer.
+                budget_check = await self._check_budget_before_react()
+                if not budget_check.get("allowed"):
+                    final_answer = (
+                        f"Budget limit reached — execution halted. "
+                        f"({budget_check.get('reason') or 'over budget'})"
+                    )
+                    status = "budget_exceeded"
+                    # Capture the machine-readable signal for downstream
+                    # propagation (orchestrator → HTTP error_code).
+                    failure_reason = budget_check.get("reason") or "over budget"
+                    failure_mode = budget_check.get("enforcement_mode")
+                    logger.warning(
+                        f"Budget gate halted execution {execution_id} at step "
+                        f"{current_step}: {budget_check.get('reason')}"
+                    )
+                    break
+
                 # Generate next step using instructor for structured output
                 react_step = await self._react_step(
                     request=request,
@@ -965,7 +993,12 @@ class AtomMetaAgent:
             "final_output": final_answer,
             "actions_executed": steps,
             "trigger_mode": trigger_mode.value,
-            "status": status
+            "status": status,
+            # Machine-readable budget-failure signal (None on success). The
+            # orchestrator reads this to set error_code='budget_exceeded' on
+            # the HTTP response so the frontend can render a distinct UI.
+            "failure_reason": failure_reason,
+            "failure_mode": failure_mode,
         }
         
         await self._record_execution(request, result_payload, trigger_mode)
@@ -986,6 +1019,14 @@ class AtomMetaAgent:
                 execution.result_summary = str(final_answer)[:500]
                 execution.duration_seconds = duration
                 execution.completed_at = end_time
+                # Map budget_exceeded → a VALID ExecutionStatus for persistence.
+                # Like the max_steps→timeout mapping above, budget_exceeded is
+                # not in the enum; persisting it verbatim would create an
+                # invisible third state that failure dashboards miss. FAILED is
+                # the correct bucket, with a distinctive error_message.
+                if status == "budget_exceeded":
+                    execution.status = "failed"
+                    execution.error_message = "Budget exceeded — execution halted by spend gate"
                 db.commit()
         except Exception as e:
             logger.error(f"Failed to update AgentExecution: {e}")
@@ -1045,6 +1086,33 @@ class AtomMetaAgent:
         except Exception as e:
             logger.debug(f"skill injection skipped: {e}")
             return ""
+
+    async def _check_budget_before_react(self) -> Dict[str, Any]:
+        """Spend gate: check the tenant budget BEFORE the expensive LLM call.
+
+        Previously the budget was only checked per-tool (inside
+        ``_execute_tool_with_governance``), so the LLM planning call ran
+        ungated every iteration — a run over budget kept burning LLM spend up
+        to ``max_steps``. This closes that gap: when the configured
+        enforcement mode denies the action, the caller breaks the ReAct loop
+        cleanly (see the gate at the top of the loop).
+
+        Fail-open on error (returns ``allowed: True``), matching the existing
+        convention in BudgetEnforcementService — we never block on an
+        inability to compute spend.
+        """
+        try:
+            from core.budget_enforcement_service import BudgetEnforcementService
+
+            svc = BudgetEnforcementService()
+            return await svc.check_budget_before_action(
+                tenant_id=self.tenant_id,
+                agent_id="atom_main",
+                action="llm_react_step",
+            )
+        except Exception as e:
+            logger.warning(f"Budget pre-check failed (fail-open): {e}")
+            return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}
 
     async def _react_step(self, request: str, memory_context: Dict,
                           tool_descriptions: str, execution_history: str,
