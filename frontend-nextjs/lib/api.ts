@@ -18,7 +18,7 @@ const API_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 
 // Create axios instance with default configuration
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
   headers: {

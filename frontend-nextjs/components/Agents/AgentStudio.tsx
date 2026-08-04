@@ -40,7 +40,7 @@ import {
     ThumbsDown,
     MessageSquare,
 } from "lucide-react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { useWebSocket } from "../../hooks/useWebSocket";
 
 // --- Types ---
@@ -172,7 +172,7 @@ const AgentStudio: React.FC = () => {
     const fetchAgents = async () => {
         try {
             setIsLoading(true);
-            const res = await axios.get("/api/agents/");
+            const res = await apiClient.get("/api/agents/");
             setAgents(res.data as Agent[]);
         } catch (err) {
             console.error("Failed to fetch agents:", err);
@@ -244,10 +244,10 @@ const AgentStudio: React.FC = () => {
             };
 
             if (selectedAgent) {
-                await axios.put(`/api/agents/${selectedAgent.id}`, payload);
+                await apiClient.put(`/api/agents/${selectedAgent.id}`, payload);
                 toast({ title: "Updated", description: "Agent updated successfully.", variant: "success" });
             } else {
-                await axios.post("/api/agents/custom", payload);
+                await apiClient.post("/api/agents/custom", payload);
                 toast({ title: "Created", description: "Agent created successfully.", variant: "success" });
             }
 
@@ -267,7 +267,7 @@ const AgentStudio: React.FC = () => {
             setRunTrace([]);
 
             // Request synchronous execution to get the trace
-            const res = await axios.post<RunResponse>(`/api/agents/${agentId}/run`, {
+            const res = await apiClient.post<RunResponse>(`/api/agents/${agentId}/run`, {
                 parameters: {
                     request: runInput,
                     sync: true
@@ -313,7 +313,7 @@ const AgentStudio: React.FC = () => {
     const handleSubmitFeedback = async () => {
         if (!selectedAgent || !feedbackStep) return;
         try {
-            await axios.post(`/api/agents/${selectedAgent.id}/feedback`, {
+            await apiClient.post(`/api/agents/${selectedAgent.id}/feedback`, {
                 original_output: `Action: ${JSON.stringify(feedbackStep.action)}\nOutput: ${feedbackStep.output}`,
                 user_correction: feedbackText,
                 input_context: `Step: ${feedbackStep.step}\nThought: ${feedbackStep.thought}`
@@ -326,7 +326,7 @@ const AgentStudio: React.FC = () => {
     };
     const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
         try {
-            await axios.post(`/api/agents/approvals/${actionId}`, { decision });
+            await apiClient.post(`/api/agents/approvals/${actionId}`, { decision });
             toast({ title: `Action ${decision}`, variant: "success" });
         } catch (err) {
             toast({ title: "Error", description: "Failed to submit decision", variant: "error" });
