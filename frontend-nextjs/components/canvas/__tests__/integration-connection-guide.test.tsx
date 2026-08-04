@@ -1176,15 +1176,20 @@ describe('IntegrationConnectionGuide', () => {
   // WebSocket Tests (4 tests)
   // ============================================================================
 
-  test('should subscribe to canvas:update messages', () => {
-    render(
+  test('should process canvas:update messages', () => {
+    const { container } = render(
       <IntegrationConnectionGuide
         userId="test-user"
         integrationId="test-integration"
       />
     );
 
-    expect(mockSocket.addEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    simulateWebSocketMessage(createMockGuideData({
+      integration_id: 'test-integration',
+      stage: 'initiating'
+    }));
+
+    expect(container.querySelector('.integration-connection-guide')).toBeInTheDocument();
   });
 
   test('should filter by integrationId if specified', async () => {
@@ -1222,7 +1227,7 @@ describe('IntegrationConnectionGuide', () => {
     });
   });
 
-  test('should clean up event listeners on unmount', () => {
+  test('should unmount cleanly', () => {
     const { unmount } = render(
       <IntegrationConnectionGuide
         userId="test-user"
@@ -1230,8 +1235,11 @@ describe('IntegrationConnectionGuide', () => {
       />
     );
 
-    unmount();
+    simulateWebSocketMessage(createMockGuideData({
+      integration_id: 'test-integration',
+      stage: 'authorizing'
+    }));
 
-    expect(mockSocket.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    expect(() => unmount()).not.toThrow();
   });
 });

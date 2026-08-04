@@ -114,6 +114,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
       if (lastMessage.type === 'view:guidance_update') {
         setOrchestration((prev) => ({
           ...prev!,
+          active_views: prev?.active_views || [],
           canvas_guidance: data.guidance
         }));
       }
@@ -191,7 +192,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
 
   useCanvasStateRegistration('view_orchestrator', orchState as any);
 
-  if (!orchestration || orchestration.active_views.length === 0) {
+  if (!orchestration || !orchestration.active_views || orchestration.active_views.length === 0) {
     return (
       <div className={`view-orchestrator bg-gray-50 dark:bg-gray-800 rounded-lg p-8 ${className}`}>
         <div className="text-center text-gray-500 dark:text-gray-400">

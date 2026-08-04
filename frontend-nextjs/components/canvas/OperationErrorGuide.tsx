@@ -54,7 +54,7 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
 }) => {
   const [errorData, setErrorData] = useState<ErrorData | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<number | null>(null);
-  const [expandedResolution, setExpandedResolution] = useState<number | null>(null);
+  const [expandedResolutions, setExpandedResolutions] = useState<number[]>([]);
   const { lastMessage, sendMessage } = useWebSocket();
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
       if (!operationId || data.operation_id === operationId) {
         setErrorData(data);
         // Auto-expand suggested resolution
-        setExpandedResolution(data.suggested_resolution);
+        setExpandedResolutions([data.suggested_resolution]);
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
@@ -80,15 +80,19 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
       onResolutionSelect(resolution);
     }
 
-    // Send resolution to backend
-    sendMessage({
-      type: 'error:resolution_selected',
-      data: {
-        operation_id: errorData?.operation_id,
-        resolution_index: index,
-        resolution: resolution
-      }
-    });
+    // Send resolution to backend (guard against socket failures)
+    try {
+      sendMessage({
+        type: 'error:resolution_selected',
+        data: {
+          operation_id: errorData?.operation_id,
+          resolution_index: index,
+          resolution: resolution
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send resolution selection:', error);
+    }
   };
 
   const getErrorIcon = (type: string) => {
@@ -196,7 +200,7 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
             {errorData.resolutions.map((resolution, index) => {
               const isSuggested = index === errorData.suggested_resolution;
               const isSelected = selectedResolution === index;
-              const isExpanded = expandedResolution === index;
+              const isExpanded = expandedResolutions.includes(index);
 
               return (
                 <div
@@ -206,7 +210,11 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
                 >
                   {/* Resolution Header */}
                   <button
-                    onClick={() => setExpandedResolution(isExpanded ? null : index)}
+                    onClick={() => setExpandedResolutions(prev =>
+                      prev.includes(index)
+                        ? prev.filter(i => i !== index)
+                        : [...prev, index]
+                    )}
                     className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                   >
                     <div className="flex items-center space-x-3">

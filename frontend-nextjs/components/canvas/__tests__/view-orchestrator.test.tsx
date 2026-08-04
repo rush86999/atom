@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ViewOrchestrator, View, CanvasGuidance } from '../ViewOrchestrator';
@@ -74,6 +74,8 @@ describe('ViewOrchestrator - Rendering Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should render empty state when no views', () => {
@@ -132,15 +134,14 @@ describe('ViewOrchestrator - Rendering Tests', () => {
     });
 
     // Get the message handler and call it
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     // After message, views should be rendered
     // Note: This tests the integration with WebSocket
-    expect(mockSocket.addEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    expect(screen.getByText('Test View')).toBeInTheDocument();
   });
 
   test('should render view header with title', async () => {
@@ -161,11 +162,10 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     // Wait for state update
     await waitFor(() => {
@@ -191,11 +191,10 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('active')).toBeInTheDocument();
@@ -220,11 +219,10 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /take control/i })).toBeInTheDocument();
@@ -250,11 +248,10 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -284,11 +281,10 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       // Collapse button (▼) should be present
@@ -302,6 +298,8 @@ describe('ViewOrchestrator - Layout Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should render split_horizontal layout side-by-side', async () => {
@@ -325,11 +323,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const viewsContainer = container.querySelector('.flex-row');
@@ -355,11 +352,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const viewsContainer = container.querySelector('.flex-col');
@@ -388,11 +384,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const gridContainer = container.querySelector('.grid');
@@ -421,11 +416,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -461,11 +455,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       // First tab should be active
@@ -492,11 +485,10 @@ describe('ViewOrchestrator - Layout Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const viewsContainer = container.querySelector('.flex-row.space-x-4');
@@ -509,6 +501,8 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should render agent guidance panel', async () => {
@@ -533,11 +527,10 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -571,11 +564,10 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -610,11 +602,10 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
@@ -642,11 +633,10 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     // Wait for guidance panel to appear
     await waitFor(
@@ -689,11 +679,10 @@ describe('ViewOrchestrator - Canvas Guidance Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     // Wait and collapse
     await waitFor(() => {
@@ -723,16 +712,34 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should listen for view:switch messages', () => {
+    const mockEvent = new MessageEvent('message', {
+      data: JSON.stringify({
+        type: 'view:switch',
+        data: {
+          layout: 'split_vertical',
+          views: [createMockView()],
+          view_id: 'view-1'
+        }
+      })
+    });
+
     render(
       <ViewOrchestrator
         userId="test-user"
       />
     );
 
-    expect(mockSocket.addEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
+
+    expect(screen.getByText('Test View')).toBeInTheDocument();
   });
 
   test('should update layout on switch message', async () => {
@@ -753,11 +760,10 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const gridContainer = container.querySelector('.grid');
@@ -786,11 +792,10 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('View 1')).toBeInTheDocument();
@@ -814,11 +819,10 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       // The view should be added to active_views
@@ -858,12 +862,15 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(switchEvent);
-      (messageHandler as (event: MessageEvent) => void)(closeEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((switchEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
+
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((closeEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('View 1')).toBeInTheDocument();
@@ -900,12 +907,15 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(switchEvent);
-      (messageHandler as (event: MessageEvent) => void)(guidanceEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((switchEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
+
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((guidanceEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -934,11 +944,10 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /take control/i })).toBeInTheDocument();
@@ -974,11 +983,10 @@ describe('ViewOrchestrator - WebSocket Integration Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
@@ -1000,6 +1008,8 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should click Take Control send WebSocket message', async () => {
@@ -1023,11 +1033,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /take control/i })).toBeInTheDocument();
@@ -1060,11 +1069,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /take control/i })).toBeInTheDocument();
@@ -1098,11 +1106,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
@@ -1136,11 +1143,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(
       () => {
@@ -1182,11 +1188,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     // Collapse
     await waitFor(() => {
@@ -1231,11 +1236,10 @@ describe('ViewOrchestrator - User Interaction Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('active')).toBeInTheDocument();
@@ -1256,6 +1260,8 @@ describe('ViewOrchestrator - Accessibility Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    mockWsState.force = null;
   });
 
   test('should empty state have accessibility tree', () => {
@@ -1320,11 +1326,10 @@ describe('ViewOrchestrator - Accessibility Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const accessibilityDiv = container.querySelector('[data-layout="grid"]');
@@ -1353,11 +1358,10 @@ describe('ViewOrchestrator - Accessibility Tests', () => {
       />
     );
 
-    const addEventListenerCalls = mockSocket.addEventListener.mock.calls;
-    const messageHandler = addEventListenerCalls.find(call => call[0] === 'message')?.[1];
-    if (messageHandler) {
-      (messageHandler as (event: MessageEvent) => void)(mockEvent);
-    }
+    act(() => {
+      mockWsState.lastMessage = JSON.parse((mockEvent as MessageEvent).data);
+      mockWsState.force?.();
+    });
 
     await waitFor(() => {
       const accessibilityDiv = container.querySelector('[data-active-views-count="2"]');

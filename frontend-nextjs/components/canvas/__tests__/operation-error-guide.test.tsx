@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OperationErrorGuide from '../OperationErrorGuide';
 
@@ -113,6 +113,10 @@ const simulateWebSocketMessage = (errorData: any) => {
   });
 };
 
+// Queries scoped to the visible guide, excluding the hidden a11y tree
+// (the a11y tree's serialized JSON duplicates text like error messages)
+const getGuide = () => within(document.querySelector('.operation-error-guide') as HTMLElement);
+
 describe('OperationErrorGuide Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -191,7 +195,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/access denied/i)).toBeInTheDocument();
     });
   });
 
@@ -208,7 +212,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/ERR_PERM_001/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/ERR_PERM_001/i)).toBeInTheDocument();
     });
   });
 
@@ -248,12 +252,18 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/attempted unauthorized action/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/attempted unauthorized action/i)).toBeInTheDocument();
     });
   });
 
   test('should render why it happened text', async () => {
-    const mockData = createMockErrorData();
+    const mockData = createMockErrorData({
+      agent_analysis: {
+        what_happened: 'Attempted to delete user without admin privileges',
+        why_it_happened: 'Current user role has insufficient privileges for deletion',
+        impact: 'Operation blocked'
+      }
+    });
 
     render(
       <OperationErrorGuide
@@ -265,7 +275,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/insufficient privileges/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/insufficient privileges/i)).toBeInTheDocument();
     });
   });
 
@@ -282,7 +292,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/no data was modified/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/no data was modified/i)).toBeInTheDocument();
     });
   });
 
@@ -327,7 +337,7 @@ describe('OperationErrorGuide Component', () => {
     fireEvent.click(resolutionButton!);
 
     await waitFor(() => {
-      expect(screen.getByText(/request admin privileges/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/request admin privileges/i)).toBeInTheDocument();
     });
   });
 
@@ -351,13 +361,13 @@ describe('OperationErrorGuide Component', () => {
     fireEvent.click(resolutionButton!);
 
     await waitFor(() => {
-      expect(screen.getByText(/request admin privileges/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/request admin privileges/i)).toBeInTheDocument();
     });
 
     fireEvent.click(resolutionButton!);
 
     await waitFor(() => {
-      expect(screen.queryByText(/request admin privileges/i)).not.toBeInTheDocument();
+      expect(getGuide().queryByText(/request admin privileges/i)).not.toBeInTheDocument();
     });
   });
 
@@ -443,15 +453,10 @@ describe('OperationErrorGuide Component', () => {
 
     simulateWebSocketMessage(mockData);
 
+    // The suggested resolution (Let agent handle) is auto-expanded,
+    // so its "Let Agent Fix" action button is visible without a click
     await waitFor(() => {
-      expect(screen.getByText('Let agent handle')).toBeInTheDocument();
-    });
-
-    const resolutionButton = screen.getByText('Let agent handle').closest('button');
-    fireEvent.click(resolutionButton!);
-
-    await waitFor(() => {
-      expect(screen.getByText(/let agent fix/i)).toBeInTheDocument();
+      expect(getGuide().getByText('Let Agent Fix')).toBeInTheDocument();
     });
   });
 
@@ -532,7 +537,7 @@ describe('OperationErrorGuide Component', () => {
     fireEvent.click(button1!);
 
     await waitFor(() => {
-      expect(screen.getByText(/request admin privileges/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/request admin privileges/i)).toBeInTheDocument();
     });
 
     // Expand second resolution
@@ -540,12 +545,12 @@ describe('OperationErrorGuide Component', () => {
     fireEvent.click(button2!);
 
     await waitFor(() => {
-      expect(screen.getByText(/log out of current account/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/log out of current account/i)).toBeInTheDocument();
     });
 
     // Both should be expanded
-    expect(screen.getByText(/request admin privileges/i)).toBeInTheDocument();
-    expect(screen.getByText(/log out of current account/i)).toBeInTheDocument();
+    expect(getGuide().getByText(/request admin privileges/i)).toBeInTheDocument();
+    expect(getGuide().getByText(/log out of current account/i)).toBeInTheDocument();
   });
 
   test('should toggle technical details section', async () => {
@@ -575,7 +580,7 @@ describe('OperationErrorGuide Component', () => {
   test('should support keyboard navigation for resolution buttons', async () => {
     const mockData = createMockErrorData();
 
-    render(
+    const { container } = render(
       <OperationErrorGuide
         operationId="test-operation-123"
         userId="test-user"
@@ -585,7 +590,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      const buttons = screen.container.querySelectorAll('button');
+      const buttons = container.querySelectorAll('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
   });
@@ -856,7 +861,7 @@ describe('OperationErrorGuide Component', () => {
     simulateWebSocketMessage(mockData);
 
     await waitFor(() => {
-      expect(screen.getByText(/connection failed after 3 retries/i)).toBeInTheDocument();
+      expect(getGuide().getByText(/connection failed after 3 retries/i)).toBeInTheDocument();
     });
   });
 
@@ -1272,15 +1277,10 @@ describe('OperationErrorGuide Component', () => {
 
     simulateWebSocketMessage(mockData);
 
+    // The suggested resolution (Let agent handle) is auto-expanded,
+    // so its "Let Agent Fix" action button is visible without a click
     await waitFor(() => {
-      expect(screen.getByText('Let agent handle')).toBeInTheDocument();
-    });
-
-    const resolutionButton = screen.getByText('Let agent handle').closest('button');
-    fireEvent.click(resolutionButton!);
-
-    await waitFor(() => {
-      expect(screen.getByText(/let agent fix/i)).toBeInTheDocument();
+      expect(getGuide().getByText('Let Agent Fix')).toBeInTheDocument();
     });
   });
 
