@@ -128,3 +128,35 @@ before crossing any boundary:
 
 Logical errors MUST use the correct 4xx status code, never 200 with an error
 body (BUG-008 fix).
+
+---
+
+## 5. Client reconnection (`useWebSocket`)
+
+The frontend `useWebSocket` hook auto-reconnects after transient drops so a
+network blip or server restart doesn't permanently break real-time updates.
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `reconnect` | `true` | Set `false` to disable. |
+| `maxReconnectAttempts` | `3` | After this many retries, gives up. |
+| `reconnectDelay` | `1000` ms | Initial delay; doubles each attempt, capped at 10 s, +250 ms jitter. |
+
+Effective schedule (with jitter): ~1 s, ~2 s, ~4 s, then stop.
+
+**Close-code handling:**
+
+| Close code | Reconnect? | Why |
+|------------|-----------|-----|
+| `1006` (abnormal), `1011` (server error), `1001` (going away) | **Yes** (transient) | Likely recoverable. |
+| `1000` (normal) | Yes | Treated as transient; server-initiated clean close still recovers. |
+| `4001` (auth — backend `core/websockets.py:83`) | **No** (terminal) | The token is invalid; retrying would loop on an immutable failure. Recovery happens via the session-driven effect when NextAuth refreshes the token. Mirrors `lib/api.ts` HTTP-401 → no-retry. |
+| `1008` (policy violation — canvas WS ownership denial) | **No** (terminal) | A deliberate authorization decision; retrying is futile. |
+
+- A successful connection (`onopen`) resets the attempt counter and cancels any
+  pending retry.
+- An intentional `disconnect()` or unmount sets a `manualClose` guard so the
+  close handler doesn't schedule a reconnect.
+- The hook exposes `reconnectAttempts` (additive; consumers may use it for a
+  "reconnecting…" indicator) and `disconnect()`.
+

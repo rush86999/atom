@@ -120,12 +120,11 @@ describe('useWebSocket Hook', () => {
       expect(result.current.isConnected).toBe(false);
     });
 
-    test('does NOT auto-reconnect after an unexpected close (characterization)', () => {
-      // Documents the current contract: the hook has no reconnect/backoff
-      // logic. After a close (network drop, server restart, token expiry),
-      // the hook stays disconnected unless the `session` reference changes
-      // (which re-runs the connect effect). This test pins the behavior so a
-      // future reconnect feature is a deliberate, reviewed change.
+    test('schedules a reconnect after an unexpected close (NOT immediate)', () => {
+      // Contract: an unexpected close (abnormal, code != 1000/4001/1008)
+      // triggers a SCHEDULED reconnect with backoff — not an immediate one.
+      // Right after the close, no new socket exists yet; it appears only
+      // after the backoff delay elapses (see Reconnection Tests for timing).
       const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
 
       const wsInstance = (global as any).WebSocket.getMockInstances()[0];
@@ -136,10 +135,9 @@ describe('useWebSocket Hook', () => {
       simulateClose(wsInstance);
       expect(result.current.isConnected).toBe(false);
 
-      // No new WebSocket should be created — only the original instance exists.
+      // Immediately after the close, no new socket yet (backoff is pending).
       const instances = (global as any).WebSocket.getMockInstances();
       expect(instances).toHaveLength(1);
-      expect(result.current.isConnected).toBe(false);
     });
 
     test('handles connection errors gracefully', () => {
@@ -879,6 +877,140 @@ describe('useWebSocket Hook', () => {
           result.current.sendMessage({ type: 'canvas:state_update', data: {} });
         });
       }).not.toThrow();
+    });
+  });
+
+  // ==========================================================================
+  // 7. Reconnection Tests (fake timers, scoped)
+  // ==========================================================================
+  describe('7. Reconnection Tests', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // Close helper that accepts a code (the suite-wide simulateClose uses 1000).
+    const simulateCloseWithCode = (ws: any, code: number) => {
+      act(() => {
+        if (ws._onclose) {
+          ws._onclose(new CloseEvent('close', { code }));
+        }
+      });
+    };
+
+    const getInstance = (i: number) => (global as any).WebSocket.getMockInstances()[i];
+    const callCount = () => (global as any).WebSocket.getMockCalls().length;
+
+    test('reconnects with exponential backoff after an abnormal close (1006)', () => {
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      // Initial connection.
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+      expect(result.current.isConnected).toBe(true);
+
+      // Abnormal close -> schedules 1st retry (~1s + jitter).
+      simulateCloseWithCode(ws0, 1006);
+      expect(callCount()).toBe(1); // no immediate reconnect
+
+      act(() => { jest.advanceTimersByTime(2000); }); // past the 1st backoff
+      expect(callCount()).toBe(2);
+
+      // 2nd socket also closes -> schedules 2nd retry (~2s).
+      const ws1 = getInstance(1);
+      simulateCloseWithCode(ws1, 1006);
+      act(() => { jest.advanceTimersByTime(4000); });
+      expect(callCount()).toBe(3);
+
+      // 3rd socket closes -> schedules 3rd retry (~4s) — last allowed attempt.
+      const ws2 = getInstance(2);
+      simulateCloseWithCode(ws2, 1006);
+      act(() => { jest.advanceTimersByTime(8000); });
+      expect(callCount()).toBe(4); // 1 initial + 3 retries
+
+      // 4th socket closes -> maxAttempts (3) reached, NO further retry.
+      const ws3 = getInstance(3);
+      simulateCloseWithCode(ws3, 1006);
+      act(() => { jest.advanceTimersByTime(30000); });
+      expect(callCount()).toBe(4);
+    });
+
+    test('resets the backoff counter after a successful reconnect', () => {
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+
+      // Close -> reconnect -> succeed. The counter resets on open.
+      simulateCloseWithCode(ws0, 1006);
+      act(() => { jest.advanceTimersByTime(2000); });
+      const ws1 = getInstance(1);
+      simulateOpen(ws1); // successful reconnect resets attempts to 0
+      expect(result.current.reconnectAttempts).toBe(0);
+
+      // A subsequent close should restart the backoff at the ~1s delay, and
+      // we should get a full 3 retries again.
+      simulateCloseWithCode(ws1, 1006);
+      act(() => { jest.advanceTimersByTime(2000); });
+      expect(callCount()).toBe(3); // ws0, ws1, + 1 retry
+    });
+
+    test('does NOT retry an auth-failure close (4001)', () => {
+      renderHook(() => useWebSocket({ autoConnect: true }));
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+
+      simulateCloseWithCode(ws0, 4001);
+      // Generously advance — nothing should fire.
+      act(() => { jest.advanceTimersByTime(60000); });
+      expect(callCount()).toBe(1);
+    });
+
+    test('does NOT retry a policy-violation close (1008)', () => {
+      renderHook(() => useWebSocket({ autoConnect: true }));
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+
+      simulateCloseWithCode(ws0, 1008);
+      act(() => { jest.advanceTimersByTime(60000); });
+      expect(callCount()).toBe(1);
+    });
+
+    test('does NOT reconnect when reconnect option is false', () => {
+      renderHook(() => useWebSocket({ autoConnect: true, reconnect: false }));
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+
+      simulateCloseWithCode(ws0, 1006); // abnormal, but reconnect disabled
+      act(() => { jest.advanceTimersByTime(60000); });
+      expect(callCount()).toBe(1);
+    });
+
+    test('cancels pending reconnect on unmount', () => {
+      const { unmount } = renderHook(() => useWebSocket({ autoConnect: true }));
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+
+      simulateCloseWithCode(ws0, 1006); // schedules a retry in ~1s
+      // Unmount before the backoff fires — cleanup should clear the timeout.
+      unmount();
+      act(() => { jest.advanceTimersByTime(60000); });
+      expect(callCount()).toBe(1); // no retry after unmount
+    });
+
+    test('does NOT reconnect on an intentional disconnect()', () => {
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+      const ws0 = getInstance(0);
+      simulateOpen(ws0);
+      expect(result.current.isConnected).toBe(true);
+
+      // An explicit disconnect() must not trigger the reconnect loop.
+      act(() => { result.current.disconnect(); });
+      act(() => { jest.advanceTimersByTime(60000); });
+      expect(callCount()).toBe(1);
     });
   });
 });
