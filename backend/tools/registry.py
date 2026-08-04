@@ -22,6 +22,21 @@ from typing import Any, Callable, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def _type_name(annotation: Any) -> str:
+    """Render a type annotation as a stable name.
+
+    Python 3.11's ``str(annotation)`` for a plain type yields
+    ``"<class 'str'>"`` instead of ``"str"``. Extract the canonical name when
+    available; fall back to ``str()`` for complex ``typing`` constructs.
+    """
+    if annotation is inspect.Parameter.empty:
+        return "Any"
+    name = getattr(annotation, "__name__", None)
+    if name is not None:
+        return str(name)
+    return str(annotation)
+
+
 class ToolMetadata:
     """Metadata for a registered tool."""
 
@@ -73,7 +88,7 @@ class ToolMetadata:
             "dependencies": self.dependencies,
             "parameters": {
                 name: {
-                    "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any",
+                    "type": _type_name(param.annotation),
                     "default": str(param.default) if param.default != inspect.Parameter.empty else None,
                     "required": param.default == inspect.Parameter.empty
                 }
@@ -146,6 +161,11 @@ class ToolRegistry:
         """
         if name in self._tools:
             logger.warning(f"Tool '{name}' already registered, updating...")
+
+        # Fall back to the function docstring when no explicit description is
+        # supplied (test_tool_documentation expects auto-capture).
+        if not description:
+            description = inspect.getdoc(function) or ""
 
         metadata = ToolMetadata(
             name=name,
