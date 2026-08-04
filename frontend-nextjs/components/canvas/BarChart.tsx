@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { ChartCanvasState, CanvasStateAPI } from './types';
+import type { AnyCanvasState, ChartCanvasState, CanvasStateAPI } from './types';
 
 interface BarChartProps {
     data: {
@@ -21,8 +21,8 @@ export function BarChartCanvas({ data, title, color = "#8884d8" }: BarChartProps
             }
             if (!(window as any).atom.canvas) {
                 (window as any).atom.canvas = {
-                    getState: (canvasId: string) => null,
-                    getAllStates: () => [],
+                    getState: (canvasId: string): AnyCanvasState | null => null,
+                    getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
                     subscribe: () => () => {},
                     subscribeAll: () => () => {}
                 };

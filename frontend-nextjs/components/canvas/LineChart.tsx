@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { ChartCanvasState, CanvasStateAPI } from './types';
+import type { AnyCanvasState, ChartCanvasState, CanvasStateAPI } from './types';
 
 interface LineChartProps {
     data: {
@@ -22,8 +22,8 @@ export function LineChartCanvas({ data, title, color = "#8884d8" }: LineChartPro
             }
             if (!(window as any).atom.canvas) {
                 (window as any).atom.canvas = {
-                    getState: (canvasId: string) => null,
-                    getAllStates: () => [],
+                    getState: (canvasId: string): AnyCanvasState | null => null,
+                    getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
                     subscribe: () => () => {},
                     subscribeAll: () => () => {}
                 };

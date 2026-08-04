@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Check, AlertCircle } from 'lucide-react';
-import type { FormCanvasState, CanvasStateAPI } from './types';
+import type { AnyCanvasState, FormCanvasState, CanvasStateAPI } from './types';
 
 interface FormField {
     name: string;
@@ -58,8 +58,8 @@ export function InteractiveForm({
             }
             if (!(window as any).atom.canvas) {
                 (window as any).atom.canvas = {
-                    getState: (canvasId: string) => null,
-                    getAllStates: () => [],
+                    getState: (canvasId: string): AnyCanvasState | null => null,
+                    getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
                     subscribe: () => () => {},
                     subscribeAll: () => () => {}
                 };
