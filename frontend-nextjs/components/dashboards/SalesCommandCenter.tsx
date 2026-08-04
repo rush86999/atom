@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, Search, TrendingUp, Users, Zap, Building2, ArrowUpRight, Clock, X, RefreshCw } from 'lucide-react';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/shared/CommentSection';
@@ -62,7 +62,7 @@ export const SalesCommandCenter: React.FC = () => {
 
     const fetchInsights = async () => {
         try {
-            const response = await axios.get<{ insights: Insight[] }>('/api/intelligence/insights');
+            const response = await apiClient.get<{ insights: Insight[] }>('/api/intelligence/insights');
             setInsights(response.data.insights || []);
         } catch (error) {
             console.error('Failed to fetch insights:', error);
@@ -84,7 +84,7 @@ export const SalesCommandCenter: React.FC = () => {
 
         try {
             setExecuting(insight.anomaly_id);
-            await axios.post('/api/intelligence/execute', {
+            await apiClient.post('/api/intelligence/execute', {
                 action_type: insight.action_type,
                 action_payload: insight.action_payload
             });

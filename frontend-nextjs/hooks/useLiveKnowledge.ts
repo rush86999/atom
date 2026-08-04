@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
 export interface KnowledgeItem {
@@ -33,7 +33,7 @@ export function useLiveKnowledge() {
     const fetchKnowledge = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await axios.get<{ status: string, entities: any[] }>('/api/intelligence/entities');
+            const response = await apiClient.get<{ status: string, entities: any[] }>('/api/intelligence/entities');
             if (response.data?.status === 'success') {
                 const mappedItems: KnowledgeItem[] = response.data.entities.map(e => ({
                     id: e.id,
@@ -57,7 +57,7 @@ export function useLiveKnowledge() {
     const fetchInsights = useCallback(async () => {
         try {
             setInsightsLoading(true);
-            const response = await axios.get<{ status: string, insights: SmartInsight[] }>('/api/intelligence/insights');
+            const response = await apiClient.get<{ status: string, insights: SmartInsight[] }>('/api/intelligence/insights');
             if (response.data?.status === 'success') {
                 setInsights(response.data.insights);
             }
