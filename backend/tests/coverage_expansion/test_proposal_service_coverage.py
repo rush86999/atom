@@ -242,7 +242,7 @@ class TestProposalServiceCoverage:
             proposal_type=ProposalType.ACTION.value,
             title="Test",
             description="Test",
-            proposal_data={},
+            proposal_data={"proposed_action": {}},
         )
         db_session.add(proposal)
         db_session.commit()
