@@ -578,11 +578,14 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
     # C2 fix: verify the user owns (or can access) this canvas before
     # allowing WS state injection. Previously any authenticated user who
     # knew a canvas_id could broadcast state_update to its viewers.
+    # Fail-closed: a NONEXISTENT canvas_id is also rejected (the original
+    # `if canvas and ...` guard short-circuited on None and accepted unknown
+    # ids, letting a user hold an authorized WS for an id that doesn't exist).
     from core.models import Canvas
     db = SessionLocal()
     try:
         canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-        if canvas and canvas.created_by != user.id:
+        if canvas is None or canvas.created_by != user.id:
             await websocket.close(code=1008, reason="Not authorized for this canvas")
             return
     finally:

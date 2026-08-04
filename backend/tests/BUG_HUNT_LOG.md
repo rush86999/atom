@@ -117,3 +117,17 @@ written first (red), the root cause confirmed, then the minimal fix applied
   verify tenant existence.
 - **Test:** `tests/test_admin_budget_routes.py` (4 tests covering 404/422/200 contracts)
 - **Fix:** Raise `HTTPException(404)` for unknown tenants (GET + PUT) and `HTTPException(422)` for invalid enforcement_mode in `api/admin/budget_routes.py`.
+
+### BUG-009 — Canvas WS accepted connections for nonexistent canvas ids (fail-open)
+- **Flow:** Phase 2.1 — WebSocket canvas sync (backend WS authz)
+- **Symptom:** The canvas state-sync WS ownership check
+  (`if canvas and canvas.created_by != user.id`) short-circuited to False when
+  the canvas didn't exist (`canvas is None`). So any authenticated user could
+  open an authorized WS for a **nonexistent** canvas id and hold it open. The
+  C2 fix only guarded existing canvases owned by someone else; unknown ids
+  were silently accepted (fail-open).
+- **Root cause:** The `if canvas and ...` guard treated a missing canvas as
+  "allowed" instead of "denied". Correct fail-closed behavior requires rejecting
+  when the canvas is missing.
+- **Test:** `tests/test_canvas_ws_authz.py::TestCanvasWsAuthorization` (3 tests: nonexistent rejected, non-owner rejected, owner accepted)
+- **Fix:** Changed the guard to `if canvas is None or canvas.created_by != user.id` in `api/canvas_routes.py::canvas_state_websocket` so unknown canvas ids are rejected with close code 1008.
