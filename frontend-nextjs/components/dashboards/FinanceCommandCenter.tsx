@@ -21,7 +21,17 @@ export const FinanceCommandCenter: React.FC = () => {
     });
 
     useEffect(() => {
-        if (lastMessage && lastMessage.type === 'status_update') {
+        // Only refresh on finance-relevant status_updates. The shared
+        // communication_stats channel carries updates for ALL domains
+        // (projects, sales, finance); without this filter, every other
+        // domain's sync triggered a misleading finance refresh + toast.
+        if (
+            lastMessage &&
+            lastMessage.type === 'status_update' &&
+            (!lastMessage.data ||
+                !lastMessage.data.pipeline ||
+                lastMessage.data.pipeline === 'finance')
+        ) {
             toast.info('Sync complete: Refreshing finance data...');
             refresh();
         }

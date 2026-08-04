@@ -155,3 +155,49 @@ def test_get_or_create_dedup_index():
     assert "_dedup_index" in session
     idx2 = get_or_create_dedup_index(session)
     assert idx is idx2, "Should return the same instance"
+
+
+# --- Separator preservation (BUG-010) --------------------------------------
+
+
+def test_paragraph_separator_preserved_when_both_chunks_deduped(index):
+    """When two previously-indexed paragraphs appear together, the ``\\n\\n``
+    paragraph separator between them MUST survive deduplication.
+
+    ``_chunk`` splits on ``"\\n\\n"`` and discards the separator; the reassembly
+    via ``"".join(result_parts)`` then permanently drops it, merging the two
+    reference markers into one run. This corrupts real chat-history text fed
+    back to the LLM (paragraphs merge) and contradicts the module's own
+    "zero information loss" guarantee.
+    """
+    para_a = "Alpha paragraph with enough length to clear the chunk minimum. " * 5
+    para_b = "Bravo paragraph with enough length to clear the chunk minimum. " * 5
+    index.index_text(para_a)
+    index.index_text(para_b)
+
+    text = para_a + "\n\n" + para_b
+    result, count = index.deduplicate(text)
+
+    assert count == 2, f"Both paragraphs should be deduped, got {count}"
+    # The separator must be preserved between the two reference markers.
+    assert "\n\n" in result, (
+        "Paragraph separator dropped during dedup — the two reference markers "
+        f"merged: {result!r}"
+    )
+
+
+def test_paragraph_separator_preserved_when_one_chunk_deduped(index):
+    """Separator must also survive when only the first chunk is a repeat."""
+    para_a = "Alpha paragraph with enough length to clear the chunk minimum. " * 5
+    para_b = "Brand new bravo paragraph never seen before. " * 5
+    index.index_text(para_a)
+
+    text = para_a + "\n\n" + para_b
+    result, count = index.deduplicate(text)
+
+    assert count == 1
+    assert "\n\n" in result, (
+        f"Separator dropped between deduped and non-deduped chunk: {result!r}"
+    )
+    assert para_b in result  # the new chunk is preserved verbatim
+

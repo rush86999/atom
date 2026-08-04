@@ -24,11 +24,20 @@ type Action =
 
 function reducer(_state: State, action: Action): State {
   switch (action.kind) {
-    case 'invalidate':
+    case 'invalidate': {
+      // UNION with existing dirty IDs. Replacing the set (the original
+      // behavior) silently dropped earlier dirty task IDs when multiple task
+      // events arrived before the consumer flushed — those updates were never
+      // refetched.
+      const next = new Set(_state.dirtyTaskIds);
+      for (const id of action.taskIds || []) {
+        next.add(id);
+      }
       return {
         lastEventAt: Date.now(),
-        dirtyTaskIds: new Set(action.taskIds || []),
+        dirtyTaskIds: next,
       };
+    }
     case 'noop':
     default:
       return _state;

@@ -90,7 +90,10 @@ class SessionDedupIndex:
         if replacements == 0:
             return text, 0
 
-        return "".join(result_parts), replacements
+        # Rejoin with the paragraph separator that _chunk split on. Using ""
+        # here would drop the "\n\n" between paragraphs, merging adjacent
+        # reference markers and corrupting the text (BUG-010).
+        return "\n\n".join(result_parts), replacements
 
     def clear(self) -> None:
         self._seen.clear()

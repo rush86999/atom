@@ -193,13 +193,32 @@ async def handle_document_ingestion_sync(payload: Dict[str, Any]) -> Dict[str, A
 async def handle_sync_dashboard_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Sync dashboard analytics from integrations (Salesforce, HubSpot)"""
     from core.analytics_sync_service import AnalyticsSyncService
-    
+
     workspace_id = payload.get('workspace_id')
     if not workspace_id:
         return {'success': False, 'error': 'No workspace_id provided'}
-        
+
     await AnalyticsSyncService.sync_all_analytics(workspace_id)
     return {'success': True, 'message': 'Analytics sync complete'}
+
+
+@TaskRegistry.register('reevaluate_doc_freshness')
+async def handle_reevaluate_doc_freshness(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Age-out freshness reevaluation for a workspace's ingested documents.
+
+    Marks docs whose ``last_verified_at`` is beyond the TTL as ``outdated``.
+    Dispatched per-workspace from the global ingestion heartbeat so docs in
+    disabled/skipped integrations still age out. See
+    core.periodic_tasks.run_doc_freshness_reevaluate.
+    """
+    from core.periodic_tasks import run_doc_freshness_reevaluate
+
+    workspace_id = payload.get('workspace_id')
+    if not workspace_id:
+        return {'success': False, 'error': 'No workspace_id provided'}
+
+    result = await run_doc_freshness_reevaluate(workspace_id)
+    return {'success': True, 'result': result}
 
 
 
@@ -222,10 +241,14 @@ async def process_message(message: Dict[str, Any]) -> bool:
         handler = TaskRegistry.get_handler(task_name)
         if not handler:
             logger.error(f"Unknown task type: {task_name}")
-            # Move to DLQ
+            # Move to DLQ, then delete from the main queue so the message
+            # isn't re-received and re-sent to the DLQ on every poll cycle
+            # (BUG-011: previously this returned True claiming "Delete from
+            # main queue" but never actually called delete_message).
             if SQS_DLQ_URL:
                 sqs.send_message(QueueUrl=SQS_DLQ_URL, MessageBody=message['Body'])
-            return True  # Delete from main queue
+            sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
+            return True
         
         # Execute handler
         start_time = datetime.now()

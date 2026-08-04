@@ -131,3 +131,47 @@ written first (red), the root cause confirmed, then the minimal fix applied
   when the canvas is missing.
 - **Test:** `tests/test_canvas_ws_authz.py::TestCanvasWsAuthorization` (3 tests: nonexistent rejected, non-owner rejected, owner accepted)
 - **Fix:** Changed the guard to `if canvas is None or canvas.created_by != user.id` in `api/canvas_routes.py::canvas_state_websocket` so unknown canvas ids are rejected with close code 1008.
+
+---
+
+## Round 2 — End-to-end TDD bug hunt (cont.)
+
+### BUG-010 — session_dedup drops `\n\n` paragraph separators during dedup
+- **Flow:** Backend chat history dedup (session memory → LLM context)
+- **Symptom:** When two previously-indexed paragraphs appeared together in a
+  later turn, `_chunk` split on `\n\n` and `deduplicate` reassembled with
+  `"".join(...)`, permanently dropping the separator. Reference markers merged
+  (`[previously sent: aaa][previously sent: bbb]`) and real paragraphs fused —
+  corrupting the chat history fed back to the LLM. ON by default; contradicted
+  the module's "zero information loss" docstring.
+- **Test:** `tests/test_compression_session_dedup.py::test_paragraph_separator_preserved_when_both_chunks_deduped`
+- **Fix:** Rejoin with `"\n\n".join(result_parts)` in `session_dedup.py`.
+
+### BUG-011 — sqs_worker DLQ path never deletes from the main queue (duplication loop)
+- **Flow:** Background jobs + SQS worker (backend)
+- **Symptom:** An unknown/unregistered task was sent to the DLQ and `return True`
+  claimed "Delete from main queue" — but no `sqs.delete_message` ever ran on
+  that path. The 300s visibility timeout expired, `poll_queue` re-received the
+  same message, re-sent it to the DLQ, and looped forever, flooding the DLQ
+  with duplicates every cycle for any poison/unknown message.
+- **Test:** `tests/test_sqs_worker_dlq.py::TestProcessMessageDlqDelete`
+- **Fix:** Call `sqs.delete_message` on the DLQ path after sending to the DLQ.
+
+### BUG-012 — FinanceCommandCenter refreshes on other domains' status_updates
+- **Flow:** Dashboard WS sync (frontend → backend broadcast)
+- **Symptom:** The shared `communication_stats` channel carries
+  `status_update` for ALL domains (projects, sales, finance). FinanceCommandCenter
+  checked only `message.type === 'status_update'` with no domain filter, so a
+  projects or sales pipeline completion triggered a misleading "Refreshing
+  finance data..." toast + a wrong-data-source refresh.
+- **Test:** `frontend-nextjs/components/dashboards/__tests__/FinanceCommandCenter.wsfilter.test.tsx`
+- **Fix:** Filter on `data.pipeline === 'finance'` (or absent) in the effect.
+
+### BUG-013 — useBoardWebSocket `dirtyTaskIds` replaces instead of unions
+- **Flow:** Board realtime updates (frontend WS reducer)
+- **Symptom:** The reducer built `new Set(action.taskIds)` on each
+  `invalidate`, discarding the existing `_state.dirtyTaskIds`. Consecutive task
+  events for different tasks (before a flush) dropped earlier dirty IDs, so
+  those task updates were never refetched by the consumer.
+- **Test:** `frontend-nextjs/hooks/__tests__/useBoardWebSocket.test.ts`
+- **Fix:** Union new IDs into the existing set in the reducer.
