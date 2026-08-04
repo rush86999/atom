@@ -147,6 +147,23 @@ class GenericAgent:
                 while current_step < max_steps:
                     current_step += 1
 
+                    # Spend gate: check the tenant budget BEFORE the expensive
+                    # LLM call. When denied, halt the loop cleanly with a
+                    # budget-exceeded status (mirrors the max_steps/timeout exit
+                    # paths below).
+                    budget_check = await self._check_budget_before_react()
+                    if not budget_check.get("allowed"):
+                        final_answer = (
+                            f"Budget limit reached — execution halted. "
+                            f"({budget_check.get('reason') or 'over budget'})"
+                        )
+                        status = "budget_exceeded"
+                        logger.warning(
+                            f"Budget gate halted agent {getattr(self, 'name', '?')} at "
+                            f"step {current_step}: {budget_check.get('reason')}"
+                        )
+                        break
+
                     # Plan/Think - Use instructor for structured parsing
                     react_step = await self._react_step(task_input, memory_context, execution_history, context)
 
@@ -334,7 +351,7 @@ class GenericAgent:
             status = "failed"
             
         # 2.5: Generate Reflection/Critique on failure (Phase 215)
-        if status in ["failed", "timeout", "max_steps_exceeded"]:
+        if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded"]:
             try:
                 await self.reflection_service.generate_critique(
                     agent_id=self.id,
@@ -385,6 +402,13 @@ class GenericAgent:
                 logger.warning(f"Audit failed: {audit_err}")
 
         # 5. Record Experience
+        # Normalize internal loop sentinels to valid ExecutionStatus values at
+        # the execution boundary. ``budget_exceeded`` is an in-loop signal; if
+        # it leaks into the returned payload, the API/WS layer serializes an
+        # invalid status to consumers (DB persistence maps it separately, but
+        # the return value must be valid on its own).
+        if status == "budget_exceeded":
+            status = "failed"
         execution_result = {
             "output": final_answer,
             "steps": steps,
@@ -424,6 +448,29 @@ class GenericAgent:
         except Exception as e:
             logger.debug(f"skill injection skipped: {e}")
             return ""
+
+    async def _check_budget_before_react(self) -> Dict[str, Any]:
+        """Spend gate: check the tenant budget BEFORE the expensive LLM call.
+
+        Previously the budget was only checked per-tool, so the LLM planning
+        call ran ungated every iteration. This closes the gap so a run over
+        budget in hard_stop (or soft_stop without an active episode) halts at
+        the next LLM call. Fail-open on error, matching the convention in
+        BudgetEnforcementService.
+        """
+        tenant_id = getattr(self, "tenant_id", None) or "default"
+        try:
+            from core.budget_enforcement_service import BudgetEnforcementService
+
+            svc = BudgetEnforcementService()
+            return await svc.check_budget_before_action(
+                tenant_id=tenant_id,
+                agent_id=getattr(self, "id", None) or "generic_agent",
+                action="llm_react_step",
+            )
+        except Exception as e:
+            logger.warning(f"Budget pre-check failed (fail-open): {e}")
+            return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}
 
     async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None) -> ReActStep:
         """
