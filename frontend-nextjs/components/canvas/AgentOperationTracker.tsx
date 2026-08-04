@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import useWebSocket from '@/hooks/useWebSocket';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export interface OperationLog {
   timestamp: string;

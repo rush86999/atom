@@ -22,17 +22,12 @@ export function SlashCommandBar({ boardId }: Props) {
     }
     setBusy(true);
     try {
-      const res = await apiClient.fetch('/api/atom-agent/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          user_id: 'system', // will be overridden by backend
-          context: { board_id: boardId },
-        }),
+      const res = await apiClient.post('/api/atom-agent/chat', {
+        message: text,
+        user_id: 'system', // will be overridden by backend
+        context: { board_id: boardId },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json().catch(() => ({}));
+      const data = res.data || {};
       const reply = data.response?.message || data.message || 'Done.';
       toast.success(reply);
       setValue('');
