@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v12.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-08-02T02:29:06.830Z"
+last_updated: "2026-08-02T17:09:18.073Z"
 progress:
   total_phases: 12
   completed_phases: 3
@@ -59,6 +59,21 @@ progress:
 - ✅ **Phase 306**: TDD Bug Discovery & Coverage Completion (2026-04-30)
 - ✅ **Phase 307**: Backend Coverage - Critical Paths (2026-04-30) SUBSTANTIAL
 - ✅ **Phase 313**: Budget Enforcement Test Fixes (2026-05-04)
+- ✅ **Phase 314**: End-to-End TDD Bug Hunt (Frontend → Backend) (2026-08-04)
+
+**Phase 314 Summary:**
+
+- End-to-end TDD bug hunt across frontend (Jest+MSW) and backend (pytest) layers
+- **8 real bugs found and fixed** via strict red-green discipline (BUG-001..BUG-008)
+  - Backend: execution-recovery metadata gap, budget-exceeded status leak, doc-freshness TypeError crash, admin-route 200-on-error
+  - Frontend: WS streaming-clear coupling, sendMessage InvalidStateError, SlashCommandBar error-envelope masking, ViewOrchestrator canvas crash on malformed WS message
+- 4 additional investigated paths confirmed already-defended (no bug)
+- **15 new tests** added (11 backend, 4 frontend); all guarded by `scripts/bug_hunt_guard.sh`
+- New contract doc: `docs/contracts/streaming-messages.md` (WS streaming + agent-response wire format)
+- Regression status: backend 69/69 pass on touched files; frontend +4 new tests, no new failures
+- Bug catalog: `backend/tests/BUG_HUNT_LOG.md`
+- Duration: 1 session
+
 
 **Phase 301 Summary:**
 
