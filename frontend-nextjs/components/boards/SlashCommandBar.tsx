@@ -28,6 +28,13 @@ export function SlashCommandBar({ boardId }: Props) {
         context: { board_id: boardId },
       });
       const data = res.data || {};
+      // The backend sometimes returns HTTP 200 with a logical error envelope
+      // {success: false, error: "..."} (governance denial, internal error).
+      // Surface that as an error rather than masking it as success.
+      if (data.success === false) {
+        toast.error(data.error || 'Command failed.');
+        return;
+      }
       const reply = data.response?.message || data.message || 'Done.';
       toast.success(reply);
       setValue('');

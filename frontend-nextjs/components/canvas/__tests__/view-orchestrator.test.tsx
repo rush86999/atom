@@ -292,6 +292,31 @@ describe('ViewOrchestrator - Rendering Tests', () => {
       expect(collapseBtn).toBeInTheDocument();
     });
   });
+
+  test('ignores a view:switch message with a missing data field without crashing', async () => {
+    // A malformed/partial message: valid type, no `data` wrapper. The handler
+    // must not crash and must leave the orchestrator in a valid state (empty)
+    // rather than throwing into React's error boundary.
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <ViewOrchestrator
+        userId="test-user"
+      />
+    );
+
+    act(() => {
+      mockWsState.lastMessage = { type: 'view:switch' /* no data */ } as any;
+      mockWsState.force?.();
+    });
+
+    // Component remains in a valid empty state — no crash, no boundary.
+    await waitFor(() => {
+      expect(screen.getByText('No active views')).toBeInTheDocument();
+    });
+
+    errSpy.mockRestore();
+  });
 });
 
 describe('ViewOrchestrator - Layout Tests', () => {

@@ -64,6 +64,13 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
     try {
       const data = lastMessage.data;
 
+      // Guard: a malformed message with a known type but no `data` payload
+      // must be ignored gracefully. Without this, the setOrchestration updaters
+      // below dereference `data.layout`/`data.views` inside the state callback,
+      // which runs OUTSIDE this try/catch — so the TypeError escapes to React's
+      // error boundary and crashes the whole canvas UI.
+      if (!data) return;
+
       // Handle view switch
       if (lastMessage.type === 'view:switch') {
         setOrchestration((prev) => ({

@@ -60,4 +60,32 @@ describe('SlashCommandBar', () => {
       expect(apiClient.post).toHaveBeenCalled();
     });
   });
+
+  it('shows an error toast (not success) for a 200-with-error-body response', async () => {
+    // The backend frequently returns HTTP 200 with a logical error envelope
+    // {success: false, error: "..."} (e.g. governance denial, internal error).
+    // The bar must surface this as an ERROR, not a success — otherwise the
+    // user sees a misleading "Done." toast and believes their command ran.
+    const user = userEvent.setup();
+    (apiClient.post as jest.Mock).mockResolvedValue({
+      data: { success: false, error: 'Action denied by governance policy.' },
+    });
+
+    render(<SlashCommandBar boardId="b1" />);
+    const input = screen.getByPlaceholderText(/task create/i);
+
+    await user.type(input, '/task create Buy milk');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalled();
+    });
+
+    // The error envelope must produce an error toast, never a success toast.
+    // We assert the bar did NOT clear the input (it only clears on success),
+    // which is the observable proxy for "treated this as a failure".
+    await waitFor(() => {
+      expect((input as HTMLInputElement).value).toBe('/task create Buy milk');
+    });
+  });
 });

@@ -95,7 +95,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
                             ? message.content
                             : currentContent + (message.delta || "");
 
-                        if (message.complete) {
+                        if (message.type === "streaming:complete") {
                             // Don't store completed streams, they'll be in regular messages
                             newMap.delete(message.id);
                         } else {
@@ -153,6 +153,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         streamingContent,
         subscribe,
         unsubscribe,
-        sendMessage: (msg: any) => wsRef.current?.send(JSON.stringify(msg)),
+        sendMessage: (msg: any) => {
+            // Guard on OPEN state, matching subscribe/unsubscribe. A real
+            // WebSocket.send() throws InvalidStateError while CONNECTING, and a
+            // component that sends immediately on mount (before onopen) would
+            // crash without this guard.
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify(msg));
+            }
+        },
     };
 };

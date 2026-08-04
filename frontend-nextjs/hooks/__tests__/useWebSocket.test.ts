@@ -285,6 +285,37 @@ describe('useWebSocket Hook', () => {
       expect(result.current.streamingContent.has('msg-1')).toBe(false);
     });
 
+    test('clears streamingContent on streaming:complete WITHOUT a redundant complete flag', () => {
+      // The deletion logic must key off the message TYPE, not a separate
+      // `complete: true` field. A streaming:complete message that omits the
+      // redundant flag (a perfectly valid backend emission) must still clear
+      // the accumulated text — otherwise stale streaming content lingers in
+      // the UI forever after the stream finishes.
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      const wsInstance = (global as any).WebSocket.getMockInstances()[0];
+
+      // Seed a streaming buffer
+      simulateMessage(
+        wsInstance,
+        JSON.stringify({ type: 'streaming:update', id: 'msg-9', delta: 'Partial' })
+      );
+      expect(result.current.streamingContent.get('msg-9')).toBe('Partial');
+
+      // Complete WITHOUT the redundant `complete: true` field
+      simulateMessage(
+        wsInstance,
+        JSON.stringify({
+          type: 'streaming:complete',
+          id: 'msg-9',
+          content: 'Partial',
+          // NOTE: no `complete: true` — the type alone signals completion
+        })
+      );
+
+      expect(result.current.streamingContent.has('msg-9')).toBe(false);
+    });
+
     test('accumulates streaming content in Map by message ID', () => {
       const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
 
@@ -771,6 +802,28 @@ describe('useWebSocket Hook', () => {
       expect(() => {
         act(() => {
           result.current.sendMessage({ type: 'test', data: 'message' });
+        });
+      }).not.toThrow();
+    });
+
+    test('does not throw on sendMessage while socket is CONNECTING', () => {
+      // A real browser WebSocket.send() throws InvalidStateError when the
+      // socket is still in CONNECTING state (readyState 0). subscribe() and
+      // unsubscribe() already guard on readyState === OPEN; sendMessage must
+      // do the same so a component that sends immediately on mount (before
+      // onopen fires) doesn't crash. We simulate real send() behavior here.
+      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      const wsInstance = (global as any).WebSocket.getMockInstances()[0];
+      // Socket is CONNECTING (not yet opened): simulate real send() throwing.
+      expect(wsInstance.readyState).toBe(0); // CONNECTING
+      wsInstance.send = jest.fn(() => {
+        throw new DOMException('InvalidStateError', 'InvalidStateError');
+      });
+
+      expect(() => {
+        act(() => {
+          result.current.sendMessage({ type: 'canvas:state_update', data: {} });
         });
       }).not.toThrow();
     });
