@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
+import { renderWithProviders, screen, waitFor, act } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -19,6 +19,8 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (window as any).atom;
+  // Prevent fake timers from leaking into later tests (was causing 30s hangs)
+  jest.useRealTimers();
 });
 
 describe('InteractiveForm - Loading State Feedback', () => {
@@ -130,6 +132,7 @@ describe('InteractiveForm - Loading State Feedback', () => {
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
 
     await user.type(nameInput, 'John Doe');
+    await user.type(screen.getByLabelText(/email/i), 'john@example.com');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
@@ -226,24 +229,26 @@ describe('InteractiveForm - Success State Feedback', () => {
   test('success message auto-hides after 3 seconds', async () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     jest.useFakeTimers();
-    const user = userEvent.setup();
+    // user-event must advance fake timers or its internal waits deadlock
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
+    // Flush the resolved submit so React commits the success state
+    await act(async () => {
+      jest.advanceTimersByTime(0);
     });
+    expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
 
-    // Fast-forward timers
-    jest.advanceTimersByTime(3000);
-
-    await waitFor(() => {
-      expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    // Fast-forward the 3s auto-hide timer
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
     });
+    expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
 
     jest.useRealTimers();
   });
@@ -392,6 +397,7 @@ describe('InteractiveForm - Error State Feedback', () => {
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
 
     await user.type(nameInput, 'John Doe');
+    await user.type(screen.getByLabelText(/email/i), 'john@example.com');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
@@ -478,7 +484,8 @@ describe('InteractiveForm - Accessibility Feedback', () => {
     renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
 
     const nameLabel = screen.getByText(/name/i);
-    const asterisk = nameLabel.nextElementSibling;
+    // The asterisk is rendered as a child span inside the label, not a sibling
+    const asterisk = nameLabel.querySelector('span');
 
     expect(asterisk).toBeInTheDocument();
     expect(asterisk?.textContent).toBe('*');
@@ -592,7 +599,8 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
   test('form can be submitted multiple times successfully', async () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
     jest.useFakeTimers();
-    const user = userEvent.setup();
+    // user-event must advance fake timers or its internal waits deadlock
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
@@ -601,16 +609,16 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
     await user.type(screen.getByLabelText(/email/i), 'john@example.com');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(0);
     });
+    expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
 
-    // Wait for success message to clear
-    jest.advanceTimersByTime(3000);
-
-    await waitFor(() => {
-      expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
+    // Wait for the 3s auto-hide timer to clear the success message
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
     });
+    expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
 
     // Second submission
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
@@ -618,9 +626,10 @@ describe('InteractiveForm - Interactive Feedback Scenarios', () => {
     await user.type(nameInput, 'Jane Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(0);
     });
+    expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
 
     expect(mockSubmit).toHaveBeenCalledTimes(2);
     jest.useRealTimers();

@@ -220,11 +220,12 @@ describe('InteractiveForm - Required Field Error Messages', () => {
 
   test('error for whitespace-only required field', async () => {
     const user = userEvent.setup();
+    const onSubmit = jest.fn();
     const fields = [
       { name: 'name', label: 'Name', type: 'text' as const, required: true }
     ];
 
-    renderWithProviders(<InteractiveForm fields={fields} onSubmit={jest.fn()} />);
+    renderWithProviders(<InteractiveForm fields={fields} onSubmit={onSubmit} />);
 
     const submitButton = screen.getByRole('button', { name: /submit/i });
     const nameInput = screen.getByLabelText(/name/i);
@@ -233,13 +234,13 @@ describe('InteractiveForm - Required Field Error Messages', () => {
     await user.type(nameInput, '   ');
     await user.click(submitButton);
 
-    // VALIDATED_BEHAVIOR: Whitespace is considered valid (not trimmed)
-    // This documents the actual behavior - InteractiveForm doesn't trim input
+    // Whitespace-only input is treated as empty (trimmed) → required error shown,
+    // submission is blocked, and onSubmit is not invoked.
     await waitFor(() => {
-      expect(screen.queryByText(/name is required/i)).not.toBeInTheDocument();
-      // Form submits successfully with whitespace
-      expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
+      expect(screen.getByText(/name is required/i)).toBeInTheDocument();
     });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
   });
 
   test('custom error message via validation.custom', async () => {
