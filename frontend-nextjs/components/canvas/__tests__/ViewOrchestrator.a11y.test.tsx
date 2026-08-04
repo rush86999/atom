@@ -17,7 +17,14 @@ jest.mock('@/hooks/useWebSocket', () => ({
   default: () => ({
     socket: null,
     connected: false,
-    lastMessage: null
+    lastMessage: null,
+    sendMessage: jest.fn()
+  }),
+  useWebSocket: () => ({
+    socket: null,
+    connected: false,
+    lastMessage: null,
+    sendMessage: jest.fn()
   })
 }));
 

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import useWebSocket from '@/hooks/useWebSocket';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export interface ErrorDetail {
   type: string;
@@ -55,36 +55,24 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
   const [errorData, setErrorData] = useState<ErrorData | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<number | null>(null);
   const [expandedResolution, setExpandedResolution] = useState<number | null>(null);
-  const { socket, connected } = useWebSocket();
+  const { lastMessage, sendMessage } = useWebSocket();
 
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!lastMessage || lastMessage.type !== 'operation:error') return;
 
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
+    try {
+      const data = lastMessage.data;
 
-        if (message.type === 'operation:error') {
-          const data = message.data;
-
-          // Filter by operationId if specified
-          if (!operationId || data.operation_id === operationId) {
-            setErrorData(data);
-            // Auto-expand suggested resolution
-            setExpandedResolution(data.suggested_resolution);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+      // Filter by operationId if specified
+      if (!operationId || data.operation_id === operationId) {
+        setErrorData(data);
+        // Auto-expand suggested resolution
+        setExpandedResolution(data.suggested_resolution);
       }
-    };
-
-    socket.addEventListener('message', handleMessage);
-
-    return () => {
-      socket.removeEventListener('message', handleMessage);
-    };
-  }, [socket, connected, operationId]);
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  }, [lastMessage, operationId]);
 
   const handleResolutionClick = (index: number, resolution: Resolution) => {
     setSelectedResolution(index);
@@ -93,16 +81,14 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
     }
 
     // Send resolution to backend
-    if (socket && connected) {
-      socket.send(JSON.stringify({
-        type: 'error:resolution_selected',
-        data: {
-          operation_id: errorData?.operation_id,
-          resolution_index: index,
-          resolution: resolution
-        }
-      }));
-    }
+    sendMessage({
+      type: 'error:resolution_selected',
+      data: {
+        operation_id: errorData?.operation_id,
+        resolution_index: index,
+        resolution: resolution
+      }
+    });
   };
 
   const getErrorIcon = (type: string) => {

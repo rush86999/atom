@@ -22,14 +22,30 @@ const mockSocket = {
   send: mockSend
 };
 
-jest.mock('@/hooks/useWebSocket', () => ({
-  __esModule: true,
-  default: () => ({
-    socket: mockSocket,
-    connected: true,
-    lastMessage: null
-  })
-}));
+// Shared mutable state driving the mocked hook's lastMessage
+const mockWsState: { lastMessage: any; force: (() => void) | null } = {
+  lastMessage: null,
+  force: null
+};
+
+jest.mock('@/hooks/useWebSocket', () => {
+  const React = require('react');
+  const useMockWebSocket = () => {
+    const [, force] = React.useReducer((x: number) => x + 1, 0);
+    mockWsState.force = force;
+    return {
+      socket: mockSocket,
+      connected: true,
+      lastMessage: mockWsState.lastMessage,
+      sendMessage: (msg: any) => mockSend(JSON.stringify(msg))
+    };
+  };
+  return {
+    __esModule: true,
+    default: useMockWebSocket,
+    useWebSocket: useMockWebSocket
+  };
+});
 
 // Helper function to create mock view
 const createMockView = (overrides?: Partial<View>): View => ({

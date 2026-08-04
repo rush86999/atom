@@ -9,33 +9,49 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OperationErrorGuide from '../OperationErrorGuide';
 
-// Mock WebSocket hook - Simulates the old API used by the component
+// Mock WebSocket hook - Simulates the hook API used by the component
 const mockSocket = {
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
   send: jest.fn()
 };
 
-jest.mock('@/hooks/useWebSocket', () => ({
-  __esModule: true,
-  default: () => ({
-    socket: mockSocket,
-    connected: true,
-    lastMessage: null,
-    streamingContent: new Map(),
-    subscribe: jest.fn(),
-    unsubscribe: jest.fn(),
-    sendMessage: jest.fn()
-  })
-}));
+// Shared mutable state driving the mocked hook's lastMessage
+const mockWsState: { lastMessage: any; force: (() => void) | null } = {
+  lastMessage: null,
+  force: null
+};
+
+jest.mock('@/hooks/useWebSocket', () => {
+  const React = require('react');
+  const useMockWebSocket = () => {
+    const [, force] = React.useReducer((x: number) => x + 1, 0);
+    mockWsState.force = force;
+    return {
+      socket: mockSocket,
+      connected: true,
+      lastMessage: mockWsState.lastMessage,
+      streamingContent: new Map(),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+      sendMessage: (msg: any) => mockSocket.send(JSON.stringify(msg))
+    };
+  };
+  return {
+    __esModule: true,
+    default: useMockWebSocket,
+    useWebSocket: useMockWebSocket
+  };
+});
 
 // Mock next-auth
 jest.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null, status: 'unauthenticated' })
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Helper to create mock error data
@@ -89,26 +105,18 @@ const createMockErrorData = (overrides: any = {}): any => ({
   ...overrides
 });
 
-// Helper to simulate WebSocket message
+// Helper to simulate WebSocket message via the mocked hook's lastMessage
 const simulateWebSocketMessage = (errorData: any) => {
-  const messageHandler = mockSocket.addEventListener.mock.calls.find(
-    call => call[0] === 'message'
-  );
-
-  if (messageHandler && messageHandler[1]) {
-    const messageEvent = new MessageEvent('message', {
-      data: JSON.stringify({
-        type: 'operation:error',
-        data: errorData
-      })
-    });
-    messageHandler[1](messageEvent);
-  }
+  act(() => {
+    mockWsState.lastMessage = { type: 'operation:error', data: errorData };
+    mockWsState.force?.();
+  });
 };
 
 describe('OperationErrorGuide Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
     (mockSocket.send as jest.Mock).mockClear();
     (mockSocket.addEventListener as jest.Mock).mockClear();
     (mockSocket.removeEventListener as jest.Mock).mockClear();

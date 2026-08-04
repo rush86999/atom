@@ -58,44 +58,32 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [responding, setResponding] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const { socket, connected } = useWebSocket();
+  const { lastMessage, sendMessage } = useWebSocket();
 
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!lastMessage || lastMessage.type !== 'agent:request') return;
 
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
+    try {
+      const data = lastMessage.data;
 
-        if (message.type === 'agent:request') {
-          const data = message.data;
+      // Filter by requestId if specified
+      if (!requestId || data.request_id === requestId) {
+        setRequestData(data);
+        // Pre-select suggested option
+        setSelectedOption(data.suggested_option);
 
-          // Filter by requestId if specified
-          if (!requestId || data.request_id === requestId) {
-            setRequestData(data);
-            // Pre-select suggested option
-            setSelectedOption(data.suggested_option);
-
-            // Set up expiration timer
-            if (data.expires_at) {
-              const expiresAt = new Date(data.expires_at);
-              const now = new Date();
-              const remaining = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
-              setTimeRemaining(remaining);
-            }
-          }
+        // Set up expiration timer
+        if (data.expires_at) {
+          const expiresAt = new Date(data.expires_at);
+          const now = new Date();
+          const remaining = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+          setTimeRemaining(remaining);
         }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
       }
-    };
-
-    socket.addEventListener('message', handleMessage);
-
-    return () => {
-      socket.removeEventListener('message', handleMessage);
-    };
-  }, [socket, connected, requestId]);
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  }, [lastMessage, requestId]);
 
   // Countdown timer
   useEffect(() => {
@@ -109,7 +97,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
   }, [timeRemaining]);
 
   const handleResponse = async (optionIndex: number) => {
-    if (!requestData || !socket) return;
+    if (!requestData) return;
 
     setResponding(true);
 
@@ -121,13 +109,13 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
     };
 
     // Send response via WebSocket
-    socket.send(JSON.stringify({
+    sendMessage({
       type: 'agent:request_response',
       data: {
         request_id: requestData.request_id,
         response: response
       }
-    }));
+    });
 
     // Also call REST API for persistence
     try {

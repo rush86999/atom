@@ -11,7 +11,7 @@
 import React from 'react';
 
 // Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 // Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import '@testing-library/jest-dom';
@@ -19,29 +19,45 @@ import AgentRequestPrompt, { RequestData, RequestOption } from '../AgentRequestP
 
 // Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
-// Mock WebSocket hook - Simulates the old API used by the component
+// Mock WebSocket hook - Simulates the hook API used by the component
 const mockSocket = {
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
   send: jest.fn()
 };
 
-jest.mock('@/hooks/useWebSocket', () => ({
-  __esModule: true,
-  default: () => ({
-    socket: mockSocket,
-    connected: true,
-    lastMessage: null,
-    streamingContent: new Map(),
-    subscribe: jest.fn(),
-    unsubscribe: jest.fn(),
-    sendMessage: jest.fn()
-  })
-}));
+// Shared mutable state driving the mocked hook's lastMessage
+const mockWsState: { lastMessage: any; force: (() => void) | null } = {
+  lastMessage: null,
+  force: null
+};
+
+jest.mock('@/hooks/useWebSocket', () => {
+  const React = require('react');
+  const useMockWebSocket = () => {
+    const [, force] = React.useReducer((x: number) => x + 1, 0);
+    mockWsState.force = force;
+    return {
+      socket: mockSocket,
+      connected: true,
+      lastMessage: mockWsState.lastMessage,
+      streamingContent: new Map(),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+      sendMessage: (msg: any) => mockSocket.send(JSON.stringify(msg))
+    };
+  };
+  return {
+    __esModule: true,
+    default: useMockWebSocket,
+    useWebSocket: useMockWebSocket
+  };
+});
 
 // Mock next-auth
 jest.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null, status: 'unauthenticated' })
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock fetch for API calls
@@ -90,27 +106,19 @@ const createMockRequestData = (overrides: Partial<RequestData> = {}): RequestDat
   ...overrides
 });
 
-// Helper to simulate WebSocket message
+// Helper to simulate WebSocket message via the mocked hook's lastMessage
 const simulateWebSocketMessage = (requestData: RequestData) => {
-  const messageHandler = mockSocket.addEventListener.mock.calls.find(
-    call => call[0] === 'message'
-  );
-
-  if (messageHandler && messageHandler[1]) {
-    const messageEvent = new MessageEvent('message', {
-      data: JSON.stringify({
-        type: 'agent:request',
-        data: requestData
-      })
-    });
-    messageHandler[1](messageEvent);
-  }
+  act(() => {
+    mockWsState.lastMessage = { type: 'agent:request', data: requestData };
+    mockWsState.force?.();
+  });
 };
 
 describe('AgentRequestPrompt Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockWsState.lastMessage = null;
     (mockSocket.send as jest.Mock).mockClear();
     (mockSocket.addEventListener as jest.Mock).mockClear();
     (mockSocket.removeEventListener as jest.Mock).mockClear();
@@ -1197,18 +1205,22 @@ describe('AgentRequestPrompt Component', () => {
   // WebSocket Integration Tests (5 tests)
   // ============================================================================
 
-  test('should subscribe to agent:request messages', () => {
-    render(
+  test('should process agent:request messages', async () => {
+    const mockData = createMockRequestData();
+
+    const { container } = render(
       <AgentRequestPrompt
         requestId="test-request-123"
         userId="test-user"
       />
     );
 
-    expect(mockSocket.addEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function)
-    );
+    simulateWebSocketMessage(mockData);
+
+    await waitFor(() => {
+      const accessibilityDiv = container.querySelector('[role="log"]');
+      expect(accessibilityDiv).toHaveAttribute('data-request-id', 'test-request-123');
+    });
   });
 
   test('should pre-select suggested option', async () => {
@@ -1279,7 +1291,7 @@ describe('AgentRequestPrompt Component', () => {
     });
   });
 
-  test('should clean up event listeners on unmount', () => {
+  test('should unmount cleanly without throwing', () => {
     const { unmount } = render(
       <AgentRequestPrompt
         requestId="test-request-123"
@@ -1287,14 +1299,7 @@ describe('AgentRequestPrompt Component', () => {
       />
     );
 
-    expect(mockSocket.addEventListener).toHaveBeenCalled();
-
-    unmount();
-
-    expect(mockSocket.removeEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function)
-    );
+    expect(() => unmount()).not.toThrow();
   });
 
   // ============================================================================

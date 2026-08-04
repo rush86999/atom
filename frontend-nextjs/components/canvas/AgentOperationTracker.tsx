@@ -53,46 +53,37 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
 }) => {
   const [operation, setOperation] = useState<AgentOperationData | null>(null);
   const [logsExpanded, setLogsExpanded] = useState(false);
-  const { socket, connected } = useWebSocket();
+  const { lastMessage } = useWebSocket();
 
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!lastMessage || lastMessage.type !== 'canvas:update') return;
 
-    // Subscribe to canvas updates
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
+    try {
+      const data = lastMessage.data;
 
-        // Handle operation present
-        if (message.type === 'canvas:update' && message.data?.component === 'agent_operation_tracker') {
-          const data = message.data.data;
+      // Handle operation present
+      if (data?.component === 'agent_operation_tracker') {
+        const payload = data.data;
 
-          // Filter by operationId if specified
-          if (!operationId || data.operation_id === operationId) {
-            setOperation(data);
-          }
+        // Filter by operationId if specified
+        if (!operationId || payload.operation_id === operationId) {
+          setOperation(payload);
         }
-
-        // Handle operation updates
-        if (message.type === 'canvas:update' && message.data?.action === 'update') {
-          if (message.data.operation_id === operation?.operation_id) {
-            setOperation((prev) => ({
-              ...prev!,
-              ...message.data.updates
-            }));
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
       }
-    };
 
-    socket.addEventListener('message', handleMessage);
-
-    return () => {
-      socket.removeEventListener('message', handleMessage);
-    };
-  }, [socket, connected, operationId, operation]);
+      // Handle operation updates
+      if (data?.action === 'update') {
+        if (data.operation_id === operation?.operation_id) {
+          setOperation((prev) => ({
+            ...prev!,
+            ...data.updates
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  }, [lastMessage, operationId, operation]);
 
   if (!operation) {
     return (

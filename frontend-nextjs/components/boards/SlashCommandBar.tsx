@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Terminal, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '../../lib/api-client';

@@ -2,10 +2,11 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiClient } from '../../../lib/api-client';
+import { SlashCommandBar } from '../SlashCommandBar';
 
 jest.mock('../../../lib/api-client', () => ({
   apiClient: {
-    fetch: jest.fn(),
+    post: jest.fn(),
   },
 }));
 
@@ -21,14 +22,13 @@ describe('SlashCommandBar', () => {
     await user.type(screen.getByPlaceholderText(/task create/i), 'hello there');
     await user.keyboard('{Enter}');
 
-    expect(apiClient.fetch).not.toHaveBeenCalled();
+    expect(apiClient.post).not.toHaveBeenCalled();
   });
 
   it('POSTs to /api/atom-agent/chat for /task commands', async () => {
     const user = userEvent.setup();
-    (apiClient.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ response: { message: 'Created *Buy milk* in To Do.' } }),
+    (apiClient.post as jest.Mock).mockResolvedValue({
+      data: { response: { message: 'Created *Buy milk* in To Do.' } },
     });
 
     render(<SlashCommandBar boardId="b1" />);
@@ -38,20 +38,17 @@ describe('SlashCommandBar', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() => {
-      expect(apiClient.fetch).toHaveBeenCalledWith('/api/atom-agent/chat', expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('"board_id":"b1"'),
-      }));
+      expect(apiClient.post).toHaveBeenCalledWith('/api/atom-agent/chat', {
+        message: '/task create Buy milk in To Do',
+        user_id: 'system',
+        context: { board_id: 'b1' },
+      });
     });
   });
 
   it('handles HTTP failure gracefully', async () => {
     const user = userEvent.setup();
-    (apiClient.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => ({}),
-    });
+    (apiClient.post as jest.Mock).mockRejectedValue(new Error('Request failed with status code 500'));
 
     render(<SlashCommandBar boardId="b1" />);
     const input = screen.getByPlaceholderText(/task create/i);
@@ -60,9 +57,7 @@ describe('SlashCommandBar', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() => {
-      expect(apiClient.fetch).toHaveBeenCalled();
+      expect(apiClient.post).toHaveBeenCalled();
     });
   });
 });
-
-import { SlashCommandBar } from '../SlashCommandBar';

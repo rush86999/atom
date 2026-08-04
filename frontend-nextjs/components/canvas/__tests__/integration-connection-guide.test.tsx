@@ -28,14 +28,30 @@ const mockSocket = {
 
 let wsMessageHandler: ((event: MessageEvent) => void) | null = null;
 
-jest.mock('@/hooks/useWebSocket', () => ({
-  __esModule: true,
-  default: () => ({
-    socket: mockSocket,
-    connected: true,
-    lastMessage: null
-  })
-}));
+// Shared mutable state driving the mocked hook's lastMessage
+const mockWsState: { lastMessage: any; force: (() => void) | null } = {
+  lastMessage: null,
+  force: null
+};
+
+jest.mock('@/hooks/useWebSocket', () => {
+  const React = require('react');
+  const useMockWebSocket = () => {
+    const [, force] = React.useReducer((x: number) => x + 1, 0);
+    mockWsState.force = force;
+    return {
+      socket: mockSocket,
+      connected: true,
+      lastMessage: mockWsState.lastMessage,
+      sendMessage: (msg: any) => mockSocket.send(JSON.stringify(msg))
+    };
+  };
+  return {
+    __esModule: true,
+    default: useMockWebSocket,
+    useWebSocket: useMockWebSocket
+  };
+});
 
 // Helper function to create mock guide data
 const createMockGuideData = (overrides: Partial<IntegrationGuideData> = {}): IntegrationGuideData => ({
@@ -58,30 +74,24 @@ const createMockGuideData = (overrides: Partial<IntegrationGuideData> = {}): Int
 
 let queuedMessages: MessageEvent[] = [];
 
-// Helper to simulate WebSocket message
+// Helper to simulate WebSocket message via the mocked hook's lastMessage
 const simulateWebSocketMessage = (data: IntegrationGuideData) => {
-  const msg = {
-    data: JSON.stringify({
+  act(() => {
+    mockWsState.lastMessage = {
       type: 'canvas:update',
       data: {
         component: 'integration_connection_guide',
         data: data
       }
-    })
-  } as MessageEvent;
-
-  if (wsMessageHandler) {
-    act(() => {
-      wsMessageHandler!(msg);
-    });
-  } else {
-    queuedMessages.push(msg);
-  }
+    };
+    mockWsState.force?.();
+  });
 };
 
 describe('IntegrationConnectionGuide', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWsState.lastMessage = null;
     wsMessageHandler = null;
     queuedMessages = [];
 

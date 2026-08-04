@@ -28,13 +28,21 @@ jest.mock('@/hooks/useWebSocket', () => ({
   default: () => ({
     socket: null,
     connected: false,
-    lastMessage: null
+    lastMessage: null,
+    sendMessage: jest.fn()
+  }),
+  useWebSocket: () => ({
+    socket: null,
+    connected: false,
+    lastMessage: null,
+    sendMessage: jest.fn()
   })
 }));
 
 // Mock next-auth
 jest.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null, status: 'unauthenticated' })
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 describe('AgentOperationTracker Accessibility Tree', () => {

@@ -56,81 +56,71 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
   const [orchestration, setOrchestration] = useState<ViewOrchestrationData | null>(null);
   const [activeTab, setActiveTab] = useState<string>('');
   const [canvasExpanded, setCanvasExpanded] = useState(true);
-  const { socket, connected } = useWebSocket();
+  const { lastMessage, sendMessage } = useWebSocket();
 
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!lastMessage) return;
 
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
+    try {
+      const data = lastMessage.data;
 
-        // Handle view switch
-        if (message.type === 'view:switch') {
-          const data = message.data;
+      // Handle view switch
+      if (lastMessage.type === 'view:switch') {
+        setOrchestration((prev) => ({
+          layout: data.layout || prev?.layout || 'split_vertical',
+          active_views: data.views || prev?.active_views || [],
+          canvas_guidance: data.canvas_guidance,
+          current_view: data.view_id
+        }));
 
-          setOrchestration((prev) => ({
-            layout: data.layout || prev?.layout || 'split_vertical',
-            active_views: data.views || prev?.active_views || [],
-            canvas_guidance: data.canvas_guidance,
-            current_view: data.view_id
-          }));
-
-          // Set first view as active if tabs
-          if (data.layout === 'tabs' && data.views && data.views.length > 0) {
-            setActiveTab(data.views[0].view_id);
-          }
+        // Set first view as active if tabs
+        if (data.layout === 'tabs' && data.views && data.views.length > 0) {
+          setActiveTab(data.views[0].view_id);
         }
-
-        // Handle view activation
-        if (message.type === 'view:activated') {
-          const view = message.data.view;
-
-          setOrchestration((prev) => {
-            const activeViews = prev?.active_views || [];
-            const existingIndex = activeViews.findIndex(v => v.view_id === view.view_id);
-
-            if (existingIndex >= 0) {
-              activeViews[existingIndex] = view;
-            } else {
-              activeViews.push(view);
-            }
-
-            return {
-              ...prev!,
-              active_views: activeViews
-            };
-          });
-        }
-
-        // Handle view close
-        if (message.type === 'view:closed') {
-          const viewId = message.data.view_id;
-
-          setOrchestration((prev) => ({
-            ...prev!,
-            active_views: prev?.active_views.filter(v => v.view_id !== viewId) || []
-          }));
-        }
-
-        // Handle guidance update
-        if (message.type === 'view:guidance_update') {
-          setOrchestration((prev) => ({
-            ...prev!,
-            canvas_guidance: message.data.guidance
-          }));
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
       }
-    };
 
-    socket.addEventListener('message', handleMessage);
+      // Handle view activation
+      if (lastMessage.type === 'view:activated') {
+        const view = data.view;
 
-    return () => {
-      socket.removeEventListener('message', handleMessage);
-    };
-  }, [socket, connected, sessionId]);
+        setOrchestration((prev) => {
+          const activeViews = prev?.active_views || [];
+          const existingIndex = activeViews.findIndex(v => v.view_id === view.view_id);
+
+          if (existingIndex >= 0) {
+            activeViews[existingIndex] = view;
+          } else {
+            activeViews.push(view);
+          }
+
+          return {
+            ...prev!,
+            active_views: activeViews
+          };
+        });
+      }
+
+      // Handle view close
+      if (lastMessage.type === 'view:closed') {
+        const viewId = data.view_id;
+
+        setOrchestration((prev) => ({
+          ...prev!,
+          active_views: prev?.active_views.filter(v => v.view_id !== viewId) || []
+        }));
+      }
+
+      // Handle guidance update
+      if (lastMessage.type === 'view:guidance_update') {
+        setOrchestration((prev) => ({
+          ...prev!,
+          canvas_guidance: data.guidance
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  }, [lastMessage, sessionId]);
 
   const handleTakeControl = (viewId: string) => {
     if (onViewTakeover) {
@@ -138,26 +128,22 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
     }
 
     // Send takeover signal via WebSocket
-    if (socket && connected) {
-      socket.send(JSON.stringify({
-        type: 'view:takeover',
-        data: {
-          view_id: viewId,
-          user_controlled: true
-        }
-      }));
-    }
+    sendMessage({
+      type: 'view:takeover',
+      data: {
+        view_id: viewId,
+        user_controlled: true
+      }
+    });
   };
 
   const handleControlAction = (action: string) => {
-    if (socket && connected) {
-      socket.send(JSON.stringify({
-        type: 'view:control_action',
-        data: {
-          action: action
-        }
-      }));
-    }
+    sendMessage({
+      type: 'view:control_action',
+      data: {
+        action: action
+      }
+    });
   };
 
   const getViewIcon = (viewType: string) => {

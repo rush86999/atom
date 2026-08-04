@@ -62,7 +62,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
   const [guideData, setGuideData] = useState<IntegrationGuideData | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [expandedPermissions, setExpandedPermissions] = useState<Record<number, boolean>>({});
-  const { socket, connected } = useWebSocket();
+  const { lastMessage, sendMessage } = useWebSocket();
 
   const steps = [
     { key: 'initiating', label: 'Initiating', icon: '🚀' },
@@ -73,52 +73,44 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
   ];
 
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!lastMessage || lastMessage.type !== 'canvas:update') return;
 
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
+    try {
+      const data = lastMessage.data;
 
-        if (message.type === 'canvas:update' && message.data?.component === 'integration_connection_guide') {
-          const data = message.data.data;
+      if (data?.component === 'integration_connection_guide') {
+        const payload = data.data;
 
-          // Filter by integrationId if specified
-          if (!integrationId || data.integration_id === integrationId) {
-            setGuideData(data);
+        // Filter by integrationId if specified
+        if (!integrationId || payload.integration_id === integrationId) {
+          setGuideData(payload);
 
-            // Update step index
-            const stepIndex = steps.findIndex(s => s.key === data.stage);
-            if (stepIndex >= 0) {
-              setCurrentStepIndex(stepIndex);
-            }
+          // Update step index
+          const stepIndex = steps.findIndex(s => s.key === payload.stage);
+          if (stepIndex >= 0) {
+            setCurrentStepIndex(stepIndex);
           }
         }
-
-        // Handle updates
-        if (message.type === 'canvas:update' && message.data?.action === 'update') {
-          setGuideData((prev) => {
-            if (!prev) return null;
-
-            const updatedData = { ...prev, ...message.data.updates };
-            const stepIndex = steps.findIndex(s => s.key === updatedData.stage);
-            if (stepIndex >= 0) {
-              setCurrentStepIndex(stepIndex);
-            }
-
-            return updatedData;
-          });
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
       }
-    };
 
-    socket.addEventListener('message', handleMessage);
+      // Handle updates
+      if (data?.action === 'update') {
+        setGuideData((prev) => {
+          if (!prev) return null;
 
-    return () => {
-      socket.removeEventListener('message', handleMessage);
-    };
-  }, [socket, connected, integrationId]);
+          const updatedData = { ...prev, ...data.updates };
+          const stepIndex = steps.findIndex(s => s.key === updatedData.stage);
+          if (stepIndex >= 0) {
+            setCurrentStepIndex(stepIndex);
+          }
+
+          return updatedData;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  }, [lastMessage, integrationId]);
 
   // Handle completion
   useEffect(() => {
@@ -368,14 +360,12 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
             <button
               onClick={() => {
                 // Send retry signal
-                if (socket && connected) {
-                  socket.send(JSON.stringify({
-                    type: 'integration:retry',
-                    data: {
-                      integration_id: guideData.integration_id
-                    }
-                  }));
-                }
+                sendMessage({
+                  type: 'integration:retry',
+                  data: {
+                    integration_id: guideData.integration_id
+                  }
+                });
               }}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
             >
