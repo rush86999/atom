@@ -49,11 +49,11 @@ jest.mock('@/components/shared/CalendarManagement', () => {
 });
 
 // Mock fetch globally
-global.fetch = jest.fn();
 
 describe('CalendarManagement Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  global.fetch = jest.fn();
   });
 
   describe('test_calendar_renders', () => {

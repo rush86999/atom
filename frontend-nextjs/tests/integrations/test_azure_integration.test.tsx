@@ -11,11 +11,11 @@ jest.mock('@/components/ui/use-toast', () => ({
 }));
 
 // Mock fetch globally
-global.fetch = jest.fn();
 
 describe('AzureIntegration Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn();
     localStorage.clear();
   });
 

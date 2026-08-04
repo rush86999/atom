@@ -17,11 +17,11 @@ jest.mock('@/components/WorkflowAutomation', () => {
 });
 
 // Mock fetch globally
-global.fetch = jest.fn();
 
 describe('Dashboard Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  global.fetch = jest.fn();
   });
 
   describe('test_dashboard_renders', () => {
