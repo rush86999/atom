@@ -175,3 +175,15 @@ written first (red), the root cause confirmed, then the minimal fix applied
   those task updates were never refetched by the consumer.
 - **Test:** `frontend-nextjs/hooks/__tests__/useBoardWebSocket.test.ts`
 - **Fix:** Union new IDs into the existing set in the reducer.
+
+### BUG-014 — useChatInterface safety-net timeout not cleared on error/early-return paths
+- **Flow:** Chat send lifecycle (frontend hook)
+- **Symptom:** The 30s `processingTimeoutRef` was cleared only on the success
+  path. On error throws, the `data.success === false` path, and the
+  `no_llm_provider`/`budget_exceeded` early-returns, the timer stayed armed and
+  later fired `setIsProcessing(false)` during an unrelated future interaction
+  (e.g. a WS streaming:start that re-armed processing).
+- **Test:** Module-load verified (the hook's MSW/WebSocket test infra has a
+  pre-existing conflict that blocks timer-based message-sending tests; the fix
+  is a defensive `clearTimeout` in `finally` covering all exit paths).
+- **Fix:** Clear `processingTimeoutRef` in the `finally` block of `handleSend`.

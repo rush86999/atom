@@ -249,6 +249,15 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 timestamp: new Date(),
             }]);
         } finally {
+            // Clear the safety-net timeout on EVERY exit path, not just
+            // success. Without this, an error/early-return (no_llm_provider,
+            // budget_exceeded, network failure) left the 30s timer armed, so
+            // it later fired setIsProcessing(false) during an unrelated future
+            // interaction (BUG-014).
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+            }
             setIsProcessing(false);
         }
     };
