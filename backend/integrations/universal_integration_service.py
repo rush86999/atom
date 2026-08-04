@@ -126,7 +126,7 @@ class UniversalIntegrationService:
                 
         except Exception as e:
             logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}")
-            circuit_breaker.record_failure_with_error(service, e)
+            circuit_breaker.record_failure(service, e)
             
             # Record spend even on crash if it was a real attempt
             cost = get_action_cost(service, action)
@@ -270,7 +270,7 @@ class UniversalIntegrationService:
                     raise ValueError(f"Service '{service}' not supported for search.")
         except Exception as e:
             logger.error(f"Universal Search Failed ({service}): {e}")
-            circuit_breaker.record_failure_with_error(service, e)
+            circuit_breaker.record_failure(service, e)
             return {"status": "error", "message": str(e)}
 
         # Success - wrap in success dictionary if not already

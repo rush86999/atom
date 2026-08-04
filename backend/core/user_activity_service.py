@@ -261,7 +261,7 @@ class UserActivityService:
                     "last_name": user.last_name,
                     "state": activity.state.value,
                     "last_activity_at": activity.last_activity_at.isoformat(),
-                    "specialty": user.specialty
+                    "specialty": getattr(user, "specialty", None)
                 })
 
         return supervisors
@@ -395,6 +395,11 @@ class UserActivityService:
             (s.last_heartbeat for s in active_sessions),
             default=activity.last_activity_at
         )
+
+        # SQLite stores naive datetimes even for DateTime(timezone=True)
+        # columns; normalize to aware before subtracting.
+        if most_recent_heartbeat.tzinfo is None:
+            most_recent_heartbeat = most_recent_heartbeat.replace(tzinfo=timezone.utc)
 
         # Calculate time since last activity
         time_since_activity = (now - most_recent_heartbeat).total_seconds()

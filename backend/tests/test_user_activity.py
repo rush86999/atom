@@ -5,14 +5,15 @@ Test user activity tracking, state transitions, and supervision availability.
 """
 
 import pytest
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.models import (
     User,
     UserActivity,
     UserActivitySession,
+    UserRole,
     UserState,
 )
 from core.user_activity_service import UserActivityService
@@ -23,24 +24,31 @@ from core.user_activity_service import UserActivityService
 # ============================================================================
 
 @pytest.fixture
-def db():
-    """Get database session."""
-    db = next(get_db())
+def db(worker_database):
+    """Get an isolated in-memory database session.
+
+    Uses the root conftest's worker_database (in-memory SQLite, clean per
+    session) instead of ``get_db()``, which points at the real dev DB and
+    would leak test users/activities into it.
+    """
+    SessionLocal = worker_database
+    db = SessionLocal()
     try:
         yield db
     finally:
+        db.rollback()
         db.close()
 
 
 @pytest.fixture
 def test_user(db: Session):
-    """Create test user."""
+    """Create test user with a unique email (session-scoped in-memory DB)."""
     user = User(
-        email="test@example.com",
+        email=f"test-{uuid.uuid4().hex[:8]}@example.com",
         first_name="Test",
         last_name="User",
-        status="ACTIVE",
-        specialty="Accountant"
+        role=UserRole.MEMBER.value,
+        status="ACTIVE"
     )
     db.add(user)
     db.commit()
@@ -132,7 +140,8 @@ def test_record_heartbeat_updates_existing_session(
 
 def test_multiple_sessions_keep_user_online(
     activity_service: UserActivityService,
-    test_user: User
+    test_user: User,
+    db: Session
 ):
     """Test that multiple sessions keep user online."""
     import asyncio
@@ -342,7 +351,9 @@ def test_get_available_supervisors_filters_by_category(
         category="Accountant"
     ))
 
-    assert test_user.specialty == "Accountant"
+    # Category filtering is applied at the route layer, not the service
+    # (the model's `specialty` field is commented out). The user is online
+    # and therefore present in the available-supervisors list.
     assert any(s["user_id"] == test_user.id for s in supervisors)
 
 
@@ -431,7 +442,10 @@ def test_transition_state_batch_processes_multiple_users(
     users = []
     for i in range(3):
         user = User(
-            email=f"test{i}@example.com",
+            email=f"transition-{uuid.uuid4().hex[:8]}@example.com",
+            first_name=f"Transition{i}",
+            last_name="User",
+            role=UserRole.MEMBER.value,
             status="ACTIVE"
         )
         db.add(user)
@@ -439,12 +453,15 @@ def test_transition_state_batch_processes_multiple_users(
 
     db.commit()
 
-    # Create activities with old timestamps
+    # Create activities with old timestamps (the worker filters on
+    # `updated_at < now - 1min`, so the records must be stale too)
+    stale_time = datetime.utcnow() - timedelta(minutes=10)
     for user in users:
         activity = UserActivity(
             user_id=user.id,
             state=UserState.online,
-            last_activity_at=datetime.utcnow() - timedelta(minutes=10)
+            last_activity_at=stale_time,
+            updated_at=stale_time
         )
         db.add(activity)
 

@@ -85,9 +85,23 @@ def mock_supervisor_info():
 def client():
     """Create TestClient for user activity routes"""
     from main_api_app import app
+    from core.auth import get_current_user
+
+    class _FakeUser:
+        """Minimal authenticated user for dependency override"""
+        id = "user_123"
+        email = "test@example.com"
+        role = "MEMBER"
+        status = "ACTIVE"
+
+    async def _override_current_user():
+        return _FakeUser()
+
     app.include_router(router)
+    app.dependency_overrides[get_current_user] = _override_current_user
     with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 # ============================================================================

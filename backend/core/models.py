@@ -9290,9 +9290,9 @@ class EntityTypeVersionHistory(Base):
 
 class UserState(str, enum.Enum):
     """User availability state for supervision"""
-    ONLINE = "online"       # Active within 5 minutes - can supervise
-    AWAY = "away"          # Active 5-15 minutes ago - can supervise
-    OFFLINE = "offline"     # No activity for 15+ minutes - cannot supervise
+    online = "online"       # Active within 5 minutes - can supervise
+    away = "away"          # Active 5-15 minutes ago - can supervise
+    offline = "offline"     # No activity for 15+ minutes - cannot supervise
 
 
 class UserActivity(Base):
@@ -9307,12 +9307,12 @@ class UserActivity(Base):
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     
     # State tracking
-    state = Column(SQLEnum(UserState, name='userstate', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=UserState.OFFLINE)
+    state = Column(SQLEnum(UserState, name='userstate', values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=UserState.offline)
     last_activity_at = Column(DateTime(timezone=True), nullable=False)
-    
+
     # Manual override (optional)
-    manual_state = Column(SQLEnum(UserState, name='userstate_manual', values_callable=lambda obj: [e.value for e in obj]), nullable=True)
-    manual_state_expiry = Column(DateTime(timezone=True), nullable=True)
+    manual_override = Column(Boolean, nullable=False, default=False)
+    manual_override_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

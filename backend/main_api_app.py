@@ -652,9 +652,9 @@ async def lifespan(app: FastAPI):
     if not is_test_mode:
         try:
             async def _consolidation_loop():
-                from core.memory.memory_consolidation_service import MemoryConsolidationService, CONSOLIDATION_INTERVAL_HOURS
+                from core.memory.memory_consolidation_service import ConsolidationConfig, MemoryConsolidationService
                 from core.database import SessionLocal
-                interval = CONSOLIDATION_INTERVAL_HOURS * 3600
+                interval = ConsolidationConfig.CONSOLIDATION_INTERVAL_HOURS * 3600
                 while True:
                     # Use a context-managed session so the connection is always
                     # returned to the pool (previously SessionLocal() was never
