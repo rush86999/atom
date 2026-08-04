@@ -143,6 +143,11 @@ if (typeof server !== 'undefined' && server) {
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
 
+// Mock Element.scrollTo (jsdom's Element lacks scrollTo; Layout.tsx calls
+// mainRef.current?.scrollTo({ top, left })). Without this, any test rendering
+// the app shell fails with "scrollTo is not a function".
+Element.prototype.scrollTo = jest.fn();
+
 // Mock window.scrollTo
 global.scrollTo = jest.fn();
 
