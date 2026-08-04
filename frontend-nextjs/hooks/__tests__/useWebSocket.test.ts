@@ -182,6 +182,37 @@ describe('useWebSocket Hook', () => {
       expect(result.current.isConnected).toBe(true);
     });
 
+    test('reconnects with the refreshed token when the session updates', () => {
+      // When NextAuth refreshes the session (new backendToken), the connect
+      // callback gets a new reference, the effect re-runs, and a new WS must
+      // be opened using the FRESH token — not the stale one. This is the only
+      // path that recovers a connection dropped due to token expiry.
+      const { result, rerender } = renderHook(() => useWebSocket({ autoConnect: true }));
+
+      const firstInstance = (global as any).WebSocket.getMockInstances()[0];
+      simulateOpen(firstInstance);
+      expect(result.current.isConnected).toBe(true);
+      expect((global as any).WebSocket.getMockCalls()[0][0]).toContain(
+        'token=test-session-token'
+      );
+
+      // Simulate a token refresh: NextAuth returns a new session object with a
+      // fresh backendToken. The `session` reference changes → connect changes
+      // → effect re-runs → new connection.
+      (useSession as jest.Mock).mockReturnValue({
+        data: { backendToken: 'refreshed-token-456' },
+        status: 'authenticated',
+      });
+
+      rerender();
+
+      // The old socket is torn down by the effect cleanup and a new one is
+      // created with the refreshed token.
+      const calls = (global as any).WebSocket.getMockCalls();
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall[0]).toContain('token=refreshed-token-456');
+    });
+
     test('cleans up WebSocket on unmount', () => {
       const { result, unmount } = renderHook(() =>
         useWebSocket({ autoConnect: true })
