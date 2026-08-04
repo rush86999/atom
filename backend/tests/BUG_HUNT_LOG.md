@@ -280,3 +280,40 @@ written first (red), the root cause confirmed, then the minimal fix applied
   timestamp (clock skew) yielded a negative diff → "Just now".
 - **Test:** `components/chat/__tests__/ArtifactSidebar.test.tsx` (formatDate: NaN→'', future→real date, recent→"Just now")
 - **Fix:** Added `isNaN(diff)` guard (return '') and a `diff < 0` guard (show the real date); exported the helper for direct testing.
+
+---
+
+## Round 5 — End-to-end TDD bug hunt (webhook security + graduation + UX)
+
+### BUG-024 — Slack webhook HMAC bypass (signing secret never loaded from env)
+- **Flow:** Slack webhook ingestion (backend, security)
+- **Symptom:** `SlackWebhookHandler` was instantiated with no secret and never
+  read `SLACK_SIGNING_SECRET` from env, so `signing_secret` was permanently
+  None. In any non-production deployment, `verify_signature` returned True
+  unconditionally — accepting every forged webhook POST to `/api/webhooks/slack`.
+- **Test:** `tests/test_slack_webhook_hmac.py` (4 tests: env-load, forged-reject, valid-accept, no-dev-bypass-with-secret)
+- **Fix:** Constructor reads `SLACK_SIGNING_SECRET` from env when no explicit secret is passed.
+
+### BUG-025 — Graduation counts all episodes, not successful ones (wrong promotion metric)
+- **Flow:** Agent skill graduation (backend)
+- **Symptom:** `check_skill_promotion` queried episodes by agent + skill with no
+  `success` filter, then used `required_successes` as the count gate. N failed
+  episodes (zero successes) passed the gate and reached the streak phase,
+  violating the "N successful runs" semantics.
+- **Test:** `tests/test_graduation_success_filter.py` (failed episodes → insufficient; clean episodes → promote)
+- **Fix:** Added `AgentEpisode.success == True` to the query filter.
+
+### BUG-026 — callbackUrl dropped on login redirect (deep links always land on /dashboard)
+- **Flow:** Auth redirect (frontend)
+- **Symptom:** The middleware correctly set `callbackUrl` when bouncing a
+  logged-out user, but `pages/login.tsx` hardcoded `router.push('/dashboard')`,
+  never reading the query param. A user who hit `/finance/reports/42` while
+  logged out was always sent to /dashboard after login instead of back to the report.
+- **Fix:** Read `router.query.callbackUrl` with an open-redirect guard (relative paths only); applied to both login and register paths.
+
+### BUG-027 — Kanban same-column reorder creates sort_order collision
+- **Flow:** Board drag-and-drop (frontend)
+- **Symptom:** Reordering within a column set the dragged task's `sort_order`
+  to the target's, but never updated the target's — so two cards shared one
+  sort_order and rendered in nondeterministic order after reload.
+- **Fix:** Swap the two tasks' sort_orders so neither collides.

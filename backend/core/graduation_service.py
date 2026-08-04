@@ -32,14 +32,15 @@ class GraduationService:
         }
         required_successes = thresholds.get(complexity.lower(), 5)
 
-        # 2. Query recent episodes for this agent and skill
-        # We need to filter by episodes where this skill was used.
-        # This assumes metadata_json contains the used skill_id.
+        # 2. Query recent SUCCESSFUL episodes for this agent and skill.
+        # The threshold is "required_successes" — failed episodes must NOT
+        # count toward the gate (BUG-025: previously the query had no success
+        # filter, so N failed episodes passed the count check and reached the
+        # streak phase, violating the "N successful runs" semantics).
         episodes = self.db.query(AgentEpisode).filter(
             and_(
                 AgentEpisode.agent_id == agent_id,
-                # Filtering by skill_id in JSONB/JSON column
-                # This depends on how the skill_id is stored in metadata_json
+                AgentEpisode.success == True,  # noqa: E712 — SQLAlchemy filter
                 AgentEpisode.metadata_json.contains({"skill_id": skill_id})
             )
         ).order_by(desc(AgentEpisode.started_at)).limit(required_successes).all()

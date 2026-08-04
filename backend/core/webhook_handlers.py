@@ -49,7 +49,11 @@ class SlackWebhookHandler:
     """Handle Slack webhook events"""
 
     def __init__(self, signing_secret: Optional[str] = None):
-        self.signing_secret = signing_secret
+        # Load SLACK_SIGNING_SECRET from env when no explicit secret is passed.
+        # Previously this was always None (the env var was never read), so
+        # verify_signature bypassed in every non-production deployment —
+        # accepting forged webhooks unconditionally.
+        self.signing_secret = signing_secret or os.getenv("SLACK_SIGNING_SECRET")
 
     def verify_signature(self, timestamp: str, signature: str, body: bytes) -> bool:
         """Verify Slack webhook signature"""

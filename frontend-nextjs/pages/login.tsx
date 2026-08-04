@@ -24,11 +24,23 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
 
+        // Resolve the post-auth redirect target. The middleware sets
+        // callbackUrl when bouncing a logged-out user from a deep link; honor
+        // it so the user returns to the page they wanted instead of always
+        // landing on /dashboard. Guard against open-redirect: only allow
+        // relative paths (must start with "/").
+        const callbackUrl = typeof router.query.callbackUrl === 'string'
+            ? router.query.callbackUrl
+            : '/dashboard';
+        const safeDest = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+            ? callbackUrl
+            : '/dashboard';
+
         try {
             if (isLogin) {
                 const data = await loginWithBackend(formData.email, formData.password);
                 persistBackendToken(data.access_token);
-                router.push('/dashboard');
+                router.push(safeDest);
             } else {
                 // Register
                 const response = await fetch(`${API_BASE}/api/auth/register`, {
@@ -48,7 +60,7 @@ export default function LoginPage() {
                 // #7 fix: was logging the full JWT to console — capturable by
                 // browser extensions, shared screens, forwarded logs.
                 persistBackendToken(data.access_token);
-                router.push('/dashboard');
+                router.push(safeDest);
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred');
