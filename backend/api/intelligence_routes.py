@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.workflow_security import (
     require_critical_tool,
     require_workflow_executor_orchestrator,
@@ -15,6 +16,21 @@ logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/intelligence", tags=["Intelligence"])
 engine = DataIntelligenceEngine()
+
+
+def _integration_context(current_user: User) -> Dict[str, str]:
+    """Caller identity for integration token resolution.
+
+    UniversalIntegrationService requires a ``user_id`` (or system agent id)
+    before it can look up per-user OAuth tokens; without it every platform
+    fetch degrades to ``[]``. Personal Edition is single-tenant, so the
+    workspace/tenant ids resolve to "default" for the bootstrap admin user.
+    """
+    return {
+        "user_id": current_user.id,
+        "workspace_id": resolve_workspace_id(current_user),
+        "tenant_id": resolve_tenant_id(current_user),
+    }
 
 @router.get("/insights")
 async def get_insights(current_user: User = Depends(get_current_user)):
@@ -38,7 +54,7 @@ async def get_insights(current_user: User = Depends(get_current_user)):
                 PlatformType.HUBSPOT,
             ]
             for platform in platforms_to_seed:
-                data = await engine._get_platform_data(platform)
+                data = await engine._get_platform_data(platform, _integration_context(current_user))
                 await engine.ingest_platform_data(platform, data)
 
         anomalies = await engine.detect_anomalies()
@@ -163,7 +179,7 @@ async def refresh_intelligence(current_user: User = Depends(get_current_user)):
         synced_count = 0
         for platform in platforms_to_sync:
             try:
-                data = await engine._get_platform_data(platform)
+                data = await engine._get_platform_data(platform, _integration_context(current_user))
                 if data:
                     await engine.ingest_platform_data(platform, data)
                     synced_count += 1

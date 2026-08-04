@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 import logging
-from typing import Set
+from typing import Optional, Set
 from ai.data_intelligence import DataIntelligenceEngine, PlatformType
 
 from core.notification_manager import notification_manager
@@ -53,13 +53,42 @@ class IntelligenceBackgroundWorker:
             
             await asyncio.sleep(self.interval)
 
+    def _get_configured_user_id(self, platform: str) -> Optional[str]:
+        """Find a user who has an active token for the platform.
+
+        UniversalIntegrationService requires a ``user_id`` (or system agent id)
+        before it can resolve per-user OAuth tokens. The background worker has
+        no request context, so we attribute the fetch to the first configured
+        token owner for that platform.
+        """
+        from core.database import SessionLocal
+        from core.models import IntegrationToken
+
+        try:
+            with SessionLocal() as db:
+                token = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.provider == platform,
+                        IntegrationToken.status == "active",
+                    )
+                    .order_by(IntegrationToken.created_at.asc())
+                    .first()
+                )
+                return token.user_id if token else None
+        except Exception as e:
+            logger.warning(f"Failed to resolve token owner for {platform}: {e}")
+            return None
+
     async def _perform_scan(self):
         """Single scan iteration"""
         # 1. Optionally refresh data if registry is empty
         if not self.engine.entity_registry:
             logger.info("Initializing background engine registry with first-run data")
             for platform in [PlatformType.SALESFORCE, PlatformType.JIRA, PlatformType.ASANA]:
-                data = await self.engine._get_platform_data(platform)
+                user_id = self._get_configured_user_id(platform.value)
+                context = {"user_id": user_id} if user_id else {}
+                data = await self.engine._get_platform_data(platform, context)
                 if data:
                     await self.engine.ingest_platform_data(platform, data)
 

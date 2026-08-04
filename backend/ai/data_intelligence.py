@@ -131,29 +131,39 @@ class DataIntelligenceEngine:
         # Falls back to empty data if integration not configured
         return {platform: self._get_platform_data for platform in PlatformType}
     
-    async def _get_platform_data(self, platform: PlatformType) -> List[Dict[str, Any]]:
-        """Get data from real platform integration or return empty if not configured"""
+    async def _get_platform_data(self, platform: PlatformType, context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get data from real platform integration or return empty if not configured.
+
+        Args:
+            platform: The platform to fetch data from.
+            context: Optional caller context. MUST include ``user_id`` (or a
+                system ``agent_id``) so UniversalIntegrationService can resolve
+                the per-user OAuth token. Without a user identity the service
+                raises ``ValueError("user_id required for non-system agents")``
+                and this method degrades to ``[]``.
+        """
         import os
-        
+
         mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
         ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-        
+
         # Check if mock mode is explicitly enabled for development
         if mock_mode and ENVIRONMENT == "development":
             return self._mock_platform_connector(platform)
-        
+
         # Try to get real data from integration services
         try:
             # We use UniversalIntegrationService for a unified access pattern
             from integrations.universal_integration_service import UniversalIntegrationService
             service = UniversalIntegrationService()
-            
+
             # Platform-specific data fetching via execute("list")
             # This ensures we use the same robust logic as agents
             res = await service.execute(
                 service=platform.value,
                 action="list",
-                params={"entity": self._get_default_entity(platform)}
+                params={"entity": self._get_default_entity(platform)},
+                context=context or {}
             )
             
             if isinstance(res, list):
