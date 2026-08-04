@@ -197,12 +197,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
     const completeOnboarding = async () => {
         try {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
             const res = await fetch(`${API_BASE}/api/onboarding/update`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({
                     completed: true,
@@ -219,6 +219,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 });
                 onUpdate({ onboarding_completed: true });
                 onClose();
+            } else {
+                // Surface the failure — previously a non-OK response was
+                // silently ignored, so the user clicked "Finish" and nothing
+                // happened (e.g. when the token was missing → 401).
+                toast({
+                    title: "Could not complete onboarding",
+                    description: "Please try again. If it persists, refresh and sign in.",
+                    variant: "destructive",
+                });
             }
         } catch (err) {
             console.error("Failed to update onboarding status", err);

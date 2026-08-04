@@ -226,6 +226,13 @@ async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
         user_id: str = payload.get("sub") or payload.get("id") or payload.get("user_id")
         if user_id is None:
             return None
+        # Token revocation check (logout). Mirrors get_current_user — without
+        # this, a logged-out / revoked JWT stayed valid for every WS endpoint
+        # until the 24h expiry.
+        token_jti = payload.get("jti")
+        if is_token_revoked(token_jti):
+            logger.warning(f"Rejected revoked WS token (jti={token_jti}) for user {user_id}")
+            return None
         user = db.query(User).filter(User.id == user_id).first()
         # Round 43: reject non-ACTIVE accounts (deleted/suspended users)
         if user is None or user.status != UserStatus.ACTIVE:

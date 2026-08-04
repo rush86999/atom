@@ -187,3 +187,47 @@ written first (red), the root cause confirmed, then the minimal fix applied
   pre-existing conflict that blocks timer-based message-sending tests; the fix
   is a defensive `clearTimeout` in `finally` covering all exit paths).
 - **Fix:** Clear `processingTimeoutRef` in the `finally` block of `handleSend`.
+
+---
+
+## Round 3 — End-to-end TDD bug hunt (security + data integrity)
+
+### BUG-015 — Canvas CRUD IDOR (no ownership check) + tenant_id NOT NULL on audit rows
+- **Flow:** Canvas API (backend, security)
+- **Symptom:** `read_canvas`, `update_canvas_content`, and `delete_canvas` queried
+  by `canvas_id` only — the `user_id` param was accepted but never used to verify
+  ownership. Any authenticated user could read/overwrite/delete another user's
+  canvas by guessing the id. Additionally, the update/delete audit-row inserts
+  omitted `tenant_id` (a NOT NULL column), crashing those paths entirely.
+- **Test:** `tests/test_canvas_idor.py` (4 tests: non-owner read/update/delete denied, owner delete works)
+- **Fix:** Added `_verify_canvas_owner` (checks `Canvas.created_by == user_id`)
+  to all three functions; carry `tenant_id` from the latest audit row on new inserts.
+
+### BUG-016 — WebSocket auth skips token revocation (logged-out tokens stay valid)
+- **Flow:** WebSocket auth (backend, security)
+- **Symptom:** `get_current_user_ws` decoded the JWT and checked the user was
+  ACTIVE but never called `is_token_revoked(jti)` — unlike the HTTP path
+  (`get_current_user`). A logged-out / revoked JWT kept full WS access
+  (notifications, canvas live updates, workspace channel) until the 24h expiry.
+- **Test:** `tests/test_ws_token_revocation.py` (2 tests: revoked token rejected, valid token works)
+- **Fix:** Added `is_token_revoked(payload.get("jti"))` check to `get_current_user_ws`.
+
+### BUG-017 — TransactionsList date off-by-one (UTC parse → wrong day in UTC-negative TZs)
+- **Flow:** Finance transaction entry (frontend)
+- **Symptom:** `new Date("2026-08-04").toISOString()` parses date-only strings
+  as UTC midnight (ES5). Rendered via `toLocaleDateString()` in a UTC-negative
+  timezone (all of the Americas), a transaction dated Aug 4 displayed as Aug 3.
+- **Test:** `frontend-nextjs/lib/__tests__/date-utils.dateonly.test.ts`
+- **Fix:** New `toDateOnlyISO` helper using `dayjs` (treats date-only as local);
+  applied to all 3 call sites in `TransactionsList.tsx`.
+
+### BUG-018 — OnboardingWizard sends `Authorization: Bearer null` + swallows failure
+- **Flow:** Onboarding completion (frontend)
+- **Symptom:** `completeOnboarding` unconditionally set the `Authorization`
+  header even when `localStorage.getItem("token")` was null (which happens when
+  the user authenticated via NextAuth session — `_app.tsx` SessionSync sets
+  `auth_token`, not `token`). The request sent `Bearer null`, 401'd, and the
+  non-OK path was silently ignored — the user clicked "Finish" and nothing
+  happened. Sibling functions in the same file already used the conditional-spread pattern.
+- **Fix:** Conditional header spread + `auth_token` fallback + a destructive
+  toast on the non-OK path so failures surface to the user.

@@ -9,6 +9,7 @@ import { useToast } from "../ui/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "../ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
+import { toDateOnlyISO } from "@/lib/date-utils";
 
 interface Transaction {
     id: string;
@@ -119,7 +120,7 @@ const TransactionsList = () => {
                 },
                 body: JSON.stringify({
                     id: `tx_man_${Date.now()}`,
-                    date: new Date(newTx.date).toISOString(),
+                    date: toDateOnlyISO(newTx.date),
                     amount: parseFloat(newTx.amount),
                     description: newTx.description,
                     merchant: newTx.merchant || null,
@@ -134,7 +135,7 @@ const TransactionsList = () => {
             if (data.data) {
                 setTransactions(prev => [{
                     id: data.data.id,
-                    date: new Date(newTx.date).toISOString(),
+                    date: toDateOnlyISO(newTx.date),
                     amount: parseFloat(newTx.amount),
                     description: newTx.description,
                     merchant: newTx.merchant || undefined,
@@ -179,7 +180,7 @@ const TransactionsList = () => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    date: new Date(editForm.date).toISOString(),
+                    date: toDateOnlyISO(editForm.date),
                     amount: parseFloat(editForm.amount),
                     description: editForm.description,
                     merchant: editForm.merchant || null

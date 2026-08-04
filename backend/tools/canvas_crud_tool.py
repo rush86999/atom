@@ -20,6 +20,21 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
+    """Return True if ``canvas_id`` exists and is owned by ``user_id``.
+
+    Guards against IDOR: the canvas CRUD functions previously queried by
+    canvas_id only, so any authenticated user could read/modify/delete another
+    user's canvas by guessing the id. The Canvas.created_by column is the
+    authoritative owner (NOT NULL).
+    """
+    from core.models import Canvas
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        return False
+    return canvas.created_by == user_id
+
+
 async def read_canvas(
     user_id: str,
     canvas_id: str,
@@ -39,6 +54,10 @@ async def read_canvas(
         from sqlalchemy import desc
 
         with get_db_session() as db:
+            # IDOR guard: only the owner may read this canvas.
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
             audit = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
             ).order_by(desc(CanvasAudit.created_at)).first()
@@ -95,6 +114,10 @@ async def update_canvas_content(
         from sqlalchemy import desc
 
         with get_db_session() as db:
+            # IDOR guard: only the owner may update this canvas.
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
@@ -112,9 +135,11 @@ async def update_canvas_content(
             if title:
                 details["title"] = title
 
-            # Append a new audit row (append-only trail).
+            # Append a new audit row (append-only trail). Carry the tenant_id
+            # from the latest audit row (CanvasAudit.tenant_id is NOT NULL).
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
+                tenant_id=latest.tenant_id,
                 canvas_type=canvas_type,
                 action_type="update",
                 user_id=user_id,
@@ -175,6 +200,10 @@ async def delete_canvas(
         from sqlalchemy import desc
 
         with get_db_session() as db:
+            # IDOR guard: only the owner may delete this canvas.
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
             # Verify the canvas exists.
             latest = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
@@ -188,9 +217,10 @@ async def delete_canvas(
 
             canvas_type = latest.canvas_type
 
-            # Write the delete audit.
+            # Write the delete audit. Carry tenant_id (NOT NULL).
             delete_audit = CanvasAudit(
                 canvas_id=canvas_id,
+                tenant_id=latest.tenant_id,
                 canvas_type=canvas_type,
                 action_type="delete",
                 user_id=user_id,

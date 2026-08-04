@@ -28,3 +28,21 @@ export function parseDate(dateString: string): Date {
 export function isValidDate(date: any): boolean {
     return dayjs(date).isValid();
 }
+
+/**
+ * Convert a date input (typically a date-only string like "2026-08-04" from an
+ * <input type="date">) to an ISO string that preserves the user's calendar day
+ * across timezones.
+ *
+ * Uses dayjs, which interprets date-only strings as LOCAL time (unlike
+ * `new Date("2026-08-04")` which ES5 treats as UTC midnight — causing an
+ * off-by-one when rendered via toLocaleDateString() in a UTC-negative zone).
+ *
+ * Returns '' for empty/invalid input so callers can serialize safely.
+ */
+export function toDateOnlyISO(dateStr: string): string {
+    if (!dateStr) return '';
+    const d = dayjs(dateStr);
+    if (!d.isValid()) return '';
+    return d.toISOString();
+}
