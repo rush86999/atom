@@ -6,13 +6,37 @@ and the agent tool dispatch (load_dataset, analyze_data, query_data,
 describe_data, list_datasets).
 """
 import asyncio
+import contextlib
+import io
 import json
 import os
 import tempfile
+from types import SimpleNamespace
 
 import pytest
 
 from core.data.dataset_manager import DatasetManager, DatasetHandle, get_dataset_manager
+
+
+@pytest.fixture(autouse=True)
+def _mock_sandbox_runtime(monkeypatch):
+    """analyze_data fails closed in production when the sandbox is unavailable
+    (B1 — the in-process exec fallback was removed as a P0 RCE). For unit tests
+    of the tool logic, substitute a test-only runtime that executes the
+    (test-controlled) code in-process and returns captured stdout."""
+    import core.sandbox_runtime as srt
+
+    class _ExecutingFakeRuntime:
+        async def execute_python(self, code, *, policy, inputs=None, cwd=None):
+            ns = {"__inputs__": inputs or {}}
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                exec(code, ns, ns)
+            return SimpleNamespace(
+                success=True, stdout=buf.getvalue(), stderr="", exit_code=0
+            )
+
+    monkeypatch.setattr(srt, "get_runtime", lambda: _ExecutingFakeRuntime())
 
 
 @pytest.fixture
@@ -259,7 +283,7 @@ async def test_tool_analyze_data_not_loaded():
 
 @pytest.mark.asyncio
 async def test_tool_analyze_data_basic(csv_file):
-    """analyze_data with local fallback (no sandbox in test env)."""
+    """analyze_data via the (test-mocked) sandbox runtime."""
     from tools.data_analysis_tool import load_dataset, analyze_data
     await load_dataset(source=csv_file, name="inv", session_id="tool-test")
     result = await analyze_data(

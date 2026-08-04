@@ -19,15 +19,21 @@ describe('OutlookIntegration Component', () => {
     expect(screen.getByText(/outlook/i)).toBeInTheDocument();
   });
 
-  it('initiates OAuth connection', async () => {
+  it('initiates OAuth connection and forwards the auth token', async () => {
     const user = userEvent.setup();
+    localStorage.setItem('auth_token', 'test-jwt-token');
 
+    let capturedAuthHeader: string | null = null;
     server.use(
-      rest.post('/api/integrations/outlook/connect', (req, res, ctx) => {
+      rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
+        return res(ctx.status(500));
+      }),
+      rest.get('/api/auth/outlook/authorize', (req, res, ctx) => {
+        capturedAuthHeader = req.headers.get('Authorization');
         return res(
           ctx.status(200),
           ctx.json({
-            authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+            auth_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
           })
         );
       })
@@ -35,24 +41,31 @@ describe('OutlookIntegration Component', () => {
 
     renderWithProviders(<OutlookIntegration />);
 
-    const connectButton = screen.getByRole('button', { name: /connect/i });
+    const connectButton = await screen.findByRole('button', {
+      name: /connect/i,
+    });
     await user.click(connectButton);
 
+    // B7 integration: the secured /api/auth/outlook/authorize endpoint now
+    // requires a valid token (Plan 315). The connect flow must forward it.
+    // (Redirect navigation is not assertable in jsdom — same limitation as
+    // the Asana/Box connect tests; the token forwarding is the B7 contract.)
     await waitFor(() => {
-      expect(window.location.href).toContain('login.microsoftonline.com');
+      expect(capturedAuthHeader).toBe('Bearer test-jwt-token');
     });
   });
 
   it('fetches emails', async () => {
     server.use(
-      rest.get('/api/integrations/outlook/emails', (req, res, ctx) => {
+      rest.post('/api/integrations/outlook/emails', (req, res, ctx) => {
         return res(
           ctx.status(200),
           ctx.json({
-            success: true,
-            emails: [
-              { id: '1', subject: 'Test email' },
-            ],
+            data: {
+              emails: [
+                { id: '1', subject: 'Test email', from: { name: 'A', email: 'a@x.com' } },
+              ],
+            },
           })
         );
       })

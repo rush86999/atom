@@ -356,6 +356,13 @@ class ToolRegistry:
         self._register_device_tools()
         self._register_productivity_tools()
         self._register_memory_tools()
+        # B10: data-analysis & predictive tools carry explicit metadata that
+        # the auto-discovery inference cannot recover (e.g. analyze_data is
+        # SUPERVISED/3, not INTERN/2, because it runs arbitrary sandboxed
+        # code; forecast/run_model live in predictive_tools.py which the
+        # *_tool.py discovery glob never matches). Wire them here so the
+        # production registry reflects their real governance surface.
+        self._register_data_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
 
@@ -638,6 +645,25 @@ class ToolRegistry:
             register_memory_tool(self)
         except Exception as e:
             logger.warning(f"Could not register memory tools: {e}")
+
+    def _register_data_tools(self):
+        """Register data-analysis & predictive-modeling tools with explicit
+        metadata (B10).
+
+        Auto-discovery infers analyze_data as INTERN/2 and misses
+        forecast/run_model entirely (predictive_tools.py doesn't match the
+        *_tool.py glob). These explicit registrations override the inferred
+        entries with the correct governance metadata."""
+        try:
+            from tools.data_analysis_tool import register_data_analysis_tools
+            register_data_analysis_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register data analysis tools: {e}")
+        try:
+            from tools.predictive_tools import register_predictive_tools
+            register_predictive_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register predictive tools: {e}")
 
     def _get_function(self, module_name: str, function_name: str) -> Optional[Callable]:
         """Get function from module."""

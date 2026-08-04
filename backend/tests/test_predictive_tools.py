@@ -5,10 +5,34 @@ model training (R², coefficients), classification model training (accuracy,
 feature importance), governance notice presence, and error handling.
 """
 import asyncio
+import contextlib
+import io
 import os
 import tempfile
+from types import SimpleNamespace
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _mock_sandbox_runtime(monkeypatch):
+    """analyze_data fails closed in production when the sandbox is unavailable
+    (B1 — the in-process exec fallback was removed as a P0 RCE). For unit tests
+    of the tool logic, substitute a test-only runtime that executes the
+    (test-controlled) code in-process and returns captured stdout."""
+    import core.sandbox_runtime as srt
+
+    class _ExecutingFakeRuntime:
+        async def execute_python(self, code, *, policy, inputs=None, cwd=None):
+            ns = {"__inputs__": inputs or {}}
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                exec(code, ns, ns)
+            return SimpleNamespace(
+                success=True, stdout=buf.getvalue(), stderr="", exit_code=0
+            )
+
+    monkeypatch.setattr(srt, "get_runtime", lambda: _ExecutingFakeRuntime())
 
 
 @pytest.fixture
@@ -202,3 +226,140 @@ async def test_run_model_governance_notice(regression_csv):
     assert result["success"]
     assert "governance_notice" in result
     assert "review" in result["governance_notice"].lower()
+
+
+# --- B11: exponential-smoothing robustness -----------------------------------
+
+
+@pytest.fixture
+def tiny_series_csv():
+    """2-row time series — too short for statsmodels trend='add' (needs >2)."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        f.write("date,sales\n")
+        f.write("2026-01-01,10\n")
+        f.write("2026-01-02,20\n")
+        path = f.name
+    yield path
+    os.unlink(path)
+
+
+def _install_fake_statsmodels_valueerror(monkeypatch):
+    """Install a fake statsmodels whose ExponentialSmoothing raises ValueError
+    on construction (simulates a short series). statsmodels is not installed in
+    this env, so the ImportError branch is the only path today — the fake
+    forces the ValueError branch that currently escapes the try/except."""
+    import sys
+    import types
+
+    sm = types.ModuleType("statsmodels")
+    tsa = types.ModuleType("statsmodels.tsa")
+    hw = types.ModuleType("statsmodels.tsa.holtwinters")
+
+    def _raise(*args, **kwargs):
+        raise ValueError("ExponentialSmoothing requires at least 3 datapoints")
+
+    hw.ExponentialSmoothing = _raise
+    tsa.holtwinters = hw
+    sm.tsa = tsa
+    monkeypatch.setitem(sys.modules, "statsmodels", sm)
+    monkeypatch.setitem(sys.modules, "statsmodels.tsa", tsa)
+    monkeypatch.setitem(sys.modules, "statsmodels.tsa.holtwinters", hw)
+
+
+@pytest.mark.asyncio
+async def test_forecast_exponential_short_series_falls_back(monkeypatch, tiny_series_csv):
+    """B11: forecast(method='exponential') must fall back to simple exponential
+    smoothing when statsmodels raises ValueError on a short series — not fail.
+    Currently only ImportError is caught, so the ValueError escapes to a tool
+    error."""
+    from tools.data_analysis_tool import load_dataset
+    from tools.predictive_tools import forecast
+
+    _install_fake_statsmodels_valueerror(monkeypatch)
+
+    await load_dataset(source=tiny_series_csv, name="tiny", session_id="b11")
+    result = await forecast(
+        dataset_name="tiny",
+        target_column="sales",
+        periods=3,
+        method="exponential",
+        session_id="b11",
+    )
+    assert result["success"] is True, (
+        f"B11 regression: exponential forecast failed instead of falling "
+        f"back to simple EMA. got: {result}"
+    )
+    forecast_data = result["forecast"]
+    assert isinstance(forecast_data, dict)
+    assert len(forecast_data["forecast"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_forecast_results_held_for_review(timeseries_csv):
+    """B13: forecast results must carry a structured governance block marking
+    them PENDING human review — a machine-readable HITL surface, not just an
+    advisory notice string."""
+    from tools.data_analysis_tool import load_dataset
+    from tools.predictive_tools import forecast
+
+    await load_dataset(source=timeseries_csv, name="sales", session_id="b13-gov")
+    result = await forecast(
+        dataset_name="sales",
+        target_column="sales",
+        periods=3,
+        method="linear",
+        session_id="b13-gov",
+    )
+    assert result["success"]
+    gov = result.get("governance")
+    assert gov is not None, (
+        f"B13 regression: forecast result has no structured governance block "
+        f"(HITL not surfaced). got: {result}"
+    )
+    assert gov.get("requires_review") is True
+    assert gov.get("review_status") == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_run_model_results_held_for_review(regression_csv):
+    """B13: run_model results must carry a structured governance block marking
+    them PENDING human review."""
+    from tools.data_analysis_tool import load_dataset
+    from tools.predictive_tools import run_model
+
+    await load_dataset(source=regression_csv, name="houses", session_id="b13-gov2")
+    result = await run_model(
+        dataset_name="houses",
+        target_column="price",
+        model_type="regression",
+        session_id="b13-gov2",
+    )
+    assert result["success"]
+    gov = result.get("governance")
+    assert gov is not None, (
+        f"B13 regression: run_model result has no structured governance block "
+        f"(HITL not surfaced). got: {result}"
+    )
+    assert gov.get("requires_review") is True
+    assert gov.get("review_status") == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_forecast_rejects_invalid_periods(timeseries_csv):
+    """B11/315-02D: periods outside 1..365 (or non-int) return a clean error
+    before any codegen — no huge/negative/zero forecasts."""
+    from tools.data_analysis_tool import load_dataset
+    from tools.predictive_tools import forecast
+
+    await load_dataset(source=timeseries_csv, name="sales", session_id="b11p")
+    for bad in (0, -3, 366, 1000, "7", 3.5, True):
+        result = await forecast(
+            dataset_name="sales",
+            target_column="sales",
+            periods=bad,
+            method="linear",
+            session_id="b11p",
+        )
+        assert result["success"] is False, (
+            f"periods={bad!r} should be rejected, got {result}"
+        )

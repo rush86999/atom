@@ -21,10 +21,61 @@ the dispatch context (user_id, agent_id, session_id) as kwargs.
 """
 from __future__ import annotations
 
+import ast
+import json
 import logging
+import re
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_data_code(code: str) -> Optional[str]:
+    """Validate agent-supplied code with the sandbox AST policy.
+
+    Reuses the same tripwire scanner the sandbox uses (blocks os/subprocess/
+    socket/pty imports; eval/exec/open/compile/__import__/globals/vars/locals/
+    dir calls) and additionally rejects dunder attribute access (the classic
+    pyjail escape) and runtime reflection (B11). Returns an error message,
+    or None if the code is allowed.
+    """
+    from core.sandbox_tripwire import check_python_ast
+
+    violation = check_python_ast(code)
+    if violation:
+        return str(violation)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return f"Syntax error: {e}"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
+            return f"Attribute access on dunder names is not allowed: .{node.attr}"
+        # B11: getattr(obj, '__cl' + 'ass__') defeats the literal-Attribute
+        # dunder scan above, and __getattribute__ is reachable as a literal
+        # attribute name. Data analysis never needs runtime reflection, so
+        # block getattr/__getattribute__ outright — there is no legitimate use
+        # for them in agent-supplied pandas/sklearn code.
+        if isinstance(node, ast.Call):
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id == "getattr":
+                return "Reflection via getattr() is not allowed"
+            if isinstance(fn, ast.Attribute) and fn.attr in (
+                "getattr",
+                "__getattribute__",
+            ):
+                return f"Reflection via {fn.attr}() is not allowed"
+    return None
+
+
+def _validate_identifier(value: str, field: str) -> Optional[str]:
+    # B13: reject non-string input cleanly instead of letting re.fullmatch
+    # raise TypeError (which surfaces as a 500 to the caller).
+    if not isinstance(value, str):
+        return f"{field} must be a valid Python identifier (got {value!r})"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        return f"{field} must be a valid Python identifier (got {value!r})"
+    return None
 
 
 async def load_dataset(
@@ -60,7 +111,7 @@ async def load_dataset(
         }
     except Exception as e:
         logger.error(f"load_dataset failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to load dataset"}
 
 
 async def analyze_data(
@@ -100,7 +151,18 @@ async def analyze_data(
                 "error": f"Dataset '{dataset_name}' not loaded. Call load_dataset first.",
             }
 
-        # Try sandbox execution first (production path)
+        # Validate the submitted code FIRST — the same AST policy the sandbox
+        # uses. Blocks os/subprocess/socket imports, eval/exec/open/compile/
+        # __import__, and dunder/object-model escapes, on every path.
+        violation = _validate_data_code(code)
+        if violation:
+            return {"success": False, "error": f"Code blocked by sandbox policy: {violation}"}
+
+        # Serialize the dataset once as structured data — never as source text.
+        df_json = df.to_json(orient="records")
+
+        # Sandbox execution (production path). Data travels via the runtime's
+        # `inputs` channel so dataset contents can never become executable text.
         try:
             from core.sandbox_runtime import get_runtime
             from core.sandbox_policy import SandboxPolicy
@@ -113,64 +175,48 @@ async def analyze_data(
                 max_exec_seconds=30,
             )
 
-            # Build the full code: inject df as a global, then run user code
-            import json as _json
-            import pandas as _pd
-
-            # Serialize the dataframe to JSON for the sandbox
-            df_json = df.to_json(orient="records")
-            full_code = f"""
-import json, pandas as pd
-df = pd.read_json('{df_json}')
-{code}
-"""
-
-            result = await runtime.execute_python(full_code, policy=policy)
+            full_code = (
+                "import json, pandas as pd\n"
+                "df = pd.read_json(__inputs__['df'])\n"
+                f"{code}\n"
+            )
+            result = await runtime.execute_python(
+                full_code, policy=policy, inputs={"df": df_json}
+            )
             if result.success:
                 output = result.stdout.strip()
-                # Try to parse output as JSON
                 try:
-                    parsed = _json.loads(output)
+                    parsed = json.loads(output)
                     return {"success": True, "results": parsed}
-                except _json.JSONDecodeError:
-                    # Return raw output if not JSON
+                except json.JSONDecodeError:
                     return {"success": True, "output": output[:5000]}
-            elif result.exit_code == -1:
-                # exit_code -1 = sandbox-level failure (Docker not running, boot
-                # timeout, OOM). Fall through to local fallback for dev/test.
-                logger.debug(f"Sandbox unavailable (exit_code=-1); using local eval")
-            else:
+            if result.exit_code == -1:
+                # Sandbox-level failure (no runtime / Docker down / OOM).
+                logger.warning("Sandbox unavailable; refusing to exec code in-process")
                 return {
                     "success": False,
-                    "error": result.stderr[:2000] if result.stderr else "Execution failed",
-                    "stdout": result.stdout[:1000] if result.stdout else "",
+                    "error": "Sandbox execution unavailable. analyze_data requires the sandbox runtime.",
                 }
+            return {
+                "success": False,
+                "error": result.stderr[:2000] if result.stderr else "Execution failed",
+                "stdout": result.stdout[:1000] if result.stdout else "",
+            }
         except Exception as sandbox_err:
-            logger.debug(f"Sandbox unavailable ({sandbox_err}); using local eval")
-
-        # Fallback: local pandas eval (dev/test only — NOT for production).
-        # Uses a clean global namespace so imports work (the production path
-        # uses the sandbox with AST tripwires; this is just for dev/testing).
-        import pandas as pd
-        local_vars: dict = {"df": df, "pd": pd}
-        import io as _io
-        import contextlib as _contextlib
-
-        stdout_capture = _io.StringIO()
-        with _contextlib.redirect_stdout(stdout_capture):
-            exec(code, {}, local_vars)
-
-        output = stdout_capture.getvalue().strip()
-        import json as _json
-        try:
-            parsed = _json.loads(output)
-            return {"success": True, "results": parsed}
-        except _json.JSONDecodeError:
-            return {"success": True, "output": output[:5000]}
+            # Fail closed (B1): NEVER exec agent-supplied code in the server
+            # process. The in-process `exec(code)` fallback was a P0 RCE — the
+            # sandbox is a hard requirement for analyze_data.
+            logger.warning(
+                "Sandbox unavailable (%s); refusing to exec code in-process", sandbox_err
+            )
+            return {
+                "success": False,
+                "error": "Sandbox execution unavailable. analyze_data requires the sandbox runtime.",
+            }
 
     except Exception as e:
         logger.error(f"analyze_data failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to run data analysis"}
 
 
 async def query_data(
@@ -195,7 +241,8 @@ async def query_data(
         result = dm.query(dataset_name, query, session_id=session_id)
         return result
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"query_data failed: {e}")
+        return {"success": False, "error": "Failed to run query"}
 
 
 async def describe_data(
@@ -214,7 +261,8 @@ async def describe_data(
         dm = get_dataset_manager()
         return dm.describe(dataset_name, session_id=session_id)
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"describe_data failed: {e}")
+        return {"success": False, "error": "Failed to describe dataset"}
 
 
 async def list_datasets(
@@ -229,7 +277,8 @@ async def list_datasets(
         datasets = dm.list_datasets(session_id=session_id)
         return {"success": True, "datasets": datasets, "count": len(datasets)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"list_datasets failed: {e}")
+        return {"success": False, "error": "Failed to list datasets"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +326,10 @@ def register_data_analysis_tools(tool_registry=None):
         ),
         category="data",
         complexity=3,
-        maturity_required="INTERN",
+        # SUPERVISED: analyze_data runs arbitrary (sandboxed) Python against a
+        # dataset — the highest-risk data tool. INTERN maturity must not be
+        # able to invoke it autonomously (B10).
+        maturity_required="SUPERVISED",
         parameters={
             "dataset_name": "string (required) — name of a previously-loaded dataset",
             "code": "string (required) — Python code to execute (df is available as a DataFrame)",

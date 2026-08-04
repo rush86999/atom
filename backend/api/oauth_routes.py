@@ -132,8 +132,16 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 # ============================================================================
 
 @router.get("/{provider}/initiate")
-async def oauth_initiate(provider: str):
-    """Initiate OAuth flow for a specific provider."""
+async def oauth_initiate(
+    provider: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Initiate OAuth flow for a specific provider.
+
+    B14: requires auth, mirroring the rest of this router (callback / tokens /
+    config-status all depend on get_current_user) and the B7 fix on the alias
+    router. Without it the canonical v1 /initiate URL was reachable
+    unauthenticated, making the alias-router auth gate trivially bypassable."""
     configs = {
         "google": GOOGLE_OAUTH_CONFIG,
         "linkedin": LINKEDIN_OAUTH_CONFIG,
@@ -207,21 +215,27 @@ async def list_oauth_tokens(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List all connected OAuth integrations for the current user."""
+    """List all connected OAuth integrations for the current user.
+
+    B15: OAuthToken has no provider/status/expires_at/last_used columns. The
+    integration name is stored on client_id as ``{provider}_client`` (see
+    _handle_callback_logic); liveness is is_active; expiry is
+    access_token_expires_at; last-use is last_used_at."""
     current_user = await get_current_user(request, db)
     query = db.query(OAuthToken).filter(OAuthToken.user_id == current_user.id)
-    
+
     if provider:
-        query = query.filter(OAuthToken.provider == provider)
-        
+        query = query.filter(OAuthToken.client_id == f"{provider}_client")
+
     tokens = query.all()
     return {
         "integrations": [
             {
-                "provider": t.provider,
-                "status": t.status,
-                "expires_at": t.expires_at,
-                "last_used": t.last_used
+                # client_id is stored as "{provider}_client" at callback time.
+                "provider": t.client_id[:-len("_client")] if t.client_id and t.client_id.endswith("_client") else t.client_id,
+                "status": "active" if t.is_active else "revoked",
+                "expires_at": t.access_token_expires_at.isoformat() if t.access_token_expires_at else None,
+                "last_used": t.last_used_at.isoformat() if t.last_used_at else None,
             } for t in tokens
         ]
     }
@@ -233,17 +247,20 @@ async def revoke_oauth_token(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Revoke an OAuth integration."""
+    """Revoke an OAuth integration.
+
+    B15: OAuthToken has no provider/status columns. Filter on client_id
+    (stored as ``{provider}_client``); revocation sets is_active=False."""
     current_user = await get_current_user(request, db)
     token = db.query(OAuthToken).filter(
         OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == provider
+        OAuthToken.client_id == f"{provider}_client"
     ).first()
-    
+
     if not token:
         raise HTTPException(status_code=404, detail=f"No integration found for {provider}")
-        
-    token.status = "revoked"
+
+    token.is_active = False
     db.commit()
     return {"status": "success", "message": f"Revoked {provider} integration"}
 

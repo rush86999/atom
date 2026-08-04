@@ -168,7 +168,14 @@ const OutlookIntegration: React.FC = () => {
 
     const handleConnect = async () => {
         try {
-            const response = await fetch("/api/auth/outlook/authorize");
+            // B7 (Plan 315): /api/auth/* endpoints now require a valid token.
+            // Forward the session token like lib/api.ts does for apiClient.
+            const token =
+                localStorage.getItem("auth_token") ||
+                localStorage.getItem("token");
+            const response = await fetch("/api/auth/outlook/authorize", {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             if (!response.ok) throw new Error("Failed to get authorization URL");
             const data = await response.json();
             if (data.auth_url) {
