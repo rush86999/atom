@@ -17,7 +17,7 @@ from core.auth import create_access_token
 from core.models import User, AgentRegistry, AgentStatus, WorkflowTemplate
 
 # Import db_session directly from property_tests to avoid circular import
-from tests.property_tests.conftest import db_session
+from tests.property_tests.conftest import db_engine, db_session
 
 # Import other fixtures from security/conftest (avoiding db_session which creates circular import)
 from tests.security.conftest import (

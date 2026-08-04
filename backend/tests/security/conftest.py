@@ -22,10 +22,10 @@ except ImportError:
             pass
 from jose import jwt
 from sqlalchemy.orm import Session
-from tests.property_tests.conftest import db_session
+from tests.property_tests.conftest import db_engine, db_session
 from tests.factories.user_factory import UserFactory
 from core.auth import SECRET_KEY, ALGORITHM, create_access_token, get_password_hash
-from core.models import User
+from core.models import User, UserStatus
 
 
 @pytest.fixture(scope="function")
@@ -36,6 +36,10 @@ def test_user_with_password(db_session: Session):
     user = UserFactory(
         email="auth@test.com",
         hashed_password=get_password_hash("KnownPassword123!"),
+        # SECURITY: UserFactory randomizes status across all UserStatus values,
+        # so without forcing ACTIVE the login tests flakily hit the 400
+        # "Inactive user" path 75% of the time.
+        status=UserStatus.ACTIVE.value,
         _session=db_session
     )
     return user
@@ -51,7 +55,14 @@ def valid_auth_token(test_user_with_password):
 def expired_auth_token(test_user_with_password):
     """Create expired JWT token for testing expiration."""
     with freeze_time("2026-02-01 10:00:00"):
-        token = create_access_token(data={"sub": str(test_user_with_password.id)})
+        # SECURITY: default expiry is 24h, which made this "expired" token
+        # actually valid at the tests' 12:00 freeze — the expiry assertions
+        # silently passed only when the fixture user was randomly non-ACTIVE.
+        # Use an explicit short expiry so the token is genuinely expired.
+        token = create_access_token(
+            data={"sub": str(test_user_with_password.id)},
+            expires_delta=timedelta(minutes=30),
+        )
     return token
 
 

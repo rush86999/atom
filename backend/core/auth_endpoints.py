@@ -6,7 +6,7 @@ from typing import Optional
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
@@ -86,8 +86,12 @@ class Token(BaseModel):
     token_type: str
 
 class UserCreate(BaseModel):
-    email: str
-    password: str
+    # SECURITY: email must be a well-formed address and password must meet the
+    # same 8-char minimum the frontend enforces. Previously both were plain
+    # `str`, so POST /register accepted "not-an-email" and 3-char passwords —
+    # the backend is the enforcement boundary and cannot trust client-side checks.
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
     first_name: str
     last_name: str
     role: str = "member"

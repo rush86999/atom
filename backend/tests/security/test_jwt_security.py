@@ -145,7 +145,10 @@ class TestTokenExpiration:
 
         # Try to decode after expiration
         with freeze_time("2026-02-01 10:05:00"):
-            with pytest.raises(JWTError):
+            # NOTE: `jwt` here is PyJWT, not jose; an expired token raises
+            # PyJWT's ExpiredSignatureError (subclass of InvalidTokenError).
+            # `jose.JWTError` is a different hierarchy and would NOT catch it.
+            with pytest.raises(jwt.ExpiredSignatureError):
                 jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
