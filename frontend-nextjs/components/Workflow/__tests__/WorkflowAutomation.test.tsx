@@ -85,7 +85,8 @@ const workflowHandlers = [
     );
   }),
 
-  rest.get('/api/workflows/executions', (req, res, ctx) => {
+  // Real backend route: /api/v1/workflow-ui/executions (workflow_ui_endpoints.py)
+  rest.get('/api/v1/workflow-ui/executions', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -122,7 +123,8 @@ const workflowHandlers = [
     );
   }),
 
-  rest.get('/api/workflows/services', (req, res, ctx) => {
+  // Real backend route: /api/v1/workflow-ui/services (workflow_ui_endpoints.py)
+  rest.get('/api/v1/workflow-ui/services', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -135,27 +137,34 @@ const workflowHandlers = [
     );
   }),
 
-  rest.post('/api/workflows/execute', (req, res, ctx) => {
+  // Real backend route: POST /api/v1/workflows/workflows/{workflow_id}/execute
+  // (core/workflow_endpoints.py). workflow_id lives in the PATH; body is the
+  // raw input data; response is ExecutionResult (no `success` field).
+  rest.post('/api/v1/workflows/workflows/:workflow_id/execute', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
-        success: true,
         execution_id: 'e4',
-        workflow_id: 'w1',
+        workflow_id: req.params.workflow_id,
         status: 'running',
-        start_time: '2024-01-01T00:00:00Z',
-        current_step: 0,
-        total_steps: 2,
+        started_at: '2024-01-01T00:00:00Z',
+        results: [],
+        errors: [],
       })
     );
   }),
 
-  rest.post('/api/workflows/executions/:id/cancel', (req, res, ctx) => {
+  // Real backend route: POST /api/v1/workflow-ui/executions/{id}/cancel
+  rest.post('/api/v1/workflow-ui/executions/:id/cancel', (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ success: true }));
   }),
 
-  rest.post('/api/workflows/executions/:id/resume', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ success: true }));
+  // Real backend route: POST /api/v1/workflows/workflows/{id}/resume
+  rest.post('/api/v1/workflows/workflows/:id/resume', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ status: 'resumed', execution_id: req.params.id })
+    );
   }),
 
   rest.post('/api/time-travel/workflows/:id/fork', (req, res, ctx) => {
@@ -225,15 +234,22 @@ describe('WorkflowAutomation', () => {
     });
   });
 
-  // Test 5: executes a template workflow (POST /api/workflows/execute)
+  // Test 5: executes a template workflow (POST /api/v1/workflows/workflows/{id}/execute)
   test('executes a template workflow', async () => {
     const executePosts: any[] = [];
     server.use(
-      rest.post('/api/workflows/execute', (req, res, ctx) => {
-        executePosts.push(req.body);
+      rest.post('/api/v1/workflows/workflows/:workflow_id/execute', (req, res, ctx) => {
+        executePosts.push({ workflow_id: req.params.workflow_id, body: req.body });
         return res(
           ctx.status(200),
-          ctx.json({ success: true, execution_id: 'e4' })
+          ctx.json({
+            execution_id: 'e4',
+            workflow_id: req.params.workflow_id,
+            status: 'running',
+            started_at: '2024-01-01T00:00:00Z',
+            results: [],
+            errors: [],
+          })
         );
       })
     );
@@ -373,7 +389,7 @@ describe('WorkflowAutomation', () => {
   test('cancels a running execution', async () => {
     const cancelledIds: any[] = [];
     server.use(
-      rest.post('/api/workflows/executions/:id/cancel', (req, res, ctx) => {
+      rest.post('/api/v1/workflow-ui/executions/:id/cancel', (req, res, ctx) => {
         cancelledIds.push(req.params.id);
         return res(ctx.status(200), ctx.json({ success: true }));
       })

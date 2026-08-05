@@ -287,7 +287,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const fetchExecutions = async () => {
     try {
-      const response = await fetch("/api/workflows/executions");
+      const response = await fetch("/api/v1/workflow-ui/executions");
       const data = await response.json();
       if (data.success) {
         setExecutions(data.executions);
@@ -299,7 +299,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const fetchServices = async () => {
     try {
-      const response = await fetch("/api/workflows/services");
+      const response = await fetch("/api/v1/workflow-ui/services");
       const data = await response.json();
       if (data.success) {
         setServices(data.services);
@@ -315,7 +315,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       setLoading(true);
       const generatedName = `Visual Workflow ${new Date().toLocaleTimeString()}`;
 
-      const response = await fetch("/api/workflows/definitions", {
+      const response = await fetch("/api/v1/workflow-ui/definitions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,8 +335,9 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         await fetchWorkflowData(); // Refresh list
 
         // Update current selected workflow so builder has the ID
-        if (data.workflow_id || data.id) {
-          const newId = data.workflow_id || data.id;
+        // (/api/v1/workflow-ui/definitions returns {success, workflow:{id}})
+        if (data.workflow?.id || data.workflow_id || data.id) {
+          const newId = data.workflow?.id || data.workflow_id || data.id;
           const newWorkflow = {
             id: newId,
             name: generatedName,
@@ -385,19 +386,19 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
   ) => {
     try {
       setExecuting(true);
-      const response = await fetch("/api/workflows/execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          workflow_id: workflowId,
-          input: inputData,
-        }),
-      });
+      const response = await fetch(
+        `/api/v1/workflows/workflows/${workflowId}/execute`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(inputData),
+        }
+      );
 
       const data = await response.json();
-      if (data.success) {
+      if (data.execution_id) {
         toast({
           title: "Workflow Started",
           description: `Execution ${data.execution_id} has started`,
@@ -427,7 +428,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
   const handleCancelExecution = async (executionId: string) => {
     try {
       const response = await fetch(
-        `/api/workflows/executions/${executionId}/cancel`,
+        `/api/v1/workflow-ui/executions/${executionId}/cancel`,
         {
           method: "POST",
         },
@@ -460,18 +461,18 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     try {
       setExecuting(true);
       const response = await fetch(
-        `/api/workflows/executions/${executionId}/resume`,
+        `/api/v1/workflows/workflows/${executionId}/resume`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ inputs }),
+          body: JSON.stringify(inputs),
         }
       );
 
       const data = await response.json();
-      if (data.success) {
+      if (data.status === "resumed") {
         toast({
           title: "Execution Resumed",
           description: `Execution ${executionId} has been resumed`,
