@@ -449,7 +449,7 @@ describe('useWebSocket - Advanced Tests', () => {
       const onClose = jest.fn();
 
       const { result } = renderHook(() =>
-        mockUseWebSocket('ws://invalid-host', {
+        mockUseWebSocket('ws://localhost:8000/ws', {
           onClose,
           reconnect: true,
           maxReconnectAttempts: 2,
@@ -461,10 +461,38 @@ describe('useWebSocket - Advanced Tests', () => {
         result.current.connect();
       });
 
-      // Wait for all reconnection attempts to fail
+      // Wait for the initial connection to open.
       await waitFor(() => {
-        expect(onClose).toHaveBeenCalledTimes(3); // Initial + 2 retries
-      }, { timeout: 5000 });
+        expect(result.current.isConnected()).toBe(true);
+      });
+
+      // The mock only fires onclose when close() is explicitly called. Drive
+      // the reconnect cycle: close the initial socket (schedules retry 1),
+      // close the retry socket (schedules retry 2), then close the final
+      // retry socket — at that point maxReconnectAttempts (2) is exhausted.
+      act(() => {
+        result.current.getTestInstance()?.close();
+      });
+      await waitFor(() => {
+        expect(result.current.isConnected()).toBe(true);
+      }, { timeout: 3000 });
+
+      act(() => {
+        result.current.getTestInstance()?.close();
+      });
+      await waitFor(() => {
+        expect(result.current.isConnected()).toBe(true);
+      }, { timeout: 3000 });
+
+      // No further retry is scheduled after the last close.
+      act(() => {
+        result.current.getTestInstance()?.close();
+      });
+
+      // Initial + 2 retries all closed.
+      await waitFor(() => {
+        expect(onClose).toHaveBeenCalledTimes(3);
+      }, { timeout: 3000 });
 
       expect(result.current.isConnected()).toBe(false);
     });

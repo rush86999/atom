@@ -223,18 +223,23 @@ describe('useWebSocket Hook', () => {
       expect(wsInstance.close).toHaveBeenCalled();
     });
 
-    test('uses dev-token fallback when no session token', () => {
+    test('skips connection when no token is available', () => {
       // Mock useSession to return no token
       (useSession as jest.Mock).mockReturnValue({
         data: null,
         status: 'unauthenticated',
       });
 
-      const { result } = renderHook(() => useWebSocket({ autoConnect: true }));
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      expect((global as any).WebSocket.getMockCalls()).toContainEqual(
-        ['ws://localhost:8000/ws?token=dev-token']
-      );
+      renderHook(() => useWebSocket({ autoConnect: true }));
+
+      // The real hook has NO dev-token fallback: when neither the session nor
+      // localStorage provides an auth_token it warns and skips the connection,
+      // so no WebSocket is ever constructed.
+      expect((global as any).WebSocket.getMockCalls()).toHaveLength(0);
+
+      consoleSpy.mockRestore();
     });
 
     test('constructs correct WebSocket URL with token parameter', () => {
@@ -825,14 +830,17 @@ describe('useWebSocket Hook', () => {
         status: 'unauthenticated',
       });
 
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
       expect(() => {
         renderHook(() => useWebSocket({ autoConnect: true }));
       }).not.toThrow();
 
-      // Should use dev-token fallback
-      expect((global as any).WebSocket.getMockCalls()).toContainEqual(
-        ['ws://localhost:8000/ws?token=dev-token']
-      );
+      // Without any token the hook skips connecting (there is no dev-token
+      // fallback), so no WebSocket is constructed.
+      expect((global as any).WebSocket.getMockCalls()).toHaveLength(0);
+
+      consoleSpy.mockRestore();
     });
 
     test('handles connection timeout (via onclose)', () => {
