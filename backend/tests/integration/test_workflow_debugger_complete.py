@@ -33,11 +33,38 @@ from core.models import (
 
 @pytest.fixture
 def db_session():
-    """Create a real database session for integration testing."""
-    from core.database import get_db_session
-    with get_db_session() as db:
+    """Create a fresh temporary SQLite database for integration testing."""
+    import os
+    import tempfile
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.database import Base
+
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+
+    TestingSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+        expire_on_commit=False,
+    )
+    db = TestingSessionLocal()
+    try:
         yield db
-        # Cleanup is automatic via context manager
+    finally:
+        db.close()
+        engine.dispose()
+        try:
+            os.remove(db_path)
+        except OSError:
+            pass
 
 
 @pytest.fixture

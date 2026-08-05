@@ -5583,41 +5583,67 @@ class WorkflowExecutionLog(Base):
 
 class DebugVariable(Base):
     """Debug variables captured during workflow execution"""
-    __tablename__ = "workflow_debug_variables"
+    __tablename__ = "debug_variables"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    trace_id = Column(String, ForeignKey("execution_traces.id"), nullable=False, index=True)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
     variable_name = Column(String(255), nullable=False)
-    variable_value = Column(JSONColumn, nullable=True)
-    timestamp = Column(DateTime(timezone=True), nullable=False)
-    captured_at = Column(DateTime(timezone=True), server_default=func.now())
+    variable_path = Column(String(255), nullable=False)
+    variable_type = Column(String(50), nullable=False)
+    value = Column(JSONColumn, nullable=True)
+    value_preview = Column(Text, nullable=True)
+    is_mutable = Column(Boolean, default=True, nullable=False)
+    scope = Column(String(50), default="local", nullable=False)
+    is_changed = Column(Boolean, default=False, nullable=False)
+    previous_value = Column(JSONColumn, nullable=True)
+    is_watch = Column(Boolean, default=False, nullable=False)
+    watch_expression = Column(Text, nullable=True)
 
-    # Relationship
-    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+    # Relationships
+    trace = relationship("ExecutionTrace", foreign_keys=[trace_id])
+    debug_session = relationship("WorkflowDebugSession", foreign_keys=[debug_session_id])
 
     __table_args__ = (
-        Index('idx_workflow_execution_id', 'workflow_execution_id'),
+        Index('ix_debug_variables_trace', 'trace_id'),
+        Index('ix_debug_variables_session', 'debug_session_id'),
+        Index('ix_debug_variables_name', 'variable_name'),
     )
 
 
 class ExecutionTrace(Base):
     """Execution traces for workflow debugging"""
-    __tablename__ = "workflow_execution_traces"
+    __tablename__ = "execution_traces"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
-    step_id = Column(String(255), nullable=False)
-    trace_type = Column(String(50), nullable=False)  # info/debug/error
-    message = Column(Text, nullable=True)
-    trace_metadata = Column(JSONColumn, nullable=True)  # Renamed from 'metadata' (reserved)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    workflow_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    step_number = Column(Integer, nullable=False)
+    node_id = Column(String(255), nullable=False, index=True)
+    node_type = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)  # started/completed/failed
+    input_data = Column(JSONColumn, nullable=True)
+    output_data = Column(JSONColumn, nullable=True)
+    error_message = Column(Text, nullable=True)
+    variables_before = Column(JSONColumn, nullable=True)
+    variables_after = Column(JSONColumn, nullable=True)
+    variable_changes = Column(JSONColumn, nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    parent_step_id = Column(String(255), nullable=True)
+    thread_id = Column(String(255), nullable=True)
 
-    # Relationship
-    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+    # Relationships
+    workflow_execution = relationship("WorkflowExecution", foreign_keys=[execution_id])
+    debug_session = relationship("WorkflowDebugSession", foreign_keys=[debug_session_id])
 
     __table_args__ = (
-        Index('idx_workflow_execution_trace', 'workflow_execution_id'),
-        Index('idx_trace_type', 'trace_type'),
+        Index('ix_traces_execution', 'execution_id', 'step_number'),
+        Index('ix_traces_workflow', 'workflow_id'),
+        Index('ix_traces_debug_session', 'debug_session_id'),
+        Index('ix_traces_node', 'node_id'),
     )
 
 
@@ -5627,16 +5653,27 @@ class WorkflowBreakpoint(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workflow_id = Column(String, nullable=False, index=True)
-    step_id = Column(String(255), nullable=False)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    node_id = Column(String(255), nullable=False, index=True)
+    edge_id = Column(String(255), nullable=True, index=True)
+    breakpoint_type = Column(String(50), default="node", nullable=False)  # node/edge
     condition = Column(Text, nullable=True)  # Conditional breakpoint expression
-    enabled = Column(Boolean, default=True, nullable=False)
     hit_count = Column(Integer, default=0, nullable=False)
-    created_by = Column(String(255), nullable=True)
+    hit_limit = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    is_disabled = Column(Boolean, default=False, nullable=False)
+    log_message = Column(Text, nullable=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    debug_session = relationship("WorkflowDebugSession", foreign_keys=[debug_session_id])
 
     __table_args__ = (
-        Index('idx_workflow_breakpoint', 'workflow_id'),
-        Index('idx_step_breakpoint', 'step_id'),
+        Index('ix_breakpoints_workflow', 'workflow_id', 'is_active'),
+        Index('ix_breakpoints_session', 'debug_session_id'),
+        Index('ix_breakpoints_node', 'node_id'),
     )
 
 
@@ -5645,20 +5682,34 @@ class WorkflowDebugSession(Base):
     __tablename__ = "workflow_debug_sessions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
-    session_type = Column(String(50), nullable=False)  # interactive/automated
-    status = Column(String(50), nullable=False)  # active/paused/completed
+    workflow_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    session_name = Column(String(255), nullable=True)
+    status = Column(String(50), default="active", nullable=False, index=True)  # active/paused/completed/running
+    current_step = Column(Integer, default=0)
+    current_node_id = Column(String(255), nullable=True)
     breakpoints = Column(JSONColumn, nullable=True, default=list)
-    current_step = Column(String(255), nullable=True)
-    started_at = Column(DateTime(timezone=True), server_default=func.now())
-    ended_at = Column(DateTime(timezone=True), nullable=True)
+    variables = Column(JSONColumn, nullable=True, default=dict)
+    call_stack = Column(JSONColumn, nullable=True, default=list)
+    stop_on_entry = Column(Boolean, default=False, nullable=False)
+    stop_on_exceptions = Column(Boolean, default=True, nullable=False)
+    stop_on_error = Column(Boolean, default=True, nullable=False)
+    conditional_breakpoints = Column(JSONColumn, nullable=True, default=list)
+    collaborators = Column(JSONColumn, nullable=True, default=dict)
+    performance_metrics = Column(JSONColumn, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+    workflow_execution = relationship("WorkflowExecution", foreign_keys=[execution_id])
+    user = relationship("User", foreign_keys=[user_id])
 
     __table_args__ = (
-        Index('idx_debug_session_execution', 'workflow_execution_id'),
-        Index('idx_debug_session_status', 'status'),
+        Index('ix_debug_sessions_workflow', 'workflow_id'),
+        Index('ix_debug_sessions_user', 'user_id', 'created_at'),
+        Index('ix_debug_sessions_status', 'status'),
     )
 
 

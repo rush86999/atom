@@ -70,11 +70,20 @@ class WorkflowDebugger:
         """Create a new debug session for a workflow."""
         try:
             session = WorkflowDebugSession(
-                workflow_execution_id=execution_id,
-                session_type="interactive",
+                workflow_id=workflow_id,
+                execution_id=execution_id,
+                user_id=user_id,
+                session_name=session_name or f"Debug session for workflow {workflow_id}",
                 status="active",
-                current_step="0",
+                current_step=0,
                 breakpoints=[],
+                variables={},
+                call_stack=[],
+                stop_on_entry=stop_on_entry,
+                stop_on_exceptions=stop_on_exceptions,
+                stop_on_error=stop_on_error,
+                conditional_breakpoints=[],
+                collaborators={},
             )
 
             self.db.add(session)
