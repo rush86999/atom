@@ -146,11 +146,17 @@ class Gatekeeper:
         workspace_id: Optional[str] = None,
         user_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
+        taint_tracker: Any = None,
     ) -> Dict[str, Any]:
         """Evaluate a single outbound integration action against policy.
 
         Returns a dict with at least ``{"allowed": bool}``. When ``allowed`` is
         False, includes ``reason`` and (for HITL) ``intervention_id``.
+
+        Args:
+            taint_tracker: optional ``DataTaintTracker`` (P4). When supplied, an
+                external-bound call is blocked if restricted/confidential data
+                was observed this run (VT_PROVENANCE).
         """
         params = params or {}
         allowed = True
@@ -167,6 +173,28 @@ class Gatekeeper:
                 reason = f"Rate limit exceeded for {service} (retry later)"
         except Exception as e:
             logger.debug("rate limit check skipped for %s: %s", service, e)
+
+        # 1b. P4 data-taint gate: block external outbound when sensitive data
+        # was observed this run. Emits VT_PROVENANCE.
+        if allowed and taint_tracker is not None:
+            try:
+                taint_decision = taint_tracker.check_outbound(
+                    destination="external", service=service
+                )
+                if not taint_decision.get("allowed", True):
+                    self._write_audit(
+                        service=service, action=action, agent_id=agent_id,
+                        workspace_id=workspace_id, allowed=False,
+                        reason=taint_decision.get("reason", "taint block"),
+                    )
+                    return {
+                        "allowed": False,
+                        "reason": taint_decision.get("reason", "sensitive data observed"),
+                        "violation_type": taint_decision.get("violation_type"),
+                        "max_observed": taint_decision.get("max_observed"),
+                    }
+            except Exception as e:
+                logger.debug("taint check skipped for %s: %s", service, e)
 
         # 2. HITL approval for configured mutations.
         if allowed:

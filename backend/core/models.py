@@ -231,6 +231,18 @@ user_workspaces = Table(
     extend_existing=True  # Allow redefinition during test collection
 )
 
+# Phase P8 — workspace-scoped skill assignment (Cloudflare G8). Many-to-many
+# between Workspace and Skill: skills explicitly assigned to a workspace pre-load
+# into that workspace's agents (see api/workspace_context_routes.py and
+# core/skill_retrieval_service.py). Idempotent rows via the composite PK.
+workspace_skills = Table(
+    'workspace_skills',
+    Base.metadata,
+    Column('workspace_id', String, ForeignKey('workspaces.id', ondelete='CASCADE'), primary_key=True),
+    Column('skill_id', String, ForeignKey('skills.id', ondelete='CASCADE'), primary_key=True),
+    extend_existing=True  # Allow redefinition during test collection
+)
+
 class Workspace(Base):
     __tablename__ = "workspaces"
 
@@ -247,6 +259,10 @@ class Workspace(Base):
     is_startup = Column(Boolean, default=False)
     learning_phase_completed = Column(Boolean, default=False)
     metadata_json = Column(JSONColumn, default={}) # Governance & Config
+    # Phase P8 (Cloudflare G8) convention: per-workspace curated knowledge lives
+    # in ``metadata_json["curated_context"]`` as a list[str] of curated context
+    # blobs that pre-load into this workspace's agents. No dedicated column is
+    # added; manage via api/workspace_context_routes.py.
     internal_domains = Column(Text, nullable=True)  # JSON string: ["atom.ai", "example.com"]
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -2320,10 +2336,29 @@ class IngestedDocument(Base):
     
     external_id = Column(String, nullable=False, index=True) # ID in source system
     external_modified_at = Column(DateTime(timezone=True), nullable=True)
-    
+
+    # --- Freshness / outdated-documentation tracking ---
+    # Mirrors the GovernanceDocument.last_verified pattern (models.py:2121)
+    # and policy_search_service._get_verification_status derivation.
+    # `freshness_status` is the persisted, filterable value; the others are
+    # the inputs that produce it. See core/doc_freshness_service.py.
+    source_url = Column(String(1024), nullable=True)  # canonical locator (drive/Notion URL)
+    source_content_hash = Column(String, nullable=True)  # SHA-256 of text fetched from source
+    last_verified_at = Column(DateTime(timezone=True), nullable=True)  # when freshness was last checked
+    source_modified_at = Column(DateTime(timezone=True), nullable=True)  # source modified_at captured at last successful verify
+    freshness_status = Column(String, nullable=False, default="fresh", server_default="fresh")  # fresh|stale|outdated|removed|superseded
+    # Document supersession: id of a newer doc on the same topic (same
+    # integration) that renders this one outdated. Set by the supersession
+    # detector. NULL when the doc is not superseded.
+    superseded_by = Column(String, nullable=True)
+
     ingested_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Phase P4 (Cloudflare G4): data-taint sensitivity classification
+    # (public|internal|confidential|restricted). Defaults to internal.
+    sensitivity = Column(String(20), nullable=True, default="internal", server_default="internal")
 
 class KnowledgeDocument(Base):
     """General-purpose document for RAG/knowledge base - persisted to DB"""
@@ -2338,6 +2373,14 @@ class KnowledgeDocument(Base):
     chunk_count = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Phase P8 (Cloudflare G8): nullable workspace scoping so existing
+    # tenant-level documents remain valid (no data migration needed).
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True)
+
+    # Phase P4 (Cloudflare G4): data-taint sensitivity classification
+    # (public|internal|confidential|restricted). Defaults to internal.
+    sensitivity = Column(String(20), nullable=True, default="internal", server_default="internal")
 
 class IngestionSettings(Base):
     """Settings for document ingestion per integration"""
@@ -4807,6 +4850,10 @@ class AgentEpisode(Base):
     agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     execution_id = Column(String(255), ForeignKey("agent_executions.id", ondelete="SET NULL"), nullable=True)
+
+    # Phase P8 (Cloudflare G8): nullable workspace scoping — episodes are not
+    # workspace-scoped today; the column is additive so existing rows stay valid.
+    workspace_id = Column(String(255), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True)
 
     # Task description
     task_description = Column(Text, nullable=True)
