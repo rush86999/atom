@@ -167,6 +167,7 @@ describe('useChatInterface - Integration Tests', () => {
     const mock = createMockUseChatInterface();
     mockUseChatInterface = mock.useChatInterface;
     global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
   });
 
   afterEach(() => {

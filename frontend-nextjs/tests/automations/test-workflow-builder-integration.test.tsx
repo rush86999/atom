@@ -12,6 +12,8 @@ const mockWorkflowApi = {
 
 describe('WorkflowBuilder - API Integration Tests', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
     // Mock fetch for API calls
     global.fetch = jest.fn(() =>

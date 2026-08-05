@@ -12,6 +12,8 @@ import { hubspotApi } from '../hubspotApi';
 
 describe('HubSpot API Service', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
   });
 

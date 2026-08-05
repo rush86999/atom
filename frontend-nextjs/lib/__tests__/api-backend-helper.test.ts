@@ -22,6 +22,8 @@ const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 describe('API Backend Helper', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_API_URL = 'https://api.test.com';
     // Reset fetch to default implementation

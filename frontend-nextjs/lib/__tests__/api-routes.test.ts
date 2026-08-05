@@ -14,6 +14,8 @@ import handler from '../../pages/api/agent-governance/[...path]';
 
 describe('Agent Governance API - Integration Tests', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
   });
 

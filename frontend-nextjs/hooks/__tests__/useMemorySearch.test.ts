@@ -21,9 +21,11 @@ jest.mock('sonner', () => ({
 }));
 
 describe('useMemorySearch Hook', () => {
-  const mockFetch = global.fetch as jest.MockedFunction<typeof global.fetch>;
+  let mockFetch: any;
 
   beforeEach(() => {
+
+    mockFetch = global.fetch = jest.fn();
     jest.clearAllMocks();
   });
 

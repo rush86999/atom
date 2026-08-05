@@ -29,12 +29,14 @@ jest.mock('sonner', () => ({
 }));
 
 describe('useCliHandler Hook', () => {
-  const mockFetch = global.fetch as jest.MockedFunction<typeof global.fetch>;
+  let mockFetch: any;
   let useSessionMock: any;
   let getMatchesMock: any;
   let toastMock: any;
 
   beforeEach(() => {
+
+    mockFetch = global.fetch = jest.fn();
     jest.clearAllMocks();
     jest.useFakeTimers();
 

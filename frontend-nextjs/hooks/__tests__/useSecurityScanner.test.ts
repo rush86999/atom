@@ -26,9 +26,11 @@ jest.mock('@tauri-apps/api/core', () => ({
 }));
 
 describe('useSecurityScanner Hook', () => {
-  const mockFetch = global.fetch as jest.MockedFunction<typeof global.fetch>;
+  let mockFetch: any;
 
   beforeEach(() => {
+
+    mockFetch = global.fetch = jest.fn();
     jest.clearAllMocks();
     // Reset window.__TAURI__
     delete (window as any).__TAURI__;

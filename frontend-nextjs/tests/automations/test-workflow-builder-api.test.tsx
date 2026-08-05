@@ -6,6 +6,7 @@ describe('WorkflowBuilder - API Call Testing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
   });
 
   afterEach(() => {

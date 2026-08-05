@@ -6,6 +6,7 @@ describe('NodeConfigSidebar - API Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
   });
 
   afterEach(() => {

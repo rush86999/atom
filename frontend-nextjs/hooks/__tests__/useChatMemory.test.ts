@@ -13,6 +13,8 @@ import { useChatMemory } from '../useChatMemory';
 
 describe('useChatMemory Hook', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
   });
 

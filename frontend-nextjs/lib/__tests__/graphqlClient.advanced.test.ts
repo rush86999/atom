@@ -21,6 +21,8 @@ jest.mock('../constants', () => ({
 
 describe('GraphQL Client - Advanced Coverage Tests', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
   });
 
