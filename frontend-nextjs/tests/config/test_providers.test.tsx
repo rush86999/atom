@@ -17,12 +17,14 @@ jest.mock('../../components/layout/Layout', () => {
   };
 });
 
-// Mock GlobalChatWidget
-jest.mock('../../components/GlobalChatWidget', () => {
-  return function MockGlobalChatWidget() {
+// Mock GlobalChatWidget. _app.tsx imports it as a NAMED export
+// (import { GlobalChatWidget }), so the mock must export the named binding
+// (a bare function factory would leave the named import undefined).
+jest.mock('../../components/GlobalChatWidget', () => ({
+  GlobalChatWidget: function MockGlobalChatWidget() {
     return <div data-testid="global-chat-widget" />;
-  };
-});
+  },
+}));
 
 // Mock WakeWordProvider context
 jest.mock('../../contexts/WakeWordContext', () => ({
@@ -39,6 +41,8 @@ jest.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="session-provider">{children}</div>
   ),
+  // _app.tsx's SessionSync calls useSession() at render.
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
 }));
 
 import MyApp from '../../pages/_app';
@@ -52,9 +56,10 @@ describe('Provider Setup', () => {
 
     renderWithProviders(<MyApp {...mockPageProps} />);
 
-    // SessionProvider should be present
-    const sessionProvider = screen.queryByTestId('session-provider');
-    expect(sessionProvider).toBeInTheDocument();
+    // renderWithProviders' wrapper and _app.tsx both render the (mocked)
+    // SessionProvider, so use getAllByTestId.
+    const sessionProviders = screen.getAllByTestId('session-provider');
+    expect(sessionProviders.length).toBeGreaterThan(0);
   });
 
   it('app renders without errors', () => {
@@ -178,7 +183,7 @@ describe('Provider Setup', () => {
     const { render: renderWithMock } = require('@testing-library/react');
 
     expect(() => {
-      const { default: MyAppWithMock } = require('../pages/_app');
+      const { default: MyAppWithMock } = require('../../pages/_app');
       renderWithMock(<MyAppWithMock {...mockAppProps} />);
     }).not.toThrow();
   });
@@ -233,9 +238,12 @@ describe('Provider Setup', () => {
       Component: () => <div>Test Page</div>,
     } as AppProps;
 
-    // SessionProvider should be outermost
-    const sessionProvider = screen.queryByTestId('session-provider');
-    expect(sessionProvider).toBeInTheDocument();
+    renderWithProviders(<MyApp {...mockAppProps} />);
+
+    // SessionProvider should be present (mock renders one per mount, plus the
+    // renderWithProviders wrapper's own instance)
+    const sessionProviders = screen.getAllByTestId('session-provider');
+    expect(sessionProviders.length).toBeGreaterThan(0);
   });
 });
 
