@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AgentStudio from '@/components/Agents/AgentStudio';
 
@@ -212,7 +212,10 @@ describe('AgentStudio Component', () => {
 
       await user.click(screen.getByRole('button', { name: /create new agent/i }));
 
-      const descInputs = screen.getAllByPlaceholderText('');
+      // The Description <Input> has no placeholder attribute (only an empty
+      // value), so locate it the same way the Name test does: by empty
+      // display-value and its parent <Label> text.
+      const descInputs = screen.getAllByDisplayValue('');
       const descInput = descInputs.find(input => {
         const label = input.parentElement?.querySelector('label');
         return label?.textContent?.includes('Description');
@@ -235,16 +238,21 @@ describe('AgentStudio Component', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /create new agent/i }));
-      await waitFor(() => {
-        expect(screen.getByText('Operations')).toBeInTheDocument();
-      });
 
-      // Click on the category selector (it's a custom select component)
-      const opsText = screen.getAllByText('Operations');
-      if (opsText.length > 1) {
-        await user.click(opsText[1]);
-        // Should show dropdown options
-      }
+      // The category control is a Radix Select whose trigger is a combobox.
+      // Scope to the dialog so the agent card's category text ("Operations")
+      // does not cause an ambiguous match.
+      const dialog = await screen.findByRole('dialog');
+      const combobox = within(dialog).getByRole('combobox');
+      expect(combobox).toHaveTextContent('Operations');
+
+      // Open the dropdown and pick a different category.
+      await user.click(combobox);
+      const financeOption = await screen.findByRole('option', { name: 'Finance' });
+      await user.click(financeOption);
+
+      // The SelectValue now reflects the selection.
+      expect(within(dialog).getByRole('combobox')).toHaveTextContent('Finance');
     });
   });
 
@@ -583,8 +591,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Test task');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -633,8 +643,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Test task');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -674,8 +686,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Test task');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -727,15 +741,19 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Send email');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
           await user.click(playButtons[0]);
           await waitFor(() => {
             expect(screen.getByText(/human approval required/i)).toBeInTheDocument();
-            expect(screen.getByText('email')).toBeInTheDocument();
+            // The tool name renders as "Action: email" inside a <p> alongside
+            // the reason text, so an exact text-node match can't find it.
+            expect(screen.getByText('email', { exact: false })).toBeInTheDocument();
           });
         }
       }
@@ -779,8 +797,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Send email');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -846,8 +866,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Test task');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -857,8 +879,10 @@ describe('AgentStudio Component', () => {
           });
 
           // Find thumbs down button
+          // The feedback button is icon-only (a ThumbsDown lucide icon);
+          // btn.innerHTML never contains the literal "ThumbsDown" text.
           const thumbsDownButtons = screen.getAllByRole('button').filter(btn =>
-            btn.innerHTML.includes('ThumbsDown')
+            btn.querySelector('.lucide-thumbs-down')
           );
 
           if (thumbsDownButtons.length > 0) {
@@ -909,8 +933,10 @@ describe('AgentStudio Component', () => {
         const testInput = screen.getByPlaceholderText(/enter a task to run/i);
         await user.type(testInput, 'Test task');
 
+        // The run button is icon-only (a Play lucide icon, no text); the old
+        // filter matched any svg-bearing button (e.g. header "Create New Agent").
         const playButtons = screen.getAllByRole('button').filter(btn =>
-          btn.innerHTML.includes('Play') || btn.querySelector('svg')
+          btn.querySelector('.lucide-play')
         );
 
         if (playButtons.length > 0) {
@@ -919,8 +945,10 @@ describe('AgentStudio Component', () => {
             expect(screen.getByText('Step 1')).toBeInTheDocument();
           });
 
+          // The feedback button is icon-only (a ThumbsDown lucide icon);
+          // btn.innerHTML never contains the literal "ThumbsDown" text.
           const thumbsDownButtons = screen.getAllByRole('button').filter(btn =>
-            btn.innerHTML.includes('ThumbsDown')
+            btn.querySelector('.lucide-thumbs-down')
           );
 
           if (thumbsDownButtons.length > 0) {
