@@ -45,6 +45,22 @@ from ai.automation_engine import AutomationEngine
 from ai.workflow_scheduler import workflow_scheduler
 import uuid
 
+# BUG-122/123: Missing imports for automation agent execution and finance/CRM handlers.
+# These were referenced but never imported → NameError on every chat automation/finance request.
+try:
+    from api.agent_routes import execute_agent_task
+except Exception:
+    execute_agent_task = None
+    logger.warning("execute_agent_task not importable — chat automation agent trigger disabled")
+
+try:
+    from core.automation_settings import get_automation_settings
+except Exception:
+    get_automation_settings = None
+    logger.warning("get_automation_settings not importable — finance/CRM chat handlers degraded")
+
+from core.database import SessionLocal
+
 logger = logging.getLogger(__name__)
 
 REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are powered by AI and intended for strategic guidance. This system is not a licensed CPA or tax advisor. All automated records should be reviewed by a qualified professional before filing.*"
@@ -454,6 +470,16 @@ class ChatOrchestrator:
 
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
+            # BUG-125: Persist the user's message even on error so it's not
+            # lost from chat history. Previously _update_session was only
+            # called on the success path.
+            try:
+                error_response = self._generate_error_response(
+                    "I encountered an error processing your message. Please try again.", session_id
+                )
+                self._update_session(session, message, error_response, intent_analysis)
+            except Exception:
+                pass  # Don't let the persistence attempt mask the original error
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
 
     async def _get_qwen_response(
@@ -1082,9 +1108,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         try:
              # In a real app we might pass specific parameters extracted from NLP
             run_params = {"trigger": "chat_user", "session_id": session.get("id"), "request": message}
-            
-            # Use execute_agent_task from api.agent_routes
-            # Note: execute_agent_task is async
+
+            # BUG-122: execute_agent_task was referenced but never imported → NameError.
+            if execute_agent_task is None:
+                return {"success": False, "message": "Agent execution is not available."}
+
             await execute_agent_task(target_agent_id, run_params)
             
             agent_name = AGENTS[target_agent_id]["name"]
@@ -1114,7 +1142,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
         """Handle financial and accounting queries"""
-        if not get_automation_settings().is_accounting_enabled():
+        # BUG-123: get_automation_settings was never imported → NameError.
+        if get_automation_settings is None or not get_automation_settings().is_accounting_enabled():
             return {
                 "success": False,
                 "message": "AI Accounting Automations are currently disabled in settings.",

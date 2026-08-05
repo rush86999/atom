@@ -215,6 +215,13 @@ async def upload_document(
             chunk_count=max(1, len(content) // 500)
         )
     except Exception as e:
+        # BUG-124: Previously the broad `except Exception` caught the 413/415
+        # HTTPExceptions raised by validation checks above and re-raised them
+        # as a generic 500. Now re-raises HTTPException so the user sees the
+        # specific error (file too large, unsupported type).
+        from fastapi import HTTPException as _FastAPIHTTPException
+        if isinstance(e, _FastAPIHTTPException):
+            raise
         logger.error(f"File upload failed: {e}")
         raise router.internal_error(message="Internal error")
 
