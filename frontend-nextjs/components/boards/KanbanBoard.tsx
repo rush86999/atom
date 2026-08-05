@@ -51,24 +51,30 @@ export function KanbanBoard({ board }: Props) {
     if (!targetColumnId || targetColumnId === task.column_id) {
       const overTask = tasks.find((t) => t.id === overId);
       if (overTask && overTask.id !== task.id) {
-        // Same-column reorder: SWAP the two tasks' sort_orders so neither
-        // collides. Previously the dragged task took overTask's sort_order
-        // while overTask kept its own → two cards with identical sort_order
-        // and nondeterministic render order (BUG-027).
-        patchTask.mutate({
-          taskId: task.id,
-          input: {
-            expected_version: task.version_id,
-            sort_order: overTask.sort_order,
+        // Same-column reorder: SWAP sort_orders sequentially to avoid the
+        // BUG-103 race where two concurrent PATCHes with stale
+        // expected_version left the swap half-applied. Now the second
+        // PATCH waits for the first to complete.
+        patchTask.mutate(
+          {
+            taskId: task.id,
+            input: {
+              expected_version: task.version_id,
+              sort_order: overTask.sort_order,
+            },
           },
-        });
-        patchTask.mutate({
-          taskId: overTask.id,
-          input: {
-            expected_version: overTask.version_id,
-            sort_order: task.sort_order,
-          },
-        });
+          {
+            onSuccess: () => {
+              patchTask.mutate({
+                taskId: overTask.id,
+                input: {
+                  expected_version: overTask.version_id,
+                  sort_order: task.sort_order,
+                },
+              });
+            },
+          }
+        );
       }
       return;
     }

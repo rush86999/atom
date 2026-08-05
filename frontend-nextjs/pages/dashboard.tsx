@@ -73,24 +73,30 @@ const DashboardPage: React.FC = () => {
   };
 
   const refreshDashboardData = async () => {
+    // BUG-102: AbortController + 10s timeout so one hung fetch can't freeze
+    // the loading state forever.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       setLoading(true);
 
-      // 1. Health Checks
+      // 1. Health Checks — BUG-101: Fixed URLs to include /v1 prefix matching
+      // the backend mount (/api/v1/integrations/{id}). Previously all 13
+      // health checks 404'd, making every integration show Disconnected.
       const healthChecks = await Promise.all([
-        fetch("/api/integrations/box/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/dropbox/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/gdrive/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/slack/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/gmail/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/notion/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/jira/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/github/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/nextjs/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/stripe/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/linear/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/outlook/health").catch(() => ({ ok: false } as Response)),
-        fetch("/api/integrations/asana/health").catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/box/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/dropbox/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/gdrive/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/slack/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/gmail/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/notion/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/jira/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/github/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/nextjs/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/stripe/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/linear/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/outlook/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/asana/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
       ]);
 
       const integrationList = [
@@ -164,6 +170,7 @@ const DashboardPage: React.FC = () => {
         variant: "error",
       });
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };
