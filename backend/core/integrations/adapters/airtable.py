@@ -53,8 +53,9 @@ class AirtableAdapter:
         ).first()
         
         if token:
-            self._access_token = token.access_token
-            self._refresh_token = token.refresh_token
+            from core.privsec.token_encryption import decrypt_token
+            self._access_token = decrypt_token(token.access_token, allow_plaintext=True)
+            self._refresh_token = decrypt_token(token.refresh_token, allow_plaintext=True) if token.refresh_token else None
             self._token_expires_at = token.expires_at
 
     async def refresh_token(self) -> bool:
@@ -96,9 +97,11 @@ class AirtableAdapter:
                         IntegrationToken.provider == self.service_name
                     ).first()
                     if token:
-                        token.access_token = self._access_token
-                        token.refresh_token = self._refresh_token
+                        from core.privsec.token_encryption import encrypt_token, stamp_credential_metadata
+                        token.access_token = encrypt_token(self._access_token)
+                        token.refresh_token = encrypt_token(self._refresh_token) if self._refresh_token else None
                         token.expires_at = self._token_expires_at
+                        stamp_credential_metadata(token)
                         self.db.commit()
                 
                 return True

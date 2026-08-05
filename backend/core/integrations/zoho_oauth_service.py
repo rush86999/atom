@@ -55,9 +55,10 @@ class ZohoOAuthService:
                 
                 expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3600))
                 
+                from core.privsec.token_encryption import encrypt_token, stamp_credential_metadata
                 if token_record:
-                    token_record.access_token = token_data.get("access_token")
-                    token_record.refresh_token = token_data.get("refresh_token") or token_record.refresh_token
+                    token_record.access_token = encrypt_token(token_data.get("access_token"))
+                    token_record.refresh_token = encrypt_token(token_data.get("refresh_token")) if token_data.get("refresh_token") else token_record.refresh_token
                     token_record.expires_at = expires_at
                     token_record.instance_url = instance_url
                     token_record.last_used_at = datetime.now(timezone.utc)
@@ -65,14 +66,15 @@ class ZohoOAuthService:
                     token_record = IntegrationToken(
                         tenant_id=tenant_id,
                         provider="zoho",
-                        access_token=token_data.get("access_token"),
-                        refresh_token=token_data.get("refresh_token"),
+                        access_token=encrypt_token(token_data.get("access_token")),
+                        refresh_token=encrypt_token(token_data.get("refresh_token")) if token_data.get("refresh_token") else None,
                         expires_at=expires_at,
                         instance_url=instance_url,
                         token_type="Bearer",
                         status="active"
                     )
                     db.add(token_record)
+                stamp_credential_metadata(token_record)
                 
                 db.commit()
                 return {
@@ -91,11 +93,15 @@ class ZohoOAuthService:
         if not token_record.refresh_token:
             return None
             
+        from core.privsec.token_encryption import decrypt_token, encrypt_token, stamp_credential_metadata
+        refresh_plain = decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None
+        if not refresh_plain:
+            return None
         data = {
             "grant_type": "refresh_token",
             "client_id": os.getenv("ZOHO_CLIENT_ID"),
             "client_secret": os.getenv("ZOHO_CLIENT_SECRET"),
-            "refresh_token": token_record.refresh_token
+            "refresh_token": refresh_plain
         }
         
         try:
@@ -104,8 +110,9 @@ class ZohoOAuthService:
                 response.raise_for_status()
                 res_data = response.json()
                 
-                token_record.access_token = res_data["access_token"]
+                token_record.access_token = encrypt_token(res_data["access_token"])
                 token_record.expires_at = datetime.now(timezone.utc) + timedelta(seconds=res_data.get("expires_in", 3600))
+                stamp_credential_metadata(token_record)
                 db.commit()
                 return token_record.access_token
         except Exception as e:

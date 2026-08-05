@@ -601,9 +601,10 @@ async def create_social_post(
                     }
                     continue
 
+                from core.privsec.token_encryption import decrypt_token
                 result = await poster_func(
                     text=payload.text,
-                    access_token=oauth_token.access_token,
+                    access_token=decrypt_token(oauth_token.access_token, allow_plaintext=True),
                     media_urls=payload.media_urls,
                     link_url=payload.link_url,
                     agent_id=agent_id,

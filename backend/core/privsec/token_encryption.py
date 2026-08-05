@@ -74,19 +74,50 @@ class DecryptionError(Exception):
 _fernet_instance: Optional[Fernet] = None
 _encryption_key: Optional[bytes] = None
 
+# Persisted key file, shared with the BYOK managers (R59/R61 fix). Without a
+# persisted key, a fresh Fernet key generated per start would brick every stored
+# ciphertext on restart — the exact bug that previously lived only in the BYOK
+# managers. Env override wins; the file is the durable fallback.
+BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE", "./data/byok_encryption_key")
+
+
+def _load_persisted_key() -> Optional[str]:
+    """Read the persisted Fernet key from disk, if present."""
+    try:
+        with open(BYOK_ENC_KEY_FILE, "r") as f:
+            key = f.read().strip()
+        return key or None
+    except (FileNotFoundError, OSError):
+        return None
+
+
+def _persist_key(key: str) -> None:
+    """Write the Fernet key to disk with 0600 permissions (TOCTOU-safe)."""
+    try:
+        os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+        with open(BYOK_ENC_KEY_FILE, "w") as f:
+            f.write(key)
+        os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+    except Exception as e:
+        logger.error(f"Failed to persist encryption key: {e}")
+
 
 def get_encryption_key() -> bytes:
     """
     Get encryption key from environment or generate one.
 
-    Reads BYOK_ENCRYPTION_KEY from environment. If missing, generates
-    a random key and logs a warning (development safety only).
+    Reads BYOK_ENCRYPTION_KEY from environment. If missing, falls back to the
+    persisted key file (``./data/byok_encryption_key``, same file used by the
+    BYOK managers). If neither exists, generates a key for development (and
+    persists it so ciphertext survives restart); in production this raises
+    ``MissingKeyError`` instead of silently minting a throwaway key.
 
     Returns:
         Fernet-compatible encryption key (32 bytes)
 
     Raises:
         InvalidKeyError: If key format is invalid
+        MissingKeyError: In production when no key is configured
     """
     global _encryption_key
 
@@ -97,17 +128,31 @@ def get_encryption_key() -> bytes:
     key_str = os.getenv("BYOK_ENCRYPTION_KEY")
 
     if not key_str:
-        # Generate random key for development (NOT for production).
-        # WARNING: the key is NOT logged — logging it would let anyone with log
-        # access decrypt every stored token. The old code wrote the key to the
-        # logs via `extra={"generated_key": key_str}`, which is a secrets leak.
+        # Reuse the persisted key so stored ciphertext survives restarts.
+        key_str = _load_persisted_key()
+
+    if not key_str:
+        env = os.getenv("ENVIRONMENT", "development")
+        if env == "production":
+            # Fail closed: refusing to mint a throwaway key that would brick all
+            # stored tokens on restart is preferable to silently storing
+            # undecryptable ciphertext (mirrors llm_oauth_handler R61 policy).
+            raise MissingKeyError(
+                "BYOK_ENCRYPTION_KEY not configured. Set it (or ensure the "
+                "persisted key file at ./data/byok_encryption_key exists) for "
+                "production. Refusing to encrypt tokens with a throwaway key."
+            )
+
+        # Generate key for development. WARNING: the key is NOT logged — logging
+        # it would let anyone with log access decrypt every stored token.
         logger.warning(
-            "BYOK_ENCRYPTION_KEY not configured - generating temporary key. "
-            "Tokens encrypted with this key will be UNDECIPHERABLE after restart. "
-            "Set BYOK_ENCRYPTION_KEY environment variable for production use.",
+            "BYOK_ENCRYPTION_KEY not configured - generating key and persisting "
+            f"to {BYOK_ENC_KEY_FILE}. Tokens stay decryptable across restarts. Set "
+            "BYOK_ENCRYPTION_KEY environment variable for production use.",
             extra={"security_warning": True}
         )
         key_str = generate_encryption_key()
+        _persist_key(key_str)
 
     # Validate key format
     if not validate_encryption_key(key_str):
@@ -471,6 +516,29 @@ def is_encrypted_value(value: str) -> bool:
         return len(decoded) >= 9
     except Exception:
         return False
+
+
+def stamp_credential_metadata(token_record) -> dict:
+    """
+    Mark an IntegrationToken row as Fernet-encrypted.
+
+    Sets ``credential_metadata = {"encryption": "fernet"}`` on the ORM row so a
+    migration audit (``scripts/verify_token_encryption.py``) can distinguish
+    encrypted rows from legacy plaintext rows. No-op-safe when the row lacks a
+    ``credential_metadata`` column (older DBs).
+
+    Args:
+        token_record: SQLAlchemy IntegrationToken instance
+
+    Returns:
+        The updated metadata dict
+    """
+    if not hasattr(token_record, "credential_metadata"):
+        return {}
+    meta = dict(token_record.credential_metadata or {})
+    meta["encryption"] = "fernet"
+    token_record.credential_metadata = meta
+    return meta
 
 
 def hash_token(token: str) -> str:

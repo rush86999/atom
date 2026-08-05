@@ -4477,6 +4477,11 @@ class IntegrationToken(Base):
     # Token status
     status = Column(String, default="active")  # active, revoked, expired
 
+    # Encryption metadata (e.g. {"encryption": "fernet"}) for at-rest encryption
+    # audit. Referenced by credential_vault.find_tenant_by_platform_id and the
+    # token-encryption migration audit.
+    credential_metadata = Column(JSONColumn, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -76,10 +76,11 @@ class ZohoAdapter:
         ).first()
         
         if token:
-            self._access_token = token.access_token
-            self._refresh_token = token.refresh_token
+            from core.privsec.token_encryption import decrypt_token
+            self._access_token = decrypt_token(token.access_token, allow_plaintext=True)
+            self._refresh_token = decrypt_token(token.refresh_token, allow_plaintext=True) if token.refresh_token else None
             self._token_expires_at = token.expires_at
-            
+
             if token.instance_url:
                 self.instance_url = token.instance_url
 
@@ -112,8 +113,10 @@ class ZohoAdapter:
                         IntegrationToken.provider == "zoho"
                     ).first()
                     if token:
-                        token.access_token = self._access_token
+                        from core.privsec.token_encryption import encrypt_token, stamp_credential_metadata
+                        token.access_token = encrypt_token(self._access_token)
                         token.expires_at = self._token_expires_at
+                        stamp_credential_metadata(token)
                         self.db.commit()
                 
                 return True

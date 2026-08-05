@@ -94,15 +94,19 @@ class ZohoCRMService(IntegrationService):
             if not expires_at or expires_at < (now + timedelta(minutes=2)):
                 if token_record.refresh_token:
                     # Refresh token
-                    new_tokens = await self.refresh_token(token_record.refresh_token)
+                    from core.privsec.token_encryption import decrypt_token, encrypt_token, stamp_credential_metadata
+                    refresh_plain = decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None
+                    new_tokens = await self.refresh_token(refresh_plain)
                     if new_tokens:
-                        token_record.access_token = new_tokens["access_token"]
+                        token_record.access_token = encrypt_token(new_tokens["access_token"])
                         token_record.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_tokens.get("expires_in", 3600))
+                        stamp_credential_metadata(token_record)
                         db.commit()
                         return token_record.access_token
                 return None
 
-            return token_record.access_token
+            from core.privsec.token_encryption import decrypt_token
+            return decrypt_token(token_record.access_token, allow_plaintext=True)
         except Exception as e:
             logger.error(f"Error retrieving Zoho CRM token for tenant {tid}: {e}")
             return None

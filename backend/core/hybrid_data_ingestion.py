@@ -871,20 +871,20 @@ class HybridDataIngestionService:
                         records.extend(await adapter.get_deals(limit=100))
                     elif entity_type == "books_invoices":
                         # Note: Books requires organization_id which should be in connection metadata
-                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
+                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
                         if org_id:
                             records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
                     elif entity_type == "inventory_items":
-                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
+                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
                         if org_id:
                             records.extend(await adapter.get_items(organization_id=org_id, limit=100))
                     elif entity_type == "inventory_sales_orders":
-                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
+                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
                         if org_id:
                             records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=100))
                     elif entity_type == "projects_tasks":
                         # Discovery mode gates expensive portal/project traversal
-                        portal_id = token.metadata.get("portal_id") if token and token.metadata else None
+                        portal_id = token.credential_metadata.get("portal_id") if token and token.credential_metadata else None
                         
                         if discovery_mode and not portal_id:
                             portals = await adapter.get_portals()
@@ -892,7 +892,7 @@ class HybridDataIngestionService:
                                 portal_id = portals[0]["id"]
                                 # Update metadata if needed (deferred)
                                 
-                        projects = token.metadata.get("active_projects", []) if token and token.metadata else []
+                        projects = token.credential_metadata.get("active_projects", []) if token and token.credential_metadata else []
                         if discovery_mode and portal_id and not projects:
                             discovered_projects = await adapter.get_projects(portal_id)
                             projects = [p["id"] for p in discovered_projects[:3]]

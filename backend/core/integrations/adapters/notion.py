@@ -51,8 +51,9 @@ class NotionAdapter:
         ).first()
         
         if token:
-            self._access_token = token.access_token
-            self._refresh_token = token.refresh_token
+            from core.privsec.token_encryption import decrypt_token
+            self._access_token = decrypt_token(token.access_token, allow_plaintext=True)
+            self._refresh_token = decrypt_token(token.refresh_token, allow_plaintext=True) if token.refresh_token else None
             self._token_expires_at = token.expires_at
 
     async def ensure_token(self):

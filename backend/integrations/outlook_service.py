@@ -150,16 +150,17 @@ class OutlookService(IntegrationService):
                 ).first()
                 
                 if token_record and token_record.access_token:
+                    from core.privsec.token_encryption import decrypt_token
                     # Check if token needs refresh
                     tokens = {
-                        "access_token": token_record.access_token,
-                        "refresh_token": token_record.refresh_token,
+                        "access_token": decrypt_token(token_record.access_token, allow_plaintext=True),
+                        "refresh_token": decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None,
                         "expires_at": token_record.expires_at.timestamp() if token_record.expires_at else None
                     }
                     if self._is_token_expired(tokens):
                         refreshed = await self._refresh_access_token(user_id, tokens)
                         return refreshed
-                    return token_record.access_token
+                    return tokens["access_token"]
             return None
         except Exception as e:
             logger.error(f"Error getting access token for user {user_id}: {e}")
