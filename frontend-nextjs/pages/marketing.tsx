@@ -72,9 +72,21 @@ const MarketingDashboard: React.FC = () => {
         if (!researchQuery) return;
         try {
             setResearching(true);
-            const res = await fetch(`/api/mcp/search?query=${encodeURIComponent(researchQuery)}`);
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+            const res = await fetch(`/api/mcp/search?query=${encodeURIComponent(researchQuery)}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
             if (res.ok) {
                 setResearchResult(await res.json());
+            } else {
+                // BUG-094: Previously silently swallowed non-OK responses,
+                // keeping stale results with no error shown to the user.
+                setResearchResult(null);
+                toast({
+                    title: "Research failed",
+                    description: `Search returned ${res.status}. Please try again.`,
+                    variant: "error",
+                });
             }
         } catch (error) {
             toast({

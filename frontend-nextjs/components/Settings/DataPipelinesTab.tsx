@@ -49,19 +49,20 @@ const usePreference = (key: string, defaultValue: any) => {
 
     const save = async (newValue: any) => {
         setValue(newValue);
-        try {
-            await fetch(`${API_URL}/api/v1/preferences`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    user_id: USER_ID,
-                    workspace_id: WORKSPACE_ID,
-                    key,
-                    value: newValue
-                })
-            });
-        } catch (err: any) {
-            console.error(`Failed to save preference ${key}:`, err?.message);
+        // BUG-097: Previously swallowed all errors and never checked res.ok,
+        // so the caller's success toast always fired even on failure.
+        const res = await fetch(`${API_URL}/api/v1/preferences`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                user_id: USER_ID,
+                workspace_id: WORKSPACE_ID,
+                key,
+                value: newValue
+            })
+        });
+        if (!res.ok) {
+            throw new Error(`Failed to save preference ${key}: ${res.status}`);
         }
     };
 

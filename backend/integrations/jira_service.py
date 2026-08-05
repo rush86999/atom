@@ -444,14 +444,16 @@ class JiraService(IntegrationService):
             from core.database import SessionLocal
             from core.models import IntegrationMetric
             
-            # Fetch issue counts for metrics
-            all_issues = self.search_issues(f"project = {project_key}", max_results=0)
+            # BUG-093: project_key was interpolated raw into JQL — JQL injection.
+            # Now quoted to prevent injection.
+            safe_key = project_key.replace('"', '\\"')
+            all_issues = self.search_issues(f'project = "{safe_key}"', max_results=0)
             total_issues = all_issues.get('total', 0)
-            
-            open_issues_data = self.search_issues(f"project = {project_key} AND statusCategory != Done", max_results=0)
+
+            open_issues_data = self.search_issues(f'project = "{safe_key}" AND statusCategory != Done', max_results=0)
             open_issues = open_issues_data.get('total', 0)
-            
-            completed_issues_data = self.search_issues(f"project = {project_key} AND statusCategory = Done", max_results=0)
+
+            completed_issues_data = self.search_issues(f'project = "{safe_key}" AND statusCategory = Done', max_results=0)
             completed_issues = completed_issues_data.get('total', 0)
             
             db = SessionLocal()
@@ -608,7 +610,8 @@ class JiraService(IntegrationService):
                 if not jql:
                     project = parameters.get("project_key") or parameters.get("project")
                     if project:
-                        jql = f"project = {project}"
+                        safe_proj = project.replace('"', '\\"')
+                        jql = f'project = "{safe_proj}"'
                     else:
                         jql = "order by created DESC"
                 

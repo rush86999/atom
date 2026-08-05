@@ -220,11 +220,22 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+      // BUG-096: Validate end is after start — prevents inverted events.
+      const start = new Date(formData.start);
+      const end = new Date(formData.end);
+      if (end < start) {
+        toast({
+          title: "Invalid time range",
+          description: "End time must be after start time.",
+          variant: "error",
+        });
+        return;
+      }
       onSubmit({
         title: formData.title,
         description: formData.description,
-        start: new Date(formData.start),
-        end: new Date(formData.end),
+        start,
+        end,
         location: formData.location,
         status: formData.status as "confirmed" | "tentative" | "cancelled",
         platform: formData.platform as "google" | "outlook" | "local",

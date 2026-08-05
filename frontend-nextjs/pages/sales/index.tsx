@@ -21,17 +21,22 @@ const SalesIntelligencePage = () => {
     useEffect(() => {
         if (!lastMessage) return;
 
+        // BUG-095: Guard against missing/null data payload — previously
+        // crashed the entire Sales page with TypeError on .first_name.
+        const data = lastMessage.data;
+        if (!data) return;
+
         if (lastMessage.type === "new_lead") {
             toast({
                 title: "New Lead Ingested",
-                description: `${lastMessage.data.first_name} ${lastMessage.data.last_name || ""} from ${lastMessage.data.company || "Unknown"} (Score: ${lastMessage.data.ai_score})`,
-                variant: lastMessage.data.ai_score > 70 ? "success" : "default",
+                description: `${data.first_name || "Unknown"} ${data.last_name || ""} from ${data.company || "Unknown"} (Score: ${data.ai_score ?? "N/A"})`,
+                variant: (data.ai_score ?? 0) > 70 ? "success" : "default",
             });
         } else if (lastMessage.type === "deal_update") {
             toast({
                 title: "Deal Health Updated",
-                description: `${lastMessage.data.name}: Health Score ${lastMessage.data.health_score} (${lastMessage.data.risk_level} risk)`,
-                variant: lastMessage.data.health_score < 40 ? "warning" : "default",
+                description: `${data.name || "Unknown"}: Health Score ${data.health_score ?? "N/A"} (${data.risk_level || "unknown"} risk)`,
+                variant: (data.health_score ?? 100) < 40 ? "warning" : "default",
             });
         }
     }, [lastMessage, toast]);

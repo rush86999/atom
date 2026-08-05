@@ -525,6 +525,8 @@ class HubSpotService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot {object_type} {object_id}: {e}")
             raise HTTPException(status_code=400, detail="Internal error")
+
+    async def update_contact(self, contact_id: str, properties: Dict[str, Any], token: Optional[str] = None) -> Dict[str, Any]:
         """Update an existing HubSpot contact"""
         return await self.update_object("contacts", contact_id, properties, token)
 
@@ -643,11 +645,13 @@ class HubSpotService(IntegrationService):
             db = SessionLocal()
             metrics_synced = 0
             try:
+                # BUG-092: Keys didn't match what get_analytics returns
+                # (total_revenue, deal_count, contact_count). Fixed to use
+                # the actual keys from the analytics response.
                 metrics_to_save = [
-                    ("hubspot_contact_count", analytics.get("total_contacts", 0), "count"),
-                    ("hubspot_company_count", analytics.get("total_companies", 0), "count"),
-                    ("hubspot_deal_count", analytics.get("total_deals", 0), "count"),
-                    ("hubspot_pipeline_value", analytics.get("total_deal_value", 0), "currency"),
+                    ("hubspot_contact_count", analytics.get("contact_count", 0), "count"),
+                    ("hubspot_deal_count", analytics.get("deal_count", 0), "count"),
+                    ("hubspot_revenue", analytics.get("total_revenue", 0), "currency"),
                 ]
                 
                 for key, value, unit in metrics_to_save:
