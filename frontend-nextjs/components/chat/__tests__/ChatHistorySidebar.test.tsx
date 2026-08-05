@@ -2,32 +2,42 @@
  * ChatHistorySidebar Component Tests
  *
  * Tests verify ChatHistorySidebar renders session list, handles empty
- * states, triggers session selection, and shows loading state.
+ * states, and shows loading state.
  *
- * Source: components/chat/ChatHistorySidebar.tsx (48 lines, 0% coverage)
+ * Source: components/chat/ChatHistorySidebar.tsx
+ *
+ * Real behavior (verified against source):
+ * - Fetches `/api/chat/sessions?user_id=default_user` on mount via
+ *   apiClient (axios), NOT raw fetch — so the old `global.fetch = jest.fn()`
+ *   mock never reached the component.
+ * - Expects the endpoint to return `{ sessions: [...] }`.
+ * - UI: "New Chat" button, "Search chats..." input, "Loading history...",
+ *   "No chat history." empty state.
+ *
+ * The request must be stubbed via MSW so axios/XHR is intercepted. Setting
+ * `global.fetch = jest.fn()` here breaks MSW interception.
  */
 
 import React from 'react';
 import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import ChatHistorySidebar from '../ChatHistorySidebar';
+import { server } from '@/tests/mocks/server';
+import { rest } from 'msw';
 
-// Mock fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+// axios requests go to the backend baseURL (http://127.0.0.1:8000), so match
+// the path against any origin rather than the relative localhost URL.
+const mockSessions = (sessions: unknown[]) => {
+  server.use(
+    rest.get('*/api/chat/sessions', (req, res, ctx) => res(ctx.json({ sessions })))
+  );
+};
 
 describe('ChatHistorySidebar', () => {
   const mockOnSelectSession = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   // Test 1: renders sidebar with new chat button
   test('renders sidebar with new chat button', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ sessions: [] }),
-    });
+    mockSessions([]);
 
     const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
@@ -38,10 +48,7 @@ describe('ChatHistorySidebar', () => {
 
   // Test 2: shows search input
   test('shows search input', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ sessions: [] }),
-    });
+    mockSessions([]);
 
     renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
@@ -52,23 +59,25 @@ describe('ChatHistorySidebar', () => {
 
   // Test 3: empty state shows placeholder
   test('empty state shows placeholder', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ sessions: [] }),
-    });
+    mockSessions([]);
 
     const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
     );
 
     await waitFor(() => {
-      expect(container.textContent).toContain('No chat history');
-    }, { timeout: 10000 }); // Increased from default 5000ms
+      expect(container.textContent).toContain('No chat history.');
+    });
   });
 
-  // Test 4: loading state shows spinner
+  // Test 4: loading state shows loading indicator
   test('loading state shows loading indicator', () => {
-    mockFetch.mockImplementation(() => new Promise(() => {}));
+    // Delay the response so loading remains visible at assertion time.
+    server.use(
+      rest.get('*/api/chat/sessions', (req, res, ctx) =>
+        res(ctx.delay(5000), ctx.json({ sessions: [] }))
+      )
+    );
 
     const { container } = renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />
@@ -79,10 +88,7 @@ describe('ChatHistorySidebar', () => {
 
   // Test 5: renders without errors
   test('renders without errors', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ sessions: [] }),
-    });
+    mockSessions([]);
 
     expect(() =>
       renderWithProviders(

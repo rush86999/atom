@@ -2,37 +2,43 @@
  * ArtifactSidebar Component Tests
  *
  * Tests verify ArtifactSidebar renders artifact list, handles empty state,
- * and triggers selection callback.
+ * and shows version badges.
  *
- * Source: components/chat/ArtifactSidebar.tsx (36 lines, 0% coverage)
+ * Source: components/chat/ArtifactSidebar.tsx
+ *
+ * Real behavior (verified against source):
+ * - Fetches `/api/artifacts?session_id=...` on mount (and every 10s).
+ * - Renders the raw array returned by the endpoint.
+ * - Header: "Team Artifacts". Empty placeholder: "No artifacts shared yet."
+ * - Each row shows the artifact name and a `v{version}` badge.
+ *
+ * NOTE: fetch must be provided via MSW handlers. Setting `global.fetch =
+ * jest.fn()` here breaks MSW interception (the shared server wraps fetch and
+ * calls response.clone() on the mock's plain object, which throws).
  */
 
 import React from 'react';
 import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
 import { ArtifactSidebar } from '../ArtifactSidebar';
+import { server } from '@/tests/mocks/server';
+import { rest } from 'msw';
 
-// Mock fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+const mockArtifacts = (artifacts: unknown[]) => {
+  server.use(
+    rest.get('/api/artifacts', (req, res, ctx) => res(ctx.json(artifacts)))
+  );
+};
 
 describe('ArtifactSidebar', () => {
   const mockOnSelectArtifact = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   // Test 1: renders artifact list
   test('renders artifact list', async () => {
-    const mockArtifacts = [
+    const artifacts = [
       { id: '1', name: 'Artifact 1', type: 'code', version: 1, updated_at: '2024-01-01' },
       { id: '2', name: 'Artifact 2', type: 'markdown', version: 2, updated_at: '2024-01-02' },
     ];
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockArtifacts,
-    });
+    mockArtifacts(artifacts);
 
     const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
@@ -41,35 +47,27 @@ describe('ArtifactSidebar', () => {
     await waitFor(() => {
       expect(container.textContent).toContain('Artifact 1');
       expect(container.textContent).toContain('Artifact 2');
-    }, { timeout: 10000 }); // Increased from default 5000ms
+    });
   });
 
   // Test 2: empty artifacts shows placeholder
   test('empty artifacts shows placeholder', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    });
+    mockArtifacts([]);
 
     const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
     );
 
     await waitFor(() => {
-      expect(container.textContent).toContain('No artifacts shared yet');
-    }, { timeout: 10000 }); // Increased from default 5000ms
+      expect(container.textContent).toContain('No artifacts shared yet.');
+    });
   });
 
   // Test 3: artifact has correct version badge
   test('artifact has correct version badge', async () => {
-    const mockArtifacts = [
+    mockArtifacts([
       { id: '1', name: 'Test', type: 'code', version: 3, updated_at: '2024-01-01' },
-    ];
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockArtifacts,
-    });
+    ]);
 
     const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
@@ -77,15 +75,12 @@ describe('ArtifactSidebar', () => {
 
     await waitFor(() => {
       expect(container.textContent).toContain('v3');
-    }, { timeout: 10000 }); // Increased from default 5000ms
+    });
   });
 
   // Test 4: shows header with title
   test('shows header with title', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    });
+    mockArtifacts([]);
 
     const { container } = renderWithProviders(
       <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
@@ -105,10 +100,7 @@ describe('ArtifactSidebar', () => {
 
   // Test 6: renders without errors
   test('renders without errors', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    });
+    mockArtifacts([]);
 
     expect(() =>
       renderWithProviders(
