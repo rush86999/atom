@@ -140,6 +140,14 @@ if (typeof server !== 'undefined' && server) {
   afterAll(() => server.close());
 }
 
+// Mock PointerEvent-related Element methods jsdom lacks. Radix UI (Select,
+// DropdownMenu, etc.) calls hasPointerCapture/releasePointerCapture during
+// pointer event handling; without these, opening a Select in tests throws
+// "TypeError: target.hasPointerCapture is not a function".
+Element.prototype.hasPointerCapture = jest.fn();
+Element.prototype.releasePointerCapture = jest.fn();
+Element.prototype.setPointerCapture = jest.fn();
+
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
 

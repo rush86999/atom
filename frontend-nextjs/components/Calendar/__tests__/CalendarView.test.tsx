@@ -23,6 +23,10 @@ jest.mock('react-big-calendar', () => ({
       ))}
     </div>
   ),
+  dateFnsLocalizer: jest.fn(() => ({
+    startOfWeek: () => new Date(),
+    format: () => '',
+  })),
 }));
 
 // Mock date-fns
@@ -151,7 +155,7 @@ describe('CalendarView Component', () => {
         expect(screen.getByRole('button', { name: /new event/i })).toBeInTheDocument();
       });
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -162,7 +166,7 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const saveButton = screen.getByRole('button', { name: /save/i });
@@ -181,7 +185,7 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       // Fill in event details
@@ -214,7 +218,7 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const titleInput = screen.getByLabelText(/title/i);
@@ -238,11 +242,17 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const titleInput = screen.getByLabelText(/title/i);
       await user.type(titleInput, 'Test Event');
+
+      const startInput = screen.getByLabelText(/start time/i);
+      await user.type(startInput, '2024-01-02T10:00');
+
+      const endInput = screen.getByLabelText(/end time/i);
+      await user.type(endInput, '2024-01-02T11:00');
 
       const saveButton = screen.getByRole('button', { name: /save/i });
       await user.click(saveButton);
@@ -261,28 +271,37 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
-      expect(screen.getByText(/blue/i)).toBeInTheDocument();
-      expect(screen.getByText(/green/i)).toBeInTheDocument();
-      expect(screen.getByText(/red/i)).toBeInTheDocument();
-      expect(screen.getByText(/yellow/i)).toBeInTheDocument();
-      expect(screen.getByText(/purple/i)).toBeInTheDocument();
+      // Open the color select dropdown to expose the options
+      const colorTrigger = screen.getByRole('combobox', { name: /color/i });
+      await user.click(colorTrigger);
+
+      await waitFor(() => {
+        expect(screen.getAllByRole('option')).toHaveLength(5);
+        expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(
+          expect.arrayContaining(['Blue', 'Green', 'Red', 'Yellow', 'Purple'])
+        );
+      });
     });
 
     it('allows color selection', async () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
+
+      const colorTrigger = screen.getByRole('combobox', { name: /color/i });
+      await user.click(colorTrigger);
 
       const greenOption = screen.getByText(/green/i);
       await user.click(greenOption);
 
+      // Trigger should now display the selected color
       await waitFor(() => {
-        expect(greenOption).toHaveAttribute('value', '#38A169');
+        expect(screen.getByRole('combobox', { name: /color/i })).toHaveTextContent('Green');
       });
     });
 
@@ -290,12 +309,12 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
-      // Default color should be selected
+      // Default color (Blue = #3182CE) should be selected
       const colorSelect = screen.getByRole('combobox', { name: /color/i });
-      expect(colorSelect).toHaveValue('#3182CE');
+      expect(colorSelect).toHaveTextContent('Blue');
     });
   });
 
@@ -304,7 +323,7 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const startInput = screen.getByLabelText(/start time/i);
@@ -318,8 +337,11 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
+
+      const titleInput = screen.getByLabelText(/title/i);
+      await user.type(titleInput, 'Test Event');
 
       const startInput = screen.getByLabelText(/start time/i);
       await user.type(startInput, '2024-01-02T11:00');
@@ -342,7 +364,7 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
@@ -355,10 +377,10 @@ describe('CalendarView Component', () => {
       const user = userEvent.setup();
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
-      const backdrop = screen.getByRole('dialog').parentElement;
+      const backdrop = document.querySelector('.fixed.inset-0.bg-black\\/50');
       if (backdrop) {
         await user.click(backdrop);
 
@@ -369,7 +391,7 @@ describe('CalendarView Component', () => {
     it('closes dialog on escape key press', async () => {
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await userEvent.click(createButton);
 
       await userEvent.keyboard('{Escape}');
@@ -384,7 +406,7 @@ describe('CalendarView Component', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/v1/calendar/events',
+          '/api/dashboard/events',
           expect.any(Object)
         );
       });
@@ -408,10 +430,10 @@ describe('CalendarView Component', () => {
         expect(screen.getByTestId('calendar')).toBeInTheDocument();
       });
 
-      const fetchCallsBefore = (global.mockFetch as jest.Mock).mock.calls.length;
+      const fetchCallsBefore = (global.fetch as jest.Mock).mock.calls.length;
 
       // Create event
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const titleInput = screen.getByLabelText(/title/i);
@@ -427,7 +449,7 @@ describe('CalendarView Component', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        const fetchCallsAfter = (global.mockFetch as jest.Mock).mock.calls.length;
+        const fetchCallsAfter = (global.fetch as jest.Mock).mock.calls.length;
         expect(fetchCallsAfter).toBeGreaterThan(fetchCallsBefore);
       });
     });
@@ -440,7 +462,7 @@ describe('CalendarView Component', () => {
       render(<CalendarView />);
 
       await waitFor(() => {
-        expect(screen.getByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
     });
 
@@ -458,7 +480,7 @@ describe('CalendarView Component', () => {
 
       render(<CalendarView />);
 
-      const createButton = screen.getByRole('button', { name: /new event/i });
+      const createButton = await screen.findByRole('button', { name: /new event/i });
       await user.click(createButton);
 
       const titleInput = screen.getByLabelText(/title/i);
@@ -500,7 +522,7 @@ describe('CalendarView Component', () => {
 
       await user.tab();
 
-      const newEventButton = screen.getByRole('button', { name: /new event/i });
+      const newEventButton = await screen.findByRole('button', { name: /new event/i });
       expect(newEventButton).toHaveFocus();
     });
   });

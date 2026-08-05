@@ -65,6 +65,7 @@ const CalendarView = () => {
         location: '',
         color: '#3182CE'
     });
+    const [formError, setFormError] = useState('');
 
     const fetchEvents = async () => {
         try {
@@ -100,6 +101,19 @@ const CalendarView = () => {
 
     const handleCreateEvent = async () => {
         try {
+            if (!newEvent.title.trim()) {
+                setFormError('Event title is required');
+                return;
+            }
+            if (!newEvent.start || !newEvent.end) {
+                setFormError('Start time and end time are required');
+                return;
+            }
+            if (new Date(newEvent.end) <= new Date(newEvent.start)) {
+                setFormError('End time must be after start time');
+                return;
+            }
+            setFormError('');
             const response = await fetch('/api/v1/calendar/events', {
                 method: 'POST',
                 headers: {
@@ -140,7 +154,7 @@ const CalendarView = () => {
 
     if (loading) {
         return (
-            <div className="h-[500px] flex items-center justify-center">
+            <div className="h-[500px] flex items-center justify-center" role="status" aria-label="Loading calendar events">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
             </div>
         );
@@ -150,7 +164,7 @@ const CalendarView = () => {
         <div className="h-[80vh] p-4 bg-white dark:bg-gray-900 rounded-lg border shadow-sm flex flex-col">
             <div className="mb-4 flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Calendar</h2>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => { setFormError(''); setIsModalOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" />
                     New Event
                 </Button>
@@ -177,10 +191,17 @@ const CalendarView = () => {
                         <DialogTitle>Create New Event</DialogTitle>
                     </DialogHeader>
 
+                    {formError && (
+                        <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                            {formError}
+                        </div>
+                    )}
+
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Title</Label>
+                            <Label htmlFor="calendar-event-title">Title</Label>
                             <Input
+                                id="calendar-event-title"
                                 placeholder="Meeting with Team"
                                 value={newEvent.title}
                                 onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
@@ -188,8 +209,9 @@ const CalendarView = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Start Time</Label>
+                            <Label htmlFor="calendar-event-start">Start Time</Label>
                             <Input
+                                id="calendar-event-start"
                                 type="datetime-local"
                                 value={newEvent.start}
                                 onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })}
@@ -197,8 +219,9 @@ const CalendarView = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>End Time</Label>
+                            <Label htmlFor="calendar-event-end">End Time</Label>
                             <Input
+                                id="calendar-event-end"
                                 type="datetime-local"
                                 value={newEvent.end}
                                 onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })}
@@ -206,8 +229,9 @@ const CalendarView = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Description</Label>
+                            <Label htmlFor="calendar-event-description">Description</Label>
                             <Input
+                                id="calendar-event-description"
                                 placeholder="Details about the event"
                                 value={newEvent.description}
                                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
@@ -215,12 +239,12 @@ const CalendarView = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Color</Label>
+                            <Label htmlFor="calendar-event-color">Color</Label>
                             <Select
                                 value={newEvent.color}
                                 onValueChange={(value) => setNewEvent({ ...newEvent, color: value })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger id="calendar-event-color">
                                     <SelectValue placeholder="Select color" />
                                 </SelectTrigger>
                                 <SelectContent>
