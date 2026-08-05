@@ -134,9 +134,10 @@ class WorkflowAnalyticsEngine:
 
         # Metrics storage
         
-        # Buffers for batching
-        self.events_buffer: List[WorkflowExecutionEvent] = []
-        self.metrics_buffer: List[WorkflowMetric] = []
+        # Buffers for batching (bounded so a slow flush cannot grow memory
+        # without limit in a long-running worker).
+        self.events_buffer: deque = deque(maxlen=50000)
+        self.metrics_buffer: deque = deque(maxlen=10000)
         
         # Performance cache
         self.performance_cache: Dict[str, PerformanceMetrics] = {}
