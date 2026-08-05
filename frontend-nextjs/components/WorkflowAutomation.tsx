@@ -806,23 +806,45 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       {viewMode === "builder" ? (
         <WorkflowBuilder
           initialData={builderInitialData || (selectedWorkflow ? {
-            nodes: selectedWorkflow.steps.map((s, i) => ({
-              id: s.id,
-              type: s.type === 'trigger' ? 'trigger' : 'action',
-              position: { x: 250, y: i * 200 + 50 },
-              data: {
-                label: s.name,
-                service: s.service || 'system',
-                action: s.action || 'execute',
-                ...s.parameters
-              }
-            })),
-            edges: selectedWorkflow.steps.slice(0, -1).map((s, i) => ({
-              id: `e${s.id}-${selectedWorkflow.steps[i + 1].id}`,
-              source: s.id,
-              target: selectedWorkflow.steps[i + 1].id,
-              type: 'addStepEdge'
-            }))
+            // Node-based (graph) workflows persist `nodes`/`connections`; pass
+            // them straight through so the original graph/positions survive.
+            // Step-based workflows are linearized into builder nodes/edges.
+            nodes: selectedWorkflow.nodes?.length
+              ? selectedWorkflow.nodes.map((n) => ({
+                  id: n.id,
+                  type: n.type,
+                  position: n.position || { x: 250, y: 0 },
+                  data: {
+                    label: n.title,
+                    ...(n.config?.parameters || {}),
+                    service: n.config?.service,
+                    action: n.config?.action,
+                  },
+                }))
+              : (selectedWorkflow.steps || []).map((s, i) => ({
+                  id: s.id,
+                  type: s.type === 'trigger' ? 'trigger' : 'action',
+                  position: { x: 250, y: i * 200 + 50 },
+                  data: {
+                    label: s.name,
+                    service: s.service || 'system',
+                    action: s.action || 'execute',
+                    ...s.parameters
+                  }
+                })),
+            edges: selectedWorkflow.nodes?.length
+              ? (selectedWorkflow.connections || []).map((c) => ({
+                  id: c.id,
+                  source: c.source,
+                  target: c.target,
+                  type: 'addStepEdge'
+                }))
+              : (selectedWorkflow.steps || []).slice(0, -1).map((s, i) => ({
+                  id: `e${s.id}-${selectedWorkflow.steps[i + 1].id}`,
+                  source: s.id,
+                  target: selectedWorkflow.steps[i + 1].id,
+                  type: 'addStepEdge'
+                }))
           } : undefined)}
           workflowId={selectedWorkflow?.id || selectedTemplate?.id}
           onSave={handleBuilderSave}
@@ -913,7 +935,10 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant="outline">
-                          {workflow.steps_count || workflow.steps?.length || 0}{" "}
+                          {workflow.steps_count ||
+                            workflow.steps?.length ||
+                            workflow.nodes?.length ||
+                            0}{" "}
                           steps
                         </Badge>
                         <Button

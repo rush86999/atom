@@ -62,6 +62,10 @@ class WorkflowDefinition(BaseModel):
     enabled: bool
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+    # Derived step-based dialect (populated on read for node-based defs) so
+    # the step-based UI/frontend can render and execute node-based workflows.
+    steps: Optional[List[Dict[str, Any]]] = None
+    steps_count: Optional[int] = None
 
 class WorkflowEditRequest(BaseModel):
     command: str
@@ -93,9 +97,132 @@ def save_workflows(workflows: List[Dict]):
     with open(WORKFLOWS_FILE, 'w') as f:
         json.dump(workflows, f, indent=2)
 
+
+def _linearize_nodes(workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Convert a node-based (graph) workflow dict into linear steps.
+
+    Mirrors the engine's graph→steps linearization (Kahn topological sort) so
+    read paths and the security gate can reason about node-based definitions
+    without instantiating the engine. Node ``config`` drives the step's
+    ``service``/``action``/``parameters`` — the same fields
+    ``core.workflow_security`` inspects for critical MCP actions.
+    """
+    nodes = {n["id"]: n for n in workflow.get("nodes", [])}
+    connections = workflow.get("connections", [])
+
+    adj = {nid: [] for nid in nodes}
+    in_degree = {nid: 0 for nid in nodes}
+    for conn in connections:
+        source = conn.get("source")
+        target = conn.get("target")
+        if source in adj and target in in_degree:
+            adj[source].append(target)
+            in_degree[target] += 1
+
+    queue = [nid for nid in nodes if in_degree[nid] == 0]
+    sorted_ids: List[str] = []
+    while queue:
+        u = queue.pop(0)
+        sorted_ids.append(u)
+        for v in adj[u]:
+            in_degree[v] -= 1
+            if in_degree[v] == 0:
+                queue.append(v)
+
+    # Cycles: the engine raises; read paths must not crash on a bad graph,
+    # so fall back to insertion order.
+    if len(sorted_ids) != len(nodes):
+        logger.error(
+            f"Workflow contains cycle; falling back to insertion order. "
+            f"Nodes in cycle: {[n for n in nodes if n not in sorted_ids]}"
+        )
+        sorted_ids = list(nodes.keys())
+
+    steps = []
+    for i, node_id in enumerate(sorted_ids):
+        node = nodes[node_id]
+        config = node.get("config", {}) or {}
+        steps.append({
+            "id": node_id,
+            "type": "trigger" if node.get("type") == "trigger" else "action",
+            "name": node.get("title", node_id),
+            "sequence_order": i + 1,
+            "service": config.get("service", "default"),
+            "action": config.get("action", "default"),
+            "parameters": config.get("parameters", {}),
+        })
+    return steps
+
+
+def _resolve_workflow_steps(workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Resolve the effective step list for a workflow definition.
+
+    Step-based definitions already carry ``steps``; node-based (graph)
+    definitions are linearized on demand. The converted list is cached on the
+    workflow dict so the security gate and the engine share one list.
+    """
+    if workflow.get("steps"):
+        return workflow["steps"]
+    if workflow.get("nodes"):
+        steps = _linearize_nodes(workflow)
+        workflow["steps"] = steps
+        return steps
+    return []
+
+
+def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
+    """Add the step-based dialect (``steps`` + ``steps_count``) to a workflow
+    dict so step-based UI consumers can render/execute node-based definitions."""
+    steps = _resolve_workflow_steps(workflow)
+    workflow["steps"] = steps
+    workflow["steps_count"] = len(steps)
+    return workflow
+
+
+def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
+    """Resolve a DB template (``WorkflowTemplate``) into an executable definition.
+
+    The UI lists templates from the template store and executes them via
+    ``/workflows/{id}/execute``; templates are not in ``workflows.json``, so
+    the durable-store lookup alone 404s. Fall back to the template's step
+    schema on the fly.
+    """
+    try:
+        from core.database import get_db
+        from core.models import WorkflowTemplate
+
+        db = next(get_db())
+        try:
+            # The ORM WorkflowTemplate keys on `id` (a UUID PK). The frontend
+            # template ids come from this column (get_templates → template.id),
+            # so match on it only — `template_id` lives on the in-memory
+            # template system, not this model.
+            template = (
+                db.query(WorkflowTemplate)
+                .filter(WorkflowTemplate.id == workflow_id)
+                .first()
+            )
+            if template is None:
+                return None
+            return {
+                "id": template.id,
+                "name": template.name,
+                "description": template.description or "",
+                "steps": template.steps or [],
+            }
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Failed to resolve template definition '{workflow_id}': {e}")
+        return None
+
+
 @router.get("/workflows", response_model=List[WorkflowDefinition])
 async def get_workflows(user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
-    return load_workflows()
+    workflows = load_workflows()
+    for w in workflows:
+        _enrich_workflow(w)
+    return workflows
 
 @router.get("/workflows/{workflow_id}", response_model=WorkflowDefinition)
 async def get_workflow(workflow_id: str, user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
@@ -103,7 +230,7 @@ async def get_workflow(workflow_id: str, user: User = Depends(require_permission
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return workflow
+    return _enrich_workflow(workflow)
 
 @router.post("/workflows", response_model=WorkflowDefinition)
 async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
@@ -469,12 +596,18 @@ async def execute_workflow(
     workflows = load_workflows()
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
     if not workflow:
+        # UI templates (DB WorkflowTemplate) execute through this endpoint;
+        # resolve them on the fly so "Use Template → Execute" works end to end.
+        workflow = _load_template_definition(workflow_id)
+    if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # R67: critical MCP steps (terminal, browser, messaging) execute local
     # machine actions — the same tool set agent governance gates. Members
-    # may run ordinary workflows only.
-    await require_workflow_executor(user, workflow.get("steps") or [])
+    # may run ordinary workflows only. Node-based definitions have no
+    # top-level `steps`, so resolve them (nodes → steps) before gating —
+    # otherwise critical actions bypass the gate.
+    await require_workflow_executor(user, _resolve_workflow_steps(workflow))
 
     # Create execution record
     started_at = datetime.now().isoformat()
@@ -537,7 +670,8 @@ async def resume_workflow(
         raise HTTPException(status_code=404, detail="Workflow definition not found")
 
     # R67: resuming re-executes the remaining steps — same critical-tool gate.
-    await require_workflow_executor(user, workflow.get("steps") or [])
+    # Node-based definitions: resolve nodes → steps before gating.
+    await require_workflow_executor(user, _resolve_workflow_steps(workflow))
 
     success = await engine.resume_workflow(execution_id, workflow, input_data)
     
@@ -595,7 +729,8 @@ async def schedule_workflow(
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    await require_workflow_executor(user, workflow.get("steps") or [])
+    # Node-based definitions: resolve nodes → steps before gating.
+    await require_workflow_executor(user, _resolve_workflow_steps(workflow))
 
     try:
         trigger_type = schedule_config.get('trigger_type')

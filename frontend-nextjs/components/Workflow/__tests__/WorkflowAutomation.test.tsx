@@ -571,4 +571,53 @@ describe('WorkflowAutomation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
     await screen.findByText(/visual workflow/i);
   });
+
+  // Test 18: node-based (graph) workflows — the durable /workflows store shape
+  // ({nodes, connections}, no `steps`) — must render a non-zero steps badge and
+  // open in the Visual Builder WITHOUT crashing. Regression: the builder-edit
+  // path called selectedWorkflow.steps.map, which threw on a node-based
+  // workflow (no `steps`), and the badge showed "0 steps".
+  test('renders node-based workflows and opens them in the builder', async () => {
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([
+            {
+              id: 'node-wf',
+              name: 'Node Graph Workflow',
+              description: 'Saved from the visual builder',
+              version: '1.0',
+              nodes: [
+                { id: 'n1', type: 'trigger', title: 'Daily Trigger', description: '', position: { x: 0, y: 0 }, config: { service: 'schedule', action: 'daily', parameters: {} }, connections: [] },
+                { id: 'n2', type: 'action', title: 'Send Email', description: '', position: { x: 0, y: 200 }, config: { service: 'email', action: 'send', parameters: {} }, connections: [] },
+              ],
+              connections: [{ id: 'c1', source: 'n1', target: 'n2' }],
+              triggers: [],
+              enabled: true,
+            },
+          ])
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+
+    // Node-based workflow renders with a non-zero steps badge (nodes.length).
+    await screen.findByText('Node Graph Workflow');
+    expect(screen.getByText('2 steps')).toBeInTheDocument();
+
+    // Run selects the workflow; opening the Visual Builder must not crash.
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    await screen.findByRole('heading', {
+      name: /execute workflow: node graph workflow/i,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /visual builder/i }));
+    expect(
+      await screen.findByTestId('workflow-builder')
+    ).toBeInTheDocument();
+  });
 });
