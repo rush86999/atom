@@ -1386,6 +1386,16 @@ if workflow_template_router:
     # workflow_template_routes.py defines its own prefix /api/workflow-templates,
     # which is what marketplace.tsx and workflows/builder.tsx call. Include bare.
     app.include_router(workflow_template_router, tags=["workflow-templates"])
+# Unified RPC surface (P1): frontend → POST /api/rpc/{action_name} → action_registry.
+# Declares its own /api prefix, so include BARE (mirrors agent_routes.py pattern).
+# Direct import (not safe_import_router) so a load failure surfaces loudly — the
+# router depends only on stable core modules (action_registry/auth/database).
+try:
+    from api.rpc_routes import router as rpc_router
+    app.include_router(rpc_router, tags=["rpc"])
+    logger.info("✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount RPC router: {e}")
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
