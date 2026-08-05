@@ -79,7 +79,14 @@ async def hybrid_search(
     Requires authentication.
     """
     try:
-        handler = get_lancedb_handler(request.workspace_id)
+        # BUG-098: Previously used request.workspace_id (None from frontend) →
+        # handler defaulted to "default_shared", so docs uploaded to the user's
+        # real workspace were never found. Now resolve from the authenticated
+        # user's workspace, matching how document upload scopes storage.
+        workspace_id = request.workspace_id
+        if not workspace_id and current_user:
+            workspace_id = current_user.workspaces[0].id if current_user.workspaces else "default_shared"
+        handler = get_lancedb_handler(workspace_id)
         
         # Trigger lazy initialization before checking availability
         handler._ensure_db()

@@ -187,7 +187,7 @@ const AgentsDashboard = () => {
         if (stoppingId) return; // prevent double-fire while in-flight
         setStoppingId(id);
         try {
-            const res = await fetch(`/api/agents/${id}/stop`, {
+            const res = await fetch(`${API_BASE}/api/agents/${id}/stop`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
@@ -272,7 +272,7 @@ const AgentsDashboard = () => {
         if (!selectedAgentId) return;
 
         try {
-            const res = await fetch(`/api/agents/${selectedAgentId}`, {
+            const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

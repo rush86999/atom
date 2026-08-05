@@ -604,7 +604,16 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             if data.get("type") == "canvas:state_update":
-                await manager.broadcast_state(canvas_id, data.get("state", {}))
+                state = data.get("state", {})
+                await manager.broadcast_state(canvas_id, state)
+                # BUG-099: Previously WS edits were broadcast but never
+                # persisted — lost on reopen. Now persist via the canvas
+                # CRUD tool (append-only audit trail).
+                try:
+                    from tools.canvas_crud_tool import update_canvas_content
+                    await update_canvas_content(str(user.id), canvas_id, state, "generic")
+                except Exception as persist_err:
+                    logger.warning(f"Canvas WS state not persisted: {persist_err}")
     except WebSocketDisconnect:
         manager.disconnect(canvas_id, websocket)
     except Exception:
