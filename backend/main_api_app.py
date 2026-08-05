@@ -515,13 +515,25 @@ async def lifespan(app: FastAPI):
             await intelligence_worker.start()
         except Exception:
             pass
-        # 5. Background Maintenance (Reaper, etc.)
+        # 5. Crash Recovery — reconcile executions orphaned in RUNNING by a
+        # process crash. Previously this slot imported core.startup_tasks
+        # (run_startup_maintenance), a module that did not exist, so the
+        # import failed and was silently swallowed — leaving ghost RUNNING
+        # rows forever. Now we run a real, idempotent recovery sweep.
         try:
-            from core.startup_tasks import run_startup_maintenance
+            from core.execution_recovery import reconcile_orphaned_executions
 
-            await run_startup_maintenance()
+            recovery = reconcile_orphaned_executions()
+            if recovery.get("workflow_recovered") or recovery.get("agent_recovered"):
+                logger.info(
+                    "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s)",
+                    {
+                        "wf": recovery.get("workflow_recovered", 0),
+                        "ag": recovery.get("agent_recovered", 0),
+                    },
+                )
         except Exception as e:
-            logger.error(f"Failed to start startup maintenance: {e}")
+            logger.error(f"Failed to run execution recovery sweep: {e}")
 
         # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
         # Opt-in via env (default off) to avoid surprising existing deployments.
@@ -1335,6 +1347,11 @@ app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensic
 # /api/v1/api/agent-status/agent/status/{task_id} (404 for every frontend poll).
 app.include_router(agent_status_router, tags=["agents"])
 app.include_router(user_templates_router)
+
+# Board routes (Kanban) — BUG-054: router existed but was never registered,
+# so every /api/boards call from the frontend Kanban page 404'd.
+board_router = safe_import_router("api.board_routes")
+app.include_router(board_router)
 app.include_router(workflow_versioning_router)
 app.include_router(protection_router)
 app.include_router(platform_webhook_router)
@@ -2398,9 +2415,11 @@ try:
     try:
         from api.user_management_routes import router as admin_user_management_router
         from api.admin_routes import router as admin_router
+        from api.admin.budget_routes import router as admin_budget_router
 
         app.include_router(admin_router)
         app.include_router(admin_user_management_router)
+        app.include_router(admin_budget_router)
         logger.info("✓ Admin Routes Loaded")
     except Exception as e:
         logger.critical(f"CRITICAL: Failed to load Admin Routes: {e}", exc_info=True)
@@ -2718,6 +2737,18 @@ try:
         # Backward compatibility for analytics/dashboard if moved
         app.include_router(analytics_dashboard_router)
     except (ImportError, TypeError) as e:
+
+        logger.warning(f"Analytics dashboard routes not found: {e}")
+
+    # Analytics dashboard endpoints (KPIs, timeline, etc.) — BUG-055: the
+    # /api/analytics/dashboard/kpis route lived in analytics_dashboard_endpoints.py
+    # which was never registered, so the Analytics page 404'd on load.
+    try:
+        from api.analytics_dashboard_endpoints import router as analytics_endpoints_router
+
+        app.include_router(analytics_endpoints_router)
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Analytics dashboard endpoints not found: {e}")
         logger.warning(f"Analytics dashboard routes not found: {e}")
 
     try:

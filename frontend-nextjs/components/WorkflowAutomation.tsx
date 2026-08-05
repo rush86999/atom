@@ -276,11 +276,10 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const fetchWorkflows = async () => {
     try {
-      const response = await fetch("/api/workflows/definitions");
+      const response = await fetch("/api/v1/workflows/workflows");
       const data = await response.json();
-      if (data.success) {
-        setWorkflows(data.workflows);
-      }
+      // The v1 endpoint returns List[WorkflowDefinition] directly (not {success, workflows}).
+      setWorkflows(Array.isArray(data) ? data : (data.workflows || []));
     } catch (e) {
       console.error("Failed to fetch workflows", e);
     }

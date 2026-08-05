@@ -41,7 +41,7 @@ const CalendarManagement: React.FC = () => {
 
   const handleCreateEvent = async (event: CalendarEvent) => {
     try {
-      const response = await fetch("/api/v1/calendar/events", {
+      const response = await fetch("/api/dashboard/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(event),

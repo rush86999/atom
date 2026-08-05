@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch(`${API_BASE}/api/analytics/dashboard`)
+      const response = await fetch(`${API_BASE}/api/analytics/dashboard/kpis`)
       const result = await response.json()
       setData(result)
     } catch (error) {
