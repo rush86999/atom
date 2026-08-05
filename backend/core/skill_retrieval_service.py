@@ -59,6 +59,38 @@ class SkillRetrievalService:
             logger.debug("skill retrieval unavailable: %s", e)
             return ""
 
+        # Phase P8 (Cloudflare G8) — workspace-scoped skill filtering. When a
+        # workspace_id is supplied against a real DB session, restrict to skills
+        # explicitly assigned to that workspace (via the workspace_skills
+        # association table). ``None`` or a non-session db (e.g. unit-test
+        # MagicMock) keeps the historical "all skills" behavior. Never raises —
+        # a failed workspace lookup degrades to the unfiltered list.
+        if workspace_id and skills and isinstance(db, Session):
+            try:
+                from core.models import SkillExecution, workspace_skills
+
+                assigned_skill_ids = {
+                    row[0]
+                    for row in db.query(workspace_skills.c.skill_id)
+                    .filter(workspace_skills.c.workspace_id == workspace_id)
+                    .all()
+                }
+                if not assigned_skill_ids:
+                    return ""
+                # Map SkillExecution rows -> the Skill.id FK they reference so we
+                # keep only executions whose underlying Skill is workspace-assigned.
+                allowed_exec_ids = {
+                    row[0]
+                    for row in db.query(SkillExecution.id)
+                    .filter(SkillExecution.skill_id.in_(assigned_skill_ids))
+                    .all()
+                }
+                skills = [s for s in skills if s["skill_id"] in allowed_exec_ids]
+                if not skills:
+                    return ""
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug("workspace skill filtering unavailable: %s", e)
+
         # Build (score, display) candidates from name + description + tags.
         query_terms = self._tokenize(request)
         if not query_terms:

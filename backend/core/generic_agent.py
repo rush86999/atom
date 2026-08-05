@@ -449,6 +449,66 @@ class GenericAgent:
             logger.debug(f"skill injection skipped: {e}")
             return ""
 
+    def _workspace_context_block(self) -> str:
+        """Workspace-scoped curated context + assigned skill names (Phase P8).
+
+        Reads ``Workspace.metadata_json["curated_context"]`` (list of curated
+        context blobs) and the skill names assigned to the workspace via the
+        ``workspace_skills`` association table, returning a formatted block that
+        pre-loads into the system prompt.
+
+        Additive and non-breaking: returns "" when there is no workspace_id, no
+        workspace row, no curated content, or the DB is unavailable — never
+        raises, never blocks the ReAct loop.
+        """
+        workspace_id = getattr(self, "workspace_id", None)
+        if not workspace_id or workspace_id == "default":
+            return ""
+        try:
+            from core.database import get_db_session
+            from core.models import Skill, Workspace, workspace_skills
+
+            with get_db_session() as db:
+                workspace = (
+                    db.query(Workspace)
+                    .filter(Workspace.id == workspace_id)
+                    .first()
+                )
+                if workspace is None:
+                    return ""
+
+                meta = workspace.metadata_json or {}
+                blobs = meta.get("curated_context") or []
+                if isinstance(blobs, str):
+                    blobs = [blobs]
+                blobs = [b for b in blobs if b]
+
+                assigned_skill_names = {
+                    row[0]
+                    for row in db.query(Skill.name)
+                    .join(workspace_skills, workspace_skills.c.skill_id == Skill.id)
+                    .filter(workspace_skills.c.workspace_id == workspace_id)
+                    .all()
+                    if row[0]
+                }
+
+                parts: List[str] = []
+                if blobs:
+                    bullets = "\n".join(f"- {b}" for b in blobs)
+                    parts.append(
+                        "WORKSPACE CURATED CONTEXT (authoritative knowledge):\n" + bullets
+                    )
+                if assigned_skill_names:
+                    parts.append(
+                        "WORKSPACE-ASSIGNED SKILLS: " + ", ".join(sorted(assigned_skill_names))
+                    )
+                if not parts:
+                    return ""
+                return "\n\n".join(parts)
+        except Exception as e:
+            logger.debug(f"workspace context block unavailable: {e}")
+            return ""
+
     async def _check_budget_before_react(self) -> Dict[str, Any]:
         """Spend gate: check the tenant budget BEFORE the expensive LLM call.
 
@@ -524,7 +584,14 @@ class GenericAgent:
 
         skill_instructions = self._retrieve_skill_instructions(task_input)
 
+        # Phase P8 (Cloudflare G8): inject the workspace's curated context +
+        # workspace-scoped skill names into the system prompt. Empty when no
+        # workspace context is configured (additive, non-breaking).
+        workspace_context = self._workspace_context_block()
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
+
+{workspace_context}
 
 {skill_instructions}
 
