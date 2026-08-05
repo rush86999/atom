@@ -128,10 +128,12 @@ const SubscriptionTracker = () => {
                                     {selectedSub.status}
                                 </Badge>
                             </div>
+                            {selectedSub.status === 'Active' && (
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Billing Cycle</span>
                                 <span className="font-medium">Renews {selectedSub.nextBill}</span>
                             </div>
+                            )}
                         </div>
                     )}
                     <DialogFooter>

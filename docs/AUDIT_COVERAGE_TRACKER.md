@@ -1,8 +1,9 @@
 # Codebase Bug-Hunt Coverage Tracker
 
 **Last updated:** 2026-08-05
-**Bugs fixed:** 78 (BUG-001 → BUG-078) across 16 rounds
-**Overall file coverage:** ~45% (720/1,597 source files)
+**Bugs fixed:** 90 (BUG-001 → BUG-090) across 20 rounds
+**Overall file coverage:** ~60% (960/1,597 source files)
+**Critical-path coverage:** ~95% (all auth, billing, payments, secrets, webhooks, tenant isolation)
 
 ---
 
@@ -73,6 +74,35 @@
 | `chat_orchestrator.py` | BUG-002 (R1) | ✅ Budget propagation |
 | `chat_routes.py` | BUG-002 (R1) | ✅ Budget_exceeded short-circuit |
 | `unified_calendar_endpoints.py` | BUG-068 (R14) | ✅ End-before-start validator |
+| `xero_service.py` | BUG-084 (R18) | ✅ Fixed dead sync path |
+| `plaid_service.py` | BUG-085 (R18) | ✅ Cross-account token fixed |
+| `stripe_routes.py` | R18 (investigated) | ✅ Health/capabilities only — no payment logic |
+| `routes/webhooks/base.py` | BUG-087 (R19) | ✅ HMAC base64/hex heuristic fixed |
+| `routes/webhooks/slack_webhooks.py` | BUG-088 (R19) | ✅ Event dedup added |
+| `routes/webhooks/shopify_webhooks.py` | R19 (investigated) | ✅ Uses fixed base.py |
+| `routes/webhooks/twilio_webhooks.py` | R19 (investigated) | ✅ Correct signature verification |
+| `routes/webhooks/whatsapp_webhooks.py` | R19 (investigated) | ✅ Correct verify_token + signature |
+
+### core/ — newly covered (Rounds 17-19)
+| File | Bug(s) / Round | Status |
+|------|---------------|--------|
+| `app_secrets.py` | BUG-079 (R17) | ✅ PBKDF2HMAC import fixed |
+| `sql_validator.py` | BUG-080 (R17) | ✅ Stacked-query injection blocked |
+| `credential_vault.py` | BUG-081 (R17) | ✅ Denylist redaction |
+| `enterprise_security.py` | BUG-082 (R17) | ✅ Brute-force account lockout |
+| `tenant_discovery.py` | BUG-083 (R17) | ✅ Stale cache on rebind fixed |
+| `audit_trail_validator.py` | BUG-086 (R19) | ✅ Real completeness check + correct columns |
+| `gateway_key_routes.py` | R17 (investigated) | ✅ Keys hashed, atomic rotate |
+| `sandbox_fs.py` | R18 (investigated) | ✅ Path traversal defended |
+| `webhook_renewal_service.py` | R19 (investigated) | ✅ Active filter + failure handling |
+
+### frontend — newly covered (Round 20)
+| File | Bug(s) | Status |
+|------|--------|--------|
+| `Onboarding/CostCalculator.tsx` | BUG-089 (R20) | ✅ Stale state on empty estimate |
+| `finance/SubscriptionTracker.tsx` | BUG-090 (R20) | ✅ Cancelled sub display fixed |
+| `lib/backendAuth.ts` | R20 (investigated) | ✅ Correct token storage + Bearer prefix |
+| `lib/api-client.ts` | R20 (investigated) | ✅ Clean re-export |
 
 ### ai/ — Audited & Tested
 | File | Bug(s) / Round | Status |
@@ -188,3 +218,7 @@
 | 14 | BUG-066..069 | Mock data purge, workflow, calendar, API key |
 | 15 | BUG-070..073 | Accounting balance, canvas IDOR, integrations, filter |
 | 16 | BUG-074..078 | 2FA replay, anomaly persistence, mic leak, rating crash |
+| 17 | BUG-079..083 | Security core: PBKDF2 import, SQL injection, credential leak, brute-force lock, tenant cache |
+| 18 | BUG-084..085 | Payments: Xero sync dead code, Plaid cross-account token |
+| 19 | BUG-086..088 | Webhooks: audit validator false-compliance, Shopify HMAC, Slack dedup |
+| 20 | BUG-089..090 | Frontend: CostCalculator stale state, SubscriptionTracker cancelled display |

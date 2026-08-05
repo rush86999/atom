@@ -27,6 +27,11 @@ export function CostCalculator({ selectedTier }: CostCalculatorProps) {
         const monthlyRequests = requestsPerDay[0] * 30;
         const costPerRequest = tierCost.estimated_cost_usd;
         setEstimatedCost(costPerRequest * monthlyRequests);
+      } else {
+        // BUG-089: Previously silently kept stale value when the tier was
+        // missing or the API returned []. Now resets to null so the user
+        // sees no misleading stale cost.
+        setEstimatedCost(null);
       }
     };
     calculateCost();
