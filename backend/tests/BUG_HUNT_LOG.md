@@ -477,3 +477,41 @@ written first (red), the root cause confirmed, then the minimal fix applied
   `voiceschanged` fire reset the voice to the default, silently reverting any
   user selection via `setVoice`.
 - **Fix:** Track explicit user choice via a ref; only set default when user hasn't chosen.
+
+---
+
+## Round 10 — End-to-end TDD bug hunt (webhook dedup + sales forecast + heartbeat + canvas registry)
+
+### BUG-046 — Teams webhook dedup collapses all events to constant key "teams_"
+- **Flow:** Teams webhook ingestion (backend)
+- **Symptom:** The dedup key used `raw_event.get('id', '')`, but Microsoft Graph
+  change notifications have NO top-level `id` — the message id is inside
+  `value[*].id`. Every Teams event got the key `"teams_"`, so after the first
+  message, ALL subsequent Teams messages were silently dropped as duplicates.
+- **Test:** `tests/test_webhook_teams_dedup.py` (3 tests: distinct events not colliding, uses message id, fallback hash)
+- **Fix:** Added `_teams_dedup_key` that reads `value[0].id`, with a content-hash fallback.
+
+### BUG-047 — Sales forecast treats probability=0 as 0.5 (inflated forecast)
+- **Flow:** Sales dashboard / intelligence (backend)
+- **Symptom:** `d.probability or 0.5` uses Python's `or`, which treats `0` as
+  falsy. A deal explicitly assessed at 0% win probability contributed 50% of
+  its value instead of 0, systematically inflating the weighted forecast.
+- **Test:** `tests/test_sales_forecast_probability.py` (3 tests)
+- **Fix:** Changed to `d.probability if d.probability is not None else 0.5` in both `dashboard_service.py` and `intelligence.py`.
+
+### BUG-048 — useUserActivity heartbeat fires when tab is hidden
+- **Flow:** User activity tracking (frontend hook)
+- **Symptom:** The heartbeat interval fired unconditionally with no
+  `document.hidden` check. A backgrounded tab kept sending heartbeats every
+  30s, wasting battery/bandwidth and reporting the user as active when they weren't.
+- **Fix:** Added `document.hidden` guard before sending heartbeat.
+
+### BUG-049 — useCanvasStateRegistration wipes the registry on every re-render
+- **Flow:** Canvas AI accessibility registration (frontend hook)
+- **Symptom:** The effect's cleanup (`delete _canvasRegistry[canvasId]`) ran on
+  every `state` reference change (state was in the deps array), briefly deleting
+  the registry entry on each re-render. An AI agent calling `getState()` during
+  that window saw null for a mounted, visible canvas; subscribers got spurious
+  null "removal" events on every keystroke/data change.
+- **Fix:** Split into two effects: one for canvasId registration/cleanup (unmount
+  only), one for state updates (no destructive cleanup).

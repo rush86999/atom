@@ -117,6 +117,9 @@ export const useUserActivity = ({
 
     // Set up interval
     intervalRef.current = setInterval(() => {
+      // Don't send heartbeats while the tab is hidden — it wastes battery/
+      // bandwidth and reports the user as active when they're not (BUG-048).
+      if (typeof document !== 'undefined' && document.hidden) return;
       sendHeartbeat();
     }, interval);
 

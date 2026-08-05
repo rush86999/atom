@@ -394,8 +394,9 @@ class WebhookProcessor:
             if not event:
                 return {"status": "ignored", "reason": "Unhandled event type"}
 
-            # Check for duplicate
-            event_id = f"teams_{raw_event.get('id', '')}"
+            # Check for duplicate — use the message id from value[*], not the
+            # non-existent top-level 'id' (BUG-046).
+            event_id = self._teams_dedup_key(raw_event)
             if self._is_duplicate(event_id):
                 return {"status": "duplicate", "event_id": event_id}
 
@@ -457,6 +458,26 @@ class WebhookProcessor:
     def _is_duplicate(self, event_id: str) -> bool:
         """Check if event has already been processed"""
         return event_id in self.processed_events
+
+    def _teams_dedup_key(self, raw_event: Dict[str, Any]) -> str:
+        """Build a per-event dedup key for Teams webhooks.
+
+        Microsoft Graph change notifications have NO top-level 'id' — the
+        message id lives inside ``value[*].id``. Previously the key was
+        ``f"teams_{raw_event.get('id', '')}"`` which collapsed to the constant
+        ``"teams_"`` for every event, silently dropping all Teams messages
+        after the first (BUG-046). Now uses the first value item's id, with a
+        content hash fallback for envelopes with no message id at all.
+        """
+        import hashlib
+        value = raw_event.get("value", [])
+        if isinstance(value, dict):
+            value = [value]
+        if value and value[0].get("id"):
+            return f"teams_{value[0]['id']}"
+        # Fallback: hash the raw payload so distinct events get distinct keys.
+        payload_str = str(raw_event)
+        return f"teams_{hashlib.sha256(payload_str.encode()).hexdigest()[:16]}"
 
     def _mark_processed(self, event_id: str):
         """Mark event as processed"""

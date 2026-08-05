@@ -74,6 +74,10 @@ export function useCanvasStateRegistration(
   state: AnyCanvasState | null,
 ): void {
   const prevIdRef = useRef<string | null>(null);
+  // Keep the latest state in a ref so we can update the registry WITHOUT
+  // re-running the effect (and its cleanup) on every state reference change.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     ensureGlobalApi();
@@ -84,21 +88,25 @@ export function useCanvasStateRegistration(
     }
     prevIdRef.current = canvasId;
 
-    // Register or update the state.
+    // Cleanup ONLY on unmount or canvasId change — NOT on every state update.
+    // Previously `state` was in the deps array, so the cleanup ran on every
+    // re-render, briefly deleting the registry entry and notifying null
+    // (BUG-049: agents calling getState() during re-render saw null).
+    return () => {
+      delete _canvasRegistry[canvasId];
+      _subscribers.forEach((cb) => cb(canvasId, null));
+    };
+  }, [canvasId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Separate effect: update the registry when state changes, without the
+  // unmount cleanup that caused the wipe-on-re-render.
+  useEffect(() => {
     if (state) {
       _canvasRegistry[canvasId] = state;
     } else {
       delete _canvasRegistry[canvasId];
     }
-
-    // Notify subscribers.
     _subscribers.forEach((cb) => cb(canvasId, state));
-
-    // Cleanup on unmount.
-    return () => {
-      delete _canvasRegistry[canvasId];
-      _subscribers.forEach((cb) => cb(canvasId, null));
-    };
   }, [canvasId, state]);
 }
 

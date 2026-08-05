@@ -36,7 +36,7 @@ class SalesDashboardService:
             ).all()
 
             total_pipeline_value = sum(d.value for d in active_deals)
-            weighted_forecast = sum(d.value * (d.probability or 0.5) for d in active_deals)
+            weighted_forecast = sum(d.value * (d.probability if d.probability is not None else 0.5) for d in active_deals)
             
             # High Risk Deals
             high_risk_deals = [d for d in active_deals if (d.health_score or 100) < 40]

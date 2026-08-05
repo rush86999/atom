@@ -125,7 +125,7 @@ class SalesIntelligence:
             Deal.stage.notin_([DealStage.CLOSED_WON, DealStage.CLOSED_LOST])
         ).all()
 
-        total_weighted = sum(d.value * (d.probability or 0.5) for d in deals)
+        total_weighted = sum(d.value * (d.probability if d.probability is not None else 0.5) for d in deals)
         total_unweighted = sum(d.value for d in deals)
 
         return {
