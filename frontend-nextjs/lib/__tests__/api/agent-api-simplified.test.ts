@@ -1,51 +1,56 @@
 /**
  * Agent API Integration Tests - Simplified Version
+ *
+ * Uses the shared MSW server registered in tests/setup.ts so requests are
+ * intercepted instead of falling through to the real network (localhost:8000).
  */
 
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
 import axios from 'axios';
+import { server } from '@/tests/mocks/server';
 
-// MSW server setup with URL wildcard
-const server = setupServer(
-  rest.post('http://127.0.0.1:8000/api/atom-agent/chat/stream', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        response: 'Test response',
-        session_id: 'test-session-123',
-      })
-    );
-  }),
-
-  rest.post('http://127.0.0.1:8000/api/atom-agent/execute-generated', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        execution_id: 'exec-123',
-        status: 'running',
-      })
-    );
-  }),
-
-  rest.get('http://127.0.0.1:8000/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
-    const { agentId } = req.params;
-    return res(
-      ctx.status(200),
-      ctx.json({
-        agent_id: agentId,
-        status: 'idle',
-      })
-    );
-  })
-);
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('Agent API - Basic Tests', () => {
+  beforeEach(() => {
+    // Register handlers on the shared server matching the real endpoints axios hits.
+    server.use(
+      rest.post('*/api/atom-agent/chat/stream', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            success: true,
+            response: 'Test response',
+            session_id: 'test-session-123',
+          })
+        );
+      }),
+
+      rest.post('*/api/atom-agent/execute-generated', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            execution_id: 'exec-123',
+            status: 'running',
+          })
+        );
+      }),
+
+      rest.get('*/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
+        const { agentId } = req.params;
+        return res(
+          ctx.status(200),
+          ctx.json({
+            agent_id: agentId,
+            status: 'idle',
+          })
+        );
+      })
+    );
+  });
+
   test('chat streaming works', async () => {
     const response = await axios.post(
       'http://127.0.0.1:8000/api/atom-agent/chat/stream',
