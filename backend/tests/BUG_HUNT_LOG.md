@@ -434,3 +434,46 @@ written first (red), the root cause confirmed, then the minimal fix applied
   searches where the older resolved last would overwrite the newer results
   with stale data.
 - **Fix:** Added a `requestIdRef` counter; only the latest call's results are applied.
+
+---
+
+## Round 9 — End-to-end TDD bug hunt (pricing/billing + voice/embedding)
+
+### BUG-041 — get_model_price substring match returns wrong model's price (billing corruption)
+- **Flow:** LLM cost estimation / billing (backend)
+- **Symptom:** `get_model_price` used a bidirectional substring match that returned
+  the first dict-insertion-order hit. Querying a model variant not in the cache
+  silently inherited another model's price (e.g. "gpt-4-mini" matched "gpt-4o",
+  returning a 6x-cheaper price), corrupting cost attribution and context-window sizing.
+- **Test:** `tests/test_pricing_model_match.py` (5 tests)
+- **Fix:** Exact + case-insensitive match only; return None for unknown models.
+
+### BUG-042 — _infer_provider classifies non-Groq Llama models as "groq"
+- **Flow:** Provider classification (backend)
+- **Symptom:** The condition `if "llama" in model_lower and "groq" not in model_lower:
+  return "groq"` matched Llama models WITHOUT "groq" in the name — so
+  `meta-llama/llama-3.1-70b-instruct` (Together/Bedrock) was classified as Groq.
+- **Test:** `tests/test_pricing_model_match.py::TestInferProvider`
+- **Fix:** Only classify as "groq" when the name contains "groq"; generic Llama → "meta".
+
+### BUG-043 — Embedding generated for empty/redacted text (junk vector + wasted API call)
+- **Flow:** Document ingestion / vector store (backend)
+- **Symptom:** `add_document` called `embed_text(text)` with no empty-text guard.
+  When redaction stripped all content (or text was empty), it embedded "" →
+  wasted API call + junk near-zero vector polluting vector search.
+- **Fix:** Guard against empty/whitespace text before embedding.
+
+### BUG-044 — useSpeechRecognition mic never released on unmount (mic leak)
+- **Flow:** Voice recognition hook (frontend)
+- **Symptom:** The setup effect returned no cleanup function. On unmount or
+  `wakeWordEnabled` toggle, the old SpeechRecognition instance was never stopped —
+  the mic stayed active, and N toggles created N overlapping recognitions.
+- **Fix:** Added cleanup that nulls handlers + calls `stop()`.
+
+### BUG-045 — useTextToSpeech user-selected voice clobbered by voiceschanged events
+- **Flow:** Text-to-speech hook (frontend)
+- **Symptom:** The voices-changed effect had `[]` deps, so `updateVoices` always
+  saw `selectedVoice === null` from the first render's closure. Every browser
+  `voiceschanged` fire reset the voice to the default, silently reverting any
+  user selection via `setVoice`.
+- **Fix:** Track explicit user choice via a ref; only set default when user hasn't chosen.

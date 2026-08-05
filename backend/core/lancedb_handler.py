@@ -31,6 +31,8 @@ except (ImportError, BaseException) as e:
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, List, Union
 
+from core.doc_freshness_service import FRESHNESS_FILTER_ENABLED
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from core.chat_context_manager import ChatContextManager
 
@@ -402,6 +404,21 @@ class LanceDBHandler:
             logger.error(f"Failed to get table '{table_name}': {e}")
             return None
 
+    @staticmethod
+    def _has_column(table: "Table", column_name: str) -> bool:
+        """True if a LanceDB table has ``column_name`` in its schema.
+
+        Used by the freshness filter so it only applies to tables that
+        actually carry the ``freshness_status`` column (older tables created
+        before the feature lack it). Defensive: any error → False.
+        """
+        try:
+            schema = table.schema
+            names = {f.name for f in schema}
+            return column_name in names
+        except Exception:
+            return False
+
     def drop_table(self, table_name: str) -> bool:
         """Drop a table"""
         self._ensure_db()
@@ -607,6 +624,13 @@ class LanceDBHandler:
             except Exception as redact_err:
                 logger.error(f"Secrets redaction failed: {redact_err}, proceeding with caution")
 
+            # Guard: don't embed empty/whitespace text. After redaction (or for
+            # empty input), text may be "" — embedding it wastes an API call and
+            # produces a junk near-zero vector that pollutes vector search (BUG-043).
+            if not text or not text.strip():
+                logger.warning("Skipping embedding for empty/redacted-to-empty text")
+                return False
+
             # Generate embedding
             embedding = self.embed_text(text)
             if embedding is None:
@@ -775,8 +799,17 @@ class LanceDBHandler:
         user_id: str = None,
         limit: int = 10,
         filter_str: str = None,
+        include_stale: bool = False,
     ) -> list[dict[str, Any]]:
-        """Search for documents in memory with optional user filtering"""
+        """Search for documents in memory with optional user filtering.
+
+        Freshness filter: when ``table_name == 'documents'`` and the freshness
+        feature is enabled (``ATOM_FRESHNESS_FILTER_ENABLED``, default true),
+        rows with a non-fresh ``freshness_status`` (stale/outdated/removed/
+        superseded) are excluded from results by default. Pass
+        ``include_stale=True`` to surface them (admin/observability). See
+        core/doc_freshness_service.py.
+        """
         self._ensure_db()
         if self.db is None:
             return []
@@ -816,6 +849,18 @@ class LanceDBHandler:
             # 3. Apply Custom Filter
             if filter_str:
                 filters.append(f"({filter_str})")
+
+            # 4. Freshness filter — only on the documents table, and only if
+            # the table actually has the column (older LanceDB tables created
+            # before this feature lack ``freshness_status``). We check the
+            # schema defensively so this never breaks pre-existing tables.
+            if (
+                FRESHNESS_FILTER_ENABLED
+                and table_name == "documents"
+                and not include_stale
+                and self._has_column(table, "freshness_status")
+            ):
+                filters.append("freshness_status == 'fresh'")
 
             # Combine all
             final_filter = " AND ".join(filters)
@@ -955,10 +1000,36 @@ class LanceDBHandler:
             return []
 
     def query_knowledge_graph(
-        self, query: str, user_id: str = None, limit: int = 20
+        self,
+        query: str,
+        user_id: str = None,
+        limit: int = 20,
+        exclude_source_doc_ids: Union[set[str], None] = None,
     ) -> list[dict[str, Any]]:
-        """Search the knowledge graph using semantic similarity on relationship descriptions"""
-        return self.search("knowledge_graph", query, limit=limit)
+        """Search the knowledge graph using semantic similarity on relationship descriptions.
+
+        ``exclude_source_doc_ids`` hides edges whose origin document has gone
+        stale/superseded/removed — the freshness cascade for this LanceDB edge
+        store. Callers pass the set of IngestedDocument ids that are currently
+        non-fresh; edges whose ``metadata.doc_id`` is in that set are filtered
+        out after the vector search. See core/doc_freshness_service.py.
+
+        NOTE: GraphRAG proper lives in PostgreSQL (graph_nodes/graph_edges),
+        which carries provenance in ``properties->>'doc_id'`` and is cascaded
+        separately via the freshness service's Postgres path.
+        """
+        results = self.search("knowledge_graph", query, limit=limit)
+        if not exclude_source_doc_ids:
+            return results
+        excluded = {str(x) for x in exclude_source_doc_ids}
+        out = []
+        for r in results:
+            meta = r.get("metadata") or {}
+            src = meta.get("doc_id") if isinstance(meta, dict) else None
+            if src and str(src) in excluded:
+                continue
+            out.append(r)
+        return out
 
     def seed_mock_data(self, documents: list[dict[str, Any]]) -> int:
         """Seed mock data for validation"""

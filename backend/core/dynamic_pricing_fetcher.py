@@ -256,12 +256,17 @@ class DynamicPricingFetcher:
         # Try exact match first
         if model_name in self.pricing_cache:
             return self.pricing_cache[model_name]
-        
-        # Try partial match (e.g., "gpt-4" matches "gpt-4-turbo")
+
+        # Try case-insensitive exact match (some providers vary casing)
+        model_lower = model_name.lower()
         for cached_model, pricing in self.pricing_cache.items():
-            if model_name in cached_model or cached_model in model_name:
+            if cached_model.lower() == model_lower:
                 return pricing
-        
+
+        # No match found. Previously a loose bidirectional substring match
+        # returned the first key containing the query — e.g. "gpt-4-mini"
+        # matched "gpt-4o", returning the wrong (6x cheaper) price and
+        # corrupting cost attribution. Return None for unknown models (BUG-041).
         return None
     
     def get_provider_models(self, provider: str) -> List[Dict[str, Any]]:
@@ -408,8 +413,10 @@ class DynamicPricingFetcher:
             return "moonshot"
         elif "mistral" in model_lower:
             return "mistral"
-        elif "llama" in model_lower and "groq" not in model_lower:
-            return "groq"  # Groq serves Llama models
+        elif "groq" in model_lower:
+            return "groq"  # Only classify as Groq if the model name contains "groq"
+        elif "llama" in model_lower:
+            return "meta"  # Generic Llama models are from Meta (served by many providers)
         elif "lux" in model_lower:
             return "lux"
         else:

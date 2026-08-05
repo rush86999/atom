@@ -90,6 +90,21 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
                 };
 
                 setRecognition(recognitionInstance);
+
+                // Cleanup: stop the recognition instance when the effect
+                // re-runs (wakeWordEnabled change) or the component unmounts.
+                // Without this, the mic stays active after unmount and old
+                // instances pile up on every toggle (BUG-044).
+                return () => {
+                    try {
+                        recognitionInstance.onresult = null;
+                        recognitionInstance.onerror = null;
+                        recognitionInstance.onend = null;
+                        recognitionInstance.stop();
+                    } catch (e) {
+                        // Already stopped — ignore.
+                    }
+                };
             }
         }
     }, [wakeWordEnabled]);

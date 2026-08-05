@@ -19,6 +19,17 @@ export const useTextToSpeech = (): UseTextToSpeechReturn => {
     const [isSupported, setIsSupported] = useState(false);
     const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
     const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+    // Track whether the user explicitly chose a voice, so updateVoices doesn't
+    // clobber their selection on every voiceschanged event (BUG-045: the effect
+    // has [] deps, so the selectedVoice closure was always null, resetting the
+    // voice on every browser voiceschanged fire).
+    const userChoseVoiceRef = useRef(false);
+
+    // Wrap setSelectedVoice so we track explicit user choices.
+    const setVoice = useCallback((voice: SpeechSynthesisVoice | null) => {
+        userChoseVoiceRef.current = true;
+        setSelectedVoice(voice);
+    }, []);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -27,8 +38,8 @@ export const useTextToSpeech = (): UseTextToSpeechReturn => {
             const updateVoices = () => {
                 const availableVoices = window.speechSynthesis.getVoices();
                 setVoices(availableVoices);
-                // Try to select a default English voice
-                if (!selectedVoice) {
+                // Only set a default voice if the user hasn't explicitly chosen one.
+                if (!userChoseVoiceRef.current && !selectedVoice) {
                     const defaultVoice = availableVoices.find(v => v.name.includes("Google US English")) ||
                         availableVoices.find(v => v.lang.startsWith("en-US")) ||
                         availableVoices[0];
@@ -40,6 +51,10 @@ export const useTextToSpeech = (): UseTextToSpeechReturn => {
 
             // Chrome loads voices asynchronously
             window.speechSynthesis.onvoiceschanged = updateVoices;
+
+            return () => {
+                window.speechSynthesis.onvoiceschanged = null;
+            };
         }
     }, []);
 
@@ -106,6 +121,6 @@ export const useTextToSpeech = (): UseTextToSpeechReturn => {
         isPaused,
         isSupported,
         voices,
-        setVoice: setSelectedVoice
+        setVoice,
     };
 };
