@@ -36,7 +36,7 @@
   - [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md) - Five-phase design: (A) policy + audit table, (B) filesystem scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM + dual-proxy egress, (E) provenance tagging + LLM ActionJudge
   - Closes the gap documented in [TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) and [PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md)
   - Migration `20260630_add_sandbox_tables` (chains on Round 42, guarded per SQLite hybrid-DB pattern)
-  - Shadow mode default — compute + audit always on, enforcement off (`ATOM_SANDBOX_FORCE_ENFORCE=false`)
+  - Default-on enforcement since P9 (Aug 2026) — `ATOM_SANDBOX_FORCE_ENFORCE=true` for all dispatch paths via shared `core/sandbox_gate.py`; set `false` for shadow mode
   - 166 tests across 5 files in `tests/unit/core/test_sandbox_*.py`
 - **Self-Consistency Voter**: ✨ NEW (Round 42) - N-sample majority vote on structured plans (Wang et al. 2022)
   - [SELF_CONSISTENCY_VOTER.md](architecture/SELF_CONSISTENCY_VOTER.md) - VoteResult tri-state mirroring match-confidence; shadow + audit extensions on PR #548 base

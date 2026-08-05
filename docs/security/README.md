@@ -21,9 +21,9 @@ Security best practices, compliance, and package security.
   design at [../architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
 - **[Execution Sandbox Layer](../architecture/SANDBOX_LAYER.md)** ✨ —
   Authoritative design doc for the five-phase blast-radius layer (Phases
-  A-E). Ships in shadow mode by default; covers Firecracker microVM
-  isolation, dual-proxy egress, tripwire registry, KillRun state machine,
-  provenance tagging, and LLM ActionJudge.
+  A-E). Default-on enforcement since P9 (Aug 2026) for all dispatch paths;
+  covers Firecracker microVM isolation, dual-proxy egress, tripwire registry,
+  KillRun state machine, provenance tagging, and LLM ActionJudge.
 
 ### Package Security
 - **[Packages](packages.md)** - Package security overview
@@ -97,4 +97,4 @@ Security best practices, compliance, and package security.
 
 ---
 
-*Last Updated: April 12, 2026*
+*Last Updated: August 5, 2026*

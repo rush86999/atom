@@ -131,10 +131,13 @@ Demotion (a trust-tier concern) is a slow, statistical response. Tripwires
 (a sandbox concern) are an instant, deterministic response. The two must not
 be confused for each other.
 
-✅ **Shipped (Rounds 43-47, June 30 2026).** All five phases landed in
-shadow mode (compute + audit always on, enforcement off by default; operators
-flip `ATOM_SANDBOX_FORCE_ENFORCE=true` after observing violation distributions).
-Full design and implementation:
+✅ **Shipped (Rounds 43-47, June 30 2026) → default-on (P9, Aug 2026).** All
+five phases landed in shadow mode, then P9 flipped the deterministic controls
+to **enforce-on by default for all dispatch paths** (agent loop, workflow
+engine, fleet, business agents — via the shared `core/sandbox_gate.py` at
+`integrations/mcp_service.call_tool`, not just the meta-agent). Each flag
+remains a kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false` restores shadow mode
+(compute + audit, no blocking) instantly. Full design and implementation:
 [`docs/architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md).
 Original engineering plan:
 [`PROMPT_INJECTION_DEFENSE_PLAN.md`](./PROMPT_INJECTION_DEFENSE_PLAN.md).

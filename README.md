@@ -449,7 +449,7 @@ Commercial marketplace for agents, domains, components, and skills at [atomagent
 
 ## Security & Privacy
 
-Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, **5-phase execution sandbox layer** (filesystem scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge — Rounds 43-47), comprehensive testing (27,000+ tests across unit, integration, E2E, and regression suites), AI-enhanced bug discovery, and stress testing
+Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), **encrypted storage (Fernet — OAuth integration tokens encrypted at rest, fail-closed in production)**, audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, **5-phase execution sandbox layer** (filesystem scope, tool whitelist, tripwires, Firecracker microVM isolation, dual-proxy egress, resource caps, KillRun, provenance tagging, LLM ActionJudge — Rounds 43-47, **default-on enforcement for all dispatch paths since P9**), per-agent capability bindings, outbound gatekeeper, observation-based data-taint tracking, external MCP client connections, comprehensive testing (27,000+ tests across unit, integration, E2E, and regression suites), AI-enhanced bug discovery, and stress testing
 
 [Security Documentation →](docs/security/) | [Sandbox Layer →](docs/architecture/SANDBOX_LAYER.md) | [Testing Guide →](backend/tests/e2e_ui/README.md)
 

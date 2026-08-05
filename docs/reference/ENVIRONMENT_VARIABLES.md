@@ -58,8 +58,8 @@ That's it. Everything below is optional.
 | `SECRET_KEY` | random per restart (dev) | **Production** | Signs JWT sessions. Generate: `openssl rand -base64 48`. |
 | `JWT_SECRET_KEY` | (falls back to SECRET_KEY) | Docker | Alternate JWT secret name; required by the Docker stacks. |
 | `JWT_EXPIRATION` | `86400` (24h) | — | JWT lifetime in seconds. |
-| `ENCRYPTION_KEY` | unset | — | Fernet-style general secrets encryption. Recommended. |
-| `BYOK_ENCRYPTION_KEY` | unset | Docker | Encrypts stored provider API keys. Required by Docker stacks. |
+| `ENCRYPTION_KEY` | unset | — | Legacy Fernet-style general secrets encryption (`core/secrets_encryption.py`). **OAuth integration tokens use `BYOK_ENCRYPTION_KEY` instead (P0)** — see [DATA_PROTECTION.md](../security/DATA_PROTECTION.md). |
+| `BYOK_ENCRYPTION_KEY` | unset (or `./data/byok_encryption_key`) | Docker | **(P0)** Encrypts `IntegrationToken` access/refresh tokens at rest (Fernet). Env var wins; else the persisted key file `./data/byok_encryption_key` (0600) is the durable fallback so ciphertext survives restarts. **Fail-closed in production** (`ENVIRONMENT=production`): raises `MissingKeyError` rather than minting a throwaway key. In dev, a missing key is generated + persisted. Generate with `openssl rand -base64 32`. Override the file path with `BYOK_ENC_KEY_FILE`. |
 | `ATOM_ENCRYPTION_KEY` | unset | — | Frontend-side encryption key alias. |
 | `ALLOW_DEV_TEMP_USERS` | `false` | — | Allow short-lived dev temp users. Never in production. |
 | `ADMIN_PASSWORD` | unset | — | Set the bootstrap admin password yourself. If unset, one is generated to `backend/logs/bootstrap_admin_password.txt`. |
@@ -310,6 +310,35 @@ full list. The ones that matter most:
 
 ---
 
+## 14. Execution Sandbox Layer (P9 — default-on)
+
+The deterministic blast-radius controls are **default-on** for all dispatch
+paths since P9 (Aug 2026). Each flag is a kill switch — set any to `false` to
+restore the prior shadow/off behavior instantly. See
+[../architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
+
+| Variable | Default (P9) | Description |
+|----------|--------------|-------------|
+| `ATOM_SANDBOX_ENABLED` | `true` | Master switch (Phase A+). `false` = layer off. |
+| `ATOM_SANDBOX_FORCE_ENFORCE` | `true` | Enforce (block on violation) vs shadow (audit only). `false` = shadow. |
+| `ATOM_SANDBOX_POLICY_TENANT_OVERRIDE` | `false` | Allow tenant metadata_json to override policy. |
+| `ATOM_SANDBOX_FS_ENABLED` | `true` | Phase B — filesystem scope enforcement. |
+| `ATOM_SANDBOX_WHITELIST_ENABLED` | `true` | Phase C — tool whitelist enforcement. |
+| `ATOM_SANDBOX_TRIPWIRES_ENABLED` | `true` | Phase C — tripwire pattern enforcement. |
+| `ATOM_SANDBOX_CAPS_ENABLED` | `true` | Phase C — resource cap enforcement. |
+| `ATOM_SANDBOX_EGRESS_ENABLED` | `false` | Phase D — egress proxy (network isolation). **Stays opt-in.** |
+| `ATOM_SANDBOX_PROVENANCE_ENABLED` | `true` | Phase E — provenance tagging in context assembly. |
+| `ATOM_SANDBOX_JUDGE_ENABLED` | `false` | Phase E — LLM ActionJudge for irreversible actions. **Stays opt-in (R72).** |
+
+Caps: `ATOM_SANDBOX_MAX_TOOL_CALLS=200`, `ATOM_SANDBOX_MAX_EXEC_SECONDS=600`,
+`ATOM_SANDBOX_MAX_BYTES_WRITTEN=104857600`, `ATOM_SANDBOX_MAX_COST_USD=5.0`.
+Runtime: `ATOM_SANDBOX_RUNTIME=docker|firecracker|e2b`.
+
+> **Fastest kill switch:** `ATOM_SANDBOX_FORCE_ENFORCE=false` returns the whole
+> layer to shadow mode (policy still computed + audited, nothing blocked).
+
+---
+
 ## Quick default-on summary
 
 For a brand-new user copying `backend/.env.example` → `backend/.env`, the app
@@ -320,6 +349,12 @@ boots with **everything defaulted** except:
 All 46+ integrations, marketplace, federation, Redis, scheduler, and feature
 flags have safe defaults and stay dormant until you configure them.
 
+> Note (P0/P9): OAuth integration tokens are encrypted at rest with
+> `BYOK_ENCRYPTION_KEY` (fail-closed in production), and the execution sandbox
+> enforces by default — both safe out of the box. See
+> [DATA_PROTECTION.md](../security/DATA_PROTECTION.md) and
+> [SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
+
 ---
 
-*Last Updated: July 2026*
+*Last Updated: August 5, 2026*

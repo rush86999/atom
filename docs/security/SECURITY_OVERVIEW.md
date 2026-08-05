@@ -1,5 +1,14 @@
 # ATOM Application Security Audit Final Report
 
+> ⚠️ **Historical document (October 19, 2025).** This is a frozen Week-12
+> **frontend-only** audit. It predates and therefore does not cover: P0
+> IntegrationToken encryption-at-rest (`core/privsec/token_encryption.py`,
+> fail-closed in prod), P2 agent capability bindings, P3 outbound gatekeeper,
+> P4 data-taint tracking, or the P9 sandbox default-on flip. For the current
+> backend security posture consult [DATA_PROTECTION.md](DATA_PROTECTION.md)
+> (credential encryption) and [../architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md)
+> (blast-radius layer). Retained for historical reference only.
+
 ## Executive Summary
 
 **Audit Date**: October 19, 2025

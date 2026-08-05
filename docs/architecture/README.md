@@ -31,9 +31,10 @@ System architecture, design patterns, and technical specifications.
 - **[Execution Sandbox Layer](SANDBOX_LAYER.md)** ✨ - Deterministic blast-radius
   layer (Rounds 43-47). Five phases: (A) policy + audit table, (B) filesystem
   scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM +
-  dual-proxy egress, (E) provenance tagging + LLM ActionJudge. Ships in
-  shadow mode — closes the "tier is routing, not security" gap documented in
-  [../security/TRUST_VS_SANDBOX.md](../security/TRUST_VS_SANDBOX.md).
+  dual-proxy egress, (E) provenance tagging + LLM ActionJudge. Default-on
+  enforcement since P9 (Aug 2026) for all dispatch paths via shared
+  `core/sandbox_gate.py` — closes the "tier is routing, not security" gap
+  documented in [../security/TRUST_VS_SANDBOX.md](../security/TRUST_VS_SANDBOX.md).
 - **[Self-Consistency Voter](SELF_CONSISTENCY_VOTER.md)** - N-sample majority
   vote on structured plans (Round 42). Composes with sandbox — voter gates
   plan agreement, sandbox bounds execution scope.

@@ -8,10 +8,14 @@ from the existing probabilistic trust tier.
 - [`TRUST_VS_SANDBOX.md`](./TRUST_VS_SANDBOX.md) — why this layer is necessary.
 - [`../architecture/SANDBOX_LAYER.md`](../architecture/SANDBOX_LAYER.md) — the shipped implementation (authoritative).
 
-> All five phases (A through E) shipped in shadow mode — compute + audit
-> always on, enforcement off by default. Operators flip
-> `ATOM_SANDBOX_FORCE_ENFORCE=true` after observing violation distributions
-> in staging. See `SANDBOX_LAYER.md` for the per-phase kill switches,
+> All five phases (A through E) shipped in shadow mode (Rounds 43-47), then
+> **P9 (Aug 2026) flipped the deterministic controls to enforce-on by default**
+> for all dispatch paths (agent loop, workflow, fleet, business agents — via
+> the shared `core/sandbox_gate.py` at `integrations/mcp_service.call_tool`).
+> `ATOM_SANDBOX_FORCE_ENFORCE=false` restores shadow mode (compute + audit, no
+> blocking) instantly. Phase E's first concrete taint/provenance emission
+> landed in P4 (`core/data_taint_tracker.py`, `VT_PROVENANCE`, documents.
+> `sensitivity`). See `SANDBOX_LAYER.md` for the per-phase kill switches,
 > audit table schema, and red-team verification protocol.
 
 ---
@@ -353,6 +357,14 @@ killed. A run that exceeds `max_bytes_written` is killed.
   tool calls. Tunable per workspace; default = advisory (log only) for the
   first release, promoting to enforcement once false-positive rate is
   characterized.
+
+> **Update (P4, Aug 2026):** the first concrete provenance/taint emission
+> shipped in P4 — `core/data_taint_tracker.py` classifies observed document
+> sensitivity (public|internal|confidential|restricted, incl. PII auto-detection)
+> and emits the previously-reserved `VT_PROVENANCE` violation when restricted
+> data is observed and an outbound action targets an external destination.
+> Documents carry a nullable `sensitivity` column. The LLM ActionJudge remains
+> opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`, off per R72).
 
 **Verification**: red-team suite of known injection patterns; characterize
 detection and false-positive rates; document them.

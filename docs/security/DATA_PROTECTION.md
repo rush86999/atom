@@ -1,7 +1,81 @@
 # Data Protection Guide
 
-> **Last Updated**: February 6, 2026
+> **Last Updated**: August 5, 2026
 > **Purpose**: Complete guide to encryption, secrets management, and data protection in Atom
+
+> ⚠️ **Credential encryption was overhauled in P0 (Aug 2026).** The sections
+> below marked **"P0 (current)"** describe the live model:
+> `core/privsec/token_encryption.py` + `IntegrationToken` (encrypted at rest) +
+> `BYOK_ENCRYPTION_KEY` (env var, or persisted key file `./data/byok_encryption_key`,
+> 0600) + **fail-closed in production**. The older `core/secrets_encryption.py` /
+> `ENCRYPTION_KEY` / `secrets.json`-`secrets.enc` / plaintext-fallback material
+> preserved lower in this doc is **legacy** and no longer the credential-encryption
+> path — it is retained for historical context only. For the sandbox blast-radius
+> layer see [../architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
+
+---
+
+## Credential Encryption at Rest — P0 (current)
+
+OAuth integration tokens (`IntegrationToken.access_token` / `refresh_token`) are
+**encrypted at rest with Fernet** and **fail closed in production**. This is the
+canonical credential-encryption path; the legacy `secrets_encryption.py` model
+below is retained for historical context only.
+
+### Key resolution (precedence high → low)
+
+1. **`BYOK_ENCRYPTION_KEY` env var** — the canonical source. Generate with
+   `openssl rand -base64 32` (a 32-byte Fernet key).
+2. **Persisted key file** `./data/byok_encryption_key` (0600) — the durable
+   fallback so ciphertext survives restarts. Env override wins. If neither is
+   present in development, a key is generated and persisted (with a warning).
+3. **Production fail-closed**: if `ENVIRONMENT=production` and no key is
+   resolvable, `get_encryption_key()` raises `MissingKeyError` rather than
+   minting a throwaway key that would brick every stored token on restart.
+
+### Implementation
+
+- `backend/core/privsec/token_encryption.py` — `encrypt_token()` / `decrypt_token()`
+  / `is_encrypted_value()` / `stamp_credential_metadata()`.
+- **Write sites** (encrypt-on-write): every OAuth adapter and Zoho service calls
+  `encrypt_token(raw)` before persisting — `core/integrations/adapters/{zoho,jira,
+  hubspot,airtable}.py`, `core/integrations/zoho_oauth_service.py`, the Zoho
+  inventory/books/crm services. Each also calls `stamp_credential_metadata()` to
+  flag the row `{"encryption": "fernet"}`.
+- **Read sites** (decrypt-with-fallback): `decrypt_token(val, allow_plaintext=True)`
+  transparently decrypts ciphertext and passes legacy plaintext through unchanged,
+  so the migration is non-breaking.
+- **Audit**: `backend/scripts/verify_token_encryption.py` verifies 0 plaintext
+  `integration_tokens` and that `BYOK_ENCRYPTION_KEY` is configured (env or
+  persisted file).
+
+### Migration
+
+`alembic 20260805_integration_token_credential_metadata` adds the nullable
+`credential_metadata` JSON column (the ORM column already exists) and backfills
+`{"encryption": "fernet"}` on rows whose `access_token LIKE 'gAAAA%'`. Guarded
+per the SQLite hybrid-DB pattern. Legacy plaintext rows decrypt transparently
+via `allow_plaintext=True` — no data migration required to roll forward or back.
+
+### Configuration
+
+```bash
+# Canonical (required for production):
+export BYOK_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+
+# Development: if unset, a key is generated + persisted to ./data/byok_encryption_key (0600).
+# The persisted-key-file path is overridable:
+export BYOK_ENC_KEY_FILE="./data/byok_encryption_key"
+```
+
+---
+
+## Legacy material (retained for historical context)
+
+The sections below describe the older `secrets_encryption.py` / `ENCRYPTION_KEY`
+model. It is **not** the credential-encryption path for OAuth integration tokens
+(that is P0 above). It is preserved because some non-OAuth secret paths may still
+reference it and because the best-practices/compliance guidance remains useful.
 
 ---
 
@@ -53,9 +127,11 @@ ENCRYPTION_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
 export ENCRYPTION_KEY="your-encryption-key-here"
 ```
 
-**Optional Feature**:
-- If `ENCRYPTION_KEY` is not set, secrets are stored in **plaintext**
-- Encryption is **optional** but recommended for production
+**Optional Feature** (legacy — superseded by P0 fail-closed for OAuth tokens):
+- ⚠️ This "plaintext is acceptable" behavior applied only to the legacy
+  `secrets_encryption.py` path. **OAuth integration tokens are always encrypted
+  and fail closed in production** as of P0 (see "Credential Encryption at Rest —
+  P0 (current)" above). Do not rely on a plaintext fallback for credentials.
 - Auto-migrates plaintext secrets to encrypted when key is set
 
 ### Implementation
