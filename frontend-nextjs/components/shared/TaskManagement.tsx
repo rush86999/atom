@@ -116,81 +116,10 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Mock data for demonstration
-  useEffect(() => {
-    const mockTasks: Task[] = [
-      {
-        id: "1",
-        title: "Implement user authentication",
-        description: "Set up OAuth flow and user session management",
-        dueDate: new Date(2025, 9, 25),
-        priority: "high",
-        status: "in-progress",
-        project: "project-1",
-        tags: ["backend", "security"],
-        assignee: "user1",
-        estimatedHours: 8,
-        platform: "local",
-        color: "#3182CE",
-        createdAt: new Date(2025, 9, 18),
-        updatedAt: new Date(2025, 9, 18),
-      },
-      {
-        id: "2",
-        title: "Design dashboard UI",
-        description: "Create responsive dashboard components",
-        dueDate: new Date(2025, 9, 22),
-        priority: "medium",
-        status: "todo",
-        project: "project-1",
-        tags: ["frontend", "design"],
-        assignee: "user2",
-        estimatedHours: 6,
-        platform: "local",
-        color: "#38A169",
-        createdAt: new Date(2025, 9, 18),
-        updatedAt: new Date(2025, 9, 18),
-      },
-      {
-        id: "3",
-        title: "Write API documentation",
-        description: "Document all backend endpoints",
-        dueDate: new Date(2025, 9, 28),
-        priority: "low",
-        status: "todo",
-        project: "project-2",
-        tags: ["documentation"],
-        estimatedHours: 4,
-        platform: "local",
-        color: "#DD6B20",
-        createdAt: new Date(2025, 9, 18),
-        updatedAt: new Date(2025, 9, 18),
-      },
-    ];
-
-    const mockProjects: Project[] = [
-      {
-        id: "project-1",
-        name: "Web Application",
-        description: "Main web application development",
-        color: "#3182CE",
-        tasks: mockTasks.filter((task) => task.project === "project-1"),
-        progress: 33,
-      },
-      {
-        id: "project-2",
-        name: "Documentation",
-        description: "Project documentation and guides",
-        color: "#38A169",
-        tasks: mockTasks.filter((task) => task.project === "project-2"),
-        progress: 0,
-      },
-    ];
-
-    setTasks(mockTasks);
-    setProjects(mockProjects);
-    setLoading(false);
-  }, []);
+  // BUG-066: Previously a mount useEffect unconditionally overwrote the real
+  // API data (passed via initialTasks/initialProjects) with hardcoded mock
+  // tasks. Removed — the wrapper fetches real data; we use it directly.
+  // (When no data is passed, the empty arrays are the correct fallback.)
 
   const handleCreateTask = (
     taskData: Omit<Task, "id" | "createdAt" | "updatedAt">,

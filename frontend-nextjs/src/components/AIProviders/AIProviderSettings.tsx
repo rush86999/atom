@@ -207,14 +207,15 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       // Wait, passing key in query string is insecure. The backend *should* accept body.
       // Re-reading byok_endpoints.py:
       // @router.post("/api/ai/providers/{provider_id}/keys")
-      // async def store_api_key(provider_id: str, api_key: str, ...
-      // In FastAPI, scalar types are query params by default. 
-      // Let's try sending as query param for now as per signature implied, but ideally we fix backend to use Body.
-      // For now, I'll send it as query param to match the signature I saw.
-
+      // BUG-069: Send API key in the request BODY, not the URL query string.
+      // URLs are logged by proxies, browser history, and server access logs.
       const saveResponse = await fetch(
-        `${baseApiUrl}/ai/providers/${provider}/keys?api_key=${encodeURIComponent(apiKey)}&key_name=default`,
-        { method: "POST" }
+        `${baseApiUrl}/ai/providers/${provider}/keys?key_name=default`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: apiKey }),
+        }
       );
 
       if (!saveResponse.ok) {

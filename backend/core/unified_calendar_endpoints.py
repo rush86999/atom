@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import uuid
 from fastapi import APIRouter, Body, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from core.schedule_optimizer import ResolutionSlot, schedule_optimizer
 
@@ -39,6 +39,13 @@ class CreateEventRequest(BaseModel):
     platform: str = "local"
     color: Optional[str] = "#3182CE"
     metadata: Optional[Dict[str, Any]] = {}
+
+    @model_validator(mode="after")
+    def validate_end_after_start(self):
+        """Reject events where end is before start (BUG-068)."""
+        if self.end < self.start:
+            raise ValueError("Event end time must be after or equal to start time")
+        return self
 
 class UpdateEventRequest(BaseModel):
     title: Optional[str] = None

@@ -65,12 +65,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
 
         setWs(socket);
 
-        // Initial mock messages
-        setMessages([
-            { id: '1', sender: 'System Agent', senderType: 'agent', content: `Welcome to the ${channel} discussion.`, timestamp: '10:00 AM' },
-            { id: '2', sender: 'Atom Agent', senderType: 'agent', content: `I'm monitoring this channel for any automated tasks.`, timestamp: '10:05 AM' },
-            { id: '3', sender: 'Finance Analyst', senderType: 'agent', content: `I noticed a discrepancy in the Q3 report. Shall I flag it?`, timestamp: '10:12 AM' }
-        ]);
+        // BUG-066: Removed hardcoded mock messages. Comments load from the
+        // WebSocket / API, not from fake data.
 
         return () => {
             if (socket.readyState === WebSocket.OPEN) {

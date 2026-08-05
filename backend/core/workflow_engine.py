@@ -733,6 +733,13 @@ class WorkflowEngine:
                 
                 try:
                     output = await self._execute_step(step, resolved_params)
+                    # BUG-067: _execute_step can return {"status": "error", ...}
+                    # instead of raising. Previously this was treated as success
+                    # (step marked COMPLETED, workflow continued). Now check the
+                    # returned status and fail the step if it errored.
+                    if isinstance(output, dict) and output.get("status") == "error":
+                        error_msg = output.get("error", "Step execution failed")
+                        raise Exception(f"Step {step_id} failed: {error_msg}")
                     self._validate_output_schema(step, output)
                     await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
                     await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})

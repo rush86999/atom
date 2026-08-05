@@ -30,80 +30,21 @@ export const VerificationLogs: React.FC = () => {
   const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d" | "30d">("24h");
   const { toast } = useToast();
 
-  // Mock log data (replace with actual API call when backend implements logs endpoint)
-  const mockLogs: VerificationLogEntry[] = [
-    {
-      timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-      event: "Citation verified",
-      details: "policy.pdf?page=4 verified successfully",
-      level: "info",
-      citation: "policy.pdf?page=4",
-    },
-    {
-      timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-      event: "Batch verification completed",
-      details: "Verified 50 citations in 2.3 seconds",
-      level: "info",
-    },
-    {
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      event: "Citation not found",
-      details: "handbook.pdf#page=12 missing from storage",
-      level: "warning",
-      citation: "handbook.pdf#page=12",
-    },
-    {
-      timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-      event: "Worker cycle completed",
-      details: "Cycle 1234: 150 facts checked, 3 stale",
-      level: "info",
-    },
-    {
-      timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      event: "Cache warming initiated",
-      details: "Warming cache with 100 recent citations",
-      level: "info",
-    },
-    {
-      timestamp: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-      event: "Storage access failed",
-      details: "Failed to connect to R2: timeout after 30s",
-      level: "error",
-    },
-    {
-      timestamp: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-      event: "Citation verified",
-      details: "guidelines.pdf verified successfully",
-      level: "info",
-      citation: "guidelines.pdf",
-    },
-    {
-      timestamp: new Date(Date.now() - 150 * 60 * 1000).toISOString(),
-      event: "Stale fact detected",
-      details: "Fact 456: 2 citations failed verification",
-      level: "warning",
-    },
-    {
-      timestamp: new Date(Date.now() - 180 * 60 * 1000).toISOString(),
-      event: "Worker started",
-      details: "Background verification worker started",
-      level: "info",
-    },
-    {
-      timestamp: new Date(Date.now() - 210 * 60 * 1000).toISOString(),
-      event: "Cache cleared",
-      details: "L1 and L2 caches cleared manually",
-      level: "info",
-    },
-  ];
+  // BUG-066: Removed hardcoded mock log data. Logs load from the backend API.
 
   useEffect(() => {
-    // Simulate API fetch
+    // Fetch real verification logs from the API.
     setLoading(true);
-    setTimeout(() => {
-      setLogs(mockLogs);
-      setLoading(false);
-    }, 500);
+    fetch(`/api/admin/governance/jit/logs?time_range=${timeRange}`)
+      .then((res) => res.ok ? res.json() : { logs: [] })
+      .then((data) => {
+        setLogs(data.logs || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLogs([]);
+        setLoading(false);
+      });
   }, [timeRange]);
 
   // Filter logs by level
