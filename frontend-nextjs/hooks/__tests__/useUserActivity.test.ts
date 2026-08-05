@@ -7,53 +7,27 @@
  * - Heartbeat API calls with intervals
  * - Manual state override
  * - Cleanup of timers and event listeners (CRITICAL for memory leak prevention)
+ *
+ * The old suite mocked the heartbeat/override endpoints with a second MSW
+ * server whose relative paths (e.g. /api/users/:id/activity/heartbeat) never
+ * matched the absolute URLs the setup.ts fetch wrapper produces
+ * (http://localhost:8000/api/users/...), so requests went unhandled, hung, and
+ * leaked state between tests. We mock global.fetch directly instead.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useUserActivity } from '../useUserActivity';
-import { setupServer } from 'msw/node';
-import { rest } from 'msw';
 
-// Setup MSW server for API mocking
-const server = setupServer(
-  rest.post('/api/users/:userId/activity/heartbeat', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        state: 'online',
-        last_activity_at: new Date().toISOString(),
-        manual_override: false,
-      })
-    );
+const heartbeatOk = (overrides: Record<string, unknown> = {}) => ({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  json: async () => ({
+    state: 'online',
+    last_activity_at: new Date().toISOString(),
+    manual_override: false,
+    ...overrides,
   }),
-  rest.post('/api/users/:userId/activity/override', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        state: req.body.state,
-        last_activity_at: new Date().toISOString(),
-        manual_override: true,
-      })
-    );
-  }),
-  rest.delete('/api/users/:userId/activity/override', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        state: 'online',
-        last_activity_at: new Date().toISOString(),
-        manual_override: false,
-      })
-    );
-  })
-);
-
-// Mock window object for browser APIs
-Object.defineProperty(window, 'navigator', {
-  value: {
-    userAgent: 'Mozilla/5.0 (test)',
-  },
-  writable: true,
 });
 
 // Mock window object for browser APIs
@@ -68,31 +42,25 @@ describe('useUserActivity Hook', () => {
   let addEventListenerSpy: jest.SpyInstance;
   let removeEventListenerSpy: jest.SpyInstance;
 
-  beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
+    // Fully mock fetch so the mount heartbeat and any override calls resolve
+    // deterministically without MSW.
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
+    (global.mockFetch as jest.Mock).mockResolvedValue(heartbeatOk());
+
     // Spy on event listeners
     addEventListenerSpy = jest.spyOn(window, 'addEventListener');
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
-
-    // Reset session token ref by clearing all hooks
-    jest.resetModules();
   });
 
   afterEach(() => {
-    server.resetHandlers();
     jest.useRealTimers();
     addEventListenerSpy.mockRestore();
     removeEventListenerSpy.mockRestore();
-  });
-
-  afterAll(() => {
-    server.close();
   });
 
   describe('1. Session Token Generation Tests', () => {
@@ -110,11 +78,19 @@ describe('useUserActivity Hook', () => {
         useUserActivity({ userId: 'user-123' })
       );
 
-      // Hook should send heartbeat with valid token format
-      // We can't easily inspect the request body with MSW, but we can verify it doesn't crash
+      // The mount heartbeat resolves to a valid state; verify the request
+      // carried a web-prefixed session token.
       await waitFor(() => {
         expect(result.current.state).not.toBeNull();
-      }, { timeout: 5000 });
+      });
+
+      const heartbeatCall = (global.mockFetch as jest.Mock).mock.calls.find(
+        ([url]: any) => String(url).includes('/activity/heartbeat')
+      );
+      expect(heartbeatCall).toBeDefined();
+      const body = JSON.parse(heartbeatCall[1].body);
+      expect(body.session_token).toMatch(/^web_/);
+      expect(body.session_type).toBe('web');
     });
 
     test('uses Date.now() and Math.random() for token generation', async () => {
@@ -126,6 +102,7 @@ describe('useUserActivity Hook', () => {
       await waitFor(() => {
         expect(addEventListenerSpy).toHaveBeenCalled();
       });
+      expect(result.current.sendHeartbeat).toBeDefined();
     });
   });
 
@@ -187,9 +164,12 @@ describe('useUserActivity Hook', () => {
     test('sends heartbeat immediately on mount', async () => {
       renderHook(() => useUserActivity({ userId: 'user-123' }));
 
-      // First heartbeat should trigger initialization
+      // The mount heartbeat is sent immediately (no timer advance needed).
       await waitFor(() => {
-        expect(addEventListenerSpy).toHaveBeenCalled();
+        const heartbeatCalls = (global.mockFetch as jest.Mock).mock.calls.filter(
+          ([url]: any) => String(url).includes('/activity/heartbeat')
+        );
+        expect(heartbeatCalls.length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -198,7 +178,10 @@ describe('useUserActivity Hook', () => {
 
       // Wait for initial heartbeat
       await waitFor(() => {
-        expect(addEventListenerSpy).toHaveBeenCalled();
+        const calls = (global.mockFetch as jest.Mock).mock.calls.filter(
+          ([url]: any) => String(url).includes('/activity/heartbeat')
+        );
+        expect(calls.length).toBeGreaterThanOrEqual(1);
       });
 
       // Advance time by 30 seconds
@@ -206,9 +189,12 @@ describe('useUserActivity Hook', () => {
         jest.advanceTimersByTime(30000);
       });
 
-      // Should have triggered second heartbeat
-      // (we can't easily count MSW requests, but we verify timers work)
-      expect(true).toBe(true);
+      await waitFor(() => {
+        const calls = (global.mockFetch as jest.Mock).mock.calls.filter(
+          ([url]: any) => String(url).includes('/activity/heartbeat')
+        );
+        expect(calls.length).toBeGreaterThanOrEqual(2);
+      });
     });
 
     test('respects custom interval setting', async () => {
@@ -217,7 +203,10 @@ describe('useUserActivity Hook', () => {
       );
 
       await waitFor(() => {
-        expect(addEventListenerSpy).toHaveBeenCalled();
+        const calls = (global.mockFetch as jest.Mock).mock.calls.filter(
+          ([url]: any) => String(url).includes('/activity/heartbeat')
+        );
+        expect(calls.length).toBeGreaterThanOrEqual(1);
       });
 
       // Advance by custom interval
@@ -225,8 +214,12 @@ describe('useUserActivity Hook', () => {
         jest.advanceTimersByTime(10000);
       });
 
-      // Timer should have advanced
-      expect(true).toBe(true);
+      await waitFor(() => {
+        const calls = (global.mockFetch as jest.Mock).mock.calls.filter(
+          ([url]: any) => String(url).includes('/activity/heartbeat')
+        );
+        expect(calls.length).toBeGreaterThanOrEqual(2);
+      });
     });
 
     test('does not send heartbeat when disabled', async () => {
@@ -239,7 +232,7 @@ describe('useUserActivity Hook', () => {
         jest.advanceTimersByTime(60000);
       });
 
-      expect(addEventListenerSpy).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 
@@ -251,7 +244,10 @@ describe('useUserActivity Hook', () => {
 
       await waitFor(() => {
         expect(result.current.state).toBeTruthy();
-      }, { timeout: 5000 });
+      });
+
+      expect(result.current.state?.state).toBe('online');
+      expect(result.current.state?.manual_override).toBe(false);
     });
 
     test('calls onStateChange callback if provided', async () => {
@@ -263,7 +259,11 @@ describe('useUserActivity Hook', () => {
 
       await waitFor(() => {
         expect(onStateChange).toHaveBeenCalled();
-      }, { timeout: 5000 });
+      });
+
+      expect(onStateChange).toHaveBeenCalledWith(
+        expect.objectContaining({ state: 'online' })
+      );
     });
   });
 
@@ -277,9 +277,16 @@ describe('useUserActivity Hook', () => {
         await result.current.setManualOverride('away');
       });
 
+      // The mount heartbeat and the override both resolve to a state.
+      const overrideCall = (global.mockFetch as jest.Mock).mock.calls.find(
+        (call: any[]) =>
+          String(call[0]).includes('/activity/override') &&
+          call[1]?.method === 'POST'
+      );
+      expect(overrideCall).toBeDefined();
       await waitFor(() => {
         expect(result.current.state).toBeTruthy();
-      }, { timeout: 5000 });
+      });
     });
 
     test('includes expires_at if provided', async () => {
@@ -294,10 +301,19 @@ describe('useUserActivity Hook', () => {
         await result.current.setManualOverride('offline', expiresAt);
       });
 
-      // State should be updated
+      const overrideCall = (global.mockFetch as jest.Mock).mock.calls.find(
+        (call: any[]) =>
+          String(call[0]).includes('/activity/override') &&
+          call[1]?.method === 'POST'
+      );
+      expect(overrideCall).toBeDefined();
+      const body = JSON.parse(overrideCall[1].body);
+      expect(body.state).toBe('offline');
+      expect(body.expires_at).toBe('2024-12-31T23:59:59.000Z');
+
       await waitFor(() => {
         expect(result.current.state).toBeTruthy();
-      }, { timeout: 5000 });
+      });
     });
 
     test('clearManualOverride updates state', async () => {
@@ -309,9 +325,16 @@ describe('useUserActivity Hook', () => {
         await result.current.clearManualOverride();
       });
 
+      const clearCall = (global.mockFetch as jest.Mock).mock.calls.find(
+        (call: any[]) =>
+          String(call[0]).includes('/activity/override') &&
+          call[1]?.method === 'DELETE'
+      );
+      expect(clearCall).toBeDefined();
+
       await waitFor(() => {
         expect(result.current.state).toBeTruthy();
-      }, { timeout: 5000 });
+      });
     });
   });
 
@@ -426,43 +449,35 @@ describe('useUserActivity Hook', () => {
         // Suppress console output during test
       });
 
-      // Override handler to return network error
-      server.use(
-        rest.post('/api/users/:userId/activity/heartbeat', (req, res, ctx) => {
-          return res.networkError('Failed to connect');
-        })
+      // The mount heartbeat rejects; the hook logs the failure.
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
+        new Error('Failed to connect')
       );
 
       renderHook(() => useUserActivity({ userId: 'user-123' }));
 
-      // Wait for console.error to be called
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalled();
-      }, { timeout: 5000 });
+      });
 
       consoleSpy.mockRestore();
     });
 
     test('handles HTTP error responses', async () => {
-      // Override handler to return 500 error
-      server.use(
-        rest.post('/api/users/:userId/activity/heartbeat', (req, res, ctx) => {
-          return res(
-            ctx.status(500),
-            ctx.json({ error: 'Internal Server Error' })
-          );
-        })
-      );
+      // The mount heartbeat returns a 500 response; the hook sets an error.
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: async () => ({ error: 'Internal Server Error' }),
+      });
 
       const { result } = renderHook(() =>
         useUserActivity({ userId: 'user-123' })
       );
 
-      // Wait for error to be set (timeout after 5 seconds)
       await waitFor(() => {
         expect(result.current.error).toBeDefined();
-      }, { timeout: 5000 }).catch(() => {
-        // Test might timeout - that's okay, we're just checking it doesn't crash
       });
     });
   });
@@ -486,7 +501,7 @@ describe('useUserActivity Hook', () => {
         jest.advanceTimersByTime(60000);
       });
 
-      expect(addEventListenerSpy).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
     test('does not set up interval when disabled', async () => {
@@ -504,7 +519,7 @@ describe('useUserActivity Hook', () => {
         jest.runAllTimers();
       });
 
-      expect(addEventListenerSpy).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
     test('can toggle enabled state', async () => {
