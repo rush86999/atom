@@ -835,9 +835,9 @@ describe('Form Submission - Data Transmission', () => {
       // Checked checkbox sends boolean true
       expect(typeof submittedData.agree).toBe('boolean');
       expect(submittedData.agree).toBe(true);
-      // VALIDATED_BEHAVIOR: Unchecked checkbox sends empty string (not boolean false)
-      // This is a documented behavior difference from typical form submissions
-      expect(submittedData.opt_in).toBe('');
+      // Unchecked checkbox sends boolean false: InteractiveForm initializes
+      // checkboxes to false and stores e.target.checked on change.
+      expect(submittedData.opt_in).toBe(false);
     });
   });
 
