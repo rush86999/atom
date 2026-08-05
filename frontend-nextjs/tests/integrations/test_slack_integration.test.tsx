@@ -284,6 +284,15 @@ describe('SlackIntegration', () => {
 
     await screen.findByText(/#general/);
 
+    // The component fires loadChannels from BOTH checkConnection and the
+    // connected effect, so the loader can briefly flicker back in and unmount
+    // the rows between findByText and the click. Wait until the loader is
+    // fully gone (both loads settled) so the row is stable before clicking.
+    await waitFor(() => {
+      expect(screen.getByText(/#general/)).toBeInTheDocument();
+      expect(document.querySelector('.lucide-loader-2')).not.toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByText(/#general/));
 
     fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
@@ -375,6 +384,13 @@ describe('SlackIntegration', () => {
     render(<SlackIntegration />);
 
     await screen.findByText(/#general/);
+
+    // Wait for the double-fired loadChannels to settle (loader flicker) so
+    // the row is stable before clicking.
+    await waitFor(() => {
+      expect(screen.getByText(/#general/)).toBeInTheDocument();
+      expect(document.querySelector('.lucide-loader-2')).not.toBeInTheDocument();
+    });
 
     // Select a channel first so the toolbar Send Message button is enabled
     fireEvent.click(screen.getByText(/#general/));
