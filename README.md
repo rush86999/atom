@@ -85,6 +85,25 @@ Atom's routing layer now includes five gateway-grade features (all default ON, e
 
 ---
 
+## 🛡️ Production-Ready Security ✨ NEW (Aug 2026)
+
+A 10-phase hardening pass that makes self-hosted agents safe to run on your own infrastructure. Every agent tool call is now sandboxed by default, and every credential is encrypted at rest.
+
+| Layer | What you get | Default |
+|---|---|---|
+| **Default-on sandbox** | Filesystem scope, tool whitelist, tripwires, caps, KillRun — enforced on *every* dispatch path (agent loop, workflow, fleet), not just the meta-agent | on (kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false`) |
+| **Encrypted credentials** | OAuth integration tokens encrypted at rest (Fernet); production refuses to start without a key | on (fail-closed) |
+| **Per-agent capability bindings** | Zero-trust tool scoping at the dispatch layer — an agent can never exceed its tier floor | on (`["*"]` = unrestricted) |
+| **Outbound gatekeeper** | Rate limiting, response masking, HITL mutation approval on every external integration call | on |
+| **Data-taint tracking** | Restricted/confidential data observed in a run blocks external outbound actions (`VT_PROVENANCE`) | on |
+| **External MCP client** | Connect to arbitrary external MCP servers (Cloudflare "Server Portals"), not just hardcoded tools | on |
+
+Plus: credential-safe canvas fork & template sharing, per-canvas sandboxed Python runtime, and workspace-scoped curated context.
+
+[Security Hardening Overview →](docs/architecture/CLOUDFLARE_OS_SECURITY.md) · [Sandbox Layer →](docs/architecture/SANDBOX_LAYER.md) · [Data Protection →](docs/security/DATA_PROTECTION.md)
+
+---
+
 ## Atom vs Hermes Agent: Quick Comparison
 
 Hermes (Nous Research) is an open-source personal agent known for its memory-provider architecture. Atom adopted its strongest ideas (per-turn fact extraction, pre-compression hooks, circuit breaker, FTS5 search) and deliberately avoided its weakest (custom LLM-summarizing compressor — Hermes' own has 3 documented production bugs).
@@ -370,6 +389,7 @@ Four advanced multi-agent coordination patterns (derived from Cursor's swarm res
 - **Phase 4 — Zero-Trust Federation Identity**: DIDs + Verifiable Credentials + per-request verification at `/api/federation/*` (in-memory state; DB persistence is a documented follow-up).
 - **Phase 5 — Enhanced Orchestration**: Conductor Agent (5 execution strategies), validated Workflow State Machine with rollback, pub/sub Event Bus, 9-primitive composition templates — `POST /api/v1/workflows/conductor/execute`.
 - **Phase 6 — Gateway Features**: Token compression (RTK + session-dedup), LKGP sticky routing, fusion routing, MCP server, self-healing autofix, per-request header overrides, intent detector, domain classifier. All default ON, evidence-based. See [Token Compression](docs/architecture/TOKEN_COMPRESSION.md), [MCP Server](docs/architecture/MCP_SERVER.md), [Routing Strategies](docs/reference/ROUTING_STRATEGIES.md), [Self-Healing](docs/architecture/REQUEST_SELF_HEALING.md), [Routing Headers](docs/reference/ROUTING_HEADERS.md).
+- **Phase 7 — Production-Ready Security (P0–P9)**: Default-on sandbox enforcement for all dispatch paths, encrypted credentials at rest, per-agent capability bindings, outbound gatekeeper, data-taint tracking, credential-safe sharing/forking, external MCP client, per-canvas sandboxed runtime, workspace-scoped context. See [Security Hardening Overview](docs/architecture/CLOUDFLARE_OS_SECURITY.md).
 
 **Performance**: 27,000+ tests across unit, integration, E2E, and regression suites.
 

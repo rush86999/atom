@@ -28,6 +28,7 @@ System architecture, design patterns, and technical specifications.
 - **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** - One-pager on tuning env vars, score curve, per-agent opt-out
 
 ### Security & Sandbox Layers
+- **[Production-Ready Security Hardening (P0–P9)](CLOUDFLARE_OS_SECURITY.md)** ✨ NEW (Aug 2026) - Start here. Ten-phase hardening overview: default-on sandbox for all dispatch paths, encrypted credentials, per-agent capability bindings, outbound gatekeeper, data-taint tracking, credential-safe sharing, external MCP client, per-canvas runtime, workspace context.
 - **[Execution Sandbox Layer](SANDBOX_LAYER.md)** ✨ - Deterministic blast-radius
   layer (Rounds 43-47). Five phases: (A) policy + audit table, (B) filesystem
   scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM +

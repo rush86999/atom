@@ -5,7 +5,8 @@ Security best practices, compliance, and package security.
 ## 📚 Quick Navigation
 
 ### Core Security
-- **[Security Overview](SECURITY_OVERVIEW.md)** - Security architecture overview
+- **[Production-Ready Security Hardening (P0–P9)](../architecture/CLOUDFLARE_OS_SECURITY.md)** ✨ NEW (Aug 2026) — Start here. Ten-phase hardening: default-on sandbox for all dispatch paths, encrypted credentials at rest, per-agent capability bindings, outbound gatekeeper, data-taint tracking, credential-safe sharing, external MCP client, per-canvas runtime, workspace context.
+- **[Security Overview](SECURITY_OVERVIEW.md)** - Security architecture overview (historical Oct-2025 frontend audit; see the hardening overview above for the current backend posture)
 - **[Authentication](AUTHENTICATION.md)** - OAuth 2.0 and session management
 - **[Data Protection](DATA_PROTECTION.md)** - Encryption and secrets management
 - **[Compliance](COMPLIANCE.md)** - GDPR, SOC2, HIPAA considerations

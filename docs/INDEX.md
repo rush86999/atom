@@ -7,6 +7,12 @@
 
 ---
 
+## 🚀 Recent Updates (August 2026)
+
+- **Production-Ready Security Hardening (P0–P9)**: ✨ NEW - Ten-phase pass that makes self-hosted agents safe to run on your infrastructure. Every agent tool call is now sandboxed by default (shared `core/sandbox_gate.py` covers the legacy dispatch paths — agent loop, workflow, fleet, business — not just the meta-agent); OAuth integration tokens are encrypted at rest and fail-closed in production. Plus per-agent capability bindings, an outbound gatekeeper (rate limit / masking / HITL approval), data-taint tracking (`VT_PROVENANCE`), credential-safe canvas fork & template sharing, a real external MCP client (`/api/mcp/servers`), per-canvas sandboxed Python runtime, and workspace-scoped curated context. Kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false`. See [CLOUDFLARE_OS_SECURITY.md](architecture/CLOUDFLARE_OS_SECURITY.md), [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md), [DATA_PROTECTION.md](security/DATA_PROTECTION.md).
+
+---
+
 ## 🚀 Recent Updates (July 2026)
 
 - **Swarm Coordination & Stigmergic Field Guide**: ✨ NEW - Three advanced multi-agent coordination patterns from Cursor swarm research (2026), implemented in production:
