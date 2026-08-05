@@ -1124,7 +1124,8 @@ class WorkflowEngine:
 
         # Try primary service first
         primary_error = None
-        if service not in service_registry:
+        executor = service_registry.get(service)
+        if executor is None:
             # Try generic executor for catalog integrations
             try:
                 logger.info(f"Service {service} not in registry, attempting generic execution via catalog")
@@ -1136,42 +1137,46 @@ class WorkflowEngine:
                     "result": result,
                     "timestamp": datetime.now().isoformat(),
                     "execution_method": "generic_catalog_executor"
-                } 
+                }
             except Exception as e:
                 logger.warning(f"Generic execution failed or service not found in catalog: {e}")
-                raise ValueError(f"Unknown service: {service} (and generic execution failed: {e})")
-        
-        executor = service_registry[service]
-        try:
-            # Pass automation context if executor supports it
-            context = {
-                "workflow_id": step.get("workflow_id"),
-                "execution_id": step.get("execution_id")
-            }
-            
-            if timeout is not None and timeout > 0:
-                try:
-                    result = await asyncio.wait_for(executor(action, params, step.get("connection_id")), timeout=timeout)
-                except asyncio.TimeoutError:
-                    raise StepTimeoutError(
-                        f"Step {step['id']} timed out after {timeout} seconds",
-                        step_id=step['id'],
-                        timeout=timeout
-                    )
-            else:
-                result = await executor(action, params, step.get("connection_id"))
-            return {
-                "status": "success",
-                "service": service,
-                "action": action,
-                "result": result,
-                "timestamp": datetime.now().isoformat(),
-                "execution_method": "service_registry"
-            }
-        except Exception as e:
-            primary_error = e
-            logger.warning(f"Primary service {service}.{action} failed: {e}")
-            # Continue to fallback if available
+                # Record the failure and continue to the fallback path instead
+                # of raising — an unknown service with a fallback_service must
+                # still attempt the fallback.
+                primary_error = ValueError(
+                    f"Unknown service: {service} (and generic execution failed: {e})"
+                )
+        else:
+            try:
+                # Pass automation context if executor supports it
+                context = {
+                    "workflow_id": step.get("workflow_id"),
+                    "execution_id": step.get("execution_id")
+                }
+
+                if timeout is not None and timeout > 0:
+                    try:
+                        result = await asyncio.wait_for(executor(action, params, step.get("connection_id")), timeout=timeout)
+                    except asyncio.TimeoutError:
+                        raise StepTimeoutError(
+                            f"Step {step['id']} timed out after {timeout} seconds",
+                            step_id=step['id'],
+                            timeout=timeout
+                        )
+                else:
+                    result = await executor(action, params, step.get("connection_id"))
+                return {
+                    "status": "success",
+                    "service": service,
+                    "action": action,
+                    "result": result,
+                    "timestamp": datetime.now().isoformat(),
+                    "execution_method": "service_registry"
+                }
+            except Exception as e:
+                primary_error = e
+                logger.warning(f"Primary service {service}.{action} failed: {e}")
+                # Continue to fallback if available
 
         # If primary failed and fallback service is specified, try fallback
         if primary_error is not None and fallback_service and fallback_service in service_registry:
