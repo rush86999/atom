@@ -31,10 +31,21 @@ import { server } from '@/tests/mocks/server';
 // Mock WorkflowBuilder (heavy canvas component; only rendered in builder view)
 jest.mock('@/components/Automations/WorkflowBuilder', () => {
   return function MockWorkflowBuilder(props: any) {
+    const sampleData = {
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          position: { x: 0, y: 0 },
+          data: { label: 'Send Email', service: 'email', action: 'send' },
+        },
+      ],
+      edges: [],
+    };
     return (
       <div data-testid="workflow-builder">
         <div>Workflow Builder</div>
-        <button onClick={props.onSave}>Save</button>
+        <button onClick={() => props.onSave(sampleData)}>Save</button>
         <button onClick={props.onCancel}>Cancel</button>
       </div>
     );
@@ -483,5 +494,81 @@ describe('WorkflowAutomation', () => {
     expect(
       screen.queryByRole('heading', { name: /execute workflow: undefined/i })
     ).not.toBeInTheDocument();
+  });
+
+  // Test 17: saving from the Visual Builder must POST to the durable v1 store
+  // (/api/v1/workflows/workflows) so the workflow persists and appears in "My
+  // Workflows". Regression: it posted to /api/v1/workflow-ui/definitions which
+  // wrote to an in-memory mock — the workflow never appeared in the list.
+  test('saves a builder workflow and shows it in My Workflows', async () => {
+    let savedPayload: any = null;
+    server.use(
+      rest.post('/api/v1/workflows/workflows', (req, res, ctx) => {
+        savedPayload = req.body;
+        return res(
+          ctx.status(200),
+          ctx.json({
+            id: 'new-wf-1',
+            name: savedPayload.name,
+            description: savedPayload.description,
+            version: '1.0',
+            nodes: savedPayload.nodes,
+            connections: savedPayload.connections,
+            triggers: [],
+            enabled: true,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          })
+        );
+      }),
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        const list: any[] = [
+          {
+            id: 'w1',
+            name: 'Onboarding Flow',
+            description: 'New hire onboarding',
+            steps: [],
+            input_schema: { type: 'object', properties: {}, required: [] },
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            steps_count: 0,
+          },
+        ];
+        if (savedPayload) {
+          list.push({
+            id: 'new-wf-1',
+            name: savedPayload.name,
+            description: savedPayload.description,
+            steps: [],
+            input_schema: {},
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            steps_count: 0,
+          });
+        }
+        return res(ctx.status(200), ctx.json(list));
+      })
+    );
+
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+
+    // Open the Visual Builder and click Save (mock passes node-based data).
+    fireEvent.click(screen.getByRole('button', { name: /visual builder/i }));
+    await screen.findByTestId('workflow-builder');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // The save must hit the durable v1 endpoint with a node-based payload.
+    await waitFor(() => {
+      expect(savedPayload).not.toBeNull();
+      expect(savedPayload.nodes[0].title).toBe('Send Email');
+      expect(savedPayload.nodes[0].config.service).toBe('email');
+    });
+
+    // Switch back to Classic View and confirm the saved workflow shows up.
+    fireEvent.click(screen.getByRole('button', { name: /classic view/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText(/visual workflow/i);
   });
 });

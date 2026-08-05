@@ -315,50 +315,77 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       setLoading(true);
       const generatedName = `Visual Workflow ${new Date().toLocaleTimeString()}`;
 
-      const response = await fetch("/api/v1/workflow-ui/definitions", {
+      // Persist to the REAL workflow store (POST /api/v1/workflows/workflows →
+      // save_workflows, durable JSON). The v1 create endpoint accepts the
+      // node-based WorkflowDefinition shape ({nodes, connections}), which maps
+      // directly from the builder output — and "My Workflows" (same store) will
+      // show it. Previously this wrote to the in-memory MOCK_WORKFLOWS, so saved
+      // workflows never appeared in the list and were lost on restart/worker.
+      const token = localStorage.getItem('auth_token');
+      const nodes = (builderData.nodes || []).map((n: any) => ({
+        id: n.id,
+        type: n.type,
+        title: n.data?.label || n.id,
+        description: n.data?.description || "",
+        position: n.position || { x: 0, y: 0 },
+        config: {
+          service: n.data?.service,
+          action: n.data?.action,
+          ...(n.data?.parameters || {}),
+        },
+        connections: [],
+      }));
+      const connections = (builderData.edges || []).map((e: any) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+      }));
+
+      const response = await fetch("/api/v1/workflows/workflows", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           name: generatedName,
           description: "Created via Visual Builder",
-          definition: builderData,
+          version: "1.0",
+          nodes,
+          connections,
+          triggers: [],
+          enabled: true,
         }),
       });
       const data = await response.json();
-      if (data.success) {
+      if (data.id) {
         toast({
           title: "Workflow Saved",
           description: "Your visual workflow has been saved to the database.",
         });
-        await fetchWorkflowData(); // Refresh list
+        await fetchWorkflowData(); // Refresh list — now includes the new workflow
 
         // Update current selected workflow so builder has the ID
-        // (/api/v1/workflow-ui/definitions returns {success, workflow:{id}})
-        if (data.workflow?.id || data.workflow_id || data.id) {
-          const newId = data.workflow?.id || data.workflow_id || data.id;
-          const newWorkflow = {
-            id: newId,
-            name: generatedName,
-            description: "Created via Visual Builder",
-            steps: builderData.nodes.map((n: any) => ({
-              id: n.id,
-              name: n.data?.label || n.id,
-              type: n.type,
-              service: n.data?.service,
-              action: n.data?.action,
-              parameters: n.data
-            })),
-            input_schema: {},
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          setSelectedWorkflow(newWorkflow as WorkflowDefinition);
-        }
+        const newWorkflow = {
+          id: data.id,
+          name: generatedName,
+          description: "Created via Visual Builder",
+          steps: nodes.map((n: any) => ({
+            id: n.id,
+            name: n.title,
+            type: n.type,
+            service: n.config?.service,
+            action: n.config?.action,
+            parameters: n.config,
+          })),
+          input_schema: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        setSelectedWorkflow(newWorkflow as WorkflowDefinition);
 
       } else {
-        throw new Error(data.error || "Failed to save");
+        throw new Error(data.detail || data.error || "Failed to save");
       }
     } catch (e) {
       console.error("Save error", e);
@@ -794,6 +821,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
             }))
           } : undefined)}
           workflowId={selectedWorkflow?.id || selectedTemplate?.id}
+          onSave={handleBuilderSave}
         />
       ) : (
         /* Main Content */
