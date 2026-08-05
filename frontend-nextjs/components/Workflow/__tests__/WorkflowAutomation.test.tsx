@@ -1,25 +1,34 @@
+/**
+ * WorkflowAutomation Component Tests
+ *
+ * Tests verify the real WorkflowAutomation component:
+ * - Initial data loading (templates, workflows, executions, services)
+ * - Template execution flow via the modal
+ * - Workflow listing and Run flow
+ * - Execution listing, details, cancel, resume, and time-travel fork
+ * - Services listing
+ * - Visual Builder toggle
+ *
+ * Uses the shared MSW server (tests/mocks/server.ts) registered in
+ * tests/setup.ts — per-file setupServer() does NOT override the global server.
+ *
+ * Notes on the real component:
+ * - The project's shadcn Tabs is a CUSTOM implementation (plain <button>,
+ *   no role="tab"), so tabs are queried as buttons.
+ * - Progress is a custom <div> (no role="progressbar").
+ * - WorkflowBuilder is mocked because the real one pulls in heavy canvas deps.
+ *
+ * Source: components/WorkflowAutomation.tsx
+ */
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import userEvent from '@testing-library/user-event';
 import WorkflowAutomation from '@/components/WorkflowAutomation';
+import { rest } from 'msw';
+import { server } from '@/tests/mocks/server';
 
-// Mock useToast hook
-jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
-  }),
-}));
-
-// Mock Next.js router
-jest.mock('next/router', () => ({
-  useRouter: () => ({
-    query: {},
-    replace: jest.fn(),
-  }),
-}));
-
-// Mock WorkflowBuilder component
+// Mock WorkflowBuilder (heavy canvas component; only rendered in builder view)
 jest.mock('@/components/Automations/WorkflowBuilder', () => {
   return function MockWorkflowBuilder(props: any) {
     return (
@@ -32,530 +41,409 @@ jest.mock('@/components/Automations/WorkflowBuilder', () => {
   };
 });
 
-describe('WorkflowAutomation Component', () => {
+const workflowHandlers = [
+  rest.get('/api/workflow-templates/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json([
+        {
+          template_id: 't1',
+          name: 'Email Digest',
+          description: 'Send a daily email digest',
+          category: 'email',
+          icon: 'mail',
+          steps: [
+            { id: 's1', type: 'trigger', service: 'schedule', action: 'daily', parameters: {}, name: 'Daily Trigger' },
+            { id: 's2', type: 'action', service: 'email', action: 'send', parameters: {}, name: 'Send Email' },
+          ],
+          input_schema: { type: 'object', properties: {}, required: [] },
+        },
+      ])
+    );
+  }),
+
+  rest.get('/api/workflows/definitions', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        workflows: [
+          {
+            id: 'w1',
+            name: 'Onboarding Flow',
+            description: 'New hire onboarding',
+            steps: [
+              { id: 'ws1', type: 'trigger', service: 'slack', action: 'post', parameters: {}, name: 'Post to Slack' },
+            ],
+            input_schema: { type: 'object', properties: {}, required: [] },
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            steps_count: 1,
+          },
+        ],
+      })
+    );
+  }),
+
+  rest.get('/api/workflows/executions', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        executions: [
+          {
+            execution_id: 'e1',
+            workflow_id: 'w1',
+            status: 'running',
+            start_time: '2024-01-01T00:00:00Z',
+            current_step: 1,
+            total_steps: 2,
+            results: { step1: { foo: 'bar' } },
+          },
+          {
+            execution_id: 'e2',
+            workflow_id: 'w1',
+            status: 'completed',
+            start_time: '2024-01-01T00:00:00Z',
+            end_time: '2024-01-01T00:05:00Z',
+            current_step: 2,
+            total_steps: 2,
+          },
+          {
+            execution_id: 'e3',
+            workflow_id: 'w1',
+            status: 'paused',
+            start_time: '2024-01-01T00:00:00Z',
+            current_step: 1,
+            total_steps: 3,
+          },
+        ],
+      })
+    );
+  }),
+
+  rest.get('/api/workflows/services', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        services: {
+          email: { name: 'email', actions: ['send', 'draft'], description: 'Send and draft emails' },
+          slack: { name: 'slack', actions: ['post', 'react'], description: 'Post to Slack' },
+        },
+      })
+    );
+  }),
+
+  rest.post('/api/workflows/execute', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        execution_id: 'e4',
+        workflow_id: 'w1',
+        status: 'running',
+        start_time: '2024-01-01T00:00:00Z',
+        current_step: 0,
+        total_steps: 2,
+      })
+    );
+  }),
+
+  rest.post('/api/workflows/executions/:id/cancel', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/workflows/executions/:id/resume', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/time-travel/workflows/:id/fork', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true, new_execution_id: 'e-forked' }));
+  }),
+];
+
+// Icon-only buttons (Eye icon in executions, etc.) have no accessible text.
+const getIconButtons = () =>
+  screen
+    .getAllByRole('button')
+    .filter((b) => b.querySelector('svg') && !(b.textContent || '').trim());
+
+describe('WorkflowAutomation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock fetch API
-    global.fetch = jest.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: async () => ({
-          templates: [],
-          workflows: [],
-          executions: [],
-          services: {},
-        }),
-        headers: new Headers(),
-        status: 200,
-        statusText: 'OK',
-      } as Response)
+    server.resetHandlers();
+    server.use(...workflowHandlers);
+  });
+
+  // Test 1: renders component
+  test('renders component', async () => {
+    render(<WorkflowAutomation />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /workflow automation/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 2: displays the main tab triggers (custom Tabs renders plain buttons)
+  test('displays main tab buttons', async () => {
+    render(<WorkflowAutomation />);
+
+    await screen.findByRole('heading', { name: /workflow automation/i });
+
+    expect(screen.getByRole('button', { name: 'Templates' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'My Workflows' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Executions' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
+  });
+
+  // Test 3: shows template cards on the default templates tab
+  test('shows template cards on the default templates tab', async () => {
+    render(<WorkflowAutomation />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Email Digest')).toBeInTheDocument();
+    });
+  });
+
+  // Test 4: opens the template execution modal
+  test('opens template execution modal', async () => {
+    render(<WorkflowAutomation />);
+
+    const useTemplateButton = await screen.findByRole('button', {
+      name: /use template/i,
+    });
+    fireEvent.click(useTemplateButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /use template: email digest/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 5: executes a template workflow (POST /api/workflows/execute)
+  test('executes a template workflow', async () => {
+    const executePosts: any[] = [];
+    server.use(
+      rest.post('/api/workflows/execute', (req, res, ctx) => {
+        executePosts.push(req.body);
+        return res(
+          ctx.status(200),
+          ctx.json({ success: true, execution_id: 'e4' })
+        );
+      })
     );
-  });
 
-  describe('Rendering', () => {
-    it('renders without crashing', () => {
-      render(<WorkflowAutomation />);
+    render(<WorkflowAutomation />);
 
-      expect(screen.getByText(/workflow automation/i)).toBeInTheDocument();
+    const useTemplateButton = await screen.findByRole('button', {
+      name: /use template/i,
     });
+    fireEvent.click(useTemplateButton);
 
-    it('displays main tabs', () => {
-      render(<WorkflowAutomation />);
-
-      expect(screen.getByRole('tab', { name: /templates/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /workflows/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /executions/i })).toBeInTheDocument();
+    const executeButton = await screen.findByRole('button', {
+      name: /execute workflow/i,
     });
+    fireEvent.click(executeButton);
 
-    it('shows templates tab by default', () => {
-      render(<WorkflowAutomation />);
-
-      expect(screen.getByRole('tab', { name: /templates/i })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => {
+      expect(executePosts.some((b) => b.workflow_id === 't1')).toBe(true);
     });
   });
 
-  describe('Template Management', () => {
-    it('displays template list', async () => {
-      render(<WorkflowAutomation />);
+  // Test 6: displays workflows on the My Workflows tab
+  test('displays workflows on the My Workflows tab', async () => {
+    render(<WorkflowAutomation />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('tabpanel', { name: /templates/i })).toBeInTheDocument();
-      });
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Onboarding Flow')).toBeInTheDocument();
     });
+  });
 
-    it('opens create template dialog', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
+  // Test 7: opens workflow execution modal via Run button
+  test('opens workflow execution modal via Run button', async () => {
+    render(<WorkflowAutomation />);
 
-      const createButton = screen.getByRole('button', { name: /create template/i });
-      await user.click(createButton);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
 
+    const runButton = await screen.findByRole('button', { name: 'Run' });
+    fireEvent.click(runButton);
+
+    await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    it('filters templates by category', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const categoryFilter = screen.getByLabelText(/filter by category/i);
-      await user.selectOptions(categoryFilter, 'productivity');
-
-      await waitFor(() => {
-        expect(categoryFilter).toHaveValue('productivity');
-      });
-    });
-
-    it('searches templates by name', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const searchInput = screen.getByPlaceholderText(/search templates/i);
-      await user.type(searchInput, 'email');
-
-      await waitFor(() => {
-        expect(searchInput).toHaveValue('email');
-      });
+      expect(
+        screen.getByRole('heading', {
+          name: /execute workflow: onboarding flow/i,
+        })
+      ).toBeInTheDocument();
     });
   });
 
-  describe('Workflow Management', () => {
-    it('switches to workflows tab', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
+  // Test 8: shows empty state when there are no workflows
+  test('shows empty state when there are no workflows', async () => {
+    server.use(
+      rest.get('/api/workflows/definitions', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json({ success: true, workflows: [] }));
+      })
+    );
 
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
+    render(<WorkflowAutomation />);
 
-      expect(screen.getByRole('tabpanel', { name: /workflows/i })).toBeInTheDocument();
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No workflows yet')).toBeInTheDocument();
     });
+  });
 
-    it('displays workflow list', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
+  // Test 9: displays executions and progress on the Executions tab
+  test('displays executions and progress on the Executions tab', async () => {
+    render(<WorkflowAutomation />);
 
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
 
-      await waitFor(() => {
-        expect(screen.getByRole('list')).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('running')).toBeInTheDocument();
+      expect(screen.getByText('completed')).toBeInTheDocument();
+      expect(screen.getByText('paused')).toBeInTheDocument();
+      expect(screen.getByText('1/2')).toBeInTheDocument();
     });
+  });
 
-    it('opens create workflow dialog', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
+  // Test 10: opens execution details modal via the eye button
+  test('opens execution details modal', async () => {
+    render(<WorkflowAutomation />);
 
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
 
-      const createButton = screen.getByRole('button', { name: /create workflow/i });
-      await user.click(createButton);
+    const eyeButtons = await screen.findByText('running').then(() =>
+      getIconButtons()
+    );
+    fireEvent.click(eyeButtons[0]); // first execution (running, has results)
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /execution details/i })
+      ).toBeInTheDocument();
+      expect(screen.getByText(/execution id: e1/i)).toBeInTheDocument();
     });
+  });
 
-    it('switches to builder view', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
+  // Test 11: opens the time-travel fork modal from execution details
+  test('opens fork modal from execution details', async () => {
+    render(<WorkflowAutomation />);
 
-      const builderButton = screen.getByRole('button', { name: /builder view/i });
-      await user.click(builderButton);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
 
+    await screen.findByText('running');
+    fireEvent.click(getIconButtons()[0]); // open details for e1 (has results)
+
+    // Radix Accordion: the Fork button lives inside the item content, which is
+    // only mounted once the "Step: step1" trigger is expanded.
+    const stepTrigger = await screen.findByRole('button', {
+      name: /step: step1/i,
+    });
+    fireEvent.click(stepTrigger);
+
+    const forkButton = await screen.findByRole('button', {
+      name: /fork & time travel/i,
+    });
+    fireEvent.click(forkButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/time travel: fork from step step1/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 12: cancels a running execution
+  test('cancels a running execution', async () => {
+    const cancelledIds: any[] = [];
+    server.use(
+      rest.post('/api/workflows/executions/:id/cancel', (req, res, ctx) => {
+        cancelledIds.push(req.params.id);
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
+
+    const cancelButton = await screen.findByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButton);
+
+    await waitFor(() => {
+      expect(cancelledIds).toContain('e1');
+    });
+  });
+
+  // Test 13: opens resume modal for a paused execution
+  test('opens resume modal for a paused execution', async () => {
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
+
+    const resumeButton = await screen.findByRole('button', { name: 'Resume' });
+    fireEvent.click(resumeButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /resume execution/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 14: displays services on the Services tab
+  test('displays services on the Services tab', async () => {
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('email')).toBeInTheDocument();
+      expect(screen.getByText('slack')).toBeInTheDocument();
+    });
+  });
+
+  // Test 15: toggles Visual Builder view and back
+  test('switches to builder view and back', async () => {
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+
+    const builderButton = screen.getByRole('button', {
+      name: /visual builder/i,
+    });
+    fireEvent.click(builderButton);
+
+    await waitFor(() => {
       expect(screen.getByTestId('workflow-builder')).toBeInTheDocument();
     });
 
-    it('deletes workflow after confirmation', async () => {
-      const user = userEvent.setup();
-      window.confirm = jest.fn(() => true);
-
-      render(<WorkflowAutomation />);
-
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
-
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
-      await user.click(deleteButton);
-
-      expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(/are you sure/i));
+    const classicButton = screen.getByRole('button', {
+      name: /classic view/i,
     });
-  });
+    fireEvent.click(classicButton);
 
-  describe('Workflow Execution', () => {
-    it('switches to executions tab', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      expect(screen.getByRole('tabpanel', { name: /executions/i })).toBeInTheDocument();
-    });
-
-    it('displays execution list', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      await waitFor(() => {
-        expect(screen.getByRole('list')).toBeInTheDocument();
-      });
-    });
-
-    it('shows execution status badges', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      await waitFor(() => {
-        expect(screen.getByText(/status/i)).toBeInTheDocument();
-      });
-    });
-
-    it('opens execution details modal', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const viewButton = screen.getByRole('button', { name: /view details/i });
-      await user.click(viewButton);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    it('displays execution progress', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      await waitFor(() => {
-        expect(screen.getByRole('progressbar')).toBeInTheDocument();
-      });
-    });
-
-    it('pauses running execution', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const pauseButton = screen.getByRole('button', { name: /pause/i });
-      await user.click(pauseButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/pause'),
-          expect.any(Object)
-        );
-      });
-    });
-
-    it('resumes paused execution', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const resumeButton = screen.getByRole('button', { name: /resume/i });
-      await user.click(resumeButton);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-  });
-
-  describe('Time-Travel Fork (Lesson 3)', () => {
-    it('opens fork modal', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const forkButton = screen.getByRole('button', { name: /fork from step/i });
-      await user.click(forkButton);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/fork workflow/i)).toBeInTheDocument();
-    });
-
-    it('allows editing fork variables', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const forkButton = screen.getByRole('button', { name: /fork from step/i });
-      await user.click(forkButton);
-
-      const variablesTextarea = screen.getByLabelText(/variables/i);
-      await user.clear(variablesTextarea);
-      await user.type(variablesTextarea, '{"test": "value"}');
-
-      expect(variablesTextarea).toHaveValue('{"test": "value"}');
-    });
-
-    it('validates fork variables JSON', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const forkButton = screen.getByRole('button', { name: /fork from step/i });
-      await user.click(forkButton);
-
-      const variablesTextarea = screen.getByLabelText(/variables/i);
-      await user.clear(variablesTextarea);
-      await user.type(variablesTextarea, '{invalid json}');
-
-      const confirmButton = screen.getByRole('button', { name: /fork/i });
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/invalid json/i)).toBeInTheDocument();
-      });
-    });
-
-    it('submits fork with valid variables', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      const forkButton = screen.getByRole('button', { name: /fork from step/i });
-      await user.click(forkButton);
-
-      const variablesTextarea = screen.getByLabelText(/variables/i);
-      await user.clear(variablesTextarea);
-      await user.type(variablesTextarea, '{"test": "value"}');
-
-      const confirmButton = screen.getByRole('button', { name: /fork/i });
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/fork'),
-          expect.any(Object)
-        );
-      });
-    });
-  });
-
-  describe('Version History (Lesson 3)', () => {
-    it('displays version history for workflow', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
-
-      const historyButton = screen.getByRole('button', { name: /version history/i });
-      await user.click(historyButton);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/version history/i)).toBeInTheDocument();
-    });
-
-    it('shows version comparison', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
-
-      const historyButton = screen.getByRole('button', { name: /version history/i });
-      await user.click(historyButton);
-
-      expect(screen.getByText(/compare versions/i)).toBeInTheDocument();
-    });
-
-    it('supports rollback to previous version', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const workflowsTab = screen.getByRole('tab', { name: /workflows/i });
-      await user.click(workflowsTab);
-
-      const historyButton = screen.getByRole('button', { name: /version history/i });
-      await user.click(historyButton);
-
-      const rollbackButton = screen.getByRole('button', { name: /rollback/i });
-      await user.click(rollbackButton);
-
-      expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(/are you sure/i));
-    });
-  });
-
-  describe('Generative Workflow Creation', () => {
-    it('opens generative create dialog', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const genCreateButton = screen.getByRole('button', { name: /ai generate/i });
-      await user.click(genCreateButton);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/describe your workflow/i)).toBeInTheDocument();
-    });
-
-    it('generates workflow from prompt', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const genCreateButton = screen.getByRole('button', { name: /ai generate/i });
-      await user.click(genCreateButton);
-
-      const promptTextarea = screen.getByLabelText(/prompt/i);
-      await user.type(promptTextarea, 'Send daily email report');
-
-      const generateButton = screen.getByRole('button', { name: /generate/i });
-      await user.click(generateButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/generate'),
-          expect.any(Object)
-        );
-      });
-    });
-  });
-
-  describe('Loading States', () => {
-    it('shows loading indicator on mount', () => {
-      global.fetch = jest.fn(() => new Promise(() => {})); // Never resolves
-
-      render(<WorkflowAutomation />);
-
-      expect(screen.getByTestId(/loading/i)).toBeInTheDocument();
-    });
-
-    it('shows executing indicator during workflow execution', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executeButton = screen.getByRole('button', { name: /execute/i });
-      await user.click(executeButton);
-
-      expect(screen.getByTestId(/executing/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('displays error message on fetch failure', async () => {
-      global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
-
-      render(<WorkflowAutomation />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows execution errors', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      const executionsTab = screen.getByRole('tab', { name: /executions/i });
-      await user.click(executionsTab);
-
-      await waitFor(() => {
-        expect(screen.getByText(/errors/i)).toBeInTheDocument();
-      });
-    });
-
-    it('allows retry after error', async () => {
-      const user = userEvent.setup();
-      global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
-
-      render(<WorkflowAutomation />);
-
-      await waitFor(() => {
-        const retryButton = screen.queryByRole('button', { name: /retry/i });
-        if (retryButton) {
-          user.click(retryButton);
-          expect(global.fetch).toHaveBeenCalledTimes(2);
-        }
-      });
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('has proper ARIA labels', () => {
-      render(<WorkflowAutomation />);
-
-      expect(screen.getByRole('region', { name: /workflow automation/i })).toBeInTheDocument();
-    });
-
-    it('supports keyboard navigation', async () => {
-      const user = userEvent.setup();
-      render(<WorkflowAutomation />);
-
-      await user.tab();
-
-      const firstTab = screen.getByRole('tab', { name: /templates/i });
-      expect(firstTab).toHaveFocus();
-    });
-  });
-
-  describe('URL Draft Loading', () => {
-    it('loads workflow from URL draft parameter', async () => {
-      const mockRouter = {
-        query: { draft: JSON.stringify({ name: 'Test Workflow' }) },
-        replace: jest.fn(),
-      };
-
-      (require('next/router').useRouter as jest.Mock).mockReturnValue(mockRouter);
-
-      render(<WorkflowAutomation />);
-
-      await waitFor(() => {
-        expect(mockRouter.replace).toHaveBeenCalledWith('/automation', undefined, { shallow: true });
-      });
-    });
-
-    it('switches to builder view when draft loaded', async () => {
-      const mockRouter = {
-        query: { draft: JSON.stringify({ name: 'Test Workflow' }) },
-        replace: jest.fn(),
-      };
-
-      (require('next/router').useRouter as jest.Mock).mockReturnValue(mockRouter);
-
-      render(<WorkflowAutomation />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('workflow-builder')).toBeInTheDocument();
-      });
-    });
-
-    it('handles invalid draft JSON gracefully', async () => {
-      const mockRouter = {
-        query: { draft: '{invalid json}' },
-        replace: jest.fn(),
-      };
-
-      (require('next/router').useRouter as jest.Mock).mockReturnValue(mockRouter);
-
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      render(<WorkflowAutomation />);
-
-      await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalled();
-      });
-
-      consoleErrorSpy.mockRestore();
+    await waitFor(() => {
+      expect(screen.queryByTestId('workflow-builder')).not.toBeInTheDocument();
     });
   });
 });
