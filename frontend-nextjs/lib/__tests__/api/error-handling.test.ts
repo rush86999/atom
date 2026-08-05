@@ -9,24 +9,32 @@
  * - Request abortion
  * - Chunked transfer encoding errors
  * - Error boundary integration
+ *
+ * The apiClient retry interceptor backs off (1s, 2s, ...) on retryable errors,
+ * which made the 5xx scenarios take tens of seconds. @lifeomic/attempt's retry
+ * is replaced with an immediate single attempt so those tests resolve fast.
+ * Handlers are registered on the shared tests/mocks/server with wildcard-origin
+ * paths (e.g. a "star" + "/api/health" glob) because relative paths never match
+ * the absolute http://127.0.0.1:8000 URLs the apiClient requests in MSW 1.x.
  */
 
 import apiClient, { systemAPI } from '@/lib/api';
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/tests/mocks/server';
 
-// Type definitions for error responses
-interface ErrorResponse {
-  success: false;
-  error: string;
-  message: string;
-  details?: any;
-}
+// The apiClient retry interceptor calls retry() from @lifeomic/attempt with
+// exponential backoff on retryable (5xx/network) errors. Swap it for an
+// immediate single attempt so 503/500 scenarios don't sleep through the
+// backoff. Retry timing is covered separately in retry-logic.test.ts.
+jest.mock('@lifeomic/attempt', () => ({
+  retry: async (attemptFn: () => Promise<any>) => attemptFn(),
+}));
 
-// MSW setup
-const server = setupServer(
-  // Health endpoint for basic connectivity tests
-  rest.get('/api/health', (req, res, ctx) => {
+// Base handlers guarantee every axios request is intercepted. An axios XHR
+// request with NO matching handler hangs in this MSW setup, so the endpoints
+// the apiClient hits must always have a handler registered.
+const baseHandlers = [
+  rest.get('*/api/health', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -35,9 +43,7 @@ const server = setupServer(
       })
     );
   }),
-
-  // Test endpoint for various error scenarios
-  rest.get('/api/test/error', (req, res, ctx) => {
+  rest.get('*/api/test/error', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -46,54 +52,35 @@ const server = setupServer(
       })
     );
   }),
+];
 
-  // POST endpoint for testing request body preservation
-  rest.post('/api/test/error', async (req, res, ctx) => {
-    const body = await req.json();
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        data: body,
-      })
-    );
-  }),
-);
-
-// Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
-afterEach(() => server.resetHandlers());
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' });
+  server.use(...baseHandlers);
+});
+afterEach(() => server.resetHandlers(...baseHandlers));
 afterAll(() => server.close());
 
-// Mock console.error to avoid cluttering test output
-const originalError = console.error;
+// Suppress console noise (retry logging + [API Error] logging)
+let consoleLogSpy: any;
+let consoleErrorSpy: any;
+
 beforeEach(() => {
-  console.error = jest.fn();
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 });
+
 afterEach(() => {
-  console.error = originalError;
+  consoleLogSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
 });
 
 describe('API Error Handling - Network Failures', () => {
-  // Suppress console.log for retry messages during tests
-  let consoleLogSpy: any;
-  let consoleErrorSpy: any;
-
-  beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleLogSpy?.mockRestore();
-    consoleErrorSpy?.mockRestore();
-  });
-
   describe('1. Offline/Network Unreachable', () => {
     it('should handle network error gracefully', async () => {
-      // Mock network unreachable error with 503 (Node.js/jsdom compatible)
+      // Simulate service unavailable (503) via a matching MSW handler
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({
@@ -121,7 +108,7 @@ describe('API Error Handling - Network Failures', () => {
 
     it('should show user-friendly error message for network failure', async () => {
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({
@@ -156,7 +143,7 @@ describe('API Error Handling - Network Failures', () => {
       process.on('unhandledRejection', unhandledRejectionSpy);
 
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({
@@ -252,7 +239,7 @@ describe('API Error Handling - Network Failures', () => {
       // User can retry (simulate with second call)
       try {
         await systemAPI.getHealth();
-        // Should succeed on retry
+        // Should succeed on retry (base 200 handler is in place)
       } catch (error) {
         expect(true).toBe(false, 'Should have succeeded on retry');
       }
@@ -303,9 +290,10 @@ describe('API Error Handling - Network Failures', () => {
     });
 
     it('should show user-friendly message for connection refused', async () => {
+      // The apiClient surfaces a 503 as a rejected promise carrying the
+      // response; assert on the rejected error's response shape.
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
-          // Simulate connection refused with 503
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({ error: 'Service Unavailable' })
@@ -313,10 +301,16 @@ describe('API Error Handling - Network Failures', () => {
         })
       );
 
-      const response = await systemAPI.getHealth();
-      // Should get a 503 response (not an exception)
-      expect(response.status).toBe(503);
-      expect(response.data.error).toBeDefined();
+      let caught: any;
+      try {
+        await systemAPI.getHealth();
+        expect(true).toBe(false, 'Should have thrown on 503');
+      } catch (error: any) {
+        caught = error;
+      }
+
+      expect(caught.response.status).toBe(503);
+      expect(caught.response.data.error).toBeDefined();
     });
   });
 
@@ -475,7 +469,7 @@ describe('API Error Handling - Network Failures', () => {
   describe('6. Chunked Transfer Encoding Errors', () => {
     it('should handle incomplete chunked responses', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           // Return incomplete response
           return res(
             ctx.status(200),
@@ -499,7 +493,7 @@ describe('API Error Handling - Network Failures', () => {
 
     it('should handle partial data gracefully', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           // Simulate truncated response
           return res(
             ctx.status(200),
@@ -521,7 +515,7 @@ describe('API Error Handling - Network Failures', () => {
     it('should verify chunked response size handling', async () => {
       // Test with very small chunk
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Transfer-Encoding', 'chunked'),
@@ -539,7 +533,7 @@ describe('API Error Handling - Network Failures', () => {
   describe('7. Error Boundary Integration', () => {
     it('should not crash app for normal API errors', async () => {
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(404),
             ctx.json({ success: false, error: 'Not found' })
@@ -568,7 +562,7 @@ describe('API Error Handling - Network Failures', () => {
 
     it('should handle errors during response parsing', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           // Return malformed response
           return res(
             ctx.status(200),
@@ -590,7 +584,7 @@ describe('API Error Handling - Network Failures', () => {
 
     it('should not crash on null/undefined error responses', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(null)
@@ -605,7 +599,7 @@ describe('API Error Handling - Network Failures', () => {
 
     it('should handle errors in error response itself', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           // Return error with malformed error object
           return res(
             ctx.status(500),
@@ -618,15 +612,21 @@ describe('API Error Handling - Network Failures', () => {
         })
       );
 
-      const response = await apiClient.get('/api/test/error');
-      expect(response.data).toBeDefined();
-      // Should handle gracefully
-      expect(response.status).toBe(500);
+      // 500 is retryable; the client rejects with the response attached.
+      let caught: any;
+      try {
+        await apiClient.get('/api/test/error');
+        expect(true).toBe(false, 'Should have thrown on 500');
+      } catch (error: any) {
+        caught = error;
+      }
+
+      expect(caught.response.status).toBe(500);
     }, 10000);
 
     it('should handle catastrophic parsing errors without crash', async () => {
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           // Return completely invalid response
           return res(
             ctx.status(200),
@@ -651,7 +651,7 @@ describe('API Error Handling - Network Failures', () => {
       let callCount = 0;
 
       server.use(
-        rest.get('/api/test/error', (req, res, ctx) => {
+        rest.get('*/api/test/error', (req, res, ctx) => {
           callCount++;
           if (callCount === 1) {
             // First call: catastrophic error
@@ -690,7 +690,7 @@ describe('API Error Handling - Network Failures', () => {
       let firstCallFailed = false;
 
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({ error: 'Service Unavailable' })
@@ -712,7 +712,7 @@ describe('API Error Handling - Network Failures', () => {
       let failureCount = 0;
 
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({ error: 'Service Unavailable' })
@@ -736,7 +736,7 @@ describe('API Error Handling - Network Failures', () => {
       let networkDown = true;
 
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           if (networkDown) {
             return res(
               ctx.status(503),
@@ -761,7 +761,7 @@ describe('API Error Handling - Network Failures', () => {
       // Network restored - update handler
       networkDown = false;
       server.use(
-        rest.get('/api/health', (req, res, ctx) => {
+        rest.get('*/api/health', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ status: 'healthy' })
