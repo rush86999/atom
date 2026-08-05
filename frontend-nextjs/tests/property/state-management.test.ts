@@ -271,13 +271,20 @@ describe('State Management Property Tests', () => {
   /**
    * INVARIANT: useCanvasState should initialize with null state
    * Before subscription, state should be null
+   *
+   * Note: when called WITHOUT a canvasId the hook loads the initial
+   * canvas list via api.getAllStates() on mount, so allStates reflects
+   * the seeded mock canvases rather than being empty.
    */
   describe('useCanvasState Hook Invariants', () => {
     it('should return initial state on first render', () => {
       const { result } = renderHook(() => useCanvasState());
 
       expect(result.current.state).toBeNull();
-      expect(result.current.allStates).toEqual([]);
+      expect(result.current.allStates).toEqual([
+        { canvas_id: 'canvas-1', state: { type: 'generic', data: { title: 'Test Canvas' } } },
+        { canvas_id: 'canvas-2', state: { type: 'chart', data: { series: [1, 2, 3] } } }
+      ]);
       expect(typeof result.current.getState).toBe('function');
       expect(typeof result.current.getAllStates).toBe('function');
     });
