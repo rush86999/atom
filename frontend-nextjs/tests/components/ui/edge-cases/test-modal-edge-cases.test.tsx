@@ -57,8 +57,9 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      // Should not throw errors
-      expect(handleClose).toHaveBeenCalled();
+      // Toggling isOpen mounts/unmounts the modal without invoking onClose.
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(handleClose).not.toHaveBeenCalled();
     });
 
     it('should handle close before animation completes', async () => {
@@ -69,15 +70,16 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      // Trigger close immediately
+      // Trigger close immediately — the Modal has no close animation and
+      // unmounts right away, so onClose is never invoked.
       rerender(
         <Modal isOpen={false} onClose={handleClose}>
           <div>Modal Content</div>
         </Modal>
       );
 
-      // Should handle gracefully
-      expect(handleClose).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(handleClose).not.toHaveBeenCalled();
     });
 
     it('should handle multiple close triggers', async () => {
@@ -88,16 +90,21 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      const backdrop = document.querySelector('.fixed.inset-0');
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      // The close button is an icon-only <X> (lucide) with no accessible
+      // name; the backdrop is the .transition-opacity layer (the outer
+      // wrapper also carries .fixed.inset-0).
+      const backdrop = document.querySelector('.transition-opacity');
+      const closeButton = document.querySelector('.lucide-x')?.closest('button');
 
       // Click both backdrop and close button
       if (backdrop) {
         fireEvent.click(backdrop);
       }
-      fireEvent.click(closeButton);
+      if (closeButton) {
+        fireEvent.click(closeButton);
+      }
 
-      // Should handle multiple close triggers
+      // Both clicks trigger onClose
       expect(handleClose).toHaveBeenCalled();
     });
   });
@@ -137,8 +144,11 @@ describe('Modal Edge Cases', () => {
         </>
       );
 
-      const closeButton2 = screen.getAllByRole('button', { name: /close/i })[1];
-      fireEvent.click(closeButton2);
+      // Close buttons are icon-only (lucide X) with no accessible name;
+      // [1] is the second (top) modal's button in DOM order.
+      const closeButtons = document.querySelectorAll('.lucide-x');
+      const closeButton2 = closeButtons[1]?.closest('button');
+      fireEvent.click(closeButton2 as HTMLButtonElement);
 
       expect(handleClose2).toHaveBeenCalled();
     });
@@ -234,8 +244,8 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      const closeButton = screen.getByRole('button', { name: /close/i });
-      fireEvent.click(closeButton);
+      const closeButton = document.querySelector('.lucide-x')?.closest('button');
+      fireEvent.click(closeButton as HTMLButtonElement);
 
       expect(handleClose).toHaveBeenCalled();
     });
@@ -270,8 +280,8 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      const closeButton = screen.getByRole('button', { name: /close/i });
-      fireEvent.click(closeButton);
+      const closeButton = document.querySelector('.lucide-x')?.closest('button');
+      fireEvent.click(closeButton as HTMLButtonElement);
 
       await waitFor(() => {
         expect(handleClose).toHaveBeenCalled();
@@ -305,20 +315,24 @@ describe('Modal Edge Cases', () => {
         resolveAction = resolve;
       });
 
-      render(
+      const { rerender } = render(
         <Modal isOpen={true} onClose={handleClose} title="Async Modal">
           <button onClick={() => asyncAction.then(() => {})}>Submit</button>
         </Modal>
       );
 
-      const { rerender } = render(
+      // Parent closes the modal while the async action is still pending.
+      // The Modal unmounts immediately and must not throw.
+      rerender(
         <Modal isOpen={false} onClose={handleClose} title="Async Modal">
           <button onClick={() => asyncAction.then(() => {})}>Submit</button>
         </Modal>
       );
 
-      // Should handle gracefully
-      expect(handleClose).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      // Resolve the pending action to avoid dangling promises
+      resolveAction?.();
     });
   });
 
@@ -331,12 +345,14 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      const backdrop = document.querySelector('.fixed.inset-0');
+      // The backdrop is the .transition-opacity layer (the outer wrapper also
+      // carries .fixed.inset-0, so a plain '.fixed.inset-0' match would hit
+      // the non-clickable wrapper).
+      const backdrop = document.querySelector('.transition-opacity');
       if (backdrop) {
         fireEvent.click(backdrop);
       }
 
-      // Should handle gracefully
       expect(handleClose).toHaveBeenCalled();
     });
 
@@ -348,20 +364,16 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      // Start closing
+      // Start closing — the Modal has no close animation and unmounts
+      // immediately, so there is no backdrop left to click.
       rerender(
         <Modal isOpen={false} onClose={handleClose}>
           <div>Content</div>
         </Modal>
       );
 
-      const backdrop = document.querySelector('.fixed.inset-0');
-      if (backdrop) {
-        fireEvent.click(backdrop);
-      }
-
-      // Should handle gracefully
-      expect(handleClose).toHaveBeenCalled();
+      expect(document.querySelector('.transition-opacity')).toBeNull();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
@@ -387,7 +399,8 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      // Start closing
+      // Start closing — the keydown listener is removed on unmount, so a
+      // later ESC press no longer triggers onClose.
       rerender(
         <Modal isOpen={false} onClose={handleClose}>
           <div>Content</div>
@@ -396,8 +409,8 @@ describe('Modal Edge Cases', () => {
 
       fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
 
-      // Should handle gracefully
-      expect(handleClose).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(handleClose).not.toHaveBeenCalled();
     });
   });
 
@@ -441,14 +454,16 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      // Parent closes modal
+      // Parent closes modal — isOpen={false} unmounts the modal without
+      // invoking onClose (the parent controls it via props).
       rerender(
         <Modal isOpen={false} onClose={handleClose}>
           <div>Content</div>
         </Modal>
       );
 
-      expect(handleClose).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(handleClose).not.toHaveBeenCalled();
     });
   });
 
@@ -544,7 +559,8 @@ describe('Modal Edge Cases', () => {
         </Modal>
       );
 
-      expect(document.body.style.overflow).toBe('');
+      // The Modal's effect cleanup sets overflow to 'unset' (not '').
+      expect(document.body.style.overflow).toBe('unset');
     });
   });
 
