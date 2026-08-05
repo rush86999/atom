@@ -1,186 +1,136 @@
 /**
- * HubSpot Predictive Analytics Component Tests
+ * HubSpotPredictiveAnalytics Component Tests
  *
- * Test suite for HubSpot predictive lead scoring and CRM analytics
+ * Tests verify the real HubSpotPredictiveAnalytics component
+ * (components/integrations/hubspot/HubSpotPredictiveAnalytics.tsx) — a pure
+ * props-driven analytics dashboard. It makes no network calls (no MSW
+ * handlers needed); models / predictions / forecast are passed in as props.
  */
 
 import React from 'react';
-import { renderWithProviders, screen, waitFor } from '../../../../tests/test-utils';
-import userEvent from '@testing-library/user-event';
-import { rest } from 'msw';
-import { server } from '@/tests/mocks/server';
-import HubSpotPredictiveAnalytics from '../HubSpotPredictiveAnalytics';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import HubSpotPredictiveAnalytics from '@/components/integrations/hubspot/HubSpotPredictiveAnalytics';
 
-describe('HubSpotPredictiveAnalytics Component', () => {
-  beforeEach(() => {
-    server.resetHandlers();
+const mockModels = [
+  {
+    id: 'm1',
+    name: 'Conversion Model',
+    type: 'conversion' as const,
+    accuracy: 85.5,
+    lastTrained: '2026-04-20',
+    status: 'active' as const,
+    features: ['email', 'company'],
+    performance: { precision: 0.85, recall: 0.8, f1Score: 0.82, auc: 0.88 },
+  },
+];
+
+const mockPredictions = [
+  {
+    contactId: 'contact-123456',
+    prediction: 0.85,
+    confidence: 90,
+    factors: [{ feature: 'email_engagement', impact: 0.5, value: 'high' }],
+    recommendation: 'Contact within 24 hours',
+    timeframe: '7d',
+  },
+];
+
+const mockForecast = [
+  {
+    period: '2026-04',
+    predicted: 50000,
+    lowerBound: 45000,
+    upperBound: 55000,
+    confidence: 85,
+  },
+  {
+    period: '2026-05',
+    predicted: 55000,
+    actual: 53000,
+    lowerBound: 50000,
+    upperBound: 60000,
+    confidence: 80,
+  },
+];
+
+describe('HubSpotPredictiveAnalytics', () => {
+  // Test 1: renders component with no props (defaults to empty data)
+  test('renders component', () => {
+    render(<HubSpotPredictiveAnalytics />);
+
+    expect(
+      screen.getByRole('heading', { name: /predictive analytics/i })
+    ).toBeInTheDocument();
   });
 
-  it('renders HubSpot predictive analytics component', () => {
-    renderWithProviders(<HubSpotPredictiveAnalytics />);
-    expect(screen.getByText(/hubspot|predictive|analytics/i)).toBeInTheDocument();
-  });
-
-  it('renders predictive analytics dashboard', () => {
-    renderWithProviders(<HubSpotPredictiveAnalytics />);
-    expect(screen.getByText('Predictive Analytics')).toBeInTheDocument();
-  });
-
-  it('shows metric cards/charts', () => {
-    const mockModels = [
-      {
-        id: '1',
-        name: 'Conversion Model',
-        type: 'conversion' as const,
-        accuracy: 85,
-        lastTrained: '2026-04-20',
-        status: 'active' as const,
-        features: ['email', 'company'],
-        performance: { precision: 0.85, recall: 0.80, f1Score: 0.82, auc: 0.88 }
-      }
-    ];
-
-    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
-
-    expect(screen.getByText('Active Models')).toBeInTheDocument();
-    expect(screen.getByText('Forecast Performance')).toBeInTheDocument();
-  });
-
-  it('handles loading state', () => {
-    renderWithProviders(<HubSpotPredictiveAnalytics />);
-    // Component should render without crashing even with empty props
-    expect(screen.getByText('Predictive Analytics')).toBeInTheDocument();
-  });
-
-  it('handles empty data state', () => {
-    renderWithProviders(<HubSpotPredictiveAnalytics models={[]} predictions={[]} forecast={[]} />);
+  // Test 2: shows empty state when no models are available
+  test('shows empty state when no models', () => {
+    render(<HubSpotPredictiveAnalytics models={[]} predictions={[]} forecast={[]} />);
 
     expect(screen.getByText('No Models Available')).toBeInTheDocument();
   });
 
-  it('formats values correctly (percentages, currency, etc)', () => {
-    const mockModels = [
-      {
-        id: '1',
-        name: 'Test Model',
-        type: 'conversion' as const,
-        accuracy: 85.5,
-        lastTrained: '2026-04-20',
-        status: 'active' as const,
-        features: [],
-        performance: { precision: 0.85, recall: 0.80, f1Score: 0.82, auc: 0.88 }
-      }
-    ];
+  // Test 3: displays active models with status and accuracy
+  test('displays active models', () => {
+    render(<HubSpotPredictiveAnalytics models={mockModels} />);
 
-    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
+    expect(screen.getByText('Active Models')).toBeInTheDocument();
+    expect(screen.getByText('Conversion Model')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Accuracy')).toBeInTheDocument();
+  });
+
+  // Test 4: formats model accuracy and precision percentages
+  test('formats values correctly', () => {
+    render(<HubSpotPredictiveAnalytics models={mockModels} />);
 
     expect(screen.getByText('85.5%')).toBeInTheDocument();
     expect(screen.getByText('85.0%')).toBeInTheDocument(); // precision
   });
 
-  it('displays model selection dropdown', () => {
-    const mockModels = [
-      {
-        id: 'model-1',
-        name: 'Conversion Model',
-        type: 'conversion' as const,
-        accuracy: 85,
-        lastTrained: '2026-04-20',
-        status: 'active' as const,
-        features: [],
-        performance: { precision: 0.85, recall: 0.80, f1Score: 0.82, auc: 0.88 }
-      }
-    ];
-
-    renderWithProviders(<HubSpotPredictiveAnalytics models={mockModels} />);
+  // Test 5: displays the model selection dropdown
+  test('displays model selection dropdown', () => {
+    render(<HubSpotPredictiveAnalytics models={mockModels} />);
 
     expect(screen.getByText('Prediction Model')).toBeInTheDocument();
     expect(screen.getByText('Timeframe')).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: 'Conversion Model (conversion)' })
+    ).toBeInTheDocument();
   });
 
-  it('displays predictions table when data available', () => {
-    const mockPredictions = [
-      {
-        contactId: 'contact-123',
-        prediction: 0.85,
-        confidence: 90,
-        factors: [{ feature: 'email_engagement', impact: 0.5, value: 'high' }],
-        recommendation: 'Contact within 24 hours',
-        timeframe: '7d'
-      }
-    ];
-
-    renderWithProviders(<HubSpotPredictiveAnalytics predictions={mockPredictions} />);
+  // Test 6: displays predictions table when data is available
+  test('displays predictions table', () => {
+    render(<HubSpotPredictiveAnalytics predictions={mockPredictions} />);
 
     expect(screen.getByText('Recent Predictions')).toBeInTheDocument();
+    expect(screen.getByText('1 High Confidence')).toBeInTheDocument();
+    expect(screen.getByText('Contact #123456')).toBeInTheDocument();
+    expect(screen.getByText('Contact within 24 hours')).toBeInTheDocument();
   });
 
-  it('fetches lead scoring data', async () => {
-    server.use(
-      rest.get('/api/integrations/hubspot/lead-scores', (req, res, ctx) => {
-        return res(
-          ctx.status(200),
-          ctx.json({
-            success: true,
-            leads: [
-              { id: '1', email: 'test@example.com', score: 85, likelihood: 0.92 },
-            ],
-          })
-        );
-      })
-    );
-
-    renderWithProviders(<HubSpotPredictiveAnalytics connected={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/lead score|predictive score/i)).toBeInTheDocument();
-    });
-  });
-
-  it('displays CRM sync status', async () => {
-    server.use(
-      rest.get('/api/integrations/hubspot/sync-status', (req, res, ctx) => {
-        return res(
-          ctx.status(200),
-          ctx.json({
-            success: true,
-            status: 'synced',
-            lastSync: new Date().toISOString(),
-          })
-        );
-      })
-    );
-
-    renderWithProviders(<HubSpotPredictiveAnalytics connected={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/synced|last sync/i)).toBeInTheDocument();
-    });
-  });
-
-  it('displays forecast visualization', () => {
-    const mockForecast = [
-      {
-        period: '2026-04',
-        predicted: 50000,
-        lowerBound: 45000,
-        upperBound: 55000,
-        confidence: 85
-      },
-      {
-        period: '2026-05',
-        predicted: 55000,
-        actual: 53000,
-        lowerBound: 50000,
-        upperBound: 60000,
-        confidence: 80
-      }
-    ];
-
-    renderWithProviders(<HubSpotPredictiveAnalytics forecast={mockForecast} />);
+  // Test 7: displays forecast visualization
+  test('displays forecast visualization', () => {
+    render(<HubSpotPredictiveAnalytics forecast={mockForecast} />);
 
     expect(screen.getByText('Revenue Forecast')).toBeInTheDocument();
     expect(screen.getByText('$50,000')).toBeInTheDocument();
-    expect(screen.getByText('$53,000')).toBeInTheDocument(); // actual value
+    expect(screen.getByText('Actual: $53,000')).toBeInTheDocument();
+  });
+
+  // Test 8: displays forecast performance metrics
+  test('displays forecast performance', () => {
+    render(
+      <HubSpotPredictiveAnalytics
+        models={mockModels}
+        predictions={mockPredictions}
+        forecast={mockForecast}
+      />
+    );
+
+    expect(screen.getByText('Forecast Performance')).toBeInTheDocument();
+    expect(screen.getByText('Forecast Accuracy')).toBeInTheDocument();
+    expect(screen.getByText('Active Predictions')).toBeInTheDocument();
   });
 });
