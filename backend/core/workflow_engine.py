@@ -122,8 +122,13 @@ class WorkflowEngine:
         in_degree = {n: 0 for n in nodes}
         
         for conn in connections:
-            source = conn["source"]
-            target = conn["target"]
+            source = conn.get("source")
+            target = conn.get("target")
+            if source is None or target is None:
+                # Malformed connection (missing source/target) must not crash
+                # the whole conversion — skip it and continue.
+                logger.warning("Ignoring malformed connection: %s", conn)
+                continue
             if source in adj and target in in_degree:
                 adj[source].append(target)
                 in_degree[target] += 1
