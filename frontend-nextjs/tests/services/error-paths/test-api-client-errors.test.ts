@@ -13,12 +13,17 @@
 
 import { fetchWithErrorHandling } from '@/lib/api';
 
-// Mock fetch globally
+// Mock fetch globally. Assigned in beforeEach (not at module load) because the
+// shared MSW server registered in tests/setup.ts installs its FetchInterceptor
+// in a global beforeAll, capturing whatever fetch is on globalThis at that
+// moment and replacing it with the patched fetch. Assigning here in beforeEach
+// runs AFTER that beforeAll, so it overwrites the interceptor with the plain
+// jest.fn() mock and keeps all requests off the real network.
 const mockFetch = jest.fn();
-global.fetch = mockFetch as any;
 
 describe('API Client Error Paths', () => {
   beforeEach(() => {
+    global.fetch = mockFetch as any;
     mockFetch.mockClear();
   });
 
