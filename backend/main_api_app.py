@@ -1352,6 +1352,11 @@ app.include_router(user_templates_router)
 # so every /api/boards call from the frontend Kanban page 404'd.
 board_router = safe_import_router("api.board_routes")
 app.include_router(board_router)
+
+# Nav stub routes — endpoints for sidebar nav items that had no backend
+# endpoint (tasks, support tickets, communication analytics, integration health).
+nav_stub_router = safe_import_router("api.nav_stub_routes")
+app.include_router(nav_stub_router)
 app.include_router(workflow_versioning_router)
 app.include_router(protection_router)
 app.include_router(platform_webhook_router)

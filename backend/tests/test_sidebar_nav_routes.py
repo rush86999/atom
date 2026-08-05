@@ -61,10 +61,7 @@ class TestCoreNavRoutes:
         _assert_reachable(client, "get", "/api/boards")
 
     def test_tasks_list(self, client):
-        # KNOWN GAP: /api/v1/tasks endpoint doesn't exist on the backend yet.
-        # The Tasks page (TaskManagement.tsx) calls it but gets 404.
-        # Requires backend implementation — not a URL fix.
-        pytest.skip("Backend endpoint /api/v1/tasks not yet implemented")
+        _assert_reachable(client, "get", "/api/v1/tasks")
 
     def test_agents_list(self, client):
         _assert_reachable(client, "get", "/api/agents/")
@@ -86,15 +83,13 @@ class TestCommandCenterRoutes:
         _assert_reachable(client, "get", "/api/intelligence/insights")
 
     def test_support_tickets(self, client):
-        # KNOWN GAP: support tickets endpoint doesn't exist yet.
-        pytest.skip("Backend endpoint /api/atom/communication/live/support/tickets not yet implemented")
+        _assert_reachable(client, "get", "/api/atom/communication/live/support/tickets")
 
     def test_knowledge_entities(self, client):
         _assert_reachable(client, "get", "/api/intelligence/entities")
 
     def test_communication_analytics(self, client):
-        # KNOWN GAP: communication analytics endpoint doesn't exist yet.
-        pytest.skip("Backend endpoint /api/atom/communication/memory/analytics not yet implemented")
+        _assert_reachable(client, "get", "/api/atom/communication/memory/analytics")
 
 
 # ============================================================================
@@ -142,9 +137,7 @@ class TestGovernanceNavRoutes:
 
 class TestPlatformNavRoutes:
     def test_integrations_health(self, client):
-        # KNOWN GAP: the frontend calls /api/integrations/{provider}/health
-        # but the backend has /api/slack/health (different prefix pattern).
-        pytest.skip("Integration health endpoint URL mismatch — needs backend unification")
+        _assert_reachable(client, "get", "/api/integrations/slack/health")
 
     def test_settings_preferences(self, client):
         _assert_reachable(client, "get", "/api/v1/preferences",
