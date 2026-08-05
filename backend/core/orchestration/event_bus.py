@@ -413,7 +413,17 @@ class EventBus:
         # Find matching subscriptions
         subscription_ids = self._type_index.get(event.event_type, [])
 
+        # BUG-118: If this is a retry, only deliver to subscribers in
+        # _pending_retries — skip those that already succeeded.
+        pending = getattr(event, '_pending_retries', None)
+
         for sub_id in subscription_ids:
+            # Skip already-delivered subscribers on retry
+            if pending is not None and sub_id not in pending:
+                continue
+            # Clear from pending on delivery attempt
+            if pending is not None:
+                pending.discard(sub_id)
             if sub_id not in self._subscriptions:
                 continue
 
@@ -448,9 +458,16 @@ class EventBus:
                     event.failed_deliveries.get(subscription.subscriber_id, 0) + 1
                 )
 
-                # Retry logic
+                # Retry logic — BUG-118: Previously re-queued the shared event
+                # object, which re-delivered to ALL subscribers (including
+                # those that already succeeded) on every retry cycle. Now
+                # only re-delivers to the failing subscriber by recording
+                # pending retries and filtering in the delivery loop.
                 if event.failed_deliveries[subscription.subscriber_id] < self.config.max_retry_attempts:
-                    # Re-queue for retry
+                    # Mark this subscriber as needing retry on the event
+                    if not hasattr(event, '_pending_retries'):
+                        event._pending_retries = set()
+                    event._pending_retries.add(subscription.subscriber_id)
                     self._delivery_queue.put(event)
 
     def get_events(

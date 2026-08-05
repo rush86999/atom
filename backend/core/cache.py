@@ -482,14 +482,27 @@ class UniversalCacheService:
 
     async def delete_tenant_all(self, pattern_or_tenant_id: str) -> int:
         """[ASYNC] Delete keys by pattern or tenant ID."""
-        self.async_local_cache.clear()
-        self.sync_local_cache.clear()
+        # BUG-117: Previously called .clear() on BOTH local caches unconditionally,
+        # wiping ALL tenants' data just to purge one. Now scopes the local cache
+        # deletion to only keys matching the tenant prefix.
+        tenant_prefix = pattern_or_tenant_id if ":" in pattern_or_tenant_id else f"tenant:{pattern_or_tenant_id}:"
+
+        # Scoped local cache deletion — only delete keys matching this tenant
+        async with self.async_local_cache._lock:
+            keys_to_delete = [k for k in self.async_local_cache._store.keys() if k.startswith(tenant_prefix)]
+            for k in keys_to_delete:
+                self.async_local_cache._store.pop(k, None)
+
+        with self.sync_local_cache._lock:
+            keys_to_delete = [k for k in self.sync_local_cache._store.keys() if k.startswith(tenant_prefix)]
+            for k in keys_to_delete:
+                self.sync_local_cache._store.pop(k, None)
 
         if not self.enabled: return 0
 
         if self.client:
             try:
-                pattern = pattern_or_tenant_id if ":" in pattern_or_tenant_id else f"tenant:{pattern_or_tenant_id}:*"
+                pattern = f"{tenant_prefix}*"
                 keys = [k for k in self.client.scan_iter(match=pattern)]
                 if keys: return self.client.delete(*keys)
             except Exception as _e: logger.debug("cache op failed: %s", _e, exc_info=True)

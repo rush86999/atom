@@ -164,16 +164,38 @@ class CognitiveClassifier:
         """
         complexity_score = 0
 
-        # 1. Token-based scoring (adjusted for better tier mapping)
+        # 1. Token-based scoring — BUG-116: Previously added token weight
+        # unconditionally, so a trivially simple but long prompt (e.g. repeated
+        # "hello") scored HEAVY. Now the token contribution is capped when
+        # strong "simple" signals are detected (checked first).
         estimated_tokens = self._estimate_tokens(prompt)
+
+        # Check for simple-pattern signals BEFORE applying token weight
+        # so they can gate the token contribution.
+        simple_signals = 0
+        for pattern, weight in self._compiled_patterns.values():
+            if pattern.search(prompt):
+                if weight < 0:  # "simple" patterns have negative weight
+                    simple_signals += abs(weight)
+
+        # Apply token weight, but if the prompt has strong simplicity signals,
+        # cap the token contribution so a long-but-simple prompt doesn't
+        # get routed to an expensive model.
+        token_score = 0
         if estimated_tokens >= 5000:
-            complexity_score += 8
+            token_score = 8
         elif estimated_tokens >= 2000:
-            complexity_score += 5
+            token_score = 5
         elif estimated_tokens >= 500:
-            complexity_score += 3
+            token_score = 3
         elif estimated_tokens >= 100:
-            complexity_score += 1
+            token_score = 1
+
+        # If simple signals are present, token weight can add at most +1
+        # (prevents simple-but-long prompts from being routed to HEAVY).
+        if simple_signals >= 2:
+            token_score = min(token_score, 1)
+        complexity_score += token_score
 
         # 2. Semantic pattern matching
         for pattern, weight in self._compiled_patterns.values():

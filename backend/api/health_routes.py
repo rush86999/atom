@@ -196,12 +196,19 @@ async def _check_database() -> Dict[str, Any]:
     """
     start_time = datetime.now()
     try:
-        # Run database check with timeout
-        db = get_db()
-        result = await asyncio.wait_for(
-            _execute_db_query(db),
-            timeout=DB_TIMEOUT_SECONDS
-        )
+        # Run database check with timeout — BUG-115: Previously used
+        # next(get_db()) which suspended the generator and never ran the
+        # finally:db.close() → leaked one session per probe. Now creates
+        # and closes the session explicitly.
+        from core.database import SessionLocal
+        db_session = SessionLocal()
+        try:
+            result = await asyncio.wait_for(
+                _execute_db_query_session(db_session),
+                timeout=DB_TIMEOUT_SECONDS
+            )
+        finally:
+            db_session.close()
 
         latency_ms = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -234,11 +241,9 @@ async def _check_database() -> Dict[str, Any]:
         }
 
 
-async def _execute_db_query(db) -> bool:
-    """Execute SELECT 1 query to verify database connectivity."""
+async def _execute_db_query_session(db_session) -> bool:
+    """Execute SELECT 1 query to verify database connectivity (BUG-115 fix)."""
     try:
-        # Use next() to get the generator value from get_db()
-        db_session = next(db)
         result = db_session.execute(text("SELECT 1"))
         return result.fetchone() is not None
     except Exception as e:
