@@ -317,3 +317,43 @@ written first (red), the root cause confirmed, then the minimal fix applied
   to the target's, but never updated the target's — so two cards shared one
   sort_order and rendered in nondeterministic order after reload.
 - **Fix:** Swap the two tasks' sort_orders so neither collides.
+
+---
+
+## Round 6 — End-to-end TDD bug hunt (token/crypto/DoS)
+
+### BUG-028 — decode_token skips token revocation (logged-out tokens valid on sync paths)
+- **Flow:** Synchronous auth helper (backend, security)
+- **Symptom:** `decode_token` (used by security_dependencies, auth_helpers,
+  device_websocket) decoded the JWT and returned the payload with NO
+  `is_token_revoked` check — unlike `get_current_user` and `get_current_user_ws`.
+  A revoked (logged-out) JWT stayed valid on those code paths until 24h expiry.
+- **Test:** `tests/test_decode_token_revocation.py` (2 tests: revoked→None, valid→payload)
+- **Fix:** Added `is_token_revoked(payload.get("jti"))` check to `decode_token`.
+
+### BUG-029 — Unbounded `limit` in agent history endpoint (DoS / OOM)
+- **Flow:** Agent execution history list (backend API)
+- **Symptom:** `GET /api/agents/history` accepted `limit` with no upper bound.
+  A client could request `limit=999999999` and the endpoint materialized the
+  entire `agent_executions` table into ORM objects → OOM. Violated the
+  documented "limit: max 100" contract.
+- **Fix:** `Query(50, ge=1, le=100)` bounds the limit.
+
+### BUG-030 — Unbounded `limit` + negative `offset` in document list endpoint
+- **Flow:** Document list (backend API)
+- **Symptom:** `GET /api/documents` accepted unbounded `limit` (whole-table
+  materialization) and unvalidated negative `offset` (undefined behavior on LanceDB).
+- **Test:** `tests/test_list_endpoint_bounds.py` (6 tests: agent + document, reject-over-max, reject-below-min/negative, accept-valid)
+- **Fix:** `Query(100, ge=1, le=100)` for limit; `Query(0, ge=0)` for offset.
+
+### BUG-031 — lib/crypto.ts AES-256-CBC with no authentication (tampering silently accepted)
+- **Flow:** Frontend token encryption (security)
+- **Symptom:** `encrypt`/`decrypt` used unauthenticated AES-256-CBC. Flipping
+  one bit in the IV deterministically flipped the corresponding bit of the
+  first plaintext block, and `decrypt` returned the modified plaintext with no
+  error. Tampered/decayed encrypted tokens decrypted to wrong-but-plausible
+  values instead of failing.
+- **Test:** `lib/__tests__/crypto.test.ts` (tampered-IV-must-throw case)
+- **Fix:** Switched to AES-256-GCM (authenticated). Format is now
+  `iv_hex:tag_hex:ciphertext_hex`; the auth tag is verified on decrypt, so any
+  tampering throws.

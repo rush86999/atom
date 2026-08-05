@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional
 import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
-from fastapi import BackgroundTasks, Depends
+from fastapi import BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -66,7 +66,7 @@ class HITLApprovalRequest(BaseModel):
 
 @router.get("/history")
 async def get_agent_execution_history(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100, description="Max results (capped at 100)"),
     user: User = Depends(require_permission(Permission.AGENT_VIEW)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

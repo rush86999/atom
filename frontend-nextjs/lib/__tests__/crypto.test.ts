@@ -26,15 +26,16 @@ describe('crypto', () => {
       expect(encrypted1).not.toBe(encrypted2);
     });
 
-    it('should include IV in the encrypted output', () => {
+    it('should include IV and auth tag in the encrypted output', () => {
       const plaintext = 'Test message';
       const encrypted = encrypt(plaintext);
 
-      // Format: IV:encrypted_text
+      // Format: IV:auth_tag:encrypted_text (GCM authenticated encryption)
       expect(encrypted).toContain(':');
       const parts = encrypted.split(':');
-      expect(parts.length).toBe(2);
+      expect(parts.length).toBe(3);
       expect(parts[0].length).toBe(32); // 16 bytes IV = 32 hex chars
+      expect(parts[1].length).toBe(32); // 16 bytes GCM auth tag = 32 hex chars
     });
 
     it('should handle empty strings', () => {
@@ -163,6 +164,24 @@ describe('crypto', () => {
 
       expect(() => {
         decrypt(corrupted);
+      }).toThrow();
+    });
+
+    it('should reject tampered IV/ciphertext (authenticated encryption)', () => {
+      // Flip ONE bit in the IV. With unauthenticated CBC, this silently flips
+      // the corresponding bit of the first plaintext block and decrypt returns
+      // the modified plaintext with NO error. Authenticated encryption (GCM)
+      // must detect the tampering and throw.
+      const plaintext = 'SECRET_API_TOKEN_123';
+      const encrypted = encrypt(plaintext);
+      const parts = encrypted.split(':');
+      const ivHex = parts[0];
+      const ivBytes = Buffer.from(ivHex, 'hex');
+      ivBytes[0] ^= 0x01; // flip one bit
+      const tampered = ivBytes.toString('hex') + ':' + parts.slice(1).join(':');
+
+      expect(() => {
+        decrypt(tampered);
       }).toThrow();
     });
 

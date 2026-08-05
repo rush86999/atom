@@ -343,8 +343,8 @@ async def delete_document(
 
 @router.get("")
 async def list_documents(
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(100, ge=1, le=100, description="Max results (capped at 100)"),
+    offset: int = Query(0, ge=0, description="Skip offset (must be >= 0)"),
     current_user: User = Depends(get_current_user)
 ):
     """List recent documents"""

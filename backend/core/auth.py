@@ -254,6 +254,14 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Token revocation check (logout). Mirrors get_current_user and
+        # get_current_user_ws — without this, a revoked (logged-out) JWT stayed
+        # valid for any code path using this synchronous helper
+        # (security_dependencies, auth_helpers, device_websocket).
+        token_jti = payload.get("jti")
+        if is_token_revoked(token_jti):
+            logger.warning(f"Rejected revoked token in decode_token (jti={token_jti})")
+            return None
         return payload
     except JWTError as e:
         logger.warning(f"Failed to decode token: {e}")
