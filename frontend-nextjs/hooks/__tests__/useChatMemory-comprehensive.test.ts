@@ -1,560 +1,602 @@
+/**
+ * useChatMemory Hook Comprehensive Tests
+ *
+ * The real useChatMemory hook (hooks/useChatMemory.ts) takes a config object
+ * ({ userId, sessionId, enableMemory, autoStoreMessages, contextWindow }) and
+ * returns { memories, memoryContext, memoryStats, isLoading, error,
+ * storeMemory, getMemoryContext, clearSessionMemory, refreshMemoryStats,
+ * hasRelevantContext, contextRelevanceScore }.
+ *
+ * Important: when enableMemory is true the hook fetches /api/chat/memory/stats
+ * on mount (a useEffect). That mount call consumes the first queued fetch mock,
+ * so every test that queues a mockResolvedValueOnce for a later call must also
+ * queue a leading mount-stats mock.
+ */
+
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useChatMemory } from '../useChatMemory';
 
-// Mock API calls
-const mockSaveMemory = jest.fn();
-const mockLoadMemory = jest.fn();
-const mockClearMemory = jest.fn();
-
-// Mock local storage
-const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-};
-
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-  writable: true,
+const statsOk = (overrides: Record<string, unknown> = {}) => ({
+  ok: true,
+  json: async () => ({
+    status: 'success',
+    shortTermMemoryCount: 0,
+    userPatternCount: 0,
+    activeSessions: 0,
+    totalMemoryAccesses: 0,
+    lancedbAvailable: true,
+    ...overrides,
+  }),
 });
 
-describe('useChatMemory Hook', () => {
+const storeOk = (memoryId = 'mem-1') => ({
+  ok: true,
+  json: async () => ({
+    status: 'success',
+    memory_id: memoryId,
+  }),
+});
+
+const baseMemory = {
+  userId: 'user-1',
+  sessionId: 'session-1',
+  role: 'user' as const,
+  content: 'Test message',
+  metadata: {
+    messageType: 'text' as const,
+    importance: 0.5,
+    accessCount: 0,
+    lastAccessed: new Date(),
+  },
+};
+
+describe('useChatMemory Hook (comprehensive)', () => {
   beforeEach(() => {
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
     jest.clearAllMocks();
-    mockLocalStorage.getItem.mockReturnValue(null);
   });
 
   describe('Memory Initialization', () => {
-    it('initializes with empty memory', () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('initializes with empty memories array', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
-      expect(result.current.messages).toEqual([]);
+      expect(result.current.memories).toEqual([]);
+    });
+
+    it('initializes with null memoryContext', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      expect(result.current.memoryContext).toBeNull();
+    });
+
+    it('initializes with null memoryStats', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      expect(result.current.memoryStats).toBeNull();
+    });
+
+    it('initializes with isLoading false', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
       expect(result.current.isLoading).toBe(false);
+    });
+
+    it('initializes with error null', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
       expect(result.current.error).toBeNull();
     });
 
-    it('initializes with existing memory from storage', () => {
-      const existingMemory = {
-        messages: [
-          { id: '1', role: 'user', content: 'Hello' },
-          { id: '2', role: 'assistant', content: 'Hi there!' },
-        ],
-        metadata: { createdAt: Date.now() },
-      };
+    it('fetches memory stats on mount when enableMemory is true', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce(statsOk());
 
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(existingMemory));
+      renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      expect(result.current.messages).toHaveLength(2);
-      expect(result.current.messages[0].content).toBe('Hello');
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/chat/memory/stats?user_id=user-1'
+        );
+      });
     });
 
-    it('handles corrupted storage data gracefully', () => {
-      mockLocalStorage.getItem.mockReturnValue('invalid-json');
+    it('does not fetch stats on mount when enableMemory is false', () => {
+      renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
 
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      // Should initialize with empty state instead of crashing
-      expect(result.current.messages).toEqual([]);
-      expect(result.current.error).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('handles different chat sessions independently', () => {
-      const { result: result1 } = renderHook(() => useChatMemory('chat-1'));
-      const { result: result2 } = renderHook(() => useChatMemory('chat-2'));
+      const { result: result1 } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
+      const { result: result2 } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-2', enableMemory: false })
+      );
 
-      expect(result1.current.messages).not.toBe(result2.current.messages);
+      expect(result1.current.memories).not.toBe(result2.current.memories);
     });
   });
 
-  describe('Message Management', () => {
-    it('adds user message to memory', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+  describe('Memory Storage', () => {
+    it('stores a memory via the backend API', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(storeOk());
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Hello',
+        await result.current.storeMemory(baseMemory);
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/chat/memory/store',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('Test message'),
+        })
+      );
+    });
+
+    it('adds the stored memory to the local memories array', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(storeOk('mem-1'))
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 1 }));
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true, contextWindow: 10 })
+      );
+
+      await act(async () => {
+        await result.current.storeMemory(baseMemory);
+      });
+
+      expect(result.current.memories.length).toBe(1);
+      expect(result.current.memories[0].content).toBe('Test message');
+      expect(result.current.memories[0].id).toBe('mem-1');
+    });
+
+    it('limits memories to contextWindow size', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValue(storeOk(`mem-${Math.random()}`))
+        .mockResolvedValueOnce(statsOk());
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true, contextWindow: 3 })
+      );
+
+      for (let i = 0; i < 5; i++) {
+        await act(async () => {
+          await result.current.storeMemory({
+            ...baseMemory,
+            content: `Message ${i}`,
+          });
         });
-      });
+      }
 
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('user');
-      expect(result.current.messages[0].content).toBe('Hello');
+      expect(result.current.memories.length).toBe(3);
     });
 
-    it('adds assistant message to memory', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('sets error when the store call fails', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({
-          role: 'assistant',
-          content: 'Hi there!',
-        });
+        await result.current.storeMemory(baseMemory);
       });
 
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('assistant');
+      expect(result.current.error).toBe('Network error');
     });
 
-    it('adds system message to memory', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('does not store when enableMemory is false', async () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
 
       await act(async () => {
-        await result.current.addMessage({
-          role: 'system',
-          content: 'System message',
-        });
+        await result.current.storeMemory(baseMemory);
       });
 
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('system');
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it('assigns unique IDs to messages', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('refreshes stats after a successful store', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(storeOk())
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 1 }));
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'First' });
-        await result.current.addMessage({ role: 'assistant', content: 'Second' });
+        await result.current.storeMemory(baseMemory);
       });
 
-      expect(result.current.messages[0].id).toBeDefined();
-      expect(result.current.messages[1].id).toBeDefined();
-      expect(result.current.messages[0].id).not.toBe(result.current.messages[1].id);
-    });
-
-    it('adds timestamps to messages', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      const beforeTime = Date.now();
-
-      await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
-      });
-
-      const afterTime = Date.now();
-
-      expect(result.current.messages[0].timestamp).toBeDefined();
-      expect(result.current.messages[0].timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(result.current.messages[0].timestamp).toBeLessThanOrEqual(afterTime);
-    });
-
-    it('maintains message order', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'First' });
-        await result.current.addMessage({ role: 'assistant', content: 'Second' });
-        await result.current.addMessage({ role: 'user', content: 'Third' });
-      });
-
-      expect(result.current.messages[0].content).toBe('First');
-      expect(result.current.messages[1].content).toBe('Second');
-      expect(result.current.messages[2].content).toBe('Third');
+      // mount stats + store + post-store stats
+      expect(global.fetch).toHaveBeenCalledTimes(3);
     });
   });
 
-  describe('Memory Persistence', () => {
-    it('saves messages to local storage', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
-      });
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+  describe('Memory Context', () => {
+    const contextResponse = (overrides: Record<string, unknown>) => ({
+      ok: true,
+      json: async () => ({
+        status: 'success',
+        context: {
+          shortTermMemories: [],
+          longTermMemories: [],
+          userPatterns: [],
+          conversationSummary: 'Summary',
+          relevanceScore: 0.5,
+          ...overrides,
+        },
+      }),
     });
 
-    it('loads messages from local storage on mount', () => {
-      const savedMessages = [
-        { id: '1', role: 'user', content: 'Saved message', timestamp: Date.now() },
+    it('retrieves memory context via the backend API', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(contextResponse({}));
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      await act(async () => {
+        await result.current.getMemoryContext('Current message');
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/chat/memory/context',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Current message'),
+        })
+      );
+    });
+
+    it('sets memoryContext from the API response', async () => {
+      const mockMemories = [
+        { id: 'mem-1', content: 'Message 1', role: 'user' },
+        { id: 'mem-2', content: 'Message 2', role: 'assistant' },
       ];
 
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(savedMessages));
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(
+          contextResponse({ shortTermMemories: mockMemories, relevanceScore: 0.8 })
+        );
 
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].content).toBe('Saved message');
-    });
-
-    it('clears memory from storage', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
-        await result.current.clearMemory();
-      });
-
-      expect(result.current.messages).toEqual([]);
-      expect(mockLocalStorage.removeItem).toHaveBeenCalled();
-    });
-
-    it('handles storage errors gracefully', async () => {
-      mockLocalStorage.setItem.mockImplementation(() => {
-        throw new Error('Storage error');
-      });
-
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
+        await result.current.getMemoryContext('Test');
       });
 
-      // Should not throw, but handle error
-      expect(result.current.error).toBeDefined();
+      expect(result.current.memoryContext?.shortTermMemories).toEqual(mockMemories);
+      expect(result.current.memoryContext?.relevanceScore).toBe(0.8);
+    });
+
+    it('returns a disabled context when enableMemory is false', async () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
+
+      let context: any;
+      await act(async () => {
+        context = await result.current.getMemoryContext('Test');
+      });
+
+      expect(context.shortTermMemories).toEqual([]);
+      expect(context.conversationSummary).toBe('Memory system disabled');
+      expect(context.relevanceScore).toBe(0);
+    });
+
+    it('returns an empty context (not null) on error', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockRejectedValueOnce(new Error('API error'));
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      let context: any;
+      await act(async () => {
+        context = await result.current.getMemoryContext('Test');
+      });
+
+      expect(context).not.toBeNull();
+      expect(context.shortTermMemories).toEqual([]);
+      expect(context.conversationSummary).toBe('Memory context unavailable');
     });
   });
 
-  describe('Message History Management', () => {
-    it('limits message history to max size', async () => {
-      const MAX_MESSAGES = 50;
+  describe('Session Management', () => {
+    it('clears session memory via the backend API', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'success' }) })
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 0 }));
 
       const { result } = renderHook(() =>
-        useChatMemory('test-chat', { maxMessages: MAX_MESSAGES })
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
       );
 
-      // Add more messages than max
-      for (let i = 0; i < MAX_MESSAGES + 10; i++) {
-        await act(async () => {
-          await result.current.addMessage({
-            role: 'user',
-            content: `Message ${i}`,
-          });
-        });
-      }
-
-      // Should not exceed max
-      expect(result.current.messages.length).toBeLessThanOrEqual(MAX_MESSAGES);
-    });
-
-    it('removes oldest messages when limit is reached', async () => {
-      const MAX_MESSAGES = 5;
-
-      const { result } = renderHook(() =>
-        useChatMemory('test-chat', { maxMessages: MAX_MESSAGES })
-      );
-
-      // Add messages beyond limit
-      for (let i = 0; i < MAX_MESSAGES + 2; i++) {
-        await act(async () => {
-          await result.current.addMessage({
-            role: 'user',
-            content: `Message ${i}`,
-          });
-        });
-      }
-
-      // First message should be removed
-      expect(result.current.messages[0].content).toBe('Message 2');
-      expect(result.current.messages.length).toBe(MAX_MESSAGES);
-    });
-
-    it('clears old messages based on time', async () => {
-      const MAX_AGE_MS = 1000 * 60 * 60; // 1 hour
-
-      const { result } = renderHook(() =>
-        useChatMemory('test-chat', { maxAge: MAX_AGE_MS })
-      );
-
-      // Add old message
       await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Old message',
-          timestamp: Date.now() - MAX_AGE_MS - 1000,
-        });
+        await result.current.clearSessionMemory();
       });
 
-      // Add recent message
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/chat/memory/session/session-1',
+        expect.objectContaining({ method: 'DELETE' })
+      );
+    });
+
+    it('clears the local memories array on clear', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk()) // mount stats
+        .mockResolvedValueOnce(storeOk()) // store
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 1 })) // post-store stats
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'success' }) }) // clear
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 0 })); // post-clear stats
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
       await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Recent message',
-          timestamp: Date.now(),
-        });
+        await result.current.storeMemory(baseMemory);
       });
 
-      // Should only have recent message
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].content).toBe('Recent message');
+      expect(result.current.memories.length).toBe(1);
+
+      await act(async () => {
+        await result.current.clearSessionMemory();
+      });
+
+      expect(result.current.memories).toEqual([]);
+    });
+
+    it('clears memoryContext on clear', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'success' }),
+      });
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      // Set context (mockResolvedValue serves every call; context payload has no
+      // `context` field so memoryContext becomes undefined, which is not null).
+      await act(async () => {
+        await result.current.getMemoryContext('Test');
+      });
+
+      expect(result.current.memoryContext).not.toBeNull();
+
+      await act(async () => {
+        await result.current.clearSessionMemory();
+      });
+
+      expect(result.current.memoryContext).toBeNull();
+    });
+
+    it('refreshes stats after clear', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk()) // mount stats
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'success' }) }) // clear
+        .mockResolvedValueOnce(statsOk({ shortTermMemoryCount: 0 })); // post-clear stats
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      await act(async () => {
+        await result.current.clearSessionMemory();
+      });
+
+      // mount stats + clear + post-clear stats
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('does nothing when enableMemory is false', async () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
+
+      await act(async () => {
+        await result.current.clearSessionMemory();
+      });
+
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 
-  describe('API Integration', () => {
-    it('syncs memory with backend API', async () => {
-      mockSaveMemory.mockResolvedValue({ success: true });
+  describe('Memory Stats', () => {
+    it('retrieves stats via the backend API', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(
+          statsOk({
+            shortTermMemoryCount: 10,
+            userPatternCount: 5,
+            activeSessions: 2,
+            totalMemoryAccesses: 100,
+            lancedbAvailable: true,
+          })
+        );
 
       const { result } = renderHook(() =>
-        useChatMemory('test-chat', { syncWithBackend: true })
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
       );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
+        await result.current.refreshMemoryStats();
       });
 
-      await waitFor(() => {
-        expect(mockSaveMemory).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/chat/memory/stats?user_id=user-1'
+      );
+      expect(result.current.memoryStats).toEqual({
+        status: 'success',
+        shortTermMemoryCount: 10,
+        userPatternCount: 5,
+        activeSessions: 2,
+        totalMemoryAccesses: 100,
+        lancedbAvailable: true,
       });
     });
 
-    it('loads memory from backend API on mount', async () => {
-      const backendMemory = {
-        messages: [
-          { id: '1', role: 'user', content: 'From backend' },
-        ],
+    it('updates memoryStats state on success', async () => {
+      const mockStats = {
+        shortTermMemoryCount: 15,
+        userPatternCount: 7,
+        activeSessions: 3,
+        totalMemoryAccesses: 150,
+        lancedbAvailable: true,
       };
 
-      mockLoadMemory.mockResolvedValue(backendMemory);
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(statsOk(mockStats));
 
       const { result } = renderHook(() =>
-        useChatMemory('test-chat', { syncWithBackend: true })
-      );
-
-      await waitFor(() => {
-        expect(result.current.messages).toHaveLength(1);
-        expect(result.current.messages[0].content).toBe('From backend');
-      });
-    });
-
-    it('handles API sync errors gracefully', async () => {
-      mockSaveMemory.mockRejectedValue(new Error('API Error'));
-
-      const { result } = renderHook(() =>
-        useChatMemory('test-chat', { syncWithBackend: true })
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
       );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test' });
+        await result.current.refreshMemoryStats();
       });
 
-      // Should not throw, but handle error
-      expect(result.current.error).toBeDefined();
+      expect(result.current.memoryStats).toEqual({ status: 'success', ...mockStats });
+    });
+
+    it('does not set error when a stats refresh fails', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(
+        new Error('Stats error')
+      );
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
+
+      const errorBefore = result.current.error;
+
+      await act(async () => {
+        await result.current.refreshMemoryStats();
+      });
+
+      expect(result.current.error).toBe(errorBefore);
+    });
+
+    it('does not fetch stats when enableMemory is false', async () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: false })
+      );
+
+      await act(async () => {
+        await result.current.refreshMemoryStats();
+      });
+
+      expect(result.current.memoryStats).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 
-  describe('Message Search and Filtering', () => {
-    it('searches messages by content', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+  describe('Derived State', () => {
+    const contextResponse = (overrides: Record<string, unknown>) => ({
+      ok: true,
+      json: async () => ({
+        status: 'success',
+        context: {
+          shortTermMemories: [],
+          longTermMemories: [],
+          userPatterns: [],
+          conversationSummary: 'Summary',
+          relevanceScore: 0.5,
+          ...overrides,
+        },
+      }),
+    });
+
+    it('hasRelevantContext is true when relevanceScore > 0.3 and there are memories', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(
+          contextResponse({
+            shortTermMemories: [{ id: 'mem-1', content: 'Test', role: 'user' }],
+            relevanceScore: 0.8,
+          })
+        );
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Hello world' });
-        await result.current.addMessage({ role: 'assistant', content: 'Hi there' });
-        await result.current.addMessage({ role: 'user', content: 'Hello again' });
+        await result.current.getMemoryContext('Test');
       });
 
-      const searchResults = result.current.searchMessages('Hello');
-
-      expect(searchResults).toHaveLength(2);
-      expect(searchResults[0].content).toBe('Hello world');
-      expect(searchResults[1].content).toBe('Hello again');
+      expect(result.current.hasRelevantContext).toBe(true);
     });
 
-    it('filters messages by role', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('hasRelevantContext is false when relevanceScore <= 0.3', async () => {
+      (global.mockFetch as jest.Mock)
+        .mockResolvedValueOnce(statsOk())
+        .mockResolvedValueOnce(
+          contextResponse({
+            shortTermMemories: [{ id: 'mem-1', content: 'Test', role: 'user' }],
+            relevanceScore: 0.2,
+          })
+        );
+
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
       await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'User 1' });
-        await result.current.addMessage({ role: 'assistant', content: 'Assistant 1' });
-        await result.current.addMessage({ role: 'user', content: 'User 2' });
+        await result.current.getMemoryContext('Test');
       });
 
-      const userMessages = result.current.getMessagesByRole('user');
-
-      expect(userMessages).toHaveLength(2);
-      expect(userMessages.every(m => m.role === 'user')).toBe(true);
+      expect(result.current.hasRelevantContext).toBe(false);
     });
 
-    it('gets messages within time range', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
+    it('contextRelevanceScore defaults to 0 when memoryContext is null', () => {
+      const { result } = renderHook(() =>
+        useChatMemory({ userId: 'user-1', sessionId: 'session-1', enableMemory: true })
+      );
 
-      const now = Date.now();
-
-      await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Old',
-          timestamp: now - 10000,
-        });
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Recent',
-          timestamp: now,
-        });
-      });
-
-      const recentMessages = result.current.getMessagesInTimeRange(now - 5000, now + 1000);
-
-      expect(recentMessages).toHaveLength(1);
-      expect(recentMessages[0].content).toBe('Recent');
-    });
-  });
-
-  describe('Memory Export and Import', () => {
-    it('exports memory as JSON', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.addMessage({ role: 'user', content: 'Test message' });
-      });
-
-      const exported = result.current.exportAsJSON();
-
-      expect(exported).toBeDefined();
-      expect(JSON.parse(exported)).toEqual({
-        chatId: 'test-chat',
-        messages: expect.any(Array),
-      });
-    });
-
-    it('imports memory from JSON', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      const importData = {
-        chatId: 'test-chat',
-        messages: [
-          { id: '1', role: 'user', content: 'Imported message', timestamp: Date.now() },
-        ],
-      };
-
-      await act(async () => {
-        await result.current.importFromJSON(JSON.stringify(importData));
-      });
-
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].content).toBe('Imported message');
-    });
-
-    it('handles invalid import data', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.importFromJSON('invalid-json');
-      });
-
-      // Should not crash
-      expect(result.current.messages).toEqual([]);
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('handles invalid message data', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        try {
-          await result.current.addMessage({ role: 'invalid' as any, content: '' });
-        } catch (error) {
-          // Expected to fail validation
-        }
-      });
-
-      // Should not add invalid message
-      expect(result.current.messages).toEqual([]);
-    });
-
-    it('recovers from storage errors', async () => {
-      mockLocalStorage.getItem.mockImplementation(() => {
-        throw new Error('Storage error');
-      });
-
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      // Should initialize with empty state
-      expect(result.current.messages).toEqual([]);
-    });
-  });
-
-  describe('Performance', () => {
-    it('handles large message history efficiently', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      const startTime = Date.now();
-
-      // Add 100 messages
-      for (let i = 0; i < 100; i++) {
-        await act(async () => {
-          await result.current.addMessage({
-            role: 'user',
-            content: `Message ${i}`,
-          });
-        });
-      }
-
-      const duration = Date.now() - startTime;
-
-      // Should complete in reasonable time
-      expect(duration).toBeLessThan(5000);
-      expect(result.current.messages).toHaveLength(100);
-    });
-
-    it('debounces storage writes', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      // Add multiple messages rapidly
-      await act(async () => {
-        await Promise.all([
-          result.current.addMessage({ role: 'user', content: '1' }),
-          result.current.addMessage({ role: 'user', content: '2' }),
-          result.current.addMessage({ role: 'user', content: '3' }),
-        ]);
-      });
-
-      // Should only write to storage once (debounced)
-      expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('handles empty chat ID', () => {
-      const { result } = renderHook(() => useChatMemory(''));
-
-      expect(result.current.messages).toEqual([]);
-    });
-
-    it('handles special characters in messages', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: 'Test with emoji 🔥 and special chars <>&"',
-        });
-      });
-
-      expect(result.current.messages[0].content).toContain('🔥');
-    });
-
-    it('handles very long messages', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      const longContent = 'A'.repeat(10000);
-
-      await act(async () => {
-        await result.current.addMessage({
-          role: 'user',
-          content: longContent,
-        });
-      });
-
-      expect(result.current.messages[0].content).toHaveLength(10000);
-    });
-
-    it('handles concurrent message additions', async () => {
-      const { result } = renderHook(() => useChatMemory('test-chat'));
-
-      await act(async () => {
-        await Promise.all([
-          result.current.addMessage({ role: 'user', content: '1' }),
-          result.current.addMessage({ role: 'user', content: '2' }),
-          result.current.addMessage({ role: 'user', content: '3' }),
-        ]);
-      });
-
-      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.contextRelevanceScore).toBe(0);
     });
   });
 });
