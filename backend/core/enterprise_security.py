@@ -117,6 +117,7 @@ class EnterpriseSecurity:
         self.security_alerts: List[SecurityAlert] = []
         self.compliance_checks: List[ComplianceCheck] = []
         self.failed_login_attempts: Dict[str, List[datetime]] = {}
+        self.locked_accounts: Dict[str, datetime] = {}  # BUG-082: account lockout
         self.api_rate_limits: Dict[str, List[datetime]] = {}
         self.suspicious_ips: Dict[str, int] = {}
         # Guards all shared mutable state (rate limits, login attempts,
@@ -223,6 +224,10 @@ class EnterpriseSecurity:
                         / 60,
                     },
                 )
+                # BUG-082: Previously only alerted — never actually locked the
+                # account. Now lock the account for the lockout duration.
+                self.locked_accounts[event.user_email] = event.timestamp + self.login_lockout_duration
+                logger.warning(f"Account locked for {event.user_email} due to brute-force detection")
 
         # Track suspicious IPs
         if event.ip_address and not event.success:
@@ -241,9 +246,18 @@ class EnterpriseSecurity:
                     },
                 )
 
+    def is_account_locked(self, email: str) -> bool:
+        """Check if an account is currently locked due to brute-force detection (BUG-082)."""
+        if email not in self.locked_accounts:
+            return False
+        # Lock has expired — clean up and allow login.
+        if datetime.now() > self.locked_accounts[email]:
+            del self.locked_accounts[email]
+            self.failed_login_attempts.pop(email, None)
+            return False
+        return True
+
     def create_security_alert(
-        self,
-        alert_type: str,
         severity: SecurityLevel,
         description: str,
         affected_users: List[str] = None,

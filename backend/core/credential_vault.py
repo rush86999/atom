@@ -182,14 +182,13 @@ def list_tenant_integrations(db, tenant_id: str) -> dict[str, dict[str, Any]]:
     """
     from core.models import TenantSetting
 
-    REDACTED_FIELDS = {
-        "access_token",
-        "bot_token",
-        "app_secret",
-        "client_secret",
-        "auth_token",
-        "app_password",
-        "secret_token",
+    # BUG-081: The old allowlist missed common secret field names (api_key,
+    # refresh_token, token, password). Switched to a denylist approach:
+    # redact EVERYTHING by default, only allow known-safe keys through.
+    SAFE_FIELDS = {
+        "platform", "connected", "connected_at", "scope", "scopes",
+        "team_id", "team_name", "bot_user_id", "webhook_url",
+        "channel", "phone_number", "display_name",
     }
     platforms = ["whatsapp", "slack", "discord", "telegram", "teams", "sms"]
     vault = get_vault()
@@ -201,8 +200,9 @@ def list_tenant_integrations(db, tenant_id: str) -> dict[str, dict[str, Any]]:
         if setting:
             try:
                 data = vault.decrypt(setting.setting_value)
-                # Redact secrets before returning
-                safe_data = {k: ("***" if k in REDACTED_FIELDS else v) for k, v in data.items()}
+                # Redact secrets before returning — denylist approach:
+                # only SAFE_FIELDS pass through in cleartext, everything else → ***
+                safe_data = {k: (v if k in SAFE_FIELDS else "***") for k, v in data.items()}
                 result[platform] = {"connected": True, **safe_data}
             except Exception:
                 result[platform] = {"connected": False, "error": "credential_corrupted"}

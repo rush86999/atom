@@ -116,7 +116,10 @@ class SQLSanitizer:
     DANGEROUS_PATTERNS = {
         'delete_without_where': re.compile(r'^\s*DELETE\s+FROM\s+\w+\s*(?:;|$)', re.I | re.M),
         'update_without_where': re.compile(r'^\s*UPDATE\s+\w+\s+SET\s+[\w\s]+\s*(?:;|$)', re.I | re.M),
-        'sql_injection_semicolon': re.compile(r';\s*(?:DROP|DELETE|UPDATE|INSERT|ALTER|CREATE)', re.I),
+        # BUG-080: The old regex only matched specific verbs after `;`, allowing
+        # stacked SELECT exfiltration (`SELECT 1; SELECT password FROM secrets`).
+        # Now blocks ANY semicolon that separates multiple statements.
+        'sql_injection_semicolon': re.compile(r';', re.I),
         'sql_comment_dash': re.compile(r'--.*', re.M),
         'sql_comment_block': re.compile(r'/\*.*?\*/', re.S),
         'union_based_injection': re.compile(r'\bUNION\s+(?:ALL\s+)?SELECT\b', re.I),

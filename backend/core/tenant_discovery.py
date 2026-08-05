@@ -95,12 +95,20 @@ class TenantDiscoveryService:
             )
 
             if integration:
+                # BUG-083: Capture the OLD external_id before overwriting so
+                # its cache entry can be invalidated too. Previously only the
+                # new id's cache was cleared, leaving the old id resolving to
+                # this tenant for up to 1 hour (cross-tenant stale routing).
+                old_external_id = integration.external_id
                 integration.external_id = external_id
                 self.db.commit()
 
-                # Invalidate cache to be safe
-                cache_key = f"discovery:{connector_id}:{external_id}"
-                await self.cache.delete_async(cache_key)
+                # Invalidate cache for both old and new external_ids
+                cache_key_new = f"discovery:{connector_id}:{external_id}"
+                await self.cache.delete_async(cache_key_new)
+                if old_external_id and old_external_id != external_id:
+                    cache_key_old = f"discovery:{connector_id}:{old_external_id}"
+                    await self.cache.delete_async(cache_key_old)
 
                 logger.info(
                     f"Registered external_id {external_id} for tenant {tenant_id} ({connector_id})"
