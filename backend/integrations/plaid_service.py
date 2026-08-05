@@ -146,7 +146,12 @@ class PlaidService(IntegrationService):
                 }
 
         try:
-            token = parameters.get("access_token") or (context.get("access_token") if context else None)
+            # BUG-085: access_token must come from parameters ONLY, never from
+            # context. Context is partially-validated and could carry an
+            # arbitrary token, enabling cross-account data access. The token
+            # must be resolved by the caller from the authenticated tenant's
+            # stored credentials, not passed loosely via context.
+            token = parameters.get("access_token")
             if not token:
                 return {"success": False, "error": "Missing Plaid access token"}
 

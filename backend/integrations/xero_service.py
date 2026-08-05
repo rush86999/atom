@@ -75,11 +75,12 @@ class XeroService(IntegrationService):
             logger.error(f"Failed to get tenants: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
-    async def get_invoices(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
+    async def get_invoices(self, access_token: str, xero_tenant_id: str = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of invoices"""
         try:
+            xero_tenant_id = xero_tenant_id or self.xero_tenant_id
             url = f"{self.base_url}/Invoices"
-            headers = self._get_headers(access_token, tenant_id)
+            headers = self._get_headers(access_token, xero_tenant_id)
             # Xero doesn't support 'limit' param directly in same way, but we can filter or just take top N
             # For simplicity, we'll just fetch and slice
             
@@ -93,11 +94,12 @@ class XeroService(IntegrationService):
             logger.error(f"Failed to get invoices: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
-    async def get_contacts(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
+    async def get_contacts(self, access_token: str, xero_tenant_id: str = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of contacts"""
         try:
+            xero_tenant_id = xero_tenant_id or self.xero_tenant_id
             url = f"{self.base_url}/Contacts"
-            headers = self._get_headers(access_token, tenant_id)
+            headers = self._get_headers(access_token, xero_tenant_id)
             
             response = await self.client.get(url, headers=headers)
             response.raise_for_status()
@@ -171,19 +173,21 @@ class XeroService(IntegrationService):
         except Exception as e:
             logger.error(f"Error executing Xero operation {operation}: {e}")
             return {"success": False, "error": str(e)}
-    async def sync_to_postgres_cache(self, user_id: str, access_token: str) -> Dict[str, Any]:
+    async def sync_to_postgres_cache(self, user_id: str, access_token: str, xero_tenant_id: str = None) -> Dict[str, Any]:
         """Sync Xero analytics to PostgreSQL IntegrationMetric table."""
         try:
             from core.database import SessionLocal
             from core.models import IntegrationMetric
             from datetime import datetime, timezone
-            
+
+            xero_tenant_id = xero_tenant_id or self.xero_tenant_id
+
             # Fetch invoices to get counts
-            invoices = await self.get_invoices(access_token, tenant_id, limit=100)
+            invoices = await self.get_invoices(access_token, xero_tenant_id, limit=100)
             invoice_count = len(invoices)
-            
+
             # Fetch contacts to get counts
-            contacts = await self.get_contacts(access_token, tenant_id, limit=100)
+            contacts = await self.get_contacts(access_token, xero_tenant_id, limit=100)
             contact_count = len(contacts)
             
             db = SessionLocal()
@@ -229,13 +233,12 @@ class XeroService(IntegrationService):
             logger.error(f"Xero PostgreSQL cache sync failed: {e}")
             return {"success": False, "error": str(e)}
 
-    async def full_sync(self, user_id: str, access_token: str) -> Dict[str, Any]:
+    async def full_sync(self, user_id: str, access_token: str, xero_tenant_id: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Xero"""
-        # Pipeline 1: Atom Memory
-        # Triggered via xero_memory_ingestion or similar
-        
+        xero_tenant_id = xero_tenant_id or self.xero_tenant_id
+
         # Pipeline 2: Postgres Cache
-        cache_result = await self.sync_to_postgres_cache(user_id, access_token, tenant_id)
+        cache_result = await self.sync_to_postgres_cache(user_id, access_token, xero_tenant_id)
         
         return {
             "success": True,
