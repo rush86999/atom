@@ -984,13 +984,23 @@ class WorkflowEngine:
                 # Check for variable substitution ${var}
                 matches = self.var_pattern.findall(value)
                 if matches:
-                    # For now, handle simple single variable substitution
-                    # Complex string interpolation can be added later
-                    var_path = matches[0]
-                    resolved_val = self._get_value_from_path(var_path, state)
-                    if resolved_val is None:
-                        raise MissingInputError(f"Variable {var_path} not found", var_path)
-                    resolved[key] = resolved_val
+                    # Interpolate EVERY variable occurrence into the string,
+                    # preserving surrounding text (e.g. "Hello ${name}!").
+                    # Replacing the whole value with only the first variable
+                    # silently dropped prefixes/suffixes and later variables.
+                    interpolated = value
+                    for var_path in matches:
+                        resolved_val = self._get_value_from_path(var_path, state)
+                        if resolved_val is None:
+                            raise MissingInputError(f"Variable {var_path} not found", var_path)
+                        if isinstance(resolved_val, str):
+                            replacement = resolved_val
+                        else:
+                            replacement = str(resolved_val)
+                        interpolated = interpolated.replace(
+                            f"${{{var_path}}}", replacement
+                        )
+                    resolved[key] = interpolated
                 else:
                     resolved[key] = value
             else:
@@ -1017,7 +1027,7 @@ class WorkflowEngine:
             
         else:
             # Access step output
-            step_output = state["outputs"].get(root)
+            step_output = state.get("outputs", {}).get(root)
             if step_output is None:
                 return None
                 
