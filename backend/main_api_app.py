@@ -2214,6 +2214,15 @@ try:
 
         app.include_router(workflow_ui_router, prefix="/api/v1/workflow-ui", tags=["Workflow UI"])
         logger.info("✓ Workflow UI Endpoints Loaded")
+
+        # 3a. Time-Travel fork route (restored; WorkflowAutomation calls it)
+        try:
+            from api.time_travel_routes import router as time_travel_router
+
+            app.include_router(time_travel_router)
+            logger.info("✓ Time-Travel Endpoints Loaded")
+        except Exception as e:
+            logger.error(f"CRITICAL: Time-Travel endpoints failed to load: {e}")
     except Exception as e:
         logger.error(f"CRITICAL: Workflow UI endpoints failed to load: {e}")
         # raise e # Uncomment to crash on startup if strict

@@ -531,11 +531,15 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
     try {
       setExecuting(true);
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(
         `/api/time-travel/workflows/${activeExecution.execution_id}/fork`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             step_id: targetStepId,
             new_variables: targetVariables
