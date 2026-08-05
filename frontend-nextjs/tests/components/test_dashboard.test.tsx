@@ -1,340 +1,312 @@
+/**
+ * Dashboard Component Tests
+ *
+ * Tests verify the real Dashboard component (components/Dashboard.tsx):
+ * - Fetches GET /api/dashboard-dev (response is the data object directly)
+ * - Loading / loaded / error states
+ * - Stats overview cards
+ * - Calendar, tasks, and messages widgets
+ * - Overview vs Workflow Automation tabs
+ * - Refresh button refetches and shows a refreshing state
+ *
+ * Uses the shared MSW server (tests/mocks/server.ts) registered in
+ * tests/setup.ts — per-file setupServer() does NOT override the global server.
+ * The project's custom Tabs renders plain <button> triggers (no role="tab").
+ */
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Dashboard from '@/components/Dashboard';
+import { rest } from 'msw';
+import { server } from '@/tests/mocks/server';
 
-// Mock dependencies
+// Stable useToast mock so handler/toast identities never churn between renders.
+const mockToast = { toast: jest.fn(), dismiss: jest.fn(), toasts: [] };
 jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
-  }),
+  useToast: () => mockToast,
+  ToastProvider: ({ children }: { children: any }) => children,
 }));
 
+// WorkflowAutomation is heavy; the real Dashboard renders it in the
+// "Workflow Automation" tab. Replace it with a lightweight stub.
 jest.mock('@/components/WorkflowAutomation', () => {
   return function MockWorkflowAutomation() {
     return <div data-testid="workflow-automation">Workflow Automation</div>;
   };
 });
 
-// Mock fetch globally
+// The ui/spinner module references React without importing it, which throws
+// "React is not defined" in the test runtime whenever the loading state
+// renders the real Spinner. Mock it to a plain div so the Dashboard's own
+// "Loading your dashboard..." label can still be asserted.
+jest.mock('@/components/ui/spinner', () => ({
+  Spinner: ({ className }: { className?: string }) => (
+    <div data-testid="spinner" className={className} />
+  ),
+}));
+
+const emptyData = {
+  calendar: [],
+  tasks: [],
+  messages: [],
+  stats: {
+    upcomingEvents: 0,
+    overdueTasks: 0,
+    unreadMessages: 0,
+    completedTasks: 0,
+  },
+};
+
+const richData = {
+  calendar: [
+    {
+      id: '1',
+      title: 'Team Meeting',
+      start: '2026-03-10T10:00:00',
+      end: '2026-03-10T11:00:00',
+      status: 'confirmed',
+      location: 'Room 1',
+    },
+  ],
+  tasks: [
+    {
+      id: '1',
+      title: 'Complete Project',
+      dueDate: '2026-03-11',
+      priority: 'high',
+      status: 'todo',
+    },
+  ],
+  messages: [
+    {
+      id: '1',
+      platform: 'email',
+      from: 'john@example.com',
+      subject: 'Project Update',
+      preview: 'Here is the update...',
+      timestamp: '2026-03-09T09:00:00',
+      unread: true,
+      priority: 'normal',
+    },
+  ],
+  stats: {
+    upcomingEvents: 5,
+    overdueTasks: 2,
+    unreadMessages: 10,
+    completedTasks: 15,
+  },
+};
+
+const defaultHandlers = [
+  rest.get('/api/dashboard-dev', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json(emptyData));
+  }),
+];
 
 describe('Dashboard Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  global.fetch = jest.fn();
+    server.resetHandlers();
+    server.use(...defaultHandlers);
   });
 
-  describe('test_dashboard_renders', () => {
-    it('should render dashboard without crashing', () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          calendar: [],
-          tasks: [],
-          messages: [],
-          stats: {
-            upcomingEvents: 0,
-            overdueTasks: 0,
-            unreadMessages: 0,
-            completedTasks: 0,
-          },
-        }),
-      } as Response);
+  // Test 1: renders the dashboard header without crashing
+  test('renders dashboard without crashing', async () => {
+    render(<Dashboard />);
 
-      render(<Dashboard />);
-      expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /atom agent dashboard/i })
+      ).toBeInTheDocument();
     });
   });
 
-  describe('test_dashboard_displays_widgets', () => {
-    it('should display all dashboard widgets', async () => {
-      const mockData = {
-        calendar: [
-          {
-            id: '1',
-            title: 'Team Meeting',
-            start: new Date('2026-03-10T10:00:00'),
-            end: new Date('2026-03-10T11:00:00'),
-            status: 'confirmed' as const,
-          },
-        ],
-        tasks: [
-          {
-            id: '1',
-            title: 'Complete Project',
-            dueDate: new Date('2026-03-11'),
-            priority: 'high' as const,
-            status: 'todo' as const,
-          },
-        ],
-        messages: [
-          {
-            id: '1',
-            platform: 'email' as const,
-            from: 'john@example.com',
-            subject: 'Project Update',
-            preview: 'Here is the update...',
-            timestamp: new Date('2026-03-09T09:00:00'),
-            unread: true,
-            priority: 'normal' as const,
-          },
-        ],
-        stats: {
-          upcomingEvents: 5,
-          overdueTasks: 2,
-          unreadMessages: 10,
-          completedTasks: 15,
-        },
-      };
+  // Test 2: displays calendar, task, and message widgets
+  test('displays dashboard widgets', async () => {
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json(richData));
+      })
+    );
 
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
-      } as Response);
+    render(<Dashboard />);
 
-      render(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Team Meeting')).toBeInTheDocument();
-        expect(screen.getByText('Complete Project')).toBeInTheDocument();
-        expect(screen.getByText('Project Update')).toBeInTheDocument();
-        expect(screen.getByTestId('workflow-automation')).toBeInTheDocument();
-      });
-    });
-
-    it('should display stats cards', async () => {
-      const mockData = {
-        calendar: [],
-        tasks: [],
-        messages: [],
-        stats: {
-          upcomingEvents: 5,
-          overdueTasks: 2,
-          unreadMessages: 10,
-          completedTasks: 15,
-        },
-      };
-
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
-      } as Response);
-
-      render(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument(); // upcoming events
-        expect(screen.getByText('2')).toBeInTheDocument(); // overdue tasks
-        expect(screen.getByText('10')).toBeInTheDocument(); // unread messages
-        expect(screen.getByText('15')).toBeInTheDocument(); // completed tasks
-      });
+    await waitFor(() => {
+      expect(screen.getByText('Team Meeting')).toBeInTheDocument();
+      expect(screen.getByText('Complete Project')).toBeInTheDocument();
+      expect(screen.getByText('Project Update')).toBeInTheDocument();
+      expect(screen.getByText("Today's Calendar")).toBeInTheDocument();
     });
   });
 
-  describe('test_dashboard_loading_state', () => {
-    it('should show loading indicator while fetching data', () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
+  // Test 3: displays the stats cards
+  test('displays stats cards', async () => {
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json(richData));
+      })
+    );
 
-      render(<Dashboard />);
-      expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    });
+    render(<Dashboard />);
 
-    it('should hide loading indicator after data loads', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          calendar: [],
-          tasks: [],
-          messages: [],
-          stats: {
-            upcomingEvents: 0,
-            overdueTasks: 0,
-            unreadMessages: 0,
-            completedTasks: 0,
-          },
-        }),
-      } as Response);
-
-      render(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('5')).toBeInTheDocument(); // upcoming events
+      expect(screen.getByText('2')).toBeInTheDocument(); // overdue tasks
+      expect(screen.getByText('10')).toBeInTheDocument(); // unread messages
+      expect(screen.getByText('15')).toBeInTheDocument(); // completed tasks
+      expect(screen.getByText('Upcoming Events')).toBeInTheDocument();
+      expect(screen.getByText('Overdue Tasks')).toBeInTheDocument();
+      expect(screen.getByText('Unread Messages')).toBeInTheDocument();
+      expect(screen.getByText('Completed Today')).toBeInTheDocument();
     });
   });
 
-  describe('test_dashboard_error_state', () => {
-    it('should display error boundary message on fetch failure', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+  // Test 4: shows the loading indicator while data is pending
+  test('shows loading indicator while fetching data', () => {
+    server.use(
+      rest.get('/api/dashboard-dev', () => new Promise(() => {})) // never resolves
+    );
 
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValueOnce(
-        new Error('Network error')
-      );
+    render(<Dashboard />);
 
-      render(<Dashboard />);
+    expect(screen.getByText('Loading your dashboard...')).toBeInTheDocument();
+    expect(screen.getByTestId('spinner')).toBeInTheDocument();
+  });
 
-      await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
-      });
+  // Test 5: hides the loading indicator after data loads
+  test('hides loading indicator after data loads', async () => {
+    render(<Dashboard />);
 
-      consoleSpy.mockRestore();
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Loading your dashboard...')
+      ).not.toBeInTheDocument();
     });
 
-    it('should handle API error responses', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      } as Response);
+    expect(
+      screen.getByRole('heading', { name: /atom agent dashboard/i })
+    ).toBeInTheDocument();
+  });
 
-      render(<Dashboard />);
+  // Test 6: shows the error state on a network failure
+  test('displays error state on network failure', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        return res(ctx.networkError('Network error'));
+      })
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
-      });
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/unable to load dashboard/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/please try refreshing the page/i)).toBeInTheDocument();
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  // Test 7: handles API error responses (non-2xx)
+  test('handles API error responses', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
+      })
+    );
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/unable to load dashboard/i)
+      ).toBeInTheDocument();
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  // Test 8: the Overview tab is active by default and the Workflow
+  // Automation tab mounts the WorkflowAutomation component
+  test('navigates to Workflow Automation tab', async () => {
+    render(<Dashboard />);
+
+    await screen.findByRole('heading', { name: /atom agent dashboard/i });
+
+    const workflowTab = screen.getByRole('button', {
+      name: /workflow automation/i,
+    });
+    fireEvent.click(workflowTab);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workflow-automation')).toBeInTheDocument();
     });
   });
 
-  describe('test_dashboard_navigation', () => {
-    it('should navigate to different sections via tabs', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          calendar: [],
-          tasks: [],
-          messages: [],
-          stats: {
-            upcomingEvents: 0,
-            overdueTasks: 0,
-            unreadMessages: 0,
-            completedTasks: 0,
-          },
-        }),
-      } as Response);
+  // Test 9: shows empty-state messages when there is no data
+  test('shows empty states when no data', async () => {
+    render(<Dashboard />);
 
-      render(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /calendar/i })).toBeInTheDocument();
-      });
-
-      const calendarTab = screen.getByRole('tab', { name: /calendar/i });
-      fireEvent.click(calendarTab);
-
-      await waitFor(() => {
-        expect(calendarTab).toHaveAttribute('aria-selected', 'true');
-      });
-    });
-
-    it('should navigate between dashboard sections', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          calendar: [],
-          tasks: [],
-          messages: [],
-          stats: {
-            upcomingEvents: 0,
-            overdueTasks: 0,
-            unreadMessages: 0,
-            completedTasks: 0,
-          },
-        }),
-      } as Response);
-
-      render(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /tasks/i })).toBeInTheDocument();
-      });
-
-      const tasksTab = screen.getByRole('tab', { name: /tasks/i });
-      fireEvent.click(tasksTab);
-
-      await waitFor(() => {
-        expect(tasksTab).toHaveAttribute('aria-selected', 'true');
-      });
+    await waitFor(() => {
+      expect(
+        screen.getByText('No events scheduled for today')
+      ).toBeInTheDocument();
+      expect(screen.getByText('No tasks assigned')).toBeInTheDocument();
+      expect(screen.getByText('No messages')).toBeInTheDocument();
     });
   });
 
-  describe('test_dashboard_data_refresh', () => {
-    it('should refresh data when refresh button is clicked', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            calendar: [],
-            tasks: [],
-            messages: [],
-            stats: {
-              upcomingEvents: 0,
-              overdueTasks: 0,
-              unreadMessages: 0,
-              completedTasks: 0,
-            },
-          }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            calendar: [{ id: '2', title: 'New Event', start: new Date(), end: new Date(), status: 'confirmed' as const }],
-            tasks: [],
-            messages: [],
-            stats: {
-              upcomingEvents: 1,
-              overdueTasks: 0,
-              unreadMessages: 0,
-              completedTasks: 0,
-            },
-          }),
-        } as Response);
+  // Test 10: refresh button refetches dashboard data
+  test('refresh button refetches data', async () => {
+    let dashboardCalls = 0;
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        dashboardCalls += 1;
+        return res(ctx.status(200), ctx.json(emptyData));
+      })
+    );
 
-      render(<Dashboard />);
+    render(<Dashboard />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
-      });
-
-      const refreshButton = screen.getByRole('button', { name: /refresh/i });
-      fireEvent.click(refreshButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(2);
-      });
+    const refreshButton = await screen.findByRole('button', {
+      name: /refresh/i,
     });
+    fireEvent.click(refreshButton);
 
-    it('should show refreshing state during refresh', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            calendar: [],
-            tasks: [],
-            messages: [],
-            stats: {
-              upcomingEvents: 0,
-              overdueTasks: 0,
-              unreadMessages: 0,
-              completedTasks: 0,
-            },
-          }),
-        } as Response)
-        .mockImplementationOnce(() => new Promise(() => {})); // Second call never resolves
+    await waitFor(() => {
+      expect(dashboardCalls).toBe(2);
+    });
+  });
 
-      render(<Dashboard />);
+  // Test 11: shows refreshing state (button disabled) while refresh is pending
+  test('shows refreshing state during refresh', async () => {
+    let dashboardCalls = 0;
+    server.use(
+      rest.get('/api/dashboard-dev', (req, res, ctx) => {
+        dashboardCalls += 1;
+        if (dashboardCalls === 1) {
+          return res(ctx.status(200), ctx.json(emptyData));
+        }
+        return new Promise(() => {}); // second call never resolves
+      })
+    );
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
+    render(<Dashboard />);
+
+    const refreshButton = await screen.findByRole('button', {
+      name: /refresh/i,
+    });
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      const refreshingButton = screen.getByRole('button', {
+        name: /refreshing/i,
       });
-
-      const refreshButton = screen.getByRole('button', { name: /refresh/i });
-      fireEvent.click(refreshButton);
-
-      await waitFor(() => {
-        expect(refreshButton).toBeDisabled();
-      });
+      expect(refreshingButton).toBeDisabled();
     });
   });
 });
