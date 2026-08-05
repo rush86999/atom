@@ -462,12 +462,15 @@ class GenericAgent:
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
 
-            svc = BudgetEnforcementService()
-            return await svc.check_budget_before_action(
-                tenant_id=tenant_id,
-                agent_id=getattr(self, "id", None) or "generic_agent",
-                action="llm_react_step",
-            )
+            # BUG-119: Previously created BudgetEnforcementService() without
+            # closing it → leaked a DB session on every ReAct step. Now uses
+            # context manager to ensure cleanup.
+            with BudgetEnforcementService() as svc:
+                return await svc.check_budget_before_action(
+                    tenant_id=tenant_id,
+                    agent_id=getattr(self, "id", None) or "generic_agent",
+                    action="llm_react_step",
+                )
         except Exception as e:
             logger.warning(f"Budget pre-check failed (fail-open): {e}")
             return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}

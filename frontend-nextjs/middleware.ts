@@ -4,8 +4,11 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // Define public routes that don't require authentication
+// Define public routes that don't require authentication
 const publicRoutes = [
-  '/dashboard',
+  // BUG-120: /dashboard removed from public routes — it's the main
+  // authenticated landing page and must require auth. Leaving it public
+  // rendered the full app shell for unauthenticated users.
   '/login',
   '/auth/signin',
   '/auth/signup',

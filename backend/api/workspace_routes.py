@@ -11,7 +11,7 @@ Provides REST endpoints for unified workspace management:
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -32,12 +32,13 @@ logger = logging.getLogger(__name__)
 class CreateWorkspaceRequest(BaseModel):
     """Request to create a unified workspace"""
     user_id: str
-    name: str
-    description: Optional[str] = None
-    slack_workspace_id: Optional[str] = None
-    discord_guild_id: Optional[str] = None
-    google_chat_space_id: Optional[str] = None
-    teams_team_id: Optional[str] = None
+    # BUG-121: Add max_length to prevent unbounded DB writes (DoS vector).
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+    slack_workspace_id: Optional[str] = Field(None, max_length=255)
+    discord_guild_id: Optional[str] = Field(None, max_length=255)
+    google_chat_space_id: Optional[str] = Field(None, max_length=255)
+    teams_team_id: Optional[str] = Field(None, max_length=255)
     sync_config: Optional[Dict[str, Any]] = None
 
 

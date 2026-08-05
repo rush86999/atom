@@ -1104,12 +1104,13 @@ class AtomMetaAgent:
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
 
-            svc = BudgetEnforcementService()
-            return await svc.check_budget_before_action(
-                tenant_id=self.tenant_id,
-                agent_id="atom_main",
-                action="llm_react_step",
-            )
+            # BUG-119: Use context manager to prevent session leak.
+            with BudgetEnforcementService() as svc:
+                return await svc.check_budget_before_action(
+                    tenant_id=self.tenant_id,
+                    agent_id="atom_main",
+                    action="llm_react_step",
+                )
         except Exception as e:
             logger.warning(f"Budget pre-check failed (fail-open): {e}")
             return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}
