@@ -386,15 +386,19 @@ async def update_agent(
         agent.name = update_data.name
     if update_data.description is not None:
         agent.description = update_data.description
-    
+    # P2: per-agent capability binding (zero-trust tool scoping).
+    if update_data.capabilities is not None:
+        agent.capabilities = update_data.capabilities
+
     db.commit()
     db.refresh(agent)
-    
+
     return router.success_response(
         data={
             "id": agent.id,
             "name": agent.name,
-            "description": agent.description
+            "description": agent.description,
+            "capabilities": agent.capabilities or [],
         },
         message="Agent updated successfully"
     )
@@ -839,6 +843,8 @@ class AgentUpdateRequest(BaseModel):
     category: Optional[str] = Field(None, min_length=1, max_length=50, description="Agent category")
     configuration: Optional[Dict[str, Any]] = None
     schedule_config: Optional[Dict[str, Any]] = None
+    # P2: per-agent zero-trust tool scoping. Empty/['*'] = unrestricted (default).
+    capabilities: Optional[List[str]] = None
 
     @field_validator('name', 'category')
     @classmethod

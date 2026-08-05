@@ -1101,6 +1101,31 @@ class MCPService(IntegrationService):
             # Route through entity-aware execution path
             return await self.execute_entity_tool(context, tool_name, arguments)
 
+        # P2: Agent capability binding gate. Enforces per-agent tool scoping at the
+        # dispatch layer so ALL callers (agent loop, workflow engine, meta-agent,
+        # fleet) are gated identically — closing the gap that generic_agent.py:249
+        # is an agent-loop-only check. Default ('*') capabilities = unrestricted,
+        # preserving current behavior for every existing agent. Fail-open on
+        # resolution errors so a DB hiccup never breaks the agent loop.
+        try:
+            from core.capability_resolver import get_agent_for_context, resolve_allowed_tools, is_tool_allowed
+            agent = get_agent_for_context(context)
+            if agent is not None:
+                tier = (context.get("tier_at_issuance") or context.get("tier") or "").lower() or None
+                allowed = resolve_allowed_tools(agent, tier=tier)
+                if not is_tool_allowed(allowed, tool_name):
+                    logger.info(
+                        "Capability gate BLOCKED tool %s for agent %s (tier=%s)",
+                        tool_name, getattr(agent, "id", "?"), tier,
+                    )
+                    return {
+                        "success": False,
+                        "error": f"Tool '{tool_name}' is not allowed for this agent",
+                        "blocked_by": "capability_gate",
+                    }
+        except Exception as cap_err:  # pragma: no cover - defensive fail-open
+            logger.debug("capability gate skipped: %s", cap_err)
+
         # 0. Check Ontology Action Registry first
         from core.action_registry import action_registry
         action = action_registry.get_action(tool_name)
