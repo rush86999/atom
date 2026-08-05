@@ -1340,12 +1340,21 @@ class BYOKHandler:
                 allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"])
                 
                 # Check Tool/Structured Support (Phase 6.6)
-                if (requires_tools or requires_structured) and model in MODELS_WITHOUT_TOOLS:
-                    # Try to downgrade to a model that supports tools within the same provider
-                    if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
-                        model = "deepseek-r2" # r2 supports tools/structured
-                    else:
-                        continue # Skip this provider if no fallback found
+                # BUG-113: Previously used the stale hardcoded MODELS_WITHOUT_TOOLS
+                # set (deprecated). Now uses the dynamic pricing cache lookup,
+                # matching the BPC primary path.
+                if (requires_tools or requires_structured):
+                    try:
+                        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+                        fetcher = get_pricing_fetcher()
+                        if fetcher and not fetcher._model_supports_tools(model):
+                            # Try to downgrade to a model that supports tools
+                            if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
+                                model = "deepseek-r2"
+                            else:
+                                continue
+                    except Exception:
+                        pass  # Cache unavailable — allow the model (best-effort)
 
                 if "*" in allowed_models or model in allowed_models:
                     ranked_options.append((provider_id, model))

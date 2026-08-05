@@ -673,10 +673,15 @@ What is your next step?"""
                 final_answer=raw_response if raw_response else "Unable to process - LLM not configured."
             )
         
-        # Simple fallback parsing
+        # Simple fallback parsing — BUG-112: Previously matched on substring
+        # "answer" anywhere in the response, causing false termination when
+        # the agent said "I'll answer this" or false drops when a real answer
+        # didn't contain the word "answer". Now checks for structured markers.
+        raw_lower = (raw_response or "").lower().strip()
+        has_final_marker = raw_lower.startswith("final answer:") or raw_lower.startswith("answer:")
         return ReActStep(
             thought=raw_response[:200] if raw_response else "Unable to reason",
-            final_answer=raw_response if "answer" in raw_response.lower() else None
+            final_answer=raw_response if has_final_marker else None
         )
         
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:

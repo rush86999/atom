@@ -56,7 +56,11 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
 
                 <div className="absolute right-2 bottom-2 flex gap-1 items-center">
                     <VoiceInput
-                        onTranscriptChange={(transcript) => setInput(transcript)}
+                        onTranscriptChange={(transcript) => {
+                            // BUG-114: Previously replaced the entire input,
+                            // wiping any text the user had typed. Now appends.
+                            setInput(prev => prev ? `${prev} ${transcript}` : transcript);
+                        }}
                     />
                     <Button
                         size="icon"
