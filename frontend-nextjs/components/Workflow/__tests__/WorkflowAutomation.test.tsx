@@ -62,7 +62,7 @@ const workflowHandlers = [
     );
   }),
 
-  rest.get('/api/workflows/definitions', (req, res, ctx) => {
+  rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -290,7 +290,7 @@ describe('WorkflowAutomation', () => {
   // Test 8: shows empty state when there are no workflows
   test('shows empty state when there are no workflows', async () => {
     server.use(
-      rest.get('/api/workflows/definitions', (req, res, ctx) => {
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
         return res(ctx.status(200), ctx.json({ success: true, workflows: [] }));
       })
     );
