@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                // 'Authorization': `Bearer ${token}` // Add auth if needed later
+                ...(req.headers.authorization ? { 'Authorization': req.headers.authorization } : {})
             },
         });
 
