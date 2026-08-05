@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 export interface MemorySearchResult {
@@ -23,12 +23,18 @@ export function useMemorySearch(options: UseMemorySearchOptions = {}) {
     const [isSearching, setIsSearching] = useState(false);
     const { tag, appId, limit = 20 } = options;
 
+    // Request-token guard: prevents an out-of-order (stale) fetch from
+    // overwriting newer results. Each searchMemory call increments the token;
+    // only the latest call's results are applied (BUG-040).
+    const requestIdRef = useRef(0);
+
     const searchMemory = useCallback(async (query: string) => {
         if (!query.trim()) {
             setResults([]);
             return;
         }
 
+        const myRequestId = ++requestIdRef.current;
         setIsSearching(true);
         try {
             let url = `/api/atom/communication/memory/search?query=${encodeURIComponent(query)}&limit=${limit}`;
@@ -36,8 +42,12 @@ export function useMemorySearch(options: UseMemorySearchOptions = {}) {
             if (appId) url += `&app_id=${encodeURIComponent(appId)}`;
 
             const res = await fetch(url);
+            // Guard: discard this response if a newer search superseded it.
+            if (myRequestId !== requestIdRef.current) return;
+
             if (res.ok) {
                 const data = await res.json();
+                if (myRequestId !== requestIdRef.current) return; // re-check after await
                 if (data.success && data.results) {
                     setResults(data.results);
                 } else {
@@ -51,7 +61,9 @@ export function useMemorySearch(options: UseMemorySearchOptions = {}) {
             console.error("Memory search error:", error);
             toast.error("Error searching historical data");
         } finally {
-            setIsSearching(false);
+            if (myRequestId === requestIdRef.current) {
+                setIsSearching(false);
+            }
         }
     }, [tag, appId, limit]);
 

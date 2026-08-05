@@ -972,7 +972,23 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                             edgeTypes={edgeTypes}
                             fitView
                             onNodeDragStop={() => takeSnapshot({ nodes, edges })}
-                            onNodesDelete={() => takeSnapshot({ nodes, edges })}
+                            onNodesDelete={(deletedNodes) => {
+                                // Prune dangling edges whose source/target was
+                                // just deleted. ReactFlow v11 does NOT auto-remove
+                                // these, so they'd persist and serialize to bad
+                                // data (BUG-038). Snapshot the NEW (post-deletion)
+                                // state, not the stale closure.
+                                const deletedIds = new Set(deletedNodes.map(n => n.id));
+                                const survivingEdges = edges.filter(
+                                    e => !deletedIds.has(e.source) && !deletedIds.has(e.target)
+                                );
+                                if (survivingEdges.length !== edges.length) {
+                                    setEdges(survivingEdges);
+                                }
+                                // nodes is already post-deletion at this point
+                                // (onNodesDelete fires after state update).
+                                takeSnapshot({ nodes, edges: survivingEdges });
+                            }}
                             onEdgesDelete={() => takeSnapshot({ nodes, edges })}
                         >
                             <Background />

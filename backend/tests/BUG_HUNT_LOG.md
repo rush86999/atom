@@ -400,3 +400,37 @@ written first (red), the root cause confirmed, then the minimal fix applied
   (lines 44 + 50), sending two identical feedback POSTs and double-counting in
   local state per submit.
 - **Fix:** Removed the duplicate call.
+
+---
+
+## Round 8 — End-to-end TDD bug hunt (federation auth + workflow edges + state races)
+
+### BUG-037 — did:key resolver accepts any malformed suffix (auth bypass)
+- **Flow:** Federation / zero-trust identity (backend, security)
+- **Symptom:** `_resolve_key_did` only checked `parts[2].startswith("z")` — any
+  `did:key:zGARBAGE` synthesized a valid DIDDocument. The zero-trust
+  `_authenticate` treated "resolved" as "authenticated", so an attacker could
+  pass authentication with a fabricated DID.
+- **Test:** `tests/test_did_key_resolution.py` (3 tests: invalid-suffix→None, garbage→None, valid-base58→doc)
+- **Fix:** Validate the suffix is real base58 (alphanumeric, no `0`/`O`/`I`/`l`).
+
+### BUG-038 — WorkflowBuilder delete leaves dangling edges
+- **Flow:** Workflow builder drag-and-drop (frontend)
+- **Symptom:** `onNodesDelete` snapshotted the PRE-deletion state and never
+  pruned edges whose source/target was just deleted. ReactFlow v11 doesn't
+  auto-remove them, so orphaned edges persisted and serialized to bad data.
+- **Fix:** Added dangling-edge cleanup (filter by deleted node IDs) + snapshot the post-deletion state.
+
+### BUG-039 — useCognitiveTier hardcodes workspaceId "default"
+- **Flow:** Cognitive tier preferences (frontend hook)
+- **Symptom:** `workspaceId = "default"` was a module-level constant with no
+  parameter override. Every workspace's tier preferences were read/written to
+  the same `/default` endpoint — two workspaces silently overwrote each other.
+- **Fix:** Accept an optional `wsId` parameter (defaults to "default" for back-compat).
+
+### BUG-040 — useMemorySearch stale-race (no request cancellation)
+- **Flow:** Memory search (frontend hook)
+- **Symptom:** `searchMemory` had no request-token guard. Two concurrent
+  searches where the older resolved last would overwrite the newer results
+  with stale data.
+- **Fix:** Added a `requestIdRef` counter; only the latest call's results are applied.

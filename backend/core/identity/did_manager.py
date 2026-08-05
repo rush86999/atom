@@ -33,6 +33,15 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Base58 alphabet (Bitcoin/IPFS variant). Characters NOT in this set (0, O, I, l
+# and all non-alphanumeric) are invalid in a did:key multibase suffix.
+_BASE58_ALPHABET = set("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+
+
+def _is_valid_base58(s: str) -> bool:
+    """Return True if every character in ``s`` is a valid base58 character."""
+    return all(c in _BASE58_ALPHABET for c in s)
+
 
 # ============================================================================
 # Enums and Configuration
@@ -400,6 +409,17 @@ class DIDManager:
             return DIDResolutionResult(
                 did=did,
                 resolution_metadata={"error": "Invalid did:key format"}
+            )
+
+        # Validate the multibase suffix is valid base58. Previously ANY string
+        # starting with 'z' was accepted (did:key:zGARBAGE synthesized a valid
+        # document), which the zero-trust _authenticate treated as an
+        # authenticated identity (BUG-037).
+        suffix = parts[2][1:]  # remove 'z' prefix
+        if not suffix or not _is_valid_base58(suffix):
+            return DIDResolutionResult(
+                did=did,
+                resolution_metadata={"error": "Invalid did:key: suffix is not valid base58"}
             )
 
         # Create minimal document with key

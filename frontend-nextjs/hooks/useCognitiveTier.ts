@@ -28,9 +28,15 @@ export interface TierComparison {
   supports_cache: boolean;
 }
 
-const workspaceId = "default"; // TODO: Get from context
-
-export function useCognitiveTier() {
+/**
+ * Hook for cognitive-tier preferences.
+ *
+ * @param wsId - The workspace ID. Defaults to "default" for back-compat, but
+ *   callers SHOULD pass the real workspace id — previously this was hardcoded
+ *   to "default", so every workspace's preferences collided (BUG-039).
+ */
+export function useCognitiveTier(wsId: string = "default") {
+  const workspaceId = wsId;
   const [preferences, setPreferences] = useState<TierPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
