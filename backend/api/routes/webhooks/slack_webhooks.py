@@ -78,7 +78,23 @@ async def slack_webhook(
         logger.error(f"Unauthorized Slack webhook for tenant {tenant_id}")
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # 4. Dispatch via Webhook Bridge
+    # 4. Dedup by event_id — Slack retries the same event up to 3x.
+    # BUG-088: Previously no dedup → every retry was processed as a new event.
+    event_id = data.get("event_id") or data.get("event", {}).get("event_id")
+    dedup_key = f"slack_event:{tenant_id}:{event_id}" if event_id else None
+    if dedup_key:
+        try:
+            from core.cache import get_cache_service
+            cache = get_cache_service()
+            if cache and await cache.get_async(dedup_key):
+                logger.info(f"Duplicate Slack event {event_id} for tenant {tenant_id} — skipping")
+                return {"status": "duplicate", "event_id": event_id}
+            if cache:
+                await cache.set_async(dedup_key, "1", ttl=3600)
+        except Exception:
+            pass  # Cache unavailable — proceed (best-effort dedup)
+
+    # 5. Dispatch via Webhook Bridge
     result = await webhook_bridge.process_event(
         "slack",
         tenant_id,

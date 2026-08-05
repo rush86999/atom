@@ -21,14 +21,16 @@ def verify_hmac_signature(data: bytes, signature: str, secret: str, algorithm=ha
         
     digest = hmac.new(secret.encode('utf-8'), data, algorithm).digest()
     
-    # Handle base64 encoded signatures if needed
+    # BUG-087: The old heuristic (`len(signature) > 64` → base64) was inverted
+    # for Shopify: Shopify sends base64-encoded HMAC-SHA256 (44 chars), which
+    # the heuristic classified as hex → always mismatched → rejected every
+    # legitimate Shopify webhook. Now tries BOTH encodings and accepts if
+    # either matches.
     try:
-        if len(signature) > 64: # Likely base64
-            computed = base64.b64encode(digest).decode('utf-8')
-        else:
-            computed = hmac.new(secret.encode('utf-8'), data, algorithm).hexdigest()
-            
-        return hmac.compare_digest(computed, signature)
+        hex_sig = hmac.new(secret.encode('utf-8'), data, algorithm).hexdigest()
+        b64_sig = base64.b64encode(digest).decode('utf-8')
+
+        return hmac.compare_digest(hex_sig, signature) or hmac.compare_digest(b64_sig, signature)
     except Exception as e:
         logger.error(f"HMAC verification failed: {e}")
         return False

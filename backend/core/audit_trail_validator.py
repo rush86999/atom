@@ -81,16 +81,26 @@ class AuditTrailValidator:
         audits = query.all()
         total_audits = len(audits)
 
-        # Simplified completeness check - assumes all operations are audited
-        # Full validation requires cross-referencing with operation logs
-        # This will be enhanced in later plans with operation tracking
+        # Cross-reference audits against actual financial operations.
+        # BUG-086: Previously returned hardcoded complete=True with 100%
+        # coverage — a false SOX-compliance signal. Now counts actual
+        # JournalEntry operations and compares against audit records.
+        from accounting.models import JournalEntry
+        total_operations = self.db.query(JournalEntry).count()
+
+        audited_operation_ids = {a.record_id for a in audits if a.record_id}
+        all_operation_ids = {
+            str(je.id) for je in self.db.query(JournalEntry.id).all()
+        }
+        missing_ids = all_operation_ids - audited_operation_ids
+        coverage = (len(audited_operation_ids) / len(all_operation_ids) * 100) if all_operation_ids else 100.0
 
         return {
-            'complete': True,  # Placeholder - will be validated against operation counts
-            'total_operations': total_audits,
-            'audited_operations': total_audits,
-            'missing_audits': [],
-            'coverage_percentage': 100.0,
+            'complete': len(missing_ids) == 0,
+            'total_operations': len(all_operation_ids),
+            'audited_operations': len(audited_operation_ids & all_operation_ids),
+            'missing_audits': list(missing_ids)[:100],
+            'coverage_percentage': round(coverage, 2),
             'validated_at': datetime.now(timezone.utc).isoformat()
         }
 
@@ -167,10 +177,13 @@ class AuditTrailValidator:
             - invalid_entries: List[Dict] - Entries with missing fields
             - valid: bool - True if all entries are valid
         """
+        # BUG-086: REQUIRED_FIELDS referenced nonexistent columns (action_type,
+        # success, entry_hash) — the model has operation_type, hash_chain.
+        # Fixed to match the actual FinancialAudit model columns.
         REQUIRED_FIELDS = [
-            'id', 'timestamp', 'user_id', 'account_id',
-            'action_type', 'success', 'agent_maturity',
-            'sequence_number', 'entry_hash'
+            'id', 'timestamp', 'account_id',
+            'operation_type', 'agent_maturity',
+            'sequence_number', 'hash_chain'
         ]
 
         audits = self.db.query(FinancialAudit).limit(limit).all()
