@@ -94,6 +94,12 @@ class WorkflowEngine:
         if "steps" not in workflow and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
+        # Some definitions carry only the alternate "workflow_id" key — normalize
+        # it to "id" so every downstream consumer (create_execution, events,
+        # _run_execution) works without a KeyError.
+        if "id" not in workflow and workflow.get("workflow_id"):
+            workflow["id"] = workflow["workflow_id"]
+
         execution_id = await self.state_manager.create_execution(workflow["id"], input_data)
 
         # Phase 5: publish a WORKFLOW_STARTED event for the EventBus.
@@ -902,7 +908,7 @@ class WorkflowEngine:
         """Check if all dependencies are met"""
         depends_on = step.get("depends_on", [])
         for dep_id in depends_on:
-            dep_state = state["steps"].get(dep_id, {})
+            dep_state = state.get("steps", {}).get(dep_id, {})
             if dep_state.get("status") != "COMPLETED":
                 return False
         return True
