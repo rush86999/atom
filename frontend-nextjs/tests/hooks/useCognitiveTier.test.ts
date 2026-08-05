@@ -21,9 +21,13 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useCognitiveTier, type TierPreference } from '@/hooks/useCognitiveTier';
 
-// Mock fetch globally
+// Fetch mock. NOTE: `global.fetch` is assigned in beforeEach, NOT at module
+// level. tests/setup.ts registers an MSW server whose beforeAll server.listen()
+// re-installs MSW's fetch interceptor AFTER this module evaluates, so a
+// module-level `global.fetch = mockFetch` would be silently overwritten and the
+// hook would keep hitting MSW (unhandled-request warnings, clone errors).
+// Assigning in beforeEach (runs after beforeAll) makes the hook call our mock.
 const mockFetch = jest.fn();
-global.fetch = mockFetch as any;
 
 describe('useCognitiveTier', () => {
   const mockPreferences: TierPreference = {
@@ -41,6 +45,9 @@ describe('useCognitiveTier', () => {
   };
 
   beforeEach(() => {
+    // Override global.fetch AFTER MSW's beforeAll server.listen() has patched
+    // it, so the hook calls our mock directly (see note above).
+    global.fetch = mockFetch as any;
     // Clear mock and reset implementation
     mockFetch.mockClear();
     mockFetch.mockReset();

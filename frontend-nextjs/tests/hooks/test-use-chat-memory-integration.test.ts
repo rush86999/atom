@@ -18,7 +18,7 @@ const createMockUseChatMemory = () => {
           }
         },
         clearMessages: () => {
-          messages = [];
+          messages.length = 0;
           listeners.forEach(fn => fn());
         },
         updateMessage: (id: string, updates: any) => {
@@ -29,8 +29,11 @@ const createMockUseChatMemory = () => {
           }
         },
         deleteMessage: (id: string) => {
-          messages = messages.filter(m => m.id !== id);
-          listeners.forEach(fn => fn());
+          const index = messages.findIndex(m => m.id === id);
+          if (index !== -1) {
+            messages.splice(index, 1);
+            listeners.forEach(fn => fn());
+          }
         },
         subscribe: (callback: Function) => {
           listeners.add(callback);
@@ -41,7 +44,8 @@ const createMockUseChatMemory = () => {
         importMessages: (json: string) => {
           try {
             const imported = JSON.parse(json);
-            messages = imported;
+            messages.length = 0;
+            messages.push(...imported);
             listeners.forEach(fn => fn());
             return true;
           } catch {
