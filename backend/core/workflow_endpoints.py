@@ -651,15 +651,36 @@ async def resume_workflow(
     """Resume a paused workflow execution"""
     from core.execution_state_manager import get_state_manager
     from core.workflow_engine import get_workflow_engine
-    
+    from advanced_workflow_orchestrator import get_orchestrator
+
     engine = get_workflow_engine()
     state_manager = get_state_manager()
-    
+
     # Get current state to find workflow definition
     state = await state_manager.get_execution_state(execution_id)
     if not state:
-        raise HTTPException(status_code=404, detail="Execution not found")
-        
+        # The durable engine has no record of this execution — fall back to the
+        # advanced orchestrator (workflow UI path). It owns executions whose
+        # steps are waiting for human approval.
+        orchestrator = get_orchestrator()
+        context = orchestrator.active_contexts.get(execution_id)
+        if context is None:
+            raise HTTPException(status_code=404, detail="Execution not found")
+
+        results = getattr(context, "results", {}) or {}
+        approvable = next(
+            (step_id for step_id, st in results.items()
+             if isinstance(st, dict) and st.get("status") == "waiting_approval"),
+            None,
+        )
+        if approvable is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Execution has no step waiting for approval",
+            )
+        await orchestrator.resume_workflow(execution_id, approvable)
+        return {"status": "resumed", "execution_id": execution_id}
+
     # Load workflow definition
     # In a real app, we might store the definition snapshot with the execution
     # For now, load current definition
