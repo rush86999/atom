@@ -388,12 +388,19 @@ class WorkflowTemplateManager:
         return True
 
     def export_template(self, template_id: str) -> Dict[str, Any]:
-        """Export template as shareable JSON"""
+        """Export template as shareable JSON.
+
+        P5 Blueprint Security: sharing never leaks credentials. The exported
+        payload is run through ``strip_credentials`` so any nested secret keys
+        (api_key / access_token / refresh_token / secret / password) are
+        removed before the template is shared.
+        """
         template = self.get_template(template_id)
         if not template:
             raise ValueError(f"Template {template_id} not found")
 
-        return template.dict()
+        from core.blueprint_sanitizer import strip_credentials
+        return strip_credentials(template.dict())
 
     def import_template(self, template_data: Dict[str, Any], overwrite: bool = False) -> WorkflowTemplate:
         """Import template from JSON"""

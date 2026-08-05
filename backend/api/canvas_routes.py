@@ -211,6 +211,103 @@ async def delete_canvas(
     return result
 
 
+@router.post("/{canvas_id}/fork")
+async def fork_canvas(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Fork a canvas into a new, independent canvas owned by the current user.
+
+    P5 Blueprint Security: forking never leaks credentials or history. The copy
+    gets a fresh id, ``share_token`` reset to None, ``status`` "active", and
+    ``created_by`` set to the current user. No audit history is carried over
+    (exactly one "fork" row is written), and no context/artifacts/recordings/
+    presence/handoffs are copied. Component installation configs are run
+    through ``strip_credentials`` before they are re-created on the copy. The
+    source canvas is never modified.
+    """
+    import uuid
+    from datetime import datetime, timezone
+
+    from core.blueprint_sanitizer import strip_credentials
+    from core.database import get_db_session
+    from core.models import Canvas, CanvasAudit, ComponentInstallation
+    from tools.canvas_crud_tool import read_canvas
+
+    # 1. Audit-trail source of truth: verifies the canvas exists and the
+    #    current user owns it (IDOR guard).
+    source_read = await read_canvas(str(current_user.id), canvas_id)
+    if not source_read.get("success"):
+        raise HTTPException(status_code=404, detail=source_read.get("error"))
+
+    with get_db_session() as db:
+        src = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if src is None:
+            raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
+
+        new_id = str(uuid.uuid4())
+        new_name = f"{src.name} (copy)"
+        new_canvas_type = src.canvas_type
+
+        # 2. Independent copy: copied fields, all identity/state fields reset.
+        new_canvas = Canvas(
+            id=new_id,
+            tenant_id=src.tenant_id,
+            workspace_id=src.workspace_id,
+            created_by=str(current_user.id),
+            name=new_name,
+            description=src.description,
+            canvas_type=new_canvas_type,
+            content=src.content,
+            style=src.style,
+            is_collaborative=src.is_collaborative,
+            share_token=None,          # never inherit a share token
+            status="active",           # fresh status
+            last_edited_by=str(current_user.id),
+            last_edited_at=datetime.now(timezone.utc),
+        )
+        db.add(new_canvas)
+        db.flush()
+
+        # 3. Re-create component installations with credentials stripped.
+        for inst in db.query(ComponentInstallation).filter(
+            ComponentInstallation.canvas_id == canvas_id
+        ).all():
+            db.add(ComponentInstallation(
+                tenant_id=inst.tenant_id,
+                canvas_id=new_id,
+                component_id=inst.component_id,
+                config=strip_credentials(inst.config) if inst.config else inst.config,
+                position=inst.position,
+                z_index=inst.z_index,
+            ))
+
+        # 4. Exactly one audit row for the copy — history is NOT carried over.
+        db.add(CanvasAudit(
+            canvas_id=new_id,
+            tenant_id=src.tenant_id,
+            action_type="fork",
+            user_id=str(current_user.id),
+            canvas_type=new_canvas_type,
+            details_json={"source_canvas_id": canvas_id},
+        ))
+
+        db.commit()
+
+    return {
+        "success": True,
+        "message": f"Canvas forked to {new_id}",
+        "canvas": {
+            "id": new_id,
+            "name": new_name,
+            "canvas_type": new_canvas_type,
+            "created_by": str(current_user.id),
+            "share_token": None,
+            "status": "active",
+        },
+    }
+
+
 @router.get("/{canvas_id}/history")
 async def get_canvas_history(
     canvas_id: str,
