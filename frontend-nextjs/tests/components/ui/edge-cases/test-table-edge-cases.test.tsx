@@ -688,7 +688,8 @@ describe('Table Edge Cases', () => {
       );
 
       const rows = screen.getAllByRole('row');
-      expect(rows[1]).toHaveClass('custom-row-class');
+      // The table has no header row, so the single body row is rows[0].
+      expect(rows[0]).toHaveClass('custom-row-class');
     });
 
     it('should handle custom className on cells', () => {
