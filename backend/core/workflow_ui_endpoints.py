@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -628,15 +629,74 @@ async def create_workflow_definition(payload: Dict[str, Any]):
     MOCK_WORKFLOWS.insert(0, new_workflow)
     return {"success": True, "workflow": new_workflow.dict()}
 
+def _merge_persisted_executions(executions: List[Any]) -> List[Any]:
+    """Merge durable-engine executions (DB ``WorkflowExecution``) into the list.
+
+    Executions started via ``POST /workflows/{id}/execute`` run through
+    ``WorkflowEngine`` → ``ExecutionStateManager`` → the ``WorkflowExecution``
+    table, which the Executions tab never read — so a "Run" on a workflow
+    never appeared there. Append any rows we don't already have (dedup by
+    execution_id), mapping them to the UI model.
+    """
+    from core.models import WorkflowExecution as DBWorkflowExecution
+
+    existing_ids = {getattr(e, "execution_id", None) for e in executions}
+    db = next(get_db())
+    try:
+        rows = (
+            db.query(DBWorkflowExecution)
+            .order_by(DBWorkflowExecution.created_at.desc())
+            .limit(100)
+            .all()
+        )
+    finally:
+        db.close()
+
+    for row in rows:
+        if row.execution_id in existing_ids:
+            continue
+        try:
+            input_data = json.loads(row.input_data) if row.input_data else {}
+            outputs = json.loads(row.outputs) if row.outputs else {}
+            steps = json.loads(row.steps) if row.steps else {}
+        except (TypeError, ValueError):
+            input_data, outputs, steps = {}, {}, {}
+
+        start_time = (
+            row.created_at.isoformat()
+            if isinstance(row.created_at, datetime)
+            else datetime.now().isoformat()
+        )
+        end_time = (
+            row.completed_at.isoformat()
+            if isinstance(row.completed_at, datetime)
+            else None
+        )
+
+        executions.append(WorkflowExecution(
+            execution_id=row.execution_id,
+            workflow_id=row.workflow_id,
+            status=(row.status or "unknown").lower(),
+            start_time=start_time,
+            end_time=end_time,
+            current_step=0,
+            total_steps=len(steps) if isinstance(steps, (dict, list)) else 0,
+            trigger_data=input_data,
+            results=outputs,
+            errors=[row.error] if row.error else [],
+        ))
+        existing_ids.add(row.execution_id)
+    return executions
+
+
 @router.get("/executions")
 async def get_executions(current_user: User = Depends(get_current_user)):
-    # Fetch real executions from the orchestrator
+    executions: List[Any] = []
+
+    # 1) Orchestrator in-memory contexts
     try:
         from advanced_workflow_orchestrator import WorkflowStatus, get_orchestrator
         orchestrator = get_orchestrator()
-        
-        executions = []
-        # Convert Orchestrator contexts to UI Execution models
 
         # Use list() to avoid RuntimeError if dict changes size during iteration
         for context in list(orchestrator.active_contexts.values()):
@@ -645,36 +705,36 @@ async def get_executions(current_user: User = Depends(get_current_user)):
                 c_id = getattr(context, 'workflow_id', None)
                 if not c_id and isinstance(context, dict):
                      c_id = context.get('workflow_id')
-                
+
                 c_input = getattr(context, 'input_data', {})
                 if not c_input and isinstance(context, dict):
                     c_input = context.get('input_data', {})
-                
+
                 c_status = getattr(context, 'status', 'pending')
                 if isinstance(context, dict):
                     c_status = context.get('status', 'pending')
-                
+
                 status_str = "unknown"
-                if hasattr(c_status, 'value'): 
+                if hasattr(c_status, 'value'):
                     status_str = c_status.value
                 else:
                     status_str = str(c_status)
-                
+
                 # Safe Date Handling
                 c_started = getattr(context, 'started_at', None)
                 if isinstance(context, dict):
                      c_started = context.get('started_at')
-                     
+
                 start_time_str = datetime.now().isoformat()
                 if isinstance(c_started, datetime):
                     start_time_str = c_started.isoformat()
                 elif isinstance(c_started, str):
                     start_time_str = c_started
-                
+
                 c_ended = getattr(context, 'completed_at', None)
                 if isinstance(context, dict):
                     c_ended = context.get('completed_at')
-                    
+
                 end_time_str = None
                 if isinstance(c_ended, datetime):
                     end_time_str = c_ended.isoformat()
@@ -684,14 +744,14 @@ async def get_executions(current_user: User = Depends(get_current_user)):
                 c_results = getattr(context, 'results', {})
                 if isinstance(context, dict):
                     c_results = context.get('results', {})
-                
+
                 c_error = getattr(context, 'error_message', None)
                 if isinstance(context, dict):
                     c_error = context.get('error_message')
 
                 # Calculate metrics
                 current_step = len(c_results) if c_results else 0
-                
+
                 executions.append(WorkflowExecution(
                     execution_id=str(c_id),
                     workflow_id=c_input.get("_ui_workflow_id", str(c_id)), # Prefer UI ID if stored
@@ -706,22 +766,27 @@ async def get_executions(current_user: User = Depends(get_current_user)):
                 ))
             except Exception as e:
                 # Log but don't crash the whole list
-                import traceback
                 logger.error(f"Error parsing execution context: {e}")
-                # traceback.print_exc()
                 continue
-
-            
-        # Sort by start time (newest first)
-        executions.sort(key=lambda x: x.start_time, reverse=True)
-        return {"success": True, "executions": [e.dict() for e in executions]}
-            
     except ImportError:
         # Fallback if orchestrator not available/path issue
-        return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}
+        executions = list(MOCK_EXECUTIONS)
     except Exception as e:
-        logger.error(f"Failed to load executions: {e}")
-        return {"success": False, "error": "Failed to load executions", "executions": []}
+        logger.error(f"Failed to load orchestrator executions: {e}")
+        executions = []
+
+    # 2) Durable-engine executions (DB workflow_executions) — executions
+    # started via POST /workflows/{id}/execute live here, not in the
+    # orchestrator. Without this merge, "Run" on a workflow never appears in
+    # the Executions tab.
+    try:
+        executions = _merge_persisted_executions(executions)
+    except Exception as e:
+        logger.error(f"Failed to merge persisted executions: {e}")
+
+    # Sort by start time (newest first)
+    executions.sort(key=lambda x: x.start_time, reverse=True)
+    return {"success": True, "executions": [e.dict() for e in executions]}
 
 @router.post("/execute")
 async def execute_workflow(
