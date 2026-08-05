@@ -25,10 +25,20 @@ import { useCanvasState } from '@/hooks/useCanvasState';
 import React from 'react';
 
 // Mock window.atom.canvas API
+//
+// IMPORTANT: the real useCanvasState hook calls api.subscribe(callback) with a
+// SINGLE argument (no canvasId) and api.subscribeAll(callback) with a single
+// argument. The stale two-arg subscribe(canvasId, callback) mock keyed the
+// hook's callback under a garbage key and never notified it, so every
+// state-emit test timed out with state stuck at null. This mock matches the
+// de-facto runtime contract used by the hook (and by the passing
+// useCanvasState suites, e.g. hooks/__tests__/useCanvasState.api.test.ts):
+//   subscribe(cb)     -> cb(state) on any canvas change
+//   subscribeAll(cb)  -> cb({ canvas_id, state }) on any canvas change
 const mockCanvasAPI: any = {
   _state: new Map<string, any>(),
-  _subscribers: new Map<string, Set<(state: any) => void>>(),
-  _allSubscribers: new Set() as any,
+  _subscribers: new Set<(state: any) => void>(),
+  _allSubscribers: new Set<(event: any) => void>(),
 
   getState(id: string) {
     return this._state.get(id) || null;
@@ -41,15 +51,12 @@ const mockCanvasAPI: any = {
     }));
   },
 
-  subscribe(canvasId: string, callback: (state: any) => void) {
-    if (!this._subscribers.has(canvasId)) {
-      this._subscribers.set(canvasId, new Set());
-    }
-    this._subscribers.get(canvasId)!.add(callback);
+  subscribe(callback: (state: any) => void) {
+    this._subscribers.add(callback);
 
     // Return unsubscribe function
     return () => {
-      this._subscribers.get(canvasId)?.delete(callback);
+      this._subscribers.delete(callback);
     };
   },
 
@@ -66,8 +73,8 @@ const mockCanvasAPI: any = {
   _emit(canvasId: string, state: any) {
     this._state.set(canvasId, state);
 
-    // Notify specific subscribers
-    this._subscribers.get(canvasId)?.forEach(callback => callback(state));
+    // Notify subscribed callbacks (the hook's callback receives just the state)
+    this._subscribers.forEach(callback => callback(state));
 
     // Notify all subscribers
     this._allSubscribers.forEach(callback =>
@@ -174,7 +181,8 @@ describe('useCanvasState concurrent operations', () => {
       // Capture all state changes
       let unsubscribe: (() => void) | null = null;
       act(() => {
-        unsubscribe = mockCanvasAPI.subscribe('canvas-capture', (state) => {
+        // subscribe takes a single callback (matching the real API contract).
+        unsubscribe = mockCanvasAPI.subscribe((state) => {
           capturedStates.push(state);
         });
       });
@@ -253,9 +261,8 @@ describe('useCanvasState concurrent operations', () => {
     it('should cleanup subscriptions even with concurrent updates', async () => {
       const { unmount } = renderHook(() => useCanvasState('canvas-cleanup'));
 
-      // Verify subscription was created
-      const subscriberCountBefore = mockCanvasAPI._subscribers.get('canvas-cleanup')?.size || 0;
-      expect(subscriberCountBefore).toBeGreaterThan(0);
+      // The hook subscribes one callback to the global subscriber set.
+      expect(mockCanvasAPI._subscribers.size).toBe(1);
 
       // Perform concurrent updates
       act(() => {
@@ -269,16 +276,15 @@ describe('useCanvasState concurrent operations', () => {
         unmount();
       });
 
-      // Cleanup should have removed subscribers
-      const subscriberCountAfter = mockCanvasAPI._subscribers.get('canvas-cleanup')?.size || 0;
-      expect(subscriberCountAfter).toBe(0);
+      // Cleanup should have removed the subscriber
+      expect(mockCanvasAPI._subscribers.size).toBe(0);
     });
 
     it('should not leak memory with rapid mount/unmount cycles', async () => {
       const subscriberCounts: number[] = [];
 
-      // Track subscriber count before and after
-      const getSubscriberCount = () => mockCanvasAPI._subscribers.get('canvas-leak')?.size || 0;
+      // Track the global subscriber set (one callback per mounted hook)
+      const getSubscriberCount = () => mockCanvasAPI._subscribers.size;
 
       // Perform rapid mount/unmount cycles
       for (let i = 0; i < 5; i++) {
@@ -300,7 +306,7 @@ describe('useCanvasState concurrent operations', () => {
       }
 
       // Verify no subscriber accumulation
-      expect(mockCanvasAPI._subscribers.get('canvas-leak')?.size || 0).toBe(0);
+      expect(mockCanvasAPI._subscribers.size).toBe(0);
     });
   });
 
@@ -402,11 +408,13 @@ describe('useCanvasState concurrent operations', () => {
         mockCanvasAPI._emit('canvas-sub-1', { active: 3 });
       });
 
-      // Verify cleanup happened - only canvas-sub-1 should have subscriber
+      // The final emit for the current canvas (canvas-sub-1) is reflected in
+      // hook state, and each rerender cleaned up its previous subscription, so
+      // the global subscriber set never grows past one.
       await waitFor(() => {
-        expect(mockCanvasAPI._subscribers.get('canvas-sub-1')?.size || 0).toBe(1);
-        expect(mockCanvasAPI._subscribers.get('canvas-sub-2')?.size || 0).toBe(0);
+        expect(result.current.state).toEqual({ active: 3 });
       });
+      expect(mockCanvasAPI._subscribers.size).toBe(1);
     });
 
     it('should not crash with null/undefined state transitions', async () => {
