@@ -182,10 +182,12 @@ async def get_agent_status(
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
-    # Check for running tasks
+    # Check for running tasks (BUG-050: get_active_tasks never existed; the
+    # real sync method is get_agent_tasks. The old call raised AttributeError
+    # which was silently swallowed, defeating the running-task guard.)
     from core.agent_task_registry import agent_task_registry
     try:
-        running_tasks = await agent_task_registry.get_active_tasks(agent_id)
+        running_tasks = agent_task_registry.get_agent_tasks(agent_id)
     except Exception:
         running_tasks = []
 
@@ -273,10 +275,11 @@ async def delete_agent(
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
-    # Check if agent has running tasks
+    # Check if agent has running tasks (BUG-050: was calling non-existent
+    # get_active_tasks; now uses the real sync get_agent_tasks.)
     from core.agent_task_registry import agent_task_registry
     try:
-        running_tasks = await agent_task_registry.get_active_tasks(agent_id)
+        running_tasks = agent_task_registry.get_agent_tasks(agent_id)
     except Exception:
         running_tasks = []
 

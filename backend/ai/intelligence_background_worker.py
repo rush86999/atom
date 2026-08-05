@@ -82,15 +82,20 @@ class IntelligenceBackgroundWorker:
 
     async def _perform_scan(self):
         """Single scan iteration"""
-        # 1. Optionally refresh data if registry is empty
-        if not self.engine.entity_registry:
-            logger.info("Initializing background engine registry with first-run data")
-            for platform in [PlatformType.SALESFORCE, PlatformType.JIRA, PlatformType.ASANA]:
-                user_id = self._get_configured_user_id(platform.value)
-                context = {"user_id": user_id} if user_id else {}
+        # 1. Refresh data from all configured platforms on EVERY scan.
+        # Previously this only ran when entity_registry was empty (first run),
+        # so every subsequent scan evaluated stale first-snapshot data forever
+        # — anomalies that were fixed upstream kept firing, and new conditions
+        # on existing entities were never detected (BUG-051).
+        for platform in [PlatformType.SALESFORCE, PlatformType.JIRA, PlatformType.ASANA]:
+            user_id = self._get_configured_user_id(platform.value)
+            context = {"user_id": user_id} if user_id else {}
+            try:
                 data = await self.engine._get_platform_data(platform, context)
                 if data:
                     await self.engine.ingest_platform_data(platform, data)
+            except Exception as e:
+                logger.warning(f"Failed to refresh {platform.value} data: {e}")
 
         # 2. Run detection
         anomalies = await self.engine.detect_anomalies()

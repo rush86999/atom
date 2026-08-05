@@ -18,8 +18,14 @@ export function useFileUpload() {
                     'Content-Type': 'multipart/form-data',
                 },
                 onUploadProgress: (progressEvent: any) => {
-                    const percentCompleted = Math.round(
-                        (progressEvent.loaded * 100) / (progressEvent.total || 1)
+                    // Clamp to [0, 100]. When total is 0 (streaming/chunked
+                    // uploads), dividing by `|| 1` produced values >100%
+                    // (e.g. 5000 after 5KB uploaded) — BUG-053.
+                    const percentCompleted = Math.min(
+                        100,
+                        Math.round(
+                            (progressEvent.loaded * 100) / (progressEvent.total || 1)
+                        )
                     );
                     setProgress(percentCompleted);
                 },

@@ -515,3 +515,37 @@ written first (red), the root cause confirmed, then the minimal fix applied
   null "removal" events on every keystroke/data change.
 - **Fix:** Split into two effects: one for canvasId registration/cleanup (unmount
   only), one for state updates (no destructive cleanup).
+
+---
+
+## Round 11 — End-to-end TDD bug hunt (dead-code guard + stale data + UX)
+
+### BUG-050 — agent_routes calls non-existent get_active_tasks (running-task guard dead)
+- **Flow:** Agent management endpoints (backend)
+- **Symptom:** `delete_agent` and `get_agent_status` called `agent_task_registry.get_active_tasks()`
+  — a method that doesn't exist (the real one is sync `get_agent_tasks`). The
+  `AttributeError` was silently swallowed, so the running-task guard always passed:
+  agents were deleted mid-execution, and status always reported `is_running: False`.
+- **Test:** `tests/test_agent_task_registry_method.py` (3 tests)
+- **Fix:** Replaced both call sites with the real sync `get_agent_tasks`.
+
+### BUG-051 — Intelligence worker never re-fetches stale platform data
+- **Flow:** Background anomaly detection (backend)
+- **Symptom:** `_perform_scan` only fetched platform data when `entity_registry`
+  was empty (first run only). Every subsequent 5-min scan evaluated the same
+  first-snapshot data forever — fixed anomalies kept firing, new conditions on
+  existing entities were never detected.
+- **Fix:** Fetch on every scan with per-platform error isolation.
+
+### BUG-052 — AgentStudio shows stale test result from a different agent
+- **Flow:** Agent test-run UI (frontend)
+- **Symptom:** `handleOpenEdit` set the selected agent but never cleared
+  `runResult`/`runTrace`. Opening Agent B's edit dialog after testing Agent A
+  displayed Agent A's output under Agent B's name.
+- **Fix:** Clear runResult/runTrace/runInput in handleOpenEdit.
+
+### BUG-053 — useFileUpload progress exceeds 100% when total is unknown
+- **Flow:** File upload progress display (frontend)
+- **Symptom:** `progressEvent.total || 1` divided loaded*100 by 1 when total=0
+  (streaming/chunked uploads), producing values like 5000% — meaningless progress.
+- **Fix:** Added `Math.min(100, ...)` clamp.

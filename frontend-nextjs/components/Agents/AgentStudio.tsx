@@ -204,6 +204,11 @@ const AgentStudio: React.FC = () => {
 
     const handleOpenEdit = (agent: Agent) => {
         setSelectedAgent(agent);
+        // Clear previous test-run results so Agent A's output isn't shown
+        // under Agent B's edit dialog (BUG-052).
+        setRunResult(null);
+        setRunTrace([]);
+        setRunInput("");
         // Note: In real app, might need to fetch full detail if list is partial.
         // Assuming list returns enough for now or we rely on what we have.
         // If agent.configuration is missing, defaults will show. 
