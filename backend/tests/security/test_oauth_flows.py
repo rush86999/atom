@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from tests.factories.user_factory import UserFactory
 from core.models import OAuthToken
+from datetime import datetime, timezone
 import json
 
 
@@ -222,72 +223,117 @@ class TestMicrosoftOAuthFlow:
 
 
 class TestTokenEncryption:
-    """Test OAuth token encryption at rest."""
+    """Test OAuth token encryption at rest.
 
-    def test_tokens_encrypted_in_database(self, client: TestClient, db_session: Session):
-        """Test OAuth tokens are encrypted, not stored as plaintext."""
-        # Create user with OAuth token
-        user = UserFactory(_session=db_session)
+    R41 repurposed the phantom ``OAuthToken`` schema (provider +
+    ``_encrypted_access_token``) into the real OAuth2-server token table plus
+    the Fernet-encrypted ``IntegrationToken``. These tests assert the current
+    at-rest guarantees: integration tokens are Fernet ciphertext and the OAuth2
+    server table stores only SHA-256 hashes, never plaintext.
+    """
 
-        # Create an OAuth token record
-        oauth_token = OAuthToken(
-            user_id=user.id,
-            provider="github",
-            _encrypted_access_token="encrypted_token_123",  # Simulate encrypted storage
-            access_token="github_access_token_123"  # Decrypted value
+    def test_tokens_encrypted_in_database(self, db_session: Session):
+        """Test integration tokens are Fernet-encrypted, not stored as plaintext."""
+        from core.privsec.token_encryption import encrypt_token
+        from core.models import IntegrationToken
+        import uuid
+        token = IntegrationToken(
+            tenant_id="tenant-enc",
+            workspace_id=f"ws-{uuid.uuid4()}",
+            provider="zoho",
+            access_token=encrypt_token("zoho_access_token_123"),
+            refresh_token=encrypt_token("zoho_refresh_token_123"),
+            token_type="Bearer",
+            status="active",
         )
-        db_session.add(oauth_token)
+        db_session.add(token)
         db_session.commit()
 
-        # Verify token stored encrypted
-        stored_token = db_session.query(OAuthToken).filter(
-            OAuthToken.provider == "github"
+        stored = db_session.query(IntegrationToken).filter(
+            IntegrationToken.provider == "zoho"
         ).first()
+        assert stored is not None
+        # Ciphertext must not contain the plaintext and must look like Fernet.
+        assert "zoho_access_token_123" not in stored.access_token
+        assert stored.access_token.startswith("gAAAA")
 
-        assert stored_token is not None
-        # The encrypted field should not contain plaintext
-        if hasattr(stored_token, '_encrypted_access_token'):
-            assert stored_token._encrypted_access_token != "github_access_token_123"
-        # Access via property should return decrypted value
-        assert stored_token.access_token == "github_access_token_123"
-
-    def test_token_property_decrypts_value(self, db_session: Session):
-        """Test token property returns decrypted value."""
+    def test_oauth_server_token_hashed_not_plaintext(self, db_session: Session):
+        """The OAuth2 server token table stores SHA-256 hashes, not plaintext."""
+        import uuid
         user = UserFactory(_session=db_session)
+        from core.models import OAuthClient, OAuthToken, Tenant
+        tenant = Tenant(id=str(uuid.uuid4()), name="enc-tenant", subdomain="enc-tenant")
+        client = OAuthClient(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant.id,
+            name="test-client",
+            client_id="test_client_id",
+            client_secret_hash="hash",
+        )
+        db_session.add_all([tenant, client])
+        db_session.commit()
 
-        # Create token with encrypted field
         oauth_token = OAuthToken(
+            client_id=client.id,
             user_id=user.id,
-            provider="test_provider",
-            _encrypted_access_token="encrypted_value_xyz",
-            access_token="decrypted_value_xyz"
+            tenant_id=tenant.id,
+            access_token_hash="sha256-of-token",
+            refresh_token_hash="sha256-of-refresh",
+            scope="openid",
+            token_type="Bearer",
+            access_token_expires_at=datetime.now(timezone.utc),
+            is_active=True,
         )
         db_session.add(oauth_token)
         db_session.commit()
 
-        # Access via property should decrypt
-        assert oauth_token.access_token == "decrypted_value_xyz"
+        stored = db_session.query(OAuthToken).filter(
+            OAuthToken.id == oauth_token.id
+        ).first()
+        assert stored.access_token_hash == "sha256-of-token"
+        # No plaintext access_token column exists on the model.
+        assert not hasattr(stored, "access_token")
+
+    def test_token_property_decrypts_value(self):
+        """Encrypted integration tokens decrypt back to the original value."""
+        from core.privsec.token_encryption import encrypt_token, decrypt_token
+        encrypted = encrypt_token("decrypted_value_xyz")
+        assert encrypted != "decrypted_value_xyz"
+        assert decrypt_token(encrypted) == "decrypted_value_xyz"
+        # Legacy plaintext still decrypts transparently.
+        assert decrypt_token("plain-legacy", allow_plaintext=True) == "plain-legacy"
 
 
 class TestTokenRefresh:
-    """Test OAuth token refresh flow."""
+    """Test the real integration-token refresh flow (ZohoOAuthService)."""
+
+    def _zoho_token(self, db_session: Session, refresh: str = "valid_refresh_token"):
+        from core.privsec.token_encryption import encrypt_token
+        from core.models import IntegrationToken
+        import uuid
+        token = IntegrationToken(
+            tenant_id="tenant-refresh",
+            workspace_id=f"ws-{uuid.uuid4()}",
+            provider="zoho",
+            access_token=encrypt_token("old_access_token"),
+            refresh_token=encrypt_token(refresh),
+            token_type="Bearer",
+            status="active",
+        )
+        db_session.add(token)
+        db_session.commit()
+        return token
 
     @patch('httpx.AsyncClient.post')
-    def test_token_refresh_with_valid_refresh_token(self, mock_post, client: TestClient, db_session: Session):
-        """Test refreshing OAuth token with valid refresh token."""
-        # Create user with existing OAuth token
-        user = UserFactory(email="oauth@test.com", _session=db_session)
-        oauth_token = OAuthToken(
-            user_id=user.id,
-            provider="github",
-            _encrypted_access_token="old_encrypted_token",
-            refresh_token="valid_refresh_token",
-            expires_at="2026-02-01T10:00:00"  # Expired
-        )
-        db_session.add_all([user, oauth_token])
-        db_session.commit()
+    def test_token_refresh_with_valid_refresh_token(self, mock_post, db_session: Session):
+        """Refreshing an integration token stores a NEW encrypted access token."""
+        from core.integrations.zoho_oauth_service import ZohoOAuthService
+        from core.privsec.token_encryption import decrypt_token
+        import asyncio
 
-        # Mock refresh endpoint
+        token = self._zoho_token(db_session)
+        old_stored = token.access_token
+
         mock_post_response = Mock()
         mock_post_response.status_code = 200
         mock_post_response.json.return_value = {
@@ -297,84 +343,63 @@ class TestTokenRefresh:
         }
         mock_post.return_value = mock_post_response
 
-        # Create auth token for user
-        from tests.security.conftest import create_test_token
-        response = client.post(
-            "/api/v1/integrations/oauth/refresh",
-            json={"provider": "github"},
-            headers={"Authorization": f"Bearer {create_test_token(user.id)}"}
+        result = asyncio.get_event_loop().run_until_complete(
+            ZohoOAuthService.refresh_token(db_session, token)
         )
 
-        # Endpoint might not be implemented
-        assert response.status_code in [200, 404, 501]
-
-        if response.status_code == 200:
-            data = response.json()
-            assert "access_token" in data or "success" in data
+        assert result is not None
+        # The stored value changed and decrypts to the refreshed token.
+        assert token.access_token != old_stored
+        assert decrypt_token(token.access_token) == "new_access_token"
 
     @patch('httpx.AsyncClient.post')
-    def test_token_refresh_with_invalid_refresh_token(self, mock_post, client: TestClient, db_session: Session):
-        """Test token refresh fails with invalid refresh token."""
-        user = UserFactory(email="oauth@test.com", _session=db_session)
-        oauth_token = OAuthToken(
-            user_id=user.id,
-            provider="github",
-            _encrypted_access_token="old_token",
-            refresh_token="invalid_refresh_token",
-            expires_at="2026-02-01T10:00:00"
-        )
-        db_session.add_all([user, oauth_token])
-        db_session.commit()
+    def test_token_refresh_with_invalid_refresh_token(self, mock_post, db_session: Session):
+        """A failed refresh returns None and leaves the stored token untouched."""
+        from core.integrations.zoho_oauth_service import ZohoOAuthService
+        import asyncio
 
-        # Mock error response
+        token = self._zoho_token(db_session)
+        old_stored = token.access_token
+
         mock_post_response = Mock()
-        mock_post_response.status_code = 200
-        mock_post_response.json.return_value = {
-            "error": "invalid_grant",
-            "error_description": "The refresh token is invalid."
-        }
+        mock_post_response.status_code = 401
+        mock_post_response.raise_for_status.side_effect = Exception("invalid_grant")
         mock_post.return_value = mock_post_response
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
-            "/api/v1/integrations/oauth/refresh",
-            json={"provider": "github"},
-            headers={"Authorization": f"Bearer {create_test_token(user.id)}"}
+        result = asyncio.get_event_loop().run_until_complete(
+            ZohoOAuthService.refresh_token(db_session, token)
         )
 
-        # Should fail or not be implemented
-        assert response.status_code in [200, 400, 401, 404, 501]
+        assert result is None
+        assert token.access_token == old_stored
 
 
 class TestTokenRevocation:
-    """Test OAuth token revocation."""
+    """Test integration-token revocation via the status field."""
 
-    def test_revoke_oauth_token(self, client: TestClient, db_session: Session):
-        """Test revoking OAuth token."""
-        user = UserFactory(email="oauth@test.com", _session=db_session)
-        oauth_token = OAuthToken(
-            user_id=user.id,
-            provider="github",
-            _encrypted_access_token="active_token",
-            refresh_token="refresh_token"
+    def test_revoke_oauth_token(self, db_session: Session):
+        """Marking an IntegrationToken revoked persists it as non-active."""
+        from core.models import IntegrationToken
+        import uuid
+        token = IntegrationToken(
+            tenant_id="tenant-revoke",
+            workspace_id=f"ws-{uuid.uuid4()}",
+            provider="zoho",
+            access_token="encrypted-token-value",
+            token_type="Bearer",
+            status="active",
         )
-        db_session.add_all([user, oauth_token])
+        db_session.add(token)
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
-            f"/api/v1/integrations/oauth/revoke/{oauth_token.provider}",
-            headers={"Authorization": f"Bearer {create_test_token(user.id)}"}
-        )
+        token.status = "revoked"
+        db_session.commit()
 
-        # Endpoint might not be implemented
-        assert response.status_code in [200, 204, 404, 501]
-
-        if response.status_code in [200, 204]:
-            # Verify token removed or marked revoked
-            db_session.refresh(oauth_token)
-            assert oauth_token.revoked_at is not None or \
-                   db_session.query(OAuthToken).filter(OAuthToken.id == oauth_token.id).first() is None
+        stored = db_session.query(IntegrationToken).filter(
+            IntegrationToken.id == token.id
+        ).first()
+        assert stored is not None
+        assert stored.status == "revoked"
 
 
 class TestOAuthStateParameterSecurity:
