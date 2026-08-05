@@ -1403,6 +1403,14 @@ try:
     logger.info("✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)")
 except Exception as e:  # pragma: no cover - boot resilience
     logger.error(f"Failed to mount gatekeeper router: {e}")
+# P6: External MCP server config surface (admin) — register/connect external
+# MCP servers (the CLIENT config). Distinct from the /mcp SERVER surface.
+try:
+    from api.mcp_client_routes import router as mcp_client_router
+    app.include_router(mcp_client_router, tags=["mcp-client"])
+    logger.info("✓ External MCP client config mounted at /api/mcp/servers (P6)")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount MCP client router: {e}")
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
@@ -2032,6 +2040,15 @@ try:
         logger.info("✓ JIT Verification & Admin Governance Routes Loaded")
     except Exception as e:
         logger.warning(f"Failed to load JIT Verification / Admin routes: {e}")
+
+    # Phase P8 — Workspace-Scoped Curated Context (Cloudflare G8), admin-only.
+    try:
+        from api.workspace_context_routes import router as workspace_context_router
+
+        app.include_router(workspace_context_router)
+        logger.info("✓ Workspace Context Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load Workspace Context routes: {e}")
 
     # Governance Manual Fact Entry Routes (Phase 167-05)
     try:

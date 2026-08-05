@@ -8,6 +8,9 @@ import httpx
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 
+# P6: real MCP client transport for external servers.
+from core.mcp_client import MCPClient, MCPClientError
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -221,7 +224,9 @@ class MCPService:
             self.workspace_tools: Dict[str, List[str]] = {} # workspace_id -> [tool_names]
             # R72 Workstream H: cache_key -> (expires_monotonic, result)
             self._tool_cache: Dict[str, tuple] = {}
-            
+            # P6: live MCPClient instances for external servers (server_id -> MCPClient).
+            self.external_clients: Dict[str, Any] = {}
+
             # Initialize the tool registry for local tools
             try:
                 from tools.registry import get_tool_registry
@@ -230,7 +235,7 @@ class MCPService:
             except ImportError:
                 self.tool_registry = None
                 logger.warning("Tool Registry not found, local-tools discovery will be limited")
-                
+
             logger.info("Core MCP Service initialized")
 
     def register_tool(self, tool: MCPTool):
@@ -389,8 +394,50 @@ class MCPService:
                     )
                 ])
         else:
-            # Placeholder for real MCP protocol handshake
-            logger.warning(f"Server {server_id} refresh not yet implemented for dynamic MCP")
+            # P6: real MCP protocol handshake via the MCPClient (HTTP+SSE / stdio).
+            # Replaces the former "Placeholder for real MCP protocol handshake".
+            config = self.servers.get(server_id, {})
+            if not config:
+                logger.warning(f"Server {server_id} has no config; skipping refresh")
+                return
+            try:
+                client = MCPClient(server_id, config)
+                await client.initialize()
+                ext_tools = await client.list_tools()
+                self.tools_cache[server_id] = [
+                    MCPTool(
+                        name=t.get("name", ""),
+                        description=t.get("description", ""),
+                        parameters=t.get("inputSchema") or t.get("parameters") or {},
+                        server_id=server_id,
+                    )
+                    for t in ext_tools
+                ]
+                # Keep the live client for subsequent tools/call invocations.
+                self.external_clients[server_id] = client
+                logger.info(
+                    "✓ MCP server %s connected: %d tools via %s",
+                    server_id, len(self.tools_cache[server_id]), config.get("transport", "http"),
+                )
+            except MCPClientError as e:
+                logger.error("MCP server %s handshake failed: %s", server_id, e)
+            except Exception as e:
+                logger.error("MCP server %s refresh failed: %s", server_id, e)
+
+    async def call_external_tool(
+        self, server_id: str, tool_name: str, arguments: Dict[str, Any]
+    ) -> Any:
+        """Invoke a tool on a registered external MCP server via its live client.
+
+        Returns the textual tool result. Raises ``MCPClientError`` if the server
+        is not connected.
+        """
+        client = self.external_clients.get(server_id)
+        if client is None:
+            raise MCPClientError(
+                f"Server {server_id} is not connected; call register_server first"
+            )
+        return await client.call_tool(tool_name, arguments)
 
     async def get_available_tools(self, workspace_id: Optional[str] = None) -> List[MCPTool]:
         """

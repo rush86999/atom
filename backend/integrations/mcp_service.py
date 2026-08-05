@@ -1143,6 +1143,18 @@ class MCPService(IntegrationService):
             if any(t["name"] == tool_name for t in server_info.get("tools", [])):
                 return await self.execute_tool(server_id, tool_name, arguments, context)
 
+        # 3. P6: Look in external MCP servers connected via the revived core hub.
+        # These are real external servers registered via POST /api/mcp/servers.
+        try:
+            from core.mcp_service import mcp_service as core_hub
+            for server_id, tools in core_hub.tools_cache.items():
+                if server_id in ("google-search", "local-tools", "brightdata"):
+                    continue  # handled above
+                if any(getattr(t, "name", None) == tool_name for t in tools):
+                    return await core_hub.call_external_tool(server_id, tool_name, arguments)
+        except Exception as ext_err:
+            logger.debug("external MCP tool lookup failed: %s", ext_err)
+
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
     async def _check_hitl_policy(self, workspace_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
