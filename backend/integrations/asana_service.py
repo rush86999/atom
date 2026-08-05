@@ -101,6 +101,32 @@ class AsanaService(IntegrationService):
                 if attempt == self.max_retries - 1:
                     raise
 
+    def _make_paginated_request(
+        self,
+        endpoint: str,
+        access_token: str,
+        params: Optional[Dict] = None,
+    ) -> List[Dict]:
+        """Make a GET request and follow Asana's next_page cursor (BUG-109).
+
+        Previously list methods read only the first page — any workspace with
+        >50 items had results silently truncated.
+        """
+        all_data: List[Dict] = []
+        current_params = dict(params or {})
+
+        while True:
+            result = self._make_request("GET", endpoint, access_token, params=current_params)
+            page_data = result.get("data", [])
+            all_data.extend(page_data)
+
+            next_page = result.get("next_page")
+            if not next_page or not next_page.get("offset"):
+                break
+            current_params["offset"] = next_page["offset"]
+
+        return all_data
+
         return {"data": None, "error": "Max retries exceeded"}
 
     async def get_user_profile(self, access_token: str) -> Dict:
@@ -165,8 +191,11 @@ class AsanaService(IntegrationService):
             elif team_gid:
                 params["team"] = team_gid
 
-            result = self._make_request("GET", "/projects", access_token, params=params)
-            projects = result.get("data", [])
+            # BUG-109/110: Use paginated request + asyncio.to_thread to avoid
+            # truncation and event-loop blocking.
+            projects = await asyncio.to_thread(
+                self._make_paginated_request, "/projects", access_token, params
+            )
 
             return {
                 "ok": True,
@@ -214,8 +243,9 @@ class AsanaService(IntegrationService):
             if completed_since:
                 params["completed_since"] = completed_since
 
-            result = self._make_request("GET", "/tasks", access_token, params=params)
-            tasks = result.get("data", [])
+            tasks = await asyncio.to_thread(
+                self._make_paginated_request, "/tasks", access_token, params
+            )
 
             return {
                 "ok": True,

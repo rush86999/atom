@@ -182,10 +182,16 @@ class NotionService(IntegrationService):
             logger.error(f"Failed to get page {page_id}: {e}")
             return None
     
-    def create_page(self, parent: Dict[str, str], properties: Dict[str, Any], 
+    def create_page(self, parent: Dict[str, str], properties: Dict[str, Any],
                    children: List[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Create a new page"""
         try:
+            # BUG-111: Validate parent contains a valid database_id or page_id
+            # before issuing the request, to avoid opaque Notion 400s.
+            if not parent or ("database_id" not in parent and "page_id" not in parent):
+                logger.error("create_page: parent must contain 'database_id' or 'page_id'")
+                return None
+
             data = {
                 "parent": parent,
                 "properties": properties

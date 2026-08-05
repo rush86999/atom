@@ -287,7 +287,18 @@ async def get_case(sf: Salesforce, case_id: str) -> Dict[str, Any]:
 async def get_user_info(sf: Salesforce) -> Dict[str, Any]:
     """Get current user information from Salesforce"""
     try:
-        query = "SELECT Id, Name, Username, Email, ProfileId FROM User WHERE Id = '005'"
+        # BUG-108: Previously queried WHERE Id = '005' which is a key prefix,
+        # not a real 18-char User ID — always returned empty. Now uses
+        # Salesforce's UserInfo endpoint to get the actual authenticated user.
+        user_id = sf.identity["user_id"] if hasattr(sf, 'identity') and sf.identity else None
+        if not user_id:
+            # Fallback: query via the UserInfo API
+            import requests
+            userinfo_url = sf.base_url.replace("/services/data", "/services/oauth2/userinfo")
+            resp = requests.get(userinfo_url, headers={"Authorization": f"Bearer {sf.session_id}"})
+            resp.raise_for_status()
+            return resp.json()
+        query = f"SELECT Id, Name, Username, Email, ProfileId FROM User WHERE Id = '{user_id}'"
         result = sf.query_all(query)
         if result["records"]:
             return result["records"][0]
