@@ -632,9 +632,10 @@ async def execute_workflow(
         logger.error(f"Workflow execution failed: {e}")
         # BUG-126: Previously returned HTTP 200 with a phantom execution_id
         # that was never persisted → frontend showed "Started" + spun forever.
-        # Now returns a proper error response.
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
+        # Now returns a proper error response. (HTTPException is module-level;
+        # a local `from fastapi import HTTPException` here would shadow it for
+        # the whole function and make the 404 raises above UnboundLocalError.)
+        raise HTTPException(status_code=500, detail="Workflow execution failed")
 
 @router.post("/workflows/{execution_id}/resume")
 async def resume_workflow(

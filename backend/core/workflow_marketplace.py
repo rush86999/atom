@@ -677,35 +677,44 @@ class MarketplaceEngine:
         # Try legacy templates first
         path = os.path.join(self.templates_dir, f"{template_id}.json")
         if os.path.exists(path):
-            with open(path, "r") as f:
-                data = json.load(f)
-                data["downloads"] += 1
-                with open(path, "w") as fw:
-                    json.dump(data, fw, indent=2)
-                data["template_type"] = TemplateType.LEGACY
-                return WorkflowTemplate(**data)
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    data["downloads"] += 1
+                    with open(path, "w") as fw:
+                        json.dump(data, fw, indent=2)
+                    data["template_type"] = TemplateType.LEGACY
+                    return WorkflowTemplate(**data)
+            except Exception as e:
+                logger.error(f"Error loading legacy template {path}: {e}")
 
         # Try advanced templates
         path = os.path.join(self.advanced_templates_dir, f"{template_id}.json")
         if os.path.exists(path):
-            with open(path, "r") as f:
-                data = json.load(f)
-                data["downloads"] += 1
-                with open(path, "w") as fw:
-                    json.dump(data, fw, indent=2)
-                data["template_type"] = TemplateType.ADVANCED
-                return WorkflowTemplate(**data)
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    data["downloads"] += 1
+                    with open(path, "w") as fw:
+                        json.dump(data, fw, indent=2)
+                    data["template_type"] = TemplateType.ADVANCED
+                    return WorkflowTemplate(**data)
+            except Exception as e:
+                logger.error(f"Error loading advanced template {path}: {e}")
 
         # Try industry templates
         path = os.path.join(self.industry_templates_dir, f"{template_id}.json")
         if os.path.exists(path):
-            with open(path, "r") as f:
-                data = json.load(f)
-                data["downloads"] += 1
-                with open(path, "w") as fw:
-                    json.dump(data, fw, indent=2)
-                data["template_type"] = TemplateType.INDUSTRY
-                return WorkflowTemplate(**data)
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    data["downloads"] += 1
+                    with open(path, "w") as fw:
+                        json.dump(data, fw, indent=2)
+                    data["template_type"] = TemplateType.INDUSTRY
+                    return WorkflowTemplate(**data)
+            except Exception as e:
+                logger.error(f"Error loading industry template {path}: {e}")
 
         # Try SaaS marketplace
         try:

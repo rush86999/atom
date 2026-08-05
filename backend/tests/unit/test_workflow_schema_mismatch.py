@@ -172,7 +172,7 @@ class TestTemplateExecutionFallback:
         with (
             patch.object(workflow_endpoints, "load_workflows", return_value=[]),
             patch("core.workflow_engine.get_workflow_engine", return_value=fake_engine),
-            patch("core.database.get_db", return_value=iter([fake_db])),
+            patch.object(workflow_endpoints, "get_db", return_value=iter([fake_db])),
         ):
             resp = client.post("/api/v1/workflows/workflows/tpl_x/execute", json={})
 
@@ -194,7 +194,7 @@ class TestTemplateExecutionFallback:
         with (
             patch.object(workflow_endpoints, "load_workflows", return_value=[]),
             patch("core.workflow_engine.get_workflow_engine", return_value=fake_engine),
-            patch("core.database.get_db", return_value=iter([fake_db])),
+            patch.object(workflow_endpoints, "get_db", return_value=iter([fake_db])),
         ):
             resp = client.post("/api/v1/workflows/workflows/does_not_exist/execute", json={})
         assert resp.status_code == 404

@@ -28,12 +28,25 @@ class TestWorkflowDebuggerCoverage:
 
     @pytest.fixture
     def db_session(self):
-        """Get test database session."""
-        from core.database import SessionLocal
-        session = SessionLocal()
+        """Get test database session with fresh in-memory schema (matches current models)."""
+        import core.models  # noqa: F401  # register all models on Base.metadata
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from core.database import Base
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(engine)
+        testing_session = sessionmaker(bind=engine, expire_on_commit=False)
+        session = testing_session()
         yield session
         session.rollback()
         session.close()
+        engine.dispose()
 
     @pytest.fixture
     def debugger(self, db_session):
@@ -129,7 +142,7 @@ class TestWorkflowDebuggerCoverage:
 
         completed_session = debugger.get_debug_session(session.id)
         assert completed_session.status == "completed"
-        assert completed_session.ended_at is not None
+        assert completed_session.completed_at is not None
 
     # Test: breakpoint management
     def test_add_breakpoint_node(self, debugger):
@@ -141,8 +154,8 @@ class TestWorkflowDebuggerCoverage:
             breakpoint_type="node"
         )
         assert breakpoint.id is not None
-        assert breakpoint.step_id == "node-456"
-        assert breakpoint.enabled is True
+        assert breakpoint.node_id == "node-456"
+        assert breakpoint.is_active is True
 
     def test_add_breakpoint_with_condition(self, debugger):
         """Add conditional breakpoint."""
@@ -166,7 +179,7 @@ class TestWorkflowDebuggerCoverage:
             edge_id="edge-789",
             breakpoint_type="edge"
         )
-        assert breakpoint.step_id == "node-456"
+        assert breakpoint.node_id == "node-456"
         assert breakpoint.workflow_id == "workflow-123"
 
     def test_remove_breakpoint(self, debugger):

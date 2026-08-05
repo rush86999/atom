@@ -323,7 +323,7 @@ class TestTemplateDiscovery:
         assert len(etl_templates) == 2
         assert all(any("etl" in tag for tag in t.tags) for t in etl_templates)
 
-    def test_list_templates_with_type_filter(self, marketplace_engine, sample_advanced_template_data):
+    def test_list_templates_with_type_filter(self, marketplace_engine, sample_template_data, sample_advanced_template_data):
         """Test listing templates filtered by type"""
         # Create legacy template
         legacy_data = sample_template_data.copy()
@@ -484,6 +484,7 @@ class TestAdvancedTemplates:
             "version": "1.0.0",
             "integrations": [],
             "complexity": "Beginner",
+            "input_schema": [],
             "steps": [
                 {"step_id": "s1", "estimated_duration": 100},
                 {"step_id": "s2", "estimated_duration": 200},
@@ -521,7 +522,8 @@ class TestAdvancedTemplates:
         with pytest.raises(ValueError, match="not found"):
             marketplace_engine.create_workflow_from_advanced_template(
                 template_id="nonexistent",
-                workflow_name="Test"
+                workflow_name="Test",
+                parameters={}
             )
 
 
@@ -585,6 +587,7 @@ class TestIndustryTemplates:
             "compliance_requirements": ["HIPAA"],
             "input_schema": [],
             "steps": [],
+            "workflow_data": {"nodes": [], "edges": []},
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "downloads": 0,
@@ -656,6 +659,7 @@ class TestTemplateTypes:
             "industry": "manufacturing",
             "input_schema": [],
             "steps": [],
+            "workflow_data": {"nodes": [], "edges": []},
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "downloads": 0,

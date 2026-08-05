@@ -451,6 +451,8 @@ class TestWorkflowDebuggerExecutionTraces:
         mock_trace.status = "started"
         mock_trace.output_data = None
         mock_trace.variables_after = None
+        mock_trace.started_at = None
+        mock_trace.variables_before = None
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_trace
@@ -494,7 +496,7 @@ class TestWorkflowDebuggerExecutionTraces:
         mock_trace2.step_number = 2
 
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.all.return_value = [
+        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
             mock_trace1,
             mock_trace2,
         ]
@@ -515,9 +517,10 @@ class TestWorkflowDebuggerVariableManagement:
         debugger = WorkflowDebugger(mock_db)
 
         mock_var = Mock()
-        mock_var.id = "var-123"
+        mock_var.id = "session-123"
         mock_var.variable_name = "x"
         mock_var.value = 10
+        mock_var.variables = {}
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_var
@@ -556,32 +559,26 @@ class TestWorkflowDebuggerVariableManagement:
         mock_db = Mock(spec=Session)
         debugger = WorkflowDebugger(mock_db)
 
-        mock_var1 = Mock()
-        mock_var1.id = "var-1"
-        mock_var1.variable_name = "x"
-        mock_var1.value = 10
-
-        mock_var2 = Mock()
-        mock_var2.id = "var-2"
-        mock_var2.variable_name = "y"
-        mock_var2.value = 20
+        mock_session = Mock()
+        mock_session.id = "session-123"
+        mock_session.variables = {}
 
         mock_query = Mock()
-        mock_query.filter.return_value.all.return_value = [mock_var1, mock_var2]
+        mock_query.filter.return_value.first.return_value = mock_session
         mock_db.query.return_value = mock_query
         mock_db.commit.return_value = None
 
-        modifications = {
-            "x": 15,
-            "y": 25,
-        }
+        modifications = [
+            {"variable_name": "x", "new_value": 15},
+            {"variable_name": "y", "new_value": 25},
+        ]
 
         results = debugger.bulk_modify_variables(
             session_id="session-123",
             modifications=modifications,
         )
 
-        assert results is not None
+        assert len(results) == 2
 
     def test_get_variables_for_trace(self):
         """Test getting variables for a trace."""
@@ -597,7 +594,7 @@ class TestWorkflowDebuggerVariableManagement:
         mock_var2.value = 20
 
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.all.return_value = [
+        mock_query.filter.return_value.all.return_value = [
             mock_var1,
             mock_var2,
         ]
@@ -637,23 +634,33 @@ class TestWorkflowDebuggerSessionPersistence:
 
         mock_session = Mock()
         mock_session.id = "session-123"
-        mock_session.workflow_execution_id = "exec-1"
-        mock_session.session_type = "interactive"
+        mock_session.workflow_id = "wf-1"
+        mock_session.execution_id = "exec-1"
+        mock_session.user_id = "user-1"
+        mock_session.session_name = "Test Session"
         mock_session.status = "paused"
-        mock_session.current_step = "5"
-        mock_session.breakpoints = []
-        mock_session.started_at = datetime.now()
-        mock_session.ended_at = None
+        mock_session.current_step = 5
+        mock_session.current_node_id = "node-1"
+        mock_session.variables = {"x": 10}
+        mock_session.call_stack = []
+        mock_session.stop_on_entry = False
+        mock_session.stop_on_exceptions = True
+        mock_session.stop_on_error = True
+        mock_session.created_at = datetime.now()
+        mock_session.updated_at = datetime.now()
+        mock_session.completed_at = None
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_session
         mock_db.query.return_value = mock_query
 
-        export_data = debugger.export_session(session_id="session-123")
+        with patch.object(debugger, 'get_breakpoints', return_value=[]):
+            with patch.object(debugger, 'get_execution_traces', return_value=[]):
+                export_data = debugger.export_session(session_id="session-123")
 
         assert export_data is not None
-        assert export_data["id"] == "session-123"
-        assert export_data["status"] == "paused"
+        assert export_data["session"]["id"] == "session-123"
+        assert export_data["session"]["status"] == "paused"
 
     def test_export_session_not_found(self):
         """Test exporting non-existent session returns None."""
@@ -674,27 +681,28 @@ class TestWorkflowDebuggerSessionPersistence:
         debugger = WorkflowDebugger(mock_db)
 
         export_data = {
-            "workflow_execution_id": "exec-1",
-            "session_type": "interactive",
-            "status": "paused",
-            "current_step": "5",
+            "session": {
+                "workflow_id": "wf-1",
+                "user_id": "user-1",
+                "session_name": "Test Session",
+                "stop_on_entry": False,
+                "stop_on_exceptions": True,
+                "stop_on_error": True,
+                "variables": {"x": 10},
+                "call_stack": [],
+            },
             "breakpoints": [],
+            "traces": [],
         }
 
         mock_session = Mock()
         mock_session.id = "new-session-123"
 
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
-
-        with patch('core.workflow_debugger.WorkflowDebugSession', return_value=mock_session):
-            new_session = debugger.import_session(
-                export_data=export_data,
-                user_id="user-1",
-            )
+        with patch.object(debugger, 'create_debug_session', return_value=mock_session):
+            new_session = debugger.import_session(export_data=export_data)
 
         assert new_session is not None
+        assert new_session.id == "new-session-123"
 
 
 class TestWorkflowDebuggerPerformanceProfiling:
@@ -736,17 +744,25 @@ class TestWorkflowDebuggerPerformanceProfiling:
         mock_db = Mock(spec=Session)
         debugger = WorkflowDebugger(mock_db)
 
-        mock_trace = Mock()
-        mock_trace.id = "trace-123"
-        mock_trace.started_at = datetime.now()
+        mock_session = Mock()
+        mock_session.id = "session-123"
+        mock_session.performance_metrics = {
+            "enabled": True,
+            "started_at": datetime.now().isoformat(),
+            "step_times": [],
+            "node_times": {},
+            "total_duration_ms": 0,
+        }
 
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_trace
+        mock_query.filter.return_value.first.return_value = mock_session
         mock_db.query.return_value = mock_query
         mock_db.commit.return_value = None
 
         result = debugger.record_step_timing(
-            trace_id="trace-123",
+            session_id="session-123",
+            node_id="node-1",
+            node_type="task",
             duration_ms=150,
         )
 
@@ -757,25 +773,18 @@ class TestWorkflowDebuggerPerformanceProfiling:
         mock_db = Mock(spec=Session)
         debugger = WorkflowDebugger(mock_db)
 
-        mock_trace1 = Mock()
-        mock_trace1.id = "trace-1"
-        mock_trace1.node_id = "node-1"
-        mock_trace1.started_at = datetime.now()
-        mock_trace1.completed_at = datetime.now()
-        mock_trace1.duration_ms = 100
-
-        mock_trace2 = Mock()
-        mock_trace2.id = "trace-2"
-        mock_trace2.node_id = "node-2"
-        mock_trace2.started_at = datetime.now()
-        mock_trace2.completed_at = datetime.now()
-        mock_trace2.duration_ms = 150
+        mock_session = Mock()
+        mock_session.id = "session-123"
+        mock_session.performance_metrics = {
+            "enabled": True,
+            "started_at": datetime.now().isoformat(),
+            "step_times": [],
+            "node_times": {},
+            "total_duration_ms": 0,
+        }
 
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.all.return_value = [
-            mock_trace1,
-            mock_trace2,
-        ]
+        mock_query.filter.return_value.first.return_value = mock_session
         mock_db.query.return_value = mock_query
 
         report = debugger.get_performance_report(session_id="session-123")
@@ -838,7 +847,7 @@ class TestWorkflowDebuggerCollaborativeDebugging:
 
         mock_session = Mock()
         mock_session.id = "session-123"
-        mock_session.collaborators = [{"user_id": "user-2"}]
+        mock_session.collaborators = {"user-2": {"permission": "viewer"}}
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_session
@@ -885,10 +894,10 @@ class TestWorkflowDebuggerCollaborativeDebugging:
         mock_session = Mock()
         mock_session.id = "session-123"
         mock_session.user_id = "owner-1"
-        mock_session.collaborators = [
-            {"user_id": "user-2", "permission": "read_write"},
-            {"user_id": "user-3", "permission": "read_only"},
-        ]
+        mock_session.collaborators = {
+            "user-2": {"permission": "read_write", "added_at": "2024-01-01"},
+            "user-3": {"permission": "read_only", "added_at": "2024-01-01"},
+        }
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_session
@@ -896,7 +905,7 @@ class TestWorkflowDebuggerCollaborativeDebugging:
 
         collaborators = debugger.get_session_collaborators(session_id="session-123")
 
-        assert len(collaborators) == 3  # Owner + 2 collaborators
+        assert len(collaborators) == 2  # 2 collaborators (owner not included)
 
 
 class TestWorkflowDebuggerSessionStateTransitions:

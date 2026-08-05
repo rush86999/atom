@@ -186,8 +186,8 @@ class TestBreakpoints:
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.workflow_id = "wf-1"
-        mock_bp.step_id = "step-1"
-        mock_bp.enabled = True
+        mock_bp.node_id = "node-1"
+        mock_bp.is_active = True
         mock_bp.condition = "x > 5"
         mock_bp.hit_count = 0
         mock_bp.created_by = "user-1"
@@ -200,15 +200,15 @@ class TestBreakpoints:
         with patch.object(debugger, 'add_breakpoint', return_value=mock_bp):
             breakpoint = debugger.add_breakpoint(
                 workflow_id="wf-1",
-                step_id="step-1",  # ✅ step_id (not node_id)
+                node_id="node-1",
                 user_id="user-1",
                 condition="x > 5"
             )
 
             assert breakpoint is not None
             assert breakpoint.workflow_id == "wf-1"
-            assert breakpoint.step_id == "step-1"  # ✅ Correct attribute
-            assert breakpoint.enabled is True  # ✅ enabled (not is_active)
+            assert breakpoint.node_id == "node-1"
+            assert breakpoint.is_active is True
 
     def test_add_breakpoint_minimal(self, db_session):
         """Test adding breakpoint with minimal params."""
@@ -218,8 +218,8 @@ class TestBreakpoints:
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.workflow_id = "wf-1"
-        mock_bp.step_id = "step-1"
-        mock_bp.enabled = True
+        mock_bp.node_id = "node-1"
+        mock_bp.is_active = True
         mock_bp.hit_count = 0
         mock_bp.created_by = "user-1"
 
@@ -231,12 +231,12 @@ class TestBreakpoints:
         with patch.object(debugger, 'add_breakpoint', return_value=mock_bp):
             breakpoint = debugger.add_breakpoint(
                 workflow_id="wf-1",
-                step_id="step-1",  # ✅ step_id (not node_id)
+                node_id="node-1",
                 user_id="user-1"
             )
 
             assert breakpoint is not None
-            assert breakpoint.step_id == "step-1"  # ✅ Correct attribute
+            assert breakpoint.node_id == "node-1"
 
     def test_remove_breakpoint(self, db_session):
         """Test removing a breakpoint."""
@@ -272,17 +272,17 @@ class TestBreakpoints:
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.created_by = "user-1"
-        mock_bp.enabled = True  # ✅ Model has 'enabled' not 'is_disabled'
+        mock_bp.is_disabled = False
 
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_bp
         db_session.query.return_value = mock_query
 
         result = debugger.toggle_breakpoint("bp-1", "user-1")
-        # The code should toggle the enabled attribute
+        # The code should toggle the is_disabled attribute
         assert result is not None
-        # Verify enabled was toggled
-        assert mock_bp.enabled == False  # Should be toggled from True to False
+        # Verify is_disabled was toggled from False to True
+        assert mock_bp.is_disabled is True
 
     def test_toggle_breakpoint_not_found(self, db_session):
         """Test toggling non-existent breakpoint."""
@@ -303,8 +303,8 @@ class TestBreakpoints:
         mock_bp1 = Mock(spec=WorkflowBreakpoint)
         mock_bp1.id = "bp-1"
         mock_bp1.workflow_id = "wf-1"
-        mock_bp1.step_id = "step-1"  # ✅ step_id (not node_id)
-        mock_bp1.enabled = True  # ✅ enabled (not is_active)
+        mock_bp1.node_id = "node-1"
+        mock_bp1.is_active = True
 
         mock_bps = [mock_bp1]
 
@@ -314,13 +314,11 @@ class TestBreakpoints:
         mock_filter.order_by.return_value.all.return_value = mock_bps
         db_session.query.return_value = mock_filter
 
-        # Use active_only=False since model doesn't have is_active field
-        # Test should work with correct schema attributes
         breakpoints = debugger.get_breakpoints("wf-1", active_only=False)
         assert breakpoints is not None
         assert len(breakpoints) == 1
-        assert breakpoints[0].step_id == "step-1"  # ✅ Correct attribute
-        assert breakpoints[0].enabled is True  # ✅ Correct attribute
+        assert breakpoints[0].node_id == "node-1"
+        assert breakpoints[0].is_active is True
 
     def test_check_breakpoint_hit(self, db_session):
         """Test checking if breakpoint should trigger."""
@@ -330,17 +328,20 @@ class TestBreakpoints:
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.workflow_id = "wf-1"
-        mock_bp.step_id = "node-1"  # ✅ step_id matches the node we're checking
-        mock_bp.enabled = True  # ✅ enabled (not is_active)
+        mock_bp.node_id = "node-1"
+        mock_bp.is_active = True
+        mock_bp.is_disabled = False
         mock_bp.condition = None
         mock_bp.hit_count = 0
+        mock_bp.hit_limit = None
+        mock_bp.log_message = None
 
         mock_query = Mock()
         mock_query.filter.return_value.all.return_value = [mock_bp]
         db_session.query.return_value = mock_query
 
         should_pause, log_msg = debugger.check_breakpoint_hit(
-            "node-1",  # This should match step_id in the breakpoint
+            "node-1",
             {"x": 10}
         )
 
@@ -355,10 +356,13 @@ class TestBreakpoints:
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.workflow_id = "wf-1"
-        mock_bp.step_id = "node-1"  # ✅ step_id
-        mock_bp.enabled = True  # ✅ enabled (not is_active)
+        mock_bp.node_id = "node-1"
+        mock_bp.is_active = True
+        mock_bp.is_disabled = False
         mock_bp.condition = "x > 5"
         mock_bp.hit_count = 0
+        mock_bp.hit_limit = None
+        mock_bp.log_message = None
 
         mock_query = Mock()
         mock_query.filter.return_value.all.return_value = [mock_bp]
@@ -378,14 +382,17 @@ class TestBreakpoints:
         debugger = WorkflowDebugger(db=db_session)
 
         # Create mock breakpoint with correct schema attributes
-        # Note: log_message doesn't exist in schema, but we'll test the concept
+        # log_message is a real column in WorkflowBreakpoint
         mock_bp = Mock(spec=WorkflowBreakpoint)
         mock_bp.id = "bp-1"
         mock_bp.workflow_id = "wf-1"
-        mock_bp.step_id = "node-1"  # ✅ step_id
-        mock_bp.enabled = True  # ✅ enabled (not is_active)
+        mock_bp.node_id = "node-1"
+        mock_bp.is_active = True
+        mock_bp.is_disabled = False
         mock_bp.condition = None
         mock_bp.hit_count = 0
+        mock_bp.hit_limit = None
+        mock_bp.log_message = None
 
         mock_query = Mock()
         mock_query.filter.return_value.all.return_value = [mock_bp]
@@ -396,7 +403,7 @@ class TestBreakpoints:
             {}
         )
 
-        # Without log_message in schema, this should just pause normally
+        # No log_message configured, so this just pauses normally
         assert should_pause is True
         assert log_msg is None
 
@@ -660,15 +667,14 @@ class TestVariableInspection:
         # Create mock variable with correct schema attributes
         mock_var = Mock(spec=DebugVariable)
         mock_var.id = "var-1"
-        mock_var.workflow_execution_id = "exec-1"  # ✅ workflow_execution_id (not trace_id)
+        mock_var.trace_id = "trace-1"
         mock_var.variable_name = "x"
-        mock_var.variable_value = 10
-        mock_var.timestamp = datetime.now()
+        mock_var.value = 10
 
         # Mock the create method to return our mock
         with patch.object(debugger, 'create_variable_snapshot', return_value=mock_var):
             variable = debugger.create_variable_snapshot(
-                workflow_execution_id="exec-1",  # ✅ Correct parameter name
+                trace_id="trace-1",
                 variable_name="x",
                 variable_path="x",
                 variable_type="int",
@@ -679,7 +685,7 @@ class TestVariableInspection:
             )
 
             assert variable is not None
-            assert variable.workflow_execution_id == "exec-1"  # ✅ Correct attribute
+            assert variable.trace_id == "trace-1"
 
     def test_get_variables_for_trace(self, db_session):
         """Test getting variables for trace."""
@@ -688,16 +694,15 @@ class TestVariableInspection:
         # Create mock variables with correct schema attributes
         mock_var = Mock(spec=DebugVariable)
         mock_var.id = "var-1"
-        mock_var.workflow_execution_id = "exec-1"  # ✅ Correct attribute
+        mock_var.trace_id = "trace-1"
         mock_var.variable_name = "x"
-        mock_var.variable_value = 10
+        mock_var.value = 10
 
         mock_vars = [mock_var]
         mock_query = Mock()
         mock_query.filter.return_value.all.return_value = mock_vars
         db_session.query.return_value = mock_query
 
-        # The method might use trace_id as a parameter internally, but the model uses workflow_execution_id
         variables = debugger.get_variables_for_trace("trace-1")
         assert variables == mock_vars
 
@@ -1193,7 +1198,7 @@ class TestErrorHandling:
         with pytest.raises(Exception):
             debugger.add_breakpoint(
                 workflow_id="wf-1",
-                step_id="step-1",  # ✅ step_id (not node_id)
+                node_id="node-1",
                 user_id="user-1"
             )
 
