@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.action_registry import action_registry
+from core.action_registry import ActionNotFoundError, action_registry
 from core.auth import User, get_current_user
 from core.database import get_db
 
@@ -89,7 +89,7 @@ async def call_action(
 
     try:
         result = await action_registry.execute_action(action_name, body.params, context)
-    except LookupError:
+    except ActionNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Action '{action_name}' is not registered",

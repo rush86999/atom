@@ -16,7 +16,9 @@ Resolves the previously-latent ``ImportError`` in ``integrations/mcp_service.py`
 Interface (derived from the call sites above):
 - ``action_registry.get_all_definitions()`` -> Iterable[ActionDefinition]
 - ``action_registry.get_action(name)`` -> Optional[ActionDefinition]
+- ``action_registry.list_actions()`` -> List[str] of registered names
 - ``await action_registry.execute_action(name, args, context)`` -> Any
+- ``execute_action`` raises ``ActionNotFoundError`` for unknown actions
 
 Each ``ActionDefinition`` exposes ``.name``, ``.description``, and
 ``.parameters_schema`` (a JSON-schema-shaped dict with ``properties`` and
@@ -29,6 +31,14 @@ import logging
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class ActionNotFoundError(LookupError):
+    """Raised when executing a registered action by an unknown name.
+
+    Subclasses :class:`LookupError` so existing call sites that guard with
+    ``except LookupError`` (e.g. the RPC route) keep working unchanged.
+    """
 
 
 # Action handler signature: async (args, context) -> result
@@ -89,9 +99,13 @@ class ActionRegistry:
         """Return all registered action definitions (for agent tool listing)."""
         return list(self._actions.values())
 
-    def list_action_names(self) -> List[str]:
-        """Return all registered action names."""
+    def list_actions(self) -> List[str]:
+        """Return all registered action names (sorted)."""
         return sorted(self._actions.keys())
+
+    def list_action_names(self) -> List[str]:
+        """Alias for :meth:`list_actions` (kept for backward compatibility)."""
+        return self.list_actions()
 
     async def execute_action(
         self,
@@ -102,11 +116,11 @@ class ActionRegistry:
         """Execute a registered action by name.
 
         Raises:
-            LookupError: if the action is not registered.
+            ActionNotFoundError: if the action is not registered.
         """
         action = self._actions.get(name)
         if action is None:
-            raise LookupError(f"Action '{name}' is not registered")
+            raise ActionNotFoundError(f"Action '{name}' is not registered")
         return await action.handler(arguments, context)
 
 
@@ -173,8 +187,12 @@ _TASKS_CREATE_SCHEMA = {
     "properties": {
         "title": {"type": "string"},
         "description": {"type": "string"},
+        "board_id": {"type": "string", "description": "Board (Kanban) ID to create the task in"},
+        "column_id": {"type": "string", "description": "Destination column ID within the board"},
+        "priority": {"type": "string", "description": "low|normal|high|urgent (default normal)"},
+        "status": {"type": "string", "description": "Board status (default backlog)"},
     },
-    "required": ["title"],
+    "required": ["title", "board_id"],
 }
 
 _AGENTS_LIST_SCHEMA = {
@@ -313,25 +331,39 @@ async def _canvas_update(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 )
 async def _tasks_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     title = (args.get("title") or "").strip()
-    if not title:
-        return {"success": False, "error": "title is required"}
+    board_id = args.get("board_id")
+    if not title or not board_id:
+        return {"success": False, "error": "title and board_id are required"}
     try:
-        from core.board_service import BoardService
+        from core.board_service import BoardService, TaskCreate
         from core.database import get_db_session
 
         user_id = _context_user_id(context)
         with get_db_session() as db:
             svc = BoardService(db)
-            # BoardService.create_task signature varies; fall back gracefully.
-            try:
-                task = svc.create_task(
-                    title=title,
-                    description=args.get("description", ""),
-                    user_id=user_id,
-                )
-            except TypeError:
-                task = svc.create_task(title=title, description=args.get("description", ""))
-            return {"success": True, "task": task}
+            payload = TaskCreate(
+                title=title,
+                description=args.get("description"),
+                column_id=args.get("column_id", ""),
+                priority=args.get("priority", "normal"),
+                status=args.get("status", "backlog"),
+            )
+            task = svc.create_task(
+                board_id=str(board_id),
+                created_by_user_id=user_id,
+                payload=payload,
+            )
+            return {
+                "success": True,
+                "task": {
+                    "id": task.id,
+                    "board_id": task.board_id,
+                    "column_id": task.column_id,
+                    "title": task.title,
+                    "description": task.description,
+                    "status": task.status,
+                },
+            }
     except Exception as e:
         logger.error("tasks.create failed: %s", e)
         return {"success": False, "error": "Task creation failed"}
@@ -362,6 +394,7 @@ async def _agents_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
                         "description": a.description,
                         "status": a.status,
                         "category": a.category,
+                        "capabilities": a.capabilities or [],
                     }
                     for a in agents
                 ],

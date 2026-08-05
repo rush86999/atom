@@ -64,10 +64,22 @@ class TestRegistryMechanics:
         assert result == {"doubled": 42}
 
     @pytest.mark.asyncio
-    async def test_execute_action_unknown_raises_or_404s(self):
-        from core.action_registry import action_registry
-        with pytest.raises((KeyError, LookupError, ValueError)):
+    async def test_execute_action_unknown_raises_action_not_found(self):
+        from core.action_registry import action_registry, ActionNotFoundError
+        with pytest.raises(ActionNotFoundError):
             await action_registry.execute_action("nope.nope.nope", {}, {})
+
+    def test_list_actions_returns_registered_names(self):
+        from core.action_registry import action_registry, register_action
+
+        @register_action("test.list.actions.method")
+        async def _x(args, context):
+            return {}
+
+        names = action_registry.list_actions()
+        assert isinstance(names, list)
+        assert "test.list.actions.method" in names
+        assert "documents.search" in names
 
     def test_registered_action_has_schema_shape(self):
         """Action definitions must expose the schema shape mcp_service.py:843
@@ -109,7 +121,9 @@ class TestSeedActions:
 # RPC route — auth + dispatch
 # ============================================================================
 
-class TestRpcRoute:
+class TestRpcRouteUnauthenticated:
+    """The RPC surface must enforce auth: no token -> 401/403 on every route."""
+
     @pytest.fixture
     def client(self):
         from fastapi import FastAPI
@@ -120,16 +134,81 @@ class TestRpcRoute:
         return TestClient(app)
 
     def test_list_actions_unauthenticated_rejected(self, client):
-        # No auth header -> 401 (depends on get_current_user raising in test).
-        # We assert the route exists and enforces auth (not 200 for anon).
         resp = client.get("/api/rpc/actions")
-        assert resp.status_code != 200
+        assert resp.status_code in (401, 403)
 
-    def test_call_unknown_action_404(self, client):
-        # Even the routing layer should reject an unknown action with 404,
-        # regardless of auth (auth may 401 first — both are non-200).
+    def test_call_action_unauthenticated_rejected(self, client):
+        resp = client.post("/api/rpc/agents.list", json={"params": {}})
+        assert resp.status_code in (401, 403)
+
+    def test_call_unknown_action_unauthenticated_rejected(self, client):
+        # Auth runs before the endpoint body, so an unknown action with no
+        # token is rejected on auth (401/403), not 404.
         resp = client.post("/api/rpc/does.not.exist", json={})
-        assert resp.status_code != 200
+        assert resp.status_code in (401, 403)
+
+
+class TestRpcRouteAuthenticated:
+    """Authenticated RPC: lists the 5 seed actions and dispatches registered actions."""
+
+    @pytest.fixture
+    def client(self, worker_database):
+        from unittest.mock import MagicMock
+
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from api.rpc_routes import router
+        from core.auth import get_current_user
+        from core.database import get_db
+
+        # Stub authenticated user (avoids the conftest admin_user fixture,
+        # which references a now-removed User.username column).
+        user = MagicMock()
+        user.id = "rpc-user-1"
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def _override_current_user():
+            return user
+
+        SessionLocal = worker_database
+
+        def _override_get_db():
+            session = SessionLocal()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        app.dependency_overrides[get_current_user] = _override_current_user
+        app.dependency_overrides[get_db] = _override_get_db
+        yield TestClient(app)
+        app.dependency_overrides.clear()
+
+    def test_list_actions_returns_five_seed_actions(self, client):
+        resp = client.get("/api/rpc/actions")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        names = [a["name"] for a in body["data"]]
+        for expected in ("documents.search", "canvas.read", "canvas.update",
+                         "tasks.create", "agents.list"):
+            assert expected in names, f"Seed action {expected} missing from RPC list"
+
+    def test_call_action_dispatches_through_registry(self, client):
+        from core.action_registry import action_registry, register_action
+
+        @register_action("test.rpc.echo")
+        async def _echo(args, context):
+            return {"echo": args.get("msg"), "user_id": context.get("user_id")}
+
+        resp = client.post("/api/rpc/test.rpc.echo", json={"params": {"msg": "hello"}})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"]["echo"] == "hello"
+        assert body["data"]["user_id"] is not None
 
 
 # ============================================================================
