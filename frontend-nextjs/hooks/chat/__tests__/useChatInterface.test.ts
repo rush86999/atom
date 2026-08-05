@@ -1,16 +1,17 @@
 /**
  * useChatInterface Hook Tests
  *
- * Tests verify chat interface state management, message sending,
- * session history loading, feedback handling, and WebSocket integration.
+ * The real useChatInterface hook calls apiClient (axios, baseURL
+ * http://127.0.0.1:8000) via a dynamic import of lib/api-client for history,
+ * sending messages, renaming sessions, and feedback.
  *
- * Source: hooks/chat/useChatInterface.ts (133 lines uncovered)
+ * The old suite tried to intercept those axios requests with a second MSW
+ * setupServer whose wildcard handlers never matched, so every API call hung
+ * and timed out. We mock lib/api-client directly instead.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useChatInterface } from '../useChatInterface';
-import { rest } from 'msw';
-import { setupServer } from 'msw/node';
 
 // Mock dependencies
 jest.mock('@/hooks/useWebSocket', () => ({
@@ -35,107 +36,70 @@ jest.mock('@/hooks/useFileUpload', () => ({
   }),
 }));
 
-// Setup MSW server
-// Note: MSW handlers match both relative and absolute URLs automatically
-// The fetch wrapper in setup.ts converts relative URLs to absolute (localhost:8000)
-// We need to handle multiple URL patterns due to fetch inconsistencies
-const server = setupServer(
-  rest.post('*/api/chat/message', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        message: 'Test response',
-        session_id: 'test-session-123',
-      })
-    );
-  }),
+// Mock the apiClient the hook imports dynamically from lib/api-client.
+jest.mock('../../../lib/api-client', () => ({
+  apiClient: {
+    get: jest.fn(),
+    post: jest.fn(),
+    patch: jest.fn(),
+  },
+}));
 
-  rest.get('*/api/chat/history/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        messages: [
-          {
-            message: 'Hello',
-            response: { message: 'Hi there!', suggested_actions: [] },
-            timestamp: '2024-01-01T00:00:00Z',
-          },
-        ],
-      })
-    );
-  }),
-
-  rest.get('*/api/chat/sessions/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ title: 'Test Session' })
-    );
-  }),
-
-  rest.patch('*/api/chat/sessions/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ success: true })
-    );
-  }),
-
-  rest.post('*/api/atom-agent/feedback', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ success: true })
-    );
-  }),
-
-  // Additional handlers for URL variations (localhost without port, 127.0.0.1, etc.)
-  rest.post('http://localhost/api/chat/message', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        message: 'Test response',
-        session_id: 'test-session-123',
-      })
-    );
-  }),
-
-  rest.get('http://localhost/api/chat/history/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        messages: [
-          {
-            message: 'Hello',
-            response: { message: 'Hi there!', suggested_actions: [] },
-            timestamp: '2024-01-01T00:00:00Z',
-          },
-        ],
-      })
-    );
-  }),
-
-  rest.get('http://localhost/api/chat/sessions/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ title: 'Test Session' })
-    );
-  }),
-
-  rest.patch('http://localhost/api/chat/sessions/:sessionId', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ success: true })
-    );
-  })
-);
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+import { apiClient } from '../../../lib/api-client';
+const mockGet = apiClient.get as jest.Mock;
+const mockPost = apiClient.post as jest.Mock;
+const mockPatch = apiClient.patch as jest.Mock;
 
 describe('useChatInterface', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Default GET behavior: history + session-title background fetch.
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/api/chat/history/')) {
+        return Promise.resolve({
+          status: 200,
+          data: {
+            messages: [
+              {
+                message: 'Hello',
+                response: { message: 'Hi there!', suggested_actions: [] },
+                timestamp: '2024-01-01T00:00:00Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.includes('/api/chat/sessions/')) {
+        return Promise.resolve({
+          status: 200,
+          data: { title: 'Test Session' },
+        });
+      }
+      return Promise.resolve({ status: 200, data: {} });
+    });
+
+    // Default POST behavior: /api/chat/message succeeds and /api/chat/feedback
+    // succeeds.
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/message') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            message: 'Test response',
+            session_id: 'test-session-123',
+          },
+        });
+      }
+      if (url === '/api/chat/feedback') {
+        return Promise.resolve({ status: 200, data: { success: true } });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    mockPatch.mockImplementation(() =>
+      Promise.resolve({ data: { success: true } })
+    );
   });
 
   // Test 1: initializes with default state
@@ -294,11 +258,12 @@ describe('useChatInterface', () => {
 
   // Test 11: handles API error on message send
   test('handles API error on message send', async () => {
-    server.use(
-      rest.post('/api/chat/message', (req, res, ctx) => {
-        return res(ctx.status(500));
-      })
-    );
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/message') {
+        return Promise.resolve({ data: { success: false, error: 'API error' } });
+      }
+      return Promise.resolve({ status: 200, data: { success: true } });
+    });
 
     const { result } = renderHook(() =>
       useChatInterface({ sessionId: 'test-session', initialAgentId: null })
@@ -350,6 +315,11 @@ describe('useChatInterface', () => {
       useChatInterface({ sessionId: 'test-session', initialAgentId: null })
     );
 
+    // Wait for the background session-title fetch to resolve so originalTitle
+    // reflects the loaded title before the empty save attempt.
+    await waitFor(() => {
+      expect(result.current.sessionTitle).toBe('Test Session');
+    });
     const originalTitle = result.current.sessionTitle;
 
     await act(async () => {
@@ -367,11 +337,12 @@ describe('useChatInterface', () => {
 
   // Test 14: handles feedback API error
   test('handles feedback API error', async () => {
-    server.use(
-      rest.post('/api/atom-agent/feedback', (req, res, ctx) => {
-        return res(ctx.status(500));
-      })
-    );
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/feedback') {
+        return Promise.reject(new Error('Failed to submit feedback'));
+      }
+      return Promise.resolve({ status: 200, data: { success: true } });
+    });
 
     const { result } = renderHook(() =>
       useChatInterface({ sessionId: null, initialAgentId: null })
