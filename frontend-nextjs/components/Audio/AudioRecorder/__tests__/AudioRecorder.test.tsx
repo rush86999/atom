@@ -1,10 +1,16 @@
 /**
  * AudioRecorder Component Tests
  *
- * Tests verify audio recording functionality, permissions,
- * playback, and export capabilities.
+ * Tests verify audio recording functionality, permissions, and the
+ * upload-to-processing flow triggered when a recording stops.
  *
- * Source: components/Audio/AudioRecorder.tsx (194 lines uncovered)
+ * Source: components/Audio/AudioRecorder.tsx
+ *
+ * Real behavior (verified against source):
+ * - No microphone permission is requested on mount; only when "Record" is clicked.
+ * - UI buttons: "Record" (idle/error), "Stop & Save" + "Cancel" (recording).
+ * - Timer is formatted as MM:SS (00:00).
+ * - On stop the component POSTs the blob to /api/process-recorded-audio-note.
  */
 
 import React from 'react';
@@ -12,285 +18,199 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AudioRecorder from '../../AudioRecorder';
 import { AgentAudioControlProvider } from '@/contexts/AgentAudioControlContext';
 
-// Mock MediaRecorder API
-const mockMediaRecorder = {
-  start: jest.fn(),
-  stop: jest.fn(),
-  pause: jest.fn(),
-  resume: jest.fn(),
-  ondataavailable: null,
-  onstop: null,
-  stream: null,
+const PROCESS_AUDIO_NOTE_ENDPOINT = '/api/process-recorded-audio-note';
+
+// Fresh MediaRecorder instance per construction so each rendered component
+// gets its own mock. The component requires a static isTypeSupported() and a
+// `state` of "recording" before it will call stop().
+let mockRecorder: any;
+const getUserMediaMock = jest.fn();
+
+const setupMediaMocks = () => {
+  (global as any).MediaRecorder = jest.fn().mockImplementation(() => {
+    mockRecorder = {
+      start: jest.fn(),
+      stop: jest.fn(),
+      pause: jest.fn(),
+      resume: jest.fn(),
+      state: 'recording',
+      ondataavailable: null,
+      onstop: null,
+      onerror: null,
+      stream: null,
+    };
+    return mockRecorder;
+  });
+  (global as any).MediaRecorder.isTypeSupported = jest.fn(() => true);
 };
 
-global.MediaRecorder = jest.fn().mockImplementation(() => mockMediaRecorder) as any;
+// jsdom's FormData rejects jsdom-hostile Blobs (Node's native Blob shadows
+// jsdom's, breaking the internal brand check), so swap in a tiny fake that
+// simply records appended entries. This lets the component's upload path run.
+class MockFormData {
+  private entries: Array<[string, unknown, string | undefined]> = [];
+  append(name: string, value: unknown, filename?: string) {
+    this.entries.push([name, value, filename]);
+  }
+}
 
-// Mock navigator.mediaDevices
-navigator.mediaDevices = {
-  getUserMedia: jest.fn().mockResolvedValue({
-    getTracks: () => [],
-  }),
-} as any;
+const renderRecorder = (props: Record<string, unknown> = {}) => {
+  const onRecordingComplete = jest.fn();
+  const onRecordingError = jest.fn();
 
-// Helper function to render with context and default props
-const renderWithProviders = (component: React.ReactNode) => {
-  const defaultProps = {
-    userId: 'test-user',
-    onRecordingComplete: jest.fn(),
-    onRecordingError: jest.fn(),
-  };
-
-  return render(
+  render(
     <AgentAudioControlProvider>
-      <AudioRecorder {...defaultProps} {...(component as any).props} />
+      <AudioRecorder
+        userId="test-user"
+        onRecordingComplete={onRecordingComplete}
+        onRecordingError={onRecordingError}
+        {...(props as any)}
+      />
     </AgentAudioControlProvider>
   );
+
+  return { onRecordingComplete, onRecordingError };
 };
 
 describe('AudioRecorder', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // Test 1: renders component
-  test('renders component', () => {
-    renderWithProviders(<AudioRecorder />);
-
-    expect(screen.getByText(/record/i)).toBeInTheDocument();
-  });
-
-  // Test 2: requests microphone permission on mount
-  test('requests microphone permission on mount', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
+    // jest.config.js sets resetMocks/clearMocks/restoreMocks, which wipe mock
+    // implementations between tests, so every mock must be re-established here.
+    setupMediaMocks();
+    (global as any).FormData = MockFormData;
+    getUserMediaMock.mockReset();
+    getUserMediaMock.mockResolvedValue({ getTracks: () => [] });
+    (navigator as any).mediaDevices = { getUserMedia: getUserMediaMock };
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          notion_page_url: 'https://notion.test/page',
+          title: 'My Note',
+          summary_preview: 'Summary',
+        },
+      }),
     });
   });
 
-  // Test 3: starts recording when record button clicked
-  test('starts recording when record button clicked', async () => {
-    renderWithProviders(<AudioRecorder />);
+  // Clicks Record and waits for recording to actually start.
+  const startRecording = async () => {
+    fireEvent.click(screen.getByRole('button', { name: /record/i }));
+    await waitFor(() => expect(mockRecorder.start).toHaveBeenCalled());
+  };
 
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
+  // Simulates the recorder finishing: pushes a data chunk then fires onstop,
+  // which is what triggers the upload-to-processing flow. A real Blob is used
+  // so jsdom can reconstruct the final recording blob in the component.
+  const finishRecording = () => {
+    mockRecorder.ondataavailable({ data: new Blob(['some audio data']) });
+    mockRecorder.onstop();
+  };
 
-    expect(mockMediaRecorder.start).toHaveBeenCalled();
+  test('renders the component with a Record button and title input', () => {
+    renderRecorder();
+    expect(screen.getByRole('button', { name: /record/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Optional title for your audio note')).toBeInTheDocument();
   });
 
-  // Test 4: stops recording when stop button clicked
-  test('stops recording when stop button clicked', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    await waitFor(() => {
-      const stopButton = screen.getByRole('button', { name: /stop/i });
-      fireEvent.click(stopButton);
-    });
-
-    expect(mockMediaRecorder.stop).toHaveBeenCalled();
+  test('does not request microphone permission on mount', () => {
+    renderRecorder();
+    expect(getUserMediaMock).not.toHaveBeenCalled();
   });
 
-  // Test 5: displays recording time
-  test('displays recording time', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/0:00/i)).toBeInTheDocument();
-    });
+  test('requests microphone permission when Record is clicked', async () => {
+    renderRecorder();
+    fireEvent.click(screen.getByRole('button', { name: /record/i }));
+    await waitFor(() => expect(getUserMediaMock).toHaveBeenCalledWith({ audio: true }));
   });
 
-  // Test 6: handles permission denied
-  test('handles permission denied', async () => {
-    navigator.mediaDevices.getUserMedia = jest.fn().mockRejectedValue(
-      new Error('Permission denied')
+  test('starts recording when Record is clicked', async () => {
+    renderRecorder();
+    await startRecording();
+    expect(getUserMediaMock).toHaveBeenCalled();
+    expect(mockRecorder.start).toHaveBeenCalled();
+  });
+
+  test('shows recording indicator and timer while recording', async () => {
+    renderRecorder();
+    await startRecording();
+    expect(screen.getByText('Recording')).toBeInTheDocument();
+    expect(screen.getByText(/^00:0\d$/)).toBeInTheDocument();
+  });
+
+  test('stops recording when Stop & Save is clicked', async () => {
+    renderRecorder();
+    await startRecording();
+    fireEvent.click(screen.getByRole('button', { name: /stop & save/i }));
+    expect(mockRecorder.stop).toHaveBeenCalled();
+  });
+
+  test('cancels recording and returns to the idle Record button', async () => {
+    renderRecorder();
+    await startRecording();
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.getByRole('button', { name: /record/i })).toBeInTheDocument();
+  });
+
+  test('shows a permission denied error when microphone access is rejected', async () => {
+    getUserMediaMock.mockRejectedValue(
+      Object.assign(new Error('denied'), { name: 'NotAllowedError' })
     );
-
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
-    });
+    const { onRecordingError } = renderRecorder();
+    fireEvent.click(screen.getByRole('button', { name: /record/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/permission denied/i)).toBeInTheDocument()
+    );
+    expect(onRecordingError).toHaveBeenCalledWith(expect.stringMatching(/permission denied/i));
   });
 
-  // Test 7: plays recorded audio
-  test('plays recorded audio', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    // Record audio
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    // Stop recording
-    await waitFor(() => {
-      const stopButton = screen.getByRole('button', { name: /stop/i });
-      fireEvent.click(stopButton);
-    });
-
-    // Play audio
-    await waitFor(() => {
-      const playButton = screen.getByRole('button', { name: /play/i });
-      fireEvent.click(playButton);
-    });
-
-    expect(screen.getByRole('button', { name: /pause/i })).toBeInTheDocument();
+  test('shows a generic error when microphone access fails', async () => {
+    getUserMediaMock.mockRejectedValue(new Error('boom'));
+    renderRecorder();
+    fireEvent.click(screen.getByRole('button', { name: /record/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/error accessing microphone/i)).toBeInTheDocument()
+    );
   });
 
-  // Test 8: downloads recorded audio
-  test('downloads recorded audio', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    // Record audio
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    // Stop recording
-    await waitFor(() => {
-      const stopButton = screen.getByRole('button', { name: /stop/i });
-      fireEvent.click(stopButton);
-    });
-
-    // Download
-    await waitFor(() => {
-      const downloadButton = screen.getByRole('button', { name: /download/i });
-      expect(downloadButton).toBeInTheDocument();
-    });
+  test('uploads the recorded audio note to the processing endpoint when recording stops', async () => {
+    renderRecorder();
+    await startRecording();
+    fireEvent.click(screen.getByRole('button', { name: /stop & save/i }));
+    finishRecording();
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    expect(global.fetch).toHaveBeenCalledWith(
+      PROCESS_AUDIO_NOTE_ENDPOINT,
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
-  // Test 9: pauses recording
-  test('pauses recording', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    await waitFor(() => {
-      const pauseButton = screen.getByRole('button', { name: /pause/i });
-      fireEvent.click(pauseButton);
-    });
-
-    expect(mockMediaRecorder.pause).toHaveBeenCalled();
+  test('calls onRecordingComplete with the upload response data', async () => {
+    const { onRecordingComplete } = renderRecorder();
+    await startRecording();
+    fireEvent.click(screen.getByRole('button', { name: /stop & save/i }));
+    finishRecording();
+    await waitFor(() =>
+      expect(onRecordingComplete).toHaveBeenCalledWith(
+        'https://notion.test/page',
+        'My Note',
+        'Summary'
+      )
+    );
   });
 
-  // Test 10: resumes recording
-  test('resumes recording', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
+  test('shows an error and calls onRecordingError when the upload fails', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ ok: false, message: 'Failed to process audio note (HTTP 500).' }),
     });
-
-    await waitFor(() => {
-      const pauseButton = screen.getByRole('button', { name: /pause/i });
-      fireEvent.click(pauseButton);
-    });
-
-    await waitFor(() => {
-      const resumeButton = screen.getByRole('button', { name: /resume/i });
-      fireEvent.click(resumeButton);
-    });
-
-    expect(mockMediaRecorder.resume).toHaveBeenCalled();
-  });
-
-  // Test 11: deletes recording
-  test('deletes recording', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    // Record audio
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    // Stop recording
-    await waitFor(() => {
-      const stopButton = screen.getByRole('button', { name: /stop/i });
-      fireEvent.click(stopButton);
-    });
-
-    // Delete
-    await waitFor(() => {
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
-      fireEvent.click(deleteButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByText(/play/i)).not.toBeInTheDocument();
-    });
-  });
-
-  // Test 12: displays audio waveform
-  test('displays audio waveform', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    await waitFor(() => {
-      const waveform = screen.getByTestId(/waveform/i);
-      expect(waveform).toBeInTheDocument();
-    });
-  });
-
-  // Test 13: adjusts recording quality
-  test('adjusts recording quality', () => {
-    renderWithProviders(<AudioRecorder />);
-
-    const qualitySelect = screen.getByRole('combobox', { name: /quality/i });
-    fireEvent.change(qualitySelect, { target: { value: 'high' } });
-
-    expect(qualitySelect).toHaveValue('high');
-  });
-
-  // Test 14: shows recording indicator
-  test('shows recording indicator', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    await waitFor(() => {
-      const indicator = screen.getByTestId(/recording-indicator/i);
-      expect(indicator).toBeInTheDocument();
-      expect(indicator).toHaveClass('recording');
-    });
-  });
-
-  // Test 15: handles maximum recording duration
-  test('handles maximum recording duration', async () => {
-    renderWithProviders(<AudioRecorder />);
-
-    await waitFor(() => {
-      const recordButton = screen.getByRole('button', { name: /record/i });
-      fireEvent.click(recordButton);
-    });
-
-    // Simulate max duration reached
-    await waitFor(() => {
-      expect(mockMediaRecorder.stop).toHaveBeenCalled();
-    }, { timeout: 10000 });
+    const { onRecordingError } = renderRecorder();
+    await startRecording();
+    fireEvent.click(screen.getByRole('button', { name: /stop & save/i }));
+    finishRecording();
+    await waitFor(() => expect(onRecordingError).toHaveBeenCalled());
+    expect(screen.getByText(/failed to process audio note/i)).toBeInTheDocument();
   });
 });
