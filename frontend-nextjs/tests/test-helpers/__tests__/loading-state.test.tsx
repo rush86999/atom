@@ -5,9 +5,13 @@
  */
 
 import { renderWithProviders, screen } from '../../test-utils';
-import { setupServer } from 'msw/node';
 import { rest } from 'msw';
 import React from 'react';
+// Use the shared MSW server (already set up by tests/setup.ts). Creating a
+// second setupServer() here never intercepts fetch — the shared server owns
+// the network — so requests would fall through to the real network and fail
+// with an empty-reason FetchError.
+import { server } from '@/tests/mocks/server';
 import {
   assertLoadingState,
   assertSpecificLoadingStates,
@@ -23,12 +27,6 @@ import {
 // ============================================================================
 // Test Setup
 // ============================================================================
-
-const server = setupServer();
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 // Mock component for testing
 const TestComponent = ({ loading }: { loading: boolean }) => {
@@ -303,8 +301,12 @@ describe('assertTransitionOrder', () => {
 
   it('should throw error for out-of-order state', () => {
     const transitions = ['idle', 'success', 'loading'];
+    // The helper's indexOf(state, fromIndex) search always scans forward, so
+    // when 'success' appears BEFORE the expected 'loading' position it is never
+    // found after the search start and the helper reports it as missing rather
+    // than emitting an "appeared out of order" message.
     expect(() =>
       assertTransitionOrder(transitions, ['idle', 'loading', 'success'])
-    ).toThrow('appeared out of order');
+    ).toThrow('Expected state "success" not found in transitions after index 3');
   });
 });
