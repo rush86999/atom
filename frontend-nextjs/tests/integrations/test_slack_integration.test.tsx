@@ -1,423 +1,420 @@
+/**
+ * SlackIntegration Component Tests
+ *
+ * Tests verify the real Slack integration component
+ * (components/SlackIntegration.tsx):
+ * - Connection status check (GET /api/integrations/slack/health)
+ * - Disconnected / connect state
+ * - Channels, messages, users, and workspace data loading
+ * - Channel search filtering, send-message, and create-channel dialogs
+ *
+ * Uses the shared MSW server (tests/mocks/server.ts) registered in
+ * tests/setup.ts — per-file setupServer() does NOT override the global server.
+ */
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import SlackIntegration from '@/components/SlackIntegration';
+import { rest } from 'msw';
+import { server } from '@/tests/mocks/server';
 
-// Mock Slack Integration component
+// The setup.ts useToast mock returns a fresh object every render, which changes
+// the identity of loadChannels (deps [toast]) -> checkConnection -> re-triggers
+// the mount effect -> infinite refetch loop (heap OOM). Return a stable toast
+// so the component's useCallback identities are stable.
+const mockToast = { toast: jest.fn(), dismiss: jest.fn(), toasts: [] };
 jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
-  }),
+  useToast: () => mockToast,
+  ToastProvider: ({ children }: { children: any }) => children,
 }));
 
-// Create a mock Slack component
-const MockSlackIntegration: React.FC = () => {
-  const [connected, setConnected] = React.useState(false);
-  const [webhookUrl, setWebhookUrl] = React.useState('');
-  const [channels, setChannels] = React.useState([
-    { id: 'ch-1', name: 'general', is_member: true },
-    { id: 'ch-2', name: 'random', is_member: true },
-    { id: 'ch-3', name: 'engineering', is_member: false },
-  ]);
-  const [selectedChannel, setSelectedChannel] = React.useState('');
-  const [message, setMessage] = React.useState('');
+const channels = [
+  {
+    id: 'ch-1',
+    name: 'general',
+    purpose: 'Company-wide announcements',
+    num_members: 42,
+    is_archived: false,
+    is_general: true,
+    created: 1700000000,
+    creator: 'U1',
+    is_private: false,
+  },
+  {
+    id: 'ch-2',
+    name: 'engineering',
+    purpose: 'Engineering discussion',
+    num_members: 12,
+    is_archived: false,
+    is_general: false,
+    created: 1700000001,
+    creator: 'U1',
+    is_private: false,
+  },
+  {
+    id: 'ch-3',
+    name: 'confidential',
+    purpose: 'Leadership only',
+    num_members: 5,
+    is_archived: false,
+    is_general: false,
+    created: 1700000002,
+    creator: 'U1',
+    is_private: true,
+  },
+];
 
-  const handleConnect = async () => {
-    if (webhookUrl) {
-      setConnected(true);
-    }
-  };
+const messages = [
+  {
+    team: 'T1',
+    user: 'U1',
+    user_profile: {
+      real_name: 'Rushi Parikh',
+      display_name: 'Rushi',
+      image_48: '',
+      image_32: '',
+      image_24: '',
+    },
+    text: 'Hello team!',
+    ts: '1700000000.000',
+    attachments: [],
+    reactions: [],
+    replies: [],
+    files: [],
+  },
+  {
+    team: 'T1',
+    user: 'U2',
+    user_profile: {
+      real_name: 'Jane Smith',
+      display_name: 'Jane',
+      image_48: '',
+      image_32: '',
+      image_24: '',
+    },
+    text: 'Morning!',
+    ts: '1700000001.000',
+    attachments: [],
+    reactions: [{ name: 'wave', count: 2, users: ['U1', 'U2'] }],
+    replies: [],
+    files: [],
+  },
+];
 
-  const handleDisconnect = () => {
-    setConnected(false);
-    setWebhookUrl('');
-  };
+const users = [
+  {
+    id: 'U1',
+    name: 'rushi',
+    real_name: 'Rushi Parikh',
+    display_name: 'Rushi',
+    email: 'rushi@example.com',
+    phone: '',
+    title: 'Engineer',
+    is_admin: true,
+    is_owner: false,
+    is_bot: false,
+    deleted: false,
+    profile: {
+      real_name: 'Rushi Parikh',
+      display_name: 'Rushi',
+      real_name_normalized: '',
+      display_name_normalized: '',
+      email: 'rushi@example.com',
+      image_48: '',
+    },
+  },
+  {
+    id: 'U2',
+    name: 'jane',
+    real_name: 'Jane Smith',
+    display_name: 'Jane',
+    email: 'jane@example.com',
+    phone: '',
+    title: 'Designer',
+    is_admin: false,
+    is_owner: false,
+    is_bot: false,
+    deleted: false,
+    profile: {
+      real_name: 'Jane Smith',
+      display_name: 'Jane',
+      real_name_normalized: '',
+      display_name_normalized: '',
+      email: 'jane@example.com',
+      image_48: '',
+    },
+  },
+];
 
-  const handleSendMessage = async () => {
-    if (message && selectedChannel) {
-      setMessage('');
-    }
-  };
+const workspace = {
+  id: 'T1',
+  name: 'Acme Workspace',
+  domain: 'acme',
+  email_domain: 'acme.com',
+  icon: { image_102: '' },
+};
 
-  const handleTestNotification = async () => {
-    // Test notification
-  };
+const slackHandlers = [
+  rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  }),
 
-  if (!connected) {
-    return (
-      <div data-testid="slack-integration">
-        <h2>Slack Integration</h2>
-        <div>
-          <label htmlFor="webhook-url">Webhook URL</label>
-          <input
-            id="webhook-url"
-            data-testid="webhook-url-input"
-            type="text"
-            value={webhookUrl}
-            onChange={(e) => setWebhookUrl(e.target.value)}
-            placeholder="https://hooks.slack.com/services/..."
-          />
-        </div>
-        <button
-          data-testid="connect-button"
-          onClick={handleConnect}
-          disabled={!webhookUrl}
-        >
-          Connect
-        </button>
-        {!webhookUrl && <span data-testid="webhook-required">Webhook URL is required</span>}
-      </div>
-    );
-  }
+  rest.post('/api/integrations/slack/workspace', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { workspace } }));
+  }),
 
-  return (
-    <div data-testid="slack-integration">
-      <h2>Slack Integration</h2>
+  rest.get('/api/integrations/slack/channels', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { channels } }));
+  }),
 
-      <div data-testid="connection-status">Connected</div>
-      <button data-testid="disconnect-button" onClick={handleDisconnect}>
-        Disconnect
-      </button>
+  rest.get('/api/integrations/slack/messages', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { messages } }));
+  }),
 
-      <div data-testid="channel-list">
-        <h3>Channels</h3>
-        {channels.map((channel) => (
-          <div key={channel.id} data-testid={`channel-${channel.id}`}>
-            <span>{channel.name}</span>
-            <span>{channel.is_member ? 'Member' : 'Not Member'}</span>
-          </div>
-        ))}
-      </div>
+  rest.get('/api/integrations/slack/users', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { users } }));
+  }),
 
-      <div data-testid="message-form">
-        <label htmlFor="channel-select">Select Channel</label>
-        <select
-          id="channel-select"
-          data-testid="channel-select"
-          value={selectedChannel}
-          onChange={(e) => setSelectedChannel(e.target.value)}
-        >
-          <option value="">Select a channel</option>
-          {channels.filter((ch) => ch.is_member).map((channel) => (
-            <option key={channel.id} value={channel.id}>
-              {channel.name}
-            </option>
-          ))}
-        </select>
+  rest.post('/api/integrations/slack/messages', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
 
-        <label htmlFor="message-input">Message</label>
-        <textarea
-          id="message-input"
-          data-testid="message-input"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter your message..."
-        />
+  rest.post('/api/integrations/slack/channels/create', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+];
 
-        <button data-testid="send-button" onClick={handleSendMessage} disabled={!message || !selectedChannel}>
-          Send Message
-        </button>
-
-        <button data-testid="test-notification-button" onClick={handleTestNotification}>
-          Send Test Notification
-        </button>
-      </div>
-    </div>
+const setNotConnected = () => {
+  server.use(
+    rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+      return res(ctx.status(500), ctx.json({ error: 'not connected' }));
+    })
   );
 };
 
-// Mock the component import
-jest.mock('@/components/SlackIntegration', () => MockSlackIntegration);
-
-import SlackIntegration from '@/components/SlackIntegration';
-
-describe('SlackIntegration Component', () => {
+describe('SlackIntegration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...slackHandlers);
   });
 
-  describe('test_slack_webhook_config', () => {
-    it('should render webhook configuration form', () => {
-      render(<SlackIntegration />);
+  // Test 1: shows the connect screen when not connected
+  test('shows connect screen when not connected', async () => {
+    setNotConnected();
 
-      expect(screen.getByTestId('webhook-url-input')).toBeInTheDocument();
-      expect(screen.getByTestId('connect-button')).toBeInTheDocument();
-    });
+    render(<SlackIntegration />);
 
-    it('should validate webhook URL format', async () => {
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'invalid-url' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('slack-integration')).toBeInTheDocument();
-      });
-    });
-
-    it('should accept valid Slack webhook URL', async () => {
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      const validUrl = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX';
-
-      fireEvent.change(webhookInput, { target: { value: validUrl } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('connection-status')).toHaveTextContent('Connected');
-      });
-    });
-
-    it('should show webhook URL as required field', () => {
-      render(<SlackIntegration />);
-
-      const connectButton = screen.getByTestId('connect-button');
-      expect(connectButton).toBeDisabled();
-
-      expect(screen.getByTestId('webhook-required')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /connect slack/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /connect slack workspace/i })
+      ).toBeInTheDocument();
     });
   });
 
-  describe('test_slack_channel_list', () => {
-    it('should display list of Slack channels', async () => {
-      render(<SlackIntegration />);
+  // Test 2: connect button is clickable without crashing (jsdom logs the
+  // navigation attempt; the target is a static constant)
+  test('connect button initiates connection flow', async () => {
+    setNotConnected();
 
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
+    render(<SlackIntegration />);
 
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('channel-list')).toBeInTheDocument();
-        expect(screen.getByText('general')).toBeInTheDocument();
-        expect(screen.getByText('random')).toBeInTheDocument();
-        expect(screen.getByText('engineering')).toBeInTheDocument();
-      });
+    const connectButton = await screen.findByRole('button', {
+      name: /connect slack workspace/i,
     });
+    expect(() => fireEvent.click(connectButton)).not.toThrow();
+  });
 
-    it('should show channel membership status', async () => {
-      render(<SlackIntegration />);
+  // Test 3: shows connected state when health check passes
+  test('shows connected state when health check passes', async () => {
+    render(<SlackIntegration />);
 
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('channel-ch-1')).toBeInTheDocument();
-        expect(screen.getByText('Member')).toBeInTheDocument();
-      });
-    });
-
-    it('should filter channels by membership', async () => {
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        const channelSelect = screen.getByTestId('channel-select');
-        const options = channelSelect.querySelectorAll('option');
-
-        // Should only show member channels (general, random), not engineering
-        expect(options.length).toBe(3); // "Select a channel" + 2 member channels
-      });
-    });
-
-    it('should handle empty channel list', async () => {
-      const MockEmptySlackIntegration: React.FC = () => {
-        const [connected] = React.useState(true);
-        return (
-          <div data-testid="slack-integration">
-            {connected && (
-              <div data-testid="channel-list">
-                <p>No channels available</p>
-              </div>
-            )}
-          </div>
-        );
-      };
-
-      const EmptyComponent = MockEmptySlackIntegration;
-      render(<EmptyComponent />);
-
-      expect(screen.getByText('No channels available')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /slack integration/i })
+      ).toBeInTheDocument();
+      expect(screen.getAllByText('Connected').length).toBeGreaterThan(0);
     });
   });
 
-  describe('test_slack_message_send', () => {
-    it('should send message to selected channel', async () => {
-      render(<SlackIntegration />);
+  // Test 4: displays overview stat cards
+  test('displays overview stat cards', async () => {
+    render(<SlackIntegration />);
 
-      // Connect first
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('message-form')).toBeInTheDocument();
-      });
-
-      // Select channel
-      const channelSelect = screen.getByTestId('channel-select');
-      fireEvent.change(channelSelect, { target: { value: 'ch-1' } });
-
-      // Type message
-      const messageInput = screen.getByTestId('message-input');
-      fireEvent.change(messageInput, { target: { value: 'Test message' } });
-
-      // Send message
-      const sendButton = screen.getByTestId('send-button');
-      fireEvent.click(sendButton);
-
-      await waitFor(() => {
-        expect(messageInput).toHaveValue('');
-      });
-    });
-
-    it('should validate message before sending', async () => {
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('message-form')).toBeInTheDocument();
-      });
-
-      const sendButton = screen.getByTestId('send-button');
-      expect(sendButton).toBeDisabled();
-    });
-
-    it('should validate channel selection before sending', async () => {
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('message-form')).toBeInTheDocument();
-      });
-
-      const messageInput = screen.getByTestId('message-input');
-      fireEvent.change(messageInput, { target: { value: 'Test message' } });
-
-      const sendButton = screen.getByTestId('send-button');
-      expect(sendButton).toBeDisabled();
-    });
-
-    it('should handle message send errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      render(<SlackIntegration />);
-
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('message-form')).toBeInTheDocument();
-      });
-
-      const channelSelect = screen.getByTestId('channel-select');
-      fireEvent.change(channelSelect, { target: { value: 'ch-1' } });
-
-      const messageInput = screen.getByTestId('message-input');
-      fireEvent.change(messageInput, { target: { value: 'Test message' } });
-
-      const sendButton = screen.getByTestId('send-button');
-      fireEvent.click(sendButton);
-
-      await waitFor(() => {
-        expect(messageInput).toHaveValue('');
-      });
-
-      consoleSpy.mockRestore();
+    await waitFor(() => {
+      expect(screen.getByText('1 private')).toBeInTheDocument();
+      expect(screen.getByText('2 total')).toBeInTheDocument();
+      expect(screen.getByText('In selected channel')).toBeInTheDocument();
     });
   });
 
-  describe('test_slack_notification_test', () => {
-    it('should send test notification', async () => {
-      render(<SlackIntegration />);
+  // Test 5: displays channels in the default tab
+  test('displays channels in the default tab', async () => {
+    render(<SlackIntegration />);
 
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
-
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('test-notification-button')).toBeInTheDocument();
-      });
-
-      const testButton = screen.getByTestId('test-notification-button');
-      fireEvent.click(testButton);
-
-      await waitFor(() => {
-        expect(testButton).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/#general/)).toBeInTheDocument();
+      expect(screen.getByText(/#engineering/)).toBeInTheDocument();
+      expect(screen.getByText(/#confidential/)).toBeInTheDocument();
+      expect(screen.getByText('General')).toBeInTheDocument();
+      expect(screen.getByText('Private')).toBeInTheDocument();
     });
+  });
 
-    it('should show success message after test notification', async () => {
-      render(<SlackIntegration />);
+  // Test 6: filters channels by search query
+  test('filters channels by search query', async () => {
+    render(<SlackIntegration />);
 
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
+    await screen.findByText(/#general/);
 
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
+    const searchInput = screen.getByPlaceholderText('Search channels...');
+    fireEvent.change(searchInput, { target: { value: 'engineer' } });
 
-      await waitFor(() => {
-        const testButton = screen.getByTestId('test-notification-button');
-        fireEvent.click(testButton);
-      });
+    expect(screen.getByText(/#engineering/)).toBeInTheDocument();
+    expect(screen.queryByText(/#general/)).not.toBeInTheDocument();
+  });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('slack-integration')).toBeInTheDocument();
-      });
+  // Test 7: selecting a channel loads messages
+  test('selecting a channel loads messages', async () => {
+    render(<SlackIntegration />);
+
+    await screen.findByText(/#general/);
+
+    fireEvent.click(screen.getByText(/#general/));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Hello team!')).toBeInTheDocument();
+      expect(screen.getByText('Morning!')).toBeInTheDocument();
     });
+  });
 
-    it('should handle test notification failures', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+  // Test 8: displays users on the Users tab
+  test('displays users on the Users tab', async () => {
+    render(<SlackIntegration />);
 
-      render(<SlackIntegration />);
+    await screen.findByText(/#general/);
 
-      const webhookInput = screen.getByTestId('webhook-url-input');
-      fireEvent.change(webhookInput, { target: { value: 'https://hooks.slack.com/services/T00/B00/XXX' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
 
-      const connectButton = screen.getByTestId('connect-button');
-      fireEvent.click(connectButton);
+    await waitFor(() => {
+      expect(screen.getByText('Rushi Parikh')).toBeInTheDocument();
+      expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    });
+  });
 
-      await waitFor(() => {
-        const testButton = screen.getByTestId('test-notification-button');
-        fireEvent.click(testButton);
-      });
+  // Test 9: displays workspace on the Workspace tab
+  test('displays workspace on the Workspace tab', async () => {
+    render(<SlackIntegration />);
 
-      await waitFor(() => {
-        expect(screen.getByTestId('slack-integration')).toBeInTheDocument();
-      });
+    await screen.findByText(/#general/);
 
-      consoleSpy.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Workspace' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('acme.slack.com')).toBeInTheDocument();
+      expect(screen.getByText('Email domain: acme.com')).toBeInTheDocument();
+    });
+  });
+
+  // Test 10: Create Channel button opens the create channel dialog
+  test('opens create channel dialog', async () => {
+    render(<SlackIntegration />);
+
+    await screen.findByText(/#general/);
+
+    fireEvent.click(screen.getByRole('button', { name: /create channel/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /create channel/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 11: creating a channel calls POST /api/integrations/slack/channels/create
+  test('creating a channel calls the create endpoint', async () => {
+    let requestBody: any = null;
+    server.use(
+      rest.post('/api/integrations/slack/channels/create', (req, res, ctx) => {
+        // MSW pre-parses JSON request bodies into objects
+        requestBody = req.body as any;
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<SlackIntegration />);
+
+    await screen.findByText(/#general/);
+
+    fireEvent.click(screen.getByRole('button', { name: /create channel/i }));
+
+    const nameInput = screen.getByPlaceholderText('channel-name');
+    fireEvent.change(nameInput, { target: { value: 'new-channel' } });
+
+    // Form submit button is the second "Create Channel" button (toolbar first)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /create channel/i })[1]
+    );
+
+    await waitFor(() => {
+      expect(requestBody).toEqual(
+        expect.objectContaining({ name: 'new-channel' })
+      );
+    });
+  });
+
+  // Test 12: Send Message button opens the send message dialog
+  test('opens send message dialog', async () => {
+    render(<SlackIntegration />);
+
+    await screen.findByText(/#general/);
+
+    // Select a channel first so the toolbar Send Message button is enabled
+    fireEvent.click(screen.getByText(/#general/));
+    fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /send message/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 13: shows refresh status button
+  test('shows refresh status button', async () => {
+    render(<SlackIntegration />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /refresh status/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 14: handles connection error as disconnected
+  test('handles connection error', async () => {
+    server.use(
+      rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
+      })
+    );
+
+    render(<SlackIntegration />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /connect slack workspace/i })
+      ).toBeInTheDocument();
     });
   });
 });
