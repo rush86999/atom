@@ -930,11 +930,51 @@ async def execute_workflow(
     }
 
 @router.post("/executions/{execution_id}/cancel")
-async def cancel_execution(execution_id: str):
+async def cancel_execution(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    # 1) Legacy mock executions
     for exc in MOCK_EXECUTIONS:
         if exc.execution_id == execution_id:
             exc.status = "cancelled"
             return {"success": True}
+
+    # 2) Durable-engine executions (DB workflow_executions). The Executions
+    # tab surfaces these rows; the old route only scanned MOCK_EXECUTIONS, so
+    # canceling a real execution always 404'd.
+    from core.models import WorkflowExecution as DBWorkflowExecution
+    db = next(get_db())
+    try:
+        row = (
+            db.query(DBWorkflowExecution)
+            .filter(DBWorkflowExecution.execution_id == execution_id)
+            .first()
+        )
+        if row is not None:
+            row.status = "CANCELLED"
+            db.commit()
+            return {"success": True}
+    finally:
+        db.close()
+
+    # 3) Best-effort: orchestrator in-memory contexts (no dedicated cancel API).
+    try:
+        from advanced_workflow_orchestrator import get_orchestrator
+        orchestrator = get_orchestrator()
+        context = orchestrator.active_contexts.get(execution_id)
+        if context is not None:
+            if isinstance(context, dict):
+                context["status"] = "cancelled"
+            else:
+                try:
+                    context.status = "cancelled"
+                except Exception:
+                    pass
+            return {"success": True}
+    except Exception as e:
+        logger.error(f"Failed to cancel orchestrator execution {execution_id}: {e}")
+
     raise HTTPException(status_code=404, detail="Execution not found")
 @router.get("/debug/state")
 async def get_orchestrator_state(current_user: User = Depends(get_current_user)):
