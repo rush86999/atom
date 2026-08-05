@@ -123,10 +123,6 @@ class WorkflowScheduler:
         logger.info(f"Executing scheduled workflow: {workflow_id}")
 
         try:
-            # Instantiate engine on demand to ensure fresh state and avoid circular imports at module level
-            from ai.automation_engine import AutomationEngine
-            engine = AutomationEngine()
-
             # Load workflows
             from core.workflow_endpoints import load_workflows
             from core.workflow_security import (
@@ -145,10 +141,14 @@ class WorkflowScheduler:
                         workflow_id,
                     )
                     return
-                # Execute with a special execution ID prefix
-                execution_id = f"sched_{datetime.now().strftime('%Y%m%d%H%M%S')}_{workflow_id[:8]}"
-                await engine.execute_workflow_definition(workflow_def, input_data or {}, execution_id=execution_id)
-                logger.info(f"Scheduled execution {execution_id} completed")
+                # Route through the durable WorkflowEngine so scheduled
+                # executions persist to the DB WorkflowExecution table and
+                # appear in the Executions tab — the legacy AutomationEngine
+                # only wrote executions.json.
+                from core.workflow_engine import get_workflow_engine
+                engine = get_workflow_engine()
+                execution_id = await engine.start_workflow(workflow_def, input_data or {})
+                logger.info(f"Scheduled execution {execution_id} started")
             else:
                 logger.error(f"Scheduled workflow {workflow_id} not found")
 
