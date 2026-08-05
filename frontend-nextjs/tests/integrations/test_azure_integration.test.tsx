@@ -1,404 +1,318 @@
+/**
+ * AzureIntegration Component Tests
+ *
+ * Tests verify the real Azure integration component
+ * (components/AzureIntegration.tsx):
+ * - Connection status check (GET /api/integrations/azure/health)
+ * - Disconnected / connect state
+ * - Subscriptions + Azure resource loading (resource groups, virtual
+ *   machines, storage accounts, app services)
+ * - VM search filtering and create-resource dialogs
+ *
+ * Uses the shared MSW server (tests/mocks/server.ts) registered in
+ * tests/setup.ts — per-file setupServer() does NOT override the global server.
+ */
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AzureIntegration from '@/components/AzureIntegration';
+import { rest } from 'msw';
+import { server } from '@/tests/mocks/server';
 
-// Mock dependencies
-jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
+const subscriptions = [
+  {
+    id: 'sub1',
+    subscriptionId: 'sub-111',
+    displayName: 'Pay-As-You-Go',
+    state: 'Enabled',
+    tenantId: 'tenant-1',
+  },
+];
+
+const resourceGroups = [
+  {
+    id: 'rg1',
+    name: 'prod-rg',
+    location: 'East US',
+    tags: { env: 'prod' },
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'rg2',
+    name: 'dev-rg',
+    location: 'West US',
+    tags: {},
+    created_at: '2026-02-01T00:00:00Z',
+  },
+];
+
+const virtualMachines = [
+  {
+    id: 'vm1',
+    name: 'web-server-01',
+    location: 'East US',
+    size: 'Standard_B2s',
+    status: 'running',
+    os_type: 'Linux',
+    admin_username: 'azureuser',
+    public_ip: '1.2.3.4',
+    created_at: '2026-01-01T00:00:00Z',
+    resource_group: 'prod-rg',
+  },
+  {
+    id: 'vm2',
+    name: 'db-server-01',
+    location: 'East US',
+    size: 'Standard_D2s_v3',
+    status: 'running',
+    os_type: 'Windows',
+    admin_username: 'admin',
+    public_ip: '',
+    created_at: '2026-01-02T00:00:00Z',
+    resource_group: 'prod-rg',
+  },
+];
+
+const storageAccounts = [
+  {
+    id: 'sa1',
+    name: 'web-storage-01',
+    location: 'East US',
+    type: 'Microsoft.Storage/storageAccounts',
+    tier: 'Standard',
+    replication: 'LRS',
+    access_tier: 'Hot',
+    blob_endpoint: 'https://blob.example.com',
+    file_endpoint: 'https://file.example.com',
+    created_at: '2026-01-01T00:00:00Z',
+    resource_group: 'prod-rg',
+  },
+];
+
+const appServices = [
+  {
+    id: 'app1',
+    name: 'web-app-01',
+    location: 'East US',
+    state: 'Running',
+    host_names: ['web-app-01.example.com'],
+    app_service_plan: 'asp-basic',
+    runtime: 'NODE',
+    https_only: true,
+    created_at: '2026-01-01T00:00:00Z',
+    resource_group: 'prod-rg',
+  },
+];
+
+const azureHandlers = [
+  rest.get('/api/integrations/azure/health', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
   }),
-}));
 
-// Mock fetch globally
+  rest.post('/api/integrations/azure/subscriptions', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { subscriptions } }));
+  }),
 
-describe('AzureIntegration Component', () => {
+  rest.post('/api/integrations/azure/resource-groups', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { resourceGroups } }));
+  }),
+
+  rest.post('/api/integrations/azure/virtual-machines', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { virtualMachines } }));
+  }),
+
+  rest.post('/api/integrations/azure/storage-accounts', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { storageAccounts } }));
+  }),
+
+  rest.post('/api/integrations/azure/app-services', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: { appServices } }));
+  }),
+];
+
+const setNotConnected = () => {
+  server.use(
+    rest.get('/api/integrations/azure/health', (req, res, ctx) => {
+      return res(ctx.status(500), ctx.json({ error: 'not connected' }));
+    })
+  );
+};
+
+describe('AzureIntegration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn();
-    localStorage.clear();
+    server.resetHandlers();
+    server.use(...azureHandlers);
   });
 
-  describe('test_azure_connection_form', () => {
-    it('should render Azure AD connection form', () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: false }),
-      } as Response);
+  // Test 1: shows the connect screen when not connected
+  test('shows connect screen when not connected', async () => {
+    setNotConnected();
 
-      render(<AzureIntegration />);
+    render(<AzureIntegration />);
 
-      expect(screen.getByText(/connect azure ad/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/tenant id/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/client id/i)).toBeInTheDocument();
-    });
-
-    it('should display all required connection fields', () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: false }),
-      } as Response);
-
-      render(<AzureIntegration />);
-
-      expect(screen.getByLabelText(/tenant id/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/client id/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/client secret/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
-    });
-
-    it('should validate tenant ID format', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: false }),
-      } as Response);
-
-      render(<AzureIntegration />);
-
-      const tenantInput = screen.getByLabelText(/tenant id/i);
-      fireEvent.change(tenantInput, { target: { value: 'invalid-tenant' } });
-
-      const connectButton = screen.getByRole('button', { name: /connect/i });
-      fireEvent.click(connectButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/invalid tenant id/i)).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /connect azure/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /connect azure account/i })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Disconnected')).toBeInTheDocument();
     });
   });
 
-  describe('test_azure_oauth_flow', () => {
-    it('should initiate OAuth flow', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: false }),
-      } as Response);
+  // Test 2: connect button is clickable without crashing (jsdom logs the
+  // navigation attempt; the target is a static constant)
+  test('connect button initiates connection flow', async () => {
+    setNotConnected();
 
-      render(<AzureIntegration />);
+    render(<AzureIntegration />);
 
-      const oauthButton = screen.getByRole('button', { name: /sign in with azure/i });
-      fireEvent.click(oauthButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/v1/integrations/azure/oauth/url',
-          expect.objectContaining({
-            method: 'GET',
-          })
-        );
-      });
+    const connectButton = await screen.findByRole('button', {
+      name: /connect azure account/i,
     });
+    expect(() => fireEvent.click(connectButton)).not.toThrow();
+  });
 
-    it('should redirect to Azure authorization URL', async () => {
-      const mockAuthUrl = 'https://login.microsoftonline.com/tenant-id/oauth2/v2.0/authorize';
+  // Test 3: shows connected state when health check passes
+  test('shows connected state when health check passes', async () => {
+    render(<AzureIntegration />);
 
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          connected: false,
-          authUrl: mockAuthUrl,
-        }),
-      } as Response);
-
-      render(<AzureIntegration />);
-
-      const oauthButton = screen.getByRole('button', { name: /sign in with azure/i });
-      fireEvent.click(oauthButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/redirecting to azure/i)).toBeInTheDocument();
-      });
-    });
-
-    it('should handle OAuth callback with code', async () => {
-      const mockTokenResponse = {
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        expires_in: 3600,
-      };
-
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: false }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockTokenResponse,
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      // Simulate OAuth callback
-      window.location.search = '?code=test-auth-code';
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/v1/integrations/azure/oauth/callback',
-          expect.objectContaining({
-            method: 'POST',
-          })
-        );
-      });
-    });
-
-    it('should handle OAuth errors', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: false }),
-      } as Response);
-
-      render(<AzureIntegration />);
-
-      // Simulate OAuth error callback
-      window.location.search = '?error=access_denied';
-
-      await waitFor(() => {
-        expect(screen.getByText(/access denied/i)).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /microsoft azure integration/i })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
 
-  describe('test_azure_user_sync', () => {
-    it('should display synchronized users', async () => {
-      const mockUsers = [
-        {
-          id: 'user-1',
-          displayName: 'John Doe',
-          mail: 'john@example.com',
-          userPrincipalName: 'john@example.com',
-          department: 'Engineering',
-        },
-        {
-          id: 'user-2',
-          displayName: 'Jane Smith',
-          mail: 'jane@example.com',
-          userPrincipalName: 'jane@example.com',
-          department: 'Marketing',
-        },
-      ];
+  // Test 4: displays the subscription selector
+  test('displays subscription selector', async () => {
+    render(<AzureIntegration />);
 
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ users: mockUsers }),
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      await waitFor(() => {
-        expect(screen.getByText('John Doe')).toBeInTheDocument();
-        expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-      });
-    });
-
-    it('should handle user sync pagination', async () => {
-      const mockUsersPage1 = [
-        { id: 'user-1', displayName: 'User 1', mail: 'user1@example.com' },
-      ];
-
-      const mockUsersPage2 = [
-        { id: 'user-2', displayName: 'User 2', mail: 'user2@example.com' },
-      ];
-
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            users: mockUsersPage1,
-            nextPage: '/api/v1/integrations/azure/users?page=2',
-          }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ users: mockUsersPage2 }),
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      await waitFor(() => {
-        expect(screen.getByText('User 1')).toBeInTheDocument();
-        expect(screen.getByText('User 2')).toBeInTheDocument();
-      });
-    });
-
-    it('should filter users by department', async () => {
-      const mockUsers = [
-        { id: 'user-1', displayName: 'John Doe', department: 'Engineering' },
-        { id: 'user-2', displayName: 'Jane Smith', department: 'Marketing' },
-      ];
-
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ users: mockUsers }),
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      await waitFor(() => {
-        expect(screen.getByText('John Doe')).toBeInTheDocument();
-      });
-
-      const filterButton = screen.getByRole('button', { name: /filter/i });
-      fireEvent.click(filterButton);
-
-      const departmentFilter = screen.getByLabelText(/department/i);
-      fireEvent.change(departmentFilter, { target: { value: 'Engineering' } });
-
-      await waitFor(() => {
-        expect(screen.getByText('John Doe')).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/pay-as-you-go/i)).toBeInTheDocument();
     });
   });
 
-  describe('test_azure_group_sync', () => {
-    it('should display synchronized groups', async () => {
-      const mockGroups = [
-        {
-          id: 'group-1',
-          displayName: 'Engineering Team',
-          description: 'All engineers',
-          mailEnabled: true,
-        },
-        {
-          id: 'group-2',
-          displayName: 'Marketing Team',
-          description: 'Marketing department',
-          mailEnabled: true,
-        },
-      ];
+  // Test 5: displays overview cards with running counts
+  test('displays overview cards', async () => {
+    render(<AzureIntegration />);
 
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ groups: mockGroups }),
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Engineering Team')).toBeInTheDocument();
-        expect(screen.getByText('Marketing Team')).toBeInTheDocument();
-      });
-    });
-
-    it('should show group members', async () => {
-      const mockMembers = [
-        { id: 'user-1', displayName: 'John Doe' },
-        { id: 'user-2', displayName: 'Jane Smith' },
-      ];
-
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ groups: [{ id: 'group-1', displayName: 'Team' }] }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ members: mockMembers }),
-        } as Response);
-
-      render(<AzureIntegration />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Team')).toBeInTheDocument();
-      });
-
-      const groupButton = screen.getByText('Team');
-      fireEvent.click(groupButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('John Doe')).toBeInTheDocument();
-        expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('Storage Accounts')).toBeInTheDocument();
+      expect(screen.getByText('2 running')).toBeInTheDocument();
+      expect(screen.getByText('1 running')).toBeInTheDocument();
     });
   });
 
-  describe('test_azure_disconnect', () => {
-    it('should disconnect Azure AD successfully', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ success: true }),
-        } as Response);
+  // Test 6: displays virtual machines in the default tab
+  test('displays virtual machines in the default tab', async () => {
+    render(<AzureIntegration />);
 
-      render(<AzureIntegration />);
-
-      const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
-      fireEvent.click(disconnectButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/v1/integrations/azure/disconnect',
-          expect.objectContaining({
-            method: 'POST',
-          })
-        );
-      });
+    await waitFor(() => {
+      expect(screen.getByText('web-server-01')).toBeInTheDocument();
+      expect(screen.getByText('db-server-01')).toBeInTheDocument();
     });
+  });
 
-    it('should confirm disconnect action', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ connected: true }),
-      } as Response);
+  // Test 7: displays storage accounts on the Storage tab
+  test('displays storage accounts', async () => {
+    render(<AzureIntegration />);
 
-      render(<AzureIntegration />);
+    await screen.findByText('web-server-01');
 
-      const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
-      fireEvent.click(disconnectButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Storage' }));
 
-      await waitFor(() => {
-        expect(screen.getByText(/are you sure/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('web-storage-01')).toBeInTheDocument();
     });
+  });
 
-    it('should handle disconnect errors', async () => {
-      (global.fetch as jest.MockedFunction<typeof fetch>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ connected: true }),
-        } as Response)
-        .mockRejectedValueOnce(new Error('Disconnect failed'));
+  // Test 8: displays app services on the App Services tab
+  test('displays app services', async () => {
+    render(<AzureIntegration />);
 
-      render(<AzureIntegration />);
+    await screen.findByText('web-server-01');
 
-      const disconnectButton = screen.getByRole('button', { name: /disconnect/i });
-      fireEvent.click(disconnectButton);
+    fireEvent.click(screen.getByRole('button', { name: 'App Services' }));
 
-      const confirmButton = screen.getByRole('button', { name: /confirm/i });
-      fireEvent.click(confirmButton);
+    await waitFor(() => {
+      expect(screen.getByText('web-app-01')).toBeInTheDocument();
+      expect(screen.getByText('web-app-01.example.com')).toBeInTheDocument();
+    });
+  });
 
-      await waitFor(() => {
-        expect(screen.getByText(/disconnect failed/i)).toBeInTheDocument();
-      });
+  // Test 9: displays resource groups on the Resource Groups tab
+  test('displays resource groups', async () => {
+    render(<AzureIntegration />);
+
+    await screen.findByText('web-server-01');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resource Groups' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('prod-rg')).toBeInTheDocument();
+      expect(screen.getByText('dev-rg')).toBeInTheDocument();
+    });
+  });
+
+  // Test 10: filters virtual machines by search query
+  test('filters virtual machines by search query', async () => {
+    render(<AzureIntegration />);
+
+    await screen.findByText('web-server-01');
+
+    const searchInput = screen.getByPlaceholderText('Search VMs...');
+    fireEvent.change(searchInput, { target: { value: 'web' } });
+
+    expect(screen.getByText('web-server-01')).toBeInTheDocument();
+    expect(screen.queryByText('db-server-01')).not.toBeInTheDocument();
+  });
+
+  // Test 11: Create VM button opens the create dialog
+  test('opens create VM dialog', async () => {
+    render(<AzureIntegration />);
+
+    await screen.findByText('web-server-01');
+
+    fireEvent.click(screen.getByRole('button', { name: /create vm/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /create virtual machine/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 12: shows refresh status button
+  test('shows refresh status button', async () => {
+    render(<AzureIntegration />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /refresh status/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 13: handles connection error as disconnected
+  test('handles connection error', async () => {
+    server.use(
+      rest.get('/api/integrations/azure/health', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
+      })
+    );
+
+    render(<AzureIntegration />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /connect azure account/i })
+      ).toBeInTheDocument();
     });
   });
 });
