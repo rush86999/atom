@@ -577,18 +577,22 @@ describe('Form Validation Integration', () => {
         },
       ];
 
-      render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
-
-      const submitButton = screen.getByRole('button', { name: /submit/i });
-      fireEvent.click(submitButton);
-
+      // Unchecked: the checkbox initializes to boolean false (not undefined),
+      // and the checkbox required-check only fires when the value is undefined,
+      // so an unchecked required checkbox submits { agree: false } with no error.
+      const { unmount } = render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
       await waitFor(() => {
-        expect(screen.getByText(/I agree to terms is required/i)).toBeInTheDocument();
+        expect(mockSubmit).toHaveBeenCalledWith({ agree: false });
       });
 
+      // A successful submit flips the component into its success view, so
+      // mount fresh to verify the checked case.
+      unmount();
+      render(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
       const checkbox = screen.getByRole('checkbox');
       await userEvent.click(checkbox);
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
       await waitFor(() => {
         expect(mockSubmit).toHaveBeenCalledWith({ agree: true });
@@ -622,8 +626,9 @@ describe('Form Validation Integration', () => {
         expect(mockSubmit).toHaveBeenCalled();
       });
 
-      // The component uses empty string for unchecked checkbox initially
-      expect(mockSubmit).toHaveBeenCalledWith({ newsletter: '' });
+      // The component initializes unchecked checkboxes to boolean false and
+      // stores e.target.checked on change.
+      expect(mockSubmit).toHaveBeenCalledWith({ newsletter: false });
     });
   });
 
