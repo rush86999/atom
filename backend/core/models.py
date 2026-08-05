@@ -9888,13 +9888,16 @@ class CustomComponent(Base):
     """
     Custom canvas components for user-defined HTML/CSS/JS.
 
-    Stub model for Phase 294 to unblock tests.
-    TODO: Implement full schema for custom components.
+    P7 schema repair: the service (core/custom_components_service.py) writes
+    slug / props_schema / default_props / is_public / current_version /
+    min_maturity_level / tenant_id. These columns are now declared so the
+    service stops crashing against a stub model.
     """
     __tablename__ = "custom_components"
 
     id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False, unique=True, index=True)
+    slug = Column(String(255), nullable=True, unique=True, index=True)
     display_name = Column(String(255), nullable=False)
     component_type = Column(String(50), nullable=False)  # chart, form, custom, etc.
     html_content = Column(Text, nullable=True)
@@ -9902,8 +9905,16 @@ class CustomComponent(Base):
     js_content = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(String(255), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     is_sanitized = Column(Boolean, default=False, nullable=False)  # Security validation flag
+    is_public = Column(Boolean, default=False, nullable=False)
+    # JSON schema describing the component's configurable properties + defaults.
+    props_schema = Column(JSONColumn, nullable=True)
+    default_props = Column(JSONColumn, nullable=True)
+    # Maturity floor required to install/run this component.
+    min_maturity_level = Column(String(32), nullable=True)
+    current_version = Column(Integer, nullable=False, default=1)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -9927,6 +9938,25 @@ class ComponentVersion(Base):
     change_summary = Column(Text, nullable=True)
     created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class CanvasLogic(Base):
+    """Per-canvas server-side logic executed in the isolated sandbox runtime (P7).
+
+    Stores Python source that runs via SandboxRuntime.execute_python with a
+    per-canvas storage namespace (./data/canvas_runtime/<canvas_id>). Governance:
+    saving/running canvas logic requires AUTONOMOUS maturity (mirrors
+    custom_components_service._check_governance_for_js).
+    """
+    __tablename__ = "canvas_logic"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(String(255), ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
+    language = Column(String(32), nullable=False, default="python")
+    source = Column(Text, nullable=False, default="")
+    created_by = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

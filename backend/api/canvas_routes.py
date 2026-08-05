@@ -715,3 +715,71 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
         manager.disconnect(canvas_id, websocket)
     except Exception:
         manager.disconnect(canvas_id, websocket)
+
+
+# ============================================================================
+# P7 — Per-canvas server runtime (logic endpoints).
+# Saving/running canvas logic requires AUTONOMOUS maturity (governance gate
+# mirrors custom_components_service._check_governance_for_js).
+# ============================================================================
+
+class CanvasLogicRequest(BaseModel):
+    source: str = Field("", description="Python source to save")
+    language: str = Field("python")
+    agent_id: Optional[str] = Field(None, description="Agent saving the logic (AUTONOMOUS required)")
+
+
+class CanvasLogicRunRequest(BaseModel):
+    inputs: Dict[str, Any] = Field(default_factory=dict)
+    agent_id: Optional[str] = Field(None, description="Agent running the logic (AUTONOMOUS required)")
+
+
+@router.put("/{canvas_id}/logic")
+async def put_canvas_logic(
+    canvas_id: str,
+    body: CanvasLogicRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save per-canvas server-side Python logic."""
+    from core.canvas_logic_service import CanvasLogicService
+    svc = CanvasLogicService(db)
+    if body.agent_id:
+        svc.check_governance(body.agent_id)
+    saved = svc.save_logic(
+        canvas_id=canvas_id,
+        source=body.source,
+        language=body.language,
+        created_by=str(current_user.id),
+    )
+    return {"success": True, "data": saved, "message": "Canvas logic saved"}
+
+
+@router.get("/{canvas_id}/logic")
+async def get_canvas_logic(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Load the canvas's stored server-side logic."""
+    from core.canvas_logic_service import CanvasLogicService
+    logic = CanvasLogicService(db).load_logic(canvas_id)
+    if logic is None:
+        raise HTTPException(status_code=404, detail=f"No logic saved for canvas {canvas_id}")
+    return {"success": True, "data": logic}
+
+
+@router.post("/{canvas_id}/logic/run")
+async def run_canvas_logic(
+    canvas_id: str,
+    body: CanvasLogicRunRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run the canvas's stored logic in the isolated sandbox runtime."""
+    from core.canvas_logic_service import CanvasLogicService
+    svc = CanvasLogicService(db)
+    if body.agent_id:
+        svc.check_governance(body.agent_id)
+    result = await svc.run(canvas_id, inputs=body.inputs, agent_id=body.agent_id)
+    return {"success": result.get("success", True), "data": result}
