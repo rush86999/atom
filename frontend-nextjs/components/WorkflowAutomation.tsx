@@ -754,7 +754,17 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
               </>
             )}
           </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button
+            onClick={() => {
+              // "Create Workflow" starts a NEW workflow in the Visual Builder
+              // (fresh canvas). Previously it opened the Execute-Workflow modal
+              // with selectedWorkflow=null, rendering "Execute Workflow:
+              // undefined" with a dead Execute button.
+              setBuilderInitialData(null);
+              setSelectedWorkflow(null);
+              setViewMode('builder');
+            }}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create Workflow
           </Button>

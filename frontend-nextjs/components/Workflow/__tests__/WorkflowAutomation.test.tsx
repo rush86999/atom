@@ -446,4 +446,26 @@ describe('WorkflowAutomation', () => {
       expect(screen.queryByTestId('workflow-builder')).not.toBeInTheDocument();
     });
   });
+
+  // Test 16: "Create Workflow" should open the Visual Builder for a NEW
+  // workflow (fresh canvas), NOT the "Execute Workflow" modal. Regression:
+  // the button wired to setIsCreateModalOpen(true), which opened the execution
+  // modal with selectedWorkflow=null -> "Execute Workflow: undefined" title,
+  // empty body, and a dead Execute button.
+  test('Create Workflow button opens the visual builder for a new workflow', async () => {
+    render(<WorkflowAutomation />);
+
+    await screen.findByText('Email Digest');
+
+    fireEvent.click(screen.getByRole('button', { name: /create workflow/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workflow-builder')).toBeInTheDocument();
+    });
+
+    // Builder is in fresh state (not pre-populated from a selected workflow).
+    expect(
+      screen.queryByRole('heading', { name: /execute workflow: undefined/i })
+    ).not.toBeInTheDocument();
+  });
 });
