@@ -235,13 +235,20 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         setCurrentTranscript(transcript);
         setConfidence(confidence);
 
-        // Find matching command
-        const matchedCommand = commands.find(
+        // BUG-107: Guard against empty transcript and negated commands.
+        // Previously "don't create task" matched "create task" via substring,
+        // and empty transcripts could false-match.
+        const cleanTranscript = transcript.trim().toLowerCase();
+        const NEGATION_WORDS = ["don't", "do not", "dont", "not", "never", "cancel", "stop"];
+        const isNegated = NEGATION_WORDS.some(w => cleanTranscript.startsWith(w));
+
+        // Find matching command — only if not negated and transcript is non-empty
+        const matchedCommand = (!isNegated && cleanTranscript) ? commands.find(
             (command) =>
                 command.enabled &&
-                transcript.toLowerCase().includes(command.phrase.toLowerCase()) &&
+                cleanTranscript.includes(command.phrase.toLowerCase()) &&
                 confidence >= command.confidenceThreshold,
-        );
+        ) : undefined;
 
         const result: VoiceRecognitionResult = {
             id: Date.now().toString(),

@@ -373,6 +373,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
 
     useEffect(() => {
         if (sessionId && sessionId !== "new") {
+            // BUG-106: Clear messages immediately so the previous session's
+            // conversation doesn't flash during the async history fetch.
+            setMessages([]);
+            setIsProcessing(false);
             loadSessionHistory(sessionId);
             // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
             import('../../lib/api-client').then(({ apiClient }) => {

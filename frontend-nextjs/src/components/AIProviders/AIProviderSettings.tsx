@@ -184,31 +184,9 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const saveAPIKey = async (provider: string, apiKey: string) => {
     try {
       setSaving(provider);
-      // Use correct BYOK endpoint for storing keys
-      const response = await fetch(
-        `${baseApiUrl}/ai/providers/${provider}/keys`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          // Backend expects query params or body? Check byok_endpoints.py
-          // It uses query params for provider_id etc in decorated function but body for api_key if not careful
-          // Wait, look at byok_endpoints.py signature: 
-          // store_api_key(provider_id: str, api_key: str, ...)
-          // If it's a POST, FastAPI usually expects query params unless Body() is used.
-          // Let's assume query params for provider_id (in path) and query string for api_key?
-          // Actually, standard FastAPI POST with simple params expects query params if not pydantic model.
-          // Let's use query string for api_key to match likely FastAPI verification/default behavior if not explicit Body.
-          // converting to URLSearchParams just in case.
-        }
-      );
-
-      // Wait, passing key in query string is insecure. The backend *should* accept body.
-      // Re-reading byok_endpoints.py:
-      // @router.post("/api/ai/providers/{provider_id}/keys")
-      // BUG-069: Send API key in the request BODY, not the URL query string.
-      // URLs are logged by proxies, browser history, and server access logs.
+      // BUG-105: Previously fired a duplicate body-less POST first (dead code
+      // left over from an exploration). Now sends a single POST with the key
+      // in the body (BUG-069 fix).
       const saveResponse = await fetch(
         `${baseApiUrl}/ai/providers/${provider}/keys?key_name=default`,
         {
@@ -266,7 +244,25 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     // We can just reload the status to "test".
     try {
       setTesting(provider);
+      // BUG-104: Previously just re-read cached status — never actually tested
+      // the key against the provider. Now calls the backend test endpoint.
+      const testResponse = await fetch(
+        `${baseApiUrl}/ai/providers/${provider}/test`,
+        { method: "POST" }
+      );
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        if (testData.success || testData.valid) {
+          toast({ title: "Connection Successful", description: `${provider} API key is working.` });
+        } else {
+          toast({ title: "Connection Failed", description: testData.error || testData.detail || "Key may be invalid.", variant: "error" });
+        }
+      } else {
+        toast({ title: "Connection Failed", description: `Server returned ${testResponse.status}.`, variant: "error" });
+      }
       await loadUserAPIKeyStatus();
+    } catch {
+      toast({ title: "Connection Failed", description: "Network error during test.", variant: "error" });
     } finally {
       setTesting(null);
     }
