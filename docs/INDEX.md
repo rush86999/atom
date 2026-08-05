@@ -10,6 +10,7 @@
 ## 🚀 Recent Updates (August 2026)
 
 - **Production-Ready Security Hardening (P0–P9)**: ✨ NEW - Ten-phase pass that makes self-hosted agents safe to run on your infrastructure. Every agent tool call is now sandboxed by default (shared `core/sandbox_gate.py` covers the legacy dispatch paths — agent loop, workflow, fleet, business — not just the meta-agent); OAuth integration tokens are encrypted at rest and fail-closed in production. Plus per-agent capability bindings, an outbound gatekeeper (rate limit / masking / HITL approval), data-taint tracking (`VT_PROVENANCE`), credential-safe canvas fork & template sharing, a real external MCP client (`/api/mcp/servers`), per-canvas sandboxed Python runtime, and workspace-scoped curated context. Kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false`. See [CLOUDFLARE_OS_SECURITY.md](architecture/CLOUDFLARE_OS_SECURITY.md), [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md), [DATA_PROTECTION.md](security/DATA_PROTECTION.md).
+- **Mini-Apps (design)**: ✨ NEW (design, not yet implemented) - Long-running stateful document apps (spreadsheets, docs, decks) built on canvases. MVC model: View=Canvas, Controller=CanvasLogic (P7), Model=a new MiniApp manifest; the real office engine (`office_service` + `workbook_runtime`) is the document substrate, not a re-implementation. The platform is the harness — every side effect flows through P1→P3→P4→P9. Viewer rights always cap an app's declared scopes (no privilege escalation). See [MINI_APPS.md](architecture/MINI_APPS.md).
 
 ---
 

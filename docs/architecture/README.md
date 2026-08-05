@@ -20,6 +20,7 @@ System architecture, design patterns, and technical specifications.
 
 ### Document Runtime
 - **[Workbook Runtime](WORKBOOK_RUNTIME.md)** ✨ - Excel engine: LibreOffice headless (recalc + pixel-accurate render + structural edits) → `formulas` library → openpyxl cached values; replaces openpyxl-as-parser so agents see computed results
+- **[Mini-Apps](MINI_APPS.md)** ✨ NEW (design) - Long-running stateful document apps (spreadsheets/docs/decks) on canvases. MVC: Canvas=View, CanvasLogic=Controller, MiniApp manifest=Model; wraps the real office engine. Platform is the harness (P1→P3→P4→P9); viewer rights always cap declared scopes.
 
 ### Memory & Context
 - **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨
