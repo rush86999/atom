@@ -3,32 +3,43 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ReasoningChain, ReasoningStep } from '../ReasoningChain';
 
-// Mock useToast hook
-jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
-  }),
-}));
+// Real behavior (verified against source):
+// - Steps are COLLAPSED by default; the header "Reasoning Process (N steps)"
+//   must be clicked to reveal step contents.
+// - Type badges render the raw type string (lowercase, uppercased via CSS only).
+// - Feedback controls (thumbs up/down/comment) have no accessible names; they
+//   are located by their lucide icon class.
+// - With onFeedback provided the component calls it directly (no network);
+//   without it, it POSTs to /api/reasoning/feedback.
+// - Submitting a comment always records a thumbs_down correction.
+// - Empty steps render nothing.
+
+const mockSteps: ReasoningStep[] = [
+  {
+    type: 'thought',
+    thought: 'I need to analyze the user request',
+    timestamp: new Date('2024-01-01T10:00:00'),
+  },
+  {
+    type: 'action',
+    action: { tool: 'web_search', params: { query: 'test' } },
+    timestamp: new Date('2024-01-01T10:00:01'),
+  },
+  {
+    type: 'observation',
+    observation: 'Search results found',
+    timestamp: new Date('2024-01-01T10:00:02'),
+  },
+];
+
+const buttonWithIcon = (iconClass: string) =>
+  screen.getAllByRole('button').find((btn) => btn.querySelector(`.${iconClass}`));
+
+const expandChain = () => {
+  fireEvent.click(screen.getByText(/Reasoning Process/));
+};
 
 describe('ReasoningChain Component', () => {
-  const mockSteps: ReasoningStep[] = [
-    {
-      type: 'thought',
-      thought: 'I need to analyze the user request',
-      timestamp: new Date('2024-01-01T10:00:00'),
-    },
-    {
-      type: 'action',
-      action: { tool: 'web_search', params: { query: 'test' } },
-      timestamp: new Date('2024-01-01T10:00:01'),
-    },
-    {
-      type: 'observation',
-      observation: 'Search results found',
-      timestamp: new Date('2024-01-01T10:00:02'),
-    },
-  ];
-
   const mockOnFeedback = jest.fn();
 
   beforeEach(() => {
@@ -36,8 +47,14 @@ describe('ReasoningChain Component', () => {
   });
 
   describe('Rendering', () => {
-    it('renders reasoning steps correctly', () => {
+    it('renders the collapsible header with step count', () => {
       render(<ReasoningChain steps={mockSteps} />);
+      expect(screen.getByText('Reasoning Process (3 steps)')).toBeInTheDocument();
+    });
+
+    it('renders reasoning steps correctly after expanding', () => {
+      render(<ReasoningChain steps={mockSteps} />);
+      expandChain();
 
       expect(screen.getByText('I need to analyze the user request')).toBeInTheDocument();
       expect(screen.getByText('Search results found')).toBeInTheDocument();
@@ -45,356 +62,251 @@ describe('ReasoningChain Component', () => {
 
     it('displays step type badges', () => {
       render(<ReasoningChain steps={mockSteps} />);
+      expandChain();
 
-      expect(screen.getByText('THOUGHT')).toBeInTheDocument();
-      expect(screen.getByText('ACTION')).toBeInTheDocument();
-      expect(screen.getByText('OBSERVATION')).toBeInTheDocument();
+      expect(screen.getByText('thought')).toBeInTheDocument();
+      expect(screen.getByText('action')).toBeInTheDocument();
+      expect(screen.getByText('observation')).toBeInTheDocument();
     });
 
     it('displays timestamps correctly', () => {
       render(<ReasoningChain steps={mockSteps} />);
+      expandChain();
 
-      // Should show timestamps in locale format
       const timestamps = screen.getAllByText(/\d{2}:\d{2}:\d{2}/);
-      expect(timestamps.length).toBeGreaterThan(0);
+      expect(timestamps.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('renders empty state when no steps provided', () => {
-      render(<ReasoningChain steps={[]} />);
-
-      expect(screen.queryByText(/thinking/i)).not.toBeInTheDocument();
+    it('renders nothing when no steps provided', () => {
+      const { container } = render(<ReasoningChain steps={[]} />);
+      expect(container.innerHTML).toBe('');
     });
 
     it('shows thinking indicator when isThinking is true', () => {
       render(<ReasoningChain steps={mockSteps} isThinking={true} />);
-
-      expect(screen.getByText(/thinking/i)).toBeInTheDocument();
+      expect(screen.getByText('Thinking...')).toBeInTheDocument();
     });
   });
 
   describe('User Interactions', () => {
-    it('expands and collapses reasoning steps', async () => {
+    it('expands and collapses reasoning steps', () => {
       render(<ReasoningChain steps={mockSteps} />);
 
-      // Find expandable sections (using chevron icons)
-      const expandButtons = screen.getAllByRole('button');
-      expect(expandButtons.length).toBeGreaterThan(0);
+      // Collapsed: step content hidden.
+      expect(screen.queryByText('I need to analyze the user request')).not.toBeInTheDocument();
+
+      expandChain();
+      expect(screen.getByText('I need to analyze the user request')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText(/Reasoning Process/));
+      expect(screen.queryByText('I need to analyze the user request')).not.toBeInTheDocument();
     });
 
     it('handles thumbs up feedback', async () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      // Find thumbs up buttons (should be in each step)
-      const thumbsUpButtons = screen.getAllByRole('button').filter(
-        btn => btn.querySelector('svg[lucide="thumbs-up"]') || btn.innerHTML.includes('ThumbsUp')
-      );
+      const thumbsUp = buttonWithIcon('lucide-thumbs-up');
+      expect(thumbsUp).toBeTruthy();
+      fireEvent.click(thumbsUp!);
 
-      if (thumbsUpButtons.length > 0) {
-        await fireEvent.click(thumbsUpButtons[0]);
-        await waitFor(() => {
-          expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_up');
-        });
-      }
+      await waitFor(() => {
+        expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_up', undefined);
+      });
     });
 
     it('handles thumbs down feedback', async () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      // Find thumbs down buttons
-      const thumbsDownButtons = screen.getAllByRole('button').filter(
-        btn => btn.querySelector('svg[lucide="thumbs-down"]') || btn.innerHTML.includes('ThumbsDown')
-      );
+      const thumbsDown = buttonWithIcon('lucide-thumbs-down');
+      expect(thumbsDown).toBeTruthy();
+      fireEvent.click(thumbsDown!);
 
-      if (thumbsDownButtons.length > 0) {
-        await fireEvent.click(thumbsDownButtons[0]);
-        await waitFor(() => {
-          expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_down');
-        });
-      }
+      await waitFor(() => {
+        expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_down', undefined);
+      });
     });
 
-    it('opens comment dialog', async () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
+    it('opens comment box and submits a correction', async () => {
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      // Find comment buttons
-      const commentButtons = screen.getAllByRole('button').filter(
-        btn => btn.querySelector('svg[lucide="message-square-plus"]') || btn.innerHTML.includes('MessageSquarePlus')
-      );
+      const commentButton = buttonWithIcon('lucide-message-square-plus');
+      expect(commentButton).toBeTruthy();
+      fireEvent.click(commentButton!);
 
-      if (commentButtons.length > 0) {
-        await fireEvent.click(commentButtons[0]);
+      const textarea = screen.getByPlaceholderText('What was wrong or how can I improve?');
+      expect(textarea).toBeInTheDocument();
 
-        // Should show comment textarea
-        const textarea = screen.queryByRole('textbox');
-        if (textarea) {
-          expect(textarea).toBeInTheDocument();
-        }
-      }
-    });
+      fireEvent.change(textarea, { target: { value: 'This is a correction' } });
+      fireEvent.click(screen.getByText('Submit Correction'));
 
-    it('submits comment with feedback', async () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
-
-      const commentButtons = screen.getAllByRole('button').filter(
-        btn => btn.innerHTML.includes('MessageSquarePlus')
-      );
-
-      if (commentButtons.length > 0) {
-        await fireEvent.click(commentButtons[0]);
-
-        const textarea = screen.queryByRole('textbox');
-        if (textarea) {
-          await fireEvent.change(textarea, {
-            target: { value: 'This is a correction' },
-          });
-
-          const submitButton = screen.queryByRole('button', { name: /submit/i });
-          if (submitButton) {
-            await fireEvent.click(submitButton);
-            await waitFor(() => {
-              expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_down', 'This is a correction');
-            });
-          }
-        }
-      }
+      await waitFor(() => {
+        expect(mockOnFeedback).toHaveBeenCalledWith(0, 'thumbs_down', 'This is a correction');
+      });
     });
   });
 
   describe('Step Display Variations', () => {
-    it('displays thought steps with brain icon', () => {
-      const thoughtStep: ReasoningStep = {
-        type: 'thought',
-        thought: 'This is a thought',
-        timestamp: new Date(),
-      };
-
-      render(<ReasoningChain steps={[thoughtStep]} />);
+    it('displays thought steps with a thought badge', () => {
+      render(<ReasoningChain steps={[{ type: 'thought', thought: 'This is a thought', timestamp: new Date() }]} />);
+      expandChain();
 
       expect(screen.getByText('This is a thought')).toBeInTheDocument();
-      expect(screen.getByText('THOUGHT')).toBeInTheDocument();
+      expect(screen.getByText('thought')).toBeInTheDocument();
     });
 
-    it('displays action steps with terminal icon', () => {
-      const actionStep: ReasoningStep = {
-        type: 'action',
-        action: 'Execute command',
-        timestamp: new Date(),
-      };
-
-      render(<ReasoningChain steps={[actionStep]} />);
+    it('displays action steps with string action content', () => {
+      render(<ReasoningChain steps={[{ type: 'action', action: 'Execute command', timestamp: new Date() }]} />);
+      expandChain();
 
       expect(screen.getByText(/execute command/i)).toBeInTheDocument();
-      expect(screen.getByText('ACTION')).toBeInTheDocument();
+      expect(screen.getByText('action')).toBeInTheDocument();
     });
 
-    it('displays observation steps with eye icon', () => {
-      const observationStep: ReasoningStep = {
-        type: 'observation',
-        observation: 'Observed result',
-        timestamp: new Date(),
-      };
-
-      render(<ReasoningChain steps={[observationStep]} />);
+    it('displays observation steps with observation content', () => {
+      render(<ReasoningChain steps={[{ type: 'observation', observation: 'Observed result', timestamp: new Date() }]} />);
+      expandChain();
 
       expect(screen.getByText('Observed result')).toBeInTheDocument();
-      expect(screen.getByText('OBSERVATION')).toBeInTheDocument();
+      expect(screen.getByText('observation')).toBeInTheDocument();
     });
 
     it('handles error steps', () => {
-      const errorStep: ReasoningStep = {
-        type: 'error',
-        content: 'An error occurred',
-        timestamp: new Date(),
-      };
-
-      render(<ReasoningChain steps={[errorStep]} />);
+      render(<ReasoningChain steps={[{ type: 'error', content: 'An error occurred', timestamp: new Date() }]} />);
+      expandChain();
 
       expect(screen.getByText('An error occurred')).toBeInTheDocument();
-      expect(screen.getByText('ERROR')).toBeInTheDocument();
+      expect(screen.getByText('error')).toBeInTheDocument();
     });
 
     it('displays final answer', () => {
-      const finalStep: ReasoningStep = {
-        type: 'thought',
-        final_answer: 'This is the final answer',
-        timestamp: new Date(),
-      };
-
-      render(<ReasoningChain steps={[finalStep]} />);
+      render(<ReasoningChain steps={[{ type: 'thought', final_answer: 'This is the final answer', timestamp: new Date() }]} />);
+      expandChain();
 
       expect(screen.getByText('This is the final answer')).toBeInTheDocument();
     });
   });
 
   describe('Feedback State', () => {
-    it('displays existing feedback thumbs up', () => {
-      const stepWithFeedback: ReasoningStep = {
-        type: 'thought',
-        thought: 'Test thought',
-        timestamp: new Date(),
-        feedback: 'thumbs_up',
-        comment: 'Good job',
-      };
+    it('highlights the thumbs up button after it is clicked', async () => {
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      render(
-        <ReasoningChain steps={[stepWithFeedback]} onFeedback={mockOnFeedback} />
-      );
+      const thumbsUp = buttonWithIcon('lucide-thumbs-up')!;
+      fireEvent.click(thumbsUp);
 
-      // Should show thumbs up as active
-      const thumbsUpButtons = screen.getAllByRole('button').filter(
-        btn => btn.classList.contains('text-green-600')
-      );
-
-      // If feedback state is shown, thumbs up should be highlighted
-      expect(thumbsUpButtons.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(thumbsUp.className).toContain('text-green-600');
+      });
     });
 
-    it('displays existing feedback thumbs down', () => {
-      const stepWithFeedback: ReasoningStep = {
-        type: 'thought',
-        thought: 'Test thought',
-        timestamp: new Date(),
-        feedback: 'thumbs_down',
-      };
+    it('highlights the thumbs down button after it is clicked', async () => {
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      render(
-        <ReasoningChain steps={[stepWithFeedback]} onFeedback={mockOnFeedback} />
-      );
+      const thumbsDown = buttonWithIcon('lucide-thumbs-down')!;
+      fireEvent.click(thumbsDown);
 
-      // Should show thumbs down as active
-      const thumbsDownButtons = screen.getAllByRole('button').filter(
-        btn => btn.classList.contains('text-red-500')
-      );
-
-      expect(thumbsDownButtons.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(thumbsDown.className).toContain('text-red-500');
+      });
     });
   });
 
   describe('Accessibility', () => {
-    it('has proper ARIA labels for feedback buttons', () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
+    it('renders all interactive buttons in the document', () => {
+      render(<ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      // All interactive elements should be accessible
       const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
+      expect(buttons.length).toBeGreaterThan(0);
+      buttons.forEach((button) => {
         expect(button).toBeInTheDocument();
       });
     });
 
-    it('supports keyboard navigation', async () => {
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={mockOnFeedback} />
-      );
+    it('supports keyboard navigation', () => {
+      render(<ReasoningChain steps={mockSteps} />);
 
-      const firstButton = screen.getAllByRole('button')[0];
-      firstButton?.focus();
-      expect(firstButton).toHaveFocus();
+      const headerButton = screen.getByText(/Reasoning Process/).closest('button')!;
+      headerButton.focus();
+      expect(headerButton).toHaveFocus();
     });
   });
 
   describe('Edge Cases', () => {
     it('handles missing step type gracefully', () => {
-      const stepWithoutType: ReasoningStep = {
-        thought: 'Thought without type',
-        timestamp: new Date(),
-      };
+      render(<ReasoningChain steps={[{ thought: 'Thought without type', timestamp: new Date() }]} />);
+      expandChain();
 
-      render(<ReasoningChain steps={[stepWithoutType]} />);
-
-      // Should default to 'thought' type
       expect(screen.getByText('Thought without type')).toBeInTheDocument();
+      expect(screen.getByText('thought')).toBeInTheDocument();
     });
 
     it('handles action as object', () => {
-      const actionStep: ReasoningStep = {
-        type: 'action',
-        action: { tool: 'browser', params: { url: 'https://example.com' } },
-        timestamp: new Date(),
-      };
+      render(
+        <ReasoningChain
+          steps={[{ type: 'action', action: { tool: 'browser', params: { url: 'https://example.com' } }, timestamp: new Date() }]}
+        />
+      );
+      expandChain();
 
-      render(<ReasoningChain steps={[actionStep]} />);
-
-      // Should display JSON representation of action object
       expect(screen.getByText(/browser/i)).toBeInTheDocument();
     });
 
     it('handles missing timestamp', () => {
-      const stepWithoutTimestamp: ReasoningStep = {
-        type: 'thought',
-        thought: 'No timestamp',
-      };
+      render(<ReasoningChain steps={[{ type: 'thought', thought: 'No timestamp' }]} />);
+      expandChain();
 
-      render(<ReasoningChain steps={[stepWithoutTimestamp]} />);
-
-      // Should still render step
       expect(screen.getByText('No timestamp')).toBeInTheDocument();
     });
 
     it('handles long content with wrapping', () => {
-      const longContentStep: ReasoningStep = {
-        type: 'thought',
-        thought: 'A'.repeat(1000),
-        timestamp: new Date(),
-      };
+      render(<ReasoningChain steps={[{ type: 'thought', thought: 'A'.repeat(1000), timestamp: new Date() }]} />);
+      expandChain();
 
-      render(<ReasoningChain steps={[longContentStep]} />);
-
-      // Should display long content
-      expect(screen.getByText(/A+/)).toBeInTheDocument();
+      // Exact string match avoids colliding with the timestamp ("... AM").
+      expect(screen.getByText('A'.repeat(1000))).toBeInTheDocument();
     });
   });
 
   describe('Callback Handling', () => {
-    it('calls onFeedback with correct step index', async () => {
+    it('calls onFeedback with the correct step index', async () => {
       const steps: ReasoningStep[] = [
         { type: 'thought', thought: 'Step 0', timestamp: new Date() },
         { type: 'thought', thought: 'Step 1', timestamp: new Date() },
         { type: 'thought', thought: 'Step 2', timestamp: new Date() },
       ];
 
-      render(
-        <ReasoningChain steps={steps} onFeedback={mockOnFeedback} />
-      );
+      render(<ReasoningChain steps={steps} onFeedback={mockOnFeedback} />);
+      expandChain();
 
-      // Click thumbs up on second step
-      const thumbsUpButtons = screen.getAllByRole('button');
+      const thumbsUps = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.querySelector('.lucide-thumbs-up'));
 
-      if (thumbsUpButtons.length > 1) {
-        await fireEvent.click(thumbsUpButtons[1]);
+      // Click thumbs up on the second step.
+      fireEvent.click(thumbsUps[1]);
 
-        await waitFor(() => {
-          // Should have been called (exact index depends on button order)
-          expect(mockOnFeedback).toHaveBeenCalled();
-        });
-      }
+      await waitFor(() => {
+        expect(mockOnFeedback).toHaveBeenCalledWith(1, 'thumbs_up', undefined);
+      });
     });
 
     it('handles async feedback callback', async () => {
       const asyncOnFeedback = jest.fn().mockResolvedValue(undefined);
 
-      render(
-        <ReasoningChain steps={mockSteps} onFeedback={asyncOnFeedback} />
-      );
+      render(<ReasoningChain steps={mockSteps} onFeedback={asyncOnFeedback} />);
+      expandChain();
 
-      const thumbsUpButtons = screen.getAllByRole('button');
+      const thumbsUp = buttonWithIcon('lucide-thumbs-up')!;
+      fireEvent.click(thumbsUp);
 
-      if (thumbsUpButtons.length > 0) {
-        await fireEvent.click(thumbsUpButtons[0]);
-
-        await waitFor(() => {
-          expect(asyncOnFeedback).toHaveBeenCalled();
-        });
-      }
+      await waitFor(() => {
+        expect(asyncOnFeedback).toHaveBeenCalledWith(0, 'thumbs_up', undefined);
+      });
     });
   });
 });
