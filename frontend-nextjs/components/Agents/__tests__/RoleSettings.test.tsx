@@ -1,20 +1,72 @@
+/**
+ * RoleSettings Component Tests
+ *
+ * Tests verify role CRUD (create/edit/delete/duplicate), permission toggles,
+ * and model configuration via callback props.
+ *
+ * Source: components/Agents/RoleSettings.tsx
+ *
+ * Real behavior (verified against source):
+ * - RoleSettings is a DEFAULT export; the component renders a "Role Settings"
+ *   card with a table of roles and a "Create Role" header button.
+ * - With no initialRoles it populates three default roles (Personal Assistant,
+ *   Research Agent, Coding Agent) via a mount effect (so assertions must wait).
+ * - Create/Edit use a custom Dialog + form (Role Name, Description, Capabilities
+ *   comma list, System Prompt, Permissions accordion of switches, Model
+ *   Configuration accordion with Model/Temperature/Max Tokens). Submit button
+ *   text is "Create Role" (create) or "Update Role" (edit).
+ * - The row action buttons are icon-only (Edit/Copy/Trash2 lucide icons) with
+ *   no accessible names -> located by .lucide-square-pen/.lucide-copy/.lucide-trash-2.
+ *   (lucide-react aliases Edit -> SquarePen, class "lucide-square-pen".)
+ * - Delete calls onRoleDelete directly (no window.confirm); default roles are
+ *   blocked (shows an error toast, does NOT call onRoleDelete).
+ * - There is no search box, no loading prop, and no custom validation messages.
+ */
+
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
-import { RoleSettings } from '../RoleSettings';
+import RoleSettings from '../RoleSettings';
 
-// Mock useToast hook
+// useToast + Spinner are already mocked in tests/setup.ts; keep explicit mocks
+// so the component's toast()/Spinner usage never touches the real modules.
 jest.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn(),
-  }),
+  useToast: () => ({ toast: jest.fn() }),
 }));
-
-// Mock Spinner component
 jest.mock('@/components/ui/spinner', () => ({
   Spinner: () => <div data-testid="spinner">Loading...</div>,
 }));
+
+const mockRole = {
+  id: 'test-role-1',
+  name: 'Test Role',
+  description: 'A test role',
+  capabilities: ['test_capability'],
+  permissions: {
+    canAccessFiles: true,
+    canAccessWeb: false,
+    canExecuteCode: false,
+    canAccessDatabase: false,
+    canSendEmails: false,
+    canMakeAPICalls: false,
+  },
+  systemPrompt: 'You are a test assistant',
+  modelConfig: {
+    model: 'gpt-4',
+    temperature: 0.7,
+    maxTokens: 1000,
+    topP: 1.0,
+    frequencyPenalty: 0.0,
+    presencePenalty: 0.0,
+  },
+  isDefault: false,
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+};
+
+const iconButton = (iconClass: string) =>
+  screen.getAllByRole('button').find((btn) => btn.querySelector(`.${iconClass}`));
 
 describe('RoleSettings Component', () => {
   const mockOnRoleCreate = jest.fn();
@@ -22,254 +74,154 @@ describe('RoleSettings Component', () => {
   const mockOnRoleDelete = jest.fn();
   const mockOnRoleDuplicate = jest.fn();
 
-  const mockRole = {
-    id: 'test-role-1',
-    name: 'Test Role',
-    description: 'A test role',
-    capabilities: ['test_capability'],
-    permissions: {
-      canAccessFiles: true,
-      canAccessWeb: false,
-      canExecuteCode: false,
-      canAccessDatabase: false,
-      canSendEmails: false,
-      canMakeAPICalls: false,
-    },
-    systemPrompt: 'You are a test assistant',
-    modelConfig: {
-      model: 'gpt-4',
-      temperature: 0.7,
-      maxTokens: 1000,
-      topP: 1.0,
-      frequencyPenalty: 0.0,
-      presencePenalty: 0.0,
-    },
-    isDefault: false,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Rendering', () => {
-    it('renders without crashing', () => {
+    it('renders the Role Settings card', () => {
       render(<RoleSettings />);
-
-      expect(screen.getByText(/role settings/i)).toBeInTheDocument();
+      expect(screen.getByText('Role Settings')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /create role/i })).toBeInTheDocument();
     });
 
-    it('displays default roles when no initial roles provided', () => {
+    it('displays default roles when no initial roles are provided', async () => {
       render(<RoleSettings />);
-
-      // Should display default roles
-      expect(screen.getByText(/personal assistant/i)).toBeInTheDocument();
-      expect(screen.getByText(/research agent/i)).toBeInTheDocument();
-      expect(screen.getByText(/coding agent/i)).toBeInTheDocument();
+      expect(await screen.findByText('Personal Assistant')).toBeInTheDocument();
+      expect(screen.getByText('Research Agent')).toBeInTheDocument();
+      expect(screen.getByText('Coding Agent')).toBeInTheDocument();
     });
 
-    it('displays provided initial roles', () => {
+    it('displays provided initial roles', async () => {
       render(<RoleSettings initialRoles={[mockRole]} />);
-
-      expect(screen.getByText('Test Role')).toBeInTheDocument();
+      expect(await screen.findByText('Test Role')).toBeInTheDocument();
       expect(screen.getByText('A test role')).toBeInTheDocument();
     });
 
-    it('shows role descriptions', () => {
+    it('displays role capabilities as badges', async () => {
       render(<RoleSettings initialRoles={[mockRole]} />);
-
-      expect(screen.getByText('A test role')).toBeInTheDocument();
-    });
-
-    it('displays role capabilities as badges', () => {
-      render(<RoleSettings initialRoles={[mockRole]} />);
-
-      expect(screen.getByText('test_capability')).toBeInTheDocument();
-    });
-
-    it('marks default roles', () => {
-      render(<RoleSettings initialRoles={[{ ...mockRole, isDefault: true }]} />);
-
-      // Should indicate default role
-      expect(screen.getByText(/default/i)).toBeInTheDocument();
+      expect(await screen.findByText('test_capability')).toBeInTheDocument();
     });
   });
 
   describe('User Interactions', () => {
-    it('opens create role dialog', async () => {
+    it('opens the create role dialog', async () => {
       const user = userEvent.setup();
       render(<RoleSettings />);
 
-      const createButton = screen.getByRole('button', { name: /create role/i });
-      await user.click(createButton);
+      await user.click(screen.getByRole('button', { name: /create role/i }));
 
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
     });
 
-    it('creates new role with valid data', async () => {
+    it('creates a new role', async () => {
       const user = userEvent.setup();
       render(<RoleSettings onRoleCreate={mockOnRoleCreate} />);
+      await screen.findByText('Personal Assistant');
 
-      const createButton = screen.getByRole('button', { name: /create role/i });
-      await user.click(createButton);
+      await user.click(screen.getByRole('button', { name: /create role/i }));
 
-      // Fill in role details
-      const nameInput = screen.getByLabelText(/role name/i);
-      await user.type(nameInput, 'New Test Role');
+      const dialog = await screen.findByRole('dialog');
+      const form = within(dialog);
 
-      const descriptionInput = screen.getByLabelText(/description/i);
-      await user.type(descriptionInput, 'A new test role');
+      await user.type(form.getByLabelText('Role Name'), 'New Test Role');
+      await user.type(form.getByLabelText('Description'), 'A brand new role');
+      await user.type(form.getByLabelText('System Prompt'), 'You are a test assistant');
 
-      const systemPromptInput = screen.getByLabelText(/system prompt/i);
-      await user.type(systemPromptInput, 'You are a test assistant');
-
-      // Submit form
-      const submitButton = screen.getByRole('button', { name: /create/i });
-      await user.click(submitButton);
+      await user.click(form.getByRole('button', { name: 'Create Role' }));
 
       await waitFor(() => {
-        expect(mockOnRoleCreate).toHaveBeenCalled();
+        expect(mockOnRoleCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'New Test Role' })
+        );
       });
+      expect(await screen.findByText('New Test Role')).toBeInTheDocument();
     });
 
-    it('edits existing role', async () => {
+    it('edits an existing role', async () => {
       const user = userEvent.setup();
       render(<RoleSettings initialRoles={[mockRole]} onRoleUpdate={mockOnRoleUpdate} />);
+      await screen.findByText('Test Role');
 
-      const editButton = screen.getByRole('button', { name: /edit test role/i });
-      await user.click(editButton);
+      await user.click(iconButton('lucide-square-pen')!);
 
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
+      const dialog = await screen.findByRole('dialog');
+      const form = within(dialog);
+      expect(form.getByText('Edit Role')).toBeInTheDocument();
 
-      // Modify role name
-      const nameInput = screen.getByLabelText(/role name/i);
+      const nameInput = form.getByLabelText('Role Name');
       await user.clear(nameInput);
       await user.type(nameInput, 'Updated Role Name');
 
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      await user.click(saveButton);
+      await user.click(form.getByRole('button', { name: 'Update Role' }));
 
       await waitFor(() => {
         expect(mockOnRoleUpdate).toHaveBeenCalledWith(
           'test-role-1',
-          expect.objectContaining({
-            name: 'Updated Role Name',
-          })
+          expect.objectContaining({ name: 'Updated Role Name' })
         );
       });
     });
 
-    it('deletes custom role', async () => {
-      const user = userEvent.setup();
-      window.confirm = jest.fn(() => true);
+    it('deletes a custom role without a confirm prompt', async () => {
+      render(<RoleSettings initialRoles={[mockRole]} onRoleDelete={mockOnRoleDelete} />);
+      await screen.findByText('Test Role');
 
-      render(
-        <RoleSettings initialRoles={[mockRole]} onRoleDelete={mockOnRoleDelete} />
-      );
-
-      const deleteButton = screen.getByRole('button', { name: /delete test role/i });
-      await user.click(deleteButton);
-
-      await waitFor(() => {
-        expect(window.confirm).toHaveBeenCalledWith(
-          expect.stringContaining(/are you sure/i)
-        );
-      });
+      fireEvent.click(iconButton('lucide-trash-2')!);
 
       await waitFor(() => {
         expect(mockOnRoleDelete).toHaveBeenCalledWith('test-role-1');
       });
+      expect(screen.queryByText('Test Role')).not.toBeInTheDocument();
     });
 
-    it('prevents deletion of default roles', async () => {
-      const user = userEvent.setup();
-      const defaultRole = { ...mockRole, isDefault: true, name: 'Default Role' };
+    it('blocks deleting a default role', async () => {
+      render(<RoleSettings onRoleDelete={mockOnRoleDelete} />);
+      await screen.findByText('Personal Assistant');
 
-      render(<RoleSettings initialRoles={[defaultRole]} />);
+      fireEvent.click(iconButton('lucide-trash-2')!);
 
-      const deleteButton = screen.getByRole('button', { name: /delete default role/i });
-
-      // Button might be disabled or not present for default roles
-      if (deleteButton) {
-        await user.click(deleteButton);
-
-        // Should not call onRoleDelete
-        expect(mockOnRoleDelete).not.toHaveBeenCalled();
-      }
+      expect(mockOnRoleDelete).not.toHaveBeenCalled();
+      expect(screen.getByText('Personal Assistant')).toBeInTheDocument();
     });
 
-    it('duplicates existing role', async () => {
-      const user = userEvent.setup();
-      render(
-        <RoleSettings initialRoles={[mockRole]} onRoleDuplicate={mockOnRoleDuplicate} />
-      );
+    it('duplicates a role as "(Copy)"', async () => {
+      render(<RoleSettings initialRoles={[mockRole]} onRoleDuplicate={mockOnRoleDuplicate} />);
+      await screen.findByText('Test Role');
 
-      const duplicateButton = screen.getByRole('button', { name: /copy/i });
-      await user.click(duplicateButton);
+      fireEvent.click(iconButton('lucide-copy')!);
 
       await waitFor(() => {
         expect(mockOnRoleDuplicate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Test Role (Copy)',
-          })
+          expect.objectContaining({ name: 'Test Role (Copy)' })
         );
       });
-    });
-
-    it('filters roles by search query', async () => {
-      const user = userEvent.setup();
-      const role1 = { ...mockRole, name: 'Developer Role' };
-      const role2 = { ...mockRole, id: 'test-role-2', name: 'Designer Role' };
-
-      render(<RoleSettings initialRoles={[role1, role2]} />);
-
-      const searchInput = screen.getByPlaceholderText(/search roles/i);
-      await user.type(searchInput, 'Developer');
-
-      await waitFor(() => {
-        expect(screen.getByText('Developer Role')).toBeInTheDocument();
-        expect(screen.queryByText('Designer Role')).not.toBeInTheDocument();
-      });
+      expect(await screen.findByText('Test Role (Copy)')).toBeInTheDocument();
     });
   });
 
-  describe('Permission Management', () => {
-    it('displays all permission toggles', () => {
-      render(<RoleSettings initialRoles={[mockRole]} />);
-
-      expect(screen.getByLabelText(/can access files/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/can access web/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/can execute code/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/can access database/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/can send emails/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/can make api calls/i)).toBeInTheDocument();
-    });
-
-    it('toggles permissions on/off', async () => {
+  describe('Permissions', () => {
+    it('toggles a permission and persists it on update', async () => {
       const user = userEvent.setup();
       render(<RoleSettings initialRoles={[mockRole]} onRoleUpdate={mockOnRoleUpdate} />);
+      await screen.findByText('Test Role');
 
-      const editButton = screen.getByRole('button', { name: /edit/i });
-      await user.click(editButton);
+      await user.click(iconButton('lucide-square-pen')!);
 
-      const canAccessWebToggle = screen.getByLabelText(/can access web/i);
-      await user.click(canAccessWebToggle);
+      const dialog = await screen.findByRole('dialog');
+      const form = within(dialog);
 
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      await user.click(saveButton);
+      await user.click(form.getByRole('button', { name: 'Permissions' }));
+      // Permission labels are derived via "canAccessWeb" -> "can Access Web"
+      // (CSS-only capitalize; text content stays lowercase).
+      await user.click(form.getByLabelText(/can access web/i));
+      await user.click(form.getByRole('button', { name: 'Update Role' }));
 
       await waitFor(() => {
         expect(mockOnRoleUpdate).toHaveBeenCalledWith(
           'test-role-1',
           expect.objectContaining({
-            permissions: expect.objectContaining({
-              canAccessWeb: true,
-            }),
+            permissions: expect.objectContaining({ canAccessWeb: true }),
           })
         );
       });
@@ -277,193 +229,30 @@ describe('RoleSettings Component', () => {
   });
 
   describe('Model Configuration', () => {
-    it('displays model configuration fields', async () => {
-      const user = userEvent.setup();
-      render(<RoleSettings initialRoles={[mockRole]} />);
-
-      const editButton = screen.getByRole('button', { name: /edit/i });
-      await user.click(editButton);
-
-      expect(screen.getByLabelText(/model/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/temperature/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/max tokens/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/top p/i)).toBeInTheDocument();
-    });
-
-    it('updates model configuration', async () => {
+    it('updates the temperature and persists it on update', async () => {
       const user = userEvent.setup();
       render(<RoleSettings initialRoles={[mockRole]} onRoleUpdate={mockOnRoleUpdate} />);
+      await screen.findByText('Test Role');
 
-      const editButton = screen.getByRole('button', { name: /edit/i });
-      await user.click(editButton);
+      await user.click(iconButton('lucide-square-pen')!);
 
-      const temperatureInput = screen.getByLabelText(/temperature/i);
-      await user.clear(temperatureInput);
-      await user.type(temperatureInput, '0.5');
+      const dialog = await screen.findByRole('dialog');
+      const form = within(dialog);
 
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockOnRoleUpdate).toHaveBeenCalledWith(
-          'test-role-1',
-          expect.objectContaining({
-            modelConfig: expect.objectContaining({
-              temperature: 0.5,
-            }),
-          })
-        );
-      });
-    });
-  });
-
-  describe('Capabilities Management', () => {
-    it('displays role capabilities', () => {
-      const roleWithCaps = {
-        ...mockRole,
-        capabilities: ['web_search', 'email_management', 'code_generation'],
-      };
-
-      render(<RoleSettings initialRoles={[roleWithCaps]} />);
-
-      expect(screen.getByText('web_search')).toBeInTheDocument();
-      expect(screen.getByText('email_management')).toBeInTheDocument();
-      expect(screen.getByText('code_generation')).toBeInTheDocument();
-    });
-
-    it('adds new capability', async () => {
-      const user = userEvent.setup();
-      render(<RoleSettings initialRoles={[mockRole]} onRoleUpdate={mockOnRoleUpdate} />);
-
-      const editButton = screen.getByRole('button', { name: /edit/i });
-      await user.click(editButton);
-
-      // Add capability
-      const capabilityInput = screen.getByPlaceholderText(/add capability/i);
-      await user.type(capabilityInput, 'new_capability');
-
-      const addButton = screen.getByRole('button', { name: /add/i });
-      await user.click(addButton);
-
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      await user.click(saveButton);
+      await user.click(form.getByRole('button', { name: 'Model Configuration' }));
+      // Temperature/Max Tokens inputs have NO id, so <label for="..."> does not
+      // associate. Number inputs expose role "spinbutton"; Temperature is first.
+      fireEvent.change(form.getAllByRole('spinbutton')[0], { target: { value: '0.5' } });
+      await user.click(form.getByRole('button', { name: 'Update Role' }));
 
       await waitFor(() => {
         expect(mockOnRoleUpdate).toHaveBeenCalledWith(
           'test-role-1',
           expect.objectContaining({
-            capabilities: expect.arrayContaining(['new_capability']),
+            modelConfig: expect.objectContaining({ temperature: 0.5 }),
           })
         );
       });
-    });
-
-    it('removes capability', async () => {
-      const user = userEvent.setup();
-      const roleWithCaps = {
-        ...mockRole,
-        capabilities: ['capability_to_remove', 'another_capability'],
-      };
-
-      render(
-        <RoleSettings initialRoles={[roleWithCaps]} onRoleUpdate={mockOnRoleUpdate} />
-      );
-
-      const editButton = screen.getByRole('button', { name: /edit/i });
-      await user.click(editButton);
-
-      const removeButton = screen.getByRole('button', { name: /remove capability_to_remove/i });
-      await user.click(removeButton);
-
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockOnRoleUpdate).toHaveBeenCalledWith(
-          'test-role-1',
-          expect.objectContaining({
-            capabilities: expect.not.arrayContaining(['capability_to_remove']),
-          })
-        );
-      });
-    });
-  });
-
-  describe('Loading States', () => {
-    it('shows loading indicator when loading prop is true', () => {
-      render(<RoleSettings loading={true} />);
-
-      expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    });
-
-    it('disables interactions during loading', () => {
-      render(<RoleSettings loading={true} />);
-
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
-        expect(button).toBeDisabled();
-      });
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('has proper ARIA labels', () => {
-      render(<RoleSettings initialRoles={[mockRole]} />);
-
-      expect(screen.getByRole('region', { name: /role settings/i })).toBeInTheDocument();
-    });
-
-    it('supports keyboard navigation', async () => {
-      const user = userEvent.setup();
-      render(<RoleSettings initialRoles={[mockRole]} />);
-
-      // Tab through interactive elements
-      await user.tab();
-
-      const firstButton = screen.getByRole('button', { name: /create role/i });
-      expect(firstButton).toHaveFocus();
-    });
-  });
-
-  describe('Validation', () => {
-    it('requires role name', async () => {
-      const user = userEvent.setup();
-      render(<RoleSettings />);
-
-      const createButton = screen.getByRole('button', { name: /create role/i });
-      await user.click(createButton);
-
-      const submitButton = screen.getByRole('button', { name: /create/i });
-      await user.click(submitButton);
-
-      // Should show validation error
-      expect(screen.getByText(/name is required/i)).toBeInTheDocument();
-    });
-
-    it('requires system prompt', async () => {
-      const user = userEvent.setup();
-      render(<RoleSettings />);
-
-      const createButton = screen.getByRole('button', { name: /create role/i });
-      await user.click(createButton);
-
-      const nameInput = screen.getByLabelText(/role name/i);
-      await user.type(nameInput, 'Test Role');
-
-      const submitButton = screen.getByRole('button', { name: /create/i });
-      await user.click(submitButton);
-
-      // Should show validation error
-      expect(screen.getByText(/system prompt is required/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Compact View', () => {
-    it('renders in compact mode when compactView is true', () => {
-      render(<RoleSettings compactView={true} />);
-
-      // Should have different layout
-      expect(screen.getByClassName(/compact/i)).toBeInTheDocument();
     });
   });
 });

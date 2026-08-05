@@ -1,10 +1,40 @@
+/**
+ * VoiceVisualizer Component Tests
+ *
+ * Tests verify the canvas visualizer renders, animates via rAF, and applies
+ * the correct color/glow per mode.
+ *
+ * Source: components/Voice/VoiceVisualizer.tsx
+ *
+ * Real behavior (verified against source):
+ * - Renders a single <canvas width={400} height={100} className="w-full h-24
+ *   pointer-events-none" />. The canvas has NO role/aria-label, so tests query
+ *   it via document.querySelector('canvas').
+ * - On mount (and every mode change) it runs one animate() frame immediately,
+ *   then schedules the next frame via requestAnimationFrame. Each frame draws
+ *   40 rounded bars with mode-specific fillStyle and shadow:
+ *     idle:       rgb(100, 116, 139), shadowBlur 0
+ *     listening:  rgb(16, 185, 129),  shadowBlur 15
+ *     processing: rgb(249, 115, 22),  shadowBlur 15
+ *     speaking:   rgb(59, 130, 246),  shadowBlur 15
+ * - Cleanup calls cancelAnimationFrame(requestIdRef.current).
+ *
+ * NOTE: The component relies on Next.js's automatic JSX runtime (it imports no
+ * default React), but this repo's Jest transform uses ts-jest with jsx:"react"
+ * (classic runtime -> React.createElement). We expose React as a global so the
+ * compiled component resolves it during render. requestAnimationFrame is mocked
+ * to queue callbacks instead of running them, so frames can be driven manually.
+ */
+
 import React from 'react';
-import { renderWithProviders, screen } from '../../../tests/test-utils';
+import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { VoiceVisualizer } from '../VoiceVisualizer';
 
-// Mock canvas context
-const mockCtx = {
+// Classic-JSX compatibility: source module has no default React import.
+(global as any).React = React;
+
+const mockCtx: any = {
   clearRect: jest.fn(),
   fillStyle: '',
   fillRect: jest.fn(),
@@ -15,278 +45,120 @@ const mockCtx = {
   shadowColor: '',
 };
 
+let rafCallbacks: FrameRequestCallback[] = [];
+
+const getCanvas = () => document.querySelector('canvas') as HTMLCanvasElement;
+
+const renderVisualizer = (
+  mode: 'idle' | 'listening' | 'processing' | 'speaking' = 'idle'
+) => render(<VoiceVisualizer mode={mode} />);
+
 describe('VoiceVisualizer Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock HTMLCanvasElement.getContext
+    rafCallbacks = [];
     HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCtx as any);
-    // Mock requestAnimationFrame
-    global.requestAnimationFrame = jest.fn((cb) => {
-      return window.setTimeout(cb, 16) as unknown as number;
-    });
-    // Mock cancelAnimationFrame
+    global.requestAnimationFrame = jest.fn((cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    }) as any;
     global.cancelAnimationFrame = jest.fn();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   describe('Rendering', () => {
-    it('renders without crashing', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img');
-      expect(canvas).toBeInTheDocument();
+    it('renders a canvas element', () => {
+      renderVisualizer();
+      expect(getCanvas()).toBeInTheDocument();
     });
 
     it('renders canvas with correct dimensions', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img') as HTMLCanvasElement;
+      renderVisualizer();
+      const canvas = getCanvas();
       expect(canvas.width).toBe(400);
       expect(canvas.height).toBe(100);
     });
 
     it('has correct CSS classes', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img');
-      expect(canvas).toHaveClass('w-full', 'h-24', 'pointer-events-none');
-    });
-  });
-
-  describe('Animation States', () => {
-    it('renders idle state with slate color', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      expect(screen.getByRole('img')).toBeInTheDocument();
-    });
-
-    it('renders listening state with emerald color', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      expect(screen.getByRole('img')).toBeInTheDocument();
-    });
-
-    it('renders processing state with orange color', () => {
-      renderWithProviders(<VoiceVisualizer mode="processing" />);
-
-      expect(screen.getByRole('img')).toBeInTheDocument();
-    });
-
-    it('renders speaking state with blue color', () => {
-      renderWithProviders(<VoiceVisualizer mode="speaking" />);
-
-      expect(screen.getByRole('img')).toBeInTheDocument();
+      renderVisualizer();
+      expect(getCanvas()).toHaveClass('w-full', 'h-24', 'pointer-events-none');
     });
   });
 
   describe('Canvas Context', () => {
-    it('gets 2D context from canvas', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img') as HTMLCanvasElement;
-      expect(canvas.getContext).toHaveBeenCalledWith('2d');
+    it('gets a 2D context from the canvas', () => {
+      renderVisualizer();
+      expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalledWith('2d');
     });
 
     it('handles null context gracefully', () => {
       HTMLCanvasElement.prototype.getContext = jest.fn(() => null);
-
-      expect(() => renderWithProviders(<VoiceVisualizer mode="idle" />)).not.toThrow();
+      expect(() => renderVisualizer()).not.toThrow();
     });
   });
 
   describe('Animation Lifecycle', () => {
     it('starts animation on mount', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
+      renderVisualizer();
       expect(global.requestAnimationFrame).toHaveBeenCalled();
     });
 
     it('cleans up animation on unmount', () => {
-      const { unmount } = renderWithProviders(<VoiceVisualizer mode="idle" />);
-
+      const { unmount } = renderVisualizer();
       unmount();
-
       expect(global.cancelAnimationFrame).toHaveBeenCalled();
     });
 
     it('restarts animation when mode changes', () => {
-      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
-
+      const { rerender } = render(<VoiceVisualizer mode="idle" />);
       const callsBefore = (global.requestAnimationFrame as jest.Mock).mock.calls.length;
 
       rerender(<VoiceVisualizer mode="listening" />);
 
       const callsAfter = (global.requestAnimationFrame as jest.Mock).mock.calls.length;
-
-      // Should have more calls after mode change (animation restarted)
       expect(callsAfter).toBeGreaterThan(callsBefore);
     });
   });
 
   describe('Animation Behavior', () => {
-    it('clears canvas each frame', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      // Trigger animation frames
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.clearRect).toHaveBeenCalled();
+    it('clears the canvas on each frame', () => {
+      renderVisualizer('idle');
+      // The initial animate() frame cleared once; run the queued frame for a second.
+      rafCallbacks.pop()?.(performance.now());
+      expect(mockCtx.clearRect).toHaveBeenCalledTimes(2);
     });
 
-    it('draws bars for idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
+    it('draws bars', () => {
+      renderVisualizer('idle');
       expect(mockCtx.beginPath).toHaveBeenCalled();
       expect(mockCtx.roundRect).toHaveBeenCalled();
       expect(mockCtx.fill).toHaveBeenCalled();
     });
 
-    it('uses shadow for active modes', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBeGreaterThan(0);
-    });
-
-    it('disables shadow for idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBe(0);
-    });
-
-    it('draws correct number of bars', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(100);
-
-      // Should draw 40 bars (as defined in component)
+    it('draws 40 bars per frame', () => {
+      renderVisualizer('listening');
       expect(mockCtx.roundRect).toHaveBeenCalledTimes(40);
     });
   });
 
-  describe('Visual Effects', () => {
-    it('applies glow effect in listening mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBe(15);
-      expect(mockCtx.shadowColor).toBe('rgb(16, 185, 129)');
-    });
-
-    it('applies glow effect in speaking mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="speaking" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBe(15);
-      expect(mockCtx.shadowColor).toBe('rgb(59, 130, 246)');
-    });
-
-    it('applies glow effect in processing mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="processing" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBe(15);
-      expect(mockCtx.shadowColor).toBe('rgb(249, 115, 22)');
-    });
-
-    it('has no glow in idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.shadowBlur).toBe(0);
-    });
-  });
-
-  describe('Color Scheme', () => {
-    it('uses slate-500 for idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.fillStyle).toBe('rgb(100, 116, 139)');
-    });
-
-    it('uses emerald-500 for listening mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.fillStyle).toBe('rgb(16, 185, 129)');
-    });
-
-    it('uses orange-500 for processing mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="processing" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.fillStyle).toBe('rgb(249, 115, 22)');
-    });
-
-    it('uses blue-500 for speaking mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="speaking" />);
-
-      jest.advanceTimersByTime(100);
-
-      expect(mockCtx.fillStyle).toBe('rgb(59, 130, 246)');
-    });
-  });
-
-  describe('Animation Speed', () => {
-    it('uses slower animation for idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
-      // Idle has lower amplitude and speed
-      expect(mockCtx.roundRect).toHaveBeenCalled();
-    });
-
-    it('uses faster animation for listening mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(100);
-
-      // Listening has higher amplitude and speed
-      expect(mockCtx.roundRect).toHaveBeenCalled();
-    });
-  });
-
-  describe('Amplitude', () => {
-    it('has lower amplitude in idle mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      jest.advanceTimersByTime(100);
-
-      // Bars should be shorter in idle mode
-      expect(mockCtx.roundRect).toHaveBeenCalled();
-    });
-
-    it('has higher amplitude in speaking mode', () => {
-      renderWithProviders(<VoiceVisualizer mode="speaking" />);
-
-      jest.advanceTimersByTime(100);
-
-      // Bars should be taller in speaking mode
-      expect(mockCtx.roundRect).toHaveBeenCalled();
+  describe('Visual Effects / Colors', () => {
+    it.each([
+      ['idle', 'rgb(100, 116, 139)', 0],
+      ['listening', 'rgb(16, 185, 129)', 15],
+      ['processing', 'rgb(249, 115, 22)', 15],
+      ['speaking', 'rgb(59, 130, 246)', 15],
+    ] as const)('%s mode uses %s with shadowBlur %d', (mode, color, shadowBlur) => {
+      renderVisualizer(mode);
+      expect(mockCtx.fillStyle).toBe(color);
+      expect(mockCtx.shadowBlur).toBe(shadowBlur);
+      if (shadowBlur > 0) {
+        expect(mockCtx.shadowColor).toBe(color);
+      }
     });
   });
 
   describe('Edge Cases', () => {
     it('handles rapid mode changes', () => {
-      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
-
+      const { rerender } = render(<VoiceVisualizer mode="idle" />);
       rerender(<VoiceVisualizer mode="listening" />);
       rerender(<VoiceVisualizer mode="processing" />);
       rerender(<VoiceVisualizer mode="speaking" />);
@@ -295,46 +167,10 @@ describe('VoiceVisualizer Component', () => {
       expect(global.requestAnimationFrame).toHaveBeenCalled();
     });
 
-    it('handles unmount during active animation', () => {
-      const { unmount } = renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      jest.advanceTimersByTime(50);
-      unmount();
-
-      expect(global.cancelAnimationFrame).toHaveBeenCalled();
-    });
-  });
-
-  describe('Performance', () => {
-    it('uses requestAnimationFrame for smooth animation', () => {
-      renderWithProviders(<VoiceVisualizer mode="listening" />);
-
-      expect(global.requestAnimationFrame).toHaveBeenCalled();
-    });
-
-    it('cancels previous animation frame before starting new one', () => {
-      const { rerender } = renderWithProviders(<VoiceVisualizer mode="idle" />);
-
+    it('cancels the previous animation before starting a new one', () => {
+      const { rerender } = render(<VoiceVisualizer mode="idle" />);
       rerender(<VoiceVisualizer mode="listening" />);
-
-      // Should cancel old animation
       expect(global.cancelAnimationFrame).toHaveBeenCalled();
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('has presentation role for canvas', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img');
-      expect(canvas).toBeInTheDocument();
-    });
-
-    it('has pointer-events-none class', () => {
-      renderWithProviders(<VoiceVisualizer mode="idle" />);
-
-      const canvas = screen.getByRole('img');
-      expect(canvas).toHaveClass('pointer-events-none');
     });
   });
 });
