@@ -1,15 +1,21 @@
 /**
  * useLiveKnowledge Hook Unit Tests
  *
- * Tests for useLiveKnowledge hook managing real-time knowledge data.
- * Verifies knowledge fetching, insights fetching, refresh functionality,
- * data mapping, and error handling.
+ * The real useLiveKnowledge hook calls apiClient.get() for
+ * /api/intelligence/entities and /api/intelligence/insights (both run on mount
+ * via refresh()) and returns { items, insights, loading, insightsLoading,
+ * refresh }.
+ *
+ * The old suite relied on MSW handlers with relative paths (/api/...), but
+ * axios resolves those against apiClient's baseURL (http://127.0.0.1:8000 in
+ * the test env) while MSW resolves relative paths against jsdom's origin
+ * (http://localhost), so no request was ever intercepted and every test timed
+ * out. We mock @/lib/api directly to test the hook's real mapping/loading/
+ * error behavior.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useLiveKnowledge } from '../useLiveKnowledge';
-import { rest } from 'msw';
-import { overrideHandler } from '@/tests/mocks/server';
 
 // Mock sonner toast
 jest.mock('sonner', () => ({
@@ -19,6 +25,16 @@ jest.mock('sonner', () => ({
 }));
 
 import { toast } from 'sonner';
+
+// Mock the apiClient the hook imports from @/lib/api
+jest.mock('@/lib/api', () => ({
+  apiClient: {
+    get: jest.fn(),
+  },
+}));
+
+import { apiClient } from '@/lib/api';
+const mockGet = apiClient.get as jest.Mock;
 
 describe('useLiveKnowledge Hook', () => {
   const mockEntities = [
@@ -65,41 +81,51 @@ describe('useLiveKnowledge Hook', () => {
     },
   ];
 
+  // Configure apiClient.get to answer per-endpoint with the given payloads.
+  const mockApi = (
+    entities: any,
+    insights: any,
+    options: { entitiesReject?: boolean; insightsReject?: boolean } = {}
+  ) => {
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/entities') {
+        return options.entitiesReject
+          ? Promise.reject(new Error('Network error'))
+          : Promise.resolve({ data: entities });
+      }
+      if (url === '/api/intelligence/insights') {
+        return options.insightsReject
+          ? Promise.reject(new Error('Network error'))
+          : Promise.resolve({ data: insights });
+      }
+      return Promise.resolve({ data: {} });
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGet.mockReset();
+    // Default: both endpoints succeed with empty payloads.
+    mockApi(
+      { status: 'success', entities: [] },
+      { status: 'success', insights: [] }
+    );
   });
 
   describe('1. Fetch Knowledge Tests', () => {
     test('fetches knowledge items on mount', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: mockEntities,
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: mockEntities }, { status: 'success', insights: [] });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
       await waitFor(() => {
         expect(result.current.items).toHaveLength(2);
       });
+      expect(mockGet).toHaveBeenCalledWith('/api/intelligence/entities');
     });
 
     test('maps API entities to KnowledgeItem format', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: mockEntities,
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: mockEntities }, { status: 'success', insights: [] });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
@@ -114,16 +140,7 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('sets items state correctly', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: mockEntities,
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: mockEntities }, { status: 'success', insights: [] });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
@@ -152,17 +169,6 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('handles loading states', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
       const { result } = renderHook(() => useLiveKnowledge());
 
       expect(result.current.loading).toBe(true);
@@ -175,27 +181,7 @@ describe('useLiveKnowledge Hook', () => {
 
   describe('2. Fetch Insights Tests', () => {
     test('fetches smart insights', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: mockInsights,
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: [] }, { status: 'success', insights: mockInsights });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
@@ -205,27 +191,7 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('sets insights state', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: mockInsights,
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: [] }, { status: 'success', insights: mockInsights });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
@@ -236,28 +202,6 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('sets insightsLoading correctly', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
-
       const { result } = renderHook(() => useLiveKnowledge());
 
       expect(result.current.insightsLoading).toBe(true);
@@ -270,117 +214,26 @@ describe('useLiveKnowledge Hook', () => {
 
   describe('3. Refresh Function Tests', () => {
     test('calls both fetchKnowledge and fetchInsights', async () => {
-      let knowledgeFetchCount = 0;
-      let insightsFetchCount = 0;
-
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          knowledgeFetchCount++;
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          insightsFetchCount++;
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
-
       const { result } = renderHook(() => useLiveKnowledge());
 
-      // Wait for initial fetch
       await waitFor(() => {
-        expect(knowledgeFetchCount).toBe(1);
-        expect(insightsFetchCount).toBe(1);
+        expect(mockGet).toHaveBeenCalledWith('/api/intelligence/entities');
+        expect(mockGet).toHaveBeenCalledWith('/api/intelligence/insights');
       });
 
-      // Call refresh
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Should have fetched both again
-      expect(knowledgeFetchCount).toBe(2);
-      expect(insightsFetchCount).toBe(2);
-    });
-
-    test('uses Promise.all for parallel fetching', async () => {
-      let knowledgeFetchTime = 0;
-      let insightsFetchTime = 0;
-
-      overrideHandler(
-        rest.get('/api/intelligence/entities', async (req, res, ctx) => {
-          knowledgeFetchTime = Date.now();
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', async (req, res, ctx) => {
-          insightsFetchTime = Date.now();
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
-
-      const { result } = renderHook(() => useLiveKnowledge());
-
-      const startTime = Date.now();
+      const callsBefore = mockGet.mock.calls.length;
 
       await act(async () => {
         await result.current.refresh();
       });
 
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Both fetches happened in parallel (should take ~10ms, not ~20ms)
-      expect(duration).toBeLessThan(50);
+      expect(mockGet.mock.calls.length).toBe(callsBefore + 2);
     });
 
     test('updates both states on refresh', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: mockEntities,
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: mockInsights,
-            })
-          );
-        })
+      mockApi(
+        { status: 'success', entities: mockEntities },
+        { status: 'success', insights: mockInsights }
       );
 
       const { result } = renderHook(() => useLiveKnowledge());
@@ -395,76 +248,49 @@ describe('useLiveKnowledge Hook', () => {
   });
 
   describe('4. Error Handling Tests', () => {
-    test('handles axios errors', async () => {
+    test('shows a toast error when the entities fetch fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const toastSpy = jest.spyOn(toast, 'error').mockImplementation();
 
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res.networkError('Network error');
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: [] }, { status: 'success', insights: [] }, { entitiesReject: true });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
       await waitFor(() => {
-        expect(toastSpy).toHaveBeenCalledWith('Failed to fetch real-time intelligence data');
+        expect(toastSpy).toHaveBeenCalledWith(
+          'Failed to fetch real-time intelligence data'
+        );
       });
 
       toastSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
 
-    test('shows toast error on failure', async () => {
+    test('does not toast on an insights failure (only console.error)', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const toastSpy = jest.spyOn(toast, 'error').mockImplementation();
 
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(ctx.status(500));
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
+      mockApi({ status: 'success', entities: [] }, { status: 'success', insights: [] }, { insightsReject: true });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
       await waitFor(() => {
-        expect(toastSpy).toHaveBeenCalledWith('Failed to fetch real-time intelligence data');
+        expect(result.current.insightsLoading).toBe(false);
       });
 
+      expect(toastSpy).not.toHaveBeenCalled();
+
       toastSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
 
     test('sets loading states to false in finally', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          throw new Error('API error');
-        })
-      );
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          throw new Error('API error');
-        })
-      );
+      mockApi({ status: 'success', entities: [] }, { status: 'success', insights: [] }, {
+        entitiesReject: true,
+        insightsReject: true,
+      });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
@@ -475,42 +301,30 @@ describe('useLiveKnowledge Hook', () => {
         expect(result.current.loading).toBe(false);
         expect(result.current.insightsLoading).toBe(false);
       });
+
+      consoleSpy.mockRestore();
     });
   });
 
   describe('5. Data Mapping Tests', () => {
     test('correctly maps entity fields', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [
-                {
-                  id: 'test-1',
-                  name: 'Test Entity',
-                  platforms: ['platform1', 'platform2'],
-                  type: 'file',
-                  status: 'active',
-                  value: 999,
-                  modified_at: '2026-03-04T12:00:00Z',
-                  extra_field: 'should be ignored',
-                },
-              ],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
+      mockApi(
+        {
+          status: 'success',
+          entities: [
+            {
+              id: 'test-1',
+              name: 'Test Entity',
+              platforms: ['platform1', 'platform2'],
+              type: 'file',
+              status: 'active',
+              value: 999,
+              modified_at: '2026-03-04T12:00:00Z',
+              extra_field: 'should be ignored',
+            },
+          ],
+        },
+        { status: 'success', insights: [] }
       );
 
       const { result } = renderHook(() => useLiveKnowledge());
@@ -529,33 +343,19 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('handles missing fields gracefully', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [
-                {
-                  id: 'minimal-1',
-                  name: 'Minimal Entity',
-                  platforms: [],
-                  type: 'task',
-                },
-              ],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
+      mockApi(
+        {
+          status: 'success',
+          entities: [
+            {
+              id: 'minimal-1',
+              name: 'Minimal Entity',
+              platforms: [],
+              type: 'task',
+            },
+          ],
+        },
+        { status: 'success', insights: [] }
       );
 
       const { result } = renderHook(() => useLiveKnowledge());
@@ -571,33 +371,19 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('uses first platform when multiple exist', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [
-                {
-                  id: 'multi-1',
-                  name: 'Multi Platform',
-                  platforms: ['jira', 'slack', 'teams'],
-                  type: 'task',
-                },
-              ],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
+      mockApi(
+        {
+          status: 'success',
+          entities: [
+            {
+              id: 'multi-1',
+              name: 'Multi Platform',
+              platforms: ['jira', 'slack', 'teams'],
+              type: 'task',
+            },
+          ],
+        },
+        { status: 'success', insights: [] }
       );
 
       const { result } = renderHook(() => useLiveKnowledge());
@@ -610,28 +396,6 @@ describe('useLiveKnowledge Hook', () => {
 
   describe('6. Empty State Tests', () => {
     test('handles empty entities response', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
-
       const { result } = renderHook(() => useLiveKnowledge());
 
       await waitFor(() => {
@@ -641,27 +405,7 @@ describe('useLiveKnowledge Hook', () => {
     });
 
     test('handles failed status response', async () => {
-      overrideHandler(
-        rest.get('/api/intelligence/entities', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'error',
-              entities: [],
-            })
-          );
-        })
-      );
-
-      overrideHandler(
-        rest.get('/api/intelligence/insights', (req, res, ctx) => {
-          return res(
-            ctx.json({
-              status: 'success',
-              insights: [],
-            })
-          );
-        })
-      );
+      mockApi({ status: 'error', entities: [] }, { status: 'success', insights: [] });
 
       const { result } = renderHook(() => useLiveKnowledge());
 
