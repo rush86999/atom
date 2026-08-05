@@ -153,6 +153,52 @@ async def disable_2fa(
     else:
         raise router.validation_error("code", "Invalid verification code")
 
+
+class BackupCodeRequest(BaseModel):
+    code: str
+
+
+@router.post("/backup/verify")
+async def verify_backup_code(
+    request: Request,
+    verify_data: BackupCodeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Verify and CONSUME a single-use backup code (BUG-074).
+
+    Previously backup codes were generated and returned to the user but never
+    consumed — the same code could be replayed infinitely. Now the code is
+    removed from the user's list after successful verification.
+    """
+    if not current_user.two_factor_enabled:
+        raise router.validation_error("two_factor_enabled", "2FA is not enabled")
+
+    codes = current_user.two_factor_backup_codes or []
+    if verify_data.code not in codes:
+        raise router.validation_error("code", "Invalid backup code")
+
+    # Consume: remove the used code so it can't be replayed.
+    current_user.two_factor_backup_codes = [c for c in codes if c != verify_data.code]
+    db.commit()
+
+    audit_service.log_event(
+        db,
+        event_type=AuditEventType.UPDATE.value,
+        action="2fa_backup_code_used",
+        description=f"2FA backup code used for user: {current_user.email}",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        security_level=SecurityLevel.HIGH.value,
+        request=request,
+    )
+
+    return router.success_response(
+        message="Backup code verified and consumed",
+        data={"remaining_codes": len(current_user.two_factor_backup_codes)},
+    )
+
+
 class Action2FAVerifyRequest(BaseModel):
     code: str
 

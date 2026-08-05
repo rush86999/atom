@@ -150,6 +150,24 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
         }
     }, [selectedModel]);
 
+    // BUG-077: Stop mic + AudioContext + animation frame on unmount.
+    // Previously no cleanup ran, so the mic stayed on and the detection
+    // interval kept firing setState on an unmounted component.
+    useEffect(() => {
+        return () => {
+            // Stop any active audio
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+            }
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                audioContextRef.current.close();
+            }
+        };
+    }, []);
+
     const initializeAudio = async (): Promise<boolean> => {
         try {
             setIsLoading(true);

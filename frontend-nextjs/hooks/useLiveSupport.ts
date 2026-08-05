@@ -20,7 +20,10 @@ export function useLiveSupport() {
         try {
             setIsLoading(true);
             setError(null);
-            const response = await fetch(`${API_BASE}/api/atom/communication/live/support/tickets`);
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+            const response = await fetch(`${API_BASE}/api/atom/communication/live/support/tickets`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
             if (response.ok) {
                 const data = await response.json();
                 setTickets(Array.isArray(data.tickets) ? data.tickets : (Array.isArray(data) ? data : []));

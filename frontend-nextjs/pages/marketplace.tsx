@@ -219,7 +219,7 @@ export default function MarketplacePage() {
                                     <Badge variant="outline" className="mb-2">{formatCategory(template.category)}</Badge>
                                     <div className="flex items-center text-yellow-500 text-sm">
                                         <Star className="h-3 w-3 fill-current mr-1" />
-                                        {template.rating.toFixed(1)}
+                                        {(template.rating ?? 0).toFixed(1)}
                                     </div>
                                 </div>
                                 <CardTitle className="line-clamp-1">{template.name}</CardTitle>
@@ -302,7 +302,7 @@ export default function MarketplacePage() {
                                 <div className="text-center">
                                     <div className="text-xs text-muted-foreground uppercase font-bold">Rating</div>
                                     <div className="font-medium flex items-center justify-center gap-1">
-                                        {previewTemplate?.rating.toFixed(1)} <Star className="w-3 h-3 fill-current text-yellow-500" />
+                                        {(previewTemplate?.rating ?? 0).toFixed(1)} <Star className="w-3 h-3 fill-current text-yellow-500" />
                                     </div>
                                 </div>
                             </div>

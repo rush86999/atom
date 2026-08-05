@@ -120,10 +120,12 @@ class ReconciliationService:
         """Flag a transaction for manual review"""
         transaction = self.db.query(Transaction).filter(Transaction.id == transaction_id).first()
         if transaction:
-            if not transaction.metadata_json:
-                transaction.metadata_json = {}
-            transaction.metadata_json["anomaly_flag"] = True
-            transaction.metadata_json["anomaly_reason"] = reason
+            # BUG-075: In-place mutation of a plain JSON column is not tracked
+            # by SQLAlchemy's ORM. Must reassign the whole dict to mark it dirty.
+            meta = dict(transaction.metadata_json or {})
+            meta["anomaly_flag"] = True
+            meta["anomaly_reason"] = reason
+            transaction.metadata_json = meta
             self.db.commit()
             return True
         return False
