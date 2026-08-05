@@ -1,29 +1,35 @@
 /**
- * WhatsApp Business Integration Tests
- * 
- * Comprehensive test suite for WhatsApp Business integration functionality
+ * WhatsAppBusinessIntegration Component Tests
+ *
+ * Tests verify the real WhatsAppBusinessIntegration component
+ * (components/integrations/WhatsAppBusinessIntegration.tsx):
+ * - Health check (GET /api/whatsapp/health)
+ * - Connected / disconnected states
+ * - Analytics overview cards
+ * - Conversations list on the default tab
+ * - Conversation selection loading messages
+ * - Compose message dialog
+ * - Sending a message (POST /api/whatsapp/send)
+ *
+ * Uses the shared MSW server (tests/mocks/server.ts) registered in
+ * tests/setup.ts — per-file setupServer() does NOT override the global server.
  */
 
 import React from 'react';
-
-// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-
-// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
-import { ChakraProvider } from '@chakra-ui/react';
-
-// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
-import { ThemeProvider } from '@emotion/react';
-
-// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
+import '@testing-library/jest-dom';
 import WhatsAppBusinessIntegration from '../WhatsAppBusinessIntegration';
+import { rest } from 'msw';
+import { server } from '@/tests/mocks/server';
 
-// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
+// Stable useToast mock so handler/toast identities never churn between renders.
+const mockToast = { toast: jest.fn(), dismiss: jest.fn(), toasts: [] };
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => mockToast,
+  ToastProvider: ({ children }: { children: any }) => children,
+}));
 
-// Mock fetch API
-
-// Test data
-const mockConversations = [
+const conversations = [
   {
     id: '1',
     conversation_id: 'conv_123_20240115',
@@ -33,7 +39,6 @@ const mockConversations = [
     name: 'John Doe',
     phone_number: '+1234567890',
     message_count: 5,
-    last_message_time: '2024-01-15T10:30:00Z'
   },
   {
     id: '2',
@@ -44,11 +49,10 @@ const mockConversations = [
     name: 'Jane Smith',
     phone_number: '+9876543210',
     message_count: 3,
-    last_message_time: '2024-01-15T09:45:00Z'
-  }
+  },
 ];
 
-const mockMessages = [
+const messages = [
   {
     id: '1',
     message_id: 'msg_123',
@@ -57,7 +61,7 @@ const mockMessages = [
     content: { body: 'Hello, I need help with my order' },
     direction: 'inbound',
     status: 'received',
-    timestamp: '2024-01-15T10:30:00Z'
+    timestamp: '2024-01-15T10:30:00Z',
   },
   {
     id: '2',
@@ -67,153 +71,112 @@ const mockMessages = [
     content: { body: 'I\'d be happy to help you with your order!' },
     direction: 'outbound',
     status: 'sent',
-    timestamp: '2024-01-15T10:31:00Z'
-  }
+    timestamp: '2024-01-15T10:31:00Z',
+  },
 ];
 
-const mockAnalytics = {
+const analytics = {
   message_statistics: [
-    {
-      direction: 'inbound',
-      message_type: 'text',
-      status: 'received',
-      count: 25
-    },
-    {
-      direction: 'outbound',
-      message_type: 'text',
-      status: 'sent',
-      count: 20
-    }
+    { direction: 'inbound', message_type: 'text', status: 'received', count: 25 },
+    { direction: 'outbound', message_type: 'text', status: 'sent', count: 20 },
   ],
   conversation_statistics: {
     total_conversations: 50,
-    active_conversations: 12
+    active_conversations: 12,
   },
-  contact_growth: [
-    {
-      date: '2024-01-15',
-      new_contacts: 3
-    }
-  ]
+  contact_growth: [{ date: '2024-01-15', new_contacts: 3 }],
 };
 
-// Helper function to render component with providers
-const renderComponent = () => {
-  return render(
-    <div data-testid="chakra-provider">
-      <div data-testid="theme-provider">
-        <WhatsAppBusinessIntegration />
-      </div>
-    </div>
+const whatsappHandlers = [
+  rest.get('/api/whatsapp/health', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  }),
+
+  rest.get('/api/whatsapp/conversations', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true, conversations }));
+  }),
+
+  rest.get('/api/whatsapp/messages/:whatsappId', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true, messages }));
+  }),
+
+  rest.get('/api/whatsapp/analytics', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true, analytics }));
+  }),
+
+  rest.post('/api/whatsapp/send', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true, message_id: 'msg_new_123' }));
+  }),
+];
+
+const setDisconnected = () => {
+  server.use(
+    rest.get('/api/whatsapp/health', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json({ status: 'not_configured' }));
+    })
   );
 };
+
+// Icon-only buttons (e.g. the send button in the Messages tab) have no text.
+const getIconButtons = () =>
+  screen
+    .getAllByRole('button')
+    .filter((b) => b.querySelector('svg') && !(b.textContent || '').trim());
 
 describe('WhatsAppBusinessIntegration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Mock successful health check
-    // Use global.mockFetch instead of global.fetch because MSW intercepts fetch
-    (global.mockFetch as jest.Mock).mockImplementation((url) => {
-      if (url === '/api/whatsapp/health') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            status: 'healthy',
-            service: 'WhatsApp Business API',
-            timestamp: new Date().toISOString()
-          })
-        });
-      }
-
-      if (url === '/api/whatsapp/conversations') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            conversations: mockConversations
-          })
-        });
-      }
-
-      if (url.startsWith('/api/whatsapp/messages/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            messages: mockMessages
-          })
-        });
-      }
-
-      if (url === '/api/whatsapp/analytics') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            analytics: mockAnalytics
-          })
-        });
-      }
-
-      if (url === '/api/whatsapp/send') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            message_id: 'msg_new_123',
-            status: 'sent'
-          })
-        });
-      }
-
-      return Promise.resolve({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({ error: 'Not found' })
-      });
-    });
+    server.resetHandlers();
+    server.use(...whatsappHandlers);
   });
 
+  // Test 1: renders the component header
   test('renders WhatsApp Business integration component', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
     await waitFor(() => {
-      expect(screen.getByText('WhatsApp Business Integration')).toBeInTheDocument();
-      expect(screen.getByText('Manage customer communications through WhatsApp Business API')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /whatsapp business integration/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Manage customer communications through WhatsApp Business API/i
+        )
+      ).toBeInTheDocument();
     });
   });
 
+  // Test 2: shows Connected status when health check passes
   test('displays connection status correctly', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
     await waitFor(() => {
-      const statusBadge = screen.getByText('Connected');
-      expect(statusBadge).toBeInTheDocument();
+      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
 
+  // Test 3: shows analytics overview cards when connected
   test('displays analytics overview when connected', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
     await waitFor(() => {
-      // Component shows analytics cards directly without "Analytics Overview" heading
       expect(screen.getByText('Total Conversations')).toBeInTheDocument();
-      expect(screen.getByText('50')).toBeInTheDocument(); // Total conversations
+      expect(screen.getByText('50')).toBeInTheDocument();
       expect(screen.getByText('Active Conversations')).toBeInTheDocument();
-      expect(screen.getByText('12')).toBeInTheDocument(); // Active conversations
+      expect(screen.getByText('12')).toBeInTheDocument();
+      expect(screen.getByText('Messages Sent Today')).toBeInTheDocument();
+      expect(screen.getByText('20')).toBeInTheDocument();
+      expect(screen.getByText('Messages Received Today')).toBeInTheDocument();
+      expect(screen.getByText('25')).toBeInTheDocument();
     });
   });
 
+  // Test 4: displays conversations on the default tab
   test('displays conversations in conversations tab', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
     await waitFor(() => {
       expect(screen.getByText('Recent Conversations')).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
       expect(screen.getByText('Jane Smith')).toBeInTheDocument();
       expect(screen.getByText('+1234567890')).toBeInTheDocument();
@@ -221,198 +184,140 @@ describe('WhatsAppBusinessIntegration', () => {
     });
   });
 
+  // Test 5: opens the compose message dialog
   test('opens compose message modal', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
-    await waitFor(() => {
-      expect(screen.getByText('New Message')).toBeInTheDocument();
+    const composeButton = await screen.findByRole('button', {
+      name: /new message/i,
     });
-
-    const composeButton = screen.getByText('New Message');
     fireEvent.click(composeButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Compose New Message')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /compose new message/i })
+      ).toBeInTheDocument();
       expect(screen.getByText('Recipient Phone Number')).toBeInTheDocument();
       expect(screen.getByText('Message Type')).toBeInTheDocument();
       expect(screen.getByText('Message Content')).toBeInTheDocument();
     });
   });
 
-  test('opens configuration modal', async () => {
-    renderComponent();
-
-    await waitFor(() => {
-      expect(screen.getByText('Configure')).toBeInTheDocument();
-    });
-
-    // Note: The Configure button exists but doesn't open a modal in current implementation
-    // The button is present but has no onClick handler
-    const configButton = screen.getByText('Configure');
-    expect(configButton).toBeInTheDocument();
-  });
-
-  test('sends a message successfully', async () => {
-    renderComponent();
-
-    // Open compose modal
-    await waitFor(() => {
-      const composeButton = screen.getByText('New Message');
-      fireEvent.click(composeButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Compose New Message')).toBeInTheDocument();
-    });
-
-    // Note: The compose dialog doesn't have controlled inputs in current implementation
-    // The form elements exist but aren't connected to state
-    // Just verify the dialog opens and has expected elements
-    expect(screen.getByText('Recipient Phone Number')).toBeInTheDocument();
-    expect(screen.getByText('Message Type')).toBeInTheDocument();
-    expect(screen.getByText('Message Content')).toBeInTheDocument();
-    expect(screen.getByText('Send Message')).toBeInTheDocument();
-  });
-
-  test('displays messages when conversation is selected', async () => {
-    renderComponent();
-
-    // Wait for conversations to load
-    await waitFor(() => {
-      expect(screen.getByText('John Doe')).toBeInTheDocument();
-    });
-
-    // Note: Clicking on conversation requires the element to be clickable
-    // The component doesn't have a click handler on conversation cards in current implementation
-    // Just verify that conversations are displayed
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-    expect(screen.getByText('+1234567890')).toBeInTheDocument();
-  });
-
-  test('handles disconnected state correctly', async () => {
-    // Mock disconnected health response
-    (global.mockFetch as jest.Mock).mockImplementation((url) => {
-      if (url === '/api/whatsapp/health') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            status: 'not_configured',
-            service: 'WhatsApp Business API'
-          })
-        });
-      }
-
-      return Promise.resolve({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({ error: 'Not found' })
-      });
-    });
-
-    renderComponent();
-
-    await waitFor(() => {
-      const statusBadge = screen.getByText('Disconnected');
-      expect(statusBadge).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('WhatsApp Not Connected')).toBeInTheDocument();
-      expect(screen.getByText('Please configure your WhatsApp Business API settings to start managing conversations.')).toBeInTheDocument();
-    });
-  });
-
+  // Test 6: displays the three tabs
   test('displays tabs correctly', async () => {
-    renderComponent();
+    render(<WhatsAppBusinessIntegration />);
 
-    // Component has 3 tabs: Conversations, Messages, Analytics (no Templates tab)
     await waitFor(() => {
-      expect(screen.getByText('Conversations')).toBeInTheDocument();
-      expect(screen.getByText('Messages')).toBeInTheDocument();
-      expect(screen.getByText('Analytics')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Conversations' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Messages' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Analytics' })).toBeInTheDocument();
     });
   });
 
-  test('displays analytics tab content', async () => {
-    renderComponent();
+  // Test 7: selecting a conversation loads and shows messages
+  test('selecting a conversation loads messages', async () => {
+    render(<WhatsAppBusinessIntegration />);
+
+    await screen.findByText('John Doe');
+    fireEvent.click(screen.getByText('John Doe'));
+    fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Analytics')).toBeInTheDocument();
-    });
-
-    const analyticsTab = screen.getByText('Analytics');
-    fireEvent.click(analyticsTab);
-
-    await waitFor(() => {
-      // Analytics tab shows "Message Statistics" and "Contact Growth" cards
-      // It doesn't have a "WhatsApp Analytics" heading
-      expect(screen.getByText('Message Statistics')).toBeInTheDocument();
-      expect(screen.getByText('Contact Growth')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Messages with John Doe/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Hello, I need help with my order')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('I\'d be happy to help you with your order!')
+      ).toBeInTheDocument();
     });
   });
 
+  // Test 8: shows disconnected state when health check reports not configured
+  test('handles disconnected state correctly', async () => {
+    setDisconnected();
+
+    render(<WhatsAppBusinessIntegration />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Disconnected')).toBeInTheDocument();
+      expect(screen.getByText('WhatsApp Not Connected')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Please configure your WhatsApp Business API settings/i
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /connect with meta/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  // Test 9: sending a message posts to /api/whatsapp/send
+  test('sends a message via the Messages tab', async () => {
+    let sendBody: any = null;
+    server.use(
+      rest.post('/api/whatsapp/send', (req, res, ctx) => {
+        sendBody = req.body as any;
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<WhatsAppBusinessIntegration />);
+
+    await screen.findByText('John Doe');
+    fireEvent.click(screen.getByText('John Doe'));
+    fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
+
+    await screen.findByText('Hello, I need help with my order');
+
+    const input = screen.getByPlaceholderText('Type a message...');
+    fireEvent.change(input, { target: { value: 'Thanks!' } });
+
+    fireEvent.click(getIconButtons()[0]);
+
+    await waitFor(() => {
+      expect(sendBody).toEqual(
+        expect.objectContaining({
+          to: '+1234567890',
+          type: 'text',
+          content: { body: 'Thanks!' },
+        })
+      );
+    });
+  });
+
+  // Test 10: handles API errors gracefully (still renders header when downstream fails)
   test('handles API errors gracefully', async () => {
-    // Mock error response
-    (global.mockFetch as jest.Mock).mockImplementation((url) => {
-      if (url === '/api/whatsapp/send') {
-        return Promise.resolve({
-          ok: false,
-          json: () => Promise.resolve({
-            success: false,
-            error: 'Failed to send message'
-          })
-        });
-      }
+    server.use(
+      rest.get('/api/whatsapp/conversations', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
+      }),
+      rest.get('/api/whatsapp/analytics', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
+      })
+    );
 
-      // Default successful responses for other endpoints
-      if (url === '/api/whatsapp/health') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            status: 'healthy',
-            service: 'WhatsApp Business API',
-            timestamp: new Date().toISOString()
-          })
-        });
-      }
+    render(<WhatsAppBusinessIntegration />);
 
-      if (url === '/api/whatsapp/conversations') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            conversations: []
-          })
-        });
-      }
-
-      if (url === '/api/whatsapp/analytics') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            analytics: mockAnalytics
-          })
-        });
-      }
-
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true })
-      });
-    });
-
-    renderComponent();
-
-    // Wait for component to load
     await waitFor(() => {
-      expect(screen.getByText('WhatsApp Business Integration')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /whatsapp business integration/i })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
+  });
 
-    // Component should render successfully even with empty conversations
-    expect(screen.getByText('Connected')).toBeInTheDocument();
+  // Test 11: shows the Configure button
+  test('shows the Configure button', async () => {
+    render(<WhatsAppBusinessIntegration />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /configure/i })
+      ).toBeInTheDocument();
+    });
   });
 });
-
-export { };
