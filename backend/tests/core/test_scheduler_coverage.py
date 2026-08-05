@@ -443,18 +443,36 @@ class TestSchedulerErrors:
     """Test error handling and edge cases in scheduler."""
 
     def test_schedule_job_invalid_cron_format(self, scheduler_instance):
-        """Test scheduling job with invalid cron format."""
+        """An invalid cron expression MUST be rejected, not silently scheduled.
+
+        Previously an invalid cron (not 5 fields) left trigger_args={} and
+        APScheduler created a job with an empty CronTrigger that defaults all
+        fields to '*' — firing every second forever (runaway execution storm).
+        """
         mock_func = MagicMock()
 
-        # Should handle gracefully
+        # Invalid cron must NOT create a job — it should return None or raise.
         job_id = scheduler_instance.schedule_job(
             agent_id="agent-123",
             cron_expression="invalid",  # Invalid format
             func=mock_func
         )
 
-        # APScheduler may still create job, just with incorrect trigger
-        assert job_id is not None
+        # The job must NOT have been scheduled (no runaway every-second trigger).
+        assert job_id is None, (
+            "Invalid cron expression was scheduled instead of rejected — this "
+            "creates an empty CronTrigger that fires every second forever."
+        )
+
+    def test_schedule_job_too_few_cron_fields_rejected(self, scheduler_instance):
+        """A cron with != 5 fields must be rejected (e.g. 4 fields)."""
+        mock_func = MagicMock()
+        job_id = scheduler_instance.schedule_job(
+            agent_id="agent-456",
+            cron_expression="0 9 * *",  # only 4 fields
+            func=mock_func
+        )
+        assert job_id is None
 
     def test_execute_and_log_database_error(self, scheduler_instance):
         """Test handling database errors during job logging."""

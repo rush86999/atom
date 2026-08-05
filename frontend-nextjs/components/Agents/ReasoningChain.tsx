@@ -41,12 +41,10 @@ const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: Rea
     const [comment, setComment] = useState(localFeedback?.comment || "");
 
     const handleSubmit = () => {
-        onFeedback('thumbs_down', comment); // Defaulting to negative feedback when commenting, or should I let them choose?
-        // Upstream implementation seems to imply "Submit" on comment is usually correction (thumbs_down) or just generic.
-        // But wait, upstream allows ThumbsUp/Down independent of comment.
-        // Let's support both. If they click submit here, we'll keep existing type or default to 'thumbs_down' if none.
-        // Actually, upstream lines 224: `onFeedback(message.id, 'thumbs_down', comment);` -> It hardcodes thumbs_down on submit!
-        // I will do the same for parity, assuming comments = corrections.
+        // Submit a correction (thumbs_down) with the comment. Previously
+        // onFeedback was called twice (line 44 + 50), sending duplicate
+        // feedback POSTs (BUG-036).
+        // Comments = corrections: upstream hardcodes thumbs_down on submit.
         onFeedback('thumbs_down', comment);
         setShowComment(false);
     };

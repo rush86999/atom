@@ -86,6 +86,17 @@ class AgentScheduler:
                     'day_of_week': parts[4]
                 }
 
+        # Reject invalid cron: an empty trigger_args would make APScheduler
+        # create a job with an empty CronTrigger that defaults ALL fields to
+        # '*' — firing every second forever (runaway execution storm).
+        if not trigger_args:
+            logger.error(
+                f"Rejected schedule for agent {agent_id}: invalid cron expression "
+                f"{cron_expression!r} (must be a dict or a 5-field cron string). "
+                f"An empty trigger would fire every second."
+            )
+            return None
+
         self.scheduler.add_job(
             managed_execution,
             'cron',

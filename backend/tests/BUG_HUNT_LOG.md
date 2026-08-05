@@ -357,3 +357,46 @@ written first (red), the root cause confirmed, then the minimal fix applied
 - **Fix:** Switched to AES-256-GCM (authenticated). Format is now
   `iv_hex:tag_hex:ciphertext_hex`; the auth tag is verified on decrypt, so any
   tampering throws.
+
+---
+
+## Round 7 — End-to-end TDD bug hunt (scheduler runaway + tool path safety + WS robustness)
+
+### BUG-032 — Scheduler fires every second on invalid cron (runaway execution storm)
+- **Flow:** Agent scheduler / cron triggers (backend)
+- **Symptom:** An invalid cron expression (not 5 fields, e.g. "invalid", "@daily",
+  or a 4-field typo) left `trigger_args={}`, and `add_job(..., 'cron', **{})`
+  created a job with an empty `CronTrigger` that defaults ALL fields to `*` —
+  firing every second forever, spawning an AgentJob DB row per second.
+- **Test:** `tests/core/test_scheduler_coverage.py::TestSchedulerErrors` (invalid→None, 4-fields→None)
+- **Fix:** Reject invalid cron (return None + log error) before calling `add_job`.
+
+### BUG-033 — Arbitrary file read via verify_citation tool
+- **Flow:** MCP tool dispatch (backend, security)
+- **Symptom:** The `verify_citation` tool's path whitelist included `/Users`
+  (every home directory), then opened and returned the first 500 chars of any
+  file under it. An agent could read `~/.ssh/id_rsa`, `.env` files, etc.
+- **Test:** `tests/test_mcp_tool_paths.py::TestVerifyCitationPathSafety`
+- **Fix:** Restricted the whitelist to `/tmp/` only.
+
+### BUG-034 — Path traversal in generate_pdf_report tool
+- **Flow:** MCP tool dispatch (backend, security)
+- **Symptom:** `os.path.join("/tmp", filename)` discarded `/tmp` when `filename`
+  was absolute (`/etc/cron.d/evil`) or contained `../`. The agent-controlled
+  filename determined the write path → arbitrary file write/overwrite.
+- **Test:** `tests/test_mcp_tool_paths.py::TestGeneratePdfReportPathSafety`
+- **Fix:** Sanitize to `os.path.basename(filename)` before joining.
+
+### BUG-035 — CommentSection crashes on malformed WebSocket frame
+- **Flow:** Collaborative comments (frontend WS)
+- **Symptom:** `JSON.parse(event.data)` had no try/catch. A single non-JSON
+  frame (keepalive, proxy error, partial) threw synchronously, killing the
+  `onmessage` handler and permanently deafening the comment channel.
+- **Fix:** Wrapped JSON.parse in try/catch (mirrors CollaborativeCursor.tsx).
+
+### BUG-036 — ReasoningChain submits duplicate feedback on correction
+- **Flow:** Agent reasoning feedback (frontend)
+- **Symptom:** `handleSubmit` called `onFeedback('thumbs_down', comment)` twice
+  (lines 44 + 50), sending two identical feedback POSTs and double-counting in
+  local state per submit.
+- **Fix:** Removed the duplicate call.

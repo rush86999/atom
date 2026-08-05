@@ -42,7 +42,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
         };
 
         socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+            // Wrap JSON.parse in try/catch — a single non-JSON frame
+            // (keepalive, proxy error, partial) would throw synchronously,
+            // killing the onmessage handler and permanently deafening the
+            // comment channel. Mirrors CollaborativeCursor.tsx's pattern.
+            let data;
+            try {
+                data = JSON.parse(event.data);
+            } catch {
+                return; // ignore non-JSON frames (ping/pong/proxy noise)
+            }
             if (data.type === 'comment' || data.type === 'message') {
                 setMessages(prev => [...prev, {
                     id: data.id || Date.now().toString(),

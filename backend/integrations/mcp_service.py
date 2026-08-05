@@ -2120,12 +2120,14 @@ class MCPService(IntegrationService):
             elif tool_name == "verify_citation":
                 path = arguments.get("path")
                 if not path: return "Error: Path required"
-                
-                # Security check (Phase 41): Don't allow agents to read arbitrary system files
-                # Simple check: must be in workspace or whitelisted
-                if not (path.startswith("/app") or path.startswith("/Users") or path.startswith("/tmp")): 
-                    return "Error: Access denied to system paths."
-                
+
+                # Security check (Phase 41 + BUG-033): Don't allow agents to read
+                # arbitrary system files. The old whitelist included "/Users"
+                # (every home dir), allowing reads of ~/.ssh/id_rsa, .env, etc.
+                # Now restricted to /tmp only — sensitive home/app dirs are denied.
+                if not path.startswith("/tmp/"):
+                    return "Error: Access denied. Citation verification is restricted to /tmp paths."
+
                 # Check existence
                 if os.path.exists(path):
                     try:
@@ -2300,7 +2302,14 @@ class MCPService(IntegrationService):
                 from fpdf import FPDF
                 pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
                 for line in arguments.get("content", "").split('\n'): pdf.multi_cell(0, 10, txt=line)
-                target_path = os.path.join("/tmp", arguments.get("filename", "report.pdf"))
+                # Sanitize filename to its basename to prevent path traversal
+                # (BUG-034): os.path.join("/tmp", "/etc/x") == "/etc/x" because
+                # an absolute second arg discards the base. Take only the name.
+                raw_filename = arguments.get("filename", "report.pdf")
+                safe_filename = os.path.basename(raw_filename) or "report.pdf"
+                if not safe_filename.endswith(".pdf"):
+                    safe_filename += ".pdf"
+                target_path = os.path.join("/tmp", safe_filename)
                 pdf.output(target_path)
                 return {"status": "success", "file_path": target_path}
 
