@@ -468,7 +468,9 @@ describe('Form Validation Tests', () => {
       render(<MockForm />);
 
       const passwordInput = screen.getByTestId('password-input');
-      fireEvent.change(passwordInput, { target: { value: 'weak' } });
+      // minLength (8) is checked before the custom rule, so use a value that
+      // satisfies length but fails the strength regex (lowercase-only).
+      fireEvent.change(passwordInput, { target: { value: 'abcdefgh' } });
       fireEvent.blur(passwordInput);
 
       await waitFor(() => {
