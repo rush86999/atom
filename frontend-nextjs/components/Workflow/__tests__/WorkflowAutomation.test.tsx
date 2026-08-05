@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
-import WorkflowAutomation from '../WorkflowAutomation';
+import WorkflowAutomation from '@/components/WorkflowAutomation';
 
 // Mock useToast hook
 jest.mock('@/components/ui/use-toast', () => ({
@@ -20,7 +20,7 @@ jest.mock('next/router', () => ({
 }));
 
 // Mock WorkflowBuilder component
-jest.mock('../Automations/WorkflowBuilder', () => {
+jest.mock('@/components/Automations/WorkflowBuilder', () => {
   return function MockWorkflowBuilder(props: any) {
     return (
       <div data-testid="workflow-builder">

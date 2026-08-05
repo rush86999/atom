@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { LinearIntegration } from '../LinearIntegration';
+import LinearIntegration from '@/components/LinearIntegration';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 
