@@ -117,8 +117,9 @@ export function KanbanBoard({ board }: Props) {
                 onTaskClick={(t) => setOpenTaskId(t.id)}
                 onAddTask={(col) => {
                   const title = window.prompt(`New task in ${col.name}`);
-                  if (!title) return;
-                  createTask.mutate({ title, column_id: col.id });
+                  // BUG-128: Trim + reject whitespace-only titles.
+                  if (!title || !title.trim()) return;
+                  createTask.mutate({ title: title.trim(), column_id: col.id });
                 }}
               />
             ))}

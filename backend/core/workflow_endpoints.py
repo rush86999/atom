@@ -189,7 +189,6 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
     schema on the fly.
     """
     try:
-        from core.database import get_db
         from core.models import WorkflowTemplate
 
         db = next(get_db())
@@ -631,17 +630,11 @@ async def execute_workflow(
         )
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}")
-        # Generate a temporary ID for error reporting if start_workflow failed before returning ID
-        temp_id = str(uuid.uuid4())
-        return ExecutionResult(
-            execution_id=temp_id,
-            workflow_id=workflow_id,
-            status="failed",
-            started_at=started_at,
-            completed_at=datetime.now().isoformat(),
-            results=[],
-            errors=["Internal error"]
-        )
+        # BUG-126: Previously returned HTTP 200 with a phantom execution_id
+        # that was never persisted → frontend showed "Started" + spun forever.
+        # Now returns a proper error response.
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
 @router.post("/workflows/{execution_id}/resume")
 async def resume_workflow(
@@ -840,6 +833,10 @@ async def schedule_workflow(
     # MCP steps up front so members cannot queue terminal workflows.
     workflows = load_workflows()
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
+    if not workflow:
+        # DB templates (WorkflowTemplate) live outside workflows.json — the
+        # same fallback execute_workflow uses, so templates are schedulable.
+        workflow = _load_template_definition(workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     # Node-based definitions: resolve nodes → steps before gating.

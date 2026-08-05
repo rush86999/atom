@@ -201,7 +201,11 @@ async def present_chart(
                         "title": title,
                         "data_points": len(data),
                         "chart_type": chart_type,
-                        "session_id": session_id
+                        "session_id": session_id,
+                        # BUG-127: Persist the actual chart data array so
+                        # read_canvas can restore the chart on reload.
+                        "content": data,
+                        "chart_config": {"type": chart_type, "title": title}
                     }
                 )
 
