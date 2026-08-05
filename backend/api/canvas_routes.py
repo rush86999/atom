@@ -223,6 +223,14 @@ async def get_canvas_history(
 
     try:
         with get_db_session() as db:
+            # BUG-071: Verify ownership before returning audit history.
+            # Previously any authenticated user could read another user's
+            # canvas edit history by supplying the canvas_id.
+            from core.models import Canvas
+            canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            if canvas is None or canvas.created_by != str(current_user.id):
+                raise HTTPException(status_code=404, detail="Canvas not found")
+
             audits = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
             ).order_by(desc(CanvasAudit.created_at)).limit(50).all()

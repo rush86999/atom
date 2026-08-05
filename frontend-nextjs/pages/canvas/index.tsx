@@ -30,18 +30,29 @@ const CANVAS_TYPE_ICONS: Record<string, React.ReactNode> = {
 
 export default function CanvasIndexPage() {
     const [canvases, setCanvases] = useState<CanvasSummary[]>([]);
+    const [allCanvases, setAllCanvases] = useState<CanvasSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState<string | null>(null);
 
     const fetchCanvases = useCallback(async () => {
         try {
             const { apiClient } = await import("../../lib/api-client");
-            const params = filterType ? `?canvas_type=${filterType}` : "";
-            const resp = await apiClient.get(`/api/canvas/${params}`);
-            const data = (resp as any).data || resp;
-            setCanvases(data.canvases || []);
+            // Always fetch the unfiltered list first to keep type-count buttons
+            // stable regardless of active filter (BUG-073: previously the filter
+            // refetch returned only the filtered type, making other buttons vanish).
+            const allResp = await apiClient.get(`/api/canvas/`);
+            const allData = (allResp as any).data || allResp;
+            const all = allData.canvases || [];
+            setAllCanvases(all);
+
+            if (filterType) {
+                setCanvases(all.filter((c: CanvasSummary) => c.canvas_type === filterType));
+            } else {
+                setCanvases(all);
+            }
         } catch {
             setCanvases([]);
+            setAllCanvases([]);
         } finally {
             setLoading(false);
         }
@@ -49,7 +60,9 @@ export default function CanvasIndexPage() {
 
     useEffect(() => { fetchCanvases(); }, [fetchCanvases]);
 
-    const typeCounts = canvases.reduce((acc, c) => {
+    // Derive type counts from ALL canvases (not the filtered subset) so the
+    // filter buttons persist regardless of the active filter.
+    const typeCounts = allCanvases.reduce((acc, c) => {
         acc[c.canvas_type] = (acc[c.canvas_type] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
@@ -72,7 +85,7 @@ export default function CanvasIndexPage() {
                         size="sm"
                         onClick={() => setFilterType(null)}
                     >
-                        All ({canvases.length})
+                        All ({allCanvases.length})
                     </Button>
                     {Object.entries(typeCounts).map(([type, count]) => (
                         <Button

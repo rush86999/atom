@@ -100,16 +100,27 @@ class EventSourcedLedger:
         Calculate the current balance of an account.
         Asset/Expense: Debit - Credit
         Liability/Equity/Revenue: Credit - Debit
+
+        BUG-070: Previously summed ALL JournalEntry rows with no filter on the
+        parent Transaction.status. PENDING/DRAFT transactions (the default for
+        auto-imported entries) polluted the balance. Now joins to Transaction
+        and filters to POSTED status only.
         """
         account = self.db.query(Account).filter(Account.id == account_id).first()
         if not account:
             return Decimal('0.00')
 
-        # Sum debits and credits
+        # Sum debits and credits — only for POSTED transactions
+        from accounting.models import Transaction, TransactionStatus
         totals = self.db.query(
             JournalEntry.type,
             func.sum(JournalEntry.amount).label("total")
-        ).filter(JournalEntry.account_id == account_id).group_by(JournalEntry.type).all()
+        ).join(
+            Transaction, JournalEntry.transaction_id == Transaction.id
+        ).filter(
+            JournalEntry.account_id == account_id,
+            Transaction.status == TransactionStatus.POSTED
+        ).group_by(JournalEntry.type).all()
 
         debit_total = Decimal('0.00')
         credit_total = Decimal('0.00')

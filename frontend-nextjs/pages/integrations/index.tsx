@@ -517,6 +517,16 @@ const IntegrationsPage: React.FC = () => {
         teams: "/api/integrations/teams/health",
         "zoho-workdrive": "/api/zoho-workdrive/health",
         zoho: "/api/zoho-workdrive/health",
+        // BUG-072: 8 integrations were missing from this map, causing them
+        // to always show "error" / unconnected even when healthy.
+        onedrive: "/api/integrations/onedrive/health",
+        trello: "/api/integrations/trello/health",
+        "google-workspace": "/api/integrations/google-workspace/health",
+        gitlab: "/api/integrations/gitlab/health",
+        intercom: "/api/integrations/intercom/health",
+        freshdesk: "/api/integrations/freshdesk/health",
+        mailchimp: "/api/integrations/mailchimp/health",
+        tableau: "/api/integrations/tableau/health",
       };
 
       const healthResults: Record<string, boolean> = {};
