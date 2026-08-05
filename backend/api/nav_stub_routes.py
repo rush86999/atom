@@ -95,6 +95,7 @@ async def list_support_tickets(
         from core.models import SupportTicket
         tickets = (
             db.query(SupportTicket)
+            .filter(SupportTicket.user_id == str(current_user.id))
             .order_by(SupportTicket.created_at.desc())
             .limit(50)
             .all()

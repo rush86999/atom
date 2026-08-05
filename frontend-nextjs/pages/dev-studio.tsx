@@ -420,20 +420,20 @@ const DevStudio = () => {
                                     {systemInfo ? (
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
-                                                <span className="font-medium">Platform:</span>
-                                                <Badge variant="secondary">{systemInfo.platform}</Badge>
+                                                <span className="font-medium">OS:</span>
+                                                <Badge variant="secondary">{systemInfo.os || 'Unknown'}</Badge>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="font-medium">Architecture:</span>
-                                                <Badge variant="outline">{systemInfo.architecture}</Badge>
+                                                <span className="font-medium">CPU Usage:</span>
+                                                <Badge variant="outline">{systemInfo.cpu_usage != null ? `${systemInfo.cpu_usage}%` : 'N/A'}</Badge>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="font-medium">Version:</span>
-                                                <span>{systemInfo.version}</span>
+                                                <span className="font-medium">Memory Usage:</span>
+                                                <Badge variant="outline">{systemInfo.memory_usage != null ? `${systemInfo.memory_usage}%` : 'N/A'}</Badge>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="font-medium">Tauri Version:</span>
-                                                <span>{systemInfo.tauri_version}</span>
+                                                <span className="font-medium">Disk Usage:</span>
+                                                <Badge variant="outline">{systemInfo.disk_usage != null ? `${systemInfo.disk_usage}%` : 'N/A'}</Badge>
                                             </div>
                                         </div>
                                     ) : (
@@ -449,27 +449,20 @@ const DevStudio = () => {
                                     <CardTitle>Available Features</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    {systemInfo?.features ? (
+                                    {systemInfo ? (
                                         <div className="space-y-3">
-                                            {Object.entries(systemInfo.features).map(
-                                                ([feature, enabled]) => (
-                                                    <div key={feature} className="flex justify-between items-center">
-                                                        <span>
-                                                            {feature
-                                                                .split("_")
-                                                                .map(
-                                                                    (word) =>
-                                                                        word.charAt(0).toUpperCase() +
-                                                                        word.slice(1),
-                                                                )
-                                                                .join(" ")}
-                                                        </span>
-                                                        <Badge variant={enabled ? "default" : "destructive"}>
-                                                            {enabled ? "Enabled" : "Disabled"}
-                                                        </Badge>
-                                                    </div>
-                                                ),
+                                            {systemInfo.uptime != null && (
+                                                <div className="flex justify-between items-center">
+                                                    <span>System Uptime</span>
+                                                    <Badge variant="default">
+                                                        {Math.floor(systemInfo.uptime / 3600)}h {Math.floor((systemInfo.uptime % 3600) / 60)}m
+                                                    </Badge>
+                                                </div>
                                             )}
+                                            <div className="flex justify-between items-center">
+                                                <span>Bridge Status</span>
+                                                <Badge variant="default">Connected</Badge>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center py-8 text-muted-foreground">

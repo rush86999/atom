@@ -569,7 +569,10 @@ async def get_workflow_performance_detail(
                     "total_executions": metrics.total_executions,
                     "successful_executions": metrics.successful_executions,
                     "failed_executions": metrics.failed_executions,
-                    "success_rate": round(metrics.success_rate, 2),
+                    "success_rate": round(
+                        (metrics.successful_executions / metrics.total_executions * 100)
+                        if metrics.total_executions > 0 else 0.0, 2
+                    ),
                     "average_duration_ms": round(metrics.average_duration_ms, 2),
                     "median_duration_ms": round(metrics.median_duration_ms, 2),
                     "p95_duration_ms": round(metrics.p95_duration_ms, 2),

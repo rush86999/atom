@@ -156,6 +156,7 @@ async def list_boards(
     service = BoardService(db)
     return [_serialize_board(b) for b in service.list_boards(
         include_archived=include_archived,
+        owner_user_id=str(current_user.id),
     )]
 
 

@@ -130,10 +130,14 @@ class BoardService:
         self.db.refresh(board)
         return board
 
-    def list_boards(self, include_archived: bool = False) -> list[Board]:
+    def list_boards(self, include_archived: bool = False, owner_user_id: str | None = None) -> list[Board]:
         q = self.db.query(Board)
         if not include_archived:
             q = q.filter(Board.archived_at.is_(None))
+        # Scope to the requesting user (BUG-059: previously returned ALL boards
+        # across all users — cross-user data leak).
+        if owner_user_id:
+            q = q.filter(Board.owner_user_id == owner_user_id)
         return q.order_by(Board.created_at.desc()).all()
 
     def get_board(self, board_id: str) -> Board:
