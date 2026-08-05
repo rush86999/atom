@@ -1396,6 +1396,13 @@ try:
     logger.info("✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)")
 except Exception as e:  # pragma: no cover - boot resilience
     logger.error(f"Failed to mount RPC router: {e}")
+# P3: Gatekeeper config surface (admin) — per-service policy overrides.
+try:
+    from api.gatekeeper_routes import router as gatekeeper_router
+    app.include_router(gatekeeper_router, tags=["gatekeeper"])
+    logger.info("✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount gatekeeper router: {e}")
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
