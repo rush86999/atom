@@ -169,7 +169,7 @@ class TestVersionCreation:
         assert version.parent_version is None
 
     @pytest.mark.asyncio
-    async def test_create_minor_version(self, versioning_system, sample_workflow_data):
+    async def test_create_minor_version(self, versioning_system, sample_workflow_data, updated_workflow_data):
         """Test creating a minor version"""
         # Create first version
         await versioning_system.create_version(
@@ -180,10 +180,10 @@ class TestVersionCreation:
             commit_message="Initial version"
         )
 
-        # Create minor version
+        # Create minor version (data changed so the checksum differs)
         minor_version = await versioning_system.create_version(
             workflow_id="test_wf",
-            workflow_data=sample_workflow_data,
+            workflow_data=updated_workflow_data,
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="Added new feature"
@@ -194,7 +194,7 @@ class TestVersionCreation:
         assert minor_version.parent_version == "1.0.0"
 
     @pytest.mark.asyncio
-    async def test_create_patch_version(self, versioning_system, sample_workflow_data):
+    async def test_create_patch_version(self, versioning_system, sample_workflow_data, updated_workflow_data):
         """Test creating a patch version"""
         # Create first version
         await versioning_system.create_version(
@@ -205,10 +205,10 @@ class TestVersionCreation:
             commit_message="Initial version"
         )
 
-        # Create patch version
+        # Create patch version (data changed so the checksum differs)
         patch_version = await versioning_system.create_version(
             workflow_id="test_wf",
-            workflow_data=sample_workflow_data,
+            workflow_data=updated_workflow_data,
             version_type=VersionType.PATCH,
             created_by="test_user",
             commit_message="Bug fix"
@@ -218,7 +218,7 @@ class TestVersionCreation:
         assert patch_version.version_type == VersionType.PATCH
 
     @pytest.mark.asyncio
-    async def test_create_hotfix_version(self, versioning_system, sample_workflow_data):
+    async def test_create_hotfix_version(self, versioning_system, sample_workflow_data, updated_workflow_data):
         """Test creating a hotfix version"""
         await versioning_system.create_version(
             workflow_id="test_wf",
@@ -230,7 +230,7 @@ class TestVersionCreation:
 
         hotfix_version = await versioning_system.create_version(
             workflow_id="test_wf",
-            workflow_data=sample_workflow_data,
+            workflow_data=updated_workflow_data,
             version_type=VersionType.HOTFIX,
             created_by="test_user",
             commit_message="Emergency fix"
@@ -327,7 +327,7 @@ class TestVersionRollback:
             rollback_reason="Reverting problematic change"
         )
 
-        assert rollback.version == "1.0.2"  # Hotfix version
+        assert rollback.version == "1.1.1"  # Hotfix of the current (1.1.0) line
         assert rollback.version_type == VersionType.HOTFIX
         assert "rollback" in rollback.tags
 
@@ -351,6 +351,17 @@ class TestVersionRollback:
             version_type=VersionType.MAJOR,
             created_by="test_user",
             commit_message="V1"
+        )
+
+        # Advance to a newer version so the rollback target is not the tip
+        newer_data = sample_workflow_data.copy()
+        newer_data["description"] = "Newer"
+        await versioning_system.create_version(
+            workflow_id="test_wf",
+            workflow_data=newer_data,
+            version_type=VersionType.MINOR,
+            created_by="test_user",
+            commit_message="V1.1.0"
         )
 
         # Rollback
@@ -710,11 +721,13 @@ class TestVersionHistory:
     @pytest.mark.asyncio
     async def test_get_version_history(self, versioning_system, sample_workflow_data):
         """Test retrieving version history"""
-        # Create multiple versions
+        # Create multiple versions (varying data so each is a distinct checksum)
         for i in range(5):
+            data = sample_workflow_data.copy()
+            data["description"] = f"Version {i}"
             await versioning_system.create_version(
                 workflow_id="test_wf",
-                workflow_data=sample_workflow_data,
+                workflow_data=data,
                 version_type=VersionType.PATCH,
                 created_by="test_user",
                 commit_message=f"Version {i}"
@@ -729,11 +742,13 @@ class TestVersionHistory:
     @pytest.mark.asyncio
     async def test_get_version_history_with_limit(self, versioning_system, sample_workflow_data):
         """Test retrieving version history with limit"""
-        # Create 10 versions
+        # Create 10 versions (varying data so each is a distinct checksum)
         for i in range(10):
+            data = sample_workflow_data.copy()
+            data["description"] = f"Version {i}"
             await versioning_system.create_version(
                 workflow_id="test_wf",
-                workflow_data=sample_workflow_data,
+                workflow_data=data,
                 version_type=VersionType.PATCH,
                 created_by="test_user",
                 commit_message=f"Version {i}"
@@ -849,6 +864,15 @@ class TestWorkflowVersionManager:
             version_type=VersionType.MAJOR,
             created_by="test_user",
             commit_message="V1"
+        )
+
+        # Advance so the rollback target is not the current tip
+        await manager.versioning_system.create_version(
+            workflow_id="rollback_test",
+            workflow_data={"name": "Test", "steps": [{"id": "s1"}]},
+            version_type=VersionType.MINOR,
+            created_by="test_user",
+            commit_message="V1.1.0"
         )
 
         result = await manager.rollback_workflow(

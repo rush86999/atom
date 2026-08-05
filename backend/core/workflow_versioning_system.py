@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
-class VersionType(Enum):
+class VersionType(str, Enum):
     """Type of version change"""
     MAJOR = "major"  # Breaking changes
     MINOR = "minor"  # New features (backward compatible)
@@ -37,13 +37,14 @@ class VersionType(Enum):
     BETA = "beta"  # Pre-release versions
     ALPHA = "alpha"  # Early development versions
 
-class ChangeType(Enum):
+class ChangeType(str, Enum):
     """Type of workflow change"""
     STRUCTURAL = "structural"  # Changes to workflow structure
     PARAMETRIC = "parametric"  # Changes to parameters only
     EXECUTION = "execution"    # Changes to execution logic
     METADATA = "metadata"      # Changes to metadata only
     DEPENDENCY = "dependency"  # Changes to dependencies
+    FEATURE = "feature"        # Adding a new feature
 
 @dataclass
 class WorkflowVersion:
@@ -365,21 +366,24 @@ class WorkflowVersioningSystem:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Get latest version for this workflow
+            # Get latest version for this workflow (id is monotonic; created_at
+            # ties on same-second inserts, giving nondeterministic "latest").
             cursor.execute("""
                 SELECT version FROM workflow_versions
                 WHERE workflow_id = ? AND branch_name = ?
-                ORDER BY created_at DESC LIMIT 1
+                ORDER BY id DESC LIMIT 1
             """, (workflow_id, branch_name))
 
             result = cursor.fetchone()
-            latest_version = result[0] if result else "1.0.0"
+            # First version has no prior row: start from 0.0.0 so the initial
+            # MAJOR bump yields 1.0.0 (not 2.0.0).
+            latest_version = result[0] if result else "0.0.0"
 
             # Get previous version data for change detection
             cursor.execute("""
                 SELECT workflow_data FROM workflow_versions
                 WHERE workflow_id = ? AND branch_name = ?
-                ORDER BY created_at DESC LIMIT 1
+                ORDER BY id DESC LIMIT 1
             """, (workflow_id, branch_name))
 
             prev_data_result = cursor.fetchone()
@@ -394,13 +398,19 @@ class WorkflowVersioningSystem:
             # Calculate checksum
             checksum = self._calculate_checksum(workflow_data)
 
-            # Check for duplicate (same data)
+            # Reject only an exact re-submission of the CURRENT tip. Older
+            # versions may legitimately share content — a rollback restores
+            # prior data as a brand-new version, and merges can reproduce a
+            # branch tip's content. Matching any historical checksum would
+            # break both.
             cursor.execute("""
-                SELECT id FROM workflow_versions
-                WHERE workflow_id = ? AND checksum = ?
-            """, (workflow_id, checksum))
+                SELECT checksum FROM workflow_versions
+                WHERE workflow_id = ? AND branch_name = ?
+                ORDER BY id DESC LIMIT 1
+            """, (workflow_id, branch_name))
 
-            if cursor.fetchone():
+            latest_checksum = cursor.fetchone()
+            if latest_checksum and latest_checksum[0] == checksum:
                 conn.close()
                 raise ValueError("This workflow version already exists")
 
@@ -512,6 +522,25 @@ class WorkflowVersioningSystem:
 
         except Exception as e:
             logger.error(f"Error getting version {version}: {str(e)}")
+            return None
+
+    async def get_latest_version(self, workflow_id: str, branch_name: str = "main") -> Optional[WorkflowVersion]:
+        """Get the most recent version of a workflow (by insert order)."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT version FROM workflow_versions
+                WHERE workflow_id = ? AND branch_name = ?
+                ORDER BY id DESC LIMIT 1
+            """, (workflow_id, branch_name))
+            result = cursor.fetchone()
+            conn.close()
+            if not result:
+                return None
+            return await self.get_version(workflow_id, result[0])
+        except Exception as e:
+            logger.error(f"Error getting latest version for {workflow_id}: {str(e)}")
             return None
 
     async def get_version_history(
@@ -629,6 +658,10 @@ class WorkflowVersioningSystem:
             cached_result = cursor.fetchone()
             if cached_result:
                 diff_data = json.loads(cached_result[0])
+                # The cached dict carries every VersionDiff field — drop the ones
+                # supplied explicitly below to avoid duplicate keyword arguments.
+                for _dup in ("workflow_id", "from_version", "to_version", "impact_level"):
+                    diff_data.pop(_dup, None)
                 impact_level = cached_result[1]
                 return VersionDiff(workflow_id=workflow_id, from_version=from_version,
                                  to_version=to_version, impact_level=impact_level, **diff_data)
@@ -652,7 +685,7 @@ class WorkflowVersioningSystem:
                 workflow_id,
                 from_version,
                 to_version,
-                json.dumps(asdict(diff, default=str)),
+                json.dumps(asdict(diff), default=str),
                 diff.impact_level,
                 datetime.now(timezone.utc).isoformat()
             ))

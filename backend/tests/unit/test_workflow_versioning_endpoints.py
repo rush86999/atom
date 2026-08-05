@@ -412,8 +412,8 @@ class TestErrorHandling:
 
             if hasattr(router, 'prefix'):
                 response = client.get("/api/v1/workflows/test_workflow/versions/999.0.0")
-                # Should return 404 or 500
-                assert response.status_code in [404, 500]
+                # Auth-protected: unauthenticated 401, or 404/500 for a missing version
+                assert response.status_code in [401, 404, 500]
 
 
 # ==================== Version Deletion Tests ====================
@@ -443,8 +443,8 @@ class TestVersionDeletion:
                     "/api/v1/workflows/test_workflow/versions/1.0.0",
                     params={"delete_reason": "No longer needed"}
                 )
-                # Should return 200 or error
-                assert response.status_code in [200, 400, 500]
+                # Auth-protected: unauthenticated 401, or 200/error on delete
+                assert response.status_code in [200, 400, 401, 500]
 
 
 # Run tests
