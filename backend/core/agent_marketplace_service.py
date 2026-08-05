@@ -36,6 +36,25 @@ class AgentMarketplaceService:
         self.db = db
         self.saas_client = saas_client or AtomAgentOSMarketplaceClient()
 
+    def publish_agent(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Publish an agent to the marketplace, stripping credentials.
+
+        P5 Blueprint Security: sharing never leaks credentials. The published
+        payload is run through ``strip_credentials`` so any nested secret keys
+        (api_key / access_token / refresh_token / secret / password) are
+        removed before the agent is shared with other tenants.
+
+        Args:
+            template_data: The agent payload to publish (configuration,
+                capabilities, canvas UI schemas, etc.).
+
+        Returns:
+            A deep copy of ``template_data`` with credential keys removed —
+            suitable for publishing to the marketplace.
+        """
+        from core.blueprint_sanitizer import strip_credentials
+        return strip_credentials(template_data)
+
     def browse_agents(
         self, 
         query: str = "", 
