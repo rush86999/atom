@@ -52,8 +52,9 @@ async def test_unknown_service_with_fallback_uses_fallback(engine):
 
 
 @pytest.mark.asyncio
-async def test_unknown_service_no_fallback_returns_error(engine):
-    """Unknown service with no fallback should return an error dict, not raise."""
+async def test_unknown_service_no_fallback_raises(engine):
+    """Unknown service with no fallback must raise so the run loop marks the
+    step FAILED — returning an error dict is treated as COMPLETED."""
     engine._execute_generic_action = AsyncMock(
         side_effect=ValueError("service not in catalog")
     )
@@ -64,7 +65,7 @@ async def test_unknown_service_no_fallback_returns_error(engine):
         "action": "post",
         "parameters": {},
     }
-    result = await engine._execute_step(step, {})
+    with pytest.raises(ValueError) as exc_info:
+        await engine._execute_step(step, {})
 
-    assert result["status"] == "error"
-    assert result["service"] == "nonexistent_service"
+    assert "Unknown service" in str(exc_info.value)

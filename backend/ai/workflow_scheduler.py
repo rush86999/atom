@@ -131,6 +131,11 @@ class WorkflowScheduler:
             )
             workflows = load_workflows()
             workflow_def = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
+            if workflow_def is None:
+                # DB templates (WorkflowTemplate) live outside workflows.json but
+                # are schedulable — resolve them so the scheduled job actually fires.
+                from core.workflow_endpoints import _load_template_definition
+                workflow_def = _load_template_definition(workflow_id)
 
             if workflow_def:
                 # R69: skip critical definitions (orchestrator steps OR

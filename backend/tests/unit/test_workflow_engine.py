@@ -1413,11 +1413,12 @@ class TestWorkflowEdgeCases:
             ]
         }
 
-        # Should still convert without error (topological sort handles gracefully)
-        steps = workflow_engine._convert_nodes_to_steps(workflow)
-        # With a cycle, Kahn's algorithm will process nodes until queue is empty
-        # This may result in fewer than all nodes being processed
-        assert isinstance(steps, list)
+        # A cycle is a configuration error — fail fast with the offending nodes
+        # rather than silently truncating the graph (which would run an
+        # incomplete workflow with no diagnostic).
+        with pytest.raises(ValueError) as exc_info:
+            workflow_engine._convert_nodes_to_steps(workflow)
+        assert "circular" in str(exc_info.value)
 
     def test_empty_parameters(self, workflow_engine):
         """Verify handling of empty parameters"""

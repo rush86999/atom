@@ -990,23 +990,35 @@ class WorkflowEngine:
                 # Check for variable substitution ${var}
                 matches = self.var_pattern.findall(value)
                 if matches:
-                    # Interpolate EVERY variable occurrence into the string,
-                    # preserving surrounding text (e.g. "Hello ${name}!").
-                    # Replacing the whole value with only the first variable
-                    # silently dropped prefixes/suffixes and later variables.
-                    interpolated = value
-                    for var_path in matches:
-                        resolved_val = self._get_value_from_path(var_path, state)
+                    # A pure single reference ("${path}" exactly) preserves the
+                    # resolved value's type (e.g. an int output stays an int).
+                    if len(matches) == 1 and value == f"${{{matches[0]}}}":
+                        resolved_val = self._get_value_from_path(matches[0], state)
                         if resolved_val is None:
-                            raise MissingInputError(f"Variable {var_path} not found", var_path)
-                        if isinstance(resolved_val, str):
-                            replacement = resolved_val
-                        else:
-                            replacement = str(resolved_val)
-                        interpolated = interpolated.replace(
-                            f"${{{var_path}}}", replacement
-                        )
-                    resolved[key] = interpolated
+                            raise MissingInputError(
+                                f"Variable {matches[0]} not found", matches[0]
+                            )
+                        resolved[key] = resolved_val
+                    else:
+                        # Interpolate EVERY variable occurrence into the string,
+                        # preserving surrounding text (e.g. "Hello ${name}!").
+                        # Replacing the whole value with only the first variable
+                        # silently dropped prefixes/suffixes and later variables.
+                        interpolated = value
+                        for var_path in matches:
+                            resolved_val = self._get_value_from_path(var_path, state)
+                            if resolved_val is None:
+                                raise MissingInputError(
+                                    f"Variable {var_path} not found", var_path
+                                )
+                            if isinstance(resolved_val, str):
+                                replacement = resolved_val
+                            else:
+                                replacement = str(resolved_val)
+                            interpolated = interpolated.replace(
+                                f"${{{var_path}}}", replacement
+                            )
+                        resolved[key] = interpolated
                 else:
                     resolved[key] = value
             else:
@@ -1206,30 +1218,19 @@ class WorkflowEngine:
                 }
             except Exception as e:
                 logger.error(f"Fallback service {fallback_service}.{action} also failed: {e}")
-                # Both primary and fallback failed
-                return {
-                    "status": "error",
-                    "service": service,
-                    "action": action,
-                    "error": f"Primary failed: {primary_error}, Fallback failed: {e}",
-                    "timestamp": datetime.now().isoformat(),
-                    "execution_method": "service_registry_failed",
-                    "params": params,
-                    "fallback_attempted": True
-                }
+                # Both primary and fallback failed — raise so the run loop marks
+                # the step FAILED. Returning an error dict would be treated as a
+                # COMPLETED step (the run loop only fails steps on exceptions).
+                raise ValueError(
+                    f"Primary service failed: {primary_error}; "
+                    f"fallback {fallback_service} also failed: {e}"
+                ) from e
 
         # No fallback or fallback not in registry
         logger.error(f"Failed to execute {service}.{action}: {primary_error}")
-        return {
-            "status": "error",
-            "service": service,
-            "action": action,
-            "error": str(primary_error),
-            "timestamp": datetime.now().isoformat(),
-            "execution_method": "service_registry_failed",
-            "params": params,
-            "fallback_attempted": False
-        }
+        if isinstance(primary_error, Exception):
+            raise primary_error
+        raise ValueError(f"Unknown service: {service}")
 
     # Service executor methods
     async def _execute_slack_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
