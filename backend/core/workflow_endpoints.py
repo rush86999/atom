@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.database import get_db
 from core.models import User
 from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
@@ -703,6 +704,53 @@ async def resume_workflow(
 
 
 
+def _safe_json(text) -> Any:
+    """Parse a Text-JSON column, tolerating null/invalid values."""
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except Exception:
+        return {}
+
+
+def _db_execution_row_to_dict(row) -> Dict[str, Any]:
+    """Map a DB WorkflowExecution row to the legacy AutomationEngine shape."""
+    return {
+        "execution_id": row.execution_id,
+        "workflow_id": row.workflow_id,
+        "trigger_data": _safe_json(row.input_data),
+        "start_time": row.created_at.isoformat() if row.created_at else None,
+        "end_time": row.completed_at.isoformat() if row.completed_at else None,
+        "status": (row.status or "unknown").lower(),
+        "actions_executed": [],
+        "errors": [row.error] if row.error else [],
+        "results": _safe_json(row.outputs),
+        "duration_ms": 0.0,
+    }
+
+
+def _orchestrator_execution_to_dict(execution_id: str, context) -> Dict[str, Any]:
+    """Map an advanced-orchestrator context to the legacy shape."""
+    results = getattr(context, "results", {}) or {}
+    waiting = any(
+        isinstance(st, dict) and st.get("status") == "waiting_approval"
+        for st in results.values()
+    )
+    return {
+        "execution_id": execution_id,
+        "workflow_id": getattr(context, "workflow_id", ""),
+        "trigger_data": getattr(context, "input_data", {}) or {},
+        "start_time": None,
+        "end_time": None,
+        "status": "waiting" if waiting else "running",
+        "actions_executed": [],
+        "errors": [],
+        "results": results,
+        "duration_ms": 0.0,
+    }
+
+
 @router.get("/workflows/{workflow_id}/executions", response_model=List[Dict[str, Any]])
 async def get_workflow_executions(
     workflow_id: str,
@@ -711,8 +759,29 @@ async def get_workflow_executions(
     """Get execution history for a workflow"""
     from ai.automation_engine import AutomationEngine
     engine = AutomationEngine()
-    executions = engine.get_execution_history(workflow_id)
-    return [e.to_dict() for e in executions]
+    executions = [e.to_dict() for e in engine.get_execution_history(workflow_id)]
+
+    # Durable-engine fallback: merge DB WorkflowExecution rows for this
+    # workflow, deduping against the legacy AutomationEngine executions.
+    from core.models import WorkflowExecution as WorkflowExecutionRow
+    try:
+        db = next(get_db())
+        try:
+            rows = db.query(WorkflowExecutionRow).filter(
+                WorkflowExecutionRow.workflow_id == workflow_id
+            ).all()
+        finally:
+            db.close()
+        seen = {e["execution_id"] for e in executions}
+        for row in rows:
+            if row.execution_id in seen:
+                continue
+            executions.append(_db_execution_row_to_dict(row))
+            seen.add(row.execution_id)
+    except Exception:
+        logger.exception("Failed to merge persisted execution history")
+
+    return executions
 
 @router.get("/workflows/executions/{execution_id}", response_model=Dict[str, Any])
 async def get_execution_details(
@@ -722,9 +791,32 @@ async def get_execution_details(
     """Get details of a specific execution"""
     from ai.automation_engine import AutomationEngine
     engine = AutomationEngine()
-    if execution_id not in engine.executions:
-        raise HTTPException(status_code=404, detail="Execution not found")
-    return engine.executions[execution_id].to_dict()
+    if execution_id in engine.executions:
+        return engine.executions[execution_id].to_dict()
+
+    # Durable-engine fallback: ExecutionStateManager persists to the DB
+    # WorkflowExecution table — the legacy AutomationEngine never sees them.
+    from core.models import WorkflowExecution as WorkflowExecutionRow
+    try:
+        db = next(get_db())
+        try:
+            row = db.query(WorkflowExecutionRow).filter(
+                WorkflowExecutionRow.execution_id == execution_id
+            ).first()
+        finally:
+            db.close()
+        if row is not None:
+            return _db_execution_row_to_dict(row)
+    except Exception:
+        logger.exception("Failed to read persisted execution details")
+
+    # Orchestrator fallback (workflow UI path).
+    from advanced_workflow_orchestrator import get_orchestrator
+    context = get_orchestrator().active_contexts.get(execution_id)
+    if context is not None:
+        return _orchestrator_execution_to_dict(execution_id, context)
+
+    raise HTTPException(status_code=404, detail="Execution not found")
 
 # Scheduling Endpoints
 
