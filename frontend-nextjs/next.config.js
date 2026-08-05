@@ -91,6 +91,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/v1/analytics/:path*",
       },
       {
+        source: "/api/workflow-templates",
+        destination: "http://127.0.0.1:8000/api/workflow-templates/",
+      },
+      {
         source: "/api/workflow-templates/:path*",
         destination: "http://127.0.0.1:8000/api/workflow-templates/:path*",
       },
@@ -113,10 +117,6 @@ const nextConfig = {
       {
         source: "/api/time-travel/:path*",
         destination: "http://127.0.0.1:8000/api/time-travel/:path*",
-      },
-      {
-        source: "/api/workflow-templates/:path*",
-        destination: "http://127.0.0.1:8000/api/workflow-templates/:path*",
       },
       // Chat Rewrite
       {
