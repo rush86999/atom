@@ -20,7 +20,14 @@ const ForecastingSandbox = () => {
 
     const fetchForecast = async () => {
         try {
-            const response = await fetch(`/api/accounting/forecast?workspace_id=${workspaceId}`);
+            const token = localStorage.getItem('auth_token');
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            const response = await fetch(`/api/accounting/forecast?workspace_id=${workspaceId}`, {
+                headers
+            });
             if (!response.ok) throw new Error("Failed to fetch forecast");
             const data = await response.json();
             setForecastData(data.projection || []);
@@ -35,8 +42,14 @@ const ForecastingSandbox = () => {
         if (!scenarioText) return;
         setLoading(true);
         try {
+            const token = localStorage.getItem('auth_token');
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`/api/accounting/scenario?workspace_id=${workspaceId}&scenario_description=${encodeURIComponent(scenarioText)}`, {
-                method: 'POST'
+                method: 'POST',
+                headers
             });
             if (!response.ok) throw new Error("Scenario analysis failed");
             const data = await response.json();
@@ -74,7 +87,7 @@ const ForecastingSandbox = () => {
                                 />
                                 <YAxis fontSize={12} tickFormatter={(val) => `$${val.toLocaleString()}`} />
                                 <Tooltip
-                                    formatter={(val: number) => [`$${val.toLocaleString()}`, 'Projected Balance']}
+                                    formatter={(val: any) => [`$${Number(val).toLocaleString()}`, 'Projected Balance']}
                                     labelFormatter={(label) => new Date(label).toLocaleDateString()}
                                 />
                                 <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" />
