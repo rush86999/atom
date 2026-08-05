@@ -2,13 +2,12 @@
  * Loading State Tests
  *
  * Comprehensive tests for loading indicators, skeleton loaders, and submit button states
- * during async API operations. Uses MSW's ctx.delay() for realistic loading simulation
- * and React Testing Library's waitFor/findBy* queries for async state validation.
+ * during async API operations. Uses MSW's ctx.delay() for loading simulation and
+ * React Testing Library's waitFor/findBy* queries for async state validation.
  *
  * Key Patterns:
  * - Use waitFor() instead of getBy* for async state transitions
  * - Use findBy* queries for timeout-based assertions (default 1000ms timeout)
- * - DO NOT use jest.useFakeTimers() for loading tests (can miss transitions)
  * - Use server.use() to override default handlers per test
  *
  * Test Categories:
@@ -19,28 +18,78 @@
  * 5. Loading → error transition validation
  * 6. Loading → success transition validation
  *
- * Based on 133-RESEARCH.md Pattern 3 (Loading State Testing with waitFor)
+ * Handlers are registered on the shared tests/mocks/server with wildcard-origin
+ * paths (e.g. a "star" + "/api/atom-agent/agents" glob) because relative paths
+ * never match the absolute http://127.0.0.1:8000 URLs the apiClient requests in
+ * this MSW 1.x setup, and an axios request with no matching handler hangs.
+ * Delays are kept small (~100-300ms) so the suite completes in a few seconds
+ * while still verifying that loading states persist during async operations.
  */
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
 import apiClient from '@/lib/api';
-import { slowHandlers, agentSlowHandlers, canvasSlowHandlers } from '@/tests/mocks/scenarios/loading-states';
+import { server } from '@/tests/mocks/server';
+import { createSlowEndpoint } from '@/tests/mocks/scenarios/loading-states';
 
-// ============================================================================
-// MSW Server Setup
-// ============================================================================
+// The apiClient retry interceptor backs off (1s, 2s, ...) on retryable (5xx)
+// errors. Swap @lifeomic/attempt's retry for an immediate single attempt so the
+// 500 scenarios resolve fast. Retry timing is covered in retry-logic.test.ts.
+jest.mock('@lifeomic/attempt', () => ({
+  retry: async (attemptFn: () => Promise<any>) => attemptFn(),
+}));
 
-const server = setupServer(...slowHandlers);
+// Base handlers guarantee every axios request is intercepted (an axios XHR
+// request with NO matching handler hangs in this MSW setup). Each test may
+// override per scenario with server.use(...).
+const baseHandlers = [
+  createSlowEndpoint('GET', '*/api/atom-agent/agents', 300, {
+    agents: [
+      {
+        id: 'agent-mock-001',
+        name: 'Test Agent 1',
+        description: 'Mock agent for loading state testing',
+        maturity_level: 'AUTONOMOUS',
+        status: 'active',
+      },
+      {
+        id: 'agent-mock-002',
+        name: 'Test Agent 2',
+        description: 'Another slow-loading agent',
+        maturity_level: 'SUPERVISED',
+        status: 'active',
+      },
+    ],
+    total: 2,
+  }),
+  createSlowEndpoint('POST', '*/api/canvas/submit', 300, {
+    success: true,
+    submission_id: 'sub-test-123',
+    governance_check: {
+      allowed: true,
+      agent_id: 'agent-mock-001',
+      action_type: 'submit_form',
+      maturity_level: 'SUPERVISED',
+    },
+  }),
+  createSlowEndpoint('GET', '*/api/canvas/status', 200, {
+    canvas_id: 'canvas-test',
+    status: 'active',
+  }),
+  createSlowEndpoint('GET', '*/api/devices', 200, {
+    devices: [],
+    total: 0,
+  }),
+];
 
-// Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
-afterEach(() => server.resetHandlers());
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' });
+  server.use(...baseHandlers);
+});
+afterEach(() => server.resetHandlers(...baseHandlers));
 afterAll(() => server.close());
 
-// Mock console.error to avoid cluttering test output
-const originalError = console.error;
+// Suppress console noise (retry logging + [API Error] logging)
 let consoleLogSpy: any;
 let consoleErrorSpy: any;
 
@@ -81,7 +130,7 @@ function createMockLoadingComponent(loading: boolean, error: string | null, data
 // ============================================================================
 
 describe('1. Loading Spinner Visibility', () => {
-  it('should show loading indicator during 2s delayed GET request', async () => {
+  it('should show loading indicator during delayed GET request', async () => {
     let loadingState = { isLoading: true, data: null, error: null };
 
     // Mock component state
@@ -91,33 +140,34 @@ describe('1. Loading Spinner Visibility', () => {
     expect(component.render().type).toBe('loading-spinner');
     expect(component.render().text).toBe('Loading...');
 
-    // Simulate API call with 2s delay
+    // Simulate API call with delay (base handler delays 300ms)
     const startTime = Date.now();
     const response = await apiClient.get('/api/atom-agent/agents');
     const endTime = Date.now();
     const elapsed = endTime - startTime;
 
-    // Verify response took at least 2 seconds (allowing for test timing variance)
-    expect(elapsed).toBeGreaterThanOrEqual(1900); // Allow 100ms variance
+    // Verify response took at least ~200ms (the request did not resolve
+    // synchronously - a loading state could have been shown in the interim)
+    expect(elapsed).toBeGreaterThanOrEqual(200);
     expect(response.data.agents).toBeDefined();
     expect(response.data.agents.length).toBe(2);
 
     // Verify loading metadata
     expect(response.data._loadingTestMetadata).toBeDefined();
-    expect(response.data._loadingTestMetadata.delayMs).toBe(2000);
+    expect(response.data._loadingTestMetadata.delayMs).toBe(300);
   }, 10000);
 
-  it('should show loading indicator during 3s chat streaming request', async () => {
+  it('should show loading indicator during chat streaming request', async () => {
     // Mock slow chat endpoint
     server.use(
-      rest.post('/api/atom-agent/chat/stream', (req, res, ctx) => {
+      rest.post('*/api/atom-agent/chat/stream', (req, res, ctx) => {
         return res(
-          ctx.delay(3000),
+          ctx.delay(300),
           ctx.json({
             success: true,
             response: 'Mock agent response',
             execution_id: 'exec-mock-123',
-            _loadingTestMetadata: { delayMs: 3000, actualTimestamp: new Date().toISOString() },
+            _loadingTestMetadata: { delayMs: 300, actualTimestamp: new Date().toISOString() },
           })
         );
       })
@@ -128,18 +178,18 @@ describe('1. Loading Spinner Visibility', () => {
     const endTime = Date.now();
     const elapsed = endTime - startTime;
 
-    // Verify response took at least 3 seconds
-    expect(elapsed).toBeGreaterThanOrEqual(2900); // Allow 100ms variance
+    // Verify response was not synchronous
+    expect(elapsed).toBeGreaterThanOrEqual(200);
     expect(response.data.success).toBe(true);
-    expect(response.data._loadingTestMetadata.delayMs).toBe(3000);
-  }, 15000);
+    expect(response.data._loadingTestMetadata.delayMs).toBe(300);
+  }, 10000);
 
   it('should use waitFor for async loading state transition', async () => {
     let loadingCompleted = false;
 
     // Simulate async operation
     const asyncOperation = async () => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 200));
       loadingCompleted = true;
       return { success: true };
     };
@@ -162,19 +212,19 @@ describe('1. Loading Spinner Visibility', () => {
 // ============================================================================
 
 describe('2. Skeleton Loader Display', () => {
-  it('should display skeleton during 1s data fetch', async () => {
-    // Mock slow agents endpoint with 1s delay
+  it('should display skeleton during data fetch', async () => {
+    // Mock slow agents endpoint with short delay
     server.use(
-      rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      rest.get('*/api/atom-agent/agents', (req, res, ctx) => {
         return res(
-          ctx.delay(1000),
+          ctx.delay(200),
           ctx.json({
             agents: [
               { id: 'agent-1', name: 'Agent 1', status: 'active' },
               { id: 'agent-2', name: 'Agent 2', status: 'active' },
             ],
             total: 2,
-            _loadingTestMetadata: { delayMs: 1000, actualTimestamp: new Date().toISOString() },
+            _loadingTestMetadata: { delayMs: 200, actualTimestamp: new Date().toISOString() },
           })
         );
       })
@@ -207,7 +257,7 @@ describe('2. Skeleton Loader Display', () => {
     expect(finalRender.items.length).toBe(2);
   }, 10000);
 
-  it('should transition from skeleton to data after 1.5s delay', async () => {
+  it('should transition from skeleton to data after delay', async () => {
     let state = 'loading'; // 'loading' | 'success' | 'error'
     let data = null;
 
@@ -241,15 +291,15 @@ describe('2. Skeleton Loader Display', () => {
   }, 10000);
 
   it('should remove skeleton elements after data load', async () => {
-    // Mock canvas status endpoint with 1s delay
+    // Mock canvas status endpoint with short delay
     server.use(
-      rest.get('/api/canvas/status', (req, res, ctx) => {
+      rest.get('*/api/canvas/status', (req, res, ctx) => {
         return res(
-          ctx.delay(1000),
+          ctx.delay(200),
           ctx.json({
             canvas_id: 'canvas-test',
             status: 'active',
-            _loadingTestMetadata: { delayMs: 1000, actualTimestamp: new Date().toISOString() },
+            _loadingTestMetadata: { delayMs: 200, actualTimestamp: new Date().toISOString() },
           })
         );
       })
@@ -287,16 +337,16 @@ describe('2. Skeleton Loader Display', () => {
 // ============================================================================
 
 describe('3. Submit Button Disabled State', () => {
-  it('should disable submit button during 2.5s form submission', async () => {
-    // Mock slow canvas submit endpoint with 2.5s delay
+  it('should disable submit button during form submission', async () => {
+    // Mock slow canvas submit endpoint with short delay
     server.use(
-      rest.post('/api/canvas/submit', (req, res, ctx) => {
+      rest.post('*/api/canvas/submit', (req, res, ctx) => {
         return res(
-          ctx.delay(2500),
+          ctx.delay(300),
           ctx.json({
             success: true,
             submission_id: 'sub-test-123',
-            _loadingTestMetadata: { delayMs: 2500, actualTimestamp: new Date().toISOString() },
+            _loadingTestMetadata: { delayMs: 300, actualTimestamp: new Date().toISOString() },
           })
         );
       })
@@ -332,7 +382,7 @@ describe('3. Submit Button Disabled State', () => {
     });
 
     await submitPromise;
-  }, 15000);
+  }, 10000);
 
   it('should show loading text during form submission', async () => {
     let buttonText = 'Submit';
@@ -354,8 +404,8 @@ describe('3. Submit Button Disabled State', () => {
     isLoading = true;
     expect(updateButtonText()).toBe('Submitting...');
 
-    // Simulate slow submission (2s delay)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate slow submission (short delay)
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     isLoading = false;
     expect(updateButtonText()).toBe('Submit');
@@ -397,11 +447,11 @@ describe('3. Submit Button Disabled State', () => {
   }, 10000);
 
   it('should re-enable button after failed submission', async () => {
-    // Mock failed submission with 1.5s delay
+    // Mock failed submission with short delay
     server.use(
-      rest.post('/api/canvas/submit', (req, res, ctx) => {
+      rest.post('*/api/canvas/submit', (req, res, ctx) => {
         return res(
-          ctx.delay(1500),
+          ctx.delay(150),
           ctx.status(400),
           ctx.json({ error: 'Validation failed' })
         );
@@ -449,14 +499,14 @@ describe('4. Multiple Concurrent Loading States', () => {
   it('should handle multiple concurrent loading states', async () => {
     // Mock multiple slow endpoints
     server.use(
-      rest.get('/api/atom-agent/agents', (req, res, ctx) => {
-        return res(ctx.delay(1000), ctx.json({ agents: [], total: 0 }));
+      rest.get('*/api/atom-agent/agents', (req, res, ctx) => {
+        return res(ctx.delay(100), ctx.json({ agents: [], total: 0 }));
       }),
-      rest.get('/api/canvas/status', (req, res, ctx) => {
-        return res(ctx.delay(1500), ctx.json({ status: 'active' }));
+      rest.get('*/api/canvas/status', (req, res, ctx) => {
+        return res(ctx.delay(150), ctx.json({ status: 'active' }));
       }),
-      rest.get('/api/devices', (req, res, ctx) => {
-        return res(ctx.delay(2000), ctx.json({ devices: [], total: 0 }));
+      rest.get('*/api/devices', (req, res, ctx) => {
+        return res(ctx.delay(200), ctx.json({ devices: [], total: 0 }));
       })
     );
 
@@ -497,27 +547,27 @@ describe('4. Multiple Concurrent Loading States', () => {
     // All loading states cleared, all completed
     expect(Object.values(loadingStates).every(v => !v)).toBe(true);
     expect(Object.values(completedStates).every(v => v)).toBe(true);
-  }, 15000);
+  }, 10000);
 
   it('should complete requests independently based on delay', async () => {
     const completionOrder: string[] = [];
 
     server.use(
-      rest.get('/api/test/fast', (req, res, ctx) => {
+      rest.get('*/api/test/fast', (req, res, ctx) => {
         return res(
-          ctx.delay(500),
+          ctx.delay(100),
           ctx.json({ speed: 'fast' })
         );
       }),
-      rest.get('/api/test/medium', (req, res, ctx) => {
+      rest.get('*/api/test/medium', (req, res, ctx) => {
         return res(
-          ctx.delay(1500),
+          ctx.delay(300),
           ctx.json({ speed: 'medium' })
         );
       }),
-      rest.get('/api/test/slow', (req, res, ctx) => {
+      rest.get('*/api/test/slow', (req, res, ctx) => {
         return res(
-          ctx.delay(2500),
+          ctx.delay(500),
           ctx.json({ speed: 'slow' })
         );
       })
@@ -533,7 +583,7 @@ describe('4. Multiple Concurrent Loading States', () => {
 
     // Verify completion order (fastest first)
     expect(completionOrder).toEqual(['fast', 'medium', 'slow']);
-  }, 15000);
+  }, 10000);
 
   it('should verify all loading states active during concurrent requests', async () => {
     let agentsLoading = false;
@@ -582,7 +632,7 @@ describe('4. Multiple Concurrent Loading States', () => {
     expect(agentsLoading).toBe(false);
     expect(canvasLoading).toBe(false);
     expect(devicesLoading).toBe(false);
-  }, 15000);
+  }, 10000);
 });
 
 // ============================================================================
@@ -591,11 +641,11 @@ describe('4. Multiple Concurrent Loading States', () => {
 
 describe('5. Loading → Error Transition', () => {
   it('should transition from loading to error state', async () => {
-    // Mock endpoint with 1s delay then error
+    // Mock endpoint with delay then error
     server.use(
-      rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      rest.get('*/api/atom-agent/agents', (req, res, ctx) => {
         return res(
-          ctx.delay(1000),
+          ctx.delay(150),
           ctx.status(500),
           ctx.json({ error: 'Internal Server Error' })
         );
@@ -642,9 +692,9 @@ describe('5. Loading → Error Transition', () => {
 
     // Mock error endpoint
     server.use(
-      rest.post('/api/canvas/submit', (req, res, ctx) => {
+      rest.post('*/api/canvas/submit', (req, res, ctx) => {
         return res(
-          ctx.delay(800),
+          ctx.delay(100),
           ctx.status(400),
           ctx.json({ error: 'Validation failed' })
         );
@@ -677,9 +727,9 @@ describe('5. Loading → Error Transition', () => {
 
     // Mock endpoint that fails after delay
     server.use(
-      rest.get('/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
+      rest.get('*/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
         return res(
-          ctx.delay(1200),
+          ctx.delay(150),
           ctx.status(404),
           ctx.json({ error: 'Agent not found' })
         );
@@ -708,11 +758,11 @@ describe('5. Loading → Error Transition', () => {
 
 describe('6. Loading → Success Transition', () => {
   it('should transition from loading to success state', async () => {
-    // Mock successful endpoint with 1.5s delay
+    // Mock successful endpoint with short delay
     server.use(
-      rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      rest.get('*/api/atom-agent/agents', (req, res, ctx) => {
         return res(
-          ctx.delay(1500),
+          ctx.delay(200),
           ctx.json({
             agents: [{ id: 'agent-1', name: 'Test Agent' }],
             total: 1,
@@ -763,9 +813,9 @@ describe('6. Loading → Success Transition', () => {
 
     // Mock successful endpoint
     server.use(
-      rest.post('/api/canvas/submit', (req, res, ctx) => {
+      rest.post('*/api/canvas/submit', (req, res, ctx) => {
         return res(
-          ctx.delay(2000),
+          ctx.delay(200),
           ctx.json({ success: true, submission_id: 'sub-123' })
         );
       })
@@ -800,9 +850,9 @@ describe('6. Loading → Success Transition', () => {
 
     // Mock successful data fetch
     server.use(
-      rest.get('/api/canvas/status', (req, res, ctx) => {
+      rest.get('*/api/canvas/status', (req, res, ctx) => {
         return res(
-          ctx.delay(1800),
+          ctx.delay(200),
           ctx.json({
             canvas_id: 'canvas-test',
             status: 'active',
@@ -831,9 +881,9 @@ describe('6. Loading → Success Transition', () => {
 
     // Mock endpoint with varying delays
     server.use(
-      rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      rest.get('*/api/atom-agent/agents', (req, res, ctx) => {
         requestCount++;
-        const delay = requestCount % 2 === 0 ? 500 : 1000; // Alternating delays
+        const delay = requestCount % 2 === 0 ? 200 : 300; // Alternating delays
         return res(
           ctx.delay(delay),
           ctx.json({ agents: [], total: 0, requestNumber: requestCount })
