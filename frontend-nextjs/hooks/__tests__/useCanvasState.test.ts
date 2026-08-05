@@ -68,6 +68,11 @@ describe('useCanvasState', () => {
 
   describe('initialization', () => {
     it('should initialize with empty state', () => {
+      // The hook loads initial states from getAllStates() on mount; return
+      // nothing here so the initial allStates is genuinely empty.
+      mockApi.getAllStates = jest.fn(() => []);
+      (window as any).atom.canvas = mockApi;
+
       const { result } = renderHook(() => useCanvasState());
 
       expect(result.current.state).toBeNull();
@@ -172,6 +177,9 @@ describe('useCanvasState', () => {
         return unsubscribeFn;
       });
 
+      // The hook seeds allStates from getAllStates() on mount; return an empty
+      // list so this test isolates the subscribeAll callback behavior.
+      mockApi.getAllStates = jest.fn(() => []);
       (window as any).atom.canvas = mockApi;
 
       const { result } = renderHook(() => useCanvasState());
@@ -206,6 +214,9 @@ describe('useCanvasState', () => {
         return unsubscribeFn;
       });
 
+      // The hook seeds allStates from getAllStates() on mount; return an empty
+      // list so only the subscribeAll callback drives allStates here.
+      mockApi.getAllStates = jest.fn(() => []);
       (window as any).atom.canvas = mockApi;
 
       const { result } = renderHook(() => useCanvasState());
@@ -237,6 +248,9 @@ describe('useCanvasState', () => {
         return unsubscribeFn;
       });
 
+      // The hook seeds allStates from getAllStates() on mount; return an empty
+      // list so this test isolates the subscribeAll callback behavior.
+      mockApi.getAllStates = jest.fn(() => []);
       (window as any).atom.canvas = mockApi;
 
       const { result } = renderHook(() => useCanvasState());

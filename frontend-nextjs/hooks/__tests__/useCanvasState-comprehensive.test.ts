@@ -1,121 +1,223 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCanvasState } from '../useCanvasState';
+import type {
+  CanvasStateAPI,
+  AnyCanvasState,
+  CanvasStateChangeEvent,
+  AgentOperationState,
+} from '@/components/canvas/types';
 
-// Mock React context
-const mockContextValue = {
-  canvases: new Map([
-    ['canvas-1', { type: 'chart', data: { labels: ['A', 'B'], values: [1, 2] } }],
-    ['canvas-2', { type: 'form', data: { fields: [{ name: 'email', value: '' }] } }],
-  ]),
-  subscribe: jest.fn(),
-  unsubscribe: jest.fn(),
-  updateCanvas: jest.fn(),
-  getCanvas: jest.fn((id) => {
-    const canvases = new Map([
-      ['canvas-1', { type: 'chart', data: { labels: ['A', 'B'], values: [1, 2] } }],
-    ]);
-    return canvases.get(id);
-  }),
-};
+/**
+ * Comprehensive tests for the real useCanvasState hook.
+ *
+ * The hook takes an optional canvasId and returns an object:
+ *   { state, allStates, getState, getAllStates, getMatchConfidence, isApiReady }
+ *
+ * On mount it reads/works against window.atom.canvas:
+ *   - with canvasId: subscribes via api.subscribe and seeds state via
+ *     api.getState(canvasId)
+ *   - without canvasId: subscribes via api.subscribeAll and seeds allStates
+ *     via api.getAllStates()
+ *
+ * It does NOT return the raw canvas state directly. Tests that assert
+ * `result.current.type` / `result.current === null` were testing a fabricated
+ * contract and have been rewritten against the real API.
+ */
 
-describe('useCanvasState Hook', () => {
+function makeMockApi(overrides: Partial<CanvasStateAPI> = {}): CanvasStateAPI {
+  return {
+    getState: jest.fn((id: string) => ({
+      canvas_id: id,
+      type: 'chart',
+      data: { title: 'Test Canvas' },
+    })),
+    getAllStates: jest.fn(() => []),
+    subscribe: jest.fn(() => () => {}),
+    subscribeAll: jest.fn(() => () => {}),
+    ...overrides,
+  } as unknown as CanvasStateAPI;
+}
+
+describe('useCanvasState Hook (comprehensive)', () => {
+  let mockApi: CanvasStateAPI;
+
   beforeEach(() => {
+    mockApi = makeMockApi();
+    (window as any).atom = { canvas: mockApi };
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Canvas State Retrieval', () => {
-    it('returns null for non-existent canvas', () => {
-      const { result } = renderHook(() => useCanvasState('non-existent'));
-      expect(result.current).toBeNull();
+    it('initializes with null state and empty allStates', () => {
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.state).toBeNull();
+      expect(result.current.allStates).toEqual([]);
+      expect(result.current.isApiReady).toBe(true);
     });
 
-    it('returns canvas state for existing canvas', () => {
-      const { result } = renderHook(() => useCanvasState('canvas-1'));
-      expect(result.current).toEqual({
+    it('loads the initial state for a specific canvas from api.getState on mount', async () => {
+      const testState = {
+        canvas_id: 'canvas-1',
         type: 'chart',
-        data: { labels: ['A', 'B'], values: [1, 2] },
+        data: { title: 'Initial' },
+      };
+      mockApi.getState = jest.fn(() => testState) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState('canvas-1'));
+
+      await waitFor(() => {
+        expect(result.current.state).toEqual(testState);
+      });
+      expect(mockApi.getState).toHaveBeenCalledWith('canvas-1');
+    });
+
+    it('returns null state when the specific canvas has no initial state', () => {
+      mockApi.getState = jest.fn(() => null) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState('canvas-missing'));
+
+      expect(result.current.state).toBeNull();
+    });
+
+    it('getState returns state for an existing canvas', () => {
+      const { result } = renderHook(() => useCanvasState());
+
+      const state = result.current.getState('canvas-1');
+
+      expect(mockApi.getState).toHaveBeenCalledWith('canvas-1');
+      expect(state).toEqual({
+        canvas_id: 'canvas-1',
+        type: 'chart',
+        data: { title: 'Test Canvas' },
       });
     });
 
-    it('updates when canvas state changes', async () => {
-      const { result, rerender } = renderHook(() => useCanvasState('canvas-1'));
+    it('getState returns null for a non-existent canvas', () => {
+      mockApi.getState = jest.fn(() => null) as any;
+      (window as any).atom.canvas = mockApi;
 
-      const initialState = result.current;
-      expect(initialState).not.toBeNull();
+      const { result } = renderHook(() => useCanvasState());
 
-      // Simulate state update
-      act(() => {
-        // Force re-render with updated state
-        rerender();
-      });
+      expect(result.current.getState('missing')).toBeNull();
     });
 
-    it('handles multiple canvas instances', () => {
+    it('handles multiple canvas instances independently', () => {
       const { result: result1 } = renderHook(() => useCanvasState('canvas-1'));
       const { result: result2 } = renderHook(() => useCanvasState('canvas-2'));
 
-      expect(result1.current?.type).toBe('chart');
-      expect(result2.current?.type).toBe('form');
+      expect(result1.current.isApiReady).toBe(true);
+      expect(result2.current.isApiReady).toBe(true);
+      expect(result1.current.state).not.toBeNull();
+      expect(result2.current.state).not.toBeNull();
     });
   });
 
   describe('State Subscription', () => {
-    it('subscribes to canvas updates on mount', () => {
-      const { unmount } = renderHook(() => useCanvasState('canvas-1'));
+    it('subscribes to a specific canvas when canvasId is provided', () => {
+      renderHook(() => useCanvasState('canvas-1'));
 
-      // Should have called subscribe
-      expect(mockContextValue.subscribe).toHaveBeenCalled();
+      expect(mockApi.subscribe).toHaveBeenCalledTimes(1);
+      expect(mockApi.subscribeAll).not.toHaveBeenCalled();
     });
 
-    it('unsubscribes on unmount', () => {
+    it('subscribes to all canvases when no canvasId is provided', () => {
+      renderHook(() => useCanvasState());
+
+      expect(mockApi.subscribeAll).toHaveBeenCalledTimes(1);
+      expect(mockApi.subscribe).not.toHaveBeenCalled();
+    });
+
+    it('unsubscribes from a specific canvas on unmount', () => {
+      const unsubscribe = jest.fn();
+      mockApi.subscribe = jest.fn(() => unsubscribe);
+      (window as any).atom.canvas = mockApi;
+
       const { unmount } = renderHook(() => useCanvasState('canvas-1'));
 
       unmount();
 
-      expect(mockContextValue.unsubscribe).toHaveBeenCalled();
+      expect(unsubscribe).toHaveBeenCalled();
     });
 
-    it('handles subscription errors gracefully', () => {
-      mockContextValue.subscribe.mockImplementation(() => {
+    it('unsubscribes from all canvases on unmount', () => {
+      const unsubscribe = jest.fn();
+      mockApi.subscribeAll = jest.fn(() => unsubscribe);
+      (window as any).atom.canvas = mockApi;
+
+      const { unmount } = renderHook(() => useCanvasState());
+
+      unmount();
+
+      expect(unsubscribe).toHaveBeenCalled();
+    });
+
+    it('propagates errors thrown by subscribe (real hook does not guard it)', () => {
+      mockApi.subscribe = jest.fn(() => {
         throw new Error('Subscription failed');
       });
+      (window as any).atom.canvas = mockApi;
 
-      const { result } = renderHook(() => useCanvasState('canvas-1'));
-
-      // Should not throw, handle gracefully
-      expect(result.current).toBeNull();
+      expect(() => renderHook(() => useCanvasState('canvas-1'))).toThrow(
+        'Subscription failed'
+      );
     });
   });
 
   describe('Canvas Type Handling', () => {
-    it('handles chart canvas type', () => {
-      const { result } = renderHook(() => useCanvasState('canvas-1'));
-      expect(result.current?.type).toBe('chart');
+    it('returns chart canvas state through getState', () => {
+      mockApi.getState = jest.fn(() => ({
+        canvas_id: 'canvas-1',
+        type: 'chart',
+        data: { labels: ['A', 'B'], values: [1, 2] },
+      })) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getState('canvas-1')?.type).toBe('chart');
     });
 
-    it('handles form canvas type', () => {
-      const { result } = renderHook(() => useCanvasState('canvas-2'));
-      expect(result.current?.type).toBe('form');
+    it('returns form canvas state through getState', () => {
+      mockApi.getState = jest.fn(() => ({
+        canvas_id: 'canvas-2',
+        type: 'form',
+        data: { fields: [{ name: 'email', value: '' }] },
+      })) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getState('canvas-2')?.type).toBe('form');
     });
 
-    it('handles unknown canvas types', () => {
-      const { result } = renderHook(() => useCanvasState('unknown-canvas'));
-      expect(result.current).toBeNull();
+    it('returns null for unknown canvas types', () => {
+      mockApi.getState = jest.fn(() => null) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getState('unknown-canvas')).toBeNull();
     });
   });
 
   describe('Data Transformation', () => {
-    it('transforms raw data to canvas format', () => {
-      const { result } = renderHook(() => useCanvasState('canvas-1'));
+    it('exposes the raw data through getState', () => {
+      const { result } = renderHook(() => useCanvasState());
 
-      expect(result.current?.data).toEqual({
-        labels: ['A', 'B'],
-        values: [1, 2],
-      });
+      const state = result.current.getState('canvas-1') as any;
+
+      expect(state.data).toEqual({ title: 'Test Canvas' });
     });
 
     it('handles complex nested data structures', () => {
       const complexCanvas = {
+        canvas_id: 'complex-canvas',
         type: 'sheet',
         data: {
           rows: [
@@ -126,241 +228,306 @@ describe('useCanvasState Hook', () => {
           filters: { value: { min: 50, max: 150 } },
         },
       };
+      mockApi.getState = jest.fn(() => complexCanvas) as any;
+      (window as any).atom.canvas = mockApi;
 
-      const { result } = renderHook(() => useCanvasState('complex-canvas'));
+      const { result } = renderHook(() => useCanvasState());
 
-      // Should handle complex structures
-      expect(result.current).toBeDefined();
+      expect(result.current.getState('complex-canvas')?.data).toEqual(
+        complexCanvas.data
+      );
     });
 
     it('handles empty data', () => {
-      const { result } = renderHook(() => useCanvasState('empty-canvas'));
+      mockApi.getState = jest.fn(() => ({
+        canvas_id: 'empty-canvas',
+        type: 'chart',
+        data: {},
+      })) as any;
+      (window as any).atom.canvas = mockApi;
 
-      if (result.current) {
-        expect(result.current.data).toBeDefined();
-      }
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getState('empty-canvas')?.data).toEqual({});
     });
   });
 
   describe('Real-time Updates', () => {
-    it('receives real-time canvas updates', async () => {
-      let updateCallback: ((state: any) => void) | null = null;
-
-      mockContextValue.subscribe.mockImplementation((callback) => {
-        updateCallback = callback as any;
-        return 'subscription-id';
+    it('updates state when the specific-canvas subscription callback fires', async () => {
+      let subscribeCallback: ((state: AnyCanvasState | null) => void) | null = null;
+      mockApi.subscribe = jest.fn((cb: any) => {
+        subscribeCallback = cb;
+        return () => {};
       });
+      (window as any).atom.canvas = mockApi;
 
       const { result } = renderHook(() => useCanvasState('canvas-1'));
 
-      // Simulate real-time update
       await act(async () => {
-        if (updateCallback) {
-          updateCallback({
-            type: 'chart',
-            data: { labels: ['C', 'D'], values: [3, 4] },
-          });
-        }
+        subscribeCallback!({
+          canvas_id: 'canvas-1',
+          type: 'chart',
+          data: { title: 'Updated' },
+        } as AnyCanvasState);
       });
 
-      // State should update
-      expect(result.current).toBeDefined();
+      expect(result.current.state?.data?.title).toBe('Updated');
     });
 
-    it('handles rapid updates', async () => {
-      let updateCallback: ((state: any) => void) | null = null;
-
-      mockContextValue.subscribe.mockImplementation((callback) => {
-        updateCallback = callback as any;
-        return 'subscription-id';
+    it('does not update state when the specific-canvas callback receives null', async () => {
+      let subscribeCallback: ((state: AnyCanvasState | null) => void) | null = null;
+      mockApi.subscribe = jest.fn((cb: any) => {
+        subscribeCallback = cb;
+        return () => {};
       });
+      mockApi.getState = jest.fn(() => null) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       const { result } = renderHook(() => useCanvasState('canvas-1'));
 
-      // Simulate rapid updates
       await act(async () => {
-        for (let i = 0; i < 10; i++) {
-          if (updateCallback) {
-            updateCallback({
-              type: 'chart',
-              data: { value: i },
-            });
-          }
-        }
+        subscribeCallback!(null);
       });
 
-      // Should handle without errors
-      expect(result.current).toBeDefined();
+      expect(result.current.state).toBeNull();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('adds new canvases when the subscribeAll callback fires', async () => {
+      let allCallback: ((event: CanvasStateChangeEvent) => void) | null = null;
+      mockApi.subscribeAll = jest.fn((cb: any) => {
+        allCallback = cb;
+        return () => {};
+      });
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      await act(async () => {
+        allCallback!({
+          canvas_id: 'canvas-1',
+          state: { type: 'chart', data: {} },
+        } as CanvasStateChangeEvent);
+      });
+      await act(async () => {
+        allCallback!({
+          canvas_id: 'canvas-2',
+          state: { type: 'markdown', data: {} },
+        } as CanvasStateChangeEvent);
+      });
+
+      expect(result.current.allStates.length).toBe(2);
+    });
+
+    it('updates an existing canvas in allStates without duplicating it', async () => {
+      let allCallback: ((event: CanvasStateChangeEvent) => void) | null = null;
+      mockApi.subscribeAll = jest.fn((cb: any) => {
+        allCallback = cb;
+        return () => {};
+      });
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      await act(async () => {
+        allCallback!({
+          canvas_id: 'canvas-1',
+          state: { type: 'chart', data: { title: 'Original' } },
+        } as CanvasStateChangeEvent);
+      });
+      await act(async () => {
+        allCallback!({
+          canvas_id: 'canvas-1',
+          state: { type: 'chart', data: { title: 'Updated' } },
+        } as CanvasStateChangeEvent);
+      });
+
+      expect(result.current.allStates).toHaveLength(1);
+      expect(result.current.allStates[0].state.data.title).toBe('Updated');
     });
   });
 
   describe('Error Handling', () => {
-    it('handles invalid canvas ID', () => {
-      const { result } = renderHook(() => useCanvasState(''));
-      expect(result.current).toBeNull();
+    it('getState returns null when window.atom.canvas is missing', () => {
+      delete (window as any).atom;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getState('test')).toBeNull();
     });
 
-    it('handles malformed canvas data', () => {
-      const { result } = renderHook(() => useCanvasState('malformed-canvas'));
+    it('getAllStates returns [] when window.atom.canvas is missing', () => {
+      delete (window as any).atom;
 
-      // Should handle gracefully
-      expect(() => {
-        if (result.current) {
-          // Access potentially invalid data
-          JSON.stringify(result.current);
-        }
-      }).not.toThrow();
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getAllStates()).toEqual([]);
     });
 
-    it('handles missing required fields', () => {
-      const { result } = renderHook(() => useCanvasState('incomplete-canvas'));
+    it('initializes a canvas API stub when window.atom is missing', () => {
+      delete (window as any).atom;
 
-      if (result.current) {
-        // Should have default values or handle missing fields
-        expect(result.current.type).toBeDefined();
-      }
-    });
-  });
+      renderHook(() => useCanvasState());
 
-  describe('Performance', () => {
-    it('does not cause unnecessary re-renders', () => {
-      const renderCount = { count: 0 };
-
-      const { rerender } = renderHook(() => {
-        renderCount.count++;
-        return useCanvasState('canvas-1');
-      });
-
-      const initialCount = renderCount.count;
-
-      // Re-render without state change
-      rerender();
-
-      // Should not re-render if state hasn't changed
-      expect(renderCount.count).toBe(initialCount);
-    });
-
-    it('handles multiple hook instances efficiently', () => {
-      const renderHook1 = renderHook(() => useCanvasState('canvas-1'));
-      const renderHook2 = renderHook(() => useCanvasState('canvas-2'));
-      const renderHook3 = renderHook(() => useCanvasState('canvas-3'));
-
-      expect(renderHook1.result.current).toBeDefined();
-      expect(renderHook2.result.current).toBeDefined();
-      expect(renderHook3.result.current).toBeDefined();
+      expect((window as any).atom?.canvas).toBeDefined();
+      expect((window as any).atom.canvas.getState).toBeInstanceOf(Function);
+      expect((window as any).atom.canvas.subscribeAll).toBeInstanceOf(Function);
     });
   });
 
   describe('Integration with Canvas API', () => {
-    it('integrates with window.atom.canvas.getState API', () => {
-      // Mock the global API
-      (window as any).atom = {
-        canvas: {
-          getState: jest.fn((id) => ({
-            type: 'chart',
-            data: { values: [1, 2, 3] },
-          })),
-        },
-      };
+    it('getState delegates to window.atom.canvas.getState', () => {
+      const { result } = renderHook(() => useCanvasState());
 
-      const { result } = renderHook(() => useCanvasState('test-canvas'));
+      result.current.getState('canvas-1');
 
-      expect(result.current).toBeDefined();
-      expect((window as any).atom.canvas.getState).toHaveBeenCalled();
+      expect(mockApi.getState).toHaveBeenCalledWith('canvas-1');
     });
 
-    it('handles API errors gracefully', () => {
-      (window as any).atom = {
-        canvas: {
-          getState: jest.fn(() => {
-            throw new Error('API Error');
-          }),
+    it('getAllStates delegates to window.atom.canvas.getAllStates', () => {
+      mockApi.getAllStates = jest.fn(() => [
+        { canvas_id: 'canvas-1', state: { type: 'chart', data: {} } },
+      ]) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      const states = result.current.getAllStates();
+
+      expect(states).toHaveLength(1);
+      expect(mockApi.getAllStates).toHaveBeenCalled();
+    });
+
+    it('getMatchConfidence returns the match_confidence block for an agent operation', () => {
+      const agentState: AgentOperationState = {
+        canvas_id: 'op-1',
+        type: 'agent_operation',
+        data: { operationId: 'op-1' },
+        match_confidence: {
+          level: 'high',
+          score: 0.95,
+          matchedLocator: '[data-testid="submit"]',
+          reason: 'unique button',
         },
       };
+      mockApi.getState = jest.fn(() => agentState) as any;
+      (window as any).atom.canvas = mockApi;
 
-      const { result } = renderHook(() => useCanvasState('test-canvas'));
+      const { result } = renderHook(() => useCanvasState());
 
-      // Should handle error without crashing
-      expect(() => result.current).not.toThrow();
+      const confidence = result.current.getMatchConfidence('op-1');
+
+      expect(confidence).toEqual(agentState.match_confidence);
+    });
+
+    it('getMatchConfidence returns null for non-agent-operation canvases', () => {
+      mockApi.getState = jest.fn(() => ({
+        canvas_id: 'chart-1',
+        type: 'chart',
+        data: {},
+      })) as any;
+      (window as any).atom.canvas = mockApi;
+
+      const { result } = renderHook(() => useCanvasState());
+
+      expect(result.current.getMatchConfidence('chart-1')).toBeNull();
     });
   });
 
   describe('State Persistence', () => {
-    it('persists state across hook re-renders', () => {
+    it('persists state across hook re-renders', async () => {
       const { result, rerender } = renderHook(() => useCanvasState('canvas-1'));
 
-      const initialState = result.current;
+      const initialState = result.current.state;
 
       rerender();
+      rerender();
 
-      const newState = result.current;
-
-      expect(initialState).toEqual(newState);
+      expect(result.current.state).toEqual(initialState);
     });
 
-    it('handles state restoration after unmount', () => {
+    it('restores the same state after unmount and remount', async () => {
+      const testState = {
+        canvas_id: 'canvas-1',
+        type: 'chart',
+        data: { title: 'Persisted' },
+      };
+      mockApi.getState = jest.fn(() => testState) as any;
+      (window as any).atom.canvas = mockApi;
+
       const { result: result1, unmount: unmount1 } = renderHook(() =>
         useCanvasState('canvas-1')
       );
-
-      const state1 = result1.current;
+      const state1 = result1.current.state;
 
       unmount1();
 
       const { result: result2 } = renderHook(() => useCanvasState('canvas-1'));
 
-      const state2 = result2.current;
-
-      // Should restore same state
-      expect(state2).toEqual(state1);
+      expect(result2.current.state).toEqual(state1);
     });
   });
 
   describe('Edge Cases', () => {
-    it('handles null canvas ID', () => {
+    it('treats a null canvas ID as "all canvases"', () => {
       const { result } = renderHook(() => useCanvasState(null as any));
-      expect(result.current).toBeNull();
+
+      expect(mockApi.subscribeAll).toHaveBeenCalled();
+      expect(mockApi.subscribe).not.toHaveBeenCalled();
+      expect(result.current.state).toBeNull();
     });
 
-    it('handles undefined canvas ID', () => {
+    it('treats an undefined canvas ID as "all canvases"', () => {
       const { result } = renderHook(() => useCanvasState(undefined as any));
-      expect(result.current).toBeNull();
+
+      expect(mockApi.subscribeAll).toHaveBeenCalled();
+      expect(result.current.state).toBeNull();
     });
 
-    it('handles very long canvas IDs', () => {
+    it('handles very long canvas IDs', async () => {
       const longId = 'a'.repeat(1000);
       const { result } = renderHook(() => useCanvasState(longId));
 
-      // Should handle without errors
-      expect(() => result.current).not.toThrow();
+      expect(mockApi.subscribe).toHaveBeenCalledWith(expect.any(Function));
+      expect(result.current.state).not.toBeNull();
     });
 
-    it('handles special characters in canvas ID', () => {
+    it('handles special characters in canvas IDs', async () => {
       const specialId = 'canvas-🔥-test-123';
       const { result } = renderHook(() => useCanvasState(specialId));
 
-      expect(() => result.current).not.toThrow();
+      expect(mockApi.subscribe).toHaveBeenCalledWith(expect.any(Function));
+      expect(result.current.state).not.toBeNull();
     });
   });
 
-  describe('TypeScript Type Safety', () => {
-    it('returns properly typed canvas state', () => {
-      const { result } = renderHook(() => useCanvasState('canvas-1'));
+  describe('Cleanup', () => {
+    it('unsubscribes on unmount even when a specific canvas was used', () => {
+      const unsubscribe = jest.fn();
+      mockApi.subscribe = jest.fn(() => unsubscribe);
+      (window as any).atom.canvas = mockApi;
 
-      if (result.current) {
-        // Should have correct types
-        expect(typeof result.current.type).toBe('string');
-        expect(typeof result.current.data).toBe('object');
-      }
+      const { unmount } = renderHook(() => useCanvasState('canvas-1'));
+
+      unmount();
+
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
-    it('handles generic canvas types', () => {
-      const { result } = renderHook(() => useCanvasState<any>('canvas-1'));
+    it('handles repeated unmounts gracefully', () => {
+      const unsubscribe = jest.fn();
+      mockApi.subscribeAll = jest.fn(() => unsubscribe);
+      (window as any).atom.canvas = mockApi;
 
-      if (result.current) {
-        // Should be able to access any properties
-        expect(result.current.anyProperty).toBeUndefined();
-      }
+      const { unmount } = renderHook(() => useCanvasState());
+
+      unmount();
+      unmount();
+
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
   });
 });
