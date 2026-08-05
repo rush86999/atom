@@ -265,15 +265,26 @@ def test_S10b_args_hash_redacts_secret_keys():
 
 @pytest.mark.unit
 def test_S11_shadow_mode_enforced_flag_false_by_default(monkeypatch):
-    """Without ATOM_SANDBOX_FORCE_ENFORCE, blocked decisions have enforced=False."""
+    """P9 default flip: without ATOM_SANDBOX_FORCE_ENFORCE explicitly set, the
+    sandbox is now ENFORCED by default (was shadow). The kill switch
+    ATOM_SANDBOX_FORCE_ENFORCE=false restores the prior shadow behavior."""
     from core.sandbox_policy import PolicyIssuer, BLOCKED
 
+    # New default: enforced (P9).
     monkeypatch.delenv("ATOM_SANDBOX_FORCE_ENFORCE", raising=False)
     issuer = PolicyIssuer()
     policy = issuer.issue("r1", "a1", "student")
     decision = issuer.check(policy, "terminal_command", {})
     assert decision.decision == BLOCKED
-    assert decision.enforced is False  # shadow mode
+    assert decision.enforced is True  # P9: enforced by default now
+
+    # Kill switch restores shadow behavior instantly.
+    monkeypatch.setenv("ATOM_SANDBOX_FORCE_ENFORCE", "false")
+    issuer2 = PolicyIssuer()
+    policy2 = issuer2.issue("r2", "a1", "student")
+    decision2 = issuer2.check(policy2, "terminal_command", {})
+    assert decision2.decision == BLOCKED
+    assert decision2.enforced is False  # shadow restored via kill switch
 
 
 @pytest.mark.unit
@@ -356,9 +367,17 @@ def test_S12c_tenant_override_caps_use_minimum(monkeypatch):
 
 @pytest.mark.unit
 def test_S13_config_master_switch_off_by_default(monkeypatch):
+    """P9 default flip: the sandbox master switch is now ON by default.
+    The kill switch ATOM_SANDBOX_ENABLED=false restores the prior off-by-default
+    behavior."""
     from core import sandbox_config
 
+    # New default: ON (P9).
     monkeypatch.delenv("ATOM_SANDBOX_ENABLED", raising=False)
+    assert sandbox_config.is_sandbox_enabled() is True
+
+    # Kill switch disables it.
+    monkeypatch.setenv("ATOM_SANDBOX_ENABLED", "false")
     assert sandbox_config.is_sandbox_enabled() is False
 
 
@@ -451,7 +470,8 @@ def test_S16b_audit_writer_skips_when_sandbox_disabled(monkeypatch):
     from core.sandbox_audit import write_violation
     from core.sandbox_policy import SandboxDecision, BLOCKED
 
-    monkeypatch.delenv("ATOM_SANDBOX_ENABLED", raising=False)
+    # P9: the default is now ON, so explicitly disable to test the skip path.
+    monkeypatch.setenv("ATOM_SANDBOX_ENABLED", "false")
     assert sandbox_config.is_sandbox_enabled() is False
     decision = SandboxDecision(decision=BLOCKED, tool_name="x")
     # No-op because master switch off

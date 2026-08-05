@@ -238,18 +238,22 @@ ATOM_SKILL_INJECTION_ENABLED=true        # prompt-time skill auto-injection (C)
 ATOM_TOOL_CACHE_ENABLED=true             # read-only tool-result memoization (H)
 ATOM_TOOL_CACHE_TTL=30                   # cache TTL seconds (H)
 
-# Execution Sandbox Layer (Rounds 43-47; all default OFF = shadow mode)
-ATOM_SANDBOX_ENABLED=false               # master (Phase A+)
-ATOM_SANDBOX_FORCE_ENFORCE=false         # audit always, enforcement off
+# Execution Sandbox Layer (Rounds 43-47 + P9 Cloudflare OS G5: DEFAULT-ON)
+# P9 flipped the deterministic blast-radius controls ON by default for ALL
+# dispatch paths (agent loop, workflow, fleet, business — via the shared
+# sandbox_gate at integrations/mcp_service.call_tool). Each flag remains a kill
+# switch: set any to `false` to restore the prior shadow/off behavior instantly.
+ATOM_SANDBOX_ENABLED=true                # master (Phase A+) — ON (P9)
+ATOM_SANDBOX_FORCE_ENFORCE=true          # enforce, not just audit — ON (P9)
 ATOM_SANDBOX_POLICY_TENANT_OVERRIDE=false
-ATOM_SANDBOX_FS_ENABLED=false            # Phase B — fs scope
-ATOM_SANDBOX_WHITELIST_ENABLED=false   ATOM_SANDBOX_TRIPWIRES_ENABLED=false   ATOM_SANDBOX_CAPS_ENABLED=false   # Phase C
+ATOM_SANDBOX_FS_ENABLED=true             # Phase B — fs scope — ON (P9)
+ATOM_SANDBOX_WHITELIST_ENABLED=true   ATOM_SANDBOX_TRIPWIRES_ENABLED=true   ATOM_SANDBOX_CAPS_ENABLED=true   # Phase C — ON (P9)
 ATOM_SANDBOX_MAX_TOOL_CALLS=200   ATOM_SANDBOX_MAX_EXEC_SECONDS=600
 ATOM_SANDBOX_MAX_BYTES_WRITTEN=104857600   ATOM_SANDBOX_MAX_COST_USD=5.0
 ATOM_SANDBOX_RUNTIME=docker               # docker|firecracker|e2b (E2B_API_KEY for e2b)
-ATOM_SANDBOX_EGRESS_ENABLED=false
+ATOM_SANDBOX_EGRESS_ENABLED=false         # Phase D — stays OFF (opt-in; network egress isolation)
 ATOM_SANDBOX_VM_MEM_MB=256   ATOM_SANDBOX_VM_VCPUS=1   ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS=5
-ATOM_SANDBOX_PROVENANCE_ENABLED=false   ATOM_SANDBOX_JUDGE_ENABLED=false   # Phase E
+ATOM_SANDBOX_PROVENANCE_ENABLED=true      # Phase E — ON (P9); ATOM_SANDBOX_JUDGE_ENABLED=false (LLM judge opt-in per R72)
 ATOM_SANDBOX_JUDGE_TIMEOUT_SECONDS=2.0   ATOM_SANDBOX_JUDGE_CIRCUIT_THRESHOLD=5   ATOM_SANDBOX_JUDGE_CIRCUIT_COOLDOWN_SECONDS=120
 
 # Security (Rounds 18-69)

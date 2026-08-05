@@ -1126,6 +1126,32 @@ class MCPService(IntegrationService):
         except Exception as cap_err:  # pragma: no cover - defensive fail-open
             logger.debug("capability gate skipped: %s", cap_err)
 
+        # P9: shared sandbox gate. Routes the legacy dispatch (generic agents,
+        # fleet, workflow, business agents — everything that goes through this
+        # call_tool) through the same sandbox evaluation as atom_meta_agent, so
+        # blast radius is bounded deterministically for ALL callers, not just the
+        # meta-agent. Returns None when no policy is in scope (master switch off
+        # or no run_id/tier in context) -> allowed. Shadow mode by default; the
+        # ATOM_SANDBOX_FORCE_ENFORCE kill switch flips enforcement.
+        try:
+            from core.sandbox_gate import evaluate_tool_call
+            sandbox_decision = evaluate_tool_call(tool_name, arguments, context or {})
+            if sandbox_decision is not None and getattr(sandbox_decision, "requires_review", False):
+                if getattr(sandbox_decision, "enforced", False):
+                    return (
+                        f"Sandbox {sandbox_decision.decision}: "
+                        f"{sandbox_decision.violation_detail}"
+                    )
+                # Shadow mode — log + audit but proceed.
+                logger.info(
+                    "sandbox shadow: %s -> %s (%s)",
+                    (context or {}).get("agent_id", "legacy_dispatch"),
+                    tool_name,
+                    getattr(sandbox_decision, "violation_type", "?"),
+                )
+        except Exception as sandbox_err:  # pragma: no cover - fail-open
+            logger.debug("sandbox gate skipped: %s", sandbox_err)
+
         # 0. Check Ontology Action Registry first
         from core.action_registry import action_registry
         action = action_registry.get_action(tool_name)

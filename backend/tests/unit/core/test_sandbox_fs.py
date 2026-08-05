@@ -351,14 +351,22 @@ def test_B10b_rewrite_relative_path(tmp_path):
 
 @pytest.mark.unit
 def test_B11_shadow_default_enforced_false(monkeypatch):
+    """P9 default flip: sandbox FS is now ENFORCED by default. The kill switch
+    ATOM_SANDBOX_FORCE_ENFORCE=false restores the prior shadow behavior."""
     from core.sandbox_fs import validate_path
 
+    # New default: enforced (P9).
     monkeypatch.delenv("ATOM_SANDBOX_FORCE_ENFORCE", raising=False)
     policy = _make_policy()
     d = validate_path("/etc/passwd", policy, write=False, tool_name="t")
-    # BLOCKED but not enforced
     assert d.decision == "blocked"
-    assert d.enforced is False
+    assert d.enforced is True  # P9: enforced by default now
+
+    # Kill switch restores shadow.
+    monkeypatch.setenv("ATOM_SANDBOX_FORCE_ENFORCE", "false")
+    d2 = validate_path("/etc/passwd", policy, write=False, tool_name="t")
+    assert d2.decision == "blocked"
+    assert d2.enforced is False  # shadow restored via kill switch
 
 
 @pytest.mark.unit

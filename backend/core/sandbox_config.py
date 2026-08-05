@@ -51,9 +51,9 @@ def is_sandbox_enabled() -> bool:
 
     When False, ``PolicyIssuer.check()`` short-circuits to ``allowed`` and
     no audit rows are written. Equivalent to pre-Round-43 behavior.
-    Default: off (Personal edition — opt-in).
+    Default: ON (P9 sandbox-default-on — kill switch: ATOM_SANDBOX_ENABLED=false).
     """
-    return _flag("ATOM_SANDBOX_ENABLED")
+    return _flag("ATOM_SANDBOX_ENABLED", default="true")
 
 
 def is_sandbox_force_enforce_enabled() -> bool:
@@ -64,28 +64,31 @@ def is_sandbox_force_enforce_enabled() -> bool:
     violation rates before flipping the gate. Mirrors
     ``ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL`` and
     ``MATCH_CONFIDENCE_FORCE_PROPOSAL``.
+
+    Default: ON (P9 sandbox-default-on — kill switch:
+    ATOM_SANDBOX_FORCE_ENFORCE=false restores shadow behavior instantly).
     """
-    return _flag("ATOM_SANDBOX_FORCE_ENFORCE")
+    return _flag("ATOM_SANDBOX_FORCE_ENFORCE", default="true")
 
 
 def is_sandbox_fs_enabled() -> bool:
-    """Phase B — filesystem scope enforcement (default: off in Phase A)."""
-    return _flag("ATOM_SANDBOX_FS_ENABLED")
+    """Phase B — filesystem scope enforcement (default: ON, P9)."""
+    return _flag("ATOM_SANDBOX_FS_ENABLED", default="true")
 
 
 def is_sandbox_whitelist_enabled() -> bool:
-    """Phase C — tool whitelist enforcement (default: off)."""
-    return _flag("ATOM_SANDBOX_WHITELIST_ENABLED")
+    """Phase C — tool whitelist enforcement (default: ON, P9)."""
+    return _flag("ATOM_SANDBOX_WHITELIST_ENABLED", default="true")
 
 
 def is_sandbox_tripwires_enabled() -> bool:
-    """Phase C — tripwire pattern enforcement (default: off)."""
-    return _flag("ATOM_SANDBOX_TRIPWIRES_ENABLED")
+    """Phase C — tripwire pattern enforcement (default: ON, P9)."""
+    return _flag("ATOM_SANDBOX_TRIPWIRES_ENABLED", default="true")
 
 
 def is_sandbox_caps_enabled() -> bool:
-    """Phase C — resource cap enforcement (default: off)."""
-    return _flag("ATOM_SANDBOX_CAPS_ENABLED")
+    """Phase C — resource cap enforcement (default: ON, P9)."""
+    return _flag("ATOM_SANDBOX_CAPS_ENABLED", default="true")
 
 
 def is_sandbox_egress_enabled() -> bool:
@@ -94,8 +97,8 @@ def is_sandbox_egress_enabled() -> bool:
 
 
 def is_sandbox_provenance_enabled() -> bool:
-    """Phase E — provenance tagging in context assembly (default: off)."""
-    return _flag("ATOM_SANDBOX_PROVENANCE_ENABLED")
+    """Phase E — provenance tagging in context assembly (default: ON, P9)."""
+    return _flag("ATOM_SANDBOX_PROVENANCE_ENABLED", default="true")
 
 
 def is_sandbox_judge_enabled() -> bool:
@@ -247,10 +250,15 @@ def get_sandbox_judge_circuit_cooldown_seconds() -> int:
 # ---------------------------------------------------------------------------
 
 
-def _flag(env_var: str) -> bool:
+def _flag(env_var: str, default: str = "false") -> bool:
     """Parse env var as boolean (true/false/1/0/yes/no/on/off).
 
     Identical to the helper in ``hallucination_config.py``. Duplicated
     intentionally to avoid cross-module coupling between feature areas.
+
+    ``default`` lets individual resolvers opt into a default-on posture (P9
+    sandbox-default-on) while keeping every flag overridable via env — so the
+    kill switch (``ATOM_SANDBOX_FORCE_ENFORCE=false`` etc.) restores the prior
+    behavior instantly.
     """
-    return os.getenv(env_var, "false").strip().lower() in {"1", "true", "yes", "on"}
+    return os.getenv(env_var, default).strip().lower() in {"1", "true", "yes", "on"}

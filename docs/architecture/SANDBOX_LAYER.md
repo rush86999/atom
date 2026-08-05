@@ -1,9 +1,15 @@
 # Execution Sandbox Layer
 
-> **Status**: Phases A-E shipped (Rounds 43-47, June 30 2026). All in shadow
-> mode by default — compute + audit always on, enforcement off. Operators
-> flip `*_FORCE_ENFORCE=true` after observing violation distributions in
-> staging.
+> **Status (P9 / Cloudflare OS G5):** The deterministic blast-radius controls
+> are **DEFAULT-ON** for all dispatch paths. Previously shadow-mode (audit
+> always, enforcement off) and only enforced by `atom_meta_agent`. As of P9 the
+> shared `core/sandbox_gate.py` gates every tool call through
+> `integrations/mcp_service.call_tool`, so agent loop, workflow engine, fleet,
+> and business agents are all bounded identically. Each flag remains a kill
+> switch — set any to `false` to restore the prior shadow/off behavior instantly.
+>
+> Phases A-E shipped (Rounds 43-47, June 30 2026) in shadow mode; P9 (Aug 2026)
+> flipped the defaults to enforce-on.
 >
 > **Cross-references**:
 > - [MATCH_CONFIDENCE.md](./MATCH_CONFIDENCE.md) — Round 41 pre-action selector confidence
@@ -260,42 +266,50 @@ them would drown the signal).
 
 ## Kill switches (per phase)
 
+> **P9 default flip**: all flags below now default to ON (were OFF/shadow).
+> Setting any to `false` restores the prior behavior instantly.
+
 | Phase | Kill switch | Effect |
 |-------|-------------|--------|
-| A | `ATOM_SANDBOX_ENABLED=false` (default) | Policy not issued; all tools behave as before |
-| B | `ATOM_SANDBOX_FS_ENABLED=false` (default) | FS scope check skipped |
-| C | `ATOM_SANDBOX_WHITELIST_ENABLED=false` + `ATOM_SANDBOX_TRIPWIRES_ENABLED=false` + `ATOM_SANDBOX_CAPS_ENABLED=false` (defaults) | Each sub-feature independently toggleable |
+| A | `ATOM_SANDBOX_ENABLED=false` | Policy not issued; all tools behave as before |
+| B | `ATOM_SANDBOX_FS_ENABLED=false` | FS scope check skipped |
+| C | `ATOM_SANDBOX_WHITELIST_ENABLED=false` + `ATOM_SANDBOX_TRIPWIRES_ENABLED=false` + `ATOM_SANDBOX_CAPS_ENABLED=false` | Each sub-feature independently toggleable |
 | D | `ATOM_SANDBOX_RUNTIME=docker` (default) | Falls back to existing Docker (no Firecracker); `ATOM_SANDBOX_EGRESS_ENABLED=false` (default) skips proxy |
-| E | `ATOM_SANDBOX_PROVENANCE_ENABLED=false` (default) + `ATOM_SANDBOX_JUDGE_ENABLED=false` (default) | Provenance tags not added; ActionJudge skipped |
+| E | `ATOM_SANDBOX_PROVENANCE_ENABLED=false` + `ATOM_SANDBOX_JUDGE_ENABLED=false` (default) | Provenance tags not added; ActionJudge skipped (judge stays opt-in per R72) |
 
-**Master shadow switch**: `ATOM_SANDBOX_FORCE_ENFORCE=false` (default).
-When false, all phases compute + audit but no call is actually blocked.
-When true, all enabled phases enforce. KillRun only fires when both
-`ATOM_SANDBOX_TRIPWIRES_ENABLED=true` AND `ATOM_SANDBOX_FORCE_ENFORCE=true`.
+**Master shadow switch**: `ATOM_SANDBOX_FORCE_ENFORCE` (default **true** since P9).
+When true, all enabled phases enforce (block on violation). When false, all
+phases compute + audit but no call is actually blocked (shadow mode). KillRun
+only fires when both `ATOM_SANDBOX_TRIPWIRES_ENABLED=true` AND
+`ATOM_SANDBOX_FORCE_ENFORCE=true`.
 
 ---
 
 ## Environment variables
 
+> **P9 default flip**: the deterministic controls below now default to ON.
+> Egress (Phase D) and the LLM ActionJudge (Phase E) stay opt-in. Every flag
+> remains a kill switch.
+
 ```bash
-# Master switches
-ATOM_SANDBOX_ENABLED=false                    # Master switch (Phase A+)
-ATOM_SANDBOX_FORCE_ENFORCE=false              # Shadow mode default
+# Master switches (P9: default ON)
+ATOM_SANDBOX_ENABLED=true                     # Master switch (Phase A+) — ON (P9)
+ATOM_SANDBOX_FORCE_ENFORCE=true               # Enforce, not just audit — ON (P9)
 ATOM_SANDBOX_POLICY_TENANT_OVERRIDE=false     # Allow tenant overrides
 
-# Phase B
-ATOM_SANDBOX_FS_ENABLED=false
+# Phase B (P9: default ON)
+ATOM_SANDBOX_FS_ENABLED=true
 
-# Phase C
-ATOM_SANDBOX_WHITELIST_ENABLED=false
-ATOM_SANDBOX_TRIPWIRES_ENABLED=false
-ATOM_SANDBOX_CAPS_ENABLED=false
+# Phase C (P9: default ON)
+ATOM_SANDBOX_WHITELIST_ENABLED=true
+ATOM_SANDBOX_TRIPWIRES_ENABLED=true
+ATOM_SANDBOX_CAPS_ENABLED=true
 ATOM_SANDBOX_MAX_TOOL_CALLS=200               # Default cap
 ATOM_SANDBOX_MAX_EXEC_SECONDS=600             # Default cap (10 min)
 ATOM_SANDBOX_MAX_BYTES_WRITTEN=104857600      # Default cap (100 MiB)
 ATOM_SANDBOX_MAX_COST_USD=5.0                 # Default cap
 
-# Phase D
+# Phase D (egress stays opt-in)
 ATOM_SANDBOX_RUNTIME=docker                   # docker | firecracker | e2b
 ATOM_SANDBOX_EGRESS_ENABLED=false
 ATOM_SANDBOX_VM_MEM_MB=256
@@ -303,8 +317,8 @@ ATOM_SANDBOX_VM_VCPUS=1
 ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS=5
 E2B_API_KEY=                                  # Required for E2B backend
 
-# Phase E
-ATOM_SANDBOX_PROVENANCE_ENABLED=false
+# Phase E (provenance ON P9; LLM judge stays opt-in per R72)
+ATOM_SANDBOX_PROVENANCE_ENABLED=true
 ATOM_SANDBOX_JUDGE_ENABLED=false
 ATOM_SANDBOX_JUDGE_TIMEOUT_SECONDS=2.0
 ATOM_SANDBOX_JUDGE_CIRCUIT_THRESHOLD=5
