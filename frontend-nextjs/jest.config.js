@@ -14,8 +14,11 @@ module.exports = {
   },
   preset: "ts-jest",
   testMatch: [
-    // Shared property tests (Phase 147: Cross-Platform Property Testing)
-    "<rootDir>/shared/property-tests/**/*.ts",
+    // Shared property tests (Phase 147: Cross-Platform Property Testing).
+    // NOTE: only match actual *.test.ts files here — the bare glob previously
+    // matched source modules (index.ts, config.ts, types.ts, ...) which threw
+    // "Your test suite must contain at least one test" collection errors.
+    "<rootDir>/shared/property-tests/**/*.test.(ts|tsx|js)",
     // Standard test files
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",

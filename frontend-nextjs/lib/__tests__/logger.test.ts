@@ -9,7 +9,46 @@
 
 import { logger, appServiceLogger } from '../logger';
 
+// Mock pino so it never instantiates the "pino-pretty" dev transport (not an
+// installed dependency). The logger unit tests only verify the wrapper API,
+// so a stubbed pino instance is sufficient. jest.mock is hoisted to the top
+// of the module by ts-jest regardless of position.
+//
+// resetMocks: true (jest.config.js) wipes jest.fn() implementations before
+// each test, so the child() implementation is re-established in beforeEach
+// via jest.requireMock. We cannot use a module-scope mock* variable here:
+// the import of '../logger' (which requires pino) is hoisted above the const,
+// so the factory would read it before initialization (TDZ).
+// Note: child() is a plain function (not jest.fn) so it is NOT wiped by
+// resetMocks between tests — the appServiceLogger.child wrapper always gets a
+// real child object back.
+jest.mock('pino', () => {
+  const createHandler = () => ({
+    level: 'info',
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    fatal: jest.fn(),
+    trace: jest.fn(),
+  });
+  return {
+    __esModule: true,
+    default: jest.fn(() => ({
+      level: 'info',
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      fatal: jest.fn(),
+      trace: jest.fn(),
+      child: createHandler,
+    })),
+  };
+});
+
 describe('logger.ts - Logger Configuration', () => {
+
   // Test 1: logger is exported
   test('logger should be exported', () => {
     expect(logger).toBeDefined();
