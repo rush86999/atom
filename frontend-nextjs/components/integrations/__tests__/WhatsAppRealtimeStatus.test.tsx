@@ -1,84 +1,41 @@
 /**
- * WhatsApp Realtime Status Component Tests
+ * WhatsAppRealtimeStatus Component Tests
  *
- * Test suite for WhatsApp connection health and real-time monitoring
+ * Tests verify the real WhatsAppRealtimeStatus component
+ * (components/integrations/WhatsAppRealtimeStatus.tsx).
+ *
+ * NOTE: The component is a purely static display — it makes NO network
+ * requests (no /api/whatsapp/health or webhook-status calls), takes no props,
+ * and renders hardcoded default state (Disconnected / pending). There is
+ * nothing to mock with MSW, so these tests assert the rendered output only.
  */
 
 import React from 'react';
-import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
-import { rest } from 'msw';
-import { server } from '@/tests/mocks/server';
-import WhatsAppRealtimeStatus from '../WhatsAppRealtimeStatus';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import WhatsAppRealtimeStatus from '@/components/integrations/WhatsAppRealtimeStatus';
 
-describe('WhatsAppRealtimeStatus Component', () => {
-  beforeEach(() => {
-    server.resetHandlers();
+describe('WhatsAppRealtimeStatus', () => {
+  // Test 1: renders component with its heading
+  test('renders component', () => {
+    render(<WhatsAppRealtimeStatus />);
+
+    expect(
+      screen.getByRole('heading', { name: /whatsapp real-time status/i })
+    ).toBeInTheDocument();
   });
 
-  it('renders WhatsApp realtime status component', () => {
-    renderWithProviders(<WhatsAppRealtimeStatus />);
-    expect(screen.getByText(/whatsapp|status|health/i)).toBeInTheDocument();
+  // Test 2: shows the default (disconnected) connection state
+  test('shows default disconnected connection state', () => {
+    render(<WhatsAppRealtimeStatus />);
+
+    expect(screen.getByText('Connection: Disconnected')).toBeInTheDocument();
   });
 
-  it('displays connection health status', async () => {
-    server.use(
-      rest.get('/api/whatsapp/health', (req, res, ctx) => {
-        return res(
-          ctx.status(200),
-          ctx.json({
-            status: 'healthy',
-            service: 'WhatsApp Business API',
-            timestamp: new Date().toISOString(),
-          })
-        );
-      })
-    );
+  // Test 3: shows the default pending message status
+  test('shows default pending message status', () => {
+    render(<WhatsAppRealtimeStatus />);
 
-    renderWithProviders(<WhatsAppRealtimeStatus />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/healthy|connected/i)).toBeInTheDocument();
-    });
-  });
-
-  it('shows webhook status', async () => {
-    server.use(
-      rest.get('/api/whatsapp/webhook-status', (req, res, ctx) => {
-        return res(
-          ctx.status(200),
-          ctx.json({
-            success: true,
-            webhook_configured: true,
-            webhook_url: 'https://example.com/webhook',
-          })
-        );
-      })
-    );
-
-    renderWithProviders(<WhatsAppRealtimeStatus />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/webhook|configured/i)).toBeInTheDocument();
-    });
-  });
-
-  it('displays error status on unhealthy connection', async () => {
-    server.use(
-      rest.get('/api/whatsapp/health', (req, res, ctx) => {
-        return res(
-          ctx.status(503),
-          ctx.json({
-            status: 'unhealthy',
-            error: 'Connection lost',
-          })
-        );
-      })
-    );
-
-    renderWithProviders(<WhatsAppRealtimeStatus />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/unhealthy|error|disconnected/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText('Message Status: pending')).toBeInTheDocument();
   });
 });
