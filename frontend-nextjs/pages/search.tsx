@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import { Search, ChevronDown, Star } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
@@ -66,31 +66,22 @@ const SearchPage: React.FC = () => {
     "customer feedback",
   ];
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout;
-      return (searchQuery: string) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          if (searchQuery.trim()) {
-            handleSearch(searchQuery);
-          }
-        }, 300);
-      };
-    })(),
-    [],
-  );
-
+  // Debounced search via useRef timer — keyed on [query, filters, searchType]
+  // so the search always uses LIVE filter values, not the stale first-render
+  // closure captured by the old useCallback([], []) IIFE (BUG-062).
+  const searchTimerRef = useRef<NodeJS.Timeout>();
   useEffect(() => {
     if (query.length > 2) {
-      debouncedSearch(query);
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = setTimeout(() => handleSearch(query), 300);
       fetchSuggestions(query);
     } else {
       setResults([]);
       setSuggestions([]);
     }
-  }, [query, debouncedSearch]);
+    return () => clearTimeout(searchTimerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filters, searchType]);
 
   const fetchSuggestions = async (partialQuery: string) => {
     try {

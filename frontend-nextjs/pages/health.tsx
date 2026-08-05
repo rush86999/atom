@@ -71,7 +71,9 @@ const BusinessHealthDashboard: React.FC = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const responses = await Promise.all([
+            // Use Promise.allSettled so one failed endpoint doesn't blank the
+            // entire dashboard — each result is checked independently (BUG-063).
+            const results = await Promise.allSettled([
                 fetch("/api/business-health/priorities"),
                 fetch("/api/business-health/forensics/price-drift"),
                 fetch("/api/business-health/forensics/pricing-advisor"),
@@ -82,28 +84,42 @@ const BusinessHealthDashboard: React.FC = () => {
                 fetch("/api/business-health/interventions/generate?workspace_id=default", { method: "POST" })
             ]);
 
-            const [pRes, dRes, prRes, wRes, cRes, ewRes, fRes, iRes] = responses;
+            const settled = (r: PromiseSettledResult<Response>) =>
+                r.status === "fulfilled" && r.value.ok ? r.value : null;
 
-            if (pRes.ok) setData(await pRes.json());
-            if (iRes && iRes.ok) {
-                const iData = await iRes.json();
-                setInterventions(iData.interventions || []);
+            const [pR, dR, prR, wR, cR, ewR, fR, iR] = results;
+            const pRes = settled(pR), dRes = settled(dR), prRes = settled(prR),
+                  wRes = settled(wR), cRes = settled(cR), ewRes = settled(ewR),
+                  fRes = settled(fR), iRes = settled(iR);
+
+            if (pRes) {
+                try { setData(await pRes.json()); } catch {}
+            }
+            if (iRes) {
+                try {
+                    const iData = await iRes.json();
+                    setInterventions(iData.interventions || []);
+                } catch {}
             }
 
-            if (dRes.ok && prRes.ok && wRes.ok) {
-                setForensics({
-                    drift: await dRes.json(),
-                    pricing: await prRes.json(),
-                    waste: await wRes.json()
-                });
+            if (dRes && prRes && wRes) {
+                try {
+                    setForensics({
+                        drift: await dRes.json(),
+                        pricing: await prRes.json(),
+                        waste: await wRes.json()
+                    });
+                } catch {}
             }
 
-            if (cRes.ok && ewRes.ok && fRes.ok) {
-                setRiskData({
-                    churn: await cRes.json(),
-                    alerts: await ewRes.json(),
-                    fraud: await fRes.json()
-                });
+            if (cRes && ewRes && fRes) {
+                try {
+                    setRiskData({
+                        churn: await cRes.json(),
+                        alerts: await ewRes.json(),
+                        fraud: await fRes.json()
+                    });
+                } catch {}
             }
 
         } catch (error) {

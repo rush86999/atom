@@ -77,6 +77,12 @@ const FinancePage = () => {
 
     const handleCreateTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Client-side validation: amount must be a positive number (BUG-064).
+        const amt = parseFloat(newTx.amount);
+        if (isNaN(amt)) {
+            toast({ title: "Invalid amount", description: "Please enter a valid number.", variant: "error" });
+            return;
+        }
         setIsSubmitting(true);
         try {
             const token = localStorage.getItem('auth_token');
@@ -89,14 +95,18 @@ const FinancePage = () => {
                 body: JSON.stringify({
                     id: `tx_global_${Date.now()}`,
                     date: new Date(newTx.date).toISOString(),
-                    amount: parseFloat(newTx.amount),
+                    amount: amt,
                     description: newTx.description,
                     merchant: newTx.merchant || null,
                     source: "manual"
                 })
             });
 
-            if (!response.ok) throw new Error("Failed to create transaction");
+            if (!response.ok) {
+                // Surface the backend's error detail instead of a generic message (BUG-064).
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(errBody.detail || `Request failed (${response.status})`);
+            }
 
             toast({ title: "Transaction Created", description: `Successfully added new transaction.` });
             setIsCreateOpen(false);
@@ -106,7 +116,7 @@ const FinancePage = () => {
             window.dispatchEvent(new Event('transactionCreated'));
 
         } catch (error) {
-            toast({ title: "Error", description: "Failed to create transaction", variant: "error" });
+            toast({ title: "Error", description: (error as Error).message || "Failed to create transaction", variant: "error" });
         } finally {
             setIsSubmitting(false);
         }

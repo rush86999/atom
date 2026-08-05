@@ -180,7 +180,12 @@ const AgentsDashboard = () => {
         }
     };
 
+    // Guard against double-click on stop (BUG-065).
+    const [stoppingId, setStoppingId] = useState<string | null>(null);
+
     const handleStopAgent = async (id: string) => {
+        if (stoppingId) return; // prevent double-fire while in-flight
+        setStoppingId(id);
         try {
             const res = await fetch(`/api/agents/${id}/stop`, {
                 headers: {
@@ -199,6 +204,8 @@ const AgentsDashboard = () => {
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
+        } finally {
+            setStoppingId(null);
         }
     };
 
