@@ -3,8 +3,21 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AgentStudio from '@/components/Agents/AgentStudio';
 
-// Mock axios
-jest.mock('axios');
+// Mock axios. Must provide a factory: the automock returns `undefined` from
+// axios.create(), so lib/api.ts's `apiClient.interceptors.request.use(...)`
+// threw "Cannot read properties of undefined (reading 'interceptors')" at
+// import time and the whole suite failed to run.
+jest.mock('axios', () => {
+  const mockAxios: any = {
+    create: jest.fn(() => mockAxios),
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+  };
+  return mockAxios;
+});
 const axios = require('axios');
 
 // Mock useToast
