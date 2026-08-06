@@ -86,9 +86,13 @@ async def enable_2fa(
     request: Request,
     verify_data: TwoFactorVerifyRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(totp_rate_limit),
 ):
-    """Verify code and enable 2FA"""
+    """Verify code and enable 2FA
+
+    SECURITY: rate-limited to prevent TOTP brute-forcing (BUG-091).
+    """
     if current_user.two_factor_enabled:
         raise router.conflict_error("2FA is already enabled")
 
@@ -125,9 +129,13 @@ async def disable_2fa(
     request: Request,
     verify_data: TwoFactorVerifyRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl=Depends(totp_rate_limit),
 ):
-    """Disable 2FA after verifying a code"""
+    """Disable 2FA after verifying a code
+
+    SECURITY: rate-limited to prevent TOTP brute-forcing (BUG-091).
+    """
     if not current_user.two_factor_enabled:
         raise router.validation_error("two_factor_enabled", "2FA is not enabled")
     

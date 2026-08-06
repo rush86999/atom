@@ -59,7 +59,9 @@ export default function TwoFactorSettings() {
             if (res.ok) {
                 setIsEnabled(true);
                 setIsSettingUp(false);
-                setBackupCodes(data.backup_codes);
+                // BUG-092: /api/auth/2fa/enable returns the standard envelope
+                // { success, data: { backup_codes }, ... }, not { backup_codes }.
+                setBackupCodes(data?.data?.backup_codes ?? null);
                 toast.success('Two-factor authentication enabled!');
             } else {
                 toast.error(data.detail || 'Invalid verification code');

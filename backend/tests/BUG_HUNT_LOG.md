@@ -549,3 +549,43 @@ written first (red), the root cause confirmed, then the minimal fix applied
 - **Symptom:** `progressEvent.total || 1` divided loaded*100 by 1 when total=0
   (streaming/chunked uploads), producing values like 5000% — meaningless progress.
 - **Fix:** Added `Math.min(100, ...)` clamp.
+
+---
+
+## Round 21 — 2FA brute-force + VC revocation config + frontend 2FA envelope
+
+### BUG-091 — `/enable` and `/disable` 2FA endpoints verify TOTP with no rate limit
+- **Flow:** Backend 2FA route (api/auth_2fa_routes.py)
+- **Symptom:** The module docstring promises a rate limiter for "2FA code
+  verification endpoints — prevents brute-forcing TOTP codes (6 digits = 1M
+  combinations in a 30s window)", but `totp_rate_limit` was only wired onto
+  `verify_action_2fa`. `/enable` and `/disable` both call `pyotp.TOTP.verify()`
+  with unlimited attempts. `/disable` is the critical path: an attacker with a
+  stolen session can guess the TOTP code to disable the victim's 2FA.
+- **Root cause:** The `_rl=Depends(totp_rate_limit)` dependency was missing from
+  both endpoints.
+- **Test:** `tests/test_round21_2fa_enable_disable_rate_limit.py` (3 tests)
+- **Fix:** Added `_rl=Depends(totp_rate_limit)` to `enable_2fa` and `disable_2fa`.
+
+### BUG-092 — 2FA recovery codes never display after enabling (wrong envelope key)
+- **Flow:** Frontend TwoFactorSettings → `/api/auth/2fa/enable` (frontend)
+- **Symptom:** After enabling 2FA the user never sees the generated backup
+  recovery codes, so they can't save them and risk lockout. The component read
+  `data.backup_codes`, but the backend returns the standard envelope
+  `{ success, data: { backup_codes }, message, timestamp }`.
+- **Root cause:** `handleEnable` read `data.backup_codes` (undefined) instead of
+  `data.data.backup_codes`.
+- **Test:** `frontend-nextjs/components/Settings/__tests__/TwoFactorSettings.test.tsx`
+  → "displays the backup recovery codes after enabling 2FA (BUG-092)"
+- **Fix:** `setBackupCodes(data?.data?.backup_codes ?? null)` in TwoFactorSettings.tsx.
+
+### BUG-093 — `enable_revocation` config flag ignored by VC revocation
+- **Flow:** Backend verifiable credentials (core/identity/verifiable_credentials.py)
+- **Symptom:** `VCConfig.enable_revocation` (default True) declares whether
+  revocation is enabled, but `revoke_credential` never consulted it — a manager
+  configured with `enable_revocation=False` still revoked credentials. An
+  operator who disables revocation to freeze the trust set gets silent
+  revocation anyway (fail-open config).
+- **Root cause:** `revoke_credential` and `_is_revoked` ignored `config.enable_revocation`.
+- **Test:** `tests/test_round21_vc_revocation_config.py` (4 tests)
+- **Fix:** `revoke_credential` returns False (and logs) when `enable_revocation` is disabled.

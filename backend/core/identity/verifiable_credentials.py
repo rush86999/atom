@@ -500,6 +500,14 @@ class VerifiableCredentialManager:
         if credential_id not in self._credentials:
             return False
 
+        # BUG-093: honor the enable_revocation config flag — a manager configured
+        # with revocation disabled must refuse to revoke (fail-closed).
+        if not self.config.enable_revocation:
+            logger.warning(
+                f"Refusing to revoke {credential_id}: enable_revocation is disabled"
+            )
+            return False
+
         vc = self._credentials[credential_id]
         vc.revoked = True
         vc.revoked_at = datetime.now()

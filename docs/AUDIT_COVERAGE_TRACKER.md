@@ -1,9 +1,9 @@
 # Codebase Bug-Hunt Coverage Tracker
 
-**Last updated:** 2026-08-05
-**Bugs fixed:** 90 (BUG-001 → BUG-090) across 20 rounds
-**Overall file coverage:** ~60% (960/1,597 source files)
-**Critical-path coverage:** ~95% (all auth, billing, payments, secrets, webhooks, tenant isolation)
+**Last updated:** 2026-08-06
+**Bugs fixed:** 93 (BUG-001 → BUG-093) across 21 rounds
+**Overall file coverage:** ~61% (963/1,597 source files)
+**Critical-path coverage:** ~95% (all auth, billing, payments, secrets, webhooks, tenant isolation, 2FA, federation identity)
 
 ---
 
@@ -55,7 +55,7 @@
 | `admin/budget_routes.py` | BUG-008 (R1) | ✅ 404/422 status codes |
 | `agent_routes.py` | BUG-029, BUG-050 (R6, R11) | ✅ Limit bounds, get_active_tasks |
 | `document_routes.py` | BUG-030 (R6) | ✅ Limit/offset bounds |
-| `auth_2fa_routes.py` | BUG-074 (R16) | ✅ Backup code invalidation |
+| `auth_2fa_routes.py` | BUG-074, BUG-091 (R16, R21) | ✅ Backup code invalidation, enable/disable rate limits |
 | `nav_stub_routes.py` | BUG-058 (R12) | ✅ User scoping |
 | `board_routes.py` | BUG-059 (R12) | ✅ Owner scoping |
 | `analytics_dashboard_endpoints.py` | BUG-060 (R12) | ✅ success_rate fix |
@@ -95,6 +95,13 @@
 | `gateway_key_routes.py` | R17 (investigated) | ✅ Keys hashed, atomic rotate |
 | `sandbox_fs.py` | R18 (investigated) | ✅ Path traversal defended |
 | `webhook_renewal_service.py` | R19 (investigated) | ✅ Active filter + failure handling |
+
+### core/ + api/ + frontend — newly covered (Round 21 — 2FA + federation identity)
+| File | Bug(s) | Status |
+|------|--------|--------|
+| `api/auth_2fa_routes.py` | BUG-091 (R21) | ✅ enable/disable TOTP rate-limited |
+| `core/identity/verifiable_credentials.py` | BUG-093 (R21) | ✅ enable_revocation honored (fail-closed) |
+| `components/Settings/TwoFactorSettings.tsx` | BUG-092 (R21) | ✅ backup codes read from envelope |
 
 ### frontend — newly covered (Round 20)
 | File | Bug(s) | Status |
@@ -222,3 +229,4 @@
 | 18 | BUG-084..085 | Payments: Xero sync dead code, Plaid cross-account token |
 | 19 | BUG-086..088 | Webhooks: audit validator false-compliance, Shopify HMAC, Slack dedup |
 | 20 | BUG-089..090 | Frontend: CostCalculator stale state, SubscriptionTracker cancelled display |
+| 21 | BUG-091..093 | 2FA enable/disable brute-force, 2FA recovery codes envelope, VC revocation config |
