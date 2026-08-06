@@ -1,11 +1,11 @@
 <div align="center">
 
 # ATOM Platform
-### Open-Source AI Agent Platform for Self-Hosted Automation
+### Open-Source AI Agent Workforce for Your Team
 
 ![Atom Platform](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
-**Automate your workflows by talking to an AI — and let it remember, search, and handle tasks like a real assistant.**
+**Give every employee a team of AI agents — trusted and safe by design.**
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
@@ -17,7 +17,9 @@
 
 ## What is Atom?
 
-Atom is an **open-source, self-hosted AI agent platform** that combines visual workflow builders with intelligent LLM-based agents. Just **speak** or **type** your request, and Atom's specialty agents plan, verify, and execute complex workflows across your entire tech stack.
+Atom is an open-source, self-hosted **AI agent workforce** for your employees. Instead of one assistant, Atom runs a team of specialty agents — sales, support, finance, engineering — that your people delegate to in plain language. Agents plan, verify, and execute complex workflows across your entire tech stack.
+
+**Trusted by design**: every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a complete audit trail — with human-in-the-loop approval wherever you want it. Your employees get capable help; you keep control.
 
 **Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama/Llama.cpp) for fully private deployments.
 
@@ -48,6 +50,8 @@ OPENCODE_API_KEY=oc_...
 ---
 
 ## Why Atom?
+
+Atom is built for teams that want AI agents **their employees can actually use** — without giving up control. Every agent is governed, sandboxed, and auditable.
 
 | Capability | Atom | OpenClaw | Hermes Agent |
 |---|---|---|---|
@@ -209,7 +213,7 @@ We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md). Quality bar
 
 **Built with** [FastAPI](https://fastapi.tiangolo.com/) **|** [SQLAlchemy](https://www.sqlalchemy.org/) **|** [LangChain](https://langchain.com/) **|** [Playwright](https://playwright.dev/) **|** [Next.js](https://nextjs.org/)
 
-**Experience the future of self-hosted AI automation.**
+**Experience the future of self-hosted AI automation — safe enough for your whole team.**
 
 ⭐ Star us on GitHub — it helps!
 

@@ -1,6 +1,6 @@
 # ⚛️ Atom Documentation Hub
 
-Welcome to the Atom developer and user documentation center. Atom is a self-hosted, multi-agent AI automation platform designed for reliable, governed execution.
+Welcome to the Atom developer and user documentation center. Atom is a self-hosted **AI agent workforce** — a team of governed, sandboxed agents your employees can delegate work to with confidence.
 
 > [!NOTE]
 > Are you setting up Atom for the first time? See the [🚀 Quick Start Guide](getting_started/quick-start.md) or follow the [📖 User Guide Index](USER_GUIDE_INDEX.md).
