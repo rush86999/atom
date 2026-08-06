@@ -205,8 +205,10 @@ class AgentContextResolver:
                 logger.warning(f"Cannot set non-existent agent {agent_id} on session {session_id}")
                 return False
 
-            # Update metadata
-            metadata = session.metadata_json or {}
+            # Update metadata. Copy so SQLAlchemy sees a new object — JSONColumn
+            # has no mutable tracking, so reusing the same dict and assigning it
+            # back is a no-op (no UPDATE issued) and the agent_id is lost.
+            metadata = dict(session.metadata_json or {})
             metadata["agent_id"] = agent_id
             session.metadata_json = metadata
 

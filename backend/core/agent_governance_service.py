@@ -143,7 +143,9 @@ class AgentGovernanceService:
         "list_emails": 1,
         "shell_read": 1,
         "shell_network": 1,
-        
+        "present_chart": 1,       # presentations are LOW complexity (STUDENT+)
+        "present_markdown": 1,
+
         # Level 2: PROPOSE / DRAFT - Intern Agents
         "analyze": 2,
         "suggest": 2,
@@ -160,7 +162,23 @@ class AgentGovernanceService:
         "draft_email": 2,
         "propose_lead": 2,
         "suggest_task": 2,
-        
+
+        # Level 2 (INTERN+): streaming, browser, device, canvas moderation.
+        # Levels aligned with the tool-layer governance contracts:
+        #   browser_tool.py  -> "browser_navigate = INTERN+"
+        #   canvas_tool.py   -> "present_form ... (INTERN+ required)"
+        #   device_tool.py   -> camera/location/notifications INTERN+
+        "stream_chat": 2,               # streaming LLM (INTERN+)
+        "llm_stream": 2,                # streaming LLM (INTERN+)
+        "present_form": 2,              # interactive canvas forms (INTERN+)
+        "browser_navigate": 2,          # browser automation (INTERN+)
+        "browser_screenshot": 2,
+        "browser_extract": 2,
+        "device_camera_snap": 2,        # camera (INTERN+)
+        "device_get_location": 2,       # location (INTERN+)
+        "device_send_notification": 2,  # notifications (INTERN+)
+        "update_canvas": 2,             # canvas state moderation
+
         # Level 3: EXECUTE (Supervised) - Supervised Agents
         "create": 3,
         "update": 3,
@@ -168,11 +186,14 @@ class AgentGovernanceService:
         "canvas_submit": 3,
         "send_email": 3,
         "email_send": 3,
-        "browser_navigate": 3,
         "browser_action": 3,
         "post_message": 3,
         "schedule": 3,
         "upload": 3,
+        "submit_form": 3,                # form submission (state change)
+        "device_screen_record": 3,      # screen recording (SUPERVISED+)
+        "device_screen_record_start": 3,
+        "device_screen_record_stop": 3,
         "create_lead": 3,
         "update_lead": 3,
         "send_message": 3,
@@ -212,6 +233,8 @@ class AgentGovernanceService:
         "bulk_update": 4,
         "transfer_owner": 4,
         "shell_delete": 4,
+        "device_execute_command": 4,    # command execution (AUTONOMOUS only)
+        "canvas_execute_javascript": 4, # arbitrary JS in canvas (AUTONOMOUS only)
     }
 
     # Minimum maturity level for each action complexity
@@ -440,7 +463,7 @@ class AgentGovernanceService:
             return {
                 "allowed": False,
                 "reason": budget_check.get("reason"),
-                "requires_approval": True,
+                "requires_human_approval": True,
                 "status_code": "BUDGET_EXCEEDED",
             }
         return decision
@@ -460,16 +483,22 @@ class AgentGovernanceService:
         ).first()
         
         if not agent:
-            return {"allowed": False, "reason": "Agent not found", "requires_approval": True}
+            return {"allowed": False, "reason": "Agent not found", "requires_human_approval": True}
 
         if agent.status in [AgentStatus.PAUSED.value, AgentStatus.STOPPED.value]:
-            return {"allowed": False, "reason": f"Agent is {agent.status}", "requires_approval": True}
+            return {"allowed": False, "reason": f"Agent is {agent.status}", "requires_human_approval": True}
 
-        # Find complexity (Level 1-4)
+        # Find complexity (Level 1-4). Exact matches take priority over substring
+        # matches so specific actions aren't shadowed by generic keys — e.g.
+        # "device_get_location" must not resolve to complexity 1 via "get", and
+        # "update_canvas" must not escalate to 3 via "update".
         action_lower = action_type.lower()
         complexity = 2 # Default
-        matches = [lvl for act, lvl in self.ACTION_COMPLEXITY.items() if act in action_lower]
-        if matches: complexity = max(matches)
+        if action_lower in self.ACTION_COMPLEXITY:
+            complexity = self.ACTION_COMPLEXITY[action_lower]
+        else:
+            matches = [lvl for act, lvl in self.ACTION_COMPLEXITY.items() if act in action_lower]
+            if matches: complexity = max(matches)
         
         required_status = self.MATURITY_REQUIREMENTS.get(complexity, AgentStatus.SUPERVISED)
 
@@ -533,7 +562,7 @@ class AgentGovernanceService:
                     return {
                         "allowed": False,
                         "reason": budget_check.get("reason"),
-                        "requires_approval": True,
+                        "requires_human_approval": True,
                         "status_code": "BUDGET_EXCEEDED"
                     }
 
@@ -547,7 +576,7 @@ class AgentGovernanceService:
                     return {
                         "allowed": False,
                         "reason": f"Fleet recursion depth limit ({chain.max_depth}) reached.",
-                        "requires_approval": True,
+                        "requires_human_approval": True,
                         "status_code": "RECURSION_LIMIT"
                     }
 
@@ -557,7 +586,7 @@ class AgentGovernanceService:
             "agent_status": agent.status,
             "action_complexity": complexity,
             "required_status": required_status.value,
-            "requires_approval": approval_needed,
+            "requires_human_approval": approval_needed,
             "confidence": agent.confidence_score or 0.5
         }
 
@@ -613,7 +642,7 @@ class AgentGovernanceService:
         if not check["allowed"]:
             return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
 
-        if check["requires_approval"]:
+        if check["requires_human_approval"]:
             return {"proceed": True, "status": "PENDING_APPROVAL", "reason": "Requires oversight", "action_required": "WAIT_FOR_APPROVAL"}
 
         # -----------------------------------------------------------------
@@ -740,6 +769,7 @@ class AgentGovernanceService:
         "skip safety", "do not follow rules", "remove restrictions",
         "ignore governance", "act without approval", "skip approval",
         "override safety", "override governance", "ignore policy",
+        "ignore tenant policy", "skip compliance",
         "disregard rules", "no rules apply", "rules do not apply",
         # Privilege escalation
         "elevate privileges", "grant elevated", "escalate privileges",

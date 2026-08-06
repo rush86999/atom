@@ -8,20 +8,32 @@ Tests condition monitoring API endpoints:
 - Condition testing
 - Preset configurations
 
-Target Coverage: 80%
-Target Branch Coverage: 50%+
-Pass Rate Target: 95%+
+The routes depend on ``get_db_session`` / ``get_current_user`` and delegate DB
+work to ``ConditionMonitoringService``. Because FastAPI's ``Depends(...)``
+captures the dependency callable at decoration time, patching a module-level
+name (e.g. ``api.monitoring_routes.get_db_session``) has no effect. These
+tests therefore use ``app.dependency_overrides`` and mock the service class so
+they exercise the route layer (parsing, auth, response serialization) without
+touching a database.
 """
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
-from api.monitoring_routes import router, CreateMonitorRequest, UpdateMonitorRequest
-from core.database import get_db
-from core.models import ConditionMonitor, ConditionAlert
+from api.monitoring_routes import (
+    router,
+    CreateMonitorRequest,
+    UpdateMonitorRequest,
+    MonitorResponse,
+    AlertResponse,
+    TestConditionResponse,
+)
+from core.auth import get_current_user
+from core.database import get_db_session
+from api.health_routes import router as health_router
 
 
 # =============================================================================
@@ -38,19 +50,43 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Create test client."""
-    return TestClient(app)
+    """Create test client (server exceptions surface as 5xx responses)."""
+    return TestClient(app, raise_server_exceptions=False)
 
 
-@pytest.fixture
-def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def _override_db(app):
+    """Point the route's DB dependency at an inert mock session."""
+    app.dependency_overrides[get_db_session] = lambda: Mock()
+
+
+def _override_user(app):
+    """Point the route's auth dependency at a fake authenticated user."""
+    app.dependency_overrides[get_current_user] = lambda: Mock(id="user-1", role="admin")
+
+
+def _monitor(**overrides):
+    """Build a valid MonitorResponse, overriding any field."""
+    base = dict(
+        id="monitor-123",
+        agent_id="agent-123",
+        agent_name="Agent",
+        name="Test Monitor",
+        description=None,
+        condition_type="inbox_volume",
+        threshold_config={"max_emails": 100},
+        composite_logic=None,
+        composite_conditions=None,
+        check_interval_seconds=300,
+        platforms=[{"platform": "slack", "recipient_id": "channel-123"}],
+        alert_template=None,
+        throttle_minutes=30,
+        last_alert_sent_at=None,
+        status="active",
+        created_at=datetime.now(timezone.utc),
+        updated_at=None,
+    )
+    base.update(overrides)
+    return MonitorResponse(**base)
 
 
 # =============================================================================
@@ -60,8 +96,8 @@ def db():
 class TestCreateConditionMonitor:
     """Tests for POST /api/v1/monitoring/condition/create"""
 
-    def test_creates_new_monitor(self, client, db):
-        """RED: Test creating a new condition monitor."""
+    def test_creates_new_monitor(self, client, app):
+        """Test creating a new condition monitor."""
         request_data = {
             "agent_id": "agent-123",
             "name": "Inbox Volume Monitor",
@@ -71,12 +107,11 @@ class TestCreateConditionMonitor:
             "check_interval_seconds": 300
         }
 
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.add = Mock()
-            mock_db.commit = Mock()
-            mock_db.refresh = Mock()
-            mock_get_db.return_value = mock_db
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.create_monitor.return_value = _monitor(id="monitor-new", agent_id="agent-123")
+            _override_db(app)
+            _override_user(app)
 
             response = client.post("/api/v1/monitoring/condition/create", json=request_data)
 
@@ -84,9 +119,14 @@ class TestCreateConditionMonitor:
             assert response.status_code in [200, 201]
             data = response.json()
             assert "id" in data or "agent_id" in data
+            # The service must have been called with the request's fields
+            mock_service.create_monitor.assert_called_once()
+            assert mock_service.create_monitor.call_args.kwargs.get("agent_id") == "agent-123"
 
-    def test_validates_required_fields(self, client):
-        """RED: Test that required fields are validated."""
+    def test_validates_required_fields(self, client, app):
+        """Test that required fields are validated."""
+        _override_db(app)
+        _override_user(app)
         # Missing required fields
         request_data = {
             "agent_id": "agent-123"
@@ -98,8 +138,8 @@ class TestCreateConditionMonitor:
         # Should return validation error
         assert response.status_code == 422
 
-    def test_accepts_check_interval(self, client, db):
-        """RED: Test that custom check interval is accepted."""
+    def test_accepts_check_interval(self, client, app):
+        """Test that custom check interval is accepted."""
         request_data = {
             "agent_id": "agent-123",
             "name": "Frequent Check",
@@ -109,15 +149,16 @@ class TestCreateConditionMonitor:
             "check_interval_seconds": 60  # 1 minute
         }
 
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.add = Mock()
-            mock_db.commit = Mock()
-            mock_get_db.return_value = mock_db
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.create_monitor.return_value = _monitor()
+            _override_db(app)
+            _override_user(app)
 
             response = client.post("/api/v1/monitoring/condition/create", json=request_data)
 
             assert response.status_code in [200, 201]
+            assert mock_service.create_monitor.call_args.kwargs.get("check_interval_seconds") == 60
 
 
 # =============================================================================
@@ -127,12 +168,12 @@ class TestCreateConditionMonitor:
 class TestListConditions:
     """Tests for GET /api/v1/monitoring/condition/list"""
 
-    def test_lists_all_monitors(self, client, db):
-        """RED: Test listing all condition monitors."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.query.return_value.all.return_value = []
-            mock_get_db.return_value = mock_db
+    def test_lists_all_monitors(self, client, app):
+        """Test listing all condition monitors."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_monitors.return_value = []
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/condition/list")
 
@@ -140,20 +181,18 @@ class TestListConditions:
             data = response.json()
             assert isinstance(data, list)
 
-    def test_filters_by_agent_id(self, client, db):
-        """RED: Test filtering monitors by agent ID."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_query = Mock()
-            mock_query.filter.return_value = mock_query
-            mock_db.query.return_value = mock_query
-            mock_get_db.return_value = mock_db
+    def test_filters_by_agent_id(self, client, app):
+        """Test filtering monitors by agent ID."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_monitors.return_value = []
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/condition/list?agent_id=agent-123")
 
             assert response.status_code == 200
-            # Should call filter with agent_id
-            assert mock_query.filter.called
+            # The service must have been queried with the agent_id filter
+            assert mock_service.get_monitors.call_args.kwargs.get("agent_id") == "agent-123"
 
 
 # =============================================================================
@@ -163,15 +202,12 @@ class TestListConditions:
 class TestGetMonitorDetails:
     """Tests for GET /api/v1/monitoring/condition/{monitor_id}"""
 
-    def test_get_monitor_by_id(self, client, db):
-        """RED: Test getting monitor details by ID."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_monitor.id = "monitor-123"
-            mock_monitor.name = "Test Monitor"
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+    def test_get_monitor_by_id(self, client, app):
+        """Test getting monitor details by ID."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_monitor.return_value = _monitor(id="monitor-123", name="Test Monitor")
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/condition/monitor-123")
 
@@ -179,12 +215,12 @@ class TestGetMonitorDetails:
             data = response.json()
             assert data["id"] == "monitor-123"
 
-    def test_returns_404_for_nonexistent_monitor(self, client):
-        """RED: Test 404 returned for nonexistent monitor."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.query.return_value.filter_by.return_value.first.return_value = None
-            mock_get_db.return_value = mock_db
+    def test_returns_404_for_nonexistent_monitor(self, client, app):
+        """Test 404 returned for nonexistent monitor."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_monitor.return_value = None
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/condition/nonexistent")
 
@@ -198,33 +234,32 @@ class TestGetMonitorDetails:
 class TestUpdateMonitor:
     """Tests for PUT /api/v1/monitoring/condition/{monitor_id}"""
 
-    def test_updates_monitor_name(self, client, db):
-        """RED: Test updating monitor name."""
+    def test_updates_monitor_name(self, client, app):
+        """Test updating monitor name."""
         request_data = {
             "name": "Updated Monitor Name"
         }
 
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.update_monitor.return_value = _monitor(name="Updated Monitor Name")
+            _override_db(app)
 
             response = client.put("/api/v1/monitoring/condition/monitor-123", json=request_data)
 
             assert response.status_code in [200, 201]
+            assert mock_service.update_monitor.call_args.kwargs.get("name") == "Updated Monitor Name"
 
-    def test_updates_threshold_config(self, client, db):
-        """RED: Test updating threshold configuration."""
+    def test_updates_threshold_config(self, client, app):
+        """Test updating threshold configuration."""
         request_data = {
             "threshold_config": {"new_threshold": 100}
         }
 
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.update_monitor.return_value = _monitor(threshold_config={"new_threshold": 100})
+            _override_db(app)
 
             response = client.put("/api/v1/monitoring/condition/monitor-123", json=request_data)
 
@@ -238,14 +273,12 @@ class TestUpdateMonitor:
 class TestPauseResumeMonitor:
     """Tests for pause and resume endpoints."""
 
-    def test_pauses_monitor(self, client, db):
-        """RED: Test pausing an active monitor."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_monitor.status = "active"
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+    def test_pauses_monitor(self, client, app):
+        """Test pausing an active monitor."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.pause_monitor.return_value = _monitor(status="paused")
+            _override_db(app)
 
             response = client.post("/api/v1/monitoring/condition/monitor-123/pause")
 
@@ -253,14 +286,12 @@ class TestPauseResumeMonitor:
             data = response.json()
             assert data.get("status") in ["paused", "active"]
 
-    def test_resumes_paused_monitor(self, client, db):
-        """RED: Test resuming a paused monitor."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_monitor.status = "paused"
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+    def test_resumes_paused_monitor(self, client, app):
+        """Test resuming a paused monitor."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.resume_monitor.return_value = _monitor(status="active")
+            _override_db(app)
 
             response = client.post("/api/v1/monitoring/condition/monitor-123/resume")
 
@@ -276,27 +307,28 @@ class TestPauseResumeMonitor:
 class TestDeleteMonitor:
     """Tests for DELETE /api/v1/monitoring/condition/{monitor_id}"""
 
-    def test_deletes_existing_monitor(self, client, db):
-        """RED: Test deleting an existing monitor."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_monitor.id = "monitor-123"
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_db.delete.return_value = 1
-            mock_db.commit = Mock()
-            mock_get_db.return_value = mock_db
+    def test_deletes_existing_monitor(self, client, app):
+        """Test deleting an existing monitor."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.delete_monitor.return_value = _monitor(id="monitor-123")
+            _override_db(app)
+            _override_user(app)
 
             response = client.delete("/api/v1/monitoring/condition/monitor-123")
 
             assert response.status_code == 200
 
-    def test_returns_404_for_nonexistent_monitor(self, client):
-        """RED: Test 404 when deleting nonexistent monitor."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.query.return_value.filter_by.return_value.first.return_value = None
-            mock_get_db.return_value = mock_db
+    def test_returns_404_for_nonexistent_monitor(self, client, app):
+        """Test 404 when deleting nonexistent monitor."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.delete_monitor.side_effect = HTTPException(
+                status_code=404,
+                detail="Condition monitor 'nonexistent' not found"
+            )
+            _override_db(app)
+            _override_user(app)
 
             response = client.delete("/api/v1/monitoring/condition/nonexistent")
 
@@ -310,17 +342,20 @@ class TestDeleteMonitor:
 class TestCondition:
     """Tests for POST /api/v1/monitoring/condition/{monitor_id}/test"""
 
-    def test_tests_condition_evaluation(self, client, db):
-        """RED: Test condition evaluation against current value."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_monitor = Mock()
-            mock_monitor.id = "monitor-123"
-            mock_monitor.name = "Test Monitor"
-            mock_monitor.condition_type = "api_metrics"
-            mock_monitor.threshold_config = {"max_latency_ms": 500}
-            mock_db.query.return_value.filter_by.return_value.first.return_value = mock_monitor
-            mock_get_db.return_value = mock_db
+    def test_tests_condition_evaluation(self, client, app):
+        """Test condition evaluation against current value."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.test_condition.return_value = TestConditionResponse(
+                monitor_id="monitor-123",
+                monitor_name="Test Monitor",
+                condition_type="api_metrics",
+                triggered=False,
+                current_value={},
+                threshold={"max_latency_ms": 500},
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            _override_db(app)
 
             response = client.post("/api/v1/monitoring/condition/monitor-123/test")
 
@@ -337,12 +372,12 @@ class TestCondition:
 class TestAlerts:
     """Tests for GET /api/v1/monitoring/alerts"""
 
-    def test_lists_alerts(self, client, db):
-        """RED: Test listing all alerts."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_db.query.return_value.all.return_value = []
-            mock_get_db.return_value = mock_db
+    def test_lists_alerts(self, client, app):
+        """Test listing all alerts."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_alerts.return_value = []
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/alerts")
 
@@ -350,20 +385,17 @@ class TestAlerts:
             data = response.json()
             assert isinstance(data, list)
 
-    def test_filters_alerts_by_monitor(self, client, db):
-        """RED: Test filtering alerts by monitor_id."""
-        with patch('api.monitoring_routes.get_db_session') as mock_get_db:
-            mock_db = Mock()
-            mock_query = Mock()
-            mock_query.filter.return_value = mock_query
-            mock_db.query.return_value = mock_query
-            mock_get_db.return_value = mock_db
+    def test_filters_alerts_by_monitor(self, client, app):
+        """Test filtering alerts by monitor_id."""
+        with patch('api.monitoring_routes.ConditionMonitoringService') as mock_cls:
+            mock_service = mock_cls.return_value
+            mock_service.get_alerts.return_value = []
+            _override_db(app)
 
             response = client.get("/api/v1/monitoring/alerts?monitor_id=monitor-123")
 
             assert response.status_code == 200
-            # Should call filter with monitor_id
-            assert mock_query.filter.called
+            assert mock_service.get_alerts.call_args.kwargs.get("monitor_id") == "monitor-123"
 
 
 # =============================================================================
@@ -371,28 +403,36 @@ class TestAlerts:
 # =============================================================================
 
 class TestHealthEndpoints:
-    """Tests for health check endpoints."""
+    """Tests for health check endpoints (mounted from api.health_routes)."""
 
-    def test_health_live_endpoint(self, client):
-        """RED: Test /health/live endpoint."""
+    def test_health_live_endpoint(self):
+        """Test /health/live endpoint."""
+        app = FastAPI()
+        app.include_router(health_router)
+        client = TestClient(app, raise_server_exceptions=False)
+
         response = client.get("/health/live")
 
         assert response.status_code == 200
         data = response.json()
         assert "status" in data
 
-    def test_health_ready_endpoint(self, client):
-        """RED: Test /health/ready endpoint with database check."""
-        with patch('api.monitoring_routes.get_db') as mock_get_db:
-            mock_db = Mock()
-            mock_db.execute.return_value = None
-            mock_get_db.return_value = mock_db
+    def test_health_ready_endpoint(self):
+        """Test /health/ready endpoint with database check."""
+        app = FastAPI()
+        app.include_router(health_router)
+        client = TestClient(app, raise_server_exceptions=False)
+
+        with patch('api.health_routes._check_database') as mock_db_check, \
+             patch('api.health_routes._check_disk_space') as mock_disk_check:
+            mock_db_check.return_value = {"healthy": True, "message": "ok", "latency_ms": 1.0}
+            mock_disk_check.return_value = {"healthy": True, "message": "ok", "free_gb": 25.5}
 
             response = client.get("/health/ready")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert "status" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data
 
 
 # =============================================================================

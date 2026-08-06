@@ -64,15 +64,17 @@ progress:
 **Phase 314 Summary:**
 
 - End-to-end TDD bug hunt across frontend (Jest+MSW) and backend (pytest) layers
-- **8 real bugs found and fixed** via strict red-green discipline (BUG-001..BUG-008)
-  - Backend: execution-recovery metadata gap, budget-exceeded status leak, doc-freshness TypeError crash, admin-route 200-on-error
+- **9 real bugs found and fixed** via strict red-green discipline (BUG-001..BUG-009)
+  - Backend: execution-recovery metadata gap, budget-exceeded status leak, doc-freshness TypeError crash, admin-route 200-on-error, canvas WS fail-open for nonexistent canvas ids
   - Frontend: WS streaming-clear coupling, sendMessage InvalidStateError, SlashCommandBar error-envelope masking, ViewOrchestrator canvas crash on malformed WS message
-- 4 additional investigated paths confirmed already-defended (no bug)
-- **15 new tests** added (11 backend, 4 frontend); all guarded by `scripts/bug_hunt_guard.sh`
+- 6 additional investigated paths confirmed already-defended or convention (no bug)
+- **~27 new tests** added (backend + frontend); bug fixes guarded by `scripts/bug_hunt_guard.sh`
+- Contract tests lock the budget-message format, freshness-status set, and WS authz close codes
 - New contract doc: `docs/contracts/streaming-messages.md` (WS streaming + agent-response wire format)
-- Regression status: backend 69/69 pass on touched files; frontend +4 new tests, no new failures
+- Regression status: backend 78/78 pass on touched files; frontend new tests green, no new failures
 - Bug catalog: `backend/tests/BUG_HUNT_LOG.md`
 - Duration: 1 session
+
 
 
 **Phase 301 Summary:**

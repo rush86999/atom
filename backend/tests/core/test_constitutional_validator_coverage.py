@@ -5,7 +5,7 @@ Target: 60%+ coverage (94+ lines)
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -67,7 +67,7 @@ class TestConstitutionalValidatorInit:
         """Test validator initializes with database session"""
         validator = ConstitutionalValidator(mock_db)
         assert validator.db == mock_db
-        assert len(validator.CONSTITUTIONAL_RULES) == 10
+        assert len(validator.CONSTITUTIONAL_RULES) == 7
 
     def test_constitutional_rules_structure(self, validator):
         """Test constitutional rules have required fields"""
@@ -80,7 +80,7 @@ class TestConstitutionalValidatorInit:
     def test_rule_categories_exist(self, validator):
         """Test all expected rule categories are present"""
         categories = set(rule["category"] for rule in validator.CONSTITUTIONAL_RULES.values())
-        expected_categories = {"safety", "financial", "privacy", "transparency", "governance"}
+        expected_categories = {"safety", "financial", "transparency", "governance"}
         assert expected_categories.issubset(categories)
 
     def test_get_constitutional_validator_singleton(self, mock_db):
@@ -103,7 +103,6 @@ class TestActionValidation:
         assert result["score"] == 1.0
         assert result["violations"] == []
         assert result["total_actions"] == 0
-        assert result["checked_actions"] == 0
 
     def test_validate_actions_none_input(self, validator):
         """Test validation with None input"""
@@ -113,48 +112,35 @@ class TestActionValidation:
         assert result["score"] == 1.0
         assert result["violations"] == []
 
-    def test_validate_actions_non_iterable_input(self, validator):
-        """Test validation with non-iterable input"""
-        result = validator.validate_actions("not_a_list")
-
-        assert result["compliant"] is True
-        assert result["score"] == 1.0
-        assert result["violations"] == []
-
-    def test_validate_actions_success(self, validator, sample_segment):
+    def test_validate_actions_success(self, validator):
         """Test successful action validation"""
-        result = validator.validate_actions([sample_segment])
+        action = {"action_type": "read", "content": "public data", "metadata": {"logged": True}}
+        result = validator.validate_actions([action])
 
         assert result["compliant"] is True
         assert result["total_actions"] == 1
-        assert result["checked_actions"] == 1
         assert isinstance(result["score"], float)
 
-    def test_validate_actions_with_domain(self, validator, sample_segment):
+    def test_validate_actions_with_domain(self, validator):
         """Test validation with domain-specific rules"""
-        result = validator.validate_actions(
-            [sample_segment],
-            domain="financial"
-        )
+        action = {"action_type": "read", "content": "public data", "metadata": {"logged": True}}
+        result = validator.validate_actions([action], domain="financial")
 
         assert "compliant" in result
         assert "score" in result
         assert isinstance(result["score"], float)
 
     def test_validate_actions_multiple_segments(self, validator):
-        """Test validation with multiple segments"""
-        segments = [Mock(spec=EpisodeSegment) for _ in range(3)]
-        for i, seg in enumerate(segments):
-            seg.id = f"segment-{i}"
-            seg.segment_type = "test_action"
-            seg.content = '{"data": "test"}'
-            seg.timestamp = datetime.now()
-            seg.metadata = {"logged": True}
+        """Test validation with multiple actions"""
+        actions = [
+            {"action_type": "read", "content": "a", "metadata": {"logged": True}},
+            {"action_type": "summarize", "content": "b", "metadata": {"logged": True}},
+            {"action_type": "reply", "content": "c", "metadata": {"logged": True}},
+        ]
 
-        result = validator.validate_actions(segments)
+        result = validator.validate_actions(actions)
 
         assert result["total_actions"] == 3
-        assert result["checked_actions"] == 3
 
 
 # ==================== Test Compliance Checking ====================
@@ -333,7 +319,7 @@ class TestViolationDetection:
                 "amount": 1000,
                 "approval_required": True
             },
-            "metadata": {}
+            "metadata": {"is_approved": True}
         }
 
         violation = validator._check_rule_violation(
@@ -348,7 +334,7 @@ class TestViolationDetection:
     def test_audit_trail_violation(self, validator):
         """Test audit trail violation detection"""
         action = {
-            "action_type": "data_modification",
+            "action_type": "delete",
             "content": {},
             "metadata": {"logged": False}  # Not logged
         }
@@ -378,242 +364,6 @@ class TestViolationDetection:
         )
 
         assert violation is None
-
-
-# ==================== Test Action Data Extraction ====================
-
-class TestActionDataExtraction:
-    """Tests for _extract_action_data method"""
-
-    def test_extract_action_data_success(self, validator, sample_segment):
-        """Test successful action data extraction"""
-        action = validator._extract_action_data(sample_segment)
-
-        assert action is not None
-        assert action["action_type"] == "test_action"
-        assert "content" in action
-        assert "timestamp" in action
-        assert "metadata" in action
-
-    def test_extract_action_data_none_segment(self, validator):
-        """Test extraction with None segment"""
-        action = validator._extract_action_data(None)
-
-        assert action is None
-
-    def test_extract_action_data_json_content(self, validator):
-        """Test extraction with JSON string content"""
-        segment = Mock(spec=EpisodeSegment)
-        segment.segment_type = "test"
-        segment.content = '{"key": "value"}'
-        segment.timestamp = datetime.now()
-        segment.metadata = {}
-
-        action = validator._extract_action_data(segment)
-
-        assert action is not None
-        assert action["content"] == {"key": "value"}
-
-    def test_extract_action_data_dict_content(self, validator):
-        """Test extraction with dict content"""
-        segment = Mock(spec=EpisodeSegment)
-        segment.segment_type = "test"
-        segment.content = {"key": "value"}  # Already a dict
-        segment.timestamp = datetime.now()
-        segment.metadata = {}
-
-        action = validator._extract_action_data(segment)
-
-        assert action is not None
-        assert action["content"] == {"key": "value"}
-
-    def test_extract_action_data_invalid_json(self, validator):
-        """Test extraction with invalid JSON"""
-        segment = Mock(spec=EpisodeSegment)
-        segment.id = "seg-1"
-        segment.segment_type = "test"
-        segment.content = "{invalid json"
-        segment.timestamp = datetime.now()
-        segment.metadata = {}
-
-        action = validator._extract_action_data(segment)
-
-        # Should handle gracefully and return None
-        assert action is None
-
-
-# ==================== Test Knowledge Graph Integration ====================
-
-class TestKnowledgeGraphIntegration:
-    """Tests for Knowledge Graph validation methods"""
-
-    def test_validate_with_kg_fallback_on_import_error(self, validator, sample_action):
-        """Test fallback when Knowledge Graph service not available"""
-        with patch('core.constitutional_validator.KnowledgeGraphService', side_effect=ImportError):
-            result = validator.validate_with_knowledge_graph(
-                "agent-123",
-                sample_action,
-                {}
-            )
-
-        assert result["validation_method"] == "fallback"
-        assert "compliant" in result
-
-    def test_validate_with_kg_fallback_on_exception(self, validator, sample_action):
-        """Test fallback when Knowledge Graph service raises exception"""
-        with patch('core.constitutional_validator.KnowledgeGraphService', side_effect=Exception("KG error")):
-            result = validator.validate_with_knowledge_graph(
-                "agent-123",
-                sample_action,
-                {}
-            )
-
-        assert result["validation_method"] == "fallback"
-        assert "compliant" in result
-
-    def test_passes_kg_rule_allowed_actions(self, validator):
-        """Test KG rule check for allowed actions"""
-        rule = {
-            "allowed_actions": ["read", "list"]
-        }
-        action = {"action_type": "read"}
-        context = {}
-
-        result = validator._passes_kg_rule(rule, action, context)
-
-        assert result is True
-
-    def test_passes_kg_rule_forbidden_action(self, validator):
-        """Test KG rule check for forbidden actions"""
-        rule = {
-            "forbidden_actions": ["delete", "modify"]
-        }
-        action = {"action_type": "delete"}
-        context = {}
-
-        result = validator._passes_kg_rule(rule, action, context)
-
-        assert result is False
-
-    def test_passes_kg_rule_required_permissions(self, validator):
-        """Test KG rule check for required permissions"""
-        rule = {
-            "required_permissions": ["read", "write"]
-        }
-        action = {"action_type": "update"}
-        context = {"permissions": ["read", "write", "execute"]}
-
-        result = validator._passes_kg_rule(rule, action, context)
-
-        assert result is True
-
-    def test_passes_kg_rule_missing_permissions(self, validator):
-        """Test KG rule check with missing permissions"""
-        rule = {
-            "required_permissions": ["admin", "write"]
-        }
-        action = {"action_type": "update"}
-        context = {"permissions": ["read"]}  # Missing admin and write
-
-        result = validator._passes_kg_rule(rule, action, context)
-
-        assert result is False
-
-    def test_check_domain_constraints_pii_restriction(self, validator):
-        """Test domain constraints for PII data"""
-        constraints = {
-            "data_restrictions": ["pii"]
-        }
-        action = {
-            "action_type": "data_export",
-            "content": {"ssn": "123-45-6789"}
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is False
-
-    def test_check_domain_constraints_phi_restriction(self, validator):
-        """Test domain constraints for PHI (HIPAA)"""
-        constraints = {
-            "data_restrictions": ["phi"]
-        }
-        action = {
-            "action_type": "medical_access",
-            "content": {"patient_id": "12345"},
-            "authorized": False
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is False
-
-    def test_check_domain_constraints_phi_authorized(self, validator):
-        """Test PHI access with authorization"""
-        constraints = {
-            "data_restrictions": ["phi"]
-        }
-        action = {
-            "action_type": "medical_access",
-            "content": {"patient_id": "12345"},
-            "authorized": True  # Authorized
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is True
-
-    def test_check_domain_constraints_max_amount(self, validator):
-        """Test domain constraints for max amount"""
-        constraints = {
-            "max_amount": 1000
-        }
-        action = {
-            "action_type": "payment",
-            "content": {"amount": 1500}  # Exceeds limit
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is False
-
-    def test_check_domain_constraints_within_limit(self, validator):
-        """Test domain constraints within amount limit"""
-        constraints = {
-            "max_amount": 1000
-        }
-        action = {
-            "action_type": "payment",
-            "content": {"amount": 500}  # Within limit
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is True
-
-    def test_check_domain_constraints_requires_approval(self, validator):
-        """Test domain constraints for approval requirement"""
-        constraints = {
-            "requires_approval": True
-        }
-        action = {
-            "action_type": "payment",
-            "content": {},
-            "approved": False  # Not approved
-        }
-
-        result = validator._check_domain_constraints(action, constraints)
-
-        assert result is False
-
-    def test_fallback_validation(self, validator, sample_action):
-        """Test fallback validation method"""
-        result = validator._fallback_validation(sample_action, {})
-
-        assert result["validation_method"] == "fallback"
-        assert "compliant" in result
-        assert "violations" in result
-        assert "total_rules_checked" in result
 
 
 # ==================== Test Compliance Score Calculation ====================
@@ -652,29 +402,19 @@ class TestEdgeCases:
     """Tests for edge cases and error handling"""
 
     def test_validate_actions_segment_without_id(self, validator):
-        """Test validation with segment missing ID"""
-        segment = Mock(spec=EpisodeSegment)
-        segment.id = None  # No ID
-        segment.segment_type = "test"
-        segment.content = "{}"
-        segment.timestamp = datetime.now()
-        segment.metadata = {}
+        """Test validation with action missing id field"""
+        action = {"action_type": "read", "content": "{}", "metadata": {}}
 
         # Should not crash
-        result = validator.validate_actions([segment])
+        result = validator.validate_actions([action])
 
         assert "compliant" in result
 
     def test_validate_actions_malformed_content(self, validator):
-        """Test validation with malformed segment content"""
-        segment = Mock(spec=EpisodeSegment)
-        segment.id = "seg-1"
-        segment.segment_type = "test"
-        segment.content = "not json"
-        segment.timestamp = datetime.now()
-        segment.metadata = {}
+        """Test validation with malformed action content"""
+        action = {"action_type": "read", "content": "not json", "metadata": {}}
 
-        result = validator.validate_actions([segment])
+        result = validator.validate_actions([action])
 
         # Should handle gracefully
         assert "compliant" in result

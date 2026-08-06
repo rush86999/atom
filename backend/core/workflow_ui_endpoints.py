@@ -214,7 +214,7 @@ async def get_templates(
     # Use mock data if feature flag is enabled (for migration/testing)
     if WORKFLOW_MOCK_ENABLED:
         logger.warning("Using mock workflow templates (WORKFLOW_MOCK_ENABLED=true)")
-        return {"success": True, "templates": [t.dict() for t in MOCK_TEMPLATES]}
+        return {"success": True, "templates": [t.dict() for t in MOCK_TEMPLATES], "count": len(MOCK_TEMPLATES)}
 
     # Query database for templates
     query = db.query(WorkflowTemplate).filter(WorkflowTemplate.is_public == is_public)

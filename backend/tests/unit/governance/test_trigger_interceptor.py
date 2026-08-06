@@ -633,7 +633,7 @@ class TestRoutingMethods:
         assert "deploy" in proposal.description
         assert proposal.reasoning == "Testing proposal creation"
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
-        assert proposal.proposed_by == agent.id
+        assert proposal.agent_id == agent.id  # proposing agent tracked via agent_id
 
         # Verify in database
         db_session.refresh(proposal)

@@ -69,7 +69,7 @@ class TestAtomMetaAgentInitialization:
         agent = AtomMetaAgent()
         assert agent.workspace_id == "default"
         assert agent.user is None
-        assert agent._spawned_agents == {}
+        assert agent.spawned_agents == {}
         assert agent.session_tools == []
         assert agent.queen is None
 
@@ -219,7 +219,7 @@ class TestAtomMetaAgentHelperMethods:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
-    def test_get_communication_instruction_no_user(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    def test_get_communication_instruction_no_user(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test _get_communication_instruction with no user"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -232,7 +232,7 @@ class TestAtomMetaAgentHelperMethods:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
-    def test_get_communication_instruction_no_user_in_context(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    def test_get_communication_instruction_no_user_in_context(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test _get_communication_instruction with no user_id in context"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -247,10 +247,11 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_spawn_agent_from_template_finance_analyst(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
+    async def test_spawn_agent_from_template_finance_analyst(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test spawning finance_analyst from template"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -263,10 +264,11 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_spawn_agent_from_template_sales_assistant(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
+    async def test_spawn_agent_from_template_sales_assistant(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test spawning sales_assistant from template"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -290,16 +292,17 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_spawn_agent_ephemeral_stores_in_memory(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
-        """Test spawning ephemeral agent stores in _spawned_agents dict"""
+    async def test_spawn_agent_ephemeral_stores_in_memory(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
+        """Test spawning ephemeral agent stores in spawned_agents dict"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
         spawned = await agent.spawn_agent("hr_assistant", persist=False)
-        assert spawned.id in agent._spawned_agents
-        assert agent._spawned_agents[spawned.id] == spawned
+        assert spawned.id in agent.spawned_agents
+        assert agent.spawned_agents[spawned.id] == spawned
 
 
 class TestAtomMetaAgentQueryMemory:
@@ -308,10 +311,11 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_query_memory_all_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
+    async def test_query_memory_all_scope(self, mock_world_model, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test query_memory with scope='all'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -330,10 +334,11 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_query_memory_experiences_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
+    async def test_query_memory_experiences_scope(self, mock_world_model, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test query_memory with scope='experiences'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -351,10 +356,11 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_query_memory_knowledge_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
+    async def test_query_memory_knowledge_scope(self, mock_world_model, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test query_memory with scope='knowledge'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -480,16 +486,19 @@ class TestAtomMetaAgentExecuteToolGovernance:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_execute_tool_governance_blocked(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_tool_governance_blocked(self, mock_gov_service, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test tool execution blocked by governance"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {"allowed": False, "reason": "Not authorized", "action_complexity": 1}
+        # Source calls can_perform_action_async (atom_meta_agent.py:1322)
+        mock_gov.can_perform_action_async = AsyncMock(return_value={"allowed": False, "reason": "Not authorized", "action_complexity": 1})
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
 
@@ -507,17 +516,19 @@ class TestAtomMetaAgentExecuteToolGovernance:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_execute_tool_governance_error(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_tool_governance_error(self, mock_gov_service, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test tool execution handles exceptions gracefully"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_db.query.return_value.filter.side_effect = Exception("DB connection error")
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
+        mock_gov_service.side_effect = Exception("Governance init error")
 
         agent = AtomMetaAgent()
         result = await agent._execute_tool_with_governance(
@@ -538,17 +549,21 @@ class TestAtomMetaAgentWaitForApproval:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_wait_for_approval_rejected(self, mock_sleep, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_wait_for_approval_rejected(self, mock_gov_service, mock_sleep, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test waiting for approval when action is rejected"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
+        # _wait_for_approval creates a NEW AgentGovernanceService (line 1770);
+        # it resolves to mock_gov, so get_approval_status is used.
         mock_gov.get_approval_status.return_value = {"status": "rejected"}
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
 
@@ -559,17 +574,19 @@ class TestAtomMetaAgentWaitForApproval:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_wait_for_approval_timeout(self, mock_sleep, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_wait_for_approval_timeout(self, mock_gov_service, mock_sleep, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test waiting for approval times out"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
         mock_gov.get_approval_status.return_value = {"status": "pending"}
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
 
@@ -584,11 +601,12 @@ class TestAtomMetaAgentRecordExecution:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_record_execution_success(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_record_execution_success(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test recording successful execution"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -612,11 +630,12 @@ class TestAtomMetaAgentRecordExecution:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_record_execution_governance_error(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_record_execution_governance_error(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test recording execution handles governance errors gracefully"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -645,11 +664,11 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_generate_mentorship_guidance_with_supervisors(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_generate_mentorship_guidance_with_supervisors(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test mentorship guidance when supervisors exist"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -675,11 +694,11 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    
+
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_generate_mentorship_guidance_no_supervisors(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_generate_mentorship_guidance_no_supervisors(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test mentorship guidance when no supervisors exist (acting interim supervisor)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -709,7 +728,7 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
-    async def test_generate_mentorship_guidance_student_not_found(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_generate_mentorship_guidance_student_not_found(self, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test mentorship guidance when student not found"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -738,8 +757,9 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_execute_workspace_not_found(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_workspace_not_found(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test execute() handles workspace not found (lines 200-212)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -763,8 +783,9 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_execute_max_steps_exceeded(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_max_steps_exceeded(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test execute() handles max steps exceeded (lines 489-492)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -816,8 +837,9 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_execute_with_canvas_context(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_with_canvas_context(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test execute() with canvas context (lines 237-263)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
@@ -877,8 +899,9 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.WorldModelService')
     @pytest.mark.asyncio
-    async def test_execute_with_trigger_mode(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_with_trigger_mode(self, mock_world_model, mock_session, mock_canvas, mock_mcp, mock_orchestrator, mock_service_factory):
         """Test execute() with different trigger modes (line 182)"""
         from core.models import AgentTriggerMode
         mock_canvas.return_value = MagicMock()

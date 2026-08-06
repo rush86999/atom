@@ -80,7 +80,7 @@ class TestReactLoopOrchestration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -109,7 +109,7 @@ class TestReactLoopOrchestration:
             final_answer="Task completed"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -123,7 +123,7 @@ class TestReactLoopOrchestration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -164,7 +164,7 @@ class TestReactLoopOrchestration:
                 )
 
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = mock_generate
+        mock_llm_instance.generate_structured_response = mock_generate
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -181,7 +181,7 @@ class TestReactLoopOrchestration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -205,7 +205,7 @@ class TestReactLoopOrchestration:
 
         # Mock BYOK LLM to always return actions (no final_answer)
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(
+        mock_llm_instance.generate_structured_response = AsyncMock(
             return_value=ReActStep(
                 thought="Continue",
                 action=ToolCall(tool="test_tool", params={}),
@@ -222,13 +222,15 @@ class TestReactLoopOrchestration:
         agent._record_execution = AsyncMock()
 
         result = await agent.execute("test request")
-        assert result["status"] == "max_steps_exceeded"
+        # Source deliberately maps max_steps_exceeded -> "timeout" because
+        # max_steps_exceeded is not a valid ExecutionStatus enum value.
+        assert result["status"] == "timeout"
         assert "Maximum reasoning steps" in result["final_output"]
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -252,7 +254,7 @@ class TestReactLoopOrchestration:
 
         # Mock BYOK LLM to return step with no action and no final_answer
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(
+        mock_llm_instance.generate_structured_response = AsyncMock(
             return_value=ReActStep(
                 thought="I'm stuck",
                 action=None,
@@ -273,7 +275,7 @@ class TestReactLoopOrchestration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -302,7 +304,7 @@ class TestReactLoopOrchestration:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -316,8 +318,9 @@ class TestReactLoopOrchestration:
 
         result = await agent.execute("test request", step_callback=mock_callback)
         assert len(callback_calls) > 0
-        assert callback_calls[0]["step"] == 1
-        assert callback_calls[0]["thought"] == "Done"
+        # First callback is the routing log (step 0); find the actual ReAct step
+        step_one = next(r for r in callback_calls if r.get("step") == 1)
+        assert step_one["thought"] == "Done"
 
     @pytest.mark.parametrize("iterations,expected_complete", [
         (1, True),
@@ -342,7 +345,7 @@ class TestReactLoopOrchestration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     def test_react_steps_list_initialization(self, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover steps list initialization (line 372)"""
@@ -360,7 +363,7 @@ class TestToolSelectionAndExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_core_tools_filtering(self, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
@@ -386,7 +389,7 @@ class TestToolSelectionAndExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_session_tools_extension(self, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
@@ -409,7 +412,7 @@ class TestToolSelectionAndExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_tool_deduplication(self, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
@@ -452,7 +455,7 @@ class TestToolSelectionAndExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -486,7 +489,7 @@ class TestToolSelectionAndExecution:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -496,12 +499,14 @@ class TestToolSelectionAndExecution:
         # Execute - this will call mcp_tool_search
         result = await agent.execute("search for tools")
         assert agent.session_tools == found_tools
-        mock_mcp.search_tools.assert_called_once()
+        # Mock LLM always returns the same action, so the loop runs until
+        # max_steps — search_tools is invoked multiple times.
+        assert mock_mcp.search_tools.called
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -530,7 +535,7 @@ class TestToolSelectionAndExecution:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -541,12 +546,14 @@ class TestToolSelectionAndExecution:
         agent._record_execution = AsyncMock()
 
         result = await agent.execute("delegate accounting task")
-        agent._execute_delegation.assert_called_once()
+        # Mock LLM always returns the delegate action, so delegation runs each
+        # ReAct iteration until max_steps — assert it was invoked at least once.
+        assert agent._execute_delegation.called
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -576,7 +583,7 @@ class TestToolSelectionAndExecution:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -610,7 +617,7 @@ class TestReasoningTraceAndObservation:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -639,7 +646,7 @@ class TestReasoningTraceAndObservation:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -658,16 +665,19 @@ class TestReasoningTraceAndObservation:
 
         # Verify step_record structure
         assert len(step_records) > 0
-        assert "step" in step_records[0]
-        assert "step_type" in step_records[0]
-        assert "thought" in step_records[0]
-        assert "action" in step_records[0]
-        assert "timestamp" in step_records[0]
+        # Routing log (step 0) has no action key; inspect the first ReAct step record
+        react_step_records = [r for r in step_records if r.get("step_type") != "routing"]
+        assert len(react_step_records) > 0
+        assert "step" in react_step_records[0]
+        assert "step_type" in react_step_records[0]
+        assert "thought" in react_step_records[0]
+        assert "action" in react_step_records[0]
+        assert "timestamp" in react_step_records[0]
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -696,7 +706,7 @@ class TestReasoningTraceAndObservation:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -712,7 +722,7 @@ class TestReasoningTraceAndObservation:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -741,7 +751,7 @@ class TestReasoningTraceAndObservation:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -767,7 +777,7 @@ class TestReasoningTraceAndObservation:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -796,7 +806,7 @@ class TestReasoningTraceAndObservation:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -828,7 +838,7 @@ class TestErrorRecoveryAndRetry:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -840,16 +850,38 @@ class TestErrorRecoveryAndRetry:
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
 
-        agent = AtomMetaAgent()
+        # Mock MCP tools
+        mock_mcp.get_all_tools = AsyncMock(return_value=[])
 
-        # Should handle error gracefully
+        # Mock WorldModel
+        mock_world_model_instance = MagicMock()
+        mock_world_model_instance.recall_experiences = AsyncMock(return_value={})
+        mock_world_model.return_value = mock_world_model_instance
+
+        # Mock BYOK LLM
+        mock_react_step = ReActStep(
+            thought="Done",
+            action=None,
+            final_answer="Complete"
+        )
+        mock_llm_instance = MagicMock()
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
+        agent = AtomMetaAgent()
+        agent.llm = mock_llm_instance
+
+        # Mock _record_execution
+        agent._record_execution = AsyncMock()
+
+        # Execution creation failure should be caught and logged, not raised
         result = await agent.execute("test request")
         assert result is not None
+        assert result["status"] == "success"
+        assert result["final_output"] == "Complete"
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -881,21 +913,23 @@ class TestErrorRecoveryAndRetry:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
         # Mock _record_execution
         agent._record_execution = AsyncMock()
 
-        # Should handle canvas error gracefully
-        result = await agent.execute("test request", canvas_context={"canvas_id": "test-canvas"})
-        assert result is not None
+        # Canvas fetch failure is deliberately re-raised (line 506:
+        # "Re-raise to prevent silent failures") so the agent does not
+        # proceed on incomplete context.
+        with pytest.raises(Exception, match="Canvas fetch failed"):
+            await agent.execute("test request", canvas_context={"canvas_id": "test-canvas"})
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -925,7 +959,7 @@ class TestErrorRecoveryAndRetry:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -939,7 +973,7 @@ class TestErrorRecoveryAndRetry:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -963,8 +997,10 @@ class TestErrorRecoveryAndRetry:
 
         # Mock BYOK LLM to return None (error)
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=None)
-        mock_llm_instance.generate_response = AsyncMock(return_value="AI provider unavailable")
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=None)
+        # Source fallback (atom_meta_agent.py:1277) calls generate_completion
+        # and reads response_data["content"].
+        mock_llm_instance.generate_completion = AsyncMock(return_value={"content": "AI provider unavailable"})
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -994,7 +1030,7 @@ class TestErrorRecoveryAndRetry:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1024,7 +1060,7 @@ class TestErrorRecoveryAndRetry:
             final_answer=None
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1044,7 +1080,7 @@ class TestFinalAnswerGeneration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1073,7 +1109,7 @@ class TestFinalAnswerGeneration:
             final_answer="Task completed successfully"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1087,7 +1123,7 @@ class TestFinalAnswerGeneration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1121,7 +1157,7 @@ class TestFinalAnswerGeneration:
             )
 
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = mock_generate
+        mock_llm_instance.generate_structured_response = mock_generate
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1134,7 +1170,7 @@ class TestFinalAnswerGeneration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1163,7 +1199,7 @@ class TestFinalAnswerGeneration:
             final_answer="Final answer here"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1177,14 +1213,17 @@ class TestFinalAnswerGeneration:
 
         result = await agent.execute("test request", step_callback=mock_callback)
 
-        # Verify final_answer is in step_record
+        # Verify final_answer is in step_record (the routing log at step 0 has
+        # no final_answer; the ReAct step carrying the answer may not be first).
         assert len(step_records) > 0
-        assert step_records[0].get("final_answer") == "Final answer here"
+        fa_record = next((r for r in step_records if r.get("final_answer")), None)
+        assert fa_record is not None
+        assert fa_record["final_answer"] == "Final answer here"
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1213,7 +1252,7 @@ class TestFinalAnswerGeneration:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1229,7 +1268,7 @@ class TestFinalAnswerGeneration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1245,7 +1284,14 @@ class TestFinalAnswerGeneration:
         mock_execution.result_summary = None
         mock_execution.duration_seconds = None
         mock_execution.completed_at = None
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_execution
+        # Success-path update uses query().filter().with_for_update().first()
+        # (atom_meta_agent.py:1013-1015); the workspace lookup (line 450) has
+        # no with_for_update, so the chains are distinct.
+        # The success-path opens a BARE `SessionLocal()` (line 1010), which
+        # resolves to mock_session.return_value, NOT the `with`-block db
+        # (mock_db) used by the workspace lookup at line 448.
+        mock_session.return_value.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_execution
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_workspace
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
 
@@ -1264,7 +1310,7 @@ class TestFinalAnswerGeneration:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1294,7 +1340,7 @@ class TestFinalAnswerGeneration:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -1323,7 +1369,7 @@ class TestFinalAnswerGeneration:
             final_answer="Complete"
         )
         mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured = AsyncMock(return_value=mock_react_step)
+        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
         agent = AtomMetaAgent()
         agent.llm = mock_llm_instance
 
@@ -1340,16 +1386,19 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_governance_check_allowed(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_governance_check_allowed(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover governance check when action is allowed (lines 683-717)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {"allowed": True, "action_complexity": 1}
+        # Source calls can_perform_action_async (atom_meta_agent.py:1322)
+        mock_gov.can_perform_action_async = AsyncMock(return_value={"allowed": True, "action_complexity": 1})
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
@@ -1369,16 +1418,20 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_governance_check_blocked(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_governance_check_blocked(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover governance check when action is blocked (line 716-717)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {"allowed": False, "reason": "Not authorized"}
+        # action_complexity=1 so the Propose-Only gate (complexity > 1) does
+        # NOT force approval and the "blocked" branch is reached.
+        mock_gov.can_perform_action_async = AsyncMock(return_value={"allowed": False, "reason": "Not authorized", "action_complexity": 1})
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
@@ -1395,22 +1448,26 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_governance_approval_required(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_governance_approval_required(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover governance when approval is required (lines 695-714)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {
+        mock_gov.can_perform_action_async = AsyncMock(return_value={
             "allowed": True,
             "requires_human_approval": True,
             "reason": "Complex action requires approval"
-        }
+        })
         mock_gov.request_approval.return_value = "action-123"
+        # _wait_for_approval creates a NEW AgentGovernanceService (line 1770),
+        # which also resolves to mock_gov, so get_approval_status is used.
         mock_gov.get_approval_status.return_value = {"status": "approved"}
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
@@ -1430,22 +1487,24 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_governance_approval_rejected(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_governance_approval_rejected(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover governance when approval is rejected (lines 712-714)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {
+        mock_gov.can_perform_action_async = AsyncMock(return_value={
             "allowed": True,
             "requires_human_approval": True,
             "reason": "Requires approval"
-        }
+        })
         mock_gov.request_approval.return_value = "action-456"
         mock_gov.get_approval_status.return_value = {"status": "rejected"}
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
@@ -1473,16 +1532,18 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_special_tool_trigger_workflow(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_special_tool_trigger_workflow(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover special tool: trigger_workflow (lines 722-724)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {"allowed": True, "action_complexity": 1}
+        mock_gov.can_perform_action_async = AsyncMock(return_value={"allowed": True, "action_complexity": 1})
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None
@@ -1501,16 +1562,18 @@ class TestToolGovernanceExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch('core.atom_meta_agent.AgentGovernanceService')
     @pytest.mark.asyncio
-    async def test_special_tool_delegate_task(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_special_tool_delegate_task(self, mock_gov_service, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover special tool: delegate_task (lines 726-728)"""
         mock_canvas.return_value = MagicMock()
         mock_db = MagicMock()
         mock_gov = MagicMock()
-        mock_gov.can_perform_action.return_value = {"allowed": True, "action_complexity": 1}
+        mock_gov.can_perform_action_async = AsyncMock(return_value={"allowed": True, "action_complexity": 1})
+        mock_gov_service.return_value = mock_gov
         mock_db.query.return_value.filter.return_value.first.return_value = mock_gov
         mock_session.return_value.__enter__.return_value = mock_db
         mock_session.return_value.__exit__.return_value = None

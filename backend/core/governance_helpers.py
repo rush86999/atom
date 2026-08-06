@@ -78,24 +78,28 @@ def check_agent_permission(
         from core.service_factory import ServiceFactory
         governance = ServiceFactory.get_governance_service(db)
 
-        # Check permission
-        permitted = governance.can_execute_action(agent_id, complexity)
+        # Check permission. AgentGovernanceService resolves the action
+        # complexity internally from the action name (ACTION_COMPLEXITY), so
+        # pass the action through and use its decision dict directly.
+        decision = governance.can_perform_action(agent_id, action)
+        permitted = bool(decision.get("allowed"))
 
         if not permitted:
-            # Get details for error message
-            try:
-                current_maturity = governance.get_agent_maturity(agent_id)
-                required_maturity = governance.get_required_maturity(complexity)
-            except Exception as e:
-                logger.warning(f"Could not get maturity details: {e}")
-                current_maturity = "UNKNOWN"
-                required_maturity = "UNKNOWN"
+            # Pull denial details from the decision when available.
+            current_maturity = decision.get("agent_status", "UNKNOWN")
+            required_maturity = decision.get("required_status")
+            if not required_maturity:
+                try:
+                    required_maturity = ActionComplexity.get_required_maturity(complexity)
+                except Exception:
+                    required_maturity = "UNKNOWN"
+            reason = decision.get("reason", "Permission denied")
 
             # Log denial
             logger.info(
                 f"Permission denied: agent={agent_id}, action={action}, "
                 f"current_maturity={current_maturity}, required_maturity={required_maturity}, "
-                f"complexity={complexity}"
+                f"complexity={complexity}, reason={reason}"
             )
 
             # Raise error if requested
@@ -107,7 +111,8 @@ def check_agent_permission(
                         "agent_id": agent_id,
                         "current_maturity": current_maturity,
                         "required_maturity": required_maturity,
-                        "complexity": complexity
+                        "complexity": complexity,
+                        "reason": reason
                     }
                 )
 
@@ -191,10 +196,16 @@ def get_agent_maturity(db: Session, agent_id: str) -> Optional[str]:
             # Agent can perform any action
             pass
     """
+    if not agent_id:
+        return None
     try:
-        from core.service_factory import ServiceFactory
-        governance = ServiceFactory.get_governance_service(db)
-        return governance.get_agent_maturity(agent_id)
+        # AgentGovernanceService has no direct maturity getter, so read the
+        # maturity from the registry row (status holds the maturity value).
+        from core.models import AgentRegistry
+        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if agent is None:
+            return None
+        return agent.status
     except Exception as e:
         logger.error(f"Failed to get agent maturity: agent_id={agent_id}, error={e}")
         return None

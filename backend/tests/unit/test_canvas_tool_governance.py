@@ -141,7 +141,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -179,7 +179,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -216,7 +216,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -249,7 +249,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -282,7 +282,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -317,7 +317,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -353,7 +353,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -390,7 +390,7 @@ class TestPresentChartGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     # Governance ALLOWS the action
                     mock_governance.can_perform_action = Mock(
@@ -443,7 +443,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -482,7 +482,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -518,7 +518,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -552,7 +552,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -586,7 +586,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -621,7 +621,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -658,7 +658,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -697,7 +697,7 @@ class TestPresentFormGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -746,7 +746,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -783,7 +783,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -817,7 +817,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -849,7 +849,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -881,7 +881,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -914,7 +914,7 @@ class TestPresentMarkdownGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -957,7 +957,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(
@@ -994,7 +994,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -1028,7 +1028,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -1061,7 +1061,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -1094,7 +1094,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)
@@ -1128,7 +1128,7 @@ class TestUpdateCanvasGovernance:
                 )
                 mock_resolver_class.return_value = mock_resolver
 
-                with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
                     mock_governance.can_perform_action = Mock(
                         return_value=create_governance_check_response(allowed=True)

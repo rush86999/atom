@@ -44,6 +44,22 @@ def mock_agent():
     return agent
 
 
+@pytest.fixture
+def mock_governance_service():
+    """Create a mock AgentGovernanceService with the real decision API."""
+    service = Mock()
+    service.can_perform_action.return_value = {
+        "allowed": True,
+        "reason": "Maturity check passed.",
+        "agent_status": "INTERN",
+        "action_complexity": 2,
+        "required_status": "INTERN",
+        "requires_human_approval": False,
+        "confidence": 0.75,
+    }
+    return service
+
+
 # =============================================================================
 # Test Class: get_agent_maturity
 # =============================================================================
@@ -52,25 +68,23 @@ class TestGetAgentMaturity:
     """Tests for get_agent_maturity function."""
 
     def test_get_maturity_success(self, mock_db):
-        """RED: Test getting agent maturity successfully."""
-        # Mock the database query
-        with patch('core.governance_helpers.Agent') as mock_agent_model:
-            mock_agent = Mock()
-            mock_agent.maturity = "intern"
-            mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
+        """Test getting agent maturity successfully."""
+        # Mock the database query returning a registry row whose status is the maturity
+        mock_agent = Mock()
+        mock_agent.status = "INTERN"
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
-            maturity = get_agent_maturity(mock_db, "agent-123")
+        maturity = get_agent_maturity(mock_db, "agent-123")
 
-            assert maturity == "intern"
+        assert maturity == "INTERN"
 
     def test_get_maturity_not_found(self, mock_db):
-        """RED: Test getting maturity for non-existent agent."""
-        with patch('core.governance_helpers.Agent') as mock_agent_model:
-            mock_db.query.return_value.filter.return_value.first.return_value = None
+        """Test getting maturity for non-existent agent."""
+        mock_db.query.return_value.filter.return_value.first.return_value = None
 
-            maturity = get_agent_maturity(mock_db, "nonexistent")
+        maturity = get_agent_maturity(mock_db, "nonexistent")
 
-            assert maturity is None
+        assert maturity is None
 
 
 # =============================================================================
@@ -80,25 +94,47 @@ class TestGetAgentMaturity:
 class TestCheckAgentPermission:
     """Tests for check_agent_permission function."""
 
-    def test_check_permission_granted(self, mock_db, mock_agent):
-        """RED: Test checking permission when granted."""
-        with patch('core.governance_helpers.get_agent_maturity') as mock_get_maturity:
-            mock_get_maturity.return_value = "supervised"
+    def test_check_permission_granted(self, mock_db, mock_agent, mock_governance_service):
+        """Test checking permission when granted."""
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": True,
+                "reason": "Maturity check passed.",
+                "agent_status": "SUPERVISED",
+                "action_complexity": 2,
+                "required_status": "SUPERVISED",
+                "requires_human_approval": False,
+                "confidence": 0.75,
+            }
             # Supervised agents have more permissions
-            result = check_agent_permission(mock_agent, "streaming")
+            result = check_agent_permission(
+                mock_db, mock_agent.id, "streaming", 2, raise_on_denied=False
+            )
 
             # Should return True if maturity allows
-            assert isinstance(result, bool)
+            assert result is True
 
-    def test_check_permission_denied(self, mock_db, mock_agent):
-        """RED: Test checking permission when denied."""
-        with patch('core.governance_helpers.get_agent_maturity') as mock_get_maturity:
-            mock_get_maturity.return_value = "student"
+    def test_check_permission_denied(self, mock_db, mock_agent, mock_governance_service):
+        """Test checking permission when denied."""
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": False,
+                "reason": "Maturity check failed. Required: INTERN",
+                "agent_status": "STUDENT",
+                "action_complexity": 2,
+                "required_status": "INTERN",
+                "requires_human_approval": True,
+                "confidence": 0.4,
+            }
             # Student agents have restricted permissions
-            result = check_agent_permission(mock_agent, "streaming")
+            result = check_agent_permission(
+                mock_db, mock_agent.id, "streaming", 2, raise_on_denied=False
+            )
 
             # Should return False for student
-            assert isinstance(result, bool)
+            assert result is False
 
 
 # =============================================================================
@@ -108,24 +144,44 @@ class TestCheckAgentPermission:
 class TestCheckAgentAction:
     """Tests for check_agent_action function."""
 
-    def test_check_action_allowed(self, mock_db, mock_agent):
-        """RED: Test checking allowed action."""
-        with patch('core.governance_helpers.get_agent_maturity') as mock_get_maturity:
-            mock_get_maturity.return_value = "autonomous"
+    def test_check_action_allowed(self, mock_db, mock_agent, mock_governance_service):
+        """Test checking allowed action."""
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": True,
+                "reason": "Maturity check passed.",
+                "agent_status": "AUTONOMOUS",
+                "action_complexity": 3,
+                "required_status": "AUTONOMOUS",
+                "requires_human_approval": False,
+                "confidence": 0.95,
+            }
             # Autonomous agents can do most actions
             result = check_agent_action(mock_db, mock_agent.id, "form_submission")
 
-            assert isinstance(result, bool)
+            assert result is True
 
-    def test_check_action_blocked(self, mock_db, mock_agent):
-        """RED: Test checking blocked action."""
-        with patch('core.governance_helpers.get_agent_maturity') as mock_get_maturity:
-            mock_get_maturity.return_value = "student"
-            # Student agents blocked from complex actions
-            result = check_agent_action(mock_db, mock_agent.id, "form_submission")
+    def test_check_action_blocked(self, mock_db, mock_agent, mock_governance_service):
+        """Test checking blocked action."""
+        from fastapi import HTTPException
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": False,
+                "reason": "Maturity check failed. Required: SUPERVISED",
+                "agent_status": "STUDENT",
+                "action_complexity": 3,
+                "required_status": "SUPERVISED",
+                "requires_human_approval": True,
+                "confidence": 0.4,
+            }
+            # Student agents blocked from complex actions; default
+            # raise_on_denied=True should surface a 403.
+            with pytest.raises(HTTPException) as exc_info:
+                check_agent_action(mock_db, mock_agent.id, "form_submission")
 
-            # Should be blocked
-            assert isinstance(result, bool)
+            assert exc_info.value.status_code == 403
 
 
 # =============================================================================
@@ -162,27 +218,46 @@ class TestCanAgentPerform:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_check_permission_none_agent(self, mock_db):
-        """RED: Test checking permission with None agent."""
-        result = check_agent_permission(None, "action")
+    def test_check_permission_none_agent(self, mock_db, mock_governance_service):
+        """Test checking permission with None agent."""
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": False,
+                "reason": "Agent not found",
+                "requires_human_approval": True,
+            }
+            result = check_agent_permission(
+                mock_db, None, "action", 2, raise_on_denied=False
+            )
 
-        # Should handle gracefully
-        assert isinstance(result, bool)
+            # Should handle gracefully (deny, return False)
+            assert result is False
 
     def test_get_maturity_empty_id(self, mock_db):
-        """RED: Test getting maturity with empty ID."""
+        """Test getting maturity with empty ID."""
         maturity = get_agent_maturity(mock_db, "")
 
         assert maturity is None
 
-    def test_check_action_empty_action_type(self, mock_db, mock_agent):
-        """RED: Test checking with empty action type."""
-        with patch('core.governance_helpers.get_agent_maturity') as mock_get_maturity:
-            mock_get_maturity.return_value = "intern"
+    def test_check_action_empty_action_type(self, mock_db, mock_agent, mock_governance_service):
+        """Test checking with empty action type."""
+        with patch('core.service_factory.ServiceFactory.get_governance_service',
+                   return_value=mock_governance_service):
+            mock_governance_service.can_perform_action.return_value = {
+                "allowed": True,
+                "reason": "Maturity check passed.",
+                "agent_status": "INTERN",
+                "action_complexity": 2,
+                "required_status": "INTERN",
+                "requires_human_approval": False,
+                "confidence": 0.6,
+            }
+            result = check_agent_action(
+                mock_db, mock_agent.id, "", raise_on_denied=False
+            )
 
-            result = check_agent_action(mock_db, mock_agent.id, "")
-
-            assert isinstance(result, bool)
+            assert result is True
 
 
 # =============================================================================

@@ -122,6 +122,7 @@ class TestTrainingDurationEstimation:
         # Create completed training session for similar agent
         training_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal_1",
             agent_id=similar_agent.id,
             agent_name=similar_agent.name,
@@ -783,6 +784,7 @@ class TestLearningRateCalculation:
         # Create training session with good performance
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="proposal_1",
             agent_id=agent.id,
             agent_name=agent.name,
@@ -1919,7 +1921,7 @@ class TestApprovalErrorHandling:
         db_session.commit()
 
         # Act & Assert - Try to approve already approved proposal
-        with pytest.raises(ValueError, match="must be in PROPOSED status"):
+        with pytest.raises(ValueError, match="must be in PENDING_APPROVAL status"):
             await service.approve_training(
                 proposal_id=proposal.id,
                 user_id="test_user",
@@ -2239,6 +2241,7 @@ class TestTrainingCompletionPromotion:
         # Create training session directly (no proposal needed)
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=agent.id,
             agent_name=agent.name,
@@ -2289,6 +2292,7 @@ class TestTrainingCompletionPromotion:
         # Create training session directly
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=agent.id,
             agent_name=agent.name,
@@ -2893,6 +2897,7 @@ class TestCompletionErrorHandling:
         # Create session without agent
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id="nonexistent_agent",
             agent_name="Ghost Agent",
@@ -3088,6 +3093,7 @@ class TestDurationEstimationFactors:
 
         training_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=similar_agent.id,
             agent_name=similar_agent.name,
@@ -3144,6 +3150,7 @@ class TestDurationEstimationFactors:
         # Create completed session with high performance
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=agent.id,
             agent_name=agent.name,
@@ -3189,6 +3196,7 @@ class TestDurationEstimationFactors:
         # Create completed session with low performance
         session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=agent.id,
             agent_name=agent.name,
@@ -3264,6 +3272,7 @@ class TestDurationEstimationFactors:
 
             training_session = TrainingSession(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 proposal_id=f"test_proposal_{i}",
                 agent_id=similar_agent.id,
                 agent_name=similar_agent.name,
@@ -3398,6 +3407,7 @@ class TestDurationEstimationEdgeCases:
 
         training_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=similar_agent.id,
             agent_name=similar_agent.name,
@@ -3456,6 +3466,7 @@ class TestDurationEstimationEdgeCases:
 
             training_session = TrainingSession(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 proposal_id=f"test_proposal_{i}",
                 agent_id=similar_agent.id,
                 agent_name=similar_agent.name,
@@ -3514,6 +3525,7 @@ class TestSimilarAgentsHistory:
 
         finance_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal",
             agent_id=finance_agent.id,
             agent_name=finance_agent.name,
@@ -3536,6 +3548,7 @@ class TestSimilarAgentsHistory:
 
         testing_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal2",
             agent_id=testing_agent.id,
             agent_name=testing_agent.name,
@@ -3599,6 +3612,7 @@ class TestSimilarAgentsHistory:
 
         high_conf_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal_high",
             agent_id=high_conf_agent.id,
             agent_name=high_conf_agent.name,
@@ -3621,6 +3635,7 @@ class TestSimilarAgentsHistory:
 
         low_conf_session = TrainingSession(
             id=str(uuid.uuid4()),
+            tenant_id="default",
             proposal_id="test_proposal_low",
             agent_id=low_conf_agent.id,
             agent_name=low_conf_agent.name,
@@ -3675,6 +3690,7 @@ class TestSimilarAgentsHistory:
         for i in range(3):
             training_session = TrainingSession(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 proposal_id=f"test_proposal_{i}",
                 agent_id=similar_agent.id,
                 agent_name=similar_agent.name,
@@ -3732,6 +3748,7 @@ class TestSimilarAgentsHistory:
         for i in range(2):
             training_session = TrainingSession(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 proposal_id=f"test_proposal_{i}",
                 agent_id=similar_agent.id,
                 agent_name=similar_agent.name,

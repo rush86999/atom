@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func, cast, String
 
 from core.models import SocialPost, AgentRegistry
 from core.agent_communication import agent_event_bus
@@ -65,6 +65,7 @@ class AgentSocialLayer:
         mentioned_user_ids: List[str] = None,
         mentioned_episode_ids: List[str] = None,
         mentioned_task_ids: List[str] = None,
+        reply_to_id: Optional[str] = None,
         skip_pii_redaction: bool = False,
         auto_generated: bool = False,
         db: Session = None
@@ -200,6 +201,7 @@ class AgentSocialLayer:
             "mentioned_user_ids": mentioned_user_ids or [],
             "mentioned_episode_ids": mentioned_episode_ids or [],
             "mentioned_task_ids": mentioned_task_ids or [],
+            "reply_to_id": reply_to_id,
             "auto_generated": auto_generated
         }
 
@@ -296,10 +298,16 @@ class AgentSocialLayer:
             query = query.filter(SocialPost.author_id == sender_filter)
 
         if channel_id:
-            query = query.filter(SocialPost.channel_id == channel_id)
+            # channel_id is stored in post_metadata JSON, not a dedicated column
+            query = query.filter(
+                func.json_extract(SocialPost.post_metadata, '$.channel_id') == channel_id
+            )
 
         if is_public is not None:
-            query = query.filter(SocialPost.is_public == is_public)
+            # is_public is stored in post_metadata JSON, not a dedicated column
+            query = query.filter(
+                func.json_extract(SocialPost.post_metadata, '$.is_public') == bool(is_public)
+            )
 
         # Count total
         total = query.count()
@@ -498,7 +506,7 @@ class AgentSocialLayer:
                     f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"
                 )
 
-        # Create reply post
+        # Create reply post (reply_to_id is stored in post_metadata JSON)
         reply = await self.create_post(
             sender_type=sender_type,
             sender_id=sender_id,
@@ -507,13 +515,9 @@ class AgentSocialLayer:
             content=content,
             sender_maturity=sender_maturity,
             sender_category=sender_category,
+            reply_to_id=post_id,
             db=db
         )
-
-        # Link to parent post (if schema supports reply_to_id)
-        # Note: Current SocialPost schema doesn't have reply_to_id or reply_count
-        # These would need to be added to the model for full reply tracking
-        # For now, replies are just posts that reference parent post ID
 
         # Increment parent reply count (not in current schema - would need migration)
         # parent_post.reply_count += 1
@@ -566,9 +570,15 @@ class AgentSocialLayer:
         if sender_filter:
             query = query.filter(SocialPost.author_id == sender_filter)
         if channel_id:
-            query = query.filter(SocialPost.channel_id == channel_id)
+            # channel_id is stored in post_metadata JSON, not a dedicated column
+            query = query.filter(
+                func.json_extract(SocialPost.post_metadata, '$.channel_id') == channel_id
+            )
         if is_public is not None:
-            query = query.filter(SocialPost.is_public == is_public)
+            # is_public is stored in post_metadata JSON, not a dedicated column
+            query = query.filter(
+                func.json_extract(SocialPost.post_metadata, '$.is_public') == bool(is_public)
+            )
 
         # Apply cursor (get posts before this timestamp AND with id less than cursor id)
         # This prevents duplicates when multiple posts have same timestamp
@@ -579,16 +589,22 @@ class AgentSocialLayer:
                 if ":" in cursor:
                     cursor_time_str, cursor_id = cursor.rsplit(":", 1)
                     cursor_time = datetime.fromisoformat(cursor_time_str)
-                    # Use < for timestamp (strictly less) and < for id (strictly less)
-                    # This ensures we never return the same post twice
+                    # NOTE: created_at is stored by SQLite's CURRENT_TIMESTAMP at second
+                    # precision (no microseconds) while SQLAlchemy binds datetime params
+                    # with a `.000000` microseconds suffix. A raw `created_at < cursor_time`
+                    # comparison then spuriously matches every row sharing the cursor's
+                    # second (string ordering: '...01' < '...01.000000'), making the id
+                    # tiebreaker unreachable and pages overlap. Compare the column cast to
+                    # text against the second-precision cursor string instead.
+                    cursor_ts = cursor_time.strftime("%Y-%m-%d %H:%M:%S")
                     query = query.filter(
-                        (SocialPost.created_at < cursor_time) |
-                        ((SocialPost.created_at == cursor_time) & (SocialPost.id < cursor_id))
+                        (cast(SocialPost.created_at, String) < cursor_ts) |
+                        ((cast(SocialPost.created_at, String) == cursor_ts) & (SocialPost.id < cursor_id))
                     )
                 else:
                     # Legacy cursor format (timestamp only)
                     cursor_time = datetime.fromisoformat(cursor)
-                    query = query.filter(SocialPost.created_at < cursor_time)
+                    query = query.filter(cast(SocialPost.created_at, String) < cursor_time.strftime("%Y-%m-%d %H:%M:%S"))
             except ValueError:
                 self.logger.warning(f"Invalid cursor format: {cursor}")
 
@@ -756,22 +772,22 @@ class AgentSocialLayer:
         if not db:
             return {"replies": [], "total": 0}
 
-        # Query posts that reply to this post
+        # Query posts that reply to this post (reply_to_id stored in post_metadata JSON)
         replies = db.query(SocialPost).filter(
-            SocialPost.reply_to_id == post_id
+            func.json_extract(SocialPost.post_metadata, '$.reply_to_id') == post_id
         ).order_by(SocialPost.created_at).limit(limit).all()
 
         return {
             "replies": [
                 {
                     "id": r.id,
-                    "sender_type": r.author_type.value,  # Map author_type -> sender_type
+                    "sender_type": r.author_type.value if hasattr(r.author_type, 'value') else r.author_type,  # Map author_type -> sender_type
                     "sender_id": r.author_id,  # Map author_id -> sender_id
                     "sender_name": r.post_metadata.get("sender_name") if r.post_metadata else None,
                     "sender_maturity": r.post_metadata.get("sender_maturity") if r.post_metadata else None,
                     "sender_category": r.post_metadata.get("sender_category") if r.post_metadata else None,
                     "content": r.content,
-                    "post_type": r.post_type.value,
+                    "post_type": r.post_type.value if hasattr(r.post_type, 'value') else r.post_type,
                     "created_at": r.created_at.isoformat(),
                     "reactions": []  # Will be loaded from PostReaction relationship
                 }

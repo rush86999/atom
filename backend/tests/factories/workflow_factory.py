@@ -6,8 +6,7 @@ import factory
 from factory import fuzzy
 from datetime import datetime, timedelta
 from tests.factories.base import BaseFactory
-from core.models import WorkflowExecution, WorkflowExecutionStatus
-# NOTE: WorkflowStepExecution doesn't exist in core.models - commented out
+from core.models import WorkflowExecution, WorkflowExecutionStatus, WorkflowStepExecution
 
 
 class WorkflowExecutionFactory(BaseFactory):
@@ -29,7 +28,26 @@ class WorkflowExecutionFactory(BaseFactory):
     error = factory.LazyFunction(lambda: None)
 
 
-# NOTE: WorkflowStepExecutionFactory commented out - WorkflowStepExecution model doesn't exist
-# class WorkflowStepExecutionFactory(BaseFactory):
-#     """Factory for creating WorkflowStepExecution instances."""
-#     ...
+class WorkflowStepExecutionFactory(BaseFactory):
+    """Factory for creating WorkflowStepExecution instances.
+
+    Matches the restored WorkflowStepExecution model (core.models), which is
+    referenced by api/mobile_workflows.py step-progress endpoint and by
+    tests/test_models_coverage.py.
+    """
+
+    class Meta:
+        model = WorkflowStepExecution
+
+    # Required fields
+    execution_id = factory.Faker('uuid4')
+    workflow_id = factory.Faker('uuid4')
+    step_id = factory.Faker('uuid4')
+
+    # Data fields
+    step_name = factory.Faker('word')
+    step_type = factory.Faker('word')
+    sequence_order = factory.Sequence(lambda n: n)
+    status = "pending"
+    input_data = factory.LazyFunction(lambda: None)
+    output_data = factory.LazyFunction(lambda: None)

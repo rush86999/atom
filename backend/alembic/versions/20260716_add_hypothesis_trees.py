@@ -1,7 +1,7 @@
 """add hypothesis_trees table
 
 Revision ID: 20260716_add_hypothesis_trees
-Revises: 20260712b_federation_persistence
+Revises: 20260712b_federation_persist
 Create Date: 2026-07-16 00:00:00.000000
 
 Adds the ``hypothesis_trees`` table backing the Arbor Hypothesis Tree
@@ -27,7 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "20260716_add_hypothesis_trees"
-down_revision: Union[str, Sequence[str], None] = "20260712b_federation_persistence"
+down_revision: Union[str, Sequence[str], None] = "20260712b_federation_persist"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

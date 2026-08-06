@@ -107,6 +107,10 @@ class ConstitutionalValidator:
         total_actions = len(actions)
         
         for action in actions:
+            # Skip None entries defensively (mirrors the None-input guard above)
+            if action is None:
+                continue
+
             # Check each applicable constitutional rule
             for rule_id, rule in self.get_rules().items():
                 # Skip if domain-specific and domain doesn't match

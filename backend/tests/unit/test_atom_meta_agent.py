@@ -100,7 +100,7 @@ def atom_agent(mock_world_model, mock_mcp_service, mock_llm_service):
     """Create AtomMetaAgent instance with mocked dependencies"""
     with patch('core.atom_meta_agent.WorldModelService', return_value=mock_world_model), \
          patch('core.atom_meta_agent.mcp_service', mock_mcp_service), \
-         patch('core.atom_meta_agent.get_llm_service', return_value=mock_llm_service), \
+         patch('core.service_factory.ServiceFactory.get_llm_service', return_value=mock_llm_service), \
          patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
         agent = AtomMetaAgent(workspace_id="test-workspace-123")
@@ -122,7 +122,7 @@ class TestAtomMetaAgentInit:
         """Test agent initialization with default parameters"""
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.get_llm_service'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
             agent = AtomMetaAgent()
@@ -136,7 +136,7 @@ class TestAtomMetaAgentInit:
         """Test agent initialization with custom workspace ID"""
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.get_llm_service'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
             agent = AtomMetaAgent(workspace_id="custom-workspace")
@@ -147,7 +147,7 @@ class TestAtomMetaAgentInit:
         """Test agent initialization with user context"""
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.get_llm_service'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
             agent = AtomMetaAgent(user=mock_user)
@@ -1124,7 +1124,7 @@ class TestPerformanceBenchmarks:
 
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.get_llm_service'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
             agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)

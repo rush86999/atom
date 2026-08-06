@@ -390,7 +390,7 @@ class TestPauseResume:
         """Test resuming paused execution with all inputs"""
         sample_execution_state.state = WorkflowState.PAUSED
         sample_execution_state.required_inputs = [
-            ParameterDefinition(name="api_key", type="string", label="API Key", required=True)
+            ParameterDefinition(name="api_key", type="string", label="API Key", description="API key for the service", required=True)
         ]
         sample_execution_state.collected_inputs = {"api_key": "test-key"}
         enhanced_state_manager.enhanced_states["test-execution-123"] = sample_execution_state
@@ -410,7 +410,7 @@ class TestPauseResume:
         """Test resuming execution with still-missing inputs"""
         sample_execution_state.state = WorkflowState.PAUSED
         sample_execution_state.required_inputs = [
-            ParameterDefinition(name="api_key", type="string", label="API Key", required=True)
+            ParameterDefinition(name="api_key", type="string", label="API Key", description="API key for the service", required=True)
         ]
         enhanced_state_manager.enhanced_states["test-execution-123"] = sample_execution_state
 
@@ -633,6 +633,7 @@ class TestInputValidation:
             name="api_key",
             type="string",
             label="API Key",
+            description="API key for the service",
             required=True
         )
         sample_execution_state.required_inputs = [param]
@@ -650,12 +651,14 @@ class TestInputValidation:
             name="api_key",
             type="string",
             label="API Key",
+            description="API key for the service",
             required=True
         )
         param2 = ParameterDefinition(
             name="endpoint",
             type="string",
             label="Endpoint",
+            description="API endpoint URL",
             required=True
         )
         sample_execution_state.required_inputs = [param1, param2]
@@ -673,6 +676,7 @@ class TestInputValidation:
             name="param1",
             type="string",
             label="Param 1",
+            description="First parameter",
             required=True
         )
         manager = EnhancedExecutionStateManager()
@@ -685,6 +689,7 @@ class TestInputValidation:
             name="param2",
             type="string",
             label="Param 2",
+            description="Second parameter",
             required=True,
             show_when={"param1": "value1"}
         )
@@ -698,6 +703,7 @@ class TestInputValidation:
             name="param2",
             type="string",
             label="Param 2",
+            description="Second parameter",
             required=True,
             show_when={"param1": "value1"}
         )

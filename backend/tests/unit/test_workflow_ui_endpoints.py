@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from fastapi import FastAPI
 
 from core.workflow_ui_endpoints import router
+from core.database import get_db
 from core.models import WorkflowTemplate
 
 
@@ -34,8 +35,8 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Create a test client"""
-    return TestClient(app)
+    """Create a test client (server exceptions surface as 5xx responses)."""
+    return TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture
@@ -110,11 +111,10 @@ class TestGetTemplatesEndpoint:
             data = response.json()
             assert data["success"] is True
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_get_templates_from_database(self, mock_get_db, client, mock_db_session, mock_template):
+    def test_get_templates_from_database(self, client, app, mock_db_session, mock_template):
         """Test getting templates from database"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_template]
 
             response = client.get("/templates")
@@ -123,11 +123,10 @@ class TestGetTemplatesEndpoint:
             assert data["success"] is True
             assert "templates" in data
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_get_templates_empty_database(self, mock_get_db, client, mock_db_session):
+    def test_get_templates_empty_database(self, client, app, mock_db_session):
         """Test getting templates when database is empty"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
 
             response = client.get("/templates")
@@ -207,11 +206,10 @@ class TestGetDefinitionsEndpoint:
             data = response.json()
             assert data["success"] is True
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_get_definitions_from_database(self, mock_get_db, client, mock_db_session, mock_template):
+    def test_get_definitions_from_database(self, client, app, mock_db_session, mock_template):
         """Test getting workflow definitions from database"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = [mock_template]
 
             response = client.get("/definitions")
@@ -229,7 +227,8 @@ class TestDataModels:
 
     def test_workflow_step_structure(self, client):
         """Test that WorkflowStep has expected structure"""
-        response = client.get("/templates")
+        with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', True):
+            response = client.get("/templates")
         data = response.json()
         if data["templates"]:
             template = data["templates"][0]
@@ -241,7 +240,8 @@ class TestDataModels:
 
     def test_workflow_template_response_structure(self, client):
         """Test that WorkflowTemplateResponse has expected structure"""
-        response = client.get("/templates")
+        with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', True):
+            response = client.get("/templates")
         data = response.json()
         if data["templates"]:
             template = data["templates"][0]
@@ -262,14 +262,16 @@ class TestResponseFormats:
 
     def test_templates_response_success_field(self, client):
         """Test that templates response includes success field"""
-        response = client.get("/templates")
+        with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', True):
+            response = client.get("/templates")
         data = response.json()
         assert "success" in data
         assert isinstance(data["success"], bool)
 
     def test_templates_response_count_field(self, client):
         """Test that templates response includes count field"""
-        response = client.get("/templates")
+        with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', True):
+            response = client.get("/templates")
         data = response.json()
         assert "count" in data
         assert isinstance(data["count"], int)
@@ -385,11 +387,10 @@ class TestUISpecificFeatures:
 class TestErrorHandling:
     """Test endpoint error handling"""
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_database_error_handling(self, mock_get_db, client, mock_db_session):
+    def test_database_error_handling(self, client, app, mock_db_session):
         """Test that database errors are handled gracefully"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.side_effect = Exception("Database error")
 
             # The endpoint should still return a response (not crash)
@@ -405,22 +406,20 @@ class TestErrorHandling:
 class TestPagination:
     """Test pagination support"""
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_definitions_pagination_limit(self, mock_get_db, client, mock_db_session):
+    def test_definitions_pagination_limit(self, client, app, mock_db_session):
         """Test that limit parameter is respected for definitions"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = []
 
             response = client.get("/definitions?limit=10")
             # Verify the query was called with limit
             assert response.status_code == 200
 
-    @patch('core.workflow_ui_endpoints.get_db')
-    def test_definitions_pagination_offset(self, mock_get_db, client, mock_db_session):
+    def test_definitions_pagination_offset(self, client, app, mock_db_session):
         """Test that offset parameter is respected for definitions"""
         with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', False):
-            mock_get_db.return_value = mock_db_session
+            app.dependency_overrides[get_db] = lambda: mock_db_session
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = []
 
             response = client.get("/definitions?offset=20")

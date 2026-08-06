@@ -1,32 +1,32 @@
 {
-  "timestamp": "2026-04-24T17:17:25.739414Z",
+  "timestamp": "2026-08-04T04:41:49.308433Z",
   "platforms": {
     "backend": {
       "coverage_pct": 65.0,
       "covered": 1300,
       "total": 2000,
-      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-55/popen-gw4/test_full_pipeline_strict_mode0/backend_fail.json",
+      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-139/test_full_pipeline_strict_mode0/backend_fail.json",
       "error": null
     },
     "frontend": {
       "coverage_pct": 0.0,
       "covered": 0,
       "total": 0,
-      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-55/popen-gw4/test_full_pipeline_strict_mode0/passing.json",
+      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-139/test_full_pipeline_strict_mode0/passing.json",
       "error": null
     },
     "mobile": {
       "coverage_pct": 0.0,
       "covered": 0,
       "total": 0,
-      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-55/popen-gw4/test_full_pipeline_strict_mode0/passing.json",
+      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-139/test_full_pipeline_strict_mode0/passing.json",
       "error": null
     },
     "desktop": {
       "coverage_pct": 0.0,
       "covered": 0,
       "total": 0,
-      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-55/popen-gw4/test_full_pipeline_strict_mode0/passing.json",
+      "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-139/test_full_pipeline_strict_mode0/passing.json",
       "error": null
     }
   },

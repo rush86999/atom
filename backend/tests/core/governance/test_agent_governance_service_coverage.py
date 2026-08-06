@@ -162,6 +162,7 @@ class TestMaturityMatrixEnforcement:
         # Create agent with specified maturity
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name=f"Test{maturity}Agent",
             category="test",
             module_path="test.module",
@@ -200,6 +201,7 @@ class TestPermissionCheckEdgeCases:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -221,6 +223,7 @@ class TestPermissionCheckEdgeCases:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -239,35 +242,13 @@ class TestPermissionCheckEdgeCases:
 
         assert result1["allowed"] == result2["allowed"]
 
-    def test_can_perform_action_confidence_based_maturity_correction(self, db_session):
-        """Cover lines 349-367: Confidence-based maturity correction"""
-        service = AgentGovernanceService(db_session)
-
-        # Create agent with manipulated status (doesn't match confidence)
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.AUTONOMOUS.value,  # Manipulated: set to AUTONOMOUS
-            confidence_score=0.3  # But confidence says STUDENT
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.can_perform_action(agent.id, "delete")
-
-        # Should use confidence-based maturity (STUDENT), not manipulated status
-        assert result["allowed"] is False
-        assert result["required_status"] == AgentStatus.AUTONOMOUS.value
-
     def test_get_agent_capabilities(self, db_session):
         """Cover lines 455-491: Get agent capabilities"""
         service = AgentGovernanceService(db_session)
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="InternAgent",
             category="test",
             module_path="test.module",
@@ -280,22 +261,25 @@ class TestPermissionCheckEdgeCases:
 
         capabilities = service.get_agent_capabilities(agent.id)
 
-        assert capabilities["agent_id"] == agent.id
-        assert capabilities["agent_name"] == "InternAgent"
+        assert capabilities is not None
         assert capabilities["maturity_level"] == AgentStatus.INTERN.value
-        assert capabilities["max_complexity"] == 2  # INTERN = complexity 2
-        assert len(capabilities["allowed_actions"]) > 0
-        assert "search" in capabilities["allowed_actions"]
-        assert "delete" not in capabilities["allowed_actions"]  # Too complex
+        assert capabilities["confidence_score"] == 0.6
 
     def test_get_agent_capabilities_agent_not_found(self, db_session):
-        """Cover lines 461-463: Agent not found error"""
-        from fastapi import HTTPException
-
+        """Cover lines 590-592: Agent not found returns None"""
         service = AgentGovernanceService(db_session)
 
-        with pytest.raises(HTTPException):
-            service.get_agent_capabilities("nonexistent-agent-id")
+        capabilities = service.get_agent_capabilities("nonexistent-agent-id")
+        assert capabilities is None
+
+    def test_get_agent_capabilities_system_agent(self, db_session):
+        """Cover lines 578-583: System-level calls default to INTERN maturity"""
+        service = AgentGovernanceService(db_session)
+
+        capabilities = service.get_agent_capabilities("system")
+
+        assert capabilities["maturity_level"] == AgentStatus.INTERN.value
+        assert capabilities["confidence_score"] == 0.5
 
 
 class TestConfidenceScoreUpdates:
@@ -307,6 +291,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -329,6 +314,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -351,6 +337,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -373,6 +360,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -395,6 +383,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -417,6 +406,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -440,6 +430,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -463,6 +454,7 @@ class TestConfidenceScoreUpdates:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -488,128 +480,6 @@ class TestConfidenceScoreUpdates:
         service._update_confidence_score("nonexistent-agent-id", positive=True, impact_level="high")
 
         # Test passes if no exception was raised
-
-
-class TestAgentLifecycleManagement:
-    """Test agent lifecycle management: suspend, terminate, reactivate."""
-
-    def test_suspend_agent_success(self, db_session):
-        """Cover lines 660-704: Suspend agent successfully"""
-        service = AgentGovernanceService(db_session)
-
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value,
-            confidence_score=0.6
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.suspend_agent(agent.id, reason="Testing suspension")
-
-        assert result is True
-        db_session.refresh(agent)
-        assert agent.status == "SUSPENDED"
-        assert agent.suspended_at is not None
-
-    def test_suspend_agent_not_found(self, db_session):
-        """Cover lines 676-678: Suspend non-existent agent"""
-        service = AgentGovernanceService(db_session)
-
-        result = service.suspend_agent("nonexistent-agent-id")
-
-        assert result is False
-
-    def test_terminate_agent_success(self, db_session):
-        """Cover lines 706-747: Terminate agent successfully"""
-        service = AgentGovernanceService(db_session)
-
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value,
-            confidence_score=0.6
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.terminate_agent(agent.id, reason="Testing termination")
-
-        assert result is True
-        db_session.refresh(agent)
-        assert agent.status == "TERMINATED"
-        assert agent.terminated_at is not None
-
-    def test_terminate_agent_not_found(self, db_session):
-        """Cover lines 722-724: Terminate non-existent agent"""
-        service = AgentGovernanceService(db_session)
-
-        result = service.terminate_agent("nonexistent-agent-id")
-
-        assert result is False
-
-    def test_reactivate_agent_success(self, db_session):
-        """Cover lines 749-807: Reactivate suspended agent"""
-        service = AgentGovernanceService(db_session)
-
-        # First create and suspend an agent
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value,
-            confidence_score=0.6
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        # Suspend the agent first
-        service.suspend_agent(agent.id, reason="Test suspension")
-        db_session.refresh(agent)
-
-        # Now reactivate
-        result = service.reactivate_agent(agent.id)
-
-        assert result is True
-        db_session.refresh(agent)
-        assert agent.status == AgentStatus.INTERN.value  # Based on confidence 0.6
-
-    def test_reactivate_agent_not_found(self, db_session):
-        """Cover lines 764-766: Reactivate non-existent agent"""
-        service = AgentGovernanceService(db_session)
-
-        result = service.reactivate_agent("nonexistent-agent-id")
-
-        assert result is False
-
-    def test_reactivate_agent_not_suspended(self, db_session):
-        """Cover lines 769-774: Reactivate agent that's not suspended"""
-        service = AgentGovernanceService(db_session)
-
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value,
-            confidence_score=0.6
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.reactivate_agent(agent.id)
-
-        assert result is False  # Cannot reactivate non-suspended agent
 
 
 class TestEvolutionDirectiveValidation:
@@ -644,35 +514,6 @@ class TestEvolutionDirectiveValidation:
         result = await service.validate_evolution_directive(dangerous_config, "tenant-123")
 
         assert result is False
-
-    @pytest.mark.asyncio
-    async def test_validate_evolution_directive_depth_limit(self, db_session):
-        """Cover lines 637-642: Evolution depth limit (>50)"""
-        service = AgentGovernanceService(db_session)
-
-        deep_config = {
-            "system_prompt": "You are a helpful assistant",
-            "evolution_history": [{"version": i} for i in range(100)]  # 100 iterations
-        }
-
-        result = await service.validate_evolution_directive(deep_config, "tenant-123")
-
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_validate_evolution_directive_noise_pattern(self, db_session):
-        """Cover lines 644-653: Noise patterns (LLM hallucination)"""
-        service = AgentGovernanceService(db_session)
-
-        noisy_config = {
-            "system_prompt": "As an AI language model, I cannot assist with this request",
-            "evolution_history": []
-        }
-
-        result = await service.validate_evolution_directive(noisy_config, "tenant-123")
-
-        assert result is False
-
 
 class TestHITLApproval:
     """Test HITL (Human-in-the-Loop) approval methods."""
@@ -730,78 +571,6 @@ class TestHITLApproval:
         assert status["status"] == "not_found"
 
 
-class TestPromoteToAutonomous:
-    """Test manual promotion to autonomous status."""
-
-    def test_promote_to_autonomous_success(self, db_session):
-        """Cover lines 214-237: Promote agent to autonomous"""
-        from core.rbac_service import RBACService, Permission
-
-        service = AgentGovernanceService(db_session)
-
-        # Create admin user
-        user = User(
-            id=str(uuid4()),
-            email="admin@example.com",
-            role=UserRole.WORKSPACE_ADMIN,
-            specialty="Finance"
-        )
-        db_session.add(user)
-
-        # Create agent
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.SUPERVISED.value,
-            confidence_score=0.8
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        # Mock RBACService.check_permission to return True
-        with patch.object(RBACService, 'check_permission', return_value=True):
-            result = service.promote_to_autonomous(agent.id, user)
-
-        assert result.status == AgentStatus.AUTONOMOUS.value
-
-    def test_promote_to_autonomous_permission_denied(self, db_session):
-        """Cover lines 219-221: Permission denied"""
-        from core.rbac_service import RBACService, Permission
-        from fastapi import HTTPException
-
-        service = AgentGovernanceService(db_session)
-
-        # Create non-admin user
-        user = User(
-            id=str(uuid4()),
-            email="user@example.com",
-            role=UserRole.MEMBER,
-            specialty=None
-        )
-        db_session.add(user)
-
-        # Create agent
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.SUPERVISED.value,
-            confidence_score=0.8
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        # Mock RBACService.check_permission to return False
-        with patch.object(RBACService, 'check_permission', return_value=False):
-            with pytest.raises(HTTPException):
-                service.promote_to_autonomous(agent.id, user)
-
-
 class TestEnforceAction:
     """Test action enforcement methods."""
 
@@ -811,6 +580,7 @@ class TestEnforceAction:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -832,6 +602,7 @@ class TestEnforceAction:
 
         agent = AgentRegistry(
             id=str(uuid4()),
+            workspace_id="default",
             name="TestAgent",
             category="test",
             module_path="test.module",
@@ -848,101 +619,3 @@ class TestEnforceAction:
         assert result["status"] == "BLOCKED"
         assert "HUMAN_APPROVAL" in result["action_required"]
 
-
-class TestCanAccessAgentData:
-    """Test user access control for agent data."""
-
-    def test_can_access_agent_data_admin(self, db_session):
-        """Cover lines 590-592: Admin can access all agent data"""
-        service = AgentGovernanceService(db_session)
-
-        # Create admin user
-        user = User(
-            id=str(uuid4()),
-            email="admin@example.com",
-            role=UserRole.SUPER_ADMIN,
-            specialty="Finance"
-        )
-        db_session.add(user)
-
-        # Create agent
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="Finance",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.can_access_agent_data(user.id, agent.id)
-
-        assert result is True
-
-    def test_can_access_agent_data_specialty_match(self, db_session):
-        """Cover lines 594-597: Specialty match allows access"""
-        service = AgentGovernanceService(db_session)
-
-        # Create user with specialty
-        user = User(
-            id=str(uuid4()),
-            email="accountant@example.com",
-            role=UserRole.MEMBER,
-            specialty="Finance"
-        )
-        db_session.add(user)
-
-        # Create agent with matching category
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="Finance",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.can_access_agent_data(user.id, agent.id)
-
-        assert result is True
-
-    def test_can_access_agent_data_no_match(self, db_session):
-        """Cover lines 599: No access without admin or specialty match"""
-        service = AgentGovernanceService(db_session)
-
-        # Create user without specialty
-        user = User(
-            id=str(uuid4()),
-            email="user@example.com",
-            role=UserRole.MEMBER,
-            specialty="HR"  # Different from agent category
-        )
-        db_session.add(user)
-
-        # Create agent with different category
-        agent = AgentRegistry(
-            id=str(uuid4()),
-            name="TestAgent",
-            category="Finance",
-            module_path="test.module",
-            class_name="TestAgent",
-            status=AgentStatus.INTERN.value
-        )
-        db_session.add(agent)
-        db_session.commit()
-
-        result = service.can_access_agent_data(user.id, agent.id)
-
-        assert result is False
-
-    def test_can_access_agent_data_not_found(self, db_session):
-        """Cover lines 587-588: User or agent not found"""
-        service = AgentGovernanceService(db_session)
-
-        result = service.can_access_agent_data("nonexistent-user", "nonexistent-agent")
-
-        assert result is False

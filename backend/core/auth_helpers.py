@@ -78,6 +78,10 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
             detail="Invalid token"
         )
     except Exception as e:
+        # Preserve a specific HTTPException raised by our own claim validation
+        # (e.g. missing subject) instead of swallowing it into a generic 401.
+        if isinstance(e, HTTPException):
+            raise
         logger.error(f"JWT verification error: {e}")
         if emergency_bypass:
             logger.warning("EMERGENCY BYPASS: Allowing unverified token")
@@ -276,7 +280,7 @@ def revoke_token(
             jti=jti,
             expires_at=expires_at,
             user_id=user_id,
-            revocation_reason=revocation_reason or "logout"
+            reason=revocation_reason or "logout"
         )
         db.add(revoked_token)
         db.commit()
@@ -364,7 +368,7 @@ def revoke_all_user_tokens(
                 jti=token.jti,
                 expires_at=token.expires_at,
                 user_id=user_id,
-                revocation_reason=revocation_reason or "admin_action"
+                reason=revocation_reason or "admin_action"
             )
             db.add(revoked_token)
 
@@ -439,7 +443,7 @@ def track_active_token(
         # Check if token already tracked
         existing = db.query(ActiveToken).filter_by(jti=jti).first()
         if existing:
-            logger.warning(f"Token {jti} already tracked at {existing.issued_at}")
+            logger.warning(f"Token {jti} already tracked at {existing.created_at}")
             return False
 
         # Create active token entry

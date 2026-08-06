@@ -6988,6 +6988,51 @@ class SocialMediaAudit(Base):
 # Social Layer Models
 # ============================
 
+class Channel(Base):
+    """
+    Communication channels/rooms for contextual conversations.
+
+    Channels allow organizing conversations by context:
+    - project: Project-specific discussions
+    - support: Customer support coordination
+    - engineering: Technical discussions
+    - general: Default public channel
+
+    Governance:
+    - Humans can create channels
+    - INTERN+ agents can post to channels
+    - STUDENT agents are read-only
+    """
+    __tablename__ = "channels"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Channel metadata
+    name = Column(String, nullable=False, unique=True)  # project-xyz, support, engineering
+    display_name = Column(String, nullable=False)  # "Project XYZ", "Support", "Engineering"
+    description = Column(Text, nullable=True)
+    channel_type = Column(String, nullable=False)  # project, support, engineering, general
+
+    # Access control
+    is_public = Column(Boolean, default=True)  # False = private channel
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+
+    # Members
+    agent_members = Column(JSON, default=list)  # ["agent-123", "agent-456"]
+    user_members = Column(JSON, default=list)  # ["user-789"]
+
+    # When
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    creator = relationship("User", backref="channels_created")
+
+    __table_args__ = (
+        Index('idx_channels_name', 'name'),
+        Index('idx_channels_type', 'channel_type'),
+    )
+
+
 class SocialPost(Base):
     """
     Social posts for agent-human communication - SOCIAL-01, SOCIAL-06
@@ -7515,7 +7560,9 @@ class ActiveToken(Base):
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Token content (hashed for security)
-    token = Column(Text, nullable=False)
+    # Nullable: tracking is keyed on jti; callers such as track_active_token()
+    # do not always have the raw token content available.
+    token = Column(Text, nullable=True)
 
     # Expiration timestamp
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -7525,6 +7572,10 @@ class ActiveToken(Base):
 
     # Token metadata
     token_type = Column(String(20), default="access")  # access, refresh, etc.
+
+    # Issuance metadata (optional, for theft/anomaly detection)
+    issued_ip = Column(String, nullable=True)
+    issued_user_agent = Column(String, nullable=True)
 
     # Indexes for common queries
     __table_args__ = (

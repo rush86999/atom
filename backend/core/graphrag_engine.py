@@ -840,8 +840,18 @@ class GraphRAGEngine:
 
     def local_search(self, workspace_id: Optional[str] = None,
                      tenant_id: Optional[str] = None,
-                     query: str = "", depth: int = 2) -> Dict[str, Any]:
-        """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal."""
+                     query: str = "", depth: int = 2,
+                     exclude_doc_ids: Optional[set] = None,
+                     include_stale: bool = False) -> Dict[str, Any]:
+        """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal.
+
+        Freshness cascade: by default, graph nodes/edges whose origin document
+        (recorded in ``properties->>'doc_id'``) is non-fresh are excluded from
+        traversal. The non-fresh doc-id set is resolved from the
+        ``ingested_documents`` table unless the caller supplies
+        ``exclude_doc_ids``. Pass ``include_stale=True`` to bypass (admin/
+        observability). See core/doc_freshness_service.py.
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id or "default"
 
@@ -877,15 +887,67 @@ class GraphRAGEngine:
 
                 is_postgres = (session.bind.dialect.name == "postgresql") if session.bind else True
 
+                # --- Freshness cascade: resolve non-fresh doc ids to exclude ---
+                # Graph nodes/edges carry their origin document in
+                # properties->>'doc_id' (graphrag_engine.py:295,346). When a doc
+                # goes stale/superseded/removed we hide the subgraph derived
+                # from it. The set is resolved from ingested_documents unless
+                # the caller supplies one; include_stale bypasses the filter.
+                if not include_stale and exclude_doc_ids is None:
+                    try:
+                        from core.doc_freshness_service import (
+                            DocFreshnessService,
+                            FRESHNESS_FILTER_ENABLED,
+                        )
+                        if FRESHNESS_FILTER_ENABLED:
+                            exclude_doc_ids = DocFreshnessService(
+                                session, workspace_id=ws_id
+                            ).non_fresh_doc_ids(ws_id) or None
+                    except Exception as fresh_err:
+                        logger.debug(f"Freshness exclude-set resolve failed: {fresh_err}")
+                        exclude_doc_ids = None
+
+                # Build SQL fragments excluding nodes whose origin doc is
+                # non-fresh. Empty set → no-op fragments. Two variants are
+                # produced because the anchor and recursive parts of the CTE
+                # use different node aliases (``n`` vs ``target``).
+                node_fresh_anchor = ""
+                node_fresh_recursive = ""
+                if exclude_doc_ids:
+                    ids_csv = ", ".join(
+                        "'" + str(d).replace("'", "''") + "'" for d in exclude_doc_ids
+                    )
+                    if is_postgres:
+                        node_fresh_anchor = (
+                            f" AND (n.properties->>'doc_id' IS NULL "
+                            f"OR n.properties->>'doc_id' NOT IN ({ids_csv}))"
+                        )
+                        node_fresh_recursive = (
+                            f" AND (target.properties->>'doc_id' IS NULL "
+                            f"OR target.properties->>'doc_id' NOT IN ({ids_csv}))"
+                        )
+                    else:
+                        node_fresh_anchor = (
+                            f" AND (json_extract(n.properties, '$.doc_id') IS NULL "
+                            f"OR json_extract(n.properties, '$.doc_id') NOT IN ({ids_csv}))"
+                        )
+                        node_fresh_recursive = (
+                            f" AND (json_extract(target.properties, '$.doc_id') IS NULL "
+                            f"OR json_extract(target.properties, '$.doc_id') NOT IN ({ids_csv}))"
+                        )
+
                 # -- Vector leg --
                 vector_nodes = []
                 if query_embedding:
                     try:
-                        vector_sql = text("""
+                        # node_fresh_anchor uses alias ``n``; alias graph_nodes
+                        # as n here so the same fragment applies.
+                        vector_sql = text(f"""
                             SELECT id, name, type, description
-                            FROM graph_nodes
+                            FROM graph_nodes n
                             WHERE workspace_id = :ws_id
                             AND embedding IS NOT NULL
+                            {node_fresh_anchor}
                             ORDER BY embedding <=> :query_embedding
                             LIMIT 5
                         """)
@@ -903,9 +965,10 @@ class GraphRAGEngine:
                 like_op = "ILIKE" if is_postgres else "LIKE"
                 keyword_sql = text(f"""
                     SELECT id, name, type, description
-                    FROM graph_nodes
+                    FROM graph_nodes n
                     WHERE workspace_id = :ws_id
                     AND name {like_op} :query
+                    {node_fresh_anchor}
                     LIMIT 5
                 """)
                 keyword_nodes = session.execute(
@@ -946,17 +1009,18 @@ class GraphRAGEngine:
                             FROM graph_nodes n
                             WHERE n.id IN ({start_ids_str})
                             AND n.workspace_id = :ws_id
-                            
+                            {node_fresh_anchor}
+
                             UNION
-                            
-                            SELECT 
-                                target.id, target.name, target.type, target.description, 
+
+                            SELECT
+                                target.id, target.name, target.type, target.description,
                                 t.depth + 1,
                                 t.path || target.id
                             FROM traversal t
                             JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
                             JOIN graph_nodes target ON (
-                                CASE 
+                                CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
                                     ELSE e.source_node_id = target.id
                                 END
@@ -965,6 +1029,7 @@ class GraphRAGEngine:
                             AND e.workspace_id = :ws_id
                             AND target.workspace_id = :ws_id
                             AND NOT (target.id = ANY(t.path))
+                            {node_fresh_recursive}
                         )
                         SELECT DISTINCT id, name, type, description, depth FROM traversal LIMIT 100;
                     """)
@@ -992,6 +1057,7 @@ class GraphRAGEngine:
                             FROM graph_nodes n
                             WHERE n.id IN ({start_ids_str})
                             AND n.workspace_id = :ws_id
+                            {node_fresh_anchor}
 
                             UNION
 
@@ -1011,6 +1077,7 @@ class GraphRAGEngine:
                             AND e.workspace_id = :ws_id
                             AND target.workspace_id = :ws_id
                             AND t.path NOT LIKE '%,' || target.id || ',%'
+                            {node_fresh_recursive}
                         )
                         SELECT DISTINCT id, name, type, description, depth FROM traversal
                         LIMIT 100;

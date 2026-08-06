@@ -28,18 +28,6 @@ from tests.factories import (
 )
 
 
-# Test database session fixture
-@pytest.fixture
-def db_session():
-    """Create a fresh database session for each test."""
-    db = SessionLocal()
-    try:
-        yield db
-        db.rollback()
-    finally:
-        db.close()
-
-
 # Graduation service fixture
 @pytest.fixture
 def graduation_service(db_session):
@@ -627,10 +615,11 @@ class TestEdgeCases:
             episode = Episode(
                 id=str(uuid.uuid4()),  # Use UUID to avoid collisions
                 agent_id=agent.id,
-                user_id="test_user",
+                tenant_id="default",
                 workspace_id="default",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
                 status="completed",
+                outcome="success",
                 maturity_at_time=AgentStatus.STUDENT.value,
                 started_at=datetime.now(),
                 human_intervention_count=0,

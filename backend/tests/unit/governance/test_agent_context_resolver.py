@@ -11,7 +11,6 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.orm import Session
 
-from core.database import SessionLocal
 from core.models import (
     AgentRegistry,
     AgentStatus,
@@ -22,18 +21,6 @@ from tests.factories import (
     AgentFactory,
     StudentAgentFactory,
 )
-
-
-# Test database session fixture
-@pytest.fixture
-def db_session():
-    """Create a fresh database session for each test."""
-    db = SessionLocal()
-    try:
-        yield db
-        db.rollback()
-    finally:
-        db.close()
 
 
 # Context resolver fixture

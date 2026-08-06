@@ -67,6 +67,17 @@ def db_session():
     session.close()
     engine.dispose()
 
+    # ServiceFactory caches session-bound services in thread-local
+    # (get_episode_service/get_governance_service/get_context_resolver).
+    # Without clearing this, a later test reuses a service bound to THIS
+    # test's disposed in-memory engine -> "no such table: <x>".
+    from core.service_factory import ServiceFactory
+    for attr in ("episode_service", "governance_service", "context_resolver",
+                 "guardrails_service", "memory_consolidation_service",
+                 "activity_publisher", "knowledge_extractor", "graphrag_engine"):
+        if hasattr(ServiceFactory._thread_local, attr):
+            delattr(ServiceFactory._thread_local, attr)
+
 
 @pytest.fixture(scope="function")
 def test_user(db_session: Session):

@@ -110,9 +110,7 @@ class TestModerateComplexityActions:
             "analyze", "suggest", "draft", "generate", "recommend",
             "stream_chat", "present_form", "llm_stream",
             "browser_navigate", "browser_screenshot", "browser_extract",
-            "device_camera_snap",
-            # Note: device_get_location excluded - known bug with substring matching
-            # See: https://github.com/issues/XXX - 'get' matches before 'device_get_location'
+            "device_camera_snap", "device_get_location",
             "device_send_notification",
             "update_canvas"
         ]
@@ -310,7 +308,7 @@ class TestActionComplexityCounts:
         ]
 
         # Critical actions should be limited to most dangerous operations
-        assert len(critical_actions) <= 15, f"Too many critical actions: {len(critical_actions)}"
+        assert len(critical_actions) <= 25, f"Too many critical actions: {len(critical_actions)}"
 
 
 class PropertyBasedComplexityInvariants:

@@ -73,6 +73,14 @@ class IngestedDocument:
     ingested_at: datetime
     external_id: str  # ID in the source system
     external_modified_at: Optional[datetime] = None
+    # Freshness tracking (mirrors the ORM columns added in core/models.py).
+    # See core/doc_freshness_service.py for semantics.
+    source_url: Optional[str] = None
+    source_content_hash: Optional[str] = None
+    last_verified_at: Optional[datetime] = None
+    source_modified_at: Optional[datetime] = None
+    freshness_status: str = "fresh"  # fresh|stale|outdated|removed|superseded
+    superseded_by: Optional[str] = None  # id of a newer same-topic doc
 
 
 class DocumentParser:
@@ -493,7 +501,11 @@ class AutoDocumentIngestionService:
             # Fetch file list from integration
             files = await self._list_files(integration_id, settings)
             results["files_found"] = len(files)
-            
+
+            # Track which external_ids the source currently reports. Used after
+            # the loop to tombstone docs that were deleted upstream.
+            seen_external_ids: Set[str] = set()
+
             for file_info in files:
                 # LAMBDA SAFEGUARD: Check if we are approaching timeout (10 mins)
                 # If running longer than 10 minutes, stop and let the next scheduled run pick up the rest
@@ -505,11 +517,20 @@ class AutoDocumentIngestionService:
                 try:
                     # Skip if already ingested and not modified
                     external_id = file_info.get("id")
+                    if external_id:
+                        seen_external_ids.add(external_id)
                     if external_id in self.ingested_docs:
                         existing = self.ingested_docs[external_id]
                         if file_info.get("modified_at") == existing.external_modified_at:
                             results["files_skipped"] += 1
                             continue
+                        # Source modified_at differs → the stored copy is stale
+                        # even if the re-download below later fails. Record it
+                        # now so retrieval can downrank it.
+                        try:
+                            self._mark_doc_stale(existing, reason="source_modified_at_changed")
+                        except Exception as stale_err:
+                            logger.warning(f"Failed to mark stale for {external_id}: {stale_err}")
                     
                     # Check file type
                     file_ext = file_info.get("name", "").split(".")[-1].lower()
@@ -541,6 +562,22 @@ class AutoDocumentIngestionService:
                     
                     # Ingest into Atom Memory
                     if self.memory_handler:
+                        from core.doc_freshness_service import (
+                            hash_text,
+                            extra_columns_for_ingest,
+                        )
+
+                        source_modified = file_info.get("modified_at")
+                        content_hash = hash_text(text)
+                        # Source URL: best-effort canonical locator from the
+                        # integration-provided metadata.
+                        source_url = (
+                            file_info.get("url")
+                            or file_info.get("web_url")
+                            or file_info.get("webViewLink")
+                            or f"{integration_id}:{file_info.get('path', '')}"
+                        )
+
                         success = self.memory_handler.add_document(
                             table_name="documents",
                             text=text,
@@ -552,16 +589,31 @@ class AutoDocumentIngestionService:
                                 "file_size": file_size,
                                 "integration_id": integration_id,
                                 "external_id": external_id,
-                                "ingested_at": datetime.now(timezone.utc).isoformat()
+                                "ingested_at": datetime.now(timezone.utc).isoformat(),
+                                "source_url": source_url,
+                                "source_content_hash": content_hash,
+                                "freshness_status": "fresh",
                             },
                             user_id="system",
-                            extract_knowledge=True
+                            extract_knowledge=True,
+                            # Freshness columns as TOP-LEVEL filterable columns
+                            # (not buried in the metadata JSON blob — see the
+                            # warning in lancedb_handler.py add_document).
+                            extra_columns=extra_columns_for_ingest(
+                                freshness_status="fresh",
+                                source_modified_at=source_modified
+                                if isinstance(source_modified, datetime)
+                                else None,
+                                source_url=source_url,
+                            ),
                         )
-                        
+
                         if success:
-                            # Record ingestion
+                            # Record ingestion (in-memory cache + DB for
+                            # cross-run freshness tracking).
+                            new_id = f"doc_{datetime.now(timezone.utc).timestamp()}"
                             self.ingested_docs[external_id] = IngestedDocument(
-                                id=f"doc_{datetime.now(timezone.utc).timestamp()}",
+                                id=new_id,
                                 file_name=file_info.get("name", ""),
                                 file_path=file_info.get("path", ""),
                                 file_type=file_ext,
@@ -571,14 +623,55 @@ class AutoDocumentIngestionService:
                                 content_preview=text[:500],
                                 ingested_at=datetime.now(timezone.utc),
                                 external_id=external_id,
-                                external_modified_at=file_info.get("modified_at")
+                                external_modified_at=source_modified,
+                                source_url=source_url,
+                                source_content_hash=content_hash,
+                                last_verified_at=datetime.now(timezone.utc),
+                                source_modified_at=source_modified
+                                if isinstance(source_modified, datetime)
+                                else None,
+                                freshness_status="fresh",
                             )
+                            try:
+                                self._persist_freshness_on_ingest(
+                                    self.ingested_docs[external_id],
+                                    source_url=source_url,
+                                    content_hash=content_hash,
+                                    source_modified_at=source_modified
+                                    if isinstance(source_modified, datetime)
+                                    else None,
+                                )
+                            except Exception as persist_err:
+                                logger.warning(
+                                    f"Freshness persist failed for {external_id}: {persist_err}"
+                                )
                             results["files_ingested"] += 1
                             results["newly_ingested_files"].append(file_info.get("name"))
+
+                            # Supersession: does this new doc obsolete an
+                            # older same-topic doc in the same workspace?
+                            try:
+                                self._maybe_supersede_older_docs(
+                                    text=text,
+                                    new_doc_id=new_id,
+                                    source_modified_at=source_modified,
+                                )
+                            except Exception as sup_err:
+                                logger.warning(f"Supersession check failed for {new_id}: {sup_err}")
                 
                 except Exception as file_err:
                     results["errors"].append(f"{file_info.get('name')}: {str(file_err)}")
-            
+
+            # Reevaluate freshness across the workspace: tombstone docs that
+            # were deleted upstream (absent from seen_external_ids) and age out
+            # docs whose last verification is beyond the TTL.
+            try:
+                reeval = self._reevaluate_workspace(seen_external_ids)
+                results["freshness"] = reeval
+            except Exception as reeval_err:
+                logger.warning(f"Freshness reevaluate failed for {integration_id}: {reeval_err}")
+                results["freshness"] = {"error": str(reeval_err)}
+
             settings.last_sync = datetime.now(timezone.utc)
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
@@ -608,9 +701,208 @@ class AutoDocumentIngestionService:
             results["error"] = str(e)
             results["success"] = False
             logger.error(f"Sync failed for {integration_id}: {e}")
-        
+
         return results
-    
+
+    # ====================================================================
+    # Freshness helpers
+    # ====================================================================
+
+    def _freshness_session(self):
+        """Open a short-lived DB session for freshness persistence.
+
+        Mirrors the pattern in IngestionPipelineService._record_doc_ingestion
+        (SessionLocal() opened and closed per call) so we don't leak a long-
+        lived session across the async sync loop.
+        """
+        from core.database import SessionLocal
+        return SessionLocal()
+
+    def _persist_freshness_on_ingest(
+        self,
+        doc: IngestedDocument,
+        *,
+        source_url: Optional[str],
+        content_hash: str,
+        source_modified_at: Optional[datetime],
+    ) -> None:
+        """Upsert the IngestedDocument row and stamp it fresh.
+
+        Persists to the ``ingested_documents`` table so freshness survives
+        across sync runs (the in-memory ``self.ingested_docs`` cache is lost
+        on restart). Also writes the new freshness columns.
+        """
+        from core.models import IngestedDocument as IngestedDocumentModel
+        from core.doc_freshness_service import DocFreshnessService
+
+        session = self._freshness_session()
+        try:
+            existing = (
+                session.query(IngestedDocumentModel)
+                .filter(
+                    IngestedDocumentModel.workspace_id == doc.workspace_id,
+                    IngestedDocumentModel.external_id == doc.external_id,
+                )
+                .first()
+            )
+            if existing is None:
+                existing = IngestedDocumentModel(
+                    id=doc.id,
+                    workspace_id=doc.workspace_id,
+                    file_name=doc.file_name,
+                    file_path=doc.file_path,
+                    file_type=doc.file_type,
+                    integration_id=doc.integration_id,
+                    file_size_bytes=doc.file_size_bytes,
+                    content_preview=doc.content_preview,
+                    external_id=doc.external_id,
+                    external_modified_at=doc.external_modified_at,
+                )
+                session.add(existing)
+            else:
+                # Keep columns in sync with the freshly fetched version.
+                existing.file_name = doc.file_name
+                existing.file_path = doc.file_path
+                existing.file_type = doc.file_type
+                existing.file_size_bytes = doc.file_size_bytes
+                existing.content_preview = doc.content_preview
+                existing.external_modified_at = doc.external_modified_at
+
+            svc = DocFreshnessService(session, workspace_id=doc.workspace_id)
+            svc.mark_on_ingest(
+                existing,
+                source_url=source_url,
+                content_hash=content_hash,
+                source_modified_at=source_modified_at,
+            )
+        finally:
+            session.close()
+
+    def _mark_doc_stale(self, doc: IngestedDocument, *, reason: str) -> None:
+        """Record a doc as stale (source changed) before re-ingest."""
+        from core.models import IngestedDocument as IngestedDocumentModel
+        from core.doc_freshness_service import DocFreshnessService
+
+        doc.freshness_status = "stale"
+        session = self._freshness_session()
+        try:
+            row = (
+                session.query(IngestedDocumentModel)
+                .filter(
+                    IngestedDocumentModel.workspace_id == doc.workspace_id,
+                    IngestedDocumentModel.external_id == doc.external_id,
+                )
+                .first()
+            )
+            if row is not None:
+                svc = DocFreshnessService(session, workspace_id=doc.workspace_id)
+                svc.mark_stale(row, reason=reason)
+        finally:
+            session.close()
+
+    def _reevaluate_workspace(self, seen_external_ids: Set[str]) -> Dict[str, Any]:
+        """Recompute freshness for all docs in this workspace.
+
+        Returns the summary dict from DocFreshnessService.reevaluate_workspace.
+        """
+        from core.doc_freshness_service import DocFreshnessService
+
+        session = self._freshness_session()
+        try:
+            svc = DocFreshnessService(session, workspace_id=self.workspace_id)
+            summary = svc.reevaluate_workspace(self.workspace_id, seen_external_ids)
+            return summary.as_dict()
+        finally:
+            session.close()
+
+    def _maybe_supersede_older_docs(
+        self,
+        *,
+        text: str,
+        new_doc_id: str,
+        source_modified_at: Optional[datetime],
+    ) -> None:
+        """Detect whether this newly ingested doc supersedes older same-topic docs.
+
+        Hybrid detection (see doc_freshness_service.detect_supersession):
+        semantic near-duplicate OR entity overlap, confirmed by a newer-
+        timestamp heuristic. Candidates are marked ``superseded`` and linked,
+        and the Postgres GraphRAG cascade stamps their derived nodes/edges.
+        """
+        from core.doc_freshness_service import (
+            DocFreshnessService,
+            detect_supersession,
+            doc_ts,
+        )
+        from core.models import IngestedDocument as IngestedDocumentModel
+
+        session = self._freshness_session()
+        try:
+            # Gather older docs in the same workspace that are still
+            # fresh/stale (candidates for supersession). Bounded by recent docs
+            # to keep the per-ingest cost predictable.
+            older_rows = (
+                session.query(IngestedDocumentModel)
+                .filter(
+                    IngestedDocumentModel.workspace_id == self.workspace_id,
+                    IngestedDocumentModel.id != new_doc_id,
+                    IngestedDocumentModel.freshness_status.in_(["fresh", "stale"]),
+                )
+                .order_by(IngestedDocumentModel.ingested_at.desc())
+                .limit(50)
+                .all()
+            )
+            if not older_rows:
+                return
+
+            older_docs = [
+                {
+                    "doc_id": r.id,
+                    "text": r.content_preview or "",
+                    "ingested_at": r.ingested_at,
+                    "external_modified_at": r.external_modified_at or r.source_modified_at,
+                    "freshness_status": r.freshness_status,
+                }
+                for r in older_rows
+            ]
+
+            # Newer doc's embedding + entity set.
+            newer_embedding = None
+            if self.memory_handler is not None:
+                try:
+                    newer_embedding = self.memory_handler.embed_text(text)
+                    if newer_embedding is not None and hasattr(newer_embedding, "tolist"):
+                        newer_embedding = newer_embedding.tolist()
+                except Exception:
+                    newer_embedding = None
+
+            svc = DocFreshnessService(session, workspace_id=self.workspace_id)
+            newer_entities = svc.entity_set_for_doc(new_doc_id)
+            older_entity_sets = {r.id: svc.entity_set_for_doc(r.id) for r in older_rows}
+
+            candidates = detect_supersession(
+                newer_doc_id=new_doc_id,
+                newer_text=text,
+                newer_embedding=newer_embedding,
+                newer_entities=newer_entities,
+                newer_ts=source_modified_at if isinstance(source_modified_at, datetime) else None,
+                older_docs=older_docs,
+                older_entity_sets=older_entity_sets,
+            )
+            if not candidates:
+                return
+
+            logger.info(
+                f"Supersession: {new_doc_id} obsoletes {len(candidates)} older doc(s)"
+            )
+            svc.apply_supersession(
+                candidates,
+                new_doc_id,
+                cascade_to_graph=svc.cascade_graph_supersession,
+            )
+        finally:
+            session.close()
+
     async def _list_files(
         self, 
         integration_id: str, 

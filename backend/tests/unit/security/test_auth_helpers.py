@@ -226,6 +226,8 @@ class TestRequireAuthenticatedUser:
             id="admin-default-id",
             email="admin@atom.ai",
             hashed_password=get_password_hash("admin123"),
+            first_name="Admin",
+            last_name="Atom",
             role=UserRole.SUPER_ADMIN.value,
             status=UserStatus.ACTIVE.value
         )
@@ -327,18 +329,19 @@ class TestTokenRevocation:
         revoked = db_session.query(RevokedToken).filter_by(jti=jti).first()
         assert revoked is not None
         assert revoked.user_id == user_id
-        assert revoked.revocation_reason == "logout"
+        assert revoked.reason == "logout"
 
     def test_revoke_token_returns_false_for_already_revoked(self, db_session: Session):
         """Test revoke_token returns False for already revoked token."""
         jti = "test_jti_456"
         expires_at = datetime.utcnow() + timedelta(hours=1)
+        user_id = "user_123"  # RevokedToken.user_id is NOT NULL; revocations are attributed to a user
 
         # Revoke once
-        revoke_token(jti, expires_at, db_session)
+        revoke_token(jti, expires_at, db_session, user_id)
 
         # Try to revoke again
-        result = revoke_token(jti, expires_at, db_session)
+        result = revoke_token(jti, expires_at, db_session, user_id)
 
         assert result is False
 
@@ -537,7 +540,7 @@ class TestAccessTokenCreation:
     """Test JWT access token creation."""
 
     def test_create_access_token_with_default_expiry(self):
-        """Test token creation uses 15-minute default expiry."""
+        """Test token creation uses 24-hour default expiry (ACCESS_TOKEN_EXPIRE_MINUTES = 60*24)."""
         import time
         before_time = time.time()
 
@@ -552,11 +555,11 @@ class TestAccessTokenCreation:
         assert payload["email"] == "test@example.com"
         assert "exp" in payload
 
-        # Check expiry is approximately 15 minutes from creation time
+        # Check expiry is approximately 24 hours (86400s) from creation time
         exp_timestamp = payload["exp"]
-        # The exp should be between (before + 870s) and (after + 930s) to account for test execution time
-        assert exp_timestamp >= before_time + 870, f"exp too early: {exp_timestamp} vs {before_time + 870}"
-        assert exp_timestamp <= after_time + 930, f"exp too late: {exp_timestamp} vs {after_time + 930}"
+        # The exp should be between (before + 86370s) and (after + 86430s) to account for test execution time
+        assert exp_timestamp >= before_time + 86370, f"exp too early: {exp_timestamp} vs {before_time + 86370}"
+        assert exp_timestamp <= after_time + 86430, f"exp too late: {exp_timestamp} vs {after_time + 86430}"
 
     def test_create_access_token_with_custom_expiry(self):
         """Test token creation with custom expiry delta."""

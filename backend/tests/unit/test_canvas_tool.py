@@ -435,7 +435,7 @@ class TestCanvasExecuteJavascriptGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -480,7 +480,7 @@ class TestCanvasExecuteJavascriptGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -518,7 +518,7 @@ class TestCanvasExecuteJavascriptGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -555,7 +555,7 @@ class TestCanvasExecuteJavascriptGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": False, "reason": "STUDENT blocked"}
@@ -954,7 +954,7 @@ class TestCanvasErrorHandlingComplete:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1100,7 +1100,8 @@ class TestCanvasAuditEntryComplete:
             metadata=metadata
         )
 
-        assert audit.details_json == metadata
+        assert audit.details_json["title"] == "Test"
+        assert audit.details_json["items"] == 5
 
     @pytest.mark.asyncio
     async def test_create_canvas_audit_handles_governance_check_passed_flag(self, mock_db):
@@ -1115,7 +1116,7 @@ class TestCanvasAuditEntryComplete:
             governance_check_passed=True
         )
 
-        assert audit.governance_check_passed is True
+        assert (audit.details_json or {}).get("governance_check_passed") is True
 
     @pytest.mark.asyncio
     async def test_audit_entry_receives_unique_uuid(self, mock_db):
@@ -1452,7 +1453,7 @@ class TestStatusPanelPresentationComplete:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1497,7 +1498,7 @@ class TestStatusPanelPresentationComplete:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": False, "reason": "STUDENT blocked"}
@@ -1631,7 +1632,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1685,7 +1686,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": False, "reason": "STUDENT agents cannot present docs"}
@@ -1733,7 +1734,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1784,7 +1785,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1835,7 +1836,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1886,7 +1887,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -1937,7 +1938,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -2025,7 +2026,7 @@ class TestPresentSpecializedCanvasGovernance:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+            with patch('core.service_factory.ServiceFactory') as mock_factory:
                 mock_governance = MagicMock()
                 mock_governance.can_perform_action = Mock(
                     return_value={"allowed": True, "reason": None}
@@ -2733,16 +2734,26 @@ class TestGovernanceCoverage:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            # Without agent_id, governance check passes (no agent to check)
-            result = await present_chart(
-                user_id="user-1",
-                chart_type="line_chart",
-                data=[{"x": 1, "y": 2}],
-                title="Test"
-            )
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+                mock_resolver_class.return_value = mock_resolver
 
-            # Should succeed - no agent means no governance check
-            assert result["success"] is True
+                mock_db = MagicMock()
+                mock_db.__enter__ = Mock(return_value=mock_db)
+                mock_db.__exit__ = Mock(return_value=False)
+
+                with patch('core.database.get_db_session', return_value=mock_db):
+                    # Without agent_id, governance check passes (no agent to check)
+                    result = await present_chart(
+                        user_id="user-1",
+                        chart_type="line_chart",
+                        data=[{"x": 1, "y": 2}],
+                        title="Test"
+                    )
+
+                    # Should succeed - no agent means no governance check
+                    assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_markdown_governance_enabled_no_agent(self, mock_ws):
@@ -2750,13 +2761,23 @@ class TestGovernanceCoverage:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            result = await present_markdown(
-                user_id="user-1",
-                content="# Test",
-                title="Test"
-            )
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+                mock_resolver_class.return_value = mock_resolver
 
-            assert result["success"] is True
+                mock_db = MagicMock()
+                mock_db.__enter__ = Mock(return_value=mock_db)
+                mock_db.__exit__ = Mock(return_value=False)
+
+                with patch('core.database.get_db_session', return_value=mock_db):
+                    result = await present_markdown(
+                        user_id="user-1",
+                        content="# Test",
+                        title="Test"
+                    )
+
+                    assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_form_governance_enabled_no_agent(self, mock_ws):
@@ -2764,13 +2785,23 @@ class TestGovernanceCoverage:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            result = await present_form(
-                user_id="user-1",
-                form_schema={"fields": []},
-                title="Test"
-            )
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+                mock_resolver_class.return_value = mock_resolver
 
-            assert result["success"] is True
+                mock_db = MagicMock()
+                mock_db.__enter__ = Mock(return_value=mock_db)
+                mock_db.__exit__ = Mock(return_value=False)
+
+                with patch('core.database.get_db_session', return_value=mock_db):
+                    result = await present_form(
+                        user_id="user-1",
+                        form_schema={"fields": []},
+                        title="Test"
+                    )
+
+                    assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_status_panel_governance_enabled_no_agent(self, mock_ws):
@@ -2792,13 +2823,23 @@ class TestGovernanceCoverage:
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            result = await update_canvas(
-                user_id="user-1",
-                canvas_id="canvas-123",
-                updates={"title": "Updated"}
-            )
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+                mock_resolver_class.return_value = mock_resolver
 
-            assert result["success"] is True
+                mock_db = MagicMock()
+                mock_db.__enter__ = Mock(return_value=mock_db)
+                mock_db.__exit__ = Mock(return_value=False)
+
+                with patch('core.database.get_db_session', return_value=mock_db):
+                    result = await update_canvas(
+                        user_id="user-1",
+                        canvas_id="canvas-123",
+                        updates={"title": "Updated"}
+                    )
+
+                    assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_specialized_canvas_governance_enabled_no_agent(self, mock_ws):

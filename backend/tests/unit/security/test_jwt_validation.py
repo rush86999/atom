@@ -11,8 +11,9 @@ Tests cover:
 These tests focus on JWT token lifecycle in core/auth.py and core/token_refresher.py
 """
 
+import calendar
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 
@@ -77,16 +78,19 @@ class TestTokenGeneration:
         assert timedelta(hours=1.9) <= time_diff <= timedelta(hours=2.1)
 
     def test_create_access_token_default_expiration(self):
-        """Test access token uses default 15 minute expiration."""
+        """Test access token uses default 24 hour expiration (ACCESS_TOKEN_EXPIRE_MINUTES)."""
         with freeze_time("2026-02-01 10:00:00"):
             token = create_access_token({"sub": "user_789"})
 
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            exp_datetime = datetime.utcfromtimestamp(payload["exp"])
 
-            # Should expire at 10:15:00
-            expected = datetime.utcfromtimestamp(1643728800 + 900)  # +15 minutes
-            assert exp_datetime == expected
+            # exp should be exactly ACCESS_TOKEN_EXPIRE_MINUTES (24h) after the
+            # frozen issuance time. python-jose encodes via
+            # calendar.timegm(dt.utctimetuple()); freezegun's FakeDatetime keeps
+            # the frozen wall-clock as UTC, so mirror that conversion.
+            frozen_now = datetime.now(timezone.utc)
+            expected_ts = calendar.timegm(frozen_now.utctimetuple()) + 24 * 60 * 60
+            assert payload["exp"] == expected_ts
 
     def test_create_access_token_includes_exp_claim(self):
         """Test access token always includes exp claim."""
@@ -95,9 +99,9 @@ class TestTokenGeneration:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         assert "exp" in payload
 
-    def test_create_mobile_token_with_device_info(self):
+    def test_create_mobile_token_with_device_info(self, db_session):
         """Test mobile token generation includes device information."""
-        user = UserFactory()
+        user = UserFactory(_session=db_session)
         device_id = "device_123"
 
         tokens = create_mobile_token(user, device_id)
@@ -113,18 +117,18 @@ class TestTokenGeneration:
         assert access_payload["device_id"] == device_id
         assert access_payload["platform"] == "mobile"
 
-    def test_create_mobile_token_refresh_token_expiration(self):
+    def test_create_mobile_token_refresh_token_expiration(self, db_session):
         """Test mobile refresh token has 30 day expiration."""
         with freeze_time("2026-02-01 10:00:00"):
-            user = UserFactory()
+            user = UserFactory(_session=db_session)
             tokens = create_mobile_token(user, "device_456")
 
             # Check refresh token expiration
             refresh_payload = jwt.decode(tokens["refresh_token"], SECRET_KEY, algorithms=[ALGORITHM])
-            exp_datetime = datetime.utcfromtimestamp(refresh_payload["exp"])
+            exp_datetime = datetime.fromtimestamp(refresh_payload["exp"], tz=timezone.utc)
 
-            # Should be ~30 days from now
-            expected = datetime.utcfromtimestamp(1643728800 + (30 * 24 * 3600))
+            # Should be exactly 30 days from issuance
+            expected = datetime.now(timezone.utc) + timedelta(days=30)
             assert exp_datetime == expected
 
     def test_token_signing_with_secret_key(self):
@@ -221,18 +225,18 @@ class TestTokenValidation:
 class TestTokenRefresh:
     """Test token refresh functionality."""
 
-    def test_refresh_token_type_claim(self):
+    def test_refresh_token_type_claim(self, db_session):
         """Test refresh token has 'type': 'refresh' claim."""
-        user = UserFactory()
+        user = UserFactory(_session=db_session)
         tokens = create_mobile_token(user, "device_refresh")
 
         refresh_payload = jwt.decode(tokens["refresh_token"], SECRET_KEY, algorithms=[ALGORITHM])
 
         assert refresh_payload.get("type") == "refresh"
 
-    def test_access_token_no_type_claim(self):
+    def test_access_token_no_type_claim(self, db_session):
         """Test access token doesn't have type claim (or has different type)."""
-        user = UserFactory()
+        user = UserFactory(_session=db_session)
         tokens = create_mobile_token(user, "device_access")
 
         access_payload = jwt.decode(tokens["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
@@ -240,9 +244,9 @@ class TestTokenRefresh:
         # Access token may not have type claim, or should not be "refresh"
         assert access_payload.get("type") != "refresh"
 
-    def test_refresh_token_contains_device_id(self):
+    def test_refresh_token_contains_device_id(self, db_session):
         """Test refresh token contains device_id."""
-        user = UserFactory()
+        user = UserFactory(_session=db_session)
         device_id = "test_device_123"
         tokens = create_mobile_token(user, device_id)
 
@@ -250,21 +254,24 @@ class TestTokenRefresh:
 
         assert refresh_payload.get("device_id") == device_id
 
-    def test_token_rotation_generates_new_tokens(self):
-        """Test that refresh generates new token pair."""
-        user = UserFactory()
-        old_tokens = create_mobile_token(user, "device_rotation")
+    def test_token_rotation_generates_new_tokens(self, db_session):
+        """Test that a newly issued token pair differs from a previously issued one."""
+        # create_mobile_token encodes the issuance instant (exp), so tokens issued
+        # at different times differ even for the same user/device. This is what the
+        # refresh endpoint relies on for rotation.
+        user = UserFactory(_session=db_session)
+        with freeze_time("2026-02-01 10:00:00"):
+            old_tokens = create_mobile_token(user, "device_rotation")
+        with freeze_time("2026-02-01 10:05:00"):
+            new_tokens = create_mobile_token(user, "device_rotation")
 
-        # Simulate token refresh - would normally call refresh endpoint
-        new_tokens = create_mobile_token(user, "device_rotation")
-
-        # Tokens should be different
+        # Tokens are bound to issuance time, so a later issuance differs
         assert old_tokens["access_token"] != new_tokens["access_token"]
         assert old_tokens["refresh_token"] != new_tokens["refresh_token"]
 
-    def test_refresh_token_longer_expiration_than_access(self):
+    def test_refresh_token_longer_expiration_than_access(self, db_session):
         """Test refresh token has longer expiration than access token."""
-        user = UserFactory()
+        user = UserFactory(_session=db_session)
         tokens = create_mobile_token(user, "device_compare")
 
         access_payload = jwt.decode(tokens["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
@@ -324,11 +331,11 @@ class TestClaimsExtraction:
         assert result.get("version") == "1.0.0"
 
     def test_extract_issued_at_claim(self):
-        """Test 'iat' (issued at) claim is present."""
+        """Test 'exp' (expires at) claim is present."""
+        # Decode within the same freeze so the token is not expired.
         with freeze_time("2026-02-01 10:00:00"):
             token = create_access_token({"sub": "user_iat"})
-
-        result = decode_token(token)
+            result = decode_token(token)
 
         assert result is not None
         # Note: jose may not add iat by default, but exp should be there
@@ -366,17 +373,19 @@ class TestSecurityEdgeCases:
 
     def test_replay_attack_prevention_with_jti(self):
         """Test replay attack prevention using JTI (JWT ID)."""
-        # This tests that tokens can include unique JTI for replay prevention
-        # Implementation would check JTI against used tokens list
+        # create_access_token always injects a unique jti for replay/revocation
+        # (logout), so a client-supplied jti is intentionally overwritten.
         user_id = "user_replay"
-        jti = "unique_jti_123"
 
-        token = create_access_token({"sub": user_id, "jti": jti})
+        token1 = create_access_token({"sub": user_id})
+        token2 = create_access_token({"sub": user_id})
 
-        result = decode_token(token)
+        result = decode_token(token1)
 
         assert result is not None
-        assert result.get("jti") == jti
+        assert result.get("jti")  # auto-generated unique token ID
+        # Each issued token gets a distinct jti, enabling replay detection
+        assert decode_token(token2).get("jti") != result.get("jti")
 
     def test_token_theft_detection_with_ip(self):
         """Test token can include IP for theft detection."""
@@ -459,8 +468,8 @@ class TestTokenRefresherService:
         async def mock_handler(metadata):
             return {}
 
-        # Register token expiring soon
-        expires_soon = datetime.utcnow() + timedelta(minutes=10)
+        # Register token expiring soon (TokenRefresher expects aware UTC datetimes)
+        expires_soon = datetime.now(timezone.utc) + timedelta(minutes=10)
         refresher.register_service("expiring_service", mock_handler, expires_at=expires_soon)
 
         assert refresher.should_refresh("expiring_service", buffer_minutes=15) is True
@@ -475,7 +484,7 @@ class TestTokenRefresherService:
             return {}
 
         # Register token with plenty of time left
-        expires_later = datetime.utcnow() + timedelta(hours=5)
+        expires_later = datetime.now(timezone.utc) + timedelta(hours=5)
         refresher.register_service("fresh_service", mock_handler, expires_at=expires_later)
 
         assert refresher.should_refresh("fresh_service", buffer_minutes=15) is False
@@ -489,7 +498,7 @@ class TestTokenRefresherService:
         async def mock_handler(metadata):
             return {}
 
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         refresher.register_service("status_service", mock_handler, expires_at=expires_at)
 
         status = refresher.get_status()

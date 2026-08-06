@@ -21,6 +21,15 @@ class AgentFactory(BaseFactory):
     module_path = "test.module"
     class_name = "TestClass"
 
+    # Ownership: default single-tenant workspace ("default") matches
+    # AgentGovernanceService's default workspace_id filter. Without this the
+    # created agent (workspace_id=None) is invisible to governance queries.
+    workspace_id = "default"
+    # Same for tenant_id: episode_service.get_graduation_readiness() filters
+    # on tenant_id == "default", so an agent with tenant_id=None is treated as
+    # not-found (ValueError) in graduation tests.
+    tenant_id = "default"
+
     # Status with fuzzy choice
     status = fuzzy.FuzzyChoice([s.value for s in AgentStatus])
 

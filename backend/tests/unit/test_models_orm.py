@@ -36,7 +36,7 @@ from core.models import (
     # Workflow models
     WorkflowExecution,
     WorkflowExecutionStatus,
-    # WorkflowStepExecution removed (does not exist in current schema)
+    WorkflowStepExecution,
     # Episode models
     Episode,
     EpisodeSegment,
@@ -62,7 +62,7 @@ from tests.factories import (
     WorkspaceFactory,
     TeamFactory,
     WorkflowExecutionFactory,
-    # WorkflowStepExecutionFactory removed (does not exist in current schema)
+    WorkflowStepExecutionFactory,
     AgentFeedbackFactory,
     BlockedTriggerContextFactory,
     AgentProposalFactory,
@@ -108,10 +108,11 @@ class TestAgentRegistryModel:
         assert loaded_execution.agent.id == agent.id
         assert loaded_execution.agent.name == agent.name
 
-        # Test backward relationship (backref)
-        loaded_agent = db.query(AgentRegistry).filter_by(id=agent.id).first()
-        assert len(loaded_agent.executions) == 1
-        assert loaded_agent.executions[0].id == execution.id
+        # Test backward relationship (query by FK — AgentExecution.agent has
+        # no "executions" backref configured on AgentRegistry)
+        executions = db.query(AgentExecution).filter_by(agent_id=agent.id).all()
+        assert len(executions) == 1
+        assert executions[0].id == execution.id
 
     def test_agent_feedback_relationship(self, db: Session):
         """Test AgentRegistry -> AgentFeedback one-to-many relationship."""
@@ -463,13 +464,13 @@ class TestEpisodeModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id
         )
 
         assert episode.id is not None
-        assert episode.title == "Test Episode"
+        assert episode.task_description == "Test Episode"
         assert episode.agent_id == agent.id
         assert episode.started_at is not None
 
@@ -481,7 +482,7 @@ class TestEpisodeModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id
         )
@@ -513,7 +514,7 @@ class TestEpisodeModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id
         )
@@ -521,6 +522,7 @@ class TestEpisodeModel:
         # EpisodeAccessLog doesn't have a factory yet, create manually
         access_log = EpisodeAccessLog(
             episode_id=episode.id,
+            accessed_by_agent=agent.id,
             access_type="retrieval"
         )
         db.add(access_log)
@@ -539,7 +541,7 @@ class TestEpisodeModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id,
             canvas_ids=[canvas.id]
@@ -567,7 +569,7 @@ class TestEpisodeModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id,
             feedback_ids=[feedback.id]
@@ -589,7 +591,7 @@ class TestEpisodeSegmentModel:
 
         episode = EpisodeFactory(
             _session=db,
-            title="Test Episode",
+            task_description="Test Episode",
             agent_id=agent.id,
             workspace_id=workspace.id
         )

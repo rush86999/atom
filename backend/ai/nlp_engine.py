@@ -215,7 +215,17 @@ Analyze the prompt and return the category with reasoning."""
                 response_model=RouteClassification,
                 tenant_id=tenant_id
             )
-            
+
+            # Guard: LLM may return None when classification fails/blocked.
+            # Always honor the RouteClassification return-type contract so
+            # callers (e.g. AtomMetaAgent.execute) never crash on None.category.
+            if result is None:
+                return RouteClassification(
+                    category=RouteCategory.ONE_OFF,
+                    reasoning="NLU returned no classification, defaulting to one-off",
+                    confidence=0.0,
+                )
+
             # Heuristic override: if keywords are present but LLM was unsure, boost automation
             if is_suspiciously_automation and result.category == RouteCategory.ONE_OFF and result.confidence < 0.8:
                 result.category = RouteCategory.AUTOMATION

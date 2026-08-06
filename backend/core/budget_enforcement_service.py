@@ -3,9 +3,14 @@ Budget Enforcement Service for ATOM SaaS
 
 Handles budget enforcement with four configurable modes:
 - alert_only: Continue all operations, send notifications only
-- soft_stop: Prevent new episodes, allow active to complete
+- soft_stop: Prevent new episodes, allow active to complete (DEFAULT)
 - hard_stop: Halt all operations immediately
 - approval: Require admin approval to continue
+
+The default mode is soft_stop: once a tenant exceeds its budget, new episodes
+are blocked while active ones complete. This is enforced before each LLM call
+in the agent loops (see atom_meta_agent._check_budget_before_react and
+generic_agent._check_budget_before_react), not only per-tool.
 """
 import json
 import logging
@@ -359,7 +364,15 @@ class BudgetEnforcementService:
     def _get_enforcement_mode(self, tenant_id: str) -> str:
         """
         Get enforcement mode from tenant.settings['billing']['enforcement']['mode'].
-        Defaults to 'alert_only' if not set.
+        Defaults to 'soft_stop' if not set.
+
+        The default was 'alert_only' (which never blocks — spend was effectively
+        uncapped). 'soft_stop' is now the default: once a tenant exceeds its
+        budget, NEW episodes are blocked while active ones are allowed to
+        complete. This makes budget enforcement active by default. Tenants that
+        explicitly set 'alert_only' keep their setting; only the UNSET default
+        changes. An admin can switch any tenant to hard_stop/alert_only/approval
+        via the budget setting API.
         """
         try:
             existing_setting = self.db.query(TenantSetting).filter(
@@ -370,22 +383,22 @@ class BudgetEnforcementService:
             if existing_setting and existing_setting.setting_value:
                 settings_dict = json.loads(existing_setting.setting_value)
                 enforcement = settings_dict.get('enforcement', {})
-                mode = enforcement.get('mode', BudgetEnforcementMode.ALERT_ONLY)
+                mode = enforcement.get('mode', BudgetEnforcementMode.SOFT_STOP)
 
                 # Validate mode
                 if mode not in BudgetEnforcementMode.ALL:
                     logger.warning(
                         f"[BudgetEnforcementService] Invalid enforcement mode '{mode}' "
-                        f"for tenant {tenant_id}, defaulting to alert_only"
+                        f"for tenant {tenant_id}, defaulting to soft_stop"
                     )
-                    return BudgetEnforcementMode.ALERT_ONLY
+                    return BudgetEnforcementMode.SOFT_STOP
 
                 return mode
 
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning(f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
 
-        return BudgetEnforcementMode.ALERT_ONLY
+        return BudgetEnforcementMode.SOFT_STOP
 
     def _get_budget_override(self, tenant_id: str) -> Optional[Dict]:
         """

@@ -55,9 +55,9 @@ class TestStudentAgentRouting:
         assert result["agent_status"] == AgentStatus.STUDENT.value
         assert result["action_complexity"] == 1
         assert result["required_status"] == AgentStatus.STUDENT.value
-        assert result["confidence_score"] == 0.3
+        assert result["confidence"] == 0.3
         assert result["requires_human_approval"] is False
-        assert "can perform" in result["reason"].lower()
+        assert "maturity check passed" in result["reason"].lower()
 
     def test_student_blocked_complexity_2(self, db_session: Session):
         """STUDENT agent should be blocked from complexity 2 actions (analyze, stream)."""
@@ -80,7 +80,7 @@ class TestStudentAgentRouting:
         assert result["action_complexity"] == 2
         assert result["required_status"] == AgentStatus.INTERN.value
         assert result["requires_human_approval"] is True
-        assert "lacks maturity" in result["reason"].lower()
+        assert "maturity check failed" in result["reason"].lower()
 
     def test_student_blocked_complexity_3(self, db_session: Session):
         """STUDENT agent should be blocked from complexity 3 actions (create, update)."""
@@ -535,7 +535,6 @@ class TestApprovalRequirements:
         assert result["proceed"] is False
         assert result["status"] == "BLOCKED"
         assert result["action_required"] == "HUMAN_APPROVAL"
-        assert result["agent_status"] == AgentStatus.INTERN.value
 
 
 class TestEdgeCases:
@@ -548,6 +547,7 @@ class TestEdgeCases:
             category="testing",
             module_path="test.module",
             class_name="TestAgent",
+            workspace_id="default",
             confidence_score=0.5,
             status=AgentStatus.STUDENT.value
         )
@@ -569,6 +569,7 @@ class TestEdgeCases:
             category="testing",
             module_path="test.module",
             class_name="TestAgent",
+            workspace_id="default",
             confidence_score=0.7,
             status=AgentStatus.INTERN.value
         )
@@ -589,6 +590,7 @@ class TestEdgeCases:
             category="testing",
             module_path="test.module",
             class_name="TestAgent",
+            workspace_id="default",
             confidence_score=0.9,
             status=AgentStatus.SUPERVISED.value
         )
@@ -650,7 +652,7 @@ class TestResponseStructure:
         assert "action_complexity" in result
         assert "required_status" in result
         assert "requires_human_approval" in result
-        assert "confidence_score" in result
+        assert "confidence" in result
 
         # Verify field types
         assert isinstance(result["allowed"], bool)
@@ -659,7 +661,7 @@ class TestResponseStructure:
         assert isinstance(result["action_complexity"], int)
         assert isinstance(result["required_status"], str)
         assert isinstance(result["requires_human_approval"], bool)
-        assert isinstance(result["confidence_score"], (int, float))
+        assert isinstance(result["confidence"], (int, float))
 
     def test_agent_not_found_response(self, db_session: Session):
         """Verify response when agent doesn't exist."""

@@ -215,7 +215,7 @@ Please review and approve or reject this proposal.
             proposal_data=proposal_data,
             status="pending_approval",  # Explicitly set initial status
             tenant_id=self.workspace_id,  # Use workspace_id as tenant_id for single-tenant
-            user_id=getattr(agent, 'user_id', 'system')  # Use agent's user_id or default to system
+            user_id=getattr(agent, 'user_id', None) or 'system'  # Use agent's user_id or default to system
         )
 
         self.db.add(proposal)

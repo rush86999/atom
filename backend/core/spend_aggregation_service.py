@@ -30,6 +30,34 @@ class SpendAggregationService:
     def __init__(self, db: Session):
         self.db = db
 
+    def _budget_limit_from_setting(self, tenant_id: str) -> float:
+        """Read the budget limit from TenantSetting['billing']['budget_limit_usd'].
+
+        This is the admin-configured source (set via the budget control API at
+        api/admin/budget_routes.py). Returns 0.0 if unset (meaning no limit).
+        """
+        try:
+            from core.models import TenantSetting
+            import json
+
+            row = (
+                self.db.query(TenantSetting)
+                .filter(
+                    TenantSetting.tenant_id == tenant_id,
+                    TenantSetting.setting_key == "billing",
+                )
+                .first()
+            )
+            if row and row.setting_value:
+                data = json.loads(row.setting_value)
+                if isinstance(data, dict):
+                    limit = data.get("budget_limit_usd")
+                    if limit is not None:
+                        return float(limit)
+        except Exception as e:
+            logger.debug(f"Could not read budget limit from settings for {tenant_id}: {e}")
+        return 0.0
+
     def get_total_spend(
         self,
         tenant_id: str,
@@ -123,7 +151,14 @@ class SpendAggregationService:
 
             self.db.commit()
 
-            budget_limit = tenant.budget_limit_usd or 0.0
+            # Budget limit: prefer the persisted Tenant attribute; fall back to
+            # the admin-configured limit in TenantSetting['billing'] (set via
+            # the budget control API). The Tenant attribute is not a declared
+            # column in all deployments, so the setting is the reliable source.
+            budget_limit = getattr(tenant, "budget_limit_usd", None)
+            if not budget_limit:
+                budget_limit = self._budget_limit_from_setting(tenant_id)
+            budget_limit = float(budget_limit or 0.0)
             utilization_percent = (tenant.current_spend_usd / budget_limit * 100) if budget_limit > 0 else 0.0
 
             return {

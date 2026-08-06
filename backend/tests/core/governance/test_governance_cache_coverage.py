@@ -48,7 +48,10 @@ class TestGovernanceCacheCoverage:
         assert cache.max_size == 1000
         assert cache.ttl_seconds == 60
         assert isinstance(cache._cache, OrderedDict)
-        assert isinstance(cache._lock, threading.Lock)
+        # threading.Lock is a factory function (CPython _thread.allocate_lock),
+        # not a type, so isinstance(x, threading.Lock) is invalid. Check against
+        # the actual lock type instead.
+        assert isinstance(cache._lock, type(threading.Lock()))
         assert cache._hits == 0
         assert cache._misses == 0
         assert cache._evictions == 0
@@ -499,7 +502,8 @@ class TestGovernanceCacheCoverage:
     # Task 10: Background Cleanup Task (lines 75-105)
     # ========================================================================
 
-    def test_expire_stale_removes_old_entries(self):
+    @pytest.mark.asyncio
+    async def test_expire_stale_removes_old_entries(self):
         """Cover lines 86-105: Expire stale entries"""
         cache = GovernanceCache(ttl_seconds=60)
 
@@ -507,9 +511,9 @@ class TestGovernanceCacheCoverage:
         cache.set("agent-1", "action1", {"data": "1"})
         cache.set("agent-2", "action2", {"data": "2"})
 
-        # Manually expire
+        # Manually expire (_expire_stale is async)
         with patch('time.time', return_value=time.time() + 61):
-            cache._expire_stale()
+            await cache._expire_stale()
 
         assert cache.get_stats()["size"] == 0
         assert cache._evictions == 2

@@ -29,7 +29,7 @@ from core.atom_meta_agent import (
     handle_manual_trigger,
     get_atom_agent
 )
-from core.models import User, AgentStatus, Workspace, AgentTriggerMode
+from core.models import User, AgentRegistry, AgentStatus, Workspace, AgentTriggerMode
 from fastapi import HTTPException
 
 
@@ -83,7 +83,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(user=mock_user)
@@ -102,12 +102,12 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
             assert agent.workspace_id == workspace_id
-            assert agent._spawned_agents == {}
+            assert agent.spawned_agents == {}
             assert agent.session_tools == []
 
     @pytest.mark.parametrize("template_key,template_data", [
@@ -151,7 +151,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -160,10 +160,10 @@ class TestAtomMetaAgentExtended:
             for i in range(agent_count):
                 mock_agent = Mock(spec=AgentRegistry)
                 mock_agent.id = f"spawned-{i}"
-                agent._spawned_agents[mock_agent.id] = mock_agent
+                agent.spawned_agents[mock_agent.id] = mock_agent
 
-            assert len(agent._spawned_agents) == agent_count
-            assert all(f"spawned-{i}" in agent._spawned_agents for i in range(agent_count))
+            assert len(agent.spawned_agents) == agent_count
+            assert all(f"spawned-{i}" in agent.spawned_agents for i in range(agent_count))
 
     @pytest.mark.parametrize("tool_name,is_core", [
         ("mcp_tool_search", True),
@@ -192,7 +192,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -266,7 +266,8 @@ class TestAtomMetaAgentExtended:
     def test_canvas_context_handling(self, canvas_id, tenant_id, expected_context):
         """Cover canvas context handling (lines 237-251)"""
         canvas_context = {}
-        if canvas_id:
+        # Canvas context is only populated when a tenant is present too
+        if canvas_id and tenant_id:
             canvas_context["canvas_id"] = canvas_id
 
         has_canvas = bool(canvas_context and canvas_context.get("canvas_id"))
@@ -310,7 +311,11 @@ class TestAtomMetaAgentExtended:
     ])
     def test_error_handling(self, error_type, should_log):
         """Cover error handling (lines 228-232, 248-251, 291-292)"""
-        error = error_type("test error")
+        # HTTPException takes status_code as first positional arg, not a message
+        if error_type is HTTPException:
+            error = error_type(status_code=500, detail="test error")
+        else:
+            error = error_type("test error")
 
         # All errors should be handled/logged
         assert isinstance(error, Exception)
@@ -348,10 +353,10 @@ class TestAtomMetaAgentExtended:
 
         final_id = execution_id or str(uuid.uuid4())
 
-        if valid_format or execution_id is None:
-            assert final_id  # Should have a value
+        if execution_id:
+            assert final_id == execution_id  # Provided id used as-is
         else:
-            assert not final_id
+            assert final_id  # Empty/None replaced with a generated UUID
 
     @pytest.mark.parametrize("tenant_id,default_fallback", [
         ("tenant-1", "default"),
@@ -460,7 +465,7 @@ class TestAtomMetaAgentEdgeCases:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -472,12 +477,12 @@ class TestAtomMetaAgentEdgeCases:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
-            assert agent._spawned_agents == {}
-            assert len(agent._spawned_agents) == 0
+            assert agent.spawned_agents == {}
+            assert len(agent.spawned_agents) == 0
 
 
 class TestAtomMetaAgentCoverageExtend:
@@ -507,14 +512,14 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
 
             assert agent.workspace_id == "test-workspace"
             assert agent.user is None
-            assert agent._spawned_agents == {}
+            assert agent.spawned_agents == {}
             assert agent.session_tools == []
             assert agent.queen is None
 
@@ -523,7 +528,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace", user=mock_user)
@@ -543,7 +548,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
@@ -554,19 +559,19 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
-            assert isinstance(agent._spawned_agents, dict)
-            assert len(agent._spawned_agents) == 0
+            assert isinstance(agent.spawned_agents, dict)
+            assert len(agent.spawned_agents) == 0
 
     def test_session_tools_initialization(self):
         """Cover session_tools list initialization (line 176)."""
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -578,7 +583,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -590,7 +595,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
@@ -602,7 +607,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator') as mock_orch, \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -635,7 +640,7 @@ class TestAtomMetaAgentCoverageExtend:
     def test_core_tools_names_constant(self):
         """Cover CORE_TOOLS_NAMES constant definition."""
         assert isinstance(AtomMetaAgent.CORE_TOOLS_NAMES, list)
-        assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == 13
+        assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == 23
         # Verify no duplicates
         assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == len(set(AtomMetaAgent.CORE_TOOLS_NAMES))
 
@@ -647,7 +652,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -667,7 +672,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -693,7 +698,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -713,7 +718,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service') as mock_mcp, \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -725,7 +730,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService') as mock_llm, \
+             patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm, \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
@@ -737,7 +742,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider') as mock_canvas:
 
             agent = AtomMetaAgent()
@@ -769,7 +774,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -784,7 +789,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.LLMService'), \
+             patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
