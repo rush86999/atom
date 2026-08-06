@@ -676,7 +676,8 @@ class FederationSecurityService:
         return {
             "tls": {
                 "active_connections": len(self.tls.get_active_connections()),
-                "handshake_failures": len(self.tls.get_handshake_failures())
+                # BUG-094: sum per-IP counts, not len() of the dict (distinct IPs).
+                "handshake_failures": sum(self.tls.get_handshake_failures().values()),
             },
             "rotation": self.rotation.get_statistics(),
             "anomaly": self.anomaly.get_statistics()

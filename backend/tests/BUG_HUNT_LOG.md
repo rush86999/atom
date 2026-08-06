@@ -589,3 +589,13 @@ written first (red), the root cause confirmed, then the minimal fix applied
 - **Root cause:** `revoke_credential` and `_is_revoked` ignored `config.enable_revocation`.
 - **Test:** `tests/test_round21_vc_revocation_config.py` (4 tests)
 - **Fix:** `revoke_credential` returns False (and logs) when `enable_revocation` is disabled.
+
+### BUG-094 — federation security misreports handshake-failure volume
+- **Flow:** Backend federation security monitoring (core/federation/federation_security.py)
+- **Symptom:** `get_statistics()` reported `tls.handshake_failures` as
+  `len(get_handshake_failures())` — the count of DISTINCT source IPs, not total
+  failures. Five failed handshakes from one attacker IP reported as "1",
+  undercounting the signal in a module whose purpose is anomaly detection.
+- **Root cause:** `len()` of the {ip: count} dict instead of summing values.
+- **Test:** `tests/test_round22_federation_metrics.py` (3 tests)
+- **Fix:** `sum(self.tls.get_handshake_failures().values())`.

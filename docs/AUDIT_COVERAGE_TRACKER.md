@@ -1,8 +1,8 @@
 # Codebase Bug-Hunt Coverage Tracker
 
 **Last updated:** 2026-08-06
-**Bugs fixed:** 93 (BUG-001 → BUG-093) across 21 rounds
-**Overall file coverage:** ~61% (963/1,597 source files)
+**Bugs fixed:** 94 (BUG-001 → BUG-094) across 22 rounds
+**Overall file coverage:** ~61% (964/1,597 source files)
 **Critical-path coverage:** ~95% (all auth, billing, payments, secrets, webhooks, tenant isolation, 2FA, federation identity)
 
 ---
@@ -102,6 +102,7 @@
 | `api/auth_2fa_routes.py` | BUG-091 (R21) | ✅ enable/disable TOTP rate-limited |
 | `core/identity/verifiable_credentials.py` | BUG-093 (R21) | ✅ enable_revocation honored (fail-closed) |
 | `components/Settings/TwoFactorSettings.tsx` | BUG-092 (R21) | ✅ backup codes read from envelope |
+| `core/federation/federation_security.py` | BUG-094 (R22) | ✅ handshake-failure volume metric fixed |
 
 ### frontend — newly covered (Round 20)
 | File | Bug(s) | Status |
@@ -230,3 +231,4 @@
 | 19 | BUG-086..088 | Webhooks: audit validator false-compliance, Shopify HMAC, Slack dedup |
 | 20 | BUG-089..090 | Frontend: CostCalculator stale state, SubscriptionTracker cancelled display |
 | 21 | BUG-091..093 | 2FA enable/disable brute-force, 2FA recovery codes envelope, VC revocation config |
+| 22 | BUG-094 | Federation security handshake-failure metric undercount |
