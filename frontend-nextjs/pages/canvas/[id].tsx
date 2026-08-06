@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Send, ArrowLeft, RefreshCw, History, Trash2 } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
+import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import Layout from "@/components/layout/Layout";
@@ -75,6 +76,9 @@ export default function CanvasDetailPage() {
         const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
         if (msg.type === "canvas:update" || msg.type === "canvas:present") {
             const data = msg.data || msg;
+            // mini_app_state broadcasts are consumed by the MiniAppHarness (live
+            // state preview) — they must NOT overwrite the rendered canvas content.
+            if (data.action === "mini_app_state") return;
             if (data.canvas_id === canvasId && data.action !== "close") {
                 setCanvasData((prev: any) => ({
                     ...prev,
@@ -223,23 +227,28 @@ export default function CanvasDetailPage() {
 
                 {/* Main content: canvas + side chat */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Canvas panel (left/center, takes most space) */}
-                    <div className="flex-1 overflow-hidden">
-                        {loading ? (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-muted-foreground">Loading canvas…</p>
-                            </div>
-                        ) : canvasData ? (
-                            <CanvasPanel lastMessage={canvasLastMessage} />
-                        ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <Card className="max-w-md text-center">
-                                    <CardContent className="pt-6">
-                                        <p className="text-muted-foreground mb-4">Canvas not found or deleted.</p>
-                                        <Link href="/canvas"><Button>Browse Canvases</Button></Link>
-                                    </CardContent>
-                                </Card>
-                            </div>
+                    {/* Canvas panel (left/center, takes most space) + mini-app harness (bottom) */}
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="flex-1 overflow-hidden">
+                            {loading ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <p className="text-muted-foreground">Loading canvas…</p>
+                                </div>
+                            ) : canvasData ? (
+                                <CanvasPanel lastMessage={canvasLastMessage} />
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <Card className="max-w-md text-center">
+                                        <CardContent className="pt-6">
+                                            <p className="text-muted-foreground mb-4">Canvas not found or deleted.</p>
+                                            <Link href="/canvas"><Button>Browse Canvases</Button></Link>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            )}
+                        </div>
+                        {canvasData && (
+                            <MiniAppHarness canvasId={canvasId as string} lastMessage={lastMessage} />
                         )}
                     </div>
 
