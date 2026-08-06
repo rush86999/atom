@@ -162,6 +162,18 @@ composes: a canvas (UI) + a bound office doc (bytes) + a `CanvasLogic` row
 1. **1 canvas = 1 mini-app.** Every mini-app primitive (UI, logic, namespace, WS
    preview) is already per-canvas. A mini-app is the binding object that owns one
    canvas.
+1. **Dual-face access — every mini-app instance is user-faced AND agent-faced.**
+   The same instance is a rendered canvas for the human and a structured,
+   queryable state for the agent. The canvas **AI-accessibility layer**
+   (`frontend-nextjs/hooks/useCanvasState.ts` — hidden a11y trees,
+   `window.atom.canvas.getState(canvas_id)`, <10ms) is the agent's view of what
+   the user sees; `mini_app_get_state` returns the app's data state + version.
+   This gives an agent **situational awareness while a mini-app runs** (it can
+   read current UI + state before deciding its next action) and makes the agent a
+   first-class **co-editor**: `mini_app_run` persists new state and broadcasts
+   `canvas:update` (action `mini_app_state`) so the user's canvas updates live
+   and the agent reads the result back through the same channel. Both faces read
+   the same `CanvasState`; there is no separate agent-only or user-only copy.
 2. **Sandboxed Python backend per app; state is persistent + resumable (no
    background process).** Generated logic runs in `SandboxRuntime.execute_python`
    scoped to a per-app FS namespace — the `CanvasLogicService.run`
