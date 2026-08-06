@@ -94,6 +94,25 @@ def db_session():
         except Exception:
             pass  # File might already be deleted
 
+    # ServiceFactory caches session-bound services in thread-local state;
+    # clear them so later tests don't reuse a service bound to the disposed
+    # temp-file engine (e.g. the EpisodeService cached by get_episode_service,
+    # whose internal session points at a deleted SQLite file). Same pattern as
+    # tests/core/governance/conftest.py.
+    from core.service_factory import ServiceFactory
+    for attr in (
+        "episode_service",
+        "governance_service",
+        "context_resolver",
+        "guardrails_service",
+        "memory_consolidation_service",
+        "activity_publisher",
+        "knowledge_extractor",
+        "graphrag_engine",
+    ):
+        if hasattr(ServiceFactory._thread_local, attr):
+            delattr(ServiceFactory._thread_local, attr)
+
 
 @pytest.fixture
 def test_agent_student(db_session):

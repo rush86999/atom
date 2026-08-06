@@ -135,13 +135,69 @@ class AgentGraduationService:
         readiness = episode_service.get_graduation_readiness(
             agent_id=agent_id,
             tenant_id=agent.tenant_id or "default",
-            target_level=target_maturity.lower()
+            target_level=target_maturity.lower(),
+            min_episodes_override=min_episodes
         )
         
         result = readiness.to_dict()
         result["current_maturity"] = current_maturity
         result["target_maturity"] = target_maturity
         result["ready"] = result["threshold_met"] # Map to upstream field name
+
+        # Enrich with the documented readiness contract (0-100 score, episode
+        # count, interventions, recommendation, gaps). ReadinessResponse is
+        # 0-1 scale; scale to 0-100 for the public contract. Guard the numeric
+        # reads so Mock-based callers (tests) fall back to neutral defaults
+        # instead of raising TypeError on Mock arithmetic.
+        criteria = self.CRITERIA.get(target_maturity, {})
+        try:
+            raw_score = float(readiness.readiness_score)
+            episodes_analyzed = int(readiness.episodes_analyzed)
+            total_interventions = int(
+                (readiness.breakdown or {}).get("total_interventions", 0) or 0
+            )
+            zero_intervention_ratio = float(readiness.zero_intervention_ratio)
+            avg_constitutional = float(readiness.avg_constitutional_score)
+        except (TypeError, ValueError, AttributeError):
+            raw_score, episodes_analyzed, total_interventions = 0.0, 0, 0
+            zero_intervention_ratio, avg_constitutional = 0.0, 0.0
+
+        result["score"] = round(raw_score * 100, 2)
+        result["episode_count"] = episodes_analyzed
+        result["total_human_interventions"] = total_interventions
+        result["intervention_rate"] = round(1.0 - zero_intervention_ratio, 4)
+
+        gaps = []
+        # Honor an explicit caller-supplied min_episodes override; otherwise
+        # fall back to the maturity-level criteria default.
+        min_episodes = min_episodes if min_episodes is not None else criteria.get("min_episodes", 0)
+        if episodes_analyzed < min_episodes:
+            gaps.append(
+                f"Insufficient episodes ({episodes_analyzed}/{min_episodes} required)"
+            )
+        max_intervention = criteria.get("max_intervention_rate", 1.0)
+        if result["intervention_rate"] > max_intervention:
+            gaps.append(
+                f"Intervention rate {result['intervention_rate']:.2f} exceeds "
+                f"maximum {max_intervention:.2f}"
+            )
+        min_constitutional = criteria.get("min_constitutional_score", 0)
+        if avg_constitutional < min_constitutional:
+            gaps.append(
+                f"Constitutional score {avg_constitutional:.2f} below "
+                f"required {min_constitutional:.2f}"
+            )
+        if not episodes_analyzed:
+            gaps.append("No episodes recorded yet")
+        result["gaps"] = gaps
+
+        result["recommendation"] = self._generate_experience_driven_recommendation(
+            ready=result["ready"],
+            score=result["score"],
+            target=target_maturity,
+            gaps=gaps,
+            trajectory={}
+        )
 
         return result
 
@@ -952,10 +1008,18 @@ class AgentGraduationService:
                 "gaps": List[str]
             }
         """
+        # Normalize maturity to the uppercase CRITERIA key (AgentStatus values
+        # are lowercase, e.g. "supervised", while CRITERIA keys are uppercase).
+        maturity_key = (
+            target_maturity.value.upper()
+            if hasattr(target_maturity, 'value')
+            else str(target_maturity).upper()
+        )
+
         # Get existing episode-based validation
         episode_result = await self.calculate_readiness_score(
             agent_id=agent_id,
-            target_maturity=target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity)
+            target_maturity=maturity_key
         )
 
         # Get supervision-based metrics
@@ -965,10 +1029,7 @@ class AgentGraduationService:
         )
 
         # Get criteria for target maturity
-        criteria = self.CRITERIA.get(
-            target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity).upper(),
-            {}
-        )
+        criteria = self.CRITERIA.get(maturity_key, {})
 
         # Check supervision-specific gaps
         supervision_gaps = []

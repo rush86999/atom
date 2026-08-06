@@ -405,7 +405,9 @@ class TestCalculateReadinessScore:
         )
 
         assert result["ready"] is False
-        assert any("Intervention rate too high" in gap for gap in result["gaps"])
+        # The readiness gap message format is "Intervention rate {:.2f} exceeds
+        # maximum {:.2f}" (moved to episode_service's weighted readiness path).
+        assert any("exceeds maximum" in gap for gap in result["gaps"])
 
     @pytest.mark.asyncio
     async def test_calculate_readiness_low_constitutional_score(self, db_session):
@@ -448,7 +450,9 @@ class TestCalculateReadinessScore:
         )
 
         assert result["ready"] is False
-        assert any("Constitutional score too low" in gap for gap in result["gaps"])
+        # The readiness gap message format is "Constitutional score {:.2f} below
+        # required {:.2f}" (moved to episode_service's weighted readiness path).
+        assert any("below required" in gap for gap in result["gaps"])
 
     @pytest.mark.asyncio
     async def test_calculate_readiness_custom_min_episodes(self, db_session):
@@ -1084,18 +1088,24 @@ class TestValidateGraduationWithSupervision:
         db_session.add(agent)
         db_session.commit()
 
-        # Create episodes
+        # Create episodes. Must genuinely satisfy the weighted readiness
+        # formula in episode_service.get_graduation_readiness so the 0.8
+        # SUPERVISED threshold is met: zero interventions, max constitutional
+        # score, max confidence, and success=True (the boolean drives
+        # success_rate, NOT the outcome string).
         for i in range(25):
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
                 tenant_id="default",
                 outcome="success",
+                success=True,
                 task_description=f"Episode {i}",
                 maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
-                constitutional_score=0.90,
+                constitutional_score=1.0,
+                confidence_score=1.0,
                 started_at=datetime.now()
             )
             db_session.add(episode)

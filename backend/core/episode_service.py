@@ -592,7 +592,8 @@ class EpisodeService:
         agent_id: str,
         tenant_id: str,
         episode_count: int = 30,
-        target_level: Optional[str] = None
+        target_level: Optional[str] = None,
+        min_episodes_override: Optional[int] = None
     ) -> ReadinessResponse:
         """
         Calculate graduation readiness score for an agent.
@@ -692,8 +693,12 @@ class EpisodeService:
 
         # Get threshold for target level
         threshold = self._get_threshold_for_level(target_level)
-        # Get minimum episode count for target level
-        min_episodes = self._get_min_episodes_for_level(target_level)
+        # Get minimum episode count for target level (honor caller override)
+        min_episodes = (
+            min_episodes_override
+            if min_episodes_override is not None
+            else self._get_min_episodes_for_level(target_level)
+        )
         # Check both score threshold and minimum episode count
         threshold_met = readiness_score >= threshold and len(episodes) >= min_episodes
 
