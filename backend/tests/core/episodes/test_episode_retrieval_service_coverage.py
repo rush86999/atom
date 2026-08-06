@@ -396,6 +396,8 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas-target-1",
+            tenant_id="tenant1",
             created_at=now,
             action_type='present',
             details_json={
@@ -406,6 +408,9 @@ class TestEpisodeRetrievalServiceCoverage:
         feedback = AgentFeedback(
             id="feedback1",
             agent_id="test-agent-1",
+            user_id="user1",
+            original_output="Agent output",
+            user_correction="No correction",
             feedback_type="thumbs_up_down",
             thumbs_up_down=True,
             created_at=now
@@ -417,6 +422,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task with canvas and feedback",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_ids=["canvas1"],
             feedback_ids=["feedback1"],
             outcome="success"
@@ -462,6 +468,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_ids=["canvas1"],
             feedback_ids=["feedback1"],
             outcome="success"
@@ -505,6 +512,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Agent workflow automation",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=1,
             aggregate_feedback_score=0.5,
             outcome="success"
@@ -562,6 +570,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task with canvas and positive feedback",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=5,
             aggregate_feedback_score=0.8,  # Positive feedback
             outcome="success"
@@ -573,6 +582,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task with negative feedback",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=0,
             aggregate_feedback_score=-0.5,  # Negative feedback
             outcome="success"
@@ -619,6 +629,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task with canvas",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=5,
             feedback_ids=["feedback1"],
             outcome="success"
@@ -630,6 +641,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task without canvas",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=0,
             outcome="success"
         )
@@ -904,17 +916,22 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas1 = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas-target-1",
+            tenant_id="tenant1",
             created_at=now,
             action_type='present',
-            details_json={'component_type': 'chart', 'component_name': 'test_chart', 'key': 'value'},
+            details_json={'component_type': 'chart', 'component_name': 'test_chart', 'key': 'value', 'canvas_type': 'generic'},
         )
         canvas2 = CanvasAudit(
             id="canvas2",
+            canvas_id="canvas-target-2",
+            tenant_id="tenant1",
             created_at=now,
             action_type='submit',
             details_json={
                 'component_type': 'form',
                 'component_name': 'test_form',
+                'canvas_type': 'docs',
             },
         )
         db_session.add_all([canvas1, canvas2])
@@ -963,15 +980,20 @@ class TestEpisodeRetrievalServiceCoverage:
         feedback1 = AgentFeedback(
             id="feedback1",
             agent_id="test-agent-1",
+            user_id="user1",
+            original_output="Agent output",
+            user_correction="No correction",
             feedback_type="thumbs_up_down",
             thumbs_up_down=True,
             rating=5,
-            user_correction="No correction",
             created_at=now
         )
         feedback2 = AgentFeedback(
             id="feedback2",
             agent_id="test-agent-1",
+            user_id="user1",
+            original_output="Agent output 2",
+            user_correction="Adjust output",
             feedback_type="rating",
             rating=4,
             thumbs_up_down=None,
@@ -1371,7 +1393,10 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas-target-1",
+            tenant_id="tenant1",
             episode_id="ep1",
+            canvas_type="sheets",
             created_at=now,
             action_type='present',
             details_json={
@@ -1386,6 +1411,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Spreadsheet task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=1,
             outcome="success"
         )
@@ -1415,7 +1441,10 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas-target-1",
+            tenant_id="tenant1",
             episode_id="ep1",
+            canvas_type="sheets",
             created_at=now,
             action_type='submit',
             details_json={
@@ -1430,6 +1459,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Form submission task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=1,
             outcome="success"
         )
@@ -1459,7 +1489,10 @@ class TestEpisodeRetrievalServiceCoverage:
         now = datetime.now(timezone.utc)
         canvas = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas-target-1",
+            tenant_id="tenant1",
             episode_id="ep1",
+            canvas_type="docs",
             created_at=now,
             action_type='present',
             details_json={
@@ -1474,6 +1507,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Document task",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             canvas_action_count=1,
             outcome="success"
         )
@@ -1508,9 +1542,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Supervised task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=1,
+            human_intervention_count=1,
             intervention_types=["correction"],
             supervision_feedback="Good performance",
             outcome="success"
@@ -1551,9 +1586,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="High rated task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=0,
+            human_intervention_count=0,
             outcome="success"
         )
         ep2 = Episode(
@@ -1563,9 +1599,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Low rated task",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=2,
-            intervention_count=5,
+            human_intervention_count=5,
             outcome="success"
         )
         db_session.add_all([ep1, ep2])
@@ -1611,9 +1648,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="High rated task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=0,
+            human_intervention_count=0,
             outcome="success"
         )
         ep2 = Episode(
@@ -1623,9 +1661,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Low intervention task",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=4,
-            intervention_count=1,
+            human_intervention_count=1,
             outcome="success"
         )
         db_session.add_all([ep1, ep2])
@@ -1671,9 +1710,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Supervised task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=4,
-            intervention_count=1,
+            human_intervention_count=1,
             outcome="success"
         )
         db_session.add(ep1)
@@ -1738,9 +1778,10 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Supervised task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=2,
+            human_intervention_count=2,
             intervention_types=["correction", "guidance"],
             supervision_feedback="Needs improvement on accuracy",
             outcome="success"
@@ -1817,8 +1858,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Excellent task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
-            intervention_count=0,
+            human_intervention_count=0,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_excellent)
@@ -1832,8 +1874,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Excellent task 2",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
-            intervention_count=1,
+            human_intervention_count=1,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_excellent2)
@@ -1847,8 +1890,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Good task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=4,
-            intervention_count=2,
+            human_intervention_count=2,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_good)
@@ -1862,8 +1906,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Good task 2",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
-            intervention_count=2,
+            human_intervention_count=2,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_good2)
@@ -1877,8 +1922,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Fair task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=3,
-            intervention_count=3,
+            human_intervention_count=3,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_fair)
@@ -1892,8 +1938,9 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Poor task",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=2,
-            intervention_count=5,
+            human_intervention_count=5,
             outcome="success"
         )
         quality = service._assess_outcome_quality(ep_poor)
@@ -1928,6 +1975,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent high rated",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
             outcome="success"
         )
@@ -1938,6 +1986,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent medium rated",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=4,
             outcome="success"
         )
@@ -1948,6 +1997,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier low rated",
             started_at=now - timedelta(days=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=2,
             outcome="success"
         )
@@ -1958,6 +2008,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier medium rated",
             started_at=now - timedelta(days=2),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=3,
             outcome="success"
         )
@@ -1968,6 +2019,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier low rated 2",
             started_at=now - timedelta(days=3),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=2,
             outcome="success"
         )
@@ -1993,6 +2045,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 1",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
             outcome="success"
         )
@@ -2003,6 +2056,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 2",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=3,
             outcome="success"
         )
@@ -2093,6 +2147,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent low rated",
             started_at=now,
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=2,
             outcome="success"
         )
@@ -2103,6 +2158,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent medium rated",
             started_at=now - timedelta(hours=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=3,
             outcome="success"
         )
@@ -2113,6 +2169,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated",
             started_at=now - timedelta(days=1),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
             outcome="success"
         )
@@ -2123,6 +2180,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated 2",
             started_at=now - timedelta(days=2),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=4,
             outcome="success"
         )
@@ -2133,6 +2191,7 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated 3",
             started_at=now - timedelta(days=3),
             status="active",
+                maturity_at_time="INTERN",
             supervisor_rating=5,
             outcome="success"
         )

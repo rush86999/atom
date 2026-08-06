@@ -118,8 +118,8 @@ class TestEpisodeSegmentationExtended:
                 assert len(changes) >= 0
 
     @pytest.mark.parametrize("agent_status,creates_boundary", [
-        ("completed", True),     # Completed execution creates boundary
-        ("failed", True),        # Failed execution creates boundary
+        ("completed", True),     # Completed execution with result creates boundary
+        ("failed", False),       # Failed execution does not (only completed counts)
         ("running", False),      # Running execution does not create boundary
     ])
     def test_segment_by_task_completion(self, agent_status, creates_boundary, db_session):
@@ -521,13 +521,17 @@ class TestEpisodeSegmentationExtended:
             with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
-                # Mock embed_text to return diverse embeddings
+                # Mock embed_text with per-message embeddings. The detector
+                # emits 2 embed calls per message pair (6 total for 4 messages),
+                # so provide 6 vectors. Orthogonal consecutive vectors give
+                # cosine 0.0 < 0.75 => every boundary fires.
                 service.lancedb.embed_text = Mock(side_effect=[
-                    [0.1, 0.2, 0.3],  # msg1
-                    [0.8, 0.7, 0.6],  # msg2 (different)
-                    [0.1, 0.2, 0.3],  # msg3 (similar to msg1)
-                    [0.9, 0.8, 0.7],  # msg4 (different from msg3)
-                    [0.9, 0.8, 0.7],  # msg4 again
+                    [1.0, 0.0, 0.0],  # msg1 (i=1 prev)
+                    [0.0, 1.0, 0.0],  # msg2 (i=1 curr)
+                    [0.0, 1.0, 0.0],  # msg2 (i=2 prev)
+                    [1.0, 0.0, 0.0],  # msg3 (i=2 curr)
+                    [1.0, 0.0, 0.0],  # msg3 (i=3 prev)
+                    [0.0, 1.0, 0.0],  # msg4 (i=3 curr)
                 ])
 
                 messages = [

@@ -892,18 +892,22 @@ class TestEpisodeSegmentationServiceCoverage:
 
                 service = EpisodeSegmentationService(db_session)
 
-                # Create mock canvas audit with required attributes
+                # Create mock canvas audit with the attributes the source reads:
+                # all business fields live inside details_json, and the action
+                # is on action_type.
                 canvas_audit = Mock(
-                    canvas_type="chart",
-                    component_name="TestChart",
-                    action="present",
-                    audit_metadata={"revenue": 1000}
+                    details_json={
+                        "canvas_type": "chart",
+                        "component_name": "TestChart",
+                        "revenue": 1000,
+                    },
+                    action_type="present",
                 )
 
                 context = service._extract_canvas_context([canvas_audit])
 
                 assert context["canvas_type"] == "chart"
-                # Note: audit_metadata not in simple mock, so critical_data_points might be empty
+                assert context["presentation_summary"] == "Agent presented TestChart"
 
     def test_filter_canvas_context_summary(self, db_session):
         """Cover lines 1046-1055: Filter canvas context to summary level"""

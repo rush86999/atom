@@ -1299,7 +1299,7 @@ class TestEpisodeCreation:
             Mock(created_at=now + timedelta(minutes=5))
         ]
         executions = [
-            Mock(created_at=now + timedelta(minutes=1), completed_at=now + timedelta(minutes=2))
+            Mock(started_at=now + timedelta(minutes=1), completed_at=now + timedelta(minutes=2))
         ]
 
         duration = segmentation_service._calculate_duration(messages, executions)

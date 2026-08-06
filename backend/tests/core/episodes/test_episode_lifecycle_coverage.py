@@ -41,6 +41,8 @@ class TestEpisodeDecay:
         old_episode = Episode(
             id="old-ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Old task",
             status="completed",
             started_at=datetime.now() - timedelta(days=100),
@@ -78,6 +80,8 @@ class TestEpisodeDecay:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),
@@ -102,6 +106,8 @@ class TestEpisodeDecay:
         episode = Episode(
             id="ep2",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=None,
@@ -110,6 +116,10 @@ class TestEpisodeDecay:
         )
         db_session.add(episode)
         db_session.commit()
+
+        # AgentEpisode.started_at has server_default=func.now(), so the commit
+        # above filled it in. Reset to None to exercise the early-return path.
+        episode.started_at = None
 
         result = service.update_lifecycle(episode)
 
@@ -125,6 +135,8 @@ class TestEpisodeDecay:
         episode = Episode(
             id="ep3",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),
@@ -150,10 +162,13 @@ class TestEpisodeDecay:
             episode = Episode(
                 id=f"ep-{i}",
                 agent_id="agent1",
+                    tenant_id="tenant1",
+                    maturity_at_time="INTERN",
                 task_description=f"Task {i}",
                 status="completed",
                 started_at=datetime.now() - timedelta(days=30 * (i + 1)),
-                decay_score=0.0
+                decay_score=0.0,
+                outcome="success"
             )
             db_session.add(episode)
             episodes.append(episode)
@@ -180,10 +195,13 @@ class TestEpisodeConsolidation:
             episode = Episode(
                 id=f"ep-{i}",
                 agent_id="agent1",
+                    tenant_id="tenant1",
+                    maturity_at_time="INTERN",
                 task_description=f"Similar task {i}",
                 status="completed",
                 started_at=datetime.now() - timedelta(days=i),
-                consolidated_into=None
+                consolidated_into=None,
+                outcome="success"
             )
             db_session.add(episode)
         db_session.commit()
@@ -226,6 +244,8 @@ class TestEpisodeConsolidation:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -252,6 +272,8 @@ class TestEpisodeConsolidation:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -283,6 +305,8 @@ class TestEpisodeArchival:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -318,6 +342,8 @@ class TestEpisodeArchival:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -348,6 +374,8 @@ class TestImportanceScores:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -391,6 +419,8 @@ class TestImportanceScores:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
@@ -425,10 +455,13 @@ class TestAccessCountUpdates:
             episode = Episode(
                 id=f"ep-{i}",
                 agent_id="agent1",
+                    tenant_id="tenant1",
+                    maturity_at_time="INTERN",
                 task_description=f"Task {i}",
                 status="completed",
                 started_at=datetime.now(),
-                access_count=0
+                access_count=0,
+                outcome="success"
             )
             db_session.add(episode)
         db_session.commit()
@@ -461,6 +494,8 @@ class TestAccessCountUpdates:
         episode = Episode(
             id="ep1",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Task",
             status="completed",
             started_at=datetime.now(),
@@ -488,6 +523,8 @@ class TestArchiveEligibleEpisodes:
         episode = Episode(
             id="old-ep",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Old task",
             status="completed",
             started_at=datetime.now() - timedelta(days=200),
@@ -513,6 +550,8 @@ class TestArchiveEligibleEpisodes:
         episode = Episode(
             id="recent-ep",
             agent_id="agent1",
+                tenant_id="tenant1",
+                maturity_at_time="INTERN",
             task_description="Recent task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),

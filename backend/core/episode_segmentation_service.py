@@ -435,8 +435,9 @@ class EpisodeSegmentationService:
                 all_timestamps.append(m.created_at)
 
         for e in executions:
-            if e.created_at:
-                all_timestamps.append(e.created_at)
+            # AgentExecution has started_at/completed_at (no created_at field).
+            if e.started_at:
+                all_timestamps.append(e.started_at)
             if e.completed_at:
                 all_timestamps.append(e.completed_at)
 
@@ -459,6 +460,17 @@ class EpisodeSegmentationService:
 
             # Extract common words as topics (very basic)
             words = m.content.lower().split()
+            topics.update([w for w in words if len(w) > 4][:3])
+
+        # Also extract from execution descriptions so execution-only episodes
+        # still surface meaningful topics (mirrors _extract_entities handling).
+        for e in executions:
+            task_desc = getattr(e, 'task_description', None) or \
+                       getattr(e, 'input_summary', None) or \
+                       getattr(e, 'result_summary', None)
+            if not task_desc:
+                continue
+            words = str(task_desc).lower().split()
             topics.update([w for w in words if len(w) > 4][:3])
 
         return list(topics)[:5]

@@ -636,7 +636,6 @@ class TestAsyncMethods:
         session = ChatSession(
             id="session1",
             user_id="user1",
-            tenant_id="t1",
             created_at=datetime.now()
         )
         db_session.add(session)
@@ -670,7 +669,6 @@ class TestAsyncMethods:
         session = ChatSession(
             id="session2",
             user_id="user1",
-            tenant_id="t1",
             created_at=datetime.now()
         )
         db_session.add(session)
@@ -953,6 +951,11 @@ class TestAsyncMethods:
 
         summary = service._summarize_skill_inputs(inputs)
 
+        # _summarize_skill_inputs returns a string (the repr of the summarized
+        # dict), not a dict.
+        assert isinstance(summary, str)
         assert "param1" in summary
-        assert len(summary["param2"]) < 100  # Should be truncated
-        assert "..." in summary["param2"]
+        assert "short value" in summary
+        # Long value truncated to 97 chars + "..."
+        assert "..." in summary
+        assert "x" * 200 not in summary

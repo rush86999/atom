@@ -692,9 +692,9 @@ class TestEpisodeSegmentationServiceCoverageExtend:
         """Cover lines 611-658: Successful archival to LanceDB"""
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_db = Mock()
-            mock_db.table_names = Mock(return_value=[])
-            mock_db.create_table = Mock()
-            # Make add_document iterable to avoid iteration error
+            # Source checks self.lancedb.db.table_names() for table existence;
+            # add_document is called on the handler itself.
+            mock_db.db.table_names = Mock(return_value=[])
             mock_db.add_document = Mock(return_value=None)
             mock_lancedb.return_value = mock_db
 
@@ -721,8 +721,8 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 await service._archive_to_lancedb(episode)
 
-                # Verify methods were called
-                mock_db.create_table.assert_called_once()
+                # add_document is the archival path; create_table is not used
+                # (schema is inferred from the first add_document record).
                 mock_db.add_document.assert_called_once()
 
     @pytest.mark.asyncio
@@ -748,7 +748,7 @@ class TestEpisodeSegmentationServiceCoverageExtend:
         """Cover lines 642-643: Table already exists"""
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_db = Mock()
-            mock_db.table_names = Mock(return_value=["episodes"])  # Already exists
+            mock_db.db.table_names = Mock(return_value=["episodes"])  # Already exists
             mock_db.add_document = Mock(return_value=None)
             mock_lancedb.return_value = mock_db
 
@@ -832,8 +832,19 @@ class TestEpisodeSegmentationServiceCoverageExtend:
 
                 service = EpisodeSegmentationService(db_session)
 
-                # Create feedback (using Mock to avoid NOT NULL constraints)
-                feedback1 = Mock(id="fb1", agent_id="agent-1", agent_execution_id="ex-1", feedback_type="thumbs_up", thumbs_up_down=True, rating=None, original_output="out1", user_correction="corr1")
+                # Create feedback (real ORM object — a Mock can't be persisted;
+                # AgentFeedback requires agent_id, user_id, original_output,
+                # user_correction)
+                feedback1 = AgentFeedback(
+                    id="fb1",
+                    agent_id="agent-1",
+                    agent_execution_id="ex-1",
+                    user_id="user-1",
+                    original_output="out1",
+                    user_correction="corr1",
+                    feedback_type="thumbs_up",
+                    thumbs_up_down=True,
+                )
                 db_session.add(feedback1)
                 db_session.commit()
 
@@ -997,7 +1008,7 @@ class TestEpisodeSegmentationServiceCoverageExtend:
                 service = EpisodeSegmentationService(db_session)
 
                 context = service._extract_canvas_context([])
-                assert context is None
+                assert context == {}
 
     def test_extract_canvas_context_metadata(self, db_session):
         """Cover lines 935-946: Extract canvas context with metadata fallback"""
@@ -1383,17 +1394,29 @@ class TestEpisodeSegmentationServiceCoverageExtend:
             with patch('core.episode_segmentation_service.LLMService') as mock_llm:
                 mock_llm.return_value = Mock()
 
-                # Mock SystemConfig model
-                with patch('core.episode_segmentation_service.SystemConfig') as mock_config:
-                    mock_config_instance = Mock()
-                    mock_config_instance.value = "v2.5"
-                    mock_config.return_value = mock_config_instance
+                # Mock SystemConfig model. _get_world_model_version imports it
+                # locally via `from core.models import SystemConfig`, so the
+                # class must be patched on core.models (create=True — it is not
+                # defined there). Also clear the env var so we hit the DB path.
+                import os
+                original = os.environ.get("WORLD_MODEL_VERSION")
+                os.environ.pop("WORLD_MODEL_VERSION", None)
+                try:
+                    with patch('core.models.SystemConfig', create=True) as mock_config:
+                        mock_config_instance = Mock()
+                        mock_config_instance.value = "v2.5"
+                        mock_config.return_value = mock_config_instance
 
-                    service = EpisodeSegmentationService(db_session)
-                    service.db.query.return_value.filter.return_value.first.return_value = mock_config_instance
+                        service = EpisodeSegmentationService(db_session)
+                        query_mock = Mock()
+                        query_mock.filter.return_value.first.return_value = mock_config_instance
+                        service.db.query = Mock(return_value=query_mock)
 
-                    version = service._get_world_model_version()
-                    assert version == "v2.5"
+                        version = service._get_world_model_version()
+                        assert version == "v2.5"
+                finally:
+                    if original is not None:
+                        os.environ["WORLD_MODEL_VERSION"] = original
 
     def test_get_world_model_version_db_fallback(self, db_session):
         """Cover lines 519-523: DB error fallback to default"""

@@ -79,17 +79,13 @@ class TestTemporalRetrieval:
 
         service = EpisodeRetrievalService(db_session)
 
-        start_date = datetime.now() - timedelta(days=7)
-        end_date = datetime.now()
-
         with patch.object(service.governance, 'can_perform_action', return_value={"allowed": True}):
             result = await service.retrieve_temporal(
                 agent_id="agent1",
-                start_date=start_date,
-                end_date=end_date
+                time_range="7d"
             )
 
-            # Should query with date range
+            # Should query within the time range
             assert isinstance(result["episodes"], list)
 
     @pytest.mark.parametrize("time_range,expected_days", [
@@ -204,8 +200,11 @@ class TestSequentialRetrieval:
         episode = Episode(
             id="episode-1",
             agent_id="agent1",
+            tenant_id="tenant1",
+            maturity_at_time="INTERN",
             task_description="Test episode",
             status="completed",
+            outcome="success",
             started_at=datetime.now()
         )
         db_session.add(episode)
@@ -263,8 +262,11 @@ class TestSequentialRetrieval:
         episode = Episode(
             id="episode-2",
             agent_id="agent1",
+            tenant_id="tenant1",
+            maturity_at_time="INTERN",
             task_description="Test episode",
             status="completed",
+            outcome="success",
             started_at=datetime.now(),
             canvas_ids=["canvas1"]
         )
@@ -274,6 +276,9 @@ class TestSequentialRetrieval:
         # Create canvas audit
         canvas = CanvasAudit(
             id="canvas1",
+            canvas_id="canvas1",
+            tenant_id="tenant1",
+            session_id="session-1",
             created_at=datetime.now(),
             action_type='present',
             details_json={
@@ -430,6 +435,9 @@ class TestCanvasContextRetrieval:
         for i in range(3):
             canvas = CanvasAudit(
                 id=f"canvas-{i}",
+                canvas_id=f"canvas-{i}",
+                tenant_id="tenant1",
+                session_id="session-1",
                 created_at=datetime.now(),
                 action_type='present',
                 details_json={
@@ -469,6 +477,9 @@ class TestCanvasContextRetrieval:
         feedback = AgentFeedback(
             id="fb1",
             agent_id="agent1",
+            user_id="user1",
+            original_output="Agent output",
+            user_correction="User correction",
             feedback_type="thumbs_up",
             thumbs_up_down=True,
             created_at=datetime.now()
