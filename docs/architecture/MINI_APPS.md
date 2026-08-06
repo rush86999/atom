@@ -94,15 +94,29 @@ scope context instead of a permissive default.
 1. **Author** creates a canvas + document + logic + components, declares scopes in
    the manifest.
 2. **Publish** → `blueprint_sanitizer.strip_credentials` (P5) over the manifest +
-   canvas snapshot → store as a `CanvasTemplate`-style blueprint
-   (`models.py:4306` snapshot format exists).
-3. **Install** → hydrate a fresh canvas: new id, `share_token=None`,
-   `created_by=installer`, `status="active"`, components re-installed with
-   sanitized config (the P5 fork exclusions apply: no audit history, no
-   context/artifacts/recordings). `CanvasLogic` source copies; runtime state and
-   per-canvas FS namespace reset to the new instance id. Document bytes copy into
-   the installer's namespace.
-4. **Run** → the instance's logic runs in `SandboxRuntime` (P7) with
+   canvas snapshot → store as a **`MiniAppBlueprint`** (new — see below). Note:
+   the existing `CanvasTemplate` model (`models.py:4334`) is **dead schema** (no
+   writer, no reader, no migration reference — verified), so it cannot be reused
+   as-is; its column *shape* (`canvas_snapshot`, `component_installations`,
+   `styles`) is a useful reference, but the blueprint must add a `logic_source`
+   field the dead model never carried.
+3. **Install** → hydrate a fresh canvas. The P5 `fork_canvas`
+   (`canvas_routes.py:214`) primitive is ~80% reusable (new id, `share_token=None`,
+   `created_by=installer`, `status="active"`, stripped component configs, one
+   fork audit row), but it has **three gaps** that install must close explicitly:
+   - **Copy `CanvasLogic`** — fork does NOT copy it; install re-points a new
+     `CanvasLogic` row at the new canvas id.
+   - **Derive initial state from the audit trail** — fork copies the stale
+     `Canvas.content` column, but for sheets/docs/mini-apps the truth is the
+     latest `CanvasAudit.details_json`. Install must seed the new instance's
+     initial audit row from the blueprint's snapshot (not the stale column).
+   - **Component config policy** — decide whether installs keep working configs
+     or apply `strip_credentials` (recommend: strip on publish, keep on install —
+     the publish step already sanitized).
+   Runtime state and the per-canvas FS namespace reset to the new instance id;
+   document bytes copy into the installer's namespace.
+4. **Run** → the instance's logic runs via `CanvasLogicService.run` (P7, see
+   [Execution model](#execution-model-state-in--state-out)) with
    `storage_namespace=instance_id`; enforcement via the viewer-capped scope.
 
 **Copy-on-install, not live binding.** Updates ship as new blueprint versions the
@@ -161,11 +175,44 @@ is not wired today), it would give the live-spreadsheet feel. Both are post-MVP.
 
 ---
 
+## Execution model: state in → state out
+
+A mini-app logic run is a pure-ish function: **current state in, new state out.**
+This mirrors how sheets/docs already work (state = latest `CanvasAudit.details_json`)
+and requires **no sandbox-core changes**.
+
+- **State in (free today):** `SandboxRuntime.execute_python` injects `inputs` as
+  module globals via `globals().update(inputs)` (`skill_sandbox.py:271`). So
+  `CanvasLogicService.run` passes `inputs={"state": <latest audit details_json>,
+  "event": ..., "storage_namespace": ...}` and the logic sees `state` as a global.
+- **State out (convention only):** the wrapped logic serializes its new state to
+  stdout in an envelope — `print(json.dumps({"state": new_state, "output": ...}))`
+  — and `run` parses that envelope from stdout, appends `new_state` as a
+  `CanvasAudit.details_json` row, and broadcasts the WS update via
+  `update_canvas_content`. The container is already destroyed after stdout capture
+  (`auto_remove=True`), so the stdout envelope is the natural (and only) return
+  channel — no `SandboxExecResult`/`SandboxRuntime` change needed.
+- **Why not read globals back:** the container is gone before introspection is
+  possible; stdout is the pipe. The envelope convention keeps the contract explicit
+  and parseable.
+
+**Result:** `CanvasLogicService.run` becomes the entire mini-app execution surface.
+A run = load latest state → inject as global → execute wrapped source → parse
+stdout envelope → append new state + broadcast. State persists because it's in the
+audit log, not because a process stays up.
+
+> **WS note:** live updates reuse `update_canvas_content`
+> (`canvas_crud_tool.py` — audit write + `ws_manager.broadcast(channel, msg)` with
+> the two-arg form). Do **not** copy `office_sync_service.py:151`, which calls
+> `broadcast({...})` with one arg — a latent bug (the signature requires channel
+> first).
+
 ## Net-new pieces (ranked)
 
 Everything below is **additive** unless noted. The hard parts (sandboxed runtime,
-per-canvas FS namespace, credential stripping, fork semantics, encryption,
-workspace skills/context, real MCP client, office read/write/recalc/render) exist.
+per-canvas FS namespace, credential stripping, the latest-`CanvasAudit`-wins state
+pattern, `read_canvas`/`update_canvas_content` + WS live-update, office
+read/write/recalc/render) exist and are reused verbatim.
 
 1. **`MiniApp` manifest + binding model (new).** A persisted object linking one
    canvas to: its bound office document (file path under a per-app namespace), its
@@ -173,23 +220,32 @@ workspace skills/context, real MCP client, office read/write/recalc/render) exis
    servers, and an entrypoint. Today the canvas↔document↔logic link is ephemeral
    (`office_sync_service.py` never persists it). Includes a nullable
    `canvas.mini_app_id` FK. Migration + model + service.
-2. **Document-event → logic binding (new wiring).** Auto-fire the bound
+2. **State-in/state-out execution convention (new in `CanvasLogicService`, no
+   sandbox-core change).** Today `run` returns only `{stdout, stderr, exit_code}`
+   and injects `inputs` as globals (free state-IN). State-OUT is a convention: the
+   wrapped logic emits a JSON envelope on stdout (`{"state": {...}, "output": ...}`)
+   and `run` parses it, appends the new state as a `CanvasAudit.details_json` row,
+   and broadcasts via `update_canvas_content`. See
+   [Execution model](#execution-model-state-in--state-out).
+3. **Document-event → logic binding (new wiring).** Auto-fire the bound
    `CanvasLogic.run()` on document edits (cell/paragraph) and external triggers
-   (webhook/schedule), passing the edit as `inputs`, then writing results back into
-   the doc. Today logic is **manual-trigger only** (`POST /{canvas_id}/logic/run`,
+   (webhook/schedule), passing `{state: <latest audit details_json>, event: ...}`
+   as `inputs`. Today logic is **manual-trigger only** (`POST /{canvas_id}/logic/run`,
    `canvas_routes.py:772`).
-3. **Viewer-capped scope resolution at run (new wiring).** When a viewer runs an
+4. **Viewer-capped scope resolution at run (new wiring).** When a viewer runs an
    installed instance, route canvas-logic tool calls through `execute_action` (P1)
    with `min(viewer_capabilities, app_declared_scopes) ∩ tier_floor` as the context,
    not the permissive default. Author edit-time runs at the author's own tier.
-4. **Publish/browse/install surface (new).** Publish = sanitize + snapshot to
-   blueprint (`CanvasTemplate` format). Browse = a catalog endpoint. Install =
-   reuse the P5 `fork_canvas` (`canvas_routes.py:214`) hydration primitive
-   (independent copy, reset id/share_token, sanitized component config, fresh FS
-   namespace, copied doc bytes). Instance state starts empty (no audit history
-   carried over — per P5 fork exclusions); the new instance builds its own
-   `CanvasAudit` log.
-5. **Document lifecycle tools (new/modify).** Explicit `create_workbook` /
+5. **`MiniAppBlueprint` + publish/browse/install (new).** Publish = sanitize +
+   snapshot to a **new `MiniAppBlueprint`** (the existing `CanvasTemplate`
+   (`models.py:4334`) is dead schema — no writer/reader/migration — so the
+   blueprint is greenfield; mirror its column shape + add `logic_source`).
+   Browse = a catalog endpoint. Install = `fork_canvas` (`canvas_routes.py:214`)
+   is ~80% reusable but must explicitly (a) copy `CanvasLogic` re-pointed at the
+   new canvas, (b) seed the initial audit row from the blueprint snapshot (not the
+   stale `Canvas.content` column fork copies), and (c) apply the publish-time
+   credential strip. Fresh FS namespace + copied doc bytes.
+6. **Document lifecycle tools (new/modify).** Explicit `create_workbook` /
    `create_document` / `create_deck` tools (today `write_cell` creates a file only
    as a side-effect, `office_service.py:154`) + a per-mini-app storage namespace
    for doc bytes (today all docs share one `data/office/` dir).
@@ -225,9 +281,12 @@ which is no longer needed for v1.*
 through `execute_action` (P1) with the intersected viewer scope. Author edit-time
 keeps the author's own tier. Tests for the no-privilege-escalation invariant.
 
-**Phase D — Publish / browse / install.** Sanitize-and-snapshot publish; catalog
-endpoint; install via P5 fork hydration. Versioning: updates ship as new blueprint
-versions, copy-on-install, explicit viewer accept.
+**Phase D — Publish / browse / install.** Sanitize-and-snapshot publish to a new
+`MiniAppBlueprint` (the existing `CanvasTemplate` is dead schema); catalog
+endpoint; install via `fork_canvas` + the three explicit adds (copy `CanvasLogic`,
+seed audit state from the snapshot, apply the publish-time credential strip).
+Versioning: updates ship as new blueprint versions, copy-on-install, explicit
+viewer accept.
 
 **Out of scope for v1:** dep install by generated apps (the author agent may still
 install deps at build time via `PackageInstaller`), runtime egress inside the
