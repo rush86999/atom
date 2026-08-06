@@ -402,3 +402,160 @@ async def _agents_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
     except Exception as e:
         logger.error("agents.list failed: %s", e)
         return {"success": False, "error": "Agent listing failed", "agents": []}
+
+
+# ============================================================================
+# Mini-app authoring harness (agent-driven coding).
+# Agents create, author, test, publish, install, and run stateful mini-apps
+# through these actions. Handlers live in tools/mini_app_tool and are imported
+# lazily (seed-action pattern) so action_registry stays dependency-light.
+# ============================================================================
+_MINI_APP_SCAFFOLD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "description": "Mini-app name"},
+        "spec": {"type": "object", "description": "Optional spec (description, base_image, ...)"},
+        "declared_scopes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Tool scopes the app may use (default canvas_render/canvas_get_state)",
+        },
+        "dependencies": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "PyPI dependencies baked into the per-app rootfs (e.g. ['pandas==2.2'])",
+        },
+    },
+    "required": ["name"],
+}
+
+_MINI_APP_WRITE_LOGIC_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "app_id": {"type": "string", "description": "Mini-app id (from mini_app_scaffold)"},
+        "source": {"type": "string", "description": "Python logic source (syntax-gated)"},
+    },
+    "required": ["app_id", "source"],
+}
+
+_MINI_APP_APP_ID_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "app_id": {"type": "string", "description": "Mini-app id"},
+    },
+    "required": ["app_id"],
+}
+
+_MINI_APP_DEV_RUN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "app_id": {"type": "string", "description": "Mini-app id"},
+        "inputs": {"type": "object", "description": "User inputs (injected as a global; state is auto-injected)"},
+    },
+    "required": ["app_id"],
+}
+
+_MINI_APP_RUN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Installed instance canvas id"},
+        "inputs": {"type": "object", "description": "User inputs (state is auto-injected)"},
+    },
+    "required": ["canvas_id"],
+}
+
+_MINI_APP_CANVAS_ID_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Mini-app instance canvas id"},
+    },
+    "required": ["canvas_id"],
+}
+
+
+@register_action(
+    "mini_app_scaffold",
+    description="Scaffold a stateful mini-app (draft): creates a source canvas + starter logic + manifest. Agent-driven authoring starts here.",
+    parameters_schema=_MINI_APP_SCAFFOLD_SCHEMA,
+)
+async def _mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_scaffold
+
+    return await mini_app_scaffold(args, context)
+
+
+@register_action(
+    "mini_app_write_logic",
+    description="Save the mini-app's Python logic (syntax-gated) to its blueprint canvas. The agent authors code here.",
+    parameters_schema=_MINI_APP_WRITE_LOGIC_SCHEMA,
+)
+async def _mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_write_logic
+
+    return await mini_app_write_logic(args, context)
+
+
+@register_action(
+    "mini_app_dev_run",
+    description="Dry-run the mini-app logic in the Firecracker microVM: returns resulting state + proposed storage ops without committing. Fail-closed when deps are unsafe or the per-app rootfs is not built.",
+    parameters_schema=_MINI_APP_DEV_RUN_SCHEMA,
+)
+async def _mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_dev_run
+
+    return await mini_app_dev_run(args, context)
+
+
+@register_action(
+    "mini_app_publish",
+    description="Publish a mini-app: fail-closed dep scan + rootfs check, snapshots initial_state + blueprint (credentials stripped). Required before install.",
+    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+)
+async def _mini_app_publish(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_publish
+
+    return await mini_app_publish(args, context)
+
+
+@register_action(
+    "mini_app_install",
+    description="Install a published mini-app: hydrates a fresh, immutable instance canvas (copy-on-install).",
+    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+)
+async def _mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_install
+
+    return await mini_app_install(args, context)
+
+
+@register_action(
+    "mini_app_run",
+    description="Run an installed mini-app instance statefully: reads CanvasState, executes logic in a Firecracker microVM, persists new state + storage ops, broadcasts a canvas:update.",
+    parameters_schema=_MINI_APP_RUN_SCHEMA,
+)
+async def _mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_run
+
+    return await mini_app_run(args, context)
+
+
+@register_action(
+    "mini_app_list",
+    description="List mini-apps the requesting user owns (or public ones).",
+    parameters_schema={"type": "object", "properties": {}, "required": []},
+)
+async def _mini_app_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_list
+
+    return await mini_app_list(args, context)
+
+
+@register_action(
+    "mini_app_get_state",
+    description="Read the current state + version of a mini-app instance canvas.",
+    parameters_schema=_MINI_APP_CANVAS_ID_SCHEMA,
+)
+async def _mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_get_state
+
+    return await mini_app_get_state(args, context)
