@@ -104,6 +104,22 @@ Plus: credential-safe canvas fork & template sharing, per-canvas sandboxed Pytho
 
 ---
 
+## 🧩 Mini-Apps — Stateful Canvas Apps ✨ NEW (Aug 2026)
+
+Build **stateful, resumable mini-apps** — interactive spreadsheets, docs, and decks with server-side logic — by *chatting with an agent*. No hand-coding, no deployment pipeline.
+
+- **Agent-driven authoring**: ask an agent to "build me an expense-tracker app" and it scaffolds the app, writes the logic, declares acceptance tests, runs them in a hardware-virtualized sandbox, and iterates until they pass — then publishes and installs it. Thirteen `mini_app_*` agent actions power the loop.
+- **State that survives**: every run reads the app's state, executes, and persists the new state (versioned, latest-wins). Reopen and co-edit — the app is exactly where you left it.
+- **Firecracker microVM isolation**: each logic run executes in a microVM with a read-only rootfs, no host filesystem, and no network. Fail-closed by design — Docker is never a mini-app runtime.
+- **Declared scopes, no escalation**: an app declares what it may touch; a viewer's own tier always caps it. A SUPERVISED viewer can never wield an AUTONOMOUS author's powers.
+- **Acceptance-test feedback loop**: the agent grades its own work against given-state → expected-state cases, self-corrects, and ships. Logic checkpoints make recovery one call away.
+- **Versioned + copy-on-install**: publishing snapshots a credential-stripped blueprint; every install hydrates a fresh, immutable instance. Updates ship as new versions — never silent mutation.
+- **Live updates**: state changes broadcast over WebSocket `canvas:update` — the canvas updates in real time.
+
+[Mini-Apps Architecture →](docs/architecture/MINI_APPS.md) · [Firecracker Host Setup →](docs/deployment/FIRECRACKER_HOST_SETUP.md)
+
+---
+
 ## Atom vs Hermes Agent: Quick Comparison
 
 Hermes (Nous Research) is an open-source personal agent known for its memory-provider architecture. Atom adopted its strongest ideas (per-turn fact extraction, pre-compression hooks, circuit breaker, FTS5 search) and deliberately avoided its weakest (custom LLM-summarizing compressor — Hermes' own has 3 documented production bugs).
@@ -305,6 +321,11 @@ Rich interactive presentations (charts, forms, markdown) with live operation vis
 
 [Canvas Guide →](docs/archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) | [Office Automation Guide →](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
 
+### 🧩 Mini-Apps (Stateful Canvas Apps) ✨ NEW (Aug 2026)
+Build **stateful, resumable apps** — spreadsheets, docs, and decks with server-side logic — by chatting with an agent. Agent-driven authoring (scaffold → logic → acceptance tests → publish → install), Firecracker microVM execution (read-only rootfs, no host FS, no network), viewer-tier-capped scopes (no privilege escalation), versioned copy-on-install distribution, and live WebSocket state updates.
+
+[Mini-Apps Architecture →](docs/architecture/MINI_APPS.md)
+
 ### 💼 Office Automation & Document Co-Editing ✨
 - **Real-Time Collaboration**: Co-edit Excel spreadsheets, Word documents, and PowerPoint presentations directly on the interactive Canvas.
 - **AI-Driven Office Workflows**: Automate document generation, spreadsheet analysis, formatting, and reporting through voice or chat.
@@ -390,6 +411,7 @@ Four advanced multi-agent coordination patterns (derived from Cursor's swarm res
 - **Phase 5 — Enhanced Orchestration**: Conductor Agent (5 execution strategies), validated Workflow State Machine with rollback, pub/sub Event Bus, 9-primitive composition templates — `POST /api/v1/workflows/conductor/execute`.
 - **Phase 6 — Gateway Features**: Token compression (RTK + session-dedup), LKGP sticky routing, fusion routing, MCP server, self-healing autofix, per-request header overrides, intent detector, domain classifier. All default ON, evidence-based. See [Token Compression](docs/architecture/TOKEN_COMPRESSION.md), [MCP Server](docs/architecture/MCP_SERVER.md), [Routing Strategies](docs/reference/ROUTING_STRATEGIES.md), [Self-Healing](docs/architecture/REQUEST_SELF_HEALING.md), [Routing Headers](docs/reference/ROUTING_HEADERS.md).
 - **Phase 7 — Production-Ready Security (P0–P9)**: Default-on sandbox enforcement for all dispatch paths, encrypted credentials at rest, per-agent capability bindings, outbound gatekeeper, data-taint tracking, credential-safe sharing/forking, external MCP client, per-canvas sandboxed runtime, workspace-scoped context. See [Security Hardening Overview](docs/architecture/CLOUDFLARE_OS_SECURITY.md).
+- **Phase 8 — Mini-Apps**: stateful, resumable canvas apps (spreadsheets/docs/decks) authored by chatting with an agent — 13 `mini_app_*` agent actions, Firecracker microVM execution (fail-closed), viewer-tier-capped scopes, versioned copy-on-install. See [Mini-Apps Architecture](docs/architecture/MINI_APPS.md).
 
 **Performance**: 27,000+ tests across unit, integration, E2E, and regression suites.
 
@@ -485,6 +507,7 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), **encry
 ### Core Features
 - [Agent System](docs/agents/overview.md) - Multi-agent governance and orchestration
 - [Community Skills Guide](docs/integrations/community-skills.md) - 5,000+ skills with Python & npm packages
+- [Mini-Apps](docs/architecture/MINI_APPS.md) - Stateful canvas apps with agent-driven authoring in Firecracker microVMs ✨ NEW
 - [Office Automation & Co-Editing](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Real-time Excel/Word/PPTX co-editing on Canvas ✨ NEW
 - [LLM Gateway](docs/architecture/LLM_GATEWAY.md) - OpenAI/Anthropic-compatible API over BYOK routing (Phase D: subscription reuse) ✨ NEW
 - [Token Compression](docs/architecture/TOKEN_COMPRESSION.md) - RTK tool-output compression + session-dedup (15-95% savings, structured-data safe) ✨ NEW

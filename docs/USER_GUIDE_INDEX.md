@@ -1,6 +1,6 @@
 # Atom User Guide Index
 
-**Last Updated:** April 7, 2026
+**Last Updated:** August 6, 2026
 
 Welcome to the Atom User Guide! This comprehensive guide helps you get started with Atom and master its features.
 
@@ -68,6 +68,15 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Excel runs through a formula-evaluating workbook runtime (LibreOffice → `formulas` lib → openpyxl)
   - Interactive Canvas co-editing with real-time sync
   - CLI and REST API integration tools
+
+### Mini-Apps ✨ NEW (Aug 2026)
+
+- **[Mini-Apps Architecture](architecture/MINI_APPS.md)** — **Stateful, resumable canvas apps you build by chatting with an agent**
+  - Agent-driven authoring: scaffold → write logic → acceptance tests → publish → install
+  - State persists between runs (versioned, latest-wins) with live WebSocket updates
+  - Each logic run executes in a Firecracker microVM (read-only rootfs, no host FS, no network)
+  - An app's declared scopes are always capped by the viewer's tier — no privilege escalation
+  - Versioned copy-on-install: publishing snapshots a credential-stripped blueprint; installs are fresh instances
 
 ---
 
@@ -303,6 +312,6 @@ This index is maintained and updated regularly. If you find outdated information
 
 ---
 
-**Last Updated:** April 7, 2026
+**Last Updated:** August 6, 2026
 **Version:** 1.0
 **Platform:** Atom Open Source

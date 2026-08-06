@@ -43,6 +43,8 @@ Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).
 Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
 - [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
 - [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
+- [Mini-Apps Architecture](architecture/MINI_APPS.md) — Stateful, resumable canvas apps authored by chatting with an agent (Firecracker microVM runtime)
+- [Firecracker Host Setup](deployment/FIRECRACKER_HOST_SETUP.md) — Provision the microVM runtime for mini-apps
 - [Browser Automation](integrations/browser-automation.md) — Sandboxed browser scraping and element interaction
 
 ### 6. 🛠️ Development & Testing

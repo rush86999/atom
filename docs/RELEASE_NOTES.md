@@ -68,6 +68,15 @@ DID/VC identity with HTTP API surface:
 - Message length validation (32KB cap)
 - Learning router race condition fixed (asyncio.Lock)
 
+### 🧩 Mini-Apps — Stateful Canvas Apps (newest, Aug 2026)
+Build stateful, resumable canvas apps (spreadsheets, docs, decks) by chatting with an agent:
+- **Agent-driven authoring** — 13 `mini_app_*` actions: scaffold, syntax-gated logic + checkpoints, dev-run dry loop, acceptance tests, revert, publish, install, run
+- **Firecracker microVM execution** — every logic run in a hardware-virtualized microVM (read-only rootfs, no host FS, no network); fail-closed, Docker is never a runtime
+- **Persistent + resumable state** — versioned `CanvasState`, latest-wins, live WebSocket `canvas:update` broadcasts
+- **Viewer-tier-capped scopes** — an app's declared scopes never exceed the viewer's standing tier
+- **Versioned copy-on-install** — publish snapshots a credential-stripped blueprint; installs are fresh immutable instances
+- See [docs/architecture/MINI_APPS.md](architecture/MINI_APPS.md).
+
 ### 🐝 Swarm Coordination (newest)
 Four advanced multi-agent coordination patterns derived from Cursor's swarm
 research and the domain-aware verification literature (MAV, AlphaCodium, VERGE):

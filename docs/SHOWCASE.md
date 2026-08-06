@@ -1,4 +1,4 @@
-# Atom Showcase — 5 "Wow" Scenarios
+# Atom Showcase — 6 "Wow" Scenarios
 
 Real scenarios that demonstrate Atom's value. Each is designed to be
 shareable as a video/GIF for social media, documentation, or demos.
@@ -81,6 +81,29 @@ shareable as a video/GIF for social media, documentation, or demos.
 6. Show the .pptx with slides
 
 **Why it's impressive:** No native Office installation. Python-only (python-docx, openpyxl, python-pptx) + LibreOffice headless for rendering. The workbook runtime evaluates formulas.
+
+---
+
+## 6. 🧩 Agent-Driven Mini-App Authoring
+
+**Setup:** Chat with an agent to build a stateful app (e.g., an expense tracker)
+from scratch — no hand-coding. The agent authors, tests, publishes, and installs it.
+
+**What to show:**
+1. In the chat UI, type: "Build me an expense-tracker mini-app that stores
+   entries and shows a running total"
+2. Watch the agent call `mini_app_scaffold` → writes logic → `mini_app_dev_run`
+   (dry-run) → declares acceptance tests → `mini_app_run_tests` (green) →
+   `mini_app_publish` → `mini_app_install`
+3. Open the installed instance canvas — starter UI rendered
+4. Run it: add an expense; the canvas updates **live** over WebSocket
+   (state version bumps, `canvas:update` broadcast)
+5. Show the constraint probe (`mini_app_status`): syntax, effective scopes,
+   dep scan, rootfs, runtime availability
+
+**Why it's impressive:** The agent is a *developer*, not a chat partner — it
+writes code, grades itself against acceptance tests, and ships a stateful,
+microVM-isolated app on request. "Software, spoken into existence."
 
 ---
 

@@ -33,7 +33,7 @@ via `CanvasState` and storage ops host-mediated · `MiniApp` manifest = Model.
 | **Execution** | `core/mini_app_service.py` — `scaffold` / `syntax_check` / `publish` (snapshot blueprint + `initial_state`, `strip_credentials`) / `install` (copy-on-install, fresh id, `share_token=None`, `CanvasState` v1, exactly one `mini_app_install` audit) / `run_stateful` (state in → state out envelope, host-executed `storage_ops`, `CanvasState` upsert, WS `canvas:update` broadcast) |
 | **API** | `api/mini_app_routes.py` (12 endpoints under `/api/mini-apps`) |
 | **Ops** | `docs/deployment/FIRECRACKER_HOST_SETUP.md` (host provisioning, base template, per-app rootfs, real-boot smoke) |
-| **Migration** | `alembic/versions/20260805_mini_apps.py` (guarded `_table_exists`/`_column_exists`, hybrid SQLite/PG) |
+| **Migration** | `alembic/versions/20260805_add_mini_apps.py` (guarded `_table_exists`/`_column_exists`, hybrid SQLite/PG) |
 
 ### Agent authoring harness (agent-driven coding — 13 `mini_app_*` actions)
 
@@ -70,7 +70,8 @@ harness runs every case in the microVM (dry) and returns per-case pass/fail with
 diffs, so the agent self-corrects without a human in the loop. Logic checkpoints
 give clean-state recovery when a run/test fails.
 
-Tests: `tests/test_mini_app_agent_tools.py` (23 tests) + `tests/test_mini_apps.py`
+Tests: `tests/test_mini_app_agent_tools.py` (26 tests, incl. the agent-chat
+dispatch seam through `integrations.mcp_service.call_tool`) + `tests/test_mini_apps.py`
 + `tests/test_mini_app_runtime.py` (Firecracker execution mocked — no real VM in
 CI).
 
