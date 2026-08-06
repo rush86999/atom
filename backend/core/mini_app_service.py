@@ -114,6 +114,37 @@ def validate_manifest(manifest: Any) -> None:
     if not isinstance(assets, list) or not all(isinstance(a, str) for a in assets):
         raise ValueError("manifest.assets must be a list of strings")
 
+    if "tests" in manifest:
+        validate_tests(manifest["tests"])
+
+
+def validate_tests(tests: Any) -> None:
+    """Validate an acceptance-test list; raise ``ValueError`` on any violation.
+
+    Each case is a dict: ``{name?, initial_state?, inputs?, expect_state?,
+    expect_ops?}``. At least one of ``expect_state``/``expect_ops`` is required
+    (an assertion-less case would always pass and teach the agent nothing).
+    ``expect_state`` is a subset match (every key must be present with an equal
+    value); ``expect_ops`` is a subset of ``{op, key}`` pairs the run must
+    propose. See ``run_tests``.
+    """
+    if not isinstance(tests, list):
+        raise ValueError("tests must be a list")
+    for case in tests:
+        if not isinstance(case, dict):
+            raise ValueError("each test case must be an object")
+        for field in ("initial_state", "inputs", "expect_state"):
+            if field in case and not isinstance(case[field], dict):
+                raise ValueError(f"test.{field} must be an object")
+        if "expect_ops" in case and not isinstance(case["expect_ops"], list):
+            raise ValueError("test.expect_ops must be a list")
+        if "name" in case and not isinstance(case["name"], str):
+            raise ValueError("test.name must be a string")
+        if "expect_state" not in case and "expect_ops" not in case:
+            raise ValueError(
+                "each test case must declare expect_state and/or expect_ops"
+            )
+
 
 # ===========================================================================
 # Runtime preparation — fail-closed dependency scan + rootfs verification
@@ -633,6 +664,7 @@ async def run_stateful(
     persist: bool = True,
     viewer: Any = None,
     viewer_tier: Optional[str] = None,
+    initial_state: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run the mini-app logic once (stateful controller run).
 
@@ -641,6 +673,11 @@ async def run_stateful(
     ``storage_ops``, upserts ``CanvasState``, and broadcasts on
     ``user:{user_id}``. ``persist=False`` (harness dry-run) returns the parsed
     state + proposed ops WITHOUT committing or broadcasting.
+
+    ``initial_state`` (optional) overrides the ``CanvasState`` read — used by
+    the acceptance-test harness so each test case is self-contained
+    (given-state → expected-state) instead of depending on run order. Only
+    meaningful with ``persist=False``.
     """
     from core.canvas_logic_service import CanvasLogicService
     from core.mini_app_storage import get_mini_app_storage
@@ -661,7 +698,10 @@ async def run_stateful(
                 return {"success": False, "error": f"MiniApp {canvas.mini_app_id} not found"}
 
             manifest = app.manifest or {}
-            current_state, version = _read_state(db, canvas_id)
+            if initial_state is not None:
+                current_state, version = dict(initial_state), 0
+            else:
+                current_state, version = _read_state(db, canvas_id)
 
             if scopes is None:
                 scopes = resolve_effective_scopes(manifest, viewer=viewer, tier=viewer_tier)
@@ -870,3 +910,286 @@ async def _broadcast_state(user_id: str, canvas_id: str, version: int, state: An
         })
     except Exception as e:  # noqa: BLE001
         logger.debug("MiniApp state WS broadcast skipped: %s", e)
+
+
+# ===========================================================================
+# Agent harness — acceptance tests, logic checkpoints, constraint probe
+# ---------------------------------------------------------------------------
+# Research-backed additions to the coding harness (generator-evaluator loop,
+# clean-state recovery, constraint observability):
+#   * ``mini_app_set_tests`` / ``mini_app_run_tests`` — the agent declares
+#     given-state→expected-state cases; the harness runs each in the microVM
+#     and reports per-case pass/fail + diffs, so the agent self-corrects
+#     without a human in the loop (the "feedback loop" / "lint as prompt").
+#   * ``mini_app_logic_history`` / ``mini_app_revert_logic`` — every
+#     write_logic is checkpointed to the audit trail; the agent can list
+#     versions and revert to a known-good source ("leave the environment in a
+#     clean state").
+#   * ``mini_app_status`` — a constraint probe surfacing syntax validity,
+#     effective scopes (viewer tier ∩ declared), dep-scan state, rootfs
+#     presence, and Firecracker availability before the agent iterates.
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# Logic checkpoints (versioned snapshots in the audit trail)
+# ---------------------------------------------------------------------------
+def _logic_version_number(db: Session, canvas_id: str) -> int:
+    """1-based next version for a canvas's ``mini_app_logic`` snapshots."""
+    from sqlalchemy import func
+
+    from core.models import CanvasAudit
+
+    n = (
+        db.query(func.count(CanvasAudit.id))
+        .filter(
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.action_type == "mini_app_logic",
+        )
+        .scalar()
+    )
+    return int(n or 0) + 1
+
+
+def record_logic_snapshot(
+    db: Session,
+    canvas_id: str,
+    tenant_id: str,
+    app_id: str,
+    source: str,
+    actor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Append a versioned checkpoint of the app logic to the audit trail."""
+    from core.models import CanvasAudit
+
+    version = _logic_version_number(db, canvas_id)
+    db.add(CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=tenant_id,
+        action_type="mini_app_logic",
+        user_id=actor_id,
+        canvas_type="mini_app",
+        details_json={"app_id": app_id, "version": version, "source": source},
+    ))
+    db.commit()
+    return {"version": version}
+
+
+def list_logic_history(app: Any, db: Session) -> List[Dict[str, Any]]:
+    """Return the app's logic checkpoint versions, oldest → newest."""
+    from core.models import CanvasAudit
+
+    rows = (
+        db.query(CanvasAudit)
+        .filter(
+            CanvasAudit.canvas_id == app.blueprint_canvas_id,
+            CanvasAudit.action_type == "mini_app_logic",
+        )
+        .order_by(CanvasAudit.created_at.asc())
+        .all()
+    )
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        details = r.details_json or {}
+        source = details.get("source") or ""
+        out.append({
+            "version": details.get("version"),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "created_by": r.user_id,
+            "preview": source[:200],
+        })
+    return out
+
+
+def revert_logic(
+    app: Any,
+    db: Session,
+    version: int,
+    actor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Restore a previously checkpointed logic version onto the blueprint canvas.
+
+    Writes a fresh checkpoint for the reverted source so the revert itself is
+    visible in history (never silently loses the reverted-from state).
+    """
+    from core.canvas_logic_service import CanvasLogicService
+    from core.models import CanvasAudit
+
+    rows = (
+        db.query(CanvasAudit)
+        .filter(
+            CanvasAudit.canvas_id == app.blueprint_canvas_id,
+            CanvasAudit.action_type == "mini_app_logic",
+        )
+        .order_by(CanvasAudit.created_at.asc())
+        .all()
+    )
+    target = None
+    for r in rows:
+        if (r.details_json or {}).get("version") == version:
+            target = r
+            break
+    if target is None:
+        raise ValueError(f"Logic version {version} not found for app '{app.id}'")
+
+    source = (target.details_json or {}).get("source") or ""
+    CanvasLogicService(db).save_logic(
+        canvas_id=app.blueprint_canvas_id,
+        source=source,
+        created_by=actor_id,
+    )
+    record_logic_snapshot(
+        db,
+        canvas_id=app.blueprint_canvas_id,
+        tenant_id=app.tenant_id,
+        app_id=app.id,
+        source=source,
+        actor_id=actor_id,
+    )
+    return {"success": True, "app_id": app.id, "version": version, "source": source}
+
+
+# ---------------------------------------------------------------------------
+# Acceptance tests — the generator-evaluator feedback loop
+# ---------------------------------------------------------------------------
+async def run_tests(
+    app_id: str,
+    blueprint_canvas_id: str,
+    tests: List[Dict[str, Any]],
+    viewer: Any = None,
+    viewer_tier: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Run each acceptance case in the microVM (dry) and grade it.
+
+    Each case runs ``run_stateful(..., persist=False, initial_state=case
+    ["initial_state"])`` so it is self-contained. ``expect_state`` is a subset
+    match; ``expect_ops`` is a subset of proposed ``{op, key}`` pairs. Every
+    case is reported (never short-circuited) so the agent sees the full diff
+    and can self-correct across all failures at once.
+    """
+    results: List[Dict[str, Any]] = []
+    passed = 0
+    for i, case in enumerate(tests):
+        name = case.get("name") or f"case-{i}"
+        try:
+            res = await run_stateful(
+                blueprint_canvas_id,
+                inputs=case.get("inputs") or {},
+                user_id=getattr(viewer, "id", None),
+                persist=False,
+                viewer=viewer,
+                viewer_tier=viewer_tier,
+                initial_state=case.get("initial_state"),
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Acceptance case %s raised: %s", name, e)
+            results.append({"name": name, "passed": False, "error": "test run raised"})
+            continue
+
+        if not res.get("success"):
+            results.append({
+                "name": name,
+                "passed": False,
+                "error": res.get("error", "run failed"),
+            })
+            continue
+
+        actual = res.get("state") or {}
+        expect = case.get("expect_state") or {}
+        diff = {
+            k: {"expected": v, "actual": actual.get(k)}
+            for k, v in expect.items()
+            if actual.get(k) != v
+        }
+        state_ok = not diff
+
+        proposed = res.get("proposed_ops") or []
+        exp_ops = case.get("expect_ops") or []
+        ops_ok = all(
+            any(
+                (o.get("op") == eo.get("op") and o.get("key") == eo.get("key"))
+                for o in proposed
+            )
+            for eo in exp_ops
+        )
+
+        ok = bool(res.get("success")) and state_ok and ops_ok
+        if ok:
+            passed += 1
+        results.append({
+            "name": name,
+            "passed": ok,
+            "state": actual,
+            "diff": diff,
+            "ops_ok": ops_ok,
+            "stdout_tail": (res.get("stdout") or "")[-200:],
+        })
+    return {"passed": passed, "total": len(results), "results": results}
+
+
+# ---------------------------------------------------------------------------
+# Constraint probe — what the agent can rely on before iterating
+# ---------------------------------------------------------------------------
+def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
+    """Return the app's authoring constraints: syntax, scopes, deps, rootfs, FC."""
+    import os
+
+    from core.canvas_logic_service import CanvasLogicService
+    from core.mini_app_runtime import get_miniapp_rootfs_dir, get_miniapp_runtime
+    from core.package_dependency_scanner import PackageDependencyScanner
+
+    manifest = app.manifest or {}
+    logic = CanvasLogicService(db).load_logic(app.blueprint_canvas_id) or {}
+    source = logic.get("source", "")
+
+    syntax_ok, syntax_error = True, None
+    try:
+        syntax_check(source)
+    except SyntaxError as e:
+        syntax_ok, syntax_error = False, str(e)
+
+    deps = manifest.get("dependencies") or []
+    scan: Optional[Dict[str, Any]] = None
+    if deps:
+        try:
+            scan = PackageDependencyScanner().scan_packages(list(deps))
+        except Exception as e:  # noqa: BLE001
+            scan = {"safe": False, "error": "scan failed"}
+
+    rootfs: Optional[Dict[str, Any]] = None
+    if deps:
+        path = os.path.join(get_miniapp_rootfs_dir(), f"miniapp-{app.id}.ext4")
+        rootfs = {"path": path, "present": os.path.isfile(path)}
+
+    runtime_available, runtime_reason = True, None
+    try:
+        get_miniapp_runtime()
+    except RuntimeError as e:
+        runtime_available, runtime_reason = False, str(e)
+    except Exception as e:  # noqa: BLE001
+        runtime_available, runtime_reason = False, "runtime init failed"
+
+    return {
+        "app_id": app.id,
+        "name": app.name,
+        "status": app.status,
+        "version": app.version,
+        "runtime_image": app.runtime_image,
+        "logic": {
+            "present": bool(source),
+            "syntax_ok": syntax_ok,
+            "syntax_error": syntax_error,
+        },
+        "scopes": {
+            "declared": manifest.get("declared_scopes") or ["*"],
+            "effective": list(resolve_effective_scopes(manifest, viewer=viewer)),
+        },
+        "dependencies": {
+            "count": len(deps),
+            "scan_safe": bool((scan or {}).get("safe", True)),
+            "scan": scan,
+        },
+        "rootfs": rootfs,
+        "runtime": {"available": runtime_available, "reason": runtime_reason},
+        "tests": {"count": len(manifest.get("tests") or [])},
+    }

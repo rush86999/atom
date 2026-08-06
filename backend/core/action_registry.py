@@ -559,3 +559,101 @@ async def _mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> 
     from tools.mini_app_tool import mini_app_get_state
 
     return await mini_app_get_state(args, context)
+
+
+# ============================================================================
+# Agent harness — acceptance tests, logic checkpoints, constraint probe.
+# Research-backed additions to the authoring loop (generator-evaluator loop,
+# clean-state recovery, constraint observability).
+# ============================================================================
+_MINI_APP_SET_TESTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "app_id": {"type": "string", "description": "Mini-app id"},
+        "tests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "initial_state": {"type": "object"},
+                    "inputs": {"type": "object"},
+                    "expect_state": {"type": "object"},
+                    "expect_ops": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
+                },
+            },
+            "description": "Acceptance cases: {name?, initial_state?, inputs?, expect_state?, expect_ops?} — each must assert expect_state and/or expect_ops",
+        },
+    },
+    "required": ["app_id", "tests"],
+}
+
+_MINI_APP_VERSION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "app_id": {"type": "string", "description": "Mini-app id"},
+        "version": {
+            "type": "integer",
+            "description": "Logic checkpoint version to revert to",
+        },
+    },
+    "required": ["app_id", "version"],
+}
+
+
+@register_action(
+    "mini_app_set_tests",
+    description="Declare acceptance-test cases for a mini-app (stored in its manifest). Each case is {name?, initial_state?, inputs?, expect_state?, expect_ops?} — the harness runs every case and grades expected vs actual state so the agent can self-correct.",
+    parameters_schema=_MINI_APP_SET_TESTS_SCHEMA,
+)
+async def _mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_set_tests
+
+    return await mini_app_set_tests(args, context)
+
+
+@register_action(
+    "mini_app_run_tests",
+    description="Run a mini-app's acceptance tests in the Firecracker microVM (dry, no commit). Returns per-case pass/fail with expected-vs-actual state diffs and a pass count — the generator-evaluator feedback loop for agent self-correction.",
+    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+)
+async def _mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_run_tests
+
+    return await mini_app_run_tests(args, context)
+
+
+@register_action(
+    "mini_app_logic_history",
+    description="List a mini-app's logic checkpoints (oldest → newest). Every write_logic records a versioned snapshot; the agent can revert to a known-good version on failure.",
+    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+)
+async def _mini_app_logic_history(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_logic_history
+
+    return await mini_app_logic_history(args, context)
+
+
+@register_action(
+    "mini_app_revert_logic",
+    description="Revert a mini-app's logic to a previously checkpointed version (clean-state recovery when a run/test fails).",
+    parameters_schema=_MINI_APP_VERSION_SCHEMA,
+)
+async def _mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_revert_logic
+
+    return await mini_app_revert_logic(args, context)
+
+
+@register_action(
+    "mini_app_status",
+    description="Probe a mini-app's authoring constraints before iterating: logic syntax validity, effective scopes (viewer tier ∩ declared), dependency-scan state, per-app rootfs presence, and Firecracker runtime availability.",
+    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+)
+async def _mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_status
+
+    return await mini_app_status(args, context)

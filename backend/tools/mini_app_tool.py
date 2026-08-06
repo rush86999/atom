@@ -151,7 +151,7 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
     try:
         from core.canvas_logic_service import CanvasLogicService
         from core.database import get_db_session
-        from core.mini_app_service import syntax_check
+        from core.mini_app_service import record_logic_snapshot, syntax_check
         from core.models import MiniApp
 
         with get_db_session() as db:
@@ -171,7 +171,21 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
                 source=source,
                 created_by=viewer.id,
             )
-        return {"success": True, "app_id": app_id, "message": "Logic saved (syntax OK)"}
+            # Checkpoint the save so the agent can list/revert logic versions.
+            snapshot = record_logic_snapshot(
+                db,
+                canvas_id=app.blueprint_canvas_id,
+                tenant_id=app.tenant_id,
+                app_id=app.id,
+                source=source,
+                actor_id=viewer.id,
+            )
+        return {
+            "success": True,
+            "app_id": app_id,
+            "version": snapshot["version"],
+            "message": f"Logic saved (syntax OK, checkpoint v{snapshot['version']})",
+        }
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_write_logic failed: %s", e)
         return {"success": False, "error": "Failed to save mini-app logic"}
@@ -387,3 +401,188 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_get_state failed: %s", e)
         return {"success": False, "error": "Mini-app state read failed"}
+
+
+# ---------------------------------------------------------------------------
+# Agent harness — acceptance tests, logic checkpoints, constraint probe.
+# Research-backed: the authoring loop is scaffold → write (checkpointed) →
+# dev-run → run_tests (given-state→expected-state, pass/fail + diffs) →
+# revert on failure → publish. mini_app_status surfaces the constraints the
+# agent must satisfy before it iterates.
+# ---------------------------------------------------------------------------
+async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Declare acceptance-test cases for an app (stored in the manifest)."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    app_id = args.get("app_id")
+    tests = args.get("tests")
+    if not app_id:
+        return {"success": False, "error": "app_id is required"}
+    if not isinstance(tests, list):
+        return {"success": False, "error": "tests must be a list"}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_service import validate_tests
+        from core.models import MiniApp
+
+        validate_tests(tests)
+        with get_db_session() as db:
+            app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
+            if app is None:
+                return {"success": False, "error": f"MiniApp {app_id} not found"}
+            if str(app.created_by) != viewer.id:
+                return {"success": False, "error": "Not the app owner"}
+            # Reassign the whole manifest so the JSON column detects the change.
+            manifest = dict(app.manifest or {})
+            manifest["tests"] = tests
+            app.manifest = manifest
+            db.commit()
+        return {
+            "success": True,
+            "app_id": app_id,
+            "tests": len(tests),
+            "message": f"Saved {len(tests)} acceptance test case(s)",
+        }
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_set_tests failed: %s", e)
+        return {"success": False, "error": "Failed to save mini-app tests"}
+
+
+async def mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Run the app's acceptance tests in the microVM (dry) and grade each case."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    app_id = args.get("app_id")
+    if not app_id:
+        return {"success": False, "error": "app_id is required"}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_service import run_tests
+        from core.models import MiniApp
+
+        with get_db_session() as db:
+            app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
+            if app is None:
+                return {"success": False, "error": f"MiniApp {app_id} not found"}
+            if str(app.created_by) != viewer.id:
+                return {"success": False, "error": "Not the app owner"}
+            blueprint_canvas_id = app.blueprint_canvas_id
+            tests = (app.manifest or {}).get("tests") or []
+        if not tests:
+            return {
+                "success": True,
+                "app_id": app_id,
+                "passed": 0,
+                "total": 0,
+                "results": [],
+                "message": "No acceptance tests saved — use mini_app_set_tests first",
+            }
+        report = await run_tests(app_id, blueprint_canvas_id, tests, viewer=viewer)
+        return {
+            "success": True,
+            "app_id": app_id,
+            "passed": report["passed"],
+            "total": report["total"],
+            "all_passed": report["passed"] == report["total"],
+            "results": report["results"],
+            "message": (
+                f"{report['passed']}/{report['total']} acceptance tests passed"
+                if report["passed"] != report["total"]
+                else f"All {report['total']} acceptance tests passed"
+            ),
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_run_tests failed: %s", e)
+        return {"success": False, "error": "Mini-app test run failed"}
+
+
+async def mini_app_logic_history(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """List the app's logic checkpoints (oldest → newest)."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    app_id = args.get("app_id")
+    if not app_id:
+        return {"success": False, "error": "app_id is required"}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_service import list_logic_history
+        from core.models import MiniApp
+
+        with get_db_session() as db:
+            app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
+            if app is None:
+                return {"success": False, "error": f"MiniApp {app_id} not found"}
+            if str(app.created_by) != viewer.id:
+                return {"success": False, "error": "Not the app owner"}
+            history = list_logic_history(app, db)
+        return {"success": True, "app_id": app_id, "history": history}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_logic_history failed: %s", e)
+        return {"success": False, "error": "Mini-app logic history read failed"}
+
+
+async def mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Revert the app's logic to a previously checkpointed version."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    app_id = args.get("app_id")
+    version = args.get("version")
+    if not app_id:
+        return {"success": False, "error": "app_id is required"}
+    if version is None:
+        return {"success": False, "error": "version is required"}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_service import revert_logic
+        from core.models import MiniApp
+
+        with get_db_session() as db:
+            app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
+            if app is None:
+                return {"success": False, "error": f"MiniApp {app_id} not found"}
+            if str(app.created_by) != viewer.id:
+                return {"success": False, "error": "Not the app owner"}
+            result = revert_logic(app, db, int(version), actor_id=viewer.id)
+        return {
+            "success": True,
+            "app_id": app_id,
+            "version": result["version"],
+            "message": f"Reverted logic to checkpoint v{result['version']}",
+        }
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_revert_logic failed: %s", e)
+        return {"success": False, "error": "Mini-app logic revert failed"}
+
+
+async def mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Probe an app's authoring constraints before iterating."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    app_id = args.get("app_id")
+    if not app_id:
+        return {"success": False, "error": "app_id is required"}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_service import status_probe
+        from core.models import MiniApp
+
+        with get_db_session() as db:
+            app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
+            if app is None:
+                return {"success": False, "error": f"MiniApp {app_id} not found"}
+            if str(app.created_by) != viewer.id:
+                return {"success": False, "error": "Not the app owner"}
+            probe = status_probe(app, db, viewer=viewer)
+        return {"success": True, "status": probe}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_status failed: %s", e)
+        return {"success": False, "error": "Mini-app status probe failed"}
