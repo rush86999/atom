@@ -43,7 +43,7 @@
 *(file-path map; deep detail in `docs/architecture/*.md`)*
 
 1. **Agent Governance** — `agent_governance_service.py`, `agent_context_resolver.py`, `governance_cache.py`: lifecycle/permissions/maturity, <1ms cached checks
-2. **Streaming LLM** — `llm/byok_handler.py`, `atom_agent_endpoints.py`: OpenAI/Anthropic/DeepSeek/Gemini/Ollama, token streaming via WebSocket
+2. **Streaming LLM** — `llm/byok_handler.py`, `atom_agent_endpoints.py`: OpenAI/Anthropic/DeepSeek/Gemini/Ollama, token streaming via WebSocket. **OpenCode Go provider** (`opencode-go`, `llm/provider_rate_limits.py`): low-cost subscription gateway at `https://opencode.ai/zen/v1` (key `OPENCODE_API_KEY`); custom RPM/TPM/context limits feed BPC routing — headroom penalty + context clamp + hard-skip at exhaustion (see `docs/architecture/` + `tests/test_opencode_go_provider.py`)
 3. **Canvas Presentation** — `tools/canvas_tool.py`, `api/canvas_routes.py`: charts, markdown, forms with governance
 4. **Real-Time Agent Guidance** — `tools/agent_guidance_canvas_tool.py`, `core/view_coordinator.py`, `core/error_guidance_engine.py`: live tracking, multi-view orchestration, error resolution
 5. **Python Package Support** — `core/package_governance_service.py`, `package_dependency_scanner.py`, `package_installer.py`: per-skill Docker, pip-audit+Safety scanning, maturity gating
@@ -220,6 +220,13 @@ ATOM_HOST_MOUNT_ENABLED=false            # AUTONOMOUS gate
 PORT=8000   LOG_LEVEL=INFO   BROWSER_HEADLESS=true
 
 # LLM keys: OPENAI_API_KEY, ANTHROPIC_API_KEY, MINIMAX_API_KEY (optional 204K ctx)
+# OpenCode Go (low-cost subscription gateway, opencode.ai/zen): 
+OPENCODE_API_KEY=                # OPENCODE-GO_API_KEY does NOT work (hyphen); this is the canonical env name
+OPENCODE_BASE_URL=https://opencode.ai/zen/v1
+# Custom rates/limits feed BPC routing (headroom penalty + context clamp):
+OPENCODE_RPM=60                  # requests/min ceiling for routing headroom
+OPENCODE_TPM=2000000             # tokens/min ceiling for routing headroom
+OPENCODE_MAX_CONTEXT=200000      # gateway context cap (clamps candidate models)
 # Local LLM (Ollama, free, keyless): OLLAMA_BASE_URL=http://localhost:11434/v1  OLLAMA_MODEL=llama3:8b
 
 # Governance

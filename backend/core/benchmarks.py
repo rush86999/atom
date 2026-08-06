@@ -60,6 +60,13 @@ MODEL_QUALITY_SCORES = {
     "kimi-k1-5": 79,
     "qwen-3-7b": 82,
 
+    # OpenCode Zen / OpenCode Go gateway models (Aug 2026)
+    # Served via https://opencode.ai/zen/v1 — tested+verified open coding models
+    "deepseek-v4-pro": 96,
+    "deepseek-v4-flash": 88,
+    "kimi-k2.7-code": 97,
+    "kimi-k3": 94,
+
     # Zhipu AI GLM family (2026)
     "glm-5.2": 97,   # June 2026 flagship — 1M context, long-horizon reasoning
     "glm-5": 96,

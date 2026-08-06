@@ -35,6 +35,7 @@ from core.cost_config import (
     BYOK_ENABLED_PLANS,
     MODEL_TIER_RESTRICTIONS,
     get_llm_cost)
+from core.llm.provider_rate_limits import get_provider_rate_tracker
 import core.database
 def get_db_session(*args, **kwargs):
     return core.database.get_db_session(*args, **kwargs)
@@ -197,13 +198,13 @@ class AllProvidersFailedError(Exception):
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
     # Budget tier - cheapest, good for simple tasks
-    "budget": ["deepseek", "moonshot", "glm", "ollama"],
+    "budget": ["deepseek", "moonshot", "glm", "ollama", "opencode-go"],
     # Mid tier - balanced cost/quality
     "mid": ["anthropic", "gemini", "mistral"],
     # Premium tier - best quality, higher cost
     "premium": ["openai", "anthropic", "glm"],
     # Specialized - task-specific
-    "code": ["deepseek", "openai"],
+    "code": ["deepseek", "openai", "opencode-go"],
     "math": ["deepseek", "openai"],
     "creative": ["anthropic", "openai"],
 }
@@ -293,6 +294,14 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "openai/gpt-4o-mini",
         QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
         QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
+    },
+    "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
+        # https://opencode.ai/zen — tested+verified open coding models served
+        # by the OpenCode team; one subscription key, no per-provider signups.
+        QueryComplexity.SIMPLE: "deepseek-v4-flash",
+        QueryComplexity.MODERATE: "deepseek-v4-flash",
+        QueryComplexity.COMPLEX: "deepseek-v4-pro",
+        QueryComplexity.ADVANCED: "kimi-k2.7-code",
     },
 }
 
@@ -400,6 +409,10 @@ class BYOKHandler:
         self.health_monitor = get_provider_health_monitor()
         self.async_clients = self.async_clients or {} # Ensure it exists if _initialize_clients failed
 
+        # OpenCode Go / gateway rate-awareness: custom per-provider RPM/TPM/
+        # context limits feeding routing decisions (headroom penalty + clamp).
+        self.rate_tracker = get_provider_rate_tracker()
+
         # Last concrete (model, provider) selected by BPC and actually called.
         # generate_response returns only the text, so callers (LLMService.
         # generate_completion) read these to surface the real model in the
@@ -431,6 +444,12 @@ class BYOKHandler:
         model_l = model.lower()
         # Local/open providers serve whatever model name is configured.
         if provider_id in {"ollama", "vllm", "lmstudio", "local"} or provider_id.startswith("local_"):
+            return True
+        # Gateways (opencode-go/zen, openrouter) serve model families from
+        # many vendors under bare gateway IDs (e.g. 'deepseek-v4-flash'),
+        # so family-prefix matching can't apply — the gateway client is
+        # authoritative for any model routed to it.
+        if provider_id in {"opencode-go", "opencode", "zen", "openrouter"}:
             return True
         # Provider id is a substring of the model id (e.g. 'openai' in
         # 'gpt-4o'? no — but 'deepseek' in 'deepseek-chat', 'gemini' in
@@ -475,7 +494,7 @@ class BYOKHandler:
             return []
 
         # Fallback priority order (most reliable first)
-        priority_order = ["deepseek", "openai", "moonshot", "minimax", "xiaomi", "deepinfra", "ollama"]
+        priority_order = ["deepseek", "openai", "opencode-go", "moonshot", "minimax", "xiaomi", "deepinfra", "ollama"]
 
         # Build fallback list: primary first, then others in priority order
         fallback_order = []
@@ -683,6 +702,11 @@ class BYOKHandler:
             "huggingface": {"base_url": "https://router.huggingface.co/v1"},
             "nvidia_nim": {"base_url": "https://integrate.api.nvidia.com/v1"},
             "zai": {"base_url": "https://api.z.ai/api/paas/v4"},
+            # OpenCode Go — low-cost subscription gateway (OpenCode Zen).
+            # OpenAI-compatible /chat/completions; one key serves the whole
+            # tested model catalog. Custom rates/limits (RPM/TPM/context) are
+            # enforced at routing time via core.llm.provider_rate_limits.
+            "opencode-go": {"base_url": os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")},
         }
 
         # Separate sync and async clients
@@ -764,6 +788,13 @@ class BYOKHandler:
             # Final fallback to environment variables
             if not api_key:
                 env_key = f"{provider_id.upper()}_API_KEY"
+
+                # Special case: providers whose IDs can't be upper-cased into
+                # a valid env name (hyphen breaks the convention).
+                # opencode-go → OPENCODE_API_KEY.
+                if provider_id == "opencode-go":
+                    env_key = "OPENCODE_API_KEY"
+
                 api_key = os.getenv(env_key)
 
                 # Special case: Gemini can use GOOGLE_API_KEY
@@ -873,6 +904,18 @@ class BYOKHandler:
         except Exception as e:
             logger.debug(f"Could not load local providers (non-fatal): {e}")
 
+    def _track_rate_usage(self, provider_id: str, input_tokens: int = 0, output_tokens: int = 0) -> None:
+        """Feed token usage into the custom rate tracker (best-effort, no-op).
+
+        Only providers with custom RPM/TPM limits registered in
+        ``core.llm.provider_rate_limits`` (e.g. opencode-go) are tracked; the
+        tracker is otherwise a clean no-op so routing behavior is unchanged.
+        """
+        try:
+            self.rate_tracker.record_usage(provider_id, input_tokens, output_tokens)
+        except Exception:
+            logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
+
     def get_context_window(self, model_name: str) -> int:
         """
         Get the context window size for a model from dynamic pricing data.
@@ -895,6 +938,7 @@ class BYOKHandler:
             "claude-3": 200000,
             "deepseek-chat": 32768,
             "deepseek-reasoner": 32768,
+            "deepseek-v4": 200000,  # OpenCode Zen models
             "gemini": 1000000,  # Gemini has huge context
         }
         for key, size in CONTEXT_DEFAULTS.items():
@@ -1210,8 +1254,14 @@ class BYOKHandler:
                 if not active_provider:
                     continue
                 
-                # Check context window
+                # Check context window (clamped by the provider's custom
+                # max_context limit, if configured — e.g. opencode-go caps the
+                # context the gateway will serve regardless of the model's own
+                # advertised window)
                 context_window = pricing.get("max_input_tokens") or pricing.get("max_tokens") or 0
+                provider_max_context = self.rate_tracker.get_max_context(active_provider)
+                if provider_max_context is not None:
+                    context_window = min(context_window, provider_max_context)
                 if context_window < min_context:
                     continue
 
@@ -1273,11 +1323,38 @@ class BYOKHandler:
                 relative_floor = max(median_paid * 0.5, 1e-9)
             else:
                 relative_floor = 1e-9  # all-free pool — original behavior
+
+            # Rate-aware pass: providers with custom RPM/TPM limits (e.g.
+            # opencode-go) are penalized by their remaining headroom, and
+            # hard-skipped once their budget is exhausted this window. Without
+            # limits configured headroom is always 1.0 (no behavior change).
+            _rate_headroom_cache: Dict[str, float] = {}
+            for c in candidates:
+                provider_id = c["provider"]
+                if provider_id not in _rate_headroom_cache:
+                    _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
+                headroom = _rate_headroom_cache[provider_id]
+                if headroom <= 0.0:
+                    logger.info(
+                        f"BPC skipped {provider_id} — custom rate budget exhausted "
+                        f"(headroom={headroom:.2f})"
+                    )
+                    continue
+                c["headroom"] = headroom
+
+            # Drop exhausted providers entirely so they can't leak into the
+            # ranked output or break the value-score sort below.
+            candidates = [c for c in candidates if "headroom" in c]
+
             for c in candidates:
                 normalized_cost = max(c["cost"], relative_floor)
                 # BPC Score: Higher is better value.
                 # Squaring quality penalizes low-end models for complex tasks.
-                c["value_score"] = (c["quality"] ** 2) / (normalized_cost * 1e6)
+                # The headroom factor (0.25–1.0) deprioritizes providers that
+                # are approaching their custom rate ceiling without an abrupt
+                # cliff — the router still prefers them at 95% quality parity
+                # but a healthy provider wins as limits tighten.
+                c["value_score"] = ((c["quality"] ** 2) / (normalized_cost * 1e6)) * max(0.25, c["headroom"])
 
             
             # Sort by Value Score (Descending)
@@ -1312,13 +1389,13 @@ class BYOKHandler:
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "opencode-go", "openai", "anthropic"]
         elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "opencode-go", "openai", "anthropic"]
         elif complexity == QueryComplexity.COMPLEX:
-            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "openai", "moonshot"]
+            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "opencode-go", "openai", "moonshot"]
         else: # ADVANCED
-            provider_priority = ["openai", "deepseek", "anthropic", "qwen", "gemini", "moonshot", "minimax"]
+            provider_priority = ["openai", "deepseek", "opencode-go", "anthropic", "qwen", "gemini", "moonshot", "minimax"]
         
         for provider_id in provider_priority:
             if provider_id in self.clients:
@@ -1730,6 +1807,11 @@ class BYOKHandler:
                     # Phase 226.4-04: Record successful API call for health monitoring
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+                    self._track_rate_usage(
+                        provider_id,
+                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
+                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                    )
 
                     # Learning-router outcome observation (flag-gated, best-effort).
                     # Feeds real response quality (truncation, empty, etc.) into the
@@ -1801,6 +1883,7 @@ class BYOKHandler:
                                         self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
                                     except Exception:
                                         pass
+                                    self._track_rate_usage(provider_id)
                                     await self._record_outcome_feedback(
                                         model=model, provider_id=provider_id, task_type=task_type,
                                         content=result, finish_reason=finish_reason,
@@ -2611,6 +2694,7 @@ class BYOKHandler:
                         if usage:
                             input_tokens = usage.prompt_tokens
                             output_tokens = usage.completion_tokens
+                            self._track_rate_usage(provider_id, input_tokens, output_tokens)
 
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
@@ -3181,6 +3265,7 @@ class BYOKHandler:
                 # Phase 226.4-04: Record successful streaming API call for health monitoring
                 latency_ms = (time.time() - request_start) * 1000
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                self._track_rate_usage(attempt_provider_id, output_tokens=token_count)
 
                 # Learning-router outcome observation (streaming success).
                 # Pass the accumulated content + real finish_reason so quality
@@ -3266,6 +3351,7 @@ class BYOKHandler:
                                     self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                                 except Exception:
                                     pass
+                                self._track_rate_usage(attempt_provider_id, output_tokens=token_count)
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content="".join(_stream_content_parts),
@@ -3491,6 +3577,11 @@ class BYOKHandler:
                     logger.warning(f"Could not attribute LLM cost: {cost_err}")
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                self._track_rate_usage(
+                    attempt_provider_id,
+                    input_tokens=prompt_tokens or 0,
+                    output_tokens=completion_tokens or 0,
+                )
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                     content=content, finish_reason=finish_reason,
@@ -3557,6 +3648,7 @@ class BYOKHandler:
                                 except Exception:
                                     heal_cost = None
                                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=0.0)
+                                self._track_rate_usage(attempt_provider_id, input_tokens=hp, output_tokens=hc)
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content=healed_content, finish_reason=healed_finish,

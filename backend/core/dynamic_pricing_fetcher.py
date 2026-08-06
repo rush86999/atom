@@ -19,6 +19,9 @@ LITELLM_PRICING_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/mo
 # OpenRouter models endpoint
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 
+# OpenCode Zen models endpoint (OpenCode Go subscription gateway)
+OPENCODE_MODELS_URL = "https://opencode.ai/zen/v1/models"
+
 # Cache file path
 PRICING_CACHE_PATH = Path("./data/ai_pricing_cache.json")
 
@@ -218,6 +221,81 @@ class DynamicPricingFetcher:
         except Exception as e:
             logger.error(f"Failed to fetch OpenRouter pricing: {e}")
             return {}
+
+    def _opencode_static_fallback(self) -> Dict[str, Any]:
+        """Static OpenCode Zen catalog (Aug 2026) used when the live endpoint
+        is unreachable. Prices per 1M tokens from opencode.ai/zen; models are
+        keyed by their bare gateway IDs and tagged with the opencode-go
+        provider so the BPC ranker routes them to the opencode-go client."""
+        table = {
+            # (input_cost, output_cost, max_context)
+            "deepseek-v4-flash": (0.14, 0.28, 200000),
+            "deepseek-v4-pro": (1.74, 3.48, 200000),
+            "kimi-k2.7-code": (0.95, 4.00, 200000),
+            "kimi-k3": (3.00, 15.00, 200000),
+            "kimi-k2.6": (0.95, 4.00, 200000),
+            "glm-5.2": (1.40, 4.40, 200000),
+            "glm-5.1": (1.40, 4.40, 200000),
+            "minimax-m3": (0.30, 1.20, 200000),
+            "minimax-m2.7": (0.30, 1.20, 200000),
+            "qwen3.7-plus": (0.40, 1.60, 200000),
+            "qwen3.7-max": (2.50, 7.50, 200000),
+        }
+        pricing = {}
+        for model_id, (inp, out, ctx) in table.items():
+            pricing[model_id] = {
+                "input_cost_per_token": inp / 1_000_000,
+                "output_cost_per_token": out / 1_000_000,
+                "max_input_tokens": ctx,
+                "name": model_id,
+                "source": "opencode-zen",
+                # Critical: tag with the opencode-go provider so BPC joins these
+                # models to the opencode-go client (same pattern as OpenRouter).
+                "litellm_provider": "opencode-go",
+                "supports_cache": False,
+            }
+        return pricing
+
+    async def fetch_opencode_pricing(self) -> Dict[str, Any]:
+        """Fetch the OpenCode Zen model catalog (OpenCode Go gateway).
+
+        Falls back to a static table when the live endpoint is unreachable so
+        routing never loses the opencode-go candidates. Entries carry
+        ``litellm_provider: "opencode-go"`` for BPC join, and the provider's
+        custom RPM/TPM/context limits are applied at routing time by
+        ``core.llm.provider_rate_limits``.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(OPENCODE_MODELS_URL)
+                response.raise_for_status()
+                data = response.json()
+
+            pricing = {}
+            # The endpoint returns a model list; accept both a bare list and
+            # {data: [...]} envelope for forward-compat.
+            models = data.get("data", data) if isinstance(data, dict) else data
+            if isinstance(models, list):
+                for model in models:
+                    model_id = model.get("id", "") or model.get("model", "")
+                    if not model_id:
+                        continue
+                    pricing[model_id] = {
+                        "input_cost_per_token": float(model.get("input_cost", model.get("prompt", 0))),
+                        "output_cost_per_token": float(model.get("output_cost", model.get("completion", 0))),
+                        "max_input_tokens": int(model.get("context_length", model.get("context", 200000))),
+                        "name": model.get("name", model_id),
+                        "source": "opencode-zen",
+                        "litellm_provider": "opencode-go",
+                        "supports_cache": bool(model.get("supports_cache", False)),
+                    }
+            if pricing:
+                logger.info(f"Fetched {len(pricing)} model prices from OpenCode Zen")
+                return pricing
+            logger.warning("OpenCode Zen endpoint returned no models; using static fallback")
+        except Exception as e:
+            logger.debug(f"Failed to fetch OpenCode Zen pricing (using static fallback): {e}")
+        return self._opencode_static_fallback()
     
     async def refresh_pricing(self, force: bool = False) -> Dict[str, Any]:
         """
@@ -228,12 +306,13 @@ class DynamicPricingFetcher:
             logger.info("Using cached pricing data")
             return self.pricing_cache
 
-        # Fetch from both sources
+        # Fetch from all sources
         litellm_pricing = await self.fetch_litellm_pricing()
         openrouter_pricing = await self.fetch_openrouter_pricing()
+        opencode_pricing = await self.fetch_opencode_pricing()
 
         # Merge pricing (LiteLLM takes precedence)
-        self.pricing_cache = {**openrouter_pricing, **litellm_pricing}
+        self.pricing_cache = {**opencode_pricing, **openrouter_pricing, **litellm_pricing}
 
         # Infer capabilities for all models (run once at fetch time)
         logger.info("Inferring capabilities for all models...")
