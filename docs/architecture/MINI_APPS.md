@@ -174,6 +174,20 @@ composes: a canvas (UI) + a bound office doc (bytes) + a `CanvasLogic` row
    `canvas:update` (action `mini_app_state`) so the user's canvas updates live
    and the agent reads the result back through the same channel. Both faces read
    the same `CanvasState`; there is no separate agent-only or user-only copy.
+1. **Co-editing is universal — and agents are autonomous operators, not just
+   authors.** Every mini-app instance is a live, multi-participant document. The
+   WS `canvas:update` broadcast (`action: mini_app_state`) is **app-agnostic**:
+   it carries state deltas for sheets, docs, decks, and custom canvases alike, so
+   a user and an agent co-edit **any** mini-app in real time — not only
+   office-bound ones. Once published and installed, an agent operates the app
+   **autonomously**: `mini_app_run` on its own, read the result back via
+   `mini_app_get_state`, upload assets, and iterate in a closed
+   situational-awareness loop (a11y view → decide → run → verify), gated only by
+   the app's declared scopes intersected with the **operating agent's own tier**
+   (the same no-escalation rule as viewers). Authoring is a special case: the
+   agent builds an app, then keeps operating the thing it built. Document-level
+   conflict resolution (last-write-wins today; OT is an open question) is
+   orthogonal to the co-editing channel — co-editing works regardless.
 2. **Sandboxed Python backend per app; state is persistent + resumable (no
    background process).** Generated logic runs in `SandboxRuntime.execute_python`
    scoped to a per-app FS namespace — the `CanvasLogicService.run`
