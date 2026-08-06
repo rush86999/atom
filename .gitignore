@@ -1,3 +1,6 @@
+# Redis runtime dump files
+*.rdb
+
 # Node.js
 node_modules/
 npm-debug.log*

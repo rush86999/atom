@@ -219,8 +219,9 @@ Respond in JSON format:
         
         # WORKFLOW indicators
         workflow_keywords = [
-            "execute", "run", "start workflow", "automation", "blueprint",
-            "scheduled", "recurring", "repeat", "every day", "every week"
+            "execute", "run", "start", "launch", "automation", "blueprint",
+            "scheduled", "recurring", "repeat", "every day", "every week",
+            "pipeline", "campaign", "report"
         ]
         
         # TASK indicators - complex unstructured tasks requiring multiple phases

@@ -38,9 +38,33 @@ def app():
 
 
 @pytest.fixture
-def client(app):
-    """Create test client for agent routes."""
-    return TestClient(app)
+def client(app, db):
+    """Create test client with authentication and database overrides."""
+    from core.security_dependencies import require_permission, Permission
+    from core.database import get_db
+
+    # Override authentication dependency
+    async def override_require_permission(permission: Permission):
+        # Return mock admin user
+        mock_user = Mock(spec=User)
+        mock_user.id = "test-admin-123"
+        mock_user.email = "admin@test.com"
+        mock_user.role = UserRole.ADMIN
+        return mock_user
+
+    # Override database dependency
+    def override_get_db():
+        return db
+
+    app.dependency_overrides[require_permission] = override_require_permission
+    app.dependency_overrides[get_db] = override_get_db
+
+    client = TestClient(app)
+
+    yield client
+
+    # Clean up overrides
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
