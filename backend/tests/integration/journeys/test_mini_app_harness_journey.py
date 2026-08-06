@@ -164,3 +164,49 @@ class TestMiniAppHarnessJourney:
         pre = _rpc(client, token, "mini_app_install", {"app_id": scaf2["app_id"]})
         assert pre["success"] is False
         assert "not published" in pre.get("error", "").lower()
+
+    def test_canvas_logic_save_requires_access(self, real_auth_client, registered_user):
+        """PUT /api/canvas/{id}/logic must not let a stranger overwrite logic on
+        a private canvas (owner-gated), while collaborative canvases stay open
+        to collaborators (mini-app blueprint/instance canvases are collaborative)."""
+        client = real_auth_client
+        _, email_a, _, token_a = registered_user
+
+        # Register a second user B.
+        email_b = f"journey_b_{uuid.uuid4().hex[:8]}@test.example.com"
+        pw = "TestPass123!"
+        r = client.post("/api/auth/register", json={
+            "email": email_b, "password": pw, "first_name": "B", "last_name": "T",
+        })
+        assert r.status_code in (200, 201), r.text
+        login_b = client.post("/api/auth/login", json={"username": email_b, "password": pw})
+        assert login_b.status_code == 200, login_b.text
+        token_b = login_b.json()["access_token"]
+
+        # Create a private canvas (owned by A) and a collaborative one directly
+        # in the shared in-memory DB so we control ownership + collaboration.
+        from core.database import SessionLocal
+        from core.models import Canvas, User
+
+        priv_id = f"priv-{uuid.uuid4().hex}"
+        collab_id = f"collab-{uuid.uuid4().hex}"
+        with SessionLocal() as s:
+            ua = s.query(User).filter(User.email == email_a).first()
+            uid_a = str(ua.id)
+            tenant_a = ua.tenant_id or "default"
+            s.add(Canvas(id=priv_id, tenant_id=tenant_a, created_by=uid_a,
+                         name="private", canvas_type="generic", is_collaborative=False, content={}))
+            s.add(Canvas(id=collab_id, tenant_id=tenant_a, created_by=uid_a,
+                         name="collab", canvas_type="generic", is_collaborative=True, content={}))
+            s.commit()
+
+        body = {"source": "x = 1", "language": "python"}
+        # B cannot overwrite A's private canvas logic.
+        denied = client.put(f"/api/canvas/{priv_id}/logic", json=body, headers=_auth(token_b))
+        assert denied.status_code == 403, denied.text
+        # A can write their own private canvas.
+        owner_ok = client.put(f"/api/canvas/{priv_id}/logic", json=body, headers=_auth(token_a))
+        assert owner_ok.status_code == 200, owner_ok.text
+        # B can collaborate on a collaborative canvas (mini-app instances).
+        collab_ok = client.put(f"/api/canvas/{collab_id}/logic", json=body, headers=_auth(token_b))
+        assert collab_ok.status_code == 200, collab_ok.text

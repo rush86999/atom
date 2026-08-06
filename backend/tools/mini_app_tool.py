@@ -229,7 +229,10 @@ async def mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
         return {
             "success": True,
             "state": result.get("state"),
-            "proposed_ops": result.get("proposed_ops"),
+            "version": result.get("version", 0),
+            "state_changed": bool(result.get("state_changed", False)),
+            "proposed_ops": result.get("proposed_ops") or [],
+            "op_results": result.get("op_results") or [],
             "stdout": result.get("stdout", ""),
             "stderr": result.get("stderr", ""),
             "exit_code": result.get("exit_code", 0),

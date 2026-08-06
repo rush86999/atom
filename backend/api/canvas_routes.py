@@ -743,6 +743,18 @@ async def put_canvas_logic(
 ):
     """Save per-canvas server-side Python logic."""
     from core.canvas_logic_service import CanvasLogicService
+    from core.models import Canvas
+
+    # Access gate: writing logic mutates the canvas's controller. Allow the
+    # owner on private canvases and any collaborator on collaborative canvases
+    # (mini-app blueprint/instance canvases are created collaborative). A
+    # stranger must never overwrite a private canvas's logic.
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
+    if not canvas.is_collaborative and str(canvas.created_by) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this canvas")
+
     svc = CanvasLogicService(db)
     if body.agent_id:
         svc.check_governance(body.agent_id)

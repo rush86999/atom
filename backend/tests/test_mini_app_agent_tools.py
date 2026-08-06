@@ -169,6 +169,12 @@ class TestAgentDevRun:
         )
         assert res["success"] is True
         assert res["state"] == {"n": 1}
+        # The harness DevRunResult reads state_changed/version to render the
+        # run summary ("exit code · state_changed") — the handler must pass them
+        # through from run_stateful (regression for the always-false display).
+        assert res["state_changed"] is True
+        assert res["version"] == 0
+        assert res["proposed_ops"] == []
         with SessionLocal() as s:
             rows = s.query(CanvasState).filter(CanvasState.canvas_id == sc["canvas_id"]).all()
         assert rows == []
