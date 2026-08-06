@@ -299,6 +299,12 @@ describe('offlineSyncService', () => {
       // Mock offline state
       NetInfo.fetch.mockResolvedValue({ isConnected: false });
 
+      // Drive the connection state through the listener registered at
+      // initialize() — the service caches isOnline and only updates it via
+      // NetInfo events, so fetch() alone does not flip the flag.
+      const callback = NetInfo.addEventListener.mock.calls[0][0];
+      callback({ isConnected: false });
+
       await offlineSyncService.queueAction(
         'agent_message',
         { agentId: 'agent_1', message: 'Test', sessionId: 'session_1' },
@@ -312,6 +318,12 @@ describe('offlineSyncService', () => {
       // Should skip sync when offline
       expect(result.synced).toBe(0);
       expect(result.success).toBe(false);
+
+      // Restore online state — the fetch mock and the service's isOnline
+      // flag (driven via the persistent listener) would otherwise stay
+      // offline for every subsequent test.
+      NetInfo.fetch.mockResolvedValue({ isConnected: true });
+      callback({ isConnected: true });
     });
 
     test('should remove completed actions', async () => {

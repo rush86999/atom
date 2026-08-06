@@ -116,11 +116,9 @@ describe('ChatInput', () => {
       />
     );
 
+    // The send button is the last button in the row (icon-only, no label)
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => !btn.disabled);
-    if (sendButton) {
-      fireEvent.click(sendButton);
-    }
+    fireEvent.click(buttons[buttons.length - 1]);
 
     expect(mockHandleSend).toHaveBeenCalled();
   });
@@ -246,8 +244,7 @@ describe('ChatInput', () => {
     );
 
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => btn.textContent === 'Send');
-    expect(sendButton).toBeDisabled();
+    expect(buttons[buttons.length - 1]).toBeDisabled();
   });
 
   // Test 10: enables send button when input has text
@@ -270,8 +267,7 @@ describe('ChatInput', () => {
     );
 
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => btn.textContent === 'Send');
-    expect(sendButton).not.toBeDisabled();
+    expect(buttons[buttons.length - 1]).not.toBeDisabled();
   });
 
   // Test 11: shows stop button when processing
@@ -293,7 +289,8 @@ describe('ChatInput', () => {
       />
     );
 
-    expect(screen.getByText('Stop')).toBeInTheDocument();
+    // The stop button is icon-only with a "Stop Agent" title
+    expect(screen.getByRole('button', { name: /stop agent/i })).toBeInTheDocument();
   });
 
   // Test 12: input field displays current value
@@ -469,9 +466,9 @@ describe('ChatInput', () => {
     );
 
     expect(screen.getByText('Uploading file...')).toBeInTheDocument();
-    // Send button should be disabled during upload
+    // The attach button is disabled during upload (the send button remains
+    // enabled — only input content gates it)
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => btn.textContent === 'Send');
-    expect(sendButton?.disabled).toBe(true);
+    expect(buttons[0].disabled).toBe(true);
   });
 });

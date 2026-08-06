@@ -11,7 +11,6 @@
 
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { locationService } from '../../services/locationService';
 
 // Mock expo-location
 jest.mock('expo-location', () => ({
@@ -44,6 +43,10 @@ jest.mock('react-native', () => ({
   },
 }));
 
+// require() AFTER the mocks are registered — a static import would load the
+// service before the expo-location mock applies in this environment.
+const { locationService } = require('../../services/locationService');
+
 describe('LocationService', () => {
   // Mock location data
   const mockLocation = {
@@ -71,6 +74,19 @@ describe('LocationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Restore Platform.OS as a writable data property — earlier describe
+    // blocks redefine it with getter-only accessors, which silently make
+    // later `(Platform.OS as any) = '...'` assignments no-ops.
+    Object.defineProperty(Platform, 'OS', {
+      value: 'ios',
+      configurable: true,
+      writable: true,
+    });
+
+    // Reset the singleton's state (destroy() does not reset permission
+    // statuses, which would leak between tests)
+    (locationService as any)._resetState();
 
     // Default mock implementations
     (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
@@ -183,9 +199,10 @@ describe('LocationService', () => {
 
       const status = await locationService.getPermissionStatus();
 
+      // On iOS the background permission is not queried and stays undetermined
       expect(status).toEqual({
         foreground: 'granted',
-        background: 'denied',
+        background: 'undetermined',
       });
       expect(Location.getForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
     });
@@ -651,15 +668,11 @@ describe('LocationService', () => {
     });
 
     test('should return null when no last known location', () => {
-      // Get current location first to set state
-      locationService.requestPermissions();
-      locationService.getCurrentLocation();
-
-      // Now verify we have a location (service is singleton so state persists)
+      // No location has been fetched yet — the singleton was reset in
+      // beforeEach, so last known location must be null.
       const lastKnown = locationService.getLastKnownLocation();
 
-      // Should have location from previous call
-      expect(lastKnown).not.toBeNull();
+      expect(lastKnown).toBeNull();
     });
 
     test('should report tracking status correctly', async () => {
@@ -789,10 +802,9 @@ describe('LocationService', () => {
       // Get history with limit
       const history = await locationService.getLocationHistory(10);
 
-      // Verify returns only last 10 entries
+      // Verify returns only the last 10 entries (most recent)
       expect(history).toHaveLength(10);
-      // Last 10 entries should be the most recent
-      expect(history[0].latitude).toBeCloseTo(37.7758, 3);
+      expect(history[0].latitude).toBeCloseTo(37.7839, 3);
     });
 
     test('should clear location history', async () => {

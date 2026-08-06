@@ -64,7 +64,7 @@ describe('useLiveSupport Hook', () => {
 
       const { result } = renderHook(() => useLiveSupport());
 
-      expect(global.fetch).toHaveBeenCalledWith(API_URL);
+      expect(global.fetch).toHaveBeenCalledWith(API_URL, expect.any(Object));
 
       await waitFor(() => {
         expect(result.current.tickets).toHaveLength(3);

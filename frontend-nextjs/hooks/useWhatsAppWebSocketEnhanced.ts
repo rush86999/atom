@@ -370,7 +370,14 @@ export const useWhatsAppWebSocketEnhanced = (
       debugLog("Cleaning up on unmount");
       clearTimeouts();
       if (wsRef.current) {
+        // Detach event handlers first so late events delivered after unmount
+        // cannot trigger state updates or toasts on an unmounted component
+        wsRef.current.onopen = null;
+        wsRef.current.onmessage = null;
+        wsRef.current.onerror = null;
+        wsRef.current.onclose = null;
         wsRef.current.close(1000, "Component unmount");
+        wsRef.current = null;
       }
     };
   }, [autoConnect]); // Only run once on mount

@@ -49,7 +49,7 @@ class ExpressionParser:
     TOKEN_NUMBER = r'(?P<NUMBER>-?\d+\.?\d*(?:[eE][+-]?\d+)?)'
     TOKEN_STRING = r'(?P<STRING>"[^"]*"|\'[^\']*\')'
     TOKEN_BOOLEAN = r'(?P<BOOLEAN>True|False|None)'
-    TOKEN_OPERATOR = r'(?P<OPERATOR>==|!=|<=?|>=?|and|or|not|in|\*\*|%|is\s+not|is)'
+    TOKEN_OPERATOR = r'(?P<OPERATOR>==|!=|<=?|>=?|and|or|not|in|\*\*|\*|/|%|is\s+not|is|\+|\-)'
     TOKEN_IDENTIFIER = r'(?P<IDENTIFIER>[a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])?)'
     TOKEN_LPAREN = r'(?P<LPAREN>\()'
     TOKEN_RPAREN = r'(?P<RPAREN>\))'
@@ -317,6 +317,26 @@ class ExpressionParser:
         sanitized = identifier.replace('-', '_').replace('.', '_')
         if sanitized in self.variables:
             return self.variables[sanitized]
+
+        # Walk dot/index access: e.g. "user.name", "data[0]", "data['k']"
+        parts = [p for p in re.split(r'[\.\[\]]', identifier) if p != '']
+        if parts and parts[0] in self.variables:
+            # No attribute access that starts with _ (security: line 22 of module docstring)
+            if any(p.startswith('_') for p in parts[1:]):
+                raise ValueError(f"Variable '{identifier}' is not defined")
+            value = self.variables[parts[0]]
+            try:
+                for part in parts[1:]:
+                    part = part.strip("'\"")
+                    if part.isdigit():
+                        value = value[int(part)]
+                    elif isinstance(value, dict):
+                        value = value[part]
+                    else:
+                        value = getattr(value, part)
+                return value
+            except (KeyError, IndexError, AttributeError, TypeError, ValueError):
+                raise ValueError(f"Variable '{identifier}' is not defined")
 
         # If not found, raise error (don't allow undefined variables)
         raise ValueError(f"Variable '{identifier}' is not defined")

@@ -391,7 +391,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         agent_id: agentId,
         message,
         session_id: sessionId,
-        stream_id,
+        stream_id: streamId,
         platform: 'mobile',
       });
     } else {
@@ -420,7 +420,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     streamCallbacksRef.current.set(streamId, { onChunk, onComplete, onError });
 
     if (socketRef.current?.connected) {
-      socketRef.current.emit('subscribe_stream', { session_id: sessionId, stream_id });
+      socketRef.current.emit('subscribe_stream', { session_id: sessionId, stream_id: streamId });
     }
 
     // Return unsubscribe function
@@ -580,6 +580,7 @@ export const useAgentChat = (agentId: string) => {
 
     const handleStreaming = (data: any) => {
       if (data.agent_id === agentId) {
+        setIsStreaming(true);
         setMessages((prev) => {
           const lastMessage = prev[prev.length - 1];
           if (lastMessage && lastMessage.isStreaming) {

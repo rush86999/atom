@@ -1,598 +1,234 @@
 # Atom Documentation Index
 
-> **Last Updated**: July 12, 2026
+> **Last Updated**: August 2026  
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
-**📚 [Back to Documentation Hub](README.md)** - Browse by category (Agents, Intelligence, Integration, Platform)
+**📚 [Documentation Hub](../README.md)** — Browse by category (Getting Started, Security, Intelligence, Orchestration, Integrations, Development)
 
 ---
 
-## 🚀 Recent Updates (August 2026)
+## 🎯 Quick Start by Role
 
-- **Production-Ready Security Hardening (P0–P9)**: ✨ NEW - Ten-phase pass that makes self-hosted agents safe to run on your infrastructure. Every agent tool call is now sandboxed by default (shared `core/sandbox_gate.py` covers the legacy dispatch paths — agent loop, workflow, fleet, business — not just the meta-agent); OAuth integration tokens are encrypted at rest and fail-closed in production. Plus per-agent capability bindings, an outbound gatekeeper (rate limit / masking / HITL approval), data-taint tracking (`VT_PROVENANCE`), credential-safe canvas fork & template sharing, a real external MCP client (`/api/mcp/servers`), per-canvas sandboxed Python runtime, and workspace-scoped curated context. Kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false`. See [CLOUDFLARE_OS_SECURITY.md](architecture/CLOUDFLARE_OS_SECURITY.md), [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md), [DATA_PROTECTION.md](security/DATA_PROTECTION.md).
-- **Mini-Apps (IMPLEMENTED)**: ✨ NEW (implemented, Aug 2026) - Build **stateful, resumable canvas apps** (spreadsheets, docs, decks) by chatting with an agent. Agent-driven authoring harness (13 `mini_app_*` actions: scaffold, syntax-gated logic + checkpoints, dev-run dry loop, acceptance tests, revert, publish, install, run), Firecracker microVM execution (read-only rootfs, no host FS, no network — fail-closed; Docker is never a mini-app runtime), viewer-tier-capped scopes (no privilege escalation), versioned copy-on-install distribution, and live WebSocket `canvas:update` state broadcasts. See [MINI_APPS.md](architecture/MINI_APPS.md).
-
----
-
-## 🚀 Recent Updates (July 2026)
-
-- **Swarm Coordination & Stigmergic Field Guide**: ✨ NEW - Three advanced multi-agent coordination patterns from Cursor swarm research (2026), implemented in production:
-  - **Stigmergic Field Guide** (`core/field_guide_service.py`): Agent-curated shared Markdown ops manual auto-injected into system prompts. 50-line budget, per-workspace, deduplicated. See [SWARM_COORDINATION.md](architecture/SWARM_COORDINATION.md).
-  - **Parallel Branch Reconciler** (`conductor_agent._reconcile_branch_conflicts`): Neutral third-party mediator that merges per-key output from diverging parallel branches instead of discarding minority work.
-  - **Megafile & Bloat Tripwire** (`sandbox_tripwire.MegafileDetector`): Tracks file edits per loop; blocks hotspot megafiles (>800 LOC or ≥5 edits/loop) and emits `HarnessEvolutionService`-compatible patch proposals for auto-modularization.
-- **Bugs Found and Fixed via User-Journey Testing**: ✨ NEW - catalog of the real defects the end-to-end suite uncovered (router double-prefixes, async/await bugs, frontend response-shape mismatches, RBAC gaps, CI/Docker flakiness), each with symptom → root cause → fix → commit. Read before debugging a regression. See [BUGS_FOUND_AND_FIXED.md](architecture/BUGS_FOUND_AND_FIXED.md).
-
-- **Workbook Runtime**: ✨ NEW - Excel engine replaced openpyxl-as-parser with a formula-evaluating runtime (`core/workbook_runtime.py`). LibreOffice headless primary (recalc + pixel-accurate HTML render + structural edits), `formulas` library fallback, openpyxl cached-values last resort. `office_service.py` write_cell now recalculates and returns computed values; render_to_html produces evaluated output with conditional formatting. See [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md).
-- **Integration Resilience Layer**: ✨ NEW - Universal HTTP wrapper (`core/integration_http.py`) for all third-party API calls: circuit breaker, rate limiting, 429 Retry-After parsing, exponential backoff, 401 token refresh, health monitoring. 89 calls across 13 services wired.
-- **Phase 2/4/5 Integration Complete**: ✨ All five enhancement phases are now genuinely delivered end-to-end, not just committed libraries:
-  - **Phase 2 (GraphRAG)**: Multi-hop scored expansion wired into `local_search`; `build_communities` populates the community table; `leidenalg` dependency added (with Louvain fallback).
-  - **Phase 4 (Federation)**: New `api/routes/federation_routes.py` exposes DIDs, verifiable credentials, zero-trust verification, and security health/stats at `/api/federation/...` (the previously broken import in `main_api_app.py` now resolves).
-  - **Phase 5 (Orchestration)**: EventBus lifecycle events published by every live workflow; Conductor Agent endpoint at `POST /api/v1/workflows/conductor/execute` with 5 execution strategies; state-machine + rollback integrated.
-  - **Phase 1 (Memory)**: POMDP-backed consolidation service now wired correctly (was importing the legacy class) and scheduled on a 6-hour background loop (was never invoked).
-  - **Bug fix**: Word-doc canvas→file sync was crashing (`office_sync_service.py` missing `import docx`).
-- **Learning LLM Router**: ✨ NEW - Per-model satisfaction predictors that re-rank BPC candidates from observed outcomes. A genuine end-to-end learning loop: the router observes response quality (truncation, schema failures, refusals), collects user feedback (thumbs up/down + regenerate), and re-ranks model candidates as data accumulates. Flag-gated (`ATOM_LEARNING_ROUTER`, default off). DB-persisted feedback (`llm_routing_feedback` table, migration `20260711`). Live `POST /api/chat/feedback` + `GET /api/chat/routing-stats` endpoints. Model visibility badge on chat messages + routing dashboard at `/settings/routing`.
-  - [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md) - Architecture, the singleton registry, per-model predictors, quality assessment, the flag, the user journey, and honest limitations.
-- **Office Automation & Canvas Co-Editing**: ✨ NEW - Direct python-based manipulation (read/write/render) and live co-editing of Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents. Excel workbooks run through a formula-evaluating workbook runtime (LibreOffice headless → `formulas` library → openpyxl fallback) so agents see computed values, not unevaluated formula strings.
-  - [ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) - Covers: (a) DOM-like sheet coordinate paths, (b) Word & PowerPoint modifiers, (c) Interactive Canvas co-editing with real-time sync, (d) CLI commands and API endpoints, (e) formula evaluation + pixel-accurate rendering via the workbook runtime.
-  - [WORKBOOK_RUNTIME.md](architecture/WORKBOOK_RUNTIME.md) - Excel engine architecture: LibreOffice headless (recalc + render + structural edits) → `formulas` library → openpyxl cached values.
-  - Integrates directly with frontend `CanvasHost.tsx` for real-time bi-directional collaboration.
-
-## 🚀 Recent Updates (June 2026)
-
-- **Execution Sandbox Layer**: ✨ NEW (Rounds 43-47) - Deterministic blast-radius layer that closes the "tier is routing, not security" gap
-  - [SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md) - Five-phase design: (A) policy + audit table, (B) filesystem scope, (C) tripwires + resource caps + KillRun, (D) Firecracker microVM + dual-proxy egress, (E) provenance tagging + LLM ActionJudge
-  - Closes the gap documented in [TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) and [PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md)
-  - Migration `20260630_add_sandbox_tables` (chains on Round 42, guarded per SQLite hybrid-DB pattern)
-  - Default-on enforcement since P9 (Aug 2026) — `ATOM_SANDBOX_FORCE_ENFORCE=true` for all dispatch paths via shared `core/sandbox_gate.py`; set `false` for shadow mode
-  - 166 tests across 5 files in `tests/unit/core/test_sandbox_*.py`
-- **Self-Consistency Voter**: ✨ NEW (Round 42) - N-sample majority vote on structured plans (Wang et al. 2022)
-  - [SELF_CONSISTENCY_VOTER.md](architecture/SELF_CONSISTENCY_VOTER.md) - VoteResult tri-state mirroring match-confidence; shadow + audit extensions on PR #548 base
-  - Migration `20260629_add_self_consistency_votes` (guarded)
-- **Pre-Action Match-Confidence Layer**: ✨ NEW (Round 41) - Selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state
-  - [MATCH_CONFIDENCE.md](architecture/MATCH_CONFIDENCE.md) - Pre-action `high/partial/ambiguous` gating through ProposalService (including AUTONOMOUS)
-  - [SELECTOR_CONFIDENCE_THRESHOLDS.md](architecture/SELECTOR_CONFIDENCE_THRESHOLDS.md) - Tuning env vars + score curve
-  - Migration `20260628_add_match_confidence_gating_flag` (per-agent opt-out column)
-  - Shadow mode default — computation + audit always on, gating off (`MATCH_CONFIDENCE_FORCE_PROPOSAL=false`)
-- **2026 Enhancement Plan**: ✅ COMPLETE - All 5 phases delivered with validation metrics
-  - [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) - **✨ NEW: Arbor Hypothesis Tree Refinement (HTR)** - Tree-based LLM code generation with cumulative learning
-  - [HARNESS_EVOLUTION.md](architecture/HARNESS_EVOLUTION.md) - **✨ NEW: Self-Evolving Harness & Weakness Mining** - Offline trace analysis, weakness mining, and auto-mutation patches
-  - Phase 1: POMDP Memory Framework - Experience-driven agent learning
-  - Phase 2: GraphRAG Enhancement - Multi-hop expansion, dynamic graphs
-  - Phase 3: Learning-Based LLM Routing - per-model predictors, DB persistence, live feedback, quality signals, re-ranking. See [LEARNING_LLM_ROUTER.md](architecture/LEARNING_LLM_ROUTER.md). Flag-gated (`ATOM_LEARNING_ROUTER`).
-  - Phase 4: Zero-Trust Federation Identity - DID/VC with mTLS
-  - Phase 5: Enhanced Orchestration - Conductor Agent, workflow state machine
-- **Canvas Integration**: ✅ COMPLETE - Canvas system integrated with Phase 1-5 features
-  - [canvas/README.md](canvas/README.md) - Canvas with POMDP memory, GraphRAG, orchestration
-  - [canvas/feedback-memory.md](canvas/feedback-memory.md) - Canvas feedback with experience-driven graduation
-  - [canvas/agent-learning.md](canvas/agent-learning.md) - Canvas learning with Conductor Agent
-- **UI/UX Enhancement**: ✅ COMPLETE - User journeys updated with 2026 features
-  - [guides/USER_PERSONAS_AND_JOURNEYS.md](guides/USER_PERSONAS_AND_JOURNEYS.md) - Enhanced personas with Phase 1-5
-  - [guides/USER_GUIDE.md](guides/USER_GUIDE.md) - Multi-agent governance and memory sections
-  - [guides/QUICKSTART.md](guides/QUICKSTART.md) - Phase 1-5 quick examples
-
-## 🚀 Recent Updates (April 2026)
-
-- **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
-  - [PYTHON_PACKAGES.md](security/python-packages.md) - Python Package Support system (350K+ PyPI packages)
-  - [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination
-  - CANVAS_AI_ACCESSIBILITY.md - Canvas AI accessibility and state API
-  - LLM_CANVAS_SUMMARIES.md - LLM-generated canvas summaries
-  - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
-  - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
-  - [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
-- **Commercial Marketplace**: ✨ NEW - Mothership architecture with atomagentos.com - Proprietary marketplace for agents, domains, components, skills
-- **Phase 234**: E2E Testing Infrastructure - 486 E2E test functions with API-first authentication
-- **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
-- **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection
-- **Phase 64**: E2E Test Suite - 217+ E2E tests with real services (PostgreSQL, Redis, Docker)
-- **Phase 63**: Documentation Audit - 98/100 health score, all features documented
-- **Phase 61**: Skill Marketplace Sync - Bidirectional marketplace sync for skills and ratings
-- **Phase 60**: Advanced Skill Execution - Marketplace, composition, dynamic loading
-- **Phase 36**: npm Package Support - 2M+ packages with governance
-- **Phase 35**: Python Package Support - 350K+ packages with vulnerability scanning
+| Role | Start Here | Time |
+|------|------------|------|
+| **New User** | [Quick Start](getting_started/quick-start.md) | 15 min |
+| **Developer** | [Development Setup](development/setup.md) | 20 min |
+| **Admin** | [Production Readiness](operations/production-readiness.md) | 30 min |
+| **AI Engineer** | [LLM Providers Guide](guides/LLM_PROVIDERS.md) | 15 min |
 
 ---
 
-## 📖 Documentation Guides
+## 📚 Documentation by Category
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [DOCUMENTATION_STRUCTURE_GUIDE.md](reference/DOCUMENTATION_STRUCTURE_GUIDE.md) | **✨ NEW: Complete docs structure guide** - Navigation, organization, maintenance | Apr 7, 2026 |
-| [DOCS_ATOMAGENTOS_GUIDE.md](guides/DOCS_ATOMAGENTOS_GUIDE.md) | **✨ NEW: docs.atomagentos.com guide** - Commercial platform documentation | Apr 7, 2026 |
+### 🚀 Getting Started & Operations
 
----
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Quick Start](getting_started/quick-start.md) | Fastest path to running local server | All |
+| [Installation](getting_started/INSTALLATION.md) | Complete setup (native, Docker, cloud) | All |
+| [First Steps](getting_started/FIRST_STEPS.md) | What to do after server is running | New Users |
+| [Troubleshooting](getting_started/TROUBLESHOOTING.md) | Common errors and fixes | All |
+| [Run with Ollama](getting_started/run-with-ollama.md) | Free local LLM setup (no API keys) | Cost-conscious |
+| [Personal Edition](operations/personal-edition.md) | Local Docker + SQLite deployment | Self-hosters |
+| [Production Readiness](operations/production-readiness.md) | Pre-flight checklist for staging/prod | Admins |
+| [Monitoring & Health](operations/monitoring.md) | Prometheus, health checks, alerts | Admins/DevOps |
 
-## 🚀 Getting Started
+### 🛡️ Security & Governance
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [README.md](../README.md) | Project overview and quick start | - |
-| [PERSONAL_EDITION.md](operations/personal-edition.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
-| [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
-| [DEVELOPMENT.md](development/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
-| ATOM_ARCHITECTURE_SPEC.md | High-level system design | - |
-| VECTOR_EMBEDDINGS.md | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Execution Sandbox Layer](architecture/SANDBOX_LAYER.md) | 5-phase blast-radius defense (default-on) | All |
+| [Execution Sandbox Concept Guide](guides/EXECUTION_SANDBOX.md) | **NEW** - Deep dive: phases, config, tripwires | Security/Architects |
+| [Trust vs Sandbox](security/TRUST_VS_SANDBOX.md) | Why maturity routing ≠ security boundary | Architects |
+| [Prompt Injection Defense](security/PROMPT_INJECTION_DEFENSE_PLAN.md) | Defense plan (implemented) | Security |
+| [Data Protection](security/DATA_PROTECTION.md) | Fernet encryption, secrets, migration | Admins |
+| [Package Security](security/packages.md) | Python/npm scanning, sandbox controls | Devs |
+| [Webhook Verification](security/WEBHOOK_VERIFICATION.md) | Slack/Teams/Gmail signature verification | Devs |
+| [LLM Gateway Subscription Reuse](security/LLM_GATEWAY_SUBSCRIPTION_REUSE.md) | ChatGPT Plus / Claude Pro OAuth | Admins |
 
----
+### 🧠 Intelligence & Memory
 
-## 🔒 Security & Compliance
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Context Memory](architecture/CONTEXT_MEMORY.md) | Per-turn fact extraction, 2-tier recall | AI Engineers |
+| [Memory Systems Concept Guide](guides/MEMORY_SYSTEMS.md) | **NEW** - Three tiers, episodic, self-evolution | AI Engineers |
+| [Learning LLM Router](architecture/LEARNING_LLM_ROUTER.md) | Per-model predictors, feedback re-ranking | AI Engineers |
+| [Episodic Memory](intelligence/episodic-memory.md) | Agent learning framework | AI Engineers |
+| [GraphRAG](intelligence/graphrag.md) | Knowledge graph, entity extraction | AI Engineers |
+| [Cognitive Tier System](architecture/COGNITIVE_TIER_SYSTEM.md) | 5-tier LLM routing | AI Engineers |
+| [Arbor Framework](architecture/ARBOR_FRAMEWORK.md) | Hypothesis Tree Refinement (MCTS) | Researchers |
+| [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) | Offline trace analysis, auto-patches | Researchers |
+| [Hermes Comparison](architecture/HERMES_COMPARISON.md) | Atom vs Hermes — what we built/didn't | Architects |
 
-⚠️ **IMPORTANT**: Before contributing, read [CONTRIBUTING.md](../CONTRIBUTING.md#security-guidelines) for critical security guidelines.
+### 👥 Agent Systems & Orchestration
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [architecture/SANDBOX_LAYER.md](architecture/SANDBOX_LAYER.md) | **Execution Sandbox Layer** - 5-phase blast-radius defense (Rounds 43-47) | Jun 30, 2026 |
-| [security/TRUST_VS_SANDBOX.md](security/TRUST_VS_SANDBOX.md) | **Trust tier ≠ security boundary** - Why maturity routing needs a sandbox | Jun 27, 2026 |
-| [security/PROMPT_INJECTION_DEFENSE_PLAN.md](security/PROMPT_INJECTION_DEFENSE_PLAN.md) | **Prompt injection defense plan** - ✅ Implemented (Rounds 43-47) | Jun 30, 2026 |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | **Security guidelines** - NEVER commit .claude/, .env, secrets, credentials | Apr 23, 2026 |
-| [security/packages.md](security/packages.md) | Package security, Python package scanning, & vulnerability checks | July 19, 2026 |
-| [guides/ADMINISTRATORS/SECURITY_CONFIG.md](guides/ADMINISTRATORS/SECURITY_CONFIG.md) | Security configuration for administrators | - |
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Agent Overview](agents/overview.md) | System overview, intent classification | All |
+| [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) | **NEW** - Tier system, governance flow, graduation | All |
+| [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) | Structured workflow automation | Users/Admins |
+| [Queen vs Fleet Admiral](guides/QUEEN_VS_FLEET_ADMIRAL.md) | Which orchestrator to use | Architects |
+| [Fleet Admiral](agents/fleet-admiral.md) | Multi-agent fleet coordination | AI Engineers |
+| [Unstructured Tasks](agents/unstructured-tasks.md) | Intent classification & dynamic routing | AI Engineers |
+| [Agent Guidance System](agents/guidance-system.md) | Real-time operation tracking | Users |
+| [Agent Graduation](agents/agent-graduation.md) | Promotion criteria & validation | Admins |
+| [Student Training](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | Maturity system (STUDENT→AUTONOMOUS) | Architects |
 
----
+### 🔌 Integrations & LLM Providers
 
-## 🛒 Commercial Marketplace (atomagentos.com)
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [LLM Providers Guide](guides/LLM_PROVIDERS.md) | **NEW** - All providers, setup, costs | All |
+| [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) | **NEW** - Low-cost subscription gateway | Cost-conscious |
+| [Ollama Local LLM](getting_started/run-with-ollama.md) | Free local inference | Cost-conscious |
+| [BYOK Integration](integrations/community-skills.md) | Multi-provider LLM setup | Devs |
+| [Integrations Overview](integrations/OVERVIEW.md) | 46+ service integrations | Devs |
+| [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) | **NEW** Complete guide: 50+ native, OAuth, governance, webhooks, custom | Devs/Architects |
+| [Browser Automation](integrations/browser-automation.md) | Playwright CDP, INTERN+ required | Devs |
+| [Device Capabilities](guides/DEVICE_CAPABILITIES.md) | Camera, screen, location, exec | Devs |
+| [Deep Linking](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | `atom://` URLs for external apps | Devs |
+| [Marketplace](marketplace/connection.md) | Commercial marketplace (atomagentos.com) | Enterprise |
 
-⚠️ **Commercial Service:** The marketplace is a proprietary service requiring connection to atomagentos.com. See [LICENSE.md](../LICENSE.md#marketplace-commercial-appendix) for details.
+### 🎨 Canvas & Office Automation
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [marketplace/connection.md](marketplace/connection.md) | **✨ NEW: Marketplace connection guide** - Setup, configuration, troubleshooting | Apr 7, 2026 |
-| [GUIDES/MARKETPLACE_QUICKSTART.md](guides/MARKETPLACE_QUICKSTART.md) | **✨ NEW: Marketplace quick start - 5-minute setup** | Apr 10, 2026 |
-| [marketplace/canvas-components.md](marketplace/canvas-components.md) | **✨ NEW: Canvas component marketplace** - Browse, install, use components | Apr 7, 2026 |
-| [marketplace/domains.md](marketplace/domains.md) | **✨ NEW: Domain marketplace** - Specialist knowledge domains | Apr 7, 2026 |
-| [marketplace/skills.md](marketplace/skills.md) | **Skills marketplace** - Agent capabilities and integrations | Apr 6, 2026 |
-| [marketplace/analytics.md](marketplace/analytics.md) | Marketplace analytics and usage tracking | Apr 6, 2026 |
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Canvas System](canvas/README.md) | Presentations, charts, forms, **full CRUD + integration** | Users/Devs |
+| [Canvas Reference](canvas/reference.md) | Complete API reference, governance, WebSocket | Devs |
+| [Office Automation](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) | Word/Excel/PowerPoint co-editing | Users |
+| [Workbook Runtime](architecture/WORKBOOK_RUNTIME.md) | Excel formula evaluation engine | Devs |
+| [Mini-Apps Architecture](architecture/MINI_APPS.md) | Stateful canvas apps (agent-authored) | AI Engineers |
+| [Mini-Apps User Guide](guides/MINI_APPS_GUIDE.md) | Create, run, collaborate on mini-apps | Users/Devs |
+| [Canvas AI Accessibility](canvas/ai-accessibility.md) | Dual representation for agents | AI Engineers |
+| [Canvas State API](canvas/CANVAS_STATE_API.md) | JavaScript real-time state API | Frontend Devs |
+| [LLM Canvas Summaries](canvas/llm-summaries.md) | Semantic summaries for memory | AI Engineers |
 
----
+### 🔐 Authentication & Federation
 
-## 🌐 Community Skills & Package Support
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Authentication](api/AUTHENTICATION.md) | OAuth 2.0, sessions, validation | Devs |
+| [Federation](guides/FEDERATION_INSTANCE_IDENTITY.md) | DID/VC zero-trust multi-instance | Architects |
+| [OAuth Quick Setup](guides/OAUTH_QUICK_SETUP_GUIDE.md) | Provider OAuth in 5 minutes | Devs |
+| [OAuth Setup Checklist](guides/OAUTH_SETUP_CHECKLIST.md) | Complete OAuth configuration | Admins |
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
-| MARKETPLACE_CONNECTION_GUIDE.md | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
-| [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
-| [security/packages.md](security/packages.md) | **Package Governance & Security (Vulnerability scanning & sandbox controls)** | July 19, 2026 |
-| [NPM_PACKAGE_SUPPORT.md](security/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
-| [ADVANCED_SKILL_EXECUTION.md](integrations/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
-| SKILL_MARKETPLACE_GUIDE.md | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
-| SKILL_COMPOSITION_PATTERNS.md | DAG workflows and skill composition | Feb 19, 2026 |
-| [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
-| [ATOM_CLI_SKILLS_GUIDE.md](guides/ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
+### 📱 Mobile & Frontend
 
-## 🌐 Federation & Multi-Instance
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md) | React Native setup | Mobile Devs |
+| [Mobile Architecture](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) | Architecture overview | Mobile Devs |
+| [Mobile Secure Storage](mobile/src/storage/secureTokenStorage.ts) | Keychain/EncryptedSharedPreferences | Mobile Devs |
+| [Frontend XSS Protection](frontend-nextjs/lib/sanitize.ts) | DOMPurify sanitization | Frontend Devs |
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [GUIDES/FEDERATION_INSTANCE_IDENTITY.md](guides/FEDERATION_INSTANCE_IDENTITY.md) | **✨ NEW: Federation & Instance Identity - Multi-instance communication** | Apr 10, 2026 |
+### 🛠️ Development & Testing
 
----
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Development Setup](development/setup.md) | Venv, DB seeding, code style | Devs |
+| [Code Quality](backend/docs/CODE_QUALITY_STANDARDS.md) | Type hints, mypy, Google docstrings | Devs |
+| [E2E Testing Guide](testing/e2e-guide.md) | 486 tests, API-first auth, POM | QA/Devs |
+| [Testing Index](testing/index.md) | Unit, integration, E2E, bug discovery | Devs |
+| [Bug Discovery](testing/BUG_DISCOVERY_INFRASTRUCTURE.md) | Fuzzing, property-based, chaos | QA |
+| [Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
+| [API Standards](api/API_STANDARDS.md) | Response formats, error codes | Devs |
+| [Database Migrations](archive/legacy/DATABASE_MIGRATION_GUIDE.md) | Alembic + SQLite hybrid patterns | Devs |
 
-## 🔒 Security
+### 📊 Reference
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [AUTHENTICATION.md]# | **OAuth 2.0, session management, request validation** | Feb 6, 2026 |
-| [DATA_PROTECTION.md]# | **Fernet encryption, secrets management, migration** | Feb 6, 2026 |
-| [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) | **Slack, Teams, Gmail webhook signature verification** | Feb 6, 2026 |
-| [COMPLIANCE.md](security/COMPLIANCE.md) | GDPR, SOC2, HIPAA considerations | - |
-| [SECURITY_OVERVIEW.md](security/SECURITY_OVERVIEW.md) | Security architecture overview | - |
-
----
-
-## 🤖 Agent Systems
-
-### Core Agent Features
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) | Agent governance and learning integration | Feb 2, 2026 |
-| AGENT_GRADUATION_GUIDE.md | **Agent promotion criteria and validation** | Feb 3, 2026 |
-| [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
-| [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
-
-### Multi-Agent Coordination
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [QUEEN_AGENT.md](guides/QUEEN_AGENT_USER_GUIDE.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
-| [GUIDES/QUEEN_AGENT_USER_GUIDE.md](guides/QUEEN_AGENT_USER_GUIDE.md) | **✨ NEW: Queen Agent user guide - Blueprints, scheduling, monitoring** | Apr 10, 2026 |
-| [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
-| [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
-| [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
-| [GUIDES/QUEEN_VS_FLEET_ADMIRAL.md](guides/QUEEN_VS_FLEET_ADMIRAL.md) | **✨ NEW: Queen Agent vs Fleet Admiral - Which orchestrator to use?** | Apr 10, 2026 |
-| [GUIDES/AUTO_DEV_USER_GUIDE.md](guides/AUTO_DEV_USER_GUIDE.md) | **✨ Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
-| [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ NEW: Self-Evolution & Reflection Pool - Complete guide** | Apr 12, 2026 |
-
-### Intelligence & Learning Systems
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [ARBOR_FRAMEWORK.md](architecture/ARBOR_FRAMEWORK.md) | **✨ Arbor Framework - Hypothesis Tree Refinement (HTR)** - LLM code generation with tree search | Jun 18, 2026 |
-| [intelligence/overview.md](intelligence/overview.md) | **Intelligence systems overview** - Memory, knowledge, and reasoning | Apr 7, 2026 |
-| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory - Agent learning framework** | Feb 3, 2026 |
-| [architecture/CONTEXT_MEMORY.md](architecture/CONTEXT_MEMORY.md) | **Context Memory - Per-turn fact extraction** - Hermes-style durable-fact layer, two-tier recall, embedded LanceDB | Jun 24, 2026 |
-| [architecture/HERMES_COMPARISON.md](architecture/HERMES_COMPARISON.md) | **Atom vs. Hermes Agent** - Capability matrix, decision log, what was deliberately deferred | Jun 24, 2026 |
-| [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ Self-Evolution & Reflection Pool** - Critique-based learning and Auto-Dev | Apr 12, 2026 |
-| [intelligence/graphrag.md](intelligence/graphrag.md) | **GraphRAG & Entity Types** - Knowledge graph and entity extraction | Mar 24, 2026 |
-| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory, Embeddings & World Model** - Semantic memory & FastEmbed search | July 19, 2026 |
-| [intelligence/jit-facts.md](intelligence/jit-facts.md) | **JIT Fact Provision** - Real-time fact verification with citations | Apr 7, 2026 |
-| [intelligence/memory-integration.md](intelligence/memory-integration.md) | Memory integration guide | Feb 4, 2026 |
-| EPISODIC_MEMORY_QUICK_START.md | Episodic memory quick start guide | Feb 4, 2026 |
-| CANVAS_FEEDBACK_EPISODIC_MEMORY.md | **Canvas presentations in episodes** | Feb 4, 2026 |
-
----
-
-## 🎨 Canvas System
-
-### Core Canvas
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
-| CANVAS_QUICK_REFERENCE.md | Canvas types and usage | Feb 1, 2026 |
-| [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](archive/implementation/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
-| [MINI_APPS.md](architecture/MINI_APPS.md) | **Mini-Apps — stateful canvas apps** — agent-driven authoring, Firecracker microVM runtime, viewer-capped scopes, copy-on-install | Aug 6, 2026 |
-
-### Canvas AI & State
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [canvas/ai-accessibility.md](canvas/ai-accessibility.md) | **AI agent accessibility with dual representation** | Apr 2026 |
-| CANVAS_STATE_API.md | **JavaScript API for real-time canvas state** | Feb 2026 |
-| [canvas/llm-summaries.md](canvas/llm-summaries.md) | **LLM-powered semantic summaries** | Apr 2026 |
-
-### Canvas Collaboration
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [archive/COLLABORATION_PHASE_4_COMPLETE.md](archive/implementation/COLLABORATION_PHASE_4_COMPLETE.md) | Multi-agent canvas coordination | Feb 1, 2026 |
-| [CANVAS_RECORDING_IMPLEMENTATION.md](canvas/recording.md) | Canvas recording and replay | Feb 2, 2026 |
-| CANVAS_AGENT_LEARNING_INTEGRATION.md | Canvas and agent learning | Feb 2, 2026 |
+| Document | Description |
+|----------|-------------|
+| [Environment Variables](reference/ENVIRONMENT_VARIABLES.md) | **Complete** — every var, default, required |
+| [Routing Headers](reference/ROUTING_HEADERS.md) | `x-atom-*` header overrides |
+| [Routing Strategies](reference/ROUTING_STRATEGIES.md) | BPC, fusion, cascade, LKGP |
+| [API Overview](api/OVERVIEW.md) | All endpoints |
+| [API Contract Testing](api/API_CONTRACT_TESTING.md) | Schema validation |
+| [Technical Overview](reference/TECHNICAL_OVERVIEW.md) | High-level system design |
+| [Code Structure](reference/CODE_STRUCTURE_OVERVIEW.md) | Code organization |
+| [Database Architecture](reference/DATABASE_ARCHITECTURE.md) | Schema, relationships |
+| [Feature Matrix](reference/FEATURE_MATRIX.md) | Feature availability by tier |
 
 ---
 
-## 🔧 Integrations
+## 🔍 Discover by Topic
 
-### Integration Guides
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [API.md](api/OVERVIEW.md) | **Build custom integrations** | - |
-| [CONTRIBUTING_INTEGRATIONS.md]# | Integration contribution guide | - |
-| [BYOK_LLM_INTEGRATION_COMPLETE.md]# | **Multi-provider LLM setup** | Feb 5, 2026 |
+### LLM Configuration
+- [LLM Providers Guide](guides/LLM_PROVIDERS.md) — **Start here** for all provider setup
+- [OpenCode Go](guides/OPENCODE_GO_PROVIDER.md) — Low-cost subscription
+- [Ollama](getting_started/run-with-ollama.md) — Free local
+- [OpenRouter](integrations/community-skills.md) — Unified gateway
+- [Routing Headers](reference/ROUTING_HEADERS.md) — Per-request control
 
-### Workflow Automation
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [INTEGRATIONS.md](integrations/OVERVIEW.md) | **Complete workflow guide** | - |
-| [INTEGRATIONS.md](integrations/OVERVIEW.md) | AI-powered workflow optimization | - |
-| [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Track workflow performance | - |
-| MULTI_INTEGRATION_WORKFLOW_ENGINE.md | Multi-integration workflows | - |
+### Security Hardening
+- [Sandbox Layer](architecture/SANDBOX_LAYER.md) — Default-on blast radius
+- [Execution Sandbox Concept Guide](guides/EXECUTION_SANDBOX.md) — **NEW** Deep dive: phases, config, tripwires
+- [Trust vs Sandbox](security/TRUST_VS_SANDBOX.md) — Conceptual foundation
+- [Data Protection](security/DATA_PROTECTION.md) — Encryption at rest
+- [Package Security](security/packages.md) — Supply chain
 
----
+### Agent Maturity & Governance
+- [Agent Overview](agents/overview.md) — System + intent types
+- [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) — **NEW** Tier system, governance flow, graduation
+- [Agent Graduation](agents/agent-graduation.md) — Promotion criteria
+- [Governance Quick Ref](governance/GOVERNANCE_QUICK_REFERENCE.md) — Permissions matrix
 
-## 📱 Mobile
+### Memory & Context
+- [Context Memory](architecture/CONTEXT_MEMORY.md) — Per-turn facts + 2-tier recall
+- [Memory Systems Concept Guide](guides/MEMORY_SYSTEMS.md) — **NEW** Three tiers, episodic, self-evolution
+- [Episodic Memory](intelligence/episodic-memory.md) — Experience-driven learning
+- [GraphRAG](intelligence/graphrag.md) — Knowledge graph + entities
+- [Hermes Comparison](architecture/HERMES_COMPARISON.md) — Design decisions
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [REACT_NATIVE_ARCHITECTURE.md](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
-| [MOBILE_QUICK_START.md](archive/mobile/MOBILE_QUICK_START.md) | Mobile development quick start | Feb 1, 2026 |
-| [MOBILE_DEPLOYMENT.md](archive/mobile/MOBILE_DEPLOYMENT.md) | Mobile deployment guide | Feb 1, 2026 |
-| [archive/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md](archive/implementation/MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md) | Mobile screens implementation | Feb 5, 2026 |
+### Canvas & Office
+- [Office Automation](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — User guide
+- [Workbook Runtime](architecture/WORKBOOK_RUNTIME.md) — Engine internals
+- [Mini-Apps](architecture/MINI_APPS.md) — Agent-authored apps
+- [Canvas State API](canvas/CANVAS_STATE_API.md) — Frontend integration
 
----
-
-## 🌐 Browser & Device
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| BROWSER_AUTOMATION.md | **Browser automation (Playwright CDP)** | Jan 31, 2026 |
-| BROWSER_QUICK_START.md | Browser automation quick start | Jan 31, 2026 |
-| DEVICE_CAPABILITIES.md | **Camera, screen recording, location** | Feb 1, 2026 |
-| [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | **External app integration via atom:// URLs** | Feb 1, 2026 |
-
----
-
-## 📊 Data & Performance
-
-### Database
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [DATABASE_MIGRATION_GUIDE.md](archive/legacy/DATABASE_MIGRATION_GUIDE.md) | Database migration guide | Feb 4, 2026 |
-| DATABASE_MODEL_AUDIT.md | Database model audit | Feb 4, 2026 |
-| DATABASE_MODEL_BEST_PRACTICES.md | Database best practices | Feb 4, 2026 |
-
-### Performance
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| PERFORMANCE_MONITORING_SETUP.md | Performance monitoring setup | - |
-| [CODE_QUALITY_GUIDE.md](development/code-quality.md) | Code quality guidelines | Feb 4, 2026 |
-| [CODEBASE_HEALTH_CHECK.md](archive/legacy/CODEBASE_HEALTH_CHECK.md) | Codebase health check | Feb 3, 2026 |
+### Third-Party Integrations
+- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 50+ native services, OAuth, governance, webhooks, custom
+- [Integrations Overview](integrations/OVERVIEW.md) — Service catalog
+- [OAuth Quick Setup](guides/OAUTH_QUICK_SETUP_GUIDE.md) — 5-minute OAuth
+- [OAuth Setup Checklist](guides/OAUTH_SETUP_CHECKLIST.md) — Complete config
 
 ---
 
-## 🚢 Deployment
+## 🗂️ Archive (Legacy / Historical)
 
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [Production Readiness](operations/production-readiness.md) | **Production deployment checklist** | Feb 5, 2026 |
-| DEPLOYMENT_GUIDE.md | AWS, GCP, Azure deployment | - |
-| [PERSONAL_EDITION.md](operations/personal-edition.md) | Docker deployment guide | - |
+> These documents are retained for historical reference. Prefer the active docs above.
 
----
-
-## ✨ Phase 15: Production Readiness (Feb 16, 2026)
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [API_DOCUMENTATION.md](api/OVERVIEW.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
-| DEPLOYMENT_RUNBOOK.md | **Deployment procedures with rollback** | Feb 16, 2026 |
-| OPERATIONS_GUIDE.md | **Daily operations & common tasks** | Feb 16, 2026 |
-| TROUBLESHOOTING.md | **Production troubleshooting guide** | Feb 16, 2026 |
-| [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
-
-### Monitoring & Observability
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
-| HEALTH_MONITORING_SYSTEM.md | Health monitoring system | Feb 2, 2026 |
-| [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Monitoring guide | Feb 2, 2026 |
-
-### CI/CD Pipeline
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) | **CI/CD pipeline (test, build, deploy)** | Feb 16, 2026 |
-| [.github/workflows/ci.yml](../.github/workflows/ci.yml) | **CI pipeline with type checking** | Feb 16, 2026 |
-
----
-
----
-
-## 🧪 Testing
-
-### E2E Testing ✨ NEW (March 2026)
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [E2E_TESTING_GUIDE.md](testing/e2e-guide.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
-| [Phase 234: Authentication & Agent E2E](../.planning/phases/234-authentication-and-agent-e2e/) | **E2E test infrastructure (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08)** | Mar 24, 2026 |
-
-**E2E Test Infrastructure (Phase 234)**:
-- 91+ comprehensive E2E tests with Playwright Python 1.58.0
-- API-first authentication (10-100x faster than UI login)
-- Worker-based database isolation for parallel execution
-- Page Object Model for maintainable UI abstractions
-- Comprehensive fixture suite (auth, database, API, factory)
-- Tests complete in under 10 minutes with parallel execution
-
-### Bug Discovery ✨ NEW (March 2026)
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md]# | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
-| [docs/testing/BUG_DISCOVERY.md]# | **Bug discovery guide** | Mar 28, 2026 |
-| [Phase 237: Bug Discovery Infrastructure](../.planning/phases/237-bug-discovery-infrastructure-foundation/) | **Bug discovery foundation (fuzzing, property-based testing, chaos)** | Mar 24, 2026 |
-
-**Bug Discovery Features (Phase 237)**:
-- Automated fuzzing with atheris (coverage-guided fuzzing)
-- Mutation testing with mutmut for test quality validation
-- Property-based testing with Hypothesis framework (66+ invariants)
-- Chaos engineering with locust for load testing
-- Automated bug filing with GitHub Issues API integration
-- CI pipeline separation (fast PR tests <10min, weekly bug discovery ~2 hours)
-
-### Stress Testing ✨ NEW (March 2026)
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [Phase 236: Cross-Platform & Stress Testing](../.planning/phases/236-cross-platform-and-stress-testing/) | **Load testing, network simulation, cross-platform validation** | Mar 24, 2026 |
-
-**Stress Testing Features (Phase 236)**:
-- k6 load testing (10/50/100 concurrent users)
-- Network simulation (slow 3G, offline mode)
-- Failure injection (database drops, API timeouts)
-- Memory leak detection with CDP heap snapshots
-- Performance regression testing with Lighthouse CI
-- Cross-platform testing (mobile API-level, desktop Tauri)
-- Visual regression testing with Percy
-- Accessibility testing with jest-axe (WCAG 2.1 AA)
-
-### Test Quality & Standards
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [CODE_QUALITY_GUIDE.md](development/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
-| [CI_FIXES.md](archive/legacy/CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
-| TEST_RESULTS_FEB2026.md | Test results summary | Feb 2026 |
-| [FUNCTIONALITY_TEST.md](archive/legacy/FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
-
-**Test Suite Summary**:
-- 27,000+ test functions (unit, integration, E2E, bug discovery, regression)
-- Pass rate: targeted 100% before merge (CI-enforced)
-- ~17-27% overall line coverage (expanding; new code requires ≥70%)
-- 60-70% coverage for MCP service
-- <60min full suite execution time
-- <30s per test performance target
-
----
-
-## 📚 Reference
-
-### Architecture
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [ARCHITECTURE.md](architecture/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
-| CODE_STRUCTURE_OVERVIEW.md | Code structure overview | - |
-| [DATABASE_ARCHITECTURE.md](reference/DATABASE_ARCHITECTURE.md) | Database architecture | - |
-| [LLM_GATEWAY.md](architecture/LLM_GATEWAY.md) | OpenAI/Anthropic-compatible gateway over BYOK routing + subscription reuse | Aug 2, 2026 |
-
-### API Documentation
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| API_DOCUMENTATION_INDEX.md | **API documentation index** | Feb 4, 2026 |
-| API_STANDARDS.md | **API standards and conventions** | Feb 4, 2026 |
-| [API.md](api/OVERVIEW.md) | API reference | - |
-
-### Guides
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| USER_GUIDE.md | User guide | - |
-| USER_PERSONAS_AND_JOURNEYS.md | User personas and journeys | - |
-| MEMORY_INTEGRATION_GUIDE.md | Memory integration guide | - |
-| ERROR_HANDLING_GUIDELINES.md | Error handling guidelines | - |
-
----
-
-## 📋 Implementation History
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) | **Consolidated implementation timeline** | Feb 6, 2026 |
-| TASK_QUEUE_GUIDE.md | **Background task queue guide** | Feb 6, 2026 |
-
----
-
-## 🗄️ Archive
-
-### Archived Implementation Summaries (2026)
-- IMPLEMENTATION_SUMMARY.md - General implementation summary
-- IMPLEMENTATION_SUMMARY_FEB_2026.md - February 2026 summary
-- IMPLEMENTATION_PROGRESS.md - Implementation progress
-- IMPLEMENTATION_FIXES_FEB2026.md - February 2026 fixes
-- INCOMPLETE_IMPLEMENTATIONS_FIX_SUMMARY.md - Incomplete fixes summary
-
-### Archived Implementation Summaries (2025-12)
-- BROWSER_IMPLEMENTATION_SUMMARY.md - Browser automation implementation
-- DEVICE_WEBSOCKET_IMPLEMENTATION.md - Device WebSocket implementation
-- JAVASCRIPT_EXECUTION_IMPLEMENTATION.md - JavaScript execution implementation
-- MENUBAR_IMPLEMENTATION_SUMMARY.md - MenuBar implementation
-
-### Legacy Reports
-- [ATOM-Testing-Report.md](archive/legacy-reports/ATOM-Testing-Report.md) - Testing report
-- [analytics_dashboard_ui_verification_report.md](archive/legacy-reports/analytics_dashboard_ui_verification_report.md) - Analytics dashboard verification
-- [comprehensive_bug_analysis_and_fixes.md](archive/legacy-reports/comprehensive_bug_analysis_and_fixes.md) - Bug analysis
-- [comprehensive_workflow_engine_testing_report.md](archive/legacy-reports/comprehensive_workflow_engine_testing_report.md) - Workflow engine testing
-- [bug_fixes_and_improvements.md](archive/legacy-reports/bug_fixes_and_improvements.md) - Bug fixes
-- [final_workflow_engine_ui_testing_report.md](archive/legacy-reports/final_workflow_engine_ui_testing_report.md) - Final UI testing
-
-### Old Guides
-- [manual-testing-checklist.md](archive/old-guides/manual-testing-checklist.md) - Manual testing checklist
-- [IMMEDIATE_NEXT_STEPS.md](archive/old-guides/IMMEDIATE_NEXT_STEPS.md) - Immediate next steps
-- [missing_credentials_guide.md](archive/old-guides/missing_credentials_guide.md) - Legacy credentials guide
-- [FOCUSED_DEV_PLAN.md](archive/old-guides/FOCUSED_DEV_PLAN.md) - Development plan
-- [CHAT_INTERFACE_QUICK_START.md](archive/old-guides/CHAT_INTERFACE_QUICK_START.md) - Chat interface quick start
-- [TESTING-INSTRUCTIONS.md](archive/old-guides/TESTING-INSTRUCTIONS.md) - Testing instructions
-- phase24_quickstart.md - Phase 24 quick start
-- [ENHANCEMENT_NEXT_STEPS.md](archive/old-guides/ENHANCEMENT_NEXT_STEPS.md) - Enhancement next steps
-
-### Archive Index
-- INCOMPLETE_FIXES_COMPLETE.md - Incomplete fixes completion
-- INCOMPLETE_IMPLEMENTATION_FIX_SUMMARY.md - Implementation fix summary
-- INCOMPLETE_FIXES_SUMMARY.md - Fixes summary
-- TODO_FEATURES_IMPLEMENTATION_SUMMARY.md - TODO features implementation
-- TODO_FEATURES_QUICK_REFERENCE.md - TODO features reference
-
----
-
-## 🔍 Quick Find
-
-### By Topic
-
-**Security**:
-- [AUTHENTICATION.md]# - OAuth and session management
-- [DATA_PROTECTION.md]# - Encryption and secrets
-- [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security
-
-**Agent Systems**:
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity
-- [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Agent learning
-- [agents/guidance-system.md](agents/guidance-system.md) - Real-time guidance
-
-**Canvas**:
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
-- CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas in episodes
-
-**Integrations**:
-- [BYOK_LLM_INTEGRATION_COMPLETE.md]# - LLM providers
-- [INTEGRATIONS.md](integrations/OVERVIEW.md) - Workflows
-
-**Background Jobs**:
-- TASK_QUEUE_GUIDE.md - RQ and Redis setup
-
-### By Date (Most Recent)
-
-**February 2026**:
-- [COMMUNITY_SKILLS.md](integrations/community-skills.md) - **Community Skills Integration guide** (Feb 16)
-- [PERSONAL_EDITION.md](operations/personal-edition.md) - **Personal Edition guide** (Feb 16)
-- VECTOR_EMBEDDINGS.md - **Vector embeddings guide** (Feb 16)
-- [API_DOCUMENTATION.md](api/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
-- DEPLOYMENT_RUNBOOK.md - **Deployment runbook** (Feb 16)
-- OPERATIONS_GUIDE.md - **Operations guide** (Feb 16)
-- TROUBLESHOOTING.md - **Troubleshooting** (Feb 16)
-- [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
-- [CODE_QUALITY_STANDARDS.md](development/code-quality.md) - **Code quality** (Feb 16)
-- [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
-
-### Canvas & AI Features (Phase 20-23)
-- CANVAS_AI_ACCESSIBILITY.md - **AI agent accessibility with dual representation** (Feb 2026)
-- CANVAS_STATE_API.md - **JavaScript API for real-time canvas state** (Feb 2026)
-- LLM_CANVAS_SUMMARIES.md - **LLM-powered semantic summaries** (Feb 2026)
-
-### Core Development (Feb 6)
-- [DEVELOPMENT.md](development/overview.md) - Updated with security, testing, task queue (Feb 6)
-- [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
-- TASK_QUEUE_GUIDE.md - Background task queue (Feb 6)
-- [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
-- [AUTHENTICATION.md]# - Updated with validation (Feb 6)
-- [DATA_PROTECTION.md]# - Updated with encryption (Feb 6)
-- CANVAS_FEEDBACK_EPISODIC_MEMORY.md - Canvas integration (Feb 4)
-- [DATABASE_MIGRATION_GUIDE.md](archive/legacy/DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
-- EPISODIC_MEMORY_QUICK_START.md - Quick start (Feb 4)
-- AGENT_GRADUATION_GUIDE.md - Graduation criteria (Feb 3)
-- [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Memory framework (Feb 3)
-
-**January 2026**:
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
-- [agents/guidance-system.md](agents/guidance-system.md) - Agent guidance (Feb 2)
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
-- [DEEPLINK_IMPLEMENTATION.md](archive/legacy/DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
-- BROWSER_AUTOMATION.md - Browser automation (Jan 31)
-
----
-
-## 📖 Backend Documentation
-
-| Document | Description | Last Updated |
-|----------|-------------|--------------|
-| [INCOMPLETE_IMPLEMENTATIONS.md]# | **Recent fixes status (Feb 5, 2026)** | Feb 5, 2026 |
-| [Production Readiness](operations/production-readiness.md) | Production deployment | Feb 5, 2026 |
-| API_STANDARDS.md | API standards | Feb 4, 2026 |
-| [BYOK_LLM_INTEGRATION_COMPLETE.md]# | LLM integration | Feb 5, 2026 |
-| [FINAL_IMPLEMENTATION_SUMMARY.md]# | Final implementation summary | Feb 5, 2026 |
-| [API_DOCUMENTATION.md](api/OVERVIEW.md) | **Comprehensive API docs** | Feb 16, 2026 |
-| DEPLOYMENT_RUNBOOK.md | **Deployment runbook** | Feb 16, 2026 |
-| OPERATIONS_GUIDE.md | **Operations guide** | Feb 16, 2026 |
-| TROUBLESHOOTING.md | **Troubleshooting guide** | Feb 16, 2026 |
-| [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
-| [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
+| Document | Note |
+|----------|------|
+| [Implementation History](archive/legacy/IMPLEMENTATION_HISTORY.md) | Consolidated timeline |
+| [BYOK V6 Migration](architecture/BYOK_V6_MIGRATION_GUIDE.md) | Historical migration |
+| [Canvas Implementation](archive/implementation/CANVAS_IMPLEMENTATION_COMPLETE.md) | Historical |
+| [Old Guides](archive/old-guides/) | Superseded by current guides |
 
 ---
 
 ## 🔗 External References
 
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [React Documentation](https://react.dev/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Python Documentation](https://docs.python.org/3/)
-- [Redis Queue (RQ)](https://python-rq.org/)
-- [Playwright Documentation](https://playwright.dev/)
+- [FastAPI](https://fastapi.tiangolo.com/) — Web framework
+- [React](https://react.dev/) — Frontend library
+- [Next.js](https://nextjs.org/docs) — Frontend framework
+- [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/) — ORM
+- [LanceDB](https://lancedb.github.io/lancedb/) — Vector store
+- [Playwright](https://playwright.dev/) — Browser automation
+- [OpenCode](https://opencode.ai) — Low-cost LLM gateway
 
 ---
 
-**Need Help?**
-- Check [DEVELOPMENT.md](development/overview.md) for setup instructions
-- Review [SECURITY/AUTHENTICATION.md]# for authentication issues
-- See [IMPLEMENTATION_HISTORY.md](archive/legacy/IMPLEMENTATION_HISTORY.md) for recent changes
+## 🆘 Need Help?
 
-**Found an Issue?**
-- Report bugs on GitHub
-- Contribute improvements via pull requests
-- Update documentation to keep it current
+1. **Setup issues** → [Troubleshooting](getting_started/TROUBLESHOOTING.md)
+2. **Auth problems** → [Authentication](api/AUTHENTICATION.md)
+3. **LLM not working** → [LLM Providers Guide](guides/LLM_PROVIDERS.md)
+4. **Agent not executing** → [Agent Overview](agents/overview.md) + [Governance](governance/GOVERNANCE_QUICK_REFERENCE.md)
+5. **Performance** → [Monitoring](operations/monitoring.md) + [Performance](operations/performance.md)
+
+**Found an issue?** Report on GitHub or contribute via PR.  
+**Keep docs current** — update when you change behavior.
+
+---
+
+*Last Updated: August 2026*

@@ -22,11 +22,13 @@ def _sanitize_csv_cell(value: object) -> object:
     """Neutralize CSV-injection payloads in a cell value.
 
     - Strings beginning with = + - @ or containing tab/CR are prefixed with a single quote.
+    - Leading whitespace before a prefix is also neutralized (spreadsheet apps
+      trim leading whitespace on import, re-exposing the formula).
     - Non-string values (numbers, None) are returned unchanged.
     """
     if not isinstance(value, str):
         return value
-    if value.startswith(_CSV_INJECTION_PREFIXES):
+    if value.lstrip().startswith(_CSV_INJECTION_PREFIXES):
         return "'" + value
     return value
 

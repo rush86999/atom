@@ -233,10 +233,12 @@ async def mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
             "state_changed": bool(result.get("state_changed", False)),
             "proposed_ops": result.get("proposed_ops") or [],
             "op_results": result.get("op_results") or [],
+            "proposed_record_ops": result.get("proposed_record_ops") or [],
+            "record_results": result.get("record_results") or [],
             "stdout": result.get("stdout", ""),
             "stderr": result.get("stderr", ""),
             "exit_code": result.get("exit_code", 0),
-            "message": "dev-run completed (dry — no state/storage committed)",
+            "message": "dev-run completed (dry — no state/storage/records committed)",
         }
     except RuntimeError as e:
         return {"success": False, "error": str(e)}
@@ -297,6 +299,13 @@ async def mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
             app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
             if app is None:
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
+            # Gap A fix: install requires owner OR (is_public AND is_approved).
+            is_owner = str(app.created_by) == str(viewer.id)
+            installable = bool(app.is_public) and bool(getattr(app, "is_approved", False))
+            if not (is_owner or installable):
+                if bool(app.is_public) and not bool(getattr(app, "is_approved", False)):
+                    return {"success": False, "error": "App is pending review"}
+                return {"success": False, "error": "Not authorized to install this app"}
             canvas_id = install(app, viewer, db)
         return {
             "success": True,
@@ -589,3 +598,176 @@ async def mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_status failed: %s", e)
         return {"success": False, "error": "Mini-app status probe failed"}
+
+
+# ---------------------------------------------------------------------------
+# Mini-app DB store — agent access to instance record data.
+#   mini_app_db_query  — read-only (query/count/get/list_series), INTERN+
+#   mini_app_db_write  — mutations (append/update/update_many/delete/
+#                        delete_series/clear), SUPERVISED+
+# Owner-gated (canvas or app owner); identity always from context. The same
+# host-validated op shape as the microVM record_ops envelope, so agents and
+# app logic speak one vocabulary.
+# ---------------------------------------------------------------------------
+_TIER_RANK = {"student": 0, "intern": 1, "supervised": 2, "autonomous": 3}
+
+
+def _context_tier(context: Dict[str, Any]) -> str:
+    """The operating agent's tier (fail-closed: unknown → 'student')."""
+    tier = (context or {}).get("tier")
+    if tier is None:
+        tier = getattr(_viewer(context), "tier", None)
+    return str(tier or "student").lower()
+
+
+def _require_tier(context: Dict[str, Any], minimum: str) -> Optional[str]:
+    if _TIER_RANK.get(_context_tier(context), 0) < _TIER_RANK.get(minimum, 0):
+        return f"Requires {minimum.upper()}+ maturity tier"
+    return None
+
+
+def _resolve_record_target(db: Any, viewer: Any, canvas_id: str) -> Any:
+    """Resolve + owner-gate the instance canvas; return the Canvas row or None."""
+    from core.models import Canvas, MiniApp
+
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        return None
+    if not canvas.mini_app_id:
+        return None
+    app = db.query(MiniApp).filter(MiniApp.id == canvas.mini_app_id).first()
+    is_owner = str(canvas.created_by) == str(viewer.id) or (
+        app is not None and str(app.created_by) == str(viewer.id)
+    )
+    if not is_owner:
+        return None
+    return canvas
+
+
+_QUERY_OPS = {"query", "count", "get", "list_series"}
+_WRITE_OPS = {"append", "update", "update_many", "delete", "delete_series", "clear"}
+
+
+async def mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Read records of a mini-app instance (query/count/get/list_series)."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    canvas_id = args.get("canvas_id")
+    op = args.get("op") or "query"
+    if not canvas_id:
+        return {"success": False, "error": "canvas_id is required"}
+    if op not in _QUERY_OPS:
+        return {"success": False, "error": f"op must be one of {sorted(_QUERY_OPS)}"}
+    tier_err = _require_tier(context, "intern")
+    if tier_err:
+        return {"success": False, "error": tier_err}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_db_service import db_store_enabled, get_record, list_series
+        from core.mini_app_db_service import query_records, count_records
+
+        if not db_store_enabled():
+            return {"success": False, "error": "db_disabled"}
+        with get_db_session() as db:
+            canvas = _resolve_record_target(db, viewer, canvas_id)
+            if canvas is None:
+                return {"success": False, "error": "Mini-app instance not found or not owned"}
+            series = args.get("series")
+            if op != "list_series":
+                from core.mini_app_db_service import validate_series
+
+                if validate_series(series) is None:
+                    return {"success": False, "error": "series must match ^[a-z0-9_]{1,64}$"}
+            if op == "query":
+                f = args.get("filter") or {}
+                from core.mini_app_db_service import validate_filter
+
+                if not validate_filter(f):
+                    return {"success": False, "error": "filter must be an object of scalar values"}
+                limit = int(args.get("limit", 100))
+                order = args.get("order", "desc")
+                if not (1 <= limit <= 10000) or order not in {"asc", "desc"}:
+                    return {"success": False, "error": "limit must be 1..10000 and order asc|desc"}
+                rows = query_records(db, canvas.id, series, f=f, limit=limit, order=order)
+                return {"success": True, "records": rows, "count": len(rows)}
+            if op == "count":
+                f = args.get("filter") or {}
+                from core.mini_app_db_service import validate_filter
+
+                if not validate_filter(f):
+                    return {"success": False, "error": "filter must be an object of scalar values"}
+                return {"success": True, "count": count_records(db, canvas.id, series=series, f=f)}
+            if op == "get":
+                rid = args.get("record_id")
+                if not rid:
+                    return {"success": False, "error": "record_id is required"}
+                row = get_record(db, canvas.id, series, rid)
+                if row is None:
+                    return {"success": False, "error": "record not found"}
+                return {"success": True, "record": row}
+            return {"success": True, "series": list_series(db, canvas.id)}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_db_query failed: %s", e)
+        return {"success": False, "error": "Mini-app record query failed"}
+
+
+async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Mutate records of a mini-app instance (append/update/delete/clear)."""
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _auth_error()
+    canvas_id = args.get("canvas_id")
+    op = args.get("op")
+    if not canvas_id:
+        return {"success": False, "error": "canvas_id is required"}
+    if op not in _WRITE_OPS:
+        return {"success": False, "error": f"op must be one of {sorted(_WRITE_OPS)}"}
+    tier_err = _require_tier(context, "supervised")
+    if tier_err:
+        return {"success": False, "error": tier_err}
+    try:
+        from core.database import get_db_session
+        from core.mini_app_db_service import db_store_enabled, validate_series
+
+        if not db_store_enabled():
+            return {"success": False, "error": "db_disabled"}
+        with get_db_session() as db:
+            canvas = _resolve_record_target(db, viewer, canvas_id)
+            if canvas is None:
+                return {"success": False, "error": "Mini-app instance not found or not owned"}
+            from core.models import MiniApp
+
+            app = db.query(MiniApp).filter(MiniApp.id == canvas.mini_app_id).first()
+            if app is None:
+                return {"success": False, "error": "Mini-app instance not found or not owned"}
+            series = args.get("series")
+            if op != "clear" and validate_series(series) is None:
+                return {"success": False, "error": "series must match ^[a-z0-9_]{1,64}$"}
+            from core.mini_app_service import _validate_record_op
+            from core.mini_app_db_service import DEFAULT_MAX_RECORD_BYTES
+
+            manifest = (app.manifest or {}) if app is not None else {}
+            db_cfg = manifest.get("db") or {}
+            if not bool(db_cfg.get("enabled", True)):
+                return {"success": False, "error": "db_disabled"}
+            max_bytes = db_cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
+            op_args: Dict[str, Any] = {"op": op, "series": series}
+            if op in {"append", "update", "update_many"}:
+                op_args["data"] = args.get("data")
+            if op in {"append", "update", "delete"}:
+                op_args["id"] = args.get("record_id")
+            if op in {"update_many", "query", "count"}:
+                op_args["filter"] = args.get("filter") or {}
+            if op == "append":
+                op_args["id"] = args.get("id")
+            valid = _validate_record_op(op_args, max_bytes)
+            if valid is None:
+                return {"success": False, "error": "invalid record op (bad data/series/filter shape)"}
+            from core.mini_app_service import _execute_record_op
+
+            result = _execute_record_op(valid, db, canvas, app, created_by=viewer.id)
+            return {"success": bool(result.get("ok")), **result}
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_db_write failed: %s", e)
+        return {"success": False, "error": "Mini-app record write failed"}

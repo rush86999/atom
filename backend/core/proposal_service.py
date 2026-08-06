@@ -109,8 +109,8 @@ class ProposalService:
                 candidates_block += "\n**Per-field confidence:**\n" + "\n".join(pf_lines)
 
         proposal = AgentProposal(
-            tenant_id=getattr(agent, 'tenant_id', 'default'),
-            user_id=getattr(agent, 'user_id', 'system'),
+            tenant_id=getattr(agent, 'tenant_id', None) or 'default',
+            user_id=getattr(agent, 'user_id', None) or 'system',
             agent_id=agent.id,
             agent_name=agent_name, # Added agent_name
             canvas_id=canvas_id,
@@ -280,6 +280,14 @@ Please review and approve or reject this proposal.
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
 
+        # Guard the state machine like approve_proposal does: a proposal that
+        # was already approved/executed must not be flipped to REJECTED — that
+        # would rewrite the audit trail of an action that already ran.
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
+            raise ValueError(
+                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
+            )
+
         proposal.status = ProposalStatus.REJECTED.value
         proposal.approved_by = user_id
         proposal.approved_at = datetime.now()
@@ -375,15 +383,16 @@ Please review and approve or reject this proposal.
         self, proposal: AgentProposal, action: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute using a prepared action dict (Bug 12 — avoids mutating the
-        proposal row before execution). Falls back to proposal.proposed_action."""
+        proposal row before execution). Falls back to proposal.proposed_action.
+        Note: ``proposed_action`` is a read-only property on the model — swap
+        the underlying ``proposal_data`` column instead."""
         if action is not None:
-            # Temporarily swap so _execute_proposed_action uses the prepared copy.
-            _original = proposal.proposed_action
-            proposal.proposed_action = action
+            _original = proposal.proposal_data
+            proposal.proposal_data = action
             try:
                 return await self._execute_proposed_action(proposal)
             finally:
-                proposal.proposed_action = _original
+                proposal.proposal_data = _original
         return await self._execute_proposed_action(proposal)
 
     async def _execute_proposed_action(

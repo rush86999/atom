@@ -30,7 +30,7 @@ jest.mock('expo-constants', () => ({
 }));
 
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import { Text, View, Pressable } from 'react-native';
 
@@ -850,9 +850,7 @@ describe('Logout', () => {
     jest.clearAllMocks();
 
     // Trigger logout
-    act(() => {
-      getByTestId('logoutButton').props.onPress();
-    });
+    fireEvent.press(getByTestId('logoutButton'));
 
     await waitFor(() => {
       expect(getByTestId('authStatus').props.children).toBe('not authenticated');
@@ -1015,7 +1013,7 @@ describe('Device Registration', () => {
 
     (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(mockAccessToken);
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
         device_id: deviceId,
@@ -1023,7 +1021,7 @@ describe('Device Registration', () => {
     });
 
     const DeviceComponent = () => {
-      const { registerDevice } = useAuth();
+      const { registerDevice, deviceInfo } = useAuth();
       const [result, setResult] = React.useState<{ success: boolean; deviceId?: string; error?: string } | null>(null);
       const [registerAttempted, setRegisterAttempted] = React.useState(false);
 
@@ -1034,10 +1032,10 @@ describe('Device Registration', () => {
       };
 
       React.useEffect(() => {
-        if (!registerAttempted) {
+        if (!registerAttempted && deviceInfo) {
           handleRegister();
         }
-      }, [registerAttempted]);
+      }, [registerAttempted, deviceInfo]);
 
       return <Text testID="registerResult">{result ? JSON.stringify(result) : 'waiting'}</Text>;
     };
@@ -1066,7 +1064,7 @@ describe('Device Registration', () => {
       })
     );
 
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('atom_device_id', deviceId);
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('atom_device_id', deviceId, expect.any(Object));
   });
 
   test('should fail device registration when not authenticated', async () => {

@@ -72,8 +72,9 @@ class ScalingProposal(BaseModel):
     proposed_fleet_size: int = Field(ge=1)
     reason: str
     metrics: Dict[str, float] = Field(default_factory=dict)
-    cost_estimate: float = Field(ge=0.0)
-    duration_hours: float = Field(ge=0.0)
+    # Negative cost_estimate means savings (contraction proposals)
+    cost_estimate: float = Field(default=0.0)
+    duration_hours: float = Field(default=0.0)
     status: ScalingProposalStatus = ScalingProposalStatus.PENDING
     expires_at: datetime
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -641,7 +642,8 @@ class ScalingProposalService:
             model = ScalingProposalRecord(
                 id=proposal.id,
                 chain_id=proposal.chain_id,
-                                proposal_type=proposal.proposal_type.value if hasattr(proposal.proposal_type, 'value') else proposal.proposal_type,
+                tenant_id="default",
+                proposal_type=proposal.proposal_type.value if hasattr(proposal.proposal_type, 'value') else proposal.proposal_type,
                 current_agents=proposal.current_fleet_size,
                 proposed_agents=proposal.proposed_fleet_size,
                 reason=proposal.reason,
@@ -688,7 +690,7 @@ class ScalingProposalService:
             List of pending ScalingProposal objects
         """
         models = self.db.query(ScalingProposalRecord).filter(
-            ScalingProposalRecord.            ScalingProposalRecord.status == 'pending'
+            ScalingProposalRecord.status == 'pending'
         ).all()
 
         return [self._model_to_proposal(m) for m in models]
@@ -746,7 +748,10 @@ class ScalingProposalService:
         if model.status != 'pending':
             raise ValueError(f"Proposal {proposal_id} is not pending (status: {model.status})")
 
-        if datetime.now(timezone.utc) > model.expires_at:
+        expires_at = model.expires_at
+        if expires_at is not None and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at is not None and datetime.now(timezone.utc) > expires_at:
             model.status = 'expired'
             self.db.commit()
             raise ValueError(f"Proposal {proposal_id} has expired")

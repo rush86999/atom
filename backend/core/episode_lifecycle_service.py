@@ -139,6 +139,7 @@ class EpisodeLifecycleService:
                     for child_id, similarity in similar_episode_ids:
                         child_episode = self.db.query(Episode).filter(
                             Episode.id == child_id,
+                            Episode.agent_id == agent_id,
                             Episode.consolidated_into.is_(None)  # Not already consolidated
                         ).first()
 

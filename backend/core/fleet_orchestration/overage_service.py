@@ -104,18 +104,20 @@ class OverageService:
         # Cancel any existing active overages for this chain
         self.db.query(FleetOverage).filter(
             FleetOverage.chain_id == chain_id,
-            FleetOverage.status == "active"
-        ).update({"status": "cancelled"})
+            FleetOverage.is_active == True
+        ).update({"is_active": False})
 
         # Create new overage record
         overage = FleetOverage(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             chain_id=chain_id,
-                        approved_size=proposed_size,
             base_limit=base_limit,
+            temporary_limit=proposed_size,
+            current_size=0,
+            is_active=True,
             expires_at=expires_at,
-            approved_by=user_id,
-            status="active"
+            approved_by=user_id
         )
         self.db.add(overage)
         self.db.flush()
@@ -155,17 +157,17 @@ class OverageService:
         # Check for active overage first
         active_overage = self.db.query(FleetOverage).filter(
             FleetOverage.chain_id == chain_id,
-            FleetOverage.status == "active",
+            FleetOverage.is_active == True,
             FleetOverage.expires_at > datetime.now(timezone.utc)
         ).first()
 
         if active_overage:
             logger.info(
                 f"Active overage for chain {chain_id}: "
-                f"{active_overage.base_limit} -> {active_overage.approved_size} "
+                f"{active_overage.base_limit} -> {active_overage.temporary_limit} "
                 f"until {active_overage.expires_at}"
             )
-            return active_overage.approved_size
+            return active_overage.temporary_limit
 
         # No active overage - return base plan limit
         chain = self.db.query(DelegationChain).filter(
@@ -184,7 +186,7 @@ class OverageService:
         """Get active overage for chain, if any."""
         return self.db.query(FleetOverage).filter(
             FleetOverage.chain_id == chain_id,
-            FleetOverage.status == "active",
+            FleetOverage.is_active == True,
             FleetOverage.expires_at > datetime.now(timezone.utc)
         ).first()
 
@@ -205,7 +207,7 @@ class OverageService:
         # Find expired active overages
         expired_overages = self.db.query(FleetOverage).filter(
             FleetOverage.chain_id == chain_id,
-            FleetOverage.status == "active",
+            FleetOverage.is_active == True,
             FleetOverage.expires_at <= now
         ).all()
 
@@ -214,10 +216,10 @@ class OverageService:
 
         # Mark as expired
         for overage in expired_overages:
-            overage.status = "expired"
+            overage.is_active = False
             logger.info(
                 f"Fleet overage {overage.id} expired for chain {chain_id}. "
-                f"Limit returns to {overage.base_limit} from {overage.approved_size}"
+                f"Limit returns to {overage.base_limit} from {overage.temporary_limit}"
             )
 
         self.db.flush()
@@ -228,7 +230,7 @@ class OverageService:
                 expired_overages[0].tenant_id,
                 chain_id,
                 expired_overages[0].base_limit,
-                expired_overages[0].approved_size
+                expired_overages[0].temporary_limit
             )
 
         return True
@@ -246,7 +248,7 @@ class OverageService:
         threshold_time = datetime.now(timezone.utc) + timedelta(hours=hours_threshold)
 
         return self.db.query(FleetOverage).filter(
-            FleetOverage.status == "active",
+            FleetOverage.is_active == True,
             FleetOverage.expires_at <= threshold_time,
             FleetOverage.expires_at > datetime.now(timezone.utc)
         ).all()
@@ -292,7 +294,7 @@ To extend, please submit a new scaling proposal before expiration.""",
             # Get tenant owner for notification
             from core.models import User
             owner = self.db.query(User).filter(
-                User.                User.role == "admin"
+                User.role == "admin"
             ).first()
 
             if owner:

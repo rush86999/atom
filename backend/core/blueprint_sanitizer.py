@@ -21,9 +21,12 @@ from typing import Any
 
 # Denylist of credential-bearing dict keys, case-insensitive. Matches the key
 # shapes the credential vault redacts (api_key, access/refresh token, secret,
-# password) so export/publish/fork behaves consistently.
+# password) plus the common token/key variants (auth_token, apikey,
+# x-api-key, private_key, bearer_token, Authorization) so export/publish/fork
+# behaves consistently and does not leak credentials under renamed keys.
 _CREDENTIAL_KEY_RE = re.compile(
-    r"(api_key|access_token|refresh_token|secret|password)",
+    r"(api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|"
+    r"bot[_-]?token|bearer[_-]?token|token|private[_-]?key|secret|password|authorization)",
     re.IGNORECASE,
 )
 

@@ -101,8 +101,12 @@ export const ChatTabScreen = () => {
     try {
       const token = await secureGet('atom_access_token');
       setAccessToken(token);
+      if (!token) {
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Failed to load token:', error);
+      setIsLoading(false);
     }
   };
 
@@ -328,7 +332,11 @@ export const ChatTabScreen = () => {
 
       {/* Floating Action Button */}
       {conversations.length > 0 && (
-        <TouchableOpacity style={styles.fab} onPress={startNewConversation}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={startNewConversation}
+          testID="fab-start-conversation"
+        >
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
       )}

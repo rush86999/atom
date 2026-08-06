@@ -477,6 +477,15 @@ class PolicyIssuer:
         ctx = context or {}
         args_hash = self._hash_args(args)
 
+        if not sandbox_config.is_sandbox_enabled():
+            return SandboxDecision(
+                decision=ALLOWED,
+                phase=phase,
+                tool_name=tool_name,
+                args_hash=args_hash,
+                metadata_json={"reason": "sandbox_disabled"},
+            )
+
         # Phase A: tool whitelist only. (Phase B/C/D/E add their own checks
         # in their respective modules and call this for the audit row.)
         if not policy.tool_allowed(tool_name):

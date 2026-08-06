@@ -449,10 +449,16 @@ global.console = {
 };
 
 // Mock custom useToast hook
+// NOTE: the toast/dismiss fns MUST be stable module-level instances. A fresh
+// jest.fn() per useToast() call changes the `toast` identity on every render,
+// which breaks useCallback deps (e.g. [toast]) in components and can cause
+// infinite effect→fetch→setState→effect loops (SlackIntegration regression).
+const mockToastFn = jest.fn();
+const mockDismissFn = jest.fn();
 jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn(),
-    dismiss: jest.fn(),
+    toast: mockToastFn,
+    dismiss: mockDismissFn,
     toasts: [],
   }),
   ToastProvider: ({ children }: { children: any }) => children,

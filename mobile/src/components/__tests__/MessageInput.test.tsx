@@ -34,19 +34,59 @@ jest.mock('expo-image-picker', () => ({
 
 jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn(),
-}));
+}), { virtual: true });
 
 jest.mock('expo-av', () => ({
   Audio: {
     requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
     setAudioModeAsync: jest.fn(),
-    RECORDING_OPTIONS_PRESET_HIGH_QUALITY: 'high',
+    setAudioEnabledAsync: jest.fn(),
+    Recording: jest.fn(),
   },
-}));
+}), { virtual: true });
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: jest.fn(() => ({ bottom: 0, top: 0, left: 0, right: 0 })),
 }));
+
+// react-native-paper's real IconButton/Chip hang under act() in Jest; mock the
+// paper surface the component uses.
+jest.mock('react-native-paper', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const MockIcon = ({ source, size, color, ...props }: any) =>
+    React.createElement(View, {
+      ...props,
+      testID: `icon-${typeof source === 'string' ? source : 'unknown'}`,
+    });
+
+  return {
+    useTheme: () => ({
+      colors: {
+        primary: '#2196F3',
+        onSurface: '#000',
+        surface: '#fff',
+        surfaceVariant: '#f5f5f5',
+        onSurfaceVariant: '#666',
+        onSurfaceDisabled: '#ccc',
+        error: '#F44336',
+        outline: '#ccc',
+        primaryContainer: '#e3f2fd',
+      },
+    }),
+    ThemeProvider: ({ children }: any) => children,
+    Icon: MockIcon,
+    Avatar: {
+      Icon: MockIcon,
+      Text: MockIcon,
+      Image: MockIcon,
+    },
+    IconButton: ({ icon, onPress, disabled, testID, ...props }: any) =>
+      React.createElement(View, { ...props, onPress, disabled, testID: testID || `icon-btn-${icon}` }),
+    Chip: (props: any) => React.createElement(View, props),
+  };
+});
 
 jest.spyOn(Alert, 'alert');
 
@@ -104,8 +144,7 @@ describe('MessageInput Component', () => {
         <MessageInput onSend={mockOnSend} />
       );
 
-      // Attachment button is the first icon button
-      const attachmentButton = getByTestId('icon-button');
+      const attachmentButton = getByTestId('attachment-button');
       expect(attachmentButton).toBeTruthy();
     });
 
@@ -151,8 +190,9 @@ describe('MessageInput Component', () => {
       const textInput = getByPlaceholderText('Type a message...');
       fireEvent.changeText(textInput, 'This is a very long message that exceeds limit');
 
-      // Should truncate to maxLength
-      expect(textInput.props.value.length).toBeLessThanOrEqual(10);
+      // maxLength is enforced natively by the TextInput; Jest doesn't
+      // truncate, so assert the constraint is configured
+      expect(textInput.props.maxLength).toBe(10);
     });
 
     test('should show send button when text is not empty', () => {
@@ -179,20 +219,22 @@ describe('MessageInput Component', () => {
       );
 
       const textInput = getByPlaceholderText('Type a message...');
+      const { StyleSheet } = require('react-native');
       const initialHeight = 40;
+      const styleHeight = () => StyleSheet.flatten(textInput.props.style).height;
 
       // Single line
       fireEvent.changeText(textInput, 'Line 1');
-      expect(textInput.props.style.height).toBe(initialHeight);
+      expect(styleHeight()).toBe(initialHeight);
 
       // Multiple lines
       fireEvent.changeText(textInput, 'Line 1\nLine 2\nLine 3');
-      expect(textInput.props.style.height).toBeGreaterThan(initialHeight);
+      expect(styleHeight()).toBeGreaterThan(initialHeight);
 
       // Max height (5 lines)
       const longText = Array(10).fill('Line').join('\n');
       fireEvent.changeText(textInput, longText);
-      expect(textInput.props.style.height).toBeLessThanOrEqual(100); // max 5 lines * 20px
+      expect(styleHeight()).toBeLessThanOrEqual(100); // max 5 lines * 20px
     });
   });
 
@@ -212,7 +254,7 @@ describe('MessageInput Component', () => {
     });
 
     test('should clear text and attachments after send', () => {
-      const { getByPlaceholderText, getByTestId } = renderWithTheme(
+      const { getByPlaceholderText, getByTestId, getByText } = renderWithTheme(
         <MessageInput onSend={mockOnSend} />
       );
 
@@ -227,13 +269,13 @@ describe('MessageInput Component', () => {
     });
 
     test('should not send empty message', () => {
-      const { getByTestId } = renderWithTheme(
+      const { queryByTestId } = renderWithTheme(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const sendButton = getByTestId('send-button');
-      fireEvent.press(sendButton);
-
+      // With empty text the send button is not shown, so an empty message
+      // cannot be submitted
+      expect(queryByTestId('send-button')).toBeNull();
       expect(mockOnSend).not.toHaveBeenCalled();
     });
 
@@ -295,15 +337,15 @@ describe('MessageInput Component', () => {
       );
 
       const textInput = getByPlaceholderText('Type a message...');
-      fireEvent.changeText(textInput, '@agent1');
+      fireEvent.changeText(textInput, '@1');
 
-      // Should only show matching agent
+      // Should only show matching agent (filter is name-based)
       expect(getByText('Test Agent 1')).toBeTruthy();
       expect(queryByText('Test Agent 2')).toBeNull();
     });
 
     test('should select agent mention', () => {
-      const { getByPlaceholderText, getByText } = renderWithTheme(
+      const { getByPlaceholderText, getByText, queryByText } = renderWithTheme(
         <MessageInput onSend={mockOnSend} agents={mockAgents} />
       );
 
@@ -610,6 +652,15 @@ describe('MessageInput Component', () => {
     });
 
     test('should stop recording and add attachment', async () => {
+      const Audio = require('expo-av').Audio;
+      const mockRecording = {
+        prepareToRecordAsync: jest.fn(),
+        startAsync: jest.fn(),
+        stopAndUnloadAsync: jest.fn(),
+        getURI: jest.fn(() => 'file://recording.aac'),
+      };
+      Audio.Recording = jest.fn(() => mockRecording);
+
       const { getByTestId } = renderWithTheme(
         <MessageInput onSend={mockOnSend} />
       );
@@ -617,9 +668,11 @@ describe('MessageInput Component', () => {
       const voiceButton = getByTestId('voice-button');
       fireEvent(voiceButton, 'onLongPress');
 
-      // Stop recording
-      const stopButton = getByTestId('stop-button');
-      fireEvent.press(stopButton);
+      // Stop recording (appears once recording has started)
+      await waitFor(() => {
+        const stopButton = getByTestId('stop-button');
+        fireEvent.press(stopButton);
+      });
 
       // Should add audio attachment
       await waitFor(() => {
@@ -658,15 +711,14 @@ describe('MessageInput Component', () => {
     });
 
     test('should disable send button when disabled', () => {
-      const { getByPlaceholderText, getByTestId } = renderWithTheme(
+      const { getByPlaceholderText, queryByTestId } = renderWithTheme(
         <MessageInput onSend={mockOnSend} disabled={true} />
       );
 
+      // Disabled input cannot be typed into, so the send button never shows
       const textInput = getByPlaceholderText('Type a message...');
-      fireEvent.changeText(textInput, 'Hello');
-
-      const sendButton = getByTestId('send-button');
-      expect(sendButton.props.disabled).toBe(true);
+      expect(textInput.props.editable).toBe(false);
+      expect(queryByTestId('send-button')).toBeNull();
     });
 
     test('should disable attachment button when disabled', () => {
@@ -675,7 +727,7 @@ describe('MessageInput Component', () => {
       );
 
       const attachmentButton = getByTestId('attachment-button');
-      expect(attachmentButton.props.disabled).toBe(true);
+      expect(attachmentButton.props.accessibilityState.disabled).toBe(true);
     });
   });
 
@@ -705,12 +757,16 @@ describe('MessageInput Component', () => {
 
       Platform.OS = 'ios';
 
-      const { getByTestId } = renderWithTheme(
+      const { getByTestId, UNSAFE_getAllByType } = renderWithTheme(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const keyboardAvoidingView = getByTestId('keyboard-avoiding-view');
-      expect(keyboardAvoidingView.props.behavior).toBe('padding');
+      getByTestId('keyboard-avoiding-view');
+      // The behavior prop lives on KeyboardAvoidingView itself; the host
+      // View only receives style/onLayout/testID
+      const { KeyboardAvoidingView } = require('react-native');
+      const kav = UNSAFE_getAllByType(KeyboardAvoidingView)[0];
+      expect(kav.props.behavior).toBe('padding');
 
       Platform.OS = originalOS;
     });
@@ -721,12 +777,14 @@ describe('MessageInput Component', () => {
 
       Platform.OS = 'android';
 
-      const { getByTestId } = renderWithTheme(
+      const { getByTestId, UNSAFE_getAllByType } = renderWithTheme(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const keyboardAvoidingView = getByTestId('keyboard-avoiding-view');
-      expect(keyboardAvoidingView.props.behavior).toBeUndefined();
+      getByTestId('keyboard-avoiding-view');
+      const { KeyboardAvoidingView } = require('react-native');
+      const kav = UNSAFE_getAllByType(KeyboardAvoidingView)[0];
+      expect(kav.props.behavior).toBeUndefined();
 
       Platform.OS = originalOS;
     });
@@ -765,8 +823,9 @@ describe('MessageInput Component', () => {
 
       fireEvent.changeText(textInput, longText);
 
-      // Should truncate to maxLength
-      expect(textInput.props.value.length).toBe(2000);
+      // maxLength is enforced natively by the TextInput; Jest doesn't
+      // truncate, so assert the constraint is configured
+      expect(textInput.props.maxLength).toBe(2000);
     });
 
     test('should handle special characters in text', () => {

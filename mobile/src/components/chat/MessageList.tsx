@@ -538,6 +538,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     <>
       <FlatList
         ref={flatListRef}
+        testID="message-list"
         data={groupedMessages}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}

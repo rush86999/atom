@@ -561,6 +561,61 @@ async def _mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> 
     return await mini_app_get_state(args, context)
 
 
+_MINI_APP_DB_QUERY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Mini-app instance canvas id"},
+        "op": {"type": "string", "enum": ["query", "count", "get", "list_series"],
+               "description": "Read operation (default: query)"},
+        "series": {"type": "string", "description": "Series name (^[a-z0-9_]{1,64}$); omit for list_series"},
+        "record_id": {"type": "string", "description": "Record id (for op=get)"},
+        "filter": {"type": "object", "description": "Equality filter on data keys (scalar values)"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+        "order": {"type": "string", "enum": ["asc", "desc"], "default": "desc"},
+    },
+    "required": ["canvas_id"],
+}
+
+
+@register_action(
+    "mini_app_db_query",
+    description="Read structured records of a mini-app instance (query/count/get/list_series). INTERN+ tier. Owner-gated.",
+    parameters_schema=_MINI_APP_DB_QUERY_SCHEMA,
+)
+async def _mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_db_query
+
+    return await mini_app_db_query(args, context)
+
+
+_MINI_APP_DB_WRITE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Mini-app instance canvas id"},
+        "op": {"type": "string",
+               "enum": ["append", "update", "update_many", "delete", "delete_series", "clear"],
+               "description": "Write operation"},
+        "series": {"type": "string", "description": "Series name (^[a-z0-9_]{1,64}$); omit for clear"},
+        "data": {"type": "object", "description": "Row payload (for append/update/update_many)"},
+        "record_id": {"type": "string", "description": "Record id (for update/delete)"},
+        "filter": {"type": "object", "description": "Equality filter (for update_many)"},
+        "id": {"type": "string", "description": "Optional client-supplied record id (for append)"},
+    },
+    "required": ["canvas_id", "op"],
+}
+
+
+@register_action(
+    "mini_app_db_write",
+    description="Mutate structured records of a mini-app instance (append/update/update_many/delete/delete_series/clear). SUPERVISED+ tier. Owner-gated.",
+    parameters_schema=_MINI_APP_DB_WRITE_SCHEMA,
+)
+async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_db_write
+
+    return await mini_app_db_write(args, context)
+
+
 # ============================================================================
 # Agent harness — acceptance tests, logic checkpoints, constraint probe.
 # Research-backed additions to the authoring loop (generator-evaluator loop,
@@ -657,3 +712,67 @@ async def _mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     from tools.mini_app_tool import mini_app_status
 
     return await mini_app_status(args, context)
+
+
+# ============================================================================
+# Mini-app DB store — agent access to instance record data (read bridge +
+# record CRUD). Read-only INTERN+, mutations SUPERVISED+ (tier floor enforced
+# in the handlers). Same op vocabulary as the microVM record_ops envelope.
+# ============================================================================
+_MINI_APP_DB_QUERY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Mini-app instance canvas id"},
+        "op": {
+            "type": "string",
+            "enum": ["query", "count", "get", "list_series"],
+            "description": "Read op (default query)",
+        },
+        "series": {"type": "string", "description": "Series name (^[a-z0-9_]{1,64}$)"},
+        "filter": {"type": "object", "description": "Equality filter on record data"},
+        "limit": {"type": "integer", "description": "Max rows (1..10000, default 100)"},
+        "order": {"type": "string", "enum": ["asc", "desc"], "description": "Row order by seq"},
+        "record_id": {"type": "string", "description": "Record id (op=get)"},
+    },
+    "required": ["canvas_id"],
+}
+
+_MINI_APP_DB_WRITE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Mini-app instance canvas id"},
+        "op": {
+            "type": "string",
+            "enum": ["append", "update", "update_many", "delete", "delete_series", "clear"],
+            "description": "Mutation op",
+        },
+        "series": {"type": "string", "description": "Series name (^[a-z0-9_]{1,64}$)"},
+        "data": {"type": "object", "description": "Record payload (append/update/update_many)"},
+        "record_id": {"type": "string", "description": "Record id (update/delete)"},
+        "id": {"type": "string", "description": "Optional client id for append"},
+        "filter": {"type": "object", "description": "Equality filter (update_many)"},
+    },
+    "required": ["canvas_id", "op"],
+}
+
+
+@register_action(
+    "mini_app_db_query",
+    description="Read structured records of a mini-app instance (query/count/get/list_series). Owner-gated; INTERN+ tier floor. Same op vocabulary as the app's own record_ops.",
+    parameters_schema=_MINI_APP_DB_QUERY_SCHEMA,
+)
+async def _mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_db_query
+
+    return await mini_app_db_query(args, context)
+
+
+@register_action(
+    "mini_app_db_write",
+    description="Mutate structured records of a mini-app instance (append/update/update_many/delete/delete_series/clear). Owner-gated; SUPERVISED+ tier floor.",
+    parameters_schema=_MINI_APP_DB_WRITE_SCHEMA,
+)
+async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_db_write
+
+    return await mini_app_db_write(args, context)

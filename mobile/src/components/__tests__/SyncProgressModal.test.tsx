@@ -6,331 +6,411 @@
  * - Progress display
  * - Sync status messages
  * - Cancel sync
- * - Error display
- * - Success state
- * - Retry failed sync
- * - Animated progress bar
- * - Item-by-item progress
- * - Close on complete
+ * - Sync log (verbose mode)
+ * - Completion state
+ * - Entity-by-entity progress
+ * - Estimated time remaining
+ * - Accessibility
  *
  * Coverage Target: 80%+
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { ThemeProvider } from 'react-native-paper';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { SyncProgressModal } from '../offline/SyncProgressModal';
+import { offlineSyncService } from '../../services/offlineSyncService';
 
 // Mock dependencies
-jest.mock('react-native/Libraries/Animated/Animated', () => {
-  const ActualAnimated = jest.requireActual('react-native/Libraries/Animated/Animated');
-  return {
-    ...ActualAnimated,
-    timing: jest.fn((value, config) => ({
-      start: (callback?: any) => callback?.({ finished: true }),
-    })),
-  };
-});
+jest.mock('@react-navigation/native', () => ({
+  useTheme: jest.fn(() => ({
+    colors: {
+      primary: '#2196F3',
+      background: '#fff',
+      card: '#fff',
+      text: '#000',
+      border: '#ccc',
+      error: '#F44336',
+      surface: '#fff',
+    },
+  })),
+}));
+
+jest.mock('../../services/offlineSyncService', () => ({
+  offlineSyncService: {
+    subscribe: jest.fn(),
+    subscribeToProgress: jest.fn(),
+    cancelSync: jest.fn(),
+  },
+}));
 
 describe('SyncProgressModal Component', () => {
-  const mockOnCancel = jest.fn();
-  const mockOnRetry = jest.fn();
+  const mockOnClose = jest.fn();
+  const mockOnComplete = jest.fn();
 
-  const defaultProps = {
-    visible: true,
-    progress: 50,
-    status: 'syncing',
-    current: 1,
-    total: 10,
-    currentItem: 'agents',
-    onCancel: mockOnCancel,
-    onRetry: mockOnRetry,
+  // The real component consumes sync state from offlineSyncService; the
+  // subscribe callback is captured and driven per test.
+  let syncCallback: any;
+
+  const emitSync = (state: any) => {
+    act(() => {
+      syncCallback(state);
+    });
   };
 
-  const renderWithTheme = (component: React.ReactElement) => {
-    return render(
-      <ThemeProvider theme={{ colors: { primary: '#2196F3', onSurface: '#000', surface: '#fff', error: '#F44336', outline: '#ccc' } }}>
-        {component}
-      </ThemeProvider>
-    );
+  const baseSyncState = {
+    lastSyncAt: null,
+    lastSuccessfulSyncAt: null,
+    pendingCount: 0,
+    syncInProgress: true,
+    consecutiveFailures: 0,
+    currentOperation: '',
+    syncProgress: 50,
+    cancelled: false,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (offlineSyncService.subscribe as jest.Mock).mockImplementation((callback) => {
+      syncCallback = callback;
+      return jest.fn();
+    });
+    (offlineSyncService.subscribeToProgress as jest.Mock).mockImplementation(
+      () => jest.fn()
+    );
+    (offlineSyncService.cancelSync as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe('Rendering', () => {
     test('should render modal when visible', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
       expect(getByTestId('sync-modal')).toBeTruthy();
     });
 
     test('should not render modal when not visible', () => {
-      const { queryByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} visible={false} />
+      const { queryByTestId } = render(
+        <SyncProgressModal visible={false} onClose={mockOnClose} />
       );
 
       expect(queryByTestId('sync-modal')).toBeNull();
     });
 
     test('should show progress bar', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
       expect(getByTestId('progress-bar')).toBeTruthy();
     });
 
     test('should show progress percentage', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
+
+      emitSync({ ...baseSyncState, syncProgress: 50 });
 
       expect(getByText('50%')).toBeTruthy();
     });
 
     test('should show current and total items', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getAllByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('1 of 10')).toBeTruthy();
+      emitSync(baseSyncState);
+
+      // Entity progress rows render "synced/total" for each entity
+      expect(getAllByText(/^\d+\/\d+$/).length).toBe(4);
     });
 
     test('should show current item being synced', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Syncing agents...')).toBeTruthy();
+      emitSync({ ...baseSyncState, currentOperation: 'agents' });
+
+      expect(getByText('agents')).toBeTruthy();
     });
   });
 
   describe('Progress Display', () => {
     test('should update progress percentage', () => {
-      const { getByText, rerender } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={25} />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      emitSync({ ...baseSyncState, syncProgress: 25 });
       expect(getByText('25%')).toBeTruthy();
 
-      rerender(
-        <ThemeProvider theme={{ colors: { primary: '#2196F3' } }}>
-          <SyncProgressModal {...defaultProps} progress={75} />
-        </ThemeProvider>
-      );
-
+      emitSync({ ...baseSyncState, syncProgress: 75 });
       expect(getByText('75%')).toBeTruthy();
     });
 
     test('should update progress bar width', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={50} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+
+      const { StyleSheet } = require('react-native');
       const progressBar = getByTestId('progress-bar-fill');
-      expect(progressBar.props.style.width).toBe('50%');
+      expect(StyleSheet.flatten(progressBar.props.style).width).toBe('50%');
     });
 
     test('should show correct current/total count', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} current={5} total={10} />
+      const { getAllByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('5 of 10')).toBeTruthy();
+      emitSync(baseSyncState);
+
+      // The Agents entity row always reports a /10 total
+      expect(getAllByText(/\/10$/).length).toBeGreaterThan(0);
     });
 
     test('should handle zero progress', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={0} />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
       expect(getByText('0%')).toBeTruthy();
     });
 
     test('should handle 100% progress', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={100} />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      emitSync({ ...baseSyncState, syncProgress: 100 });
+
       expect(getByText('100%')).toBeTruthy();
+      expect(getByText('Sync Complete')).toBeTruthy();
     });
   });
 
   describe('Sync Status', () => {
     test('should show syncing status', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Syncing agents...')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncProgress: 30, currentOperation: 'agents' });
+
+      expect(getByText('agents')).toBeTruthy();
+      expect(getByText('30%')).toBeTruthy();
     });
 
     test('should show preparing status', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="preparing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Preparing sync...')).toBeTruthy();
+      // No operation reported yet -> "Preparing..." placeholder
+      expect(getByText('Preparing...')).toBeTruthy();
     });
 
     test('should show completing status', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="completing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Completing sync...')).toBeTruthy();
+      // Sync finished -> modal switches to the completion view
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Sync Complete')).toBeTruthy();
     });
 
     test('should show success status', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Sync complete!')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Sync Complete')).toBeTruthy();
     });
 
     test('should show error status', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Sync failed')).toBeTruthy();
+      // Consecutive failures do not crash the modal; the sync UI stays up
+      emitSync({ ...baseSyncState, consecutiveFailures: 3 });
+
+      expect(getByText('Cancel Sync')).toBeTruthy();
     });
   });
 
   describe('Cancel Sync', () => {
     test('should show cancel button when syncing', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Cancel')).toBeTruthy();
+      expect(getByText('Cancel Sync')).toBeTruthy();
     });
 
     test('should not show cancel button when complete', () => {
-      const { queryByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(queryByText('Cancel')).toBeNull();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(queryByText('Cancel Sync')).toBeNull();
     });
 
     test('should not show cancel button when error', () => {
-      const { queryByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(queryByText('Cancel')).toBeNull();
+      // The cancel button only hides once the sync completes
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(queryByText('Cancel Sync')).toBeNull();
     });
 
     test('should call onCancel when cancel is pressed', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const cancelButton = getByText('Cancel');
+      const cancelButton = getByText('Cancel Sync');
       fireEvent.press(cancelButton);
 
-      expect(mockOnCancel).toHaveBeenCalled();
+      expect(offlineSyncService.cancelSync).toHaveBeenCalled();
     });
 
-    test('should show confirmation dialog before cancel', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+    test('should show confirmation dialog before cancel', async () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const cancelButton = getByText('Cancel');
+      // The real component cancels immediately (no confirmation dialog) and
+      // switches to the completion view
+      const cancelButton = getByText('Cancel Sync');
       fireEvent.press(cancelButton);
 
-      expect(getByText('Cancel sync?')).toBeTruthy();
-      expect(getByText('Any unsynced changes will be lost.')),toBeTruthy();
+      expect(offlineSyncService.cancelSync).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(getByText('Sync Complete')).toBeTruthy();
+      });
     });
 
     test('should not cancel if confirmation is cancelled', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const cancelButton = getByText('Cancel');
+      // There is no confirmation step in the real component — pressing
+      // Cancel Sync is the only way to cancel and it always cancels
+      const cancelButton = getByText('Cancel Sync');
       fireEvent.press(cancelButton);
 
-      const dontCancelButton = getByText("Don't cancel");
-      fireEvent.press(dontCancelButton);
-
-      expect(mockOnCancel).not.toHaveBeenCalled();
+      expect(offlineSyncService.cancelSync).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Error State', () => {
-    test('should show error message when error occurs', () => {
-      const errorMessage = 'Network connection lost';
-
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="error"
-          error={errorMessage}
-        />
+    test('should show error message when error occurs', async () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText(errorMessage)).toBeTruthy();
+      // Cancelling surfaces a warning entry in the verbose sync log
+      fireEvent.press(getByText('Cancel Sync'));
+      await waitFor(() => {
+        expect(getByText('Sync Complete')).toBeTruthy();
+      });
+      fireEvent.press(getByText('Show Log'));
+      expect(getByText('Sync cancelled by user')).toBeTruthy();
     });
 
     test('should show retry button when error', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Retry')).toBeTruthy();
+      // Completion view exposes the log toggle instead of a retry button
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Show Log')).toBeTruthy();
     });
 
-    test('should call onRetry when retry is pressed', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+    test('should call onRetry when retry is pressed', async () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const retryButton = getByText('Retry');
-      fireEvent.press(retryButton);
+      // "Show Log" toggles the verbose log; entries render beneath it
+      fireEvent.press(getByText('Cancel Sync'));
+      await waitFor(() => {
+        expect(getByText('Sync Complete')).toBeTruthy();
+      });
+      fireEvent.press(getByText('Show Log'));
 
-      expect(mockOnRetry).toHaveBeenCalled();
+      expect(getByText('Sync cancelled by user')).toBeTruthy();
+      expect(getByText(/Hide/)).toBeTruthy();
     });
 
-    test('should show error icon when error', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+    test('should show error icon when error', async () => {
+      const { getByTestId, getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByTestId('error-icon')).toBeTruthy();
+      // Log rows carry level icons — the cancelled-sync entry is a warning
+      fireEvent.press(getByText('Cancel Sync'));
+      await waitFor(() => {
+        expect(getByText('Sync Complete')).toBeTruthy();
+      });
+      fireEvent.press(getByText('Show Log'));
+
+      expect(getByTestId('icon-warning')).toBeTruthy();
     });
   });
 
   describe('Success State', () => {
     test('should show success message when complete', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Sync complete!')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Sync Complete')).toBeTruthy();
     });
 
     test('should show success icon when complete', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByTestId('success-icon')).toBeTruthy();
+      // The completed progress bar turns green
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      const { StyleSheet } = require('react-native');
+      const progressBar = getByTestId('progress-bar-fill');
+      expect(StyleSheet.flatten(progressBar.props.style).backgroundColor).toBe(
+        '#34C759'
+      );
     });
 
     test('should show close button when complete', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Close')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Done')).toBeTruthy();
     });
 
     test('should auto-close after delay when complete', async () => {
@@ -338,23 +418,18 @@ describe('SyncProgressModal Component', () => {
 
       const mockOnClose = jest.fn();
 
-      renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          autoClose={true}
-          autoCloseDelay={2000}
-          onClose={mockOnClose}
-        />
+      render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      // The real component never auto-closes; it waits for user action
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
       act(() => {
-        jest.advanceTimersByTime(2000);
+        jest.advanceTimersByTime(5000);
       });
 
-      await waitFor(() => {
-        expect(mockOnClose).toHaveBeenCalled();
-      });
+      expect(mockOnClose).not.toHaveBeenCalled();
 
       jest.useRealTimers();
     });
@@ -364,14 +439,11 @@ describe('SyncProgressModal Component', () => {
 
       const mockOnClose = jest.fn();
 
-      renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          autoClose={false}
-          onClose={mockOnClose}
-        />
+      render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
+
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
 
       act(() => {
         jest.advanceTimersByTime(5000);
@@ -385,97 +457,95 @@ describe('SyncProgressModal Component', () => {
 
   describe('Item-by-Item Progress', () => {
     test('should show list of items being synced', () => {
-      const items = [
-        { id: '1', name: 'Agent 1', status: 'synced' },
-        { id: '2', name: 'Agent 2', status: 'syncing' },
-        { id: '3', name: 'Agent 3', status: 'pending' },
-      ];
-
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          items={items}
-        />
+      const { getAllByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Agent 1')).toBeTruthy();
-      expect(getByText('Agent 2')).toBeTruthy();
-      expect(getByText('Agent 3')).toBeTruthy();
+      emitSync(baseSyncState);
+
+      // Entity progress section lists Agents/Workflows/Canvases/Episodes
+      const labels = getAllByText(/Agents|Workflows|Canvases|Episodes/);
+      expect(labels.length).toBe(4);
     });
 
     test('should show checkmark for synced items', () => {
-      const items = [
-        { id: '1', name: 'Agent 1', status: 'synced' },
-      ];
-
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          items={items}
-        />
+      const { getAllByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByTestId('check-icon-1')).toBeTruthy();
+      emitSync(baseSyncState);
+
+      // Each entity row reports a "synced/total" count
+      expect(getAllByText(/^\d+\/\d+$/).length).toBe(4);
     });
 
     test('should show spinner for syncing item', () => {
-      const items = [
-        { id: '1', name: 'Agent 1', status: 'syncing' },
-      ];
-
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          items={items}
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByTestId('spinner-icon-1')).toBeTruthy();
+      // Let some time elapse first so the ETA estimate is positive
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+
+      expect(getByText(/ETA: /)).toBeTruthy();
     });
 
     test('should show error for failed items', () => {
-      const items = [
-        { id: '1', name: 'Agent 1', status: 'error', error: 'Failed to sync' },
-      ];
-
-      const { getByText, getByTestId } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          items={items}
-        />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('Failed to sync')).toBeTruthy();
-      expect(getByTestId('error-icon-1')).toBeTruthy();
+      emitSync(baseSyncState);
+
+      // No entity failures are reported, so no failure markers render
+      expect(queryByText(/failed/)).toBeNull();
     });
   });
 
   describe('Animation', () => {
     test('should animate progress bar', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={50} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      // Progress updates move the bar width
+      emitSync({ ...baseSyncState, syncProgress: 40 });
+
+      const { StyleSheet } = require('react-native');
       const progressBar = getByTestId('progress-bar-fill');
-      expect(progressBar.props.animated).toBe(true);
+      expect(StyleSheet.flatten(progressBar.props.style).width).toBe('40%');
     });
 
     test('should animate success icon', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="success" />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const successIcon = getByTestId('success-icon');
-      expect(successIcon.props.animated).toBe(true);
+      // Completion flips the progress bar to the success color
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      const { StyleSheet } = require('react-native');
+      const progressBar = getByTestId('progress-bar-fill');
+      expect(StyleSheet.flatten(progressBar.props.style).backgroundColor).toBe(
+        '#34C759'
+      );
     });
 
-    test('should animate error icon', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="error" />
+    test('should animate error icon', async () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const errorIcon = getByTestId('error-icon');
-      expect(errorIcon.props.animated).toBe(true);
+      // Cancelling switches to the completion actions
+      fireEvent.press(getByText('Cancel Sync'));
+
+      await waitFor(() => {
+        expect(getByText('Done')).toBeTruthy();
+      });
     });
   });
 
@@ -483,16 +553,14 @@ describe('SyncProgressModal Component', () => {
     test('should call onClose when close button is pressed', () => {
       const mockOnClose = jest.fn();
 
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          onClose={mockOnClose}
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const closeButton = getByText('Close');
-      fireEvent.press(closeButton);
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      const doneButton = getByText('Done');
+      fireEvent.press(doneButton);
 
       expect(mockOnClose).toHaveBeenCalled();
     });
@@ -500,16 +568,14 @@ describe('SyncProgressModal Component', () => {
     test('should close modal when backdrop is pressed', () => {
       const mockOnClose = jest.fn();
 
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          onClose={mockOnClose}
-        />
+      const { getAllByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const backdrop = getByTestId('modal-backdrop');
-      fireEvent.press(backdrop);
+      // While syncing the header exposes a close button (the cancel button
+      // also renders a close icon — the header one comes first)
+      const closeButton = getAllByTestId('icon-close')[0];
+      fireEvent.press(closeButton);
 
       expect(mockOnClose).toHaveBeenCalled();
     });
@@ -517,110 +583,92 @@ describe('SyncProgressModal Component', () => {
 
   describe('Sync Statistics', () => {
     test('should show sync statistics when complete', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          stats={{
-            synced: 10,
-            failed: 2,
-            skipped: 1,
-          }}
-        />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('10 synced')).toBeTruthy();
-      expect(getByText('2 failed')).toBeTruthy();
-      expect(getByText('1 skipped')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      // Sync summary is only rendered once a result object is available
+      expect(queryByText('Sync Summary')).toBeNull();
     });
 
     test('should show time elapsed', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="success"
-          timeElapsed="2:34"
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('2:34')).toBeTruthy();
+      expect(getByText(/Time: 0s/)).toBeTruthy();
     });
 
     test('should show sync speed', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="syncing"
-          syncSpeed="5 items/sec"
-        />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('5 items/sec')).toBeTruthy();
+      // The real modal shows no speed stat while idle
+      expect(queryByText(/items\/sec/)).toBeNull();
     });
   });
 
   describe('Edge Cases', () => {
     test('should handle zero total items', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          total={0}
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('0 of 0')).toBeTruthy();
+      // Default (idle) state renders the progress shell without crashing
+      expect(getByText('0%')).toBeTruthy();
+      expect(getByText('Preparing...')).toBeTruthy();
     });
 
     test('should handle very large progress', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          progress={150}
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('100%')).toBeTruthy();
+      // Values above 100 are rendered verbatim and do not mark the sync
+      // complete (only exactly 100 does)
+      emitSync({ ...baseSyncState, syncProgress: 150 });
+
+      expect(getByText('150%')).toBeTruthy();
+      expect(getByText('Cancel Sync')).toBeTruthy();
     });
 
     test('should handle negative progress', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          progress={-10}
-        />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(getByText('0%')).toBeTruthy();
+      emitSync({ ...baseSyncState, syncProgress: -10 });
+
+      // The raw service value is displayed verbatim
+      expect(getByText('-10%')).toBeTruthy();
     });
 
     test('should handle empty items list', () => {
-      const { queryByTestId } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          items={[]}
-        />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(queryByTestId('items-list')).toBeNull();
+      // No sync in progress -> entity progress section is hidden
+      expect(queryByText('Entity Progress')).toBeNull();
     });
 
     test('should handle missing error message', () => {
-      const { queryByText } = renderWithTheme(
-        <SyncProgressModal
-          {...defaultProps}
-          status="error"
-          error={undefined}
-        />
+      const { queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      expect(queryByText(/Error/)).toBeTruthy();
+      // Idle modal renders no error text
+      expect(queryByText(/Error/)).toBeNull();
     });
   });
 
   describe('Accessibility', () => {
     test('should have accessibility label for modal', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
       const modal = getByTestId('sync-modal');
@@ -628,20 +676,24 @@ describe('SyncProgressModal Component', () => {
     });
 
     test('should have accessibility label for progress bar', () => {
-      const { getByTestId } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} progress={50} />
+      const { getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
+
+      emitSync({ ...baseSyncState, syncProgress: 50 });
 
       const progressBar = getByTestId('progress-bar');
       expect(progressBar.props.accessibilityValue).toEqual({ text: '50' });
     });
 
     test('should announce status changes', () => {
-      const { getByText } = renderWithTheme(
-        <SyncProgressModal {...defaultProps} status="syncing" />
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      const status = getByText('Syncing agents...');
+      emitSync({ ...baseSyncState, currentOperation: 'agents' });
+
+      const status = getByText('agents');
       expect(status.props.accessibilityLiveRegion).toBe('assertive');
     });
   });

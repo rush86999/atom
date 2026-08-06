@@ -221,8 +221,33 @@ def check_caps(
                 },
             )
 
-        # All caps OK — count this call.
-        counters.incr_tool_calls()
+        # All caps OK — count this call. The final check + increment are
+        # atomic under the counter lock so concurrent tool calls cannot both
+        # pass the same cap slot (the earlier read above is a fast-path deny).
+        if policy.max_tool_calls > 0:
+            with counters.lock:
+                if counters.tool_calls >= policy.max_tool_calls:
+                    return SandboxDecision(
+                        decision=RESTRICTED,
+                        phase="C",
+                        violation_type=VT_CAP_EXCEEDED,
+                        violation_detail=(
+                            f"max_tool_calls cap exceeded: {counters.tool_calls} >= "
+                            f"{policy.max_tool_calls}"
+                        ),
+                        tool_name=tool_name,
+                        args_hash=args_hash,
+                        enforced=sandbox_config.is_sandbox_force_enforce_enabled(),
+                        metadata_json={
+                            "cap": "max_tool_calls",
+                            "current": counters.tool_calls,
+                            "limit": policy.max_tool_calls,
+                        },
+                    )
+                counters.tool_calls += 1
+                tool_calls_after_incr = counters.tool_calls
+        else:
+            tool_calls_after_incr = counters.incr_tool_calls()
 
         return SandboxDecision(
             decision=ALLOWED,
@@ -230,7 +255,7 @@ def check_caps(
             tool_name=tool_name,
             args_hash=args_hash,
             metadata_json={
-                "tool_calls_after_incr": counters.tool_calls,
+                "tool_calls_after_incr": tool_calls_after_incr,
                 "elapsed_seconds": counters.elapsed_seconds(),
             },
         )

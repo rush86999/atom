@@ -135,13 +135,20 @@ class FleetCoordinatorService:
         except Exception as e:
             logger.warning(f"Failed to start recruitment span: {e}")
 
-        # Use AgentFleetService.recruit_batch for atomic batch creation
-        links = self.fleet_service.recruit_batch(
-            chain_id=chain_id,
-            parent_agent_id=parent_agent_id,
-            recruitments=recruitments,
-            link_order_start=0
-        )
+        # Use AgentFleetService.recruit_member for atomic per-member creation
+        # (recruit_batch does not exist on AgentFleetService)
+        links = []
+        for idx, recruitment in enumerate(recruitments):
+            link = self.fleet_service.recruit_member(
+                chain_id=chain_id,
+                parent_agent_id=parent_agent_id,
+                child_agent_id=recruitment.get("child_agent_id"),
+                task_description=recruitment.get("task_description"),
+                context_json=recruitment.get("context_json"),
+                link_order=recruitment.get("link_order", idx),
+                optimization_metadata=recruitment.get("optimization_metadata")
+            )
+            links.append(link)
 
         # Publish fleet state update
         await self.notify_fleet_state_change(
@@ -349,7 +356,7 @@ class FleetCoordinatorService:
                             reason=f"Fault tolerance retry: {error_msg[:100]}"
                         )
                         logger.info(
-                            f"Created retry {retry_attempt.retry_link_id} for failed task"
+                            f"Created retry {retry_attempt.id} for failed task"
                         )
                 else:
                     # Task completed successfully

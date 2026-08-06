@@ -133,6 +133,20 @@ function setupAudio() {
   mockAudioInstances = [];
   mockObjectUrls.length = 0;
 
+  // jest config resetMocks: true wipes jest.fn() implementations before each
+  // test, so re-install the URL API implementations here (in beforeEach)
+  mockCreateObjectURL.mockImplementation((blob: Blob) => {
+    const url = `blob:http://localhost/${mockObjectUrls.length}`;
+    mockObjectUrls.push(url);
+    return url;
+  });
+  mockRevokeObjectURL.mockImplementation((url: string) => {
+    const index = mockObjectUrls.indexOf(url);
+    if (index > -1) {
+      mockObjectUrls.splice(index, 1);
+    }
+  });
+
   global.Audio = jest.fn((src?: string) => {
     const audio = new MockAudio(src);
     mockAudioInstances.push(audio);

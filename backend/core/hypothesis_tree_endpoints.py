@@ -174,7 +174,7 @@ class PruneNodeRequest(BaseModel):
 class SearchRequest(BaseModel):
     algorithm: str = Field("best_first", description="best_first | mcts | beam_search")
     max_depth: int = 5
-    beam_width: int = 3
+    beam_width: int = Field(3, ge=1, description="Beam width must be >= 1")
     exploration_constant: float = 1.41
     promise_threshold: float = 0.3
     prune_on_lint_error: bool = True
@@ -439,6 +439,57 @@ async def get_statistics(
     return stats
 
 
+@router.get("/history")
+async def list_tree_history(
+    tenant_id: str = Query(..., description="Tenant ID to scope history query"),
+    task_type: Optional[str] = Query(None, description="Filter by task_type: coding|workflow|routing"),
+    tier: Optional[str] = Query(None, description="Filter by pricing tier"),
+    limit: int = Query(20, ge=1, le=100, description="Max rows to return"),
+    db: Session = Depends(get_db),
+    _user=Depends(require_permission(Permission.WORKFLOW_VIEW)),
+) -> Dict[str, Any]:
+    """
+    Query persisted (completed) hypothesis trees from the database.
+
+    Useful for:
+    - Finding the winning_path of past sessions to seed new trees
+    - Analytics on pruning rates and budget utilisation per tier
+    - Surfacing negative_constraints from failed sessions
+    """
+    query = db.query(HypothesisTreeRecord).filter(
+        HypothesisTreeRecord.tenant_id == tenant_id
+    )
+    if task_type:
+        query = query.filter(HypothesisTreeRecord.task_type == task_type)
+    if tier:
+        query = query.filter(HypothesisTreeRecord.tier == tier)
+
+    records = query.order_by(HypothesisTreeRecord.created_at.desc()).limit(limit).all()
+
+    return {
+        "tenant_id": tenant_id,
+        "total": len(records),
+        "trees": [
+            {
+                "tree_id": r.id,
+                "task_description": r.task_description,
+                "task_type": r.task_type,
+                "tier": r.tier,
+                "total_nodes": r.total_nodes,
+                "successful_nodes": r.successful_nodes,
+                "pruned_nodes": r.pruned_nodes,
+                "total_tokens_used": r.total_tokens_used,
+                "optimization_score": r.optimization_score,
+                "winning_path": r.winning_path,
+                "negative_constraints": r.negative_constraints,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            }
+            for r in records
+        ],
+    }
+
+
 @router.get("/{tree_id}")
 async def get_tree(
     tree_id: str,
@@ -548,57 +599,6 @@ async def list_trees(
             for tid, t in _TREE_REGISTRY.items()
         ],
         "total": len(_TREE_REGISTRY),
-    }
-
-
-@router.get("/history")
-async def list_tree_history(
-    tenant_id: str = Query(..., description="Tenant ID to scope history query"),
-    task_type: Optional[str] = Query(None, description="Filter by task_type: coding|workflow|routing"),
-    tier: Optional[str] = Query(None, description="Filter by pricing tier"),
-    limit: int = Query(20, ge=1, le=100, description="Max rows to return"),
-    db: Session = Depends(get_db),
-    _user=Depends(require_permission(Permission.WORKFLOW_VIEW)),
-) -> Dict[str, Any]:
-    """
-    Query persisted (completed) hypothesis trees from the database.
-
-    Useful for:
-    - Finding the winning_path of past sessions to seed new trees
-    - Analytics on pruning rates and budget utilisation per tier
-    - Surfacing negative_constraints from failed sessions
-    """
-    query = db.query(HypothesisTreeRecord).filter(
-        HypothesisTreeRecord.tenant_id == tenant_id
-    )
-    if task_type:
-        query = query.filter(HypothesisTreeRecord.task_type == task_type)
-    if tier:
-        query = query.filter(HypothesisTreeRecord.tier == tier)
-
-    records = query.order_by(HypothesisTreeRecord.created_at.desc()).limit(limit).all()
-
-    return {
-        "tenant_id": tenant_id,
-        "total": len(records),
-        "trees": [
-            {
-                "tree_id": r.id,
-                "task_description": r.task_description,
-                "task_type": r.task_type,
-                "tier": r.tier,
-                "total_nodes": r.total_nodes,
-                "successful_nodes": r.successful_nodes,
-                "pruned_nodes": r.pruned_nodes,
-                "total_tokens_used": r.total_tokens_used,
-                "optimization_score": r.optimization_score,
-                "winning_path": r.winning_path,
-                "negative_constraints": r.negative_constraints,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
-            }
-            for r in records
-        ],
     }
 
 

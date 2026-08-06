@@ -149,6 +149,10 @@ class ExcelManager:
     def write_cell(self, file_path: str, cell_path: str, value: Any, is_formula: bool = False) -> Dict[str, Any]:
         """Write value or formula to a cell."""
         try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        try:
             if os.path.exists(file_path):
                 wb = openpyxl.load_workbook(file_path)
             else:
@@ -181,6 +185,9 @@ class ExcelManager:
                             pass
 
             ws[coordinate] = value
+            if not is_formula and isinstance(value, str) and value.startswith("="):
+                cell = ws[coordinate]
+                cell.data_type = "s"
             wb.save(file_path)
 
             # Recalculate via the workbook runtime so the agent sees computed
@@ -222,6 +229,12 @@ class ExcelManager:
     async def insert_rows(file_path: str, sheet_name: str, row: int, count: int = 1) -> Dict[str, Any]:
         """Insert rows and recalculate formulas to maintain references."""
         from core.workbook_runtime import get_workbook_runtime
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         return await runtime.insert_rows(file_path, sheet_name, row, count)
 
@@ -229,6 +242,12 @@ class ExcelManager:
     async def insert_columns(file_path: str, sheet_name: str, col: int, count: int = 1) -> Dict[str, Any]:
         """Insert columns and recalculate formulas to maintain references."""
         from core.workbook_runtime import get_workbook_runtime
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         return await runtime.insert_cols(file_path, sheet_name, col, count)
 
@@ -236,6 +255,12 @@ class ExcelManager:
     async def get_evaluated_range(file_path: str, cell_path: str) -> Dict[str, Any]:
         """Read a range with freshly evaluated formula results."""
         from core.workbook_runtime import get_workbook_runtime
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         sheet_name, cell_range = ExcelManager.parse_path(cell_path)
         parts = cell_range.split(":") if ":" in cell_range else [cell_range]
@@ -248,6 +273,12 @@ class ExcelManager:
         """Force recalculation of all formulas in the workbook."""
         from core.workbook_runtime import get_workbook_runtime
         from pathlib import Path
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         await runtime.recalculate(Path(file_path))
         return {"success": True, "engine": runtime.engine}
@@ -260,6 +291,12 @@ class ExcelManager:
     ) -> Dict[str, Any]:
         """Create a styled pivot table summary sheet."""
         from core.workbook_runtime import get_workbook_runtime
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         return await runtime.add_pivot_table(
             file_path, sheet_name, pivot_sheet_name, data_range, rows, columns, values
@@ -269,6 +306,12 @@ class ExcelManager:
     async def run_excel_macro(file_path: str, macro_name: str) -> Dict[str, Any]:
         """Run macro inside workbook via sandboxed execution."""
         from core.workbook_runtime import get_workbook_runtime
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        if not os.path.exists(file_path):
+            return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
         return await runtime.run_macro(file_path, macro_name)
 
@@ -323,6 +366,10 @@ class WordManager:
     def modify_document(self, file_path: str, action: str, content: str, options: dict = None) -> Dict[str, Any]:
         """Modify a Word document."""
         options = options or {}
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         try:
             doc = docx.Document(file_path) if os.path.exists(file_path) else docx.Document()
 
@@ -416,7 +463,10 @@ class PowerPointManager:
         """Modify slide deck."""
         if not PPTX_AVAILABLE:
             return {"success": False, "error": "python-pptx library not installed"}
-
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         try:
             prs = pptx.Presentation(file_path) if os.path.exists(file_path) else pptx.Presentation()
 

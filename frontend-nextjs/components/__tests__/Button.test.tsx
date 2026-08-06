@@ -6,6 +6,7 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 
 describe('Button Component Integration', () => {

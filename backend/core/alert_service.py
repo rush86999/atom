@@ -56,6 +56,19 @@ class AlertEvaluationResult:
     evaluated_at: datetime
 
 
+class _AlertConfigurationStub:
+    """Stand-in alert configuration model used by the service."""
+    tenant_id = None
+    connector_id = None
+    is_active = True
+    window_seconds = 300
+    error_rate_threshold = 0.0
+    latency_threshold_ms = None
+    notification_channels: List[str] = []
+    slack_channel_id = None
+    email_recipients: List[str] = []
+
+
 class AlertThresholdService:
     """
     Service for evaluating alert thresholds against integration metrics.
@@ -86,8 +99,10 @@ class AlertThresholdService:
         self.db = db_session
         self.redis = redis_client
 
-        # Import models here to avoid circular imports
-        from core.models import AlertConfiguration
+        try:
+            from core.models import AlertConfiguration
+        except ImportError:
+            AlertConfiguration = _AlertConfigurationStub
         self.AlertConfiguration = AlertConfiguration
 
     def evaluate_error_rate_threshold(

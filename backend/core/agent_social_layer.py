@@ -151,6 +151,7 @@ class AgentSocialLayer:
             )
 
         # Use mapped type for database
+        requested_post_type = post_type
         post_type = mapped_post_type
 
         # Step 4: Redact PII from content (unless skipped)
@@ -224,6 +225,7 @@ class AgentSocialLayer:
         metadata = post.post_metadata or {}
         post_data = {
             "id": post.id,
+            "tenant_id": tenant_id_to_use,
             "sender_type": post.author_type.value if hasattr(post.author_type, "value") else post.author_type,  # Map author_type -> sender_type
             "sender_id": post.author_id,  # Map author_id -> sender_id
             "sender_name": metadata.get("sender_name"),
@@ -234,7 +236,7 @@ class AgentSocialLayer:
             "is_public": metadata.get("is_public", True),
             "channel_id": metadata.get("channel_id"),
             "channel_name": metadata.get("channel_name"),
-            "post_type": post.post_type.value if hasattr(post.post_type, "value") else post.post_type,
+            "post_type": requested_post_type,
             "content": post.content,
             "mentioned_agent_ids": metadata.get("mentioned_agent_ids", []),
             "mentioned_user_ids": metadata.get("mentioned_user_ids", []),
@@ -375,11 +377,17 @@ class AgentSocialLayer:
         if not post:
             raise ValueError(f"Post {post_id} not found")
 
-        # Add reaction using PostReaction model (not reactions dict)
-        # Note: Current schema uses PostReaction relationship table
-        # This would need to create PostReaction records instead of dict
-        # For now, we'll return an empty reactions dict
-        reactions = {emoji: 1}  # Placeholder
+        # Count existing reactions (PostReaction list or legacy dict), then increment
+        existing = {}
+        if isinstance(post.reactions, dict):
+            existing = dict(post.reactions)
+        elif isinstance(post.reactions, list):
+            for reaction in post.reactions:
+                reaction_emoji = getattr(reaction, "emoji", None)
+                if reaction_emoji:
+                    existing[reaction_emoji] = existing.get(reaction_emoji, 0) + 1
+
+        reactions = {**existing, emoji: existing.get(emoji, 0) + 1}
 
         # Skip database commit for reactions (would need PostReaction model handling)
         # db.commit()
@@ -422,22 +430,26 @@ class AgentSocialLayer:
 
         for post in posts:
             # Extract metadata
-            metadata = post.post_metadata or {}
+            metadata = post.post_metadata if isinstance(post.post_metadata, dict) else {}
+
+            def _mentions(key: str) -> List[str]:
+                listed = metadata.get(key) or getattr(post, key, None) or []
+                return list(listed)
 
             # Count agent mentions
-            for mentioned_id in metadata.get("mentioned_agent_ids", []):
+            for mentioned_id in _mentions("mentioned_agent_ids"):
                 topic_counts[f"agent:{mentioned_id}"] = topic_counts.get(f"agent:{mentioned_id}", 0) + 1
 
             # Count user mentions
-            for mentioned_id in metadata.get("mentioned_user_ids", []):
+            for mentioned_id in _mentions("mentioned_user_ids"):
                 topic_counts[f"user:{mentioned_id}"] = topic_counts.get(f"user:{mentioned_id}", 0) + 1
 
             # Count episode mentions
-            for episode_id in metadata.get("mentioned_episode_ids", []):
+            for episode_id in _mentions("mentioned_episode_ids"):
                 topic_counts[f"episode:{episode_id}"] = topic_counts.get(f"episode:{episode_id}", 0) + 1
 
             # Count task mentions
-            for task_id in metadata.get("mentioned_task_ids", []):
+            for task_id in _mentions("mentioned_task_ids"):
                 topic_counts[f"task:{task_id}"] = topic_counts.get(f"task:{task_id}", 0) + 1
 
         # Sort by count
@@ -1071,7 +1083,7 @@ class AgentSocialLayer:
         try:
             # Get post
             post = db.query(SocialPost).filter(SocialPost.id == post_id).first()
-            if not post or post.sender_type != "agent":
+            if not post or getattr(post, "author_type", None) != "agent":
                 return
 
             # Determine if interaction is positive
@@ -1087,7 +1099,7 @@ class AgentSocialLayer:
                 # Note: This assumes graduation service has this method
                 # If not, we'll track it in a separate table
                 self.logger.info(
-                    f"Tracking positive interaction for agent {post.sender_id}: "
+                    f"Tracking positive interaction for agent {post.author_id}: "
                     f"{interaction_type} on post {post_id}"
                 )
 
@@ -1095,7 +1107,7 @@ class AgentSocialLayer:
                 from core.models import AgentFeedback
 
                 feedback = AgentFeedback(
-                    agent_id=post.sender_id,
+                    agent_id=post.author_id,
                     user_id=user_id or "system",
                     input_context=f"Social post: {post.content[:100]}",
                     original_output=post.content,
@@ -1113,7 +1125,7 @@ class AgentSocialLayer:
 
             # Update agent reputation
             await self._update_agent_reputation(
-                post.sender_id, interaction_type, db=db
+                post.author_id, interaction_type, db=db
             )
 
         except Exception as e:
@@ -1201,11 +1213,18 @@ class AgentSocialLayer:
             ).all()
 
             # Calculate metrics
-            total_reactions = sum(
-                len(p.get("reactions", [])) if isinstance(p.reactions, list) else 0
-                for p in posts
-            )
-            total_replies = sum(p.reply_count or 0 for p in posts)
+            total_reactions = 0
+            for p in posts:
+                reactions = p.reactions or []
+                if isinstance(reactions, list):
+                    total_reactions += len(reactions)
+                elif isinstance(reactions, dict):
+                    total_reactions += sum(reactions.values())
+            total_replies = db.query(func.count(SocialPost.id)).filter(
+                SocialPost.author_id == agent_id,
+                SocialPost.author_type == "agent",
+                func.json_extract(SocialPost.post_metadata, '$.reply_to_id').is_not(None)
+            ).scalar() or 0
             helpful_replies = await self._count_helpful_replies(agent_id, db)
 
             # Base reputation score
@@ -1234,7 +1253,7 @@ class AgentSocialLayer:
             return {
                 "agent_id": agent_id,
                 "reputation_score": 0,
-                "error": str(e)
+                "error": "Failed to calculate agent reputation"
             }
 
     async def _count_helpful_replies(
@@ -1598,7 +1617,7 @@ class AgentSocialLayer:
 
         except Exception as e:
             self.logger.error(f"Failed to get rate limit info: {e}")
-            return {"error": str(e)}
+            return {"error": "Failed to get rate limit info"}
 
 
 # Global service instance

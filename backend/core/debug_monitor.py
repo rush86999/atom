@@ -287,10 +287,16 @@ class DebugMonitor:
                 # Determine status
                 if error_count > 0:
                     status = "errors"
-                elif (datetime.now(timezone.utc) - last_activity).total_seconds() > 60:
-                    status = "stalled"
                 else:
-                    status = "active"
+                    # SQLite round-trips DateTime(timezone=True) as naive — coerce
+                    # before comparing with an aware 'now' (TypeError otherwise).
+                    last = last_activity
+                    if last is not None and last.tzinfo is None:
+                        last = last.replace(tzinfo=timezone.utc)
+                    if last is None or (datetime.now(timezone.utc) - last).total_seconds() > 60:
+                        status = "stalled"
+                    else:
+                        status = "active"
 
                 result.append({
                     "correlation_id": correlation_id,

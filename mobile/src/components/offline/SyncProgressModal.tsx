@@ -227,7 +227,11 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
       transparent={true}
       onRequestClose={handleClose}
     >
-      <View style={styles.modalOverlay}>
+      <View
+        testID="sync-modal"
+        accessibilityLabel="Sync progress modal"
+        style={styles.modalOverlay}
+      >
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
           {/* Header */}
           <View style={styles.header}>
@@ -251,8 +255,13 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
                 {syncState.syncProgress}%
               </Text>
             </View>
-            <View style={styles.progressBarContainer}>
+            <View
+              testID="progress-bar"
+              accessibilityValue={{ text: String(syncState.syncProgress) }}
+              style={styles.progressBarContainer}
+            >
               <View
+                testID="progress-bar-fill"
                 style={[
                   styles.progressBar,
                   {
@@ -263,7 +272,10 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
               />
             </View>
             {!isComplete && (
-              <Text style={[styles.subText, { color: colors.text }]}>
+              <Text
+                accessibilityLiveRegion="assertive"
+                style={[styles.subText, { color: colors.text }]}
+              >
                 {syncState.currentOperation || 'Preparing...'}
               </Text>
             )}

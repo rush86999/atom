@@ -87,7 +87,7 @@ class FitnessService:
         final_score = max(0.0, min(1.0, score))
 
         # Update variant
-        signals = variant.fitness_signals or {}
+        signals = dict(variant.fitness_signals or {})
         signals["proxy"] = proxy_signals
         variant.fitness_signals = signals
         variant.fitness_score = final_score
@@ -130,7 +130,7 @@ class FitnessService:
             return 0.0
 
         current_score = variant.fitness_score or 0.0
-        signals = variant.fitness_signals or {}
+        signals = dict(variant.fitness_signals or {})
         signals["external"] = external_signals
 
         adjustment = 0.0

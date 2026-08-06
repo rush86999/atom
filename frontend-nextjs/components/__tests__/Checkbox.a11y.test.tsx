@@ -6,6 +6,7 @@
  */
 
 import { renderWithProviders, screen } from '../../tests/test-utils';
+import React from 'react';
 import userEvent from '@testing-library/user-event';
 import axe from '../../tests/accessibility-config';
 import { Checkbox } from '@/components/ui/checkbox';

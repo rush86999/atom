@@ -165,6 +165,9 @@ const renderWithAllProviders = (component: React.ReactNode) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // waitForAppStateChange() awaits a real setTimeout — fake timers (enabled
+  // by jest.setup.js) would never resolve it.
+  jest.useRealTimers();
   resetAppStateListeners();
 
   // Clear AsyncStorage and SecureStore mocks

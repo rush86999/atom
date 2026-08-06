@@ -57,11 +57,11 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
                             const command = currentTranscript.substring(currentTranscript.toLowerCase().indexOf("atom") + 4).trim();
                             setTranscript(command); // Only set transcript AFTER wake word
                         } else {
-                            // Keep transcript empty until wake word heard? 
+                            // Keep transcript empty until wake word heard?
                             // Or just let it flow but visualizer shows "Waiting for Atom..."
                             // For now, let's keep it simple: we pass everything but flag if triggered
+                            setTranscript(currentTranscript);
                         }
-                        setTranscript(currentTranscript);
                     } else {
                         setTranscript(currentTranscript);
                     }

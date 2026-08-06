@@ -1895,26 +1895,6 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load desktop auth routes (skipping): {e}")
 
-    # Public API Key Authentication (External Marketplace)
-    try:
-
-        logger.info("✅ Public API key authentication routes enabled")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load public API routes (skipping): {e}")
-
-    # Public Marketplace API (Skill submission, rating)
-    # Public Marketplace v1 API (Read-Only Browsing)
-    # NOTE: api.routes.public_marketplace_routes does not exist in the repo;
-    # the previous try/except silently swallowed the ImportError every startup.
-    # If/when that module is added, mount it here.
-
-    # Private Marketplace API (Tenant-Specific Skills)
-    try:
-
-        logger.info("✅ Private marketplace routes enabled")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Failed to load private marketplace routes (skipping): {e}")
-
     # AI Training Period Configuration
     # Training Analytics & Monitoring
     # Enhanced Feedback System (from upstream)

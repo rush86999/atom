@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, act } from '@testing-library/react-native';
 import { StreamingText } from '../../../components/chat/StreamingText';
 
 // Mock react-native-paper
@@ -28,7 +28,7 @@ jest.mock('react-native-markdown-display', () => ({
     const { Text } = require('react-native');
     return <Text style={style}>{children}</Text>;
   },
-}));
+}), { virtual: true });
 
 // Mock syntax highlighter
 jest.mock('react-native-syntax-highlighter', () => ({
@@ -37,11 +37,11 @@ jest.mock('react-native-syntax-highlighter', () => ({
     const { Text } = require('react-native');
     return <Text style={style}>{children}</Text>;
   },
-}));
+}), { virtual: true });
 
 jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
   vscDarkPlus: {},
-}));
+}), { virtual: true });
 
 describe('StreamingText', () => {
   beforeEach(() => {
@@ -52,6 +52,17 @@ describe('StreamingText', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
+
+  // The reveal loop is rAF + setTimeout driven: React batches each state
+  // update until the act block ends, so one char is revealed per
+  // advance/flush cycle. This helper drives the animation forward.
+  const revealChars = (count: number) => {
+    for (let i = 0; i < count; i++) {
+      act(() => {
+        jest.advanceTimersByTime(40);
+      });
+    }
+  };
 
   describe('Rendering', () => {
     it('should render text content', () => {
@@ -87,10 +98,20 @@ describe('StreamingText', () => {
   describe('Streaming Animation', () => {
     it('should show cursor while streaming', () => {
       const { getByText } = render(
-        <StreamingText text="Hello" isStreaming={true} />
+        <StreamingText
+          text="Hello"
+          isStreaming={true}
+          enableMarkdown={false}
+          speed={10}
+        />
       );
 
-      expect(getByText('Hello')).toBeTruthy();
+      // Reveal a few characters, then the blinking cursor should be present
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      expect(getByText(/\|$/)).toBeTruthy();
     });
 
     it('should hide cursor when not streaming', () => {
@@ -101,7 +122,7 @@ describe('StreamingText', () => {
       expect(getByText('Hello')).toBeTruthy();
     });
 
-    it('should handle streaming completion callback', async () => {
+    it('should handle streaming completion callback', () => {
       const onComplete = jest.fn();
 
       const { getByText } = render(
@@ -113,6 +134,10 @@ describe('StreamingText', () => {
         />
       );
 
+      // Let the reveal animation finish
+      revealChars(6);
+
+      expect(onComplete).toHaveBeenCalled();
       expect(getByText('Test')).toBeTruthy();
     });
 
@@ -214,15 +239,17 @@ describe('StreamingText', () => {
 
   describe('Expand/Collapse', () => {
     it('should respect maxHeight prop', () => {
-      const { getByTestId } = render(
+      const { getByTestId, getByText } = render(
         <StreamingText
-          text="A".repeat(1000)
+          text={"A".repeat(1000)}
           maxHeight={100}
         />
       );
 
-      // Component should render
+      // Component should render, truncate long text, and offer expansion
       expect(getByTestId('streaming-text')).toBeTruthy();
+      expect(getByText(/^A{500}\.\.\.$/)).toBeTruthy();
+      expect(getByText('Show more')).toBeTruthy();
     });
   });
 
@@ -233,7 +260,10 @@ describe('StreamingText', () => {
         <StreamingText text="Test" style={customStyle} />
       );
 
-      expect(getByTestId('streaming-text')).toBeTruthy();
+      const { StyleSheet } = require('react-native');
+      const container = getByTestId('streaming-text');
+      expect(container).toBeTruthy();
+      expect(StyleSheet.flatten(container.props.style)).toMatchObject(customStyle);
     });
 
     it('should apply custom text style', () => {
@@ -267,7 +297,7 @@ describe('StreamingText', () => {
 
     it('should handle special characters', () => {
       const { getByText } = render(
-        <StreamingText text="Test <script>&\"special\"" />
+        <StreamingText text={'Test <script>&"special"'} />
       );
 
       expect(getByText(/Test/)).toBeTruthy();
@@ -308,10 +338,14 @@ describe('StreamingText', () => {
     it('should not crash on very long streaming text', () => {
       const longText = 'A'.repeat(10000);
       const { getByText } = render(
-        <StreamingText text={longText} isStreaming={true} />
+        <StreamingText text={longText} isStreaming={true} speed={10} />
       );
 
-      expect(getByText(longText.substring(0, 100))).toBeTruthy();
+      // Reveal a partial window of the stream — must not crash and must
+      // show the text revealed so far
+      revealChars(120);
+
+      expect(getByText(/^A{100,140}$/)).toBeTruthy();
     });
   });
 });

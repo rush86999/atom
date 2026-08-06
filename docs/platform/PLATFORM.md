@@ -5,71 +5,54 @@ Production deployment, monitoring, and platform-specific guides.
 ## Deployment
 
 ### Production Deployment
-- **Production Readiness** - Deployment checklist
-- **[Production Readiness Report](../archive/legacy/PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
-- **Deployment** - Deployment overview
-- **Deployment Guide** - Step-by-step deployment
-- **Rollback Procedure** - Emergency rollback
+- **Production Readiness** — Pre-flight checklist ([operations/production-readiness.md](../operations/production-readiness.md))
+- **Deployment Guide** — Step-by-step deployment ([deployment/DEPLOYMENT_GUIDE.md](../deployment/DEPLOYMENT_GUIDE.md))
+- **Rollback Procedure** — Emergency rollback
 
 ### Personal Edition
-- **Personal Edition** - Local Docker setup
-- **[Personal Edition Guide](../archive/legacy/PERSONAL_EDITION_GUIDE.md)** - Complete guide
+- **Personal Edition** — Local Docker setup ([operations/personal-edition.md](../operations/personal-edition.md))
 
 ### Installation
-- **Installation** - Installation overview
-- **Installation Options** - Deployment options
-- **Install Script Guide** - Automated installation
-- **Mac Mini Install** - Mac-specific setup
-- **[Native Setup](../archive/legacy/NATIVE_SETUP.md)** - Native builds
+- **Installation** — Complete setup options ([getting_started/INSTALLATION.md](../getting_started/INSTALLATION.md))
+- **Installation Options** — Deployment variants
+- **Install Script Guide** — Automated installation
 
 ## Monitoring & Operations
 
 ### Health & Monitoring
-- **Health Monitoring System** - Health check endpoints
-- **Monitoring Guide** - Monitoring setup
-- **Performance Monitoring Setup** - Metrics and alerts
-- **Performance Tuning** - Optimization strategies
+- **Health Monitoring System** — Health check endpoints
+- **Monitoring Guide** — Monitoring setup ([operations/monitoring.md](../operations/monitoring.md))
+- **Performance Monitoring Setup** — Metrics and alerts
+- **Performance Tuning** — Optimization strategies
 
 ### Build & CI/CD
-- **Build** - Build process
-- **[CI Fixes](../archive/legacy/CI_FIXES.md)** - CI/CD troubleshooting
+- **Build** — Build process
+- **CI/CD Pipeline** — `.github/workflows/deploy.yml`
 
 ## Platform-Specific
 
 ### Desktop (MenuBar App)
-- **[MenuBar Guide](../archive/menubar/MENUBAR_GUIDE.md)** - MenuBar app overview
-- **[MenuBar Complete Final](../archive/menubar/MENUBAR_COMPLETE_FINAL.md)** - Completion status
-- **[MenuBar Deployment](../archive/menubar/MENUBAR_DEPLOYMENT.md)** - Deployment guide
-- **[MenuBar Test Status](../archive/menubar/MENUBAR_TEST_STATUS_FEB_5.md)** - Test results
-- **Desktop Coverage** - Feature coverage
-- **[Desktop and Browser Feature Proposal](../archive/legacy/DESKTOP_AND_BROWSER_FEATURE_PROPOSAL.md)** - Feature planning
-- **Desktop Testing Guide** - Testing documentation
+- **MenuBar Guide** — MenuBar app overview ([archive/menubar/MENUBAR_GUIDE.md](../archive/menubar/MENUBAR_GUIDE.md))
 
 ### Mobile (React Native)
-- **[Mobile Deployment](../archive/mobile/MOBILE_DEPLOYMENT.md)** - Mobile deployment
-- **[Mobile Quick Start](../archive/mobile/MOBILE_QUICK_START.md)** - Getting started
-- **Mobile Testing Guide** - Mobile testing
-- **[Mobile User Guide](../archive/mobile/MOBILE_USER_GUIDE.md)** - End-user guide
-- **[React Native Architecture](../archive/mobile/REACT_NATIVE_ARCHITECTURE.md)** - Architecture overview
+- **Mobile Quick Start** — Getting started ([archive/mobile/MOBILE_QUICK_START.md](../archive/mobile/MOBILE_QUICK_START.md))
+- **React Native Architecture** — Architecture overview ([archive/mobile/REACT_NATIVE_ARCHITECTURE.md](../archive/mobile/REACT_NATIVE_ARCHITECTURE.md))
 
 ### Database
-- **[Database Migration Guide](../archive/legacy/DATABASE_MIGRATION_GUIDE.md)** - Alembic migrations
-- **PostgreSQL Production Guide** - Production setup
-- **[PostgreSQL Verification Report](../archive/legacy/POSTGRESQL_VERIFICATION_REPORT.md)** - Verification results
+- **Database Migration Guide** — Alembic migrations ([archive/legacy/DATABASE_MIGRATION_GUIDE.md](../archive/legacy/DATABASE_MIGRATION_GUIDE.md))
 
 ## Specialized Setup
 
 ### Audio/Video
-- **[FFMPEG Setup](../archive/legacy/FFMPEG_SETUP.md)** - FFMPEG configuration
-- **[LLMA CPP Setup Guide](../archive/legacy/LLMA_CPP_SETUP_GUIDE.md)** - LLM.cpp setup
+- **FFMPEG Setup** — FFMPEG configuration ([archive/legacy/FFMPEG_SETUP.md](../archive/legacy/FFMPEG_SETUP.md))
 
 ### Authentication
-- **[NextAuth Production Setup](../archive/oauth/nextauth_production_setup.md)** - NextAuth configuration
+- **NextAuth Production Setup** — NextAuth configuration ([archive/oauth/nextauth_production_setup.md](../archive/oauth/nextauth_production_setup.md))
 
 ## Architecture
 
-- **Single Tenant** - Single-tenant architecture
-- **Vector Embeddings** - Embedding system
+- **Single Tenant** — Single-tenant architecture
+- **Vector Embeddings** — Embedding system ([getting_started/run-with-ollama.md](../getting_started/run-with-ollama.md))
 
 ## Quick Reference
 
@@ -90,17 +73,17 @@ curl http://localhost:8001/health/metrics # Prometheus metrics
 ### Platform Support
 | Platform | Status | Docs |
 |----------|--------|------|
-| Web | ✅ Full Support | Deployment Guide |
+| Web | ✅ Full Support | [Deployment Guide](../deployment/DEPLOYMENT_GUIDE.md) |
 | Desktop (MenuBar) | ✅ Full Support | [MenuBar Guide](../archive/menubar/MENUBAR_GUIDE.md) |
 | Mobile (iOS/Android) | ✅ Full Support | [Mobile Quick Start](../archive/mobile/MOBILE_QUICK_START.md) |
-| Personal Edition | ✅ Full Support | Personal Edition |
+| Personal Edition | ✅ Full Support | [Personal Edition](../operations/personal-edition.md) |
 
 ## See Also
 
-- **Development Guide** - Local development
-- **API Documentation** - API endpoints
-- **Integration Guide** - Third-party integrations
+- **Development Guide** — Local development ([development/setup.md](../development/setup.md))
+- **API Documentation** — API endpoints ([api/OVERVIEW.md](../api/OVERVIEW.md))
+- **Integration Guide** — Third-party integrations ([integrations/OVERVIEW.md](../integrations/OVERVIEW.md))
 
 ---
 
-*Last Updated: April 5, 2026*
+*Last Updated: August 2026*

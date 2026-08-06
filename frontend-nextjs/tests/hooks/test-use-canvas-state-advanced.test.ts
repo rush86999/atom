@@ -1,37 +1,53 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { useState, useEffect } from 'react';
 import '@testing-library/jest-dom';
 
-// Mock the useCanvasState hook with advanced features
+// Mock the useCanvasState hook with advanced features.
+// Implemented as a REAL React hook (backed by the shared canvasStates store)
+// so renderHook re-renders and result.current reflects state changes.
 const createMockUseCanvasState = () => {
   const canvasStates = new Map<string, any>();
 
-  return {
-    useCanvasState: (canvasId: string, options: { persist?: boolean } = {}) => {
-      const state = canvasStates.get(canvasId) || {
+  const createInstance = (canvasId: string) => {
+    if (!canvasStates.has(canvasId)) {
+      canvasStates.set(canvasId, {
         data: null,
         error: null,
         isLoading: false,
         subscribers: new Set<Function>(),
-      };
+      });
+    }
+    return canvasStates.get(canvasId);
+  };
 
-      if (!canvasStates.has(canvasId)) {
-        canvasStates.set(canvasId, state);
-      }
+  return {
+    useCanvasState: (canvasId: string, options: { persist?: boolean } = {}) => {
+      const instance = createInstance(canvasId);
+
+      // Local version counter: bumped on every notify so the hook re-renders.
+      const [, forceUpdate] = useState(0);
+
+      useEffect(() => {
+        const listener = () => forceUpdate((v) => v + 1);
+        instance.subscribers.add(listener);
+        return () => {
+          instance.subscribers.delete(listener);
+        };
+      }, [canvasId, instance]);
 
       const notify = () => {
-        state.subscribers.forEach(fn => fn());
+        instance.subscribers.forEach((fn) => fn());
       };
 
       return {
         // State
-        data: state.data,
-        error: state.error,
-        isLoading: state.isLoading,
+        data: instance.data,
+        error: instance.error,
+        isLoading: instance.isLoading,
 
         // Actions
         setState: (newData: any) => {
-          state.data = newData;
-          state.error = null;
+          instance.data = newData;
 
           if (options.persist) {
             const storageKey = `canvas-state-${canvasId}`;
@@ -42,13 +58,13 @@ const createMockUseCanvasState = () => {
         },
 
         updateState: (updater: (prev: any) => any) => {
-          state.data = updater(state.data);
+          instance.data = updater(instance.data);
           notify();
         },
 
         clearState: () => {
-          state.data = null;
-          state.error = null;
+          instance.data = null;
+          instance.error = null;
 
           if (options.persist) {
             const storageKey = `canvas-state-${canvasId}`;
@@ -59,20 +75,20 @@ const createMockUseCanvasState = () => {
         },
 
         setLoading: (loading: boolean) => {
-          state.isLoading = loading;
+          instance.isLoading = loading;
           notify();
         },
 
         setError: (error: string | null) => {
-          state.error = error;
-          state.isLoading = false;
+          instance.error = error;
+          instance.isLoading = false;
           notify();
         },
 
         // Subscription management
         subscribe: (callback: Function) => {
-          state.subscribers.add(callback);
-          return () => state.subscribers.delete(callback);
+          instance.subscribers.add(callback);
+          return () => instance.subscribers.delete(callback);
         },
 
         // Cleanup
@@ -81,9 +97,9 @@ const createMockUseCanvasState = () => {
         },
 
         // Advanced features
-        getStateSnapshot: () => ({ ...state.data }),
+        getStateSnapshot: () => ({ ...instance.data }),
         restoreSnapshot: (snapshot: any) => {
-          state.data = snapshot;
+          instance.data = snapshot;
           notify();
         },
 
@@ -106,7 +122,7 @@ const createMockUseCanvasState = () => {
         canvasStates.forEach((state) => {
           state.data = null;
           state.error = null;
-          state.subscribers.forEach(fn => fn());
+          state.subscribers.forEach((fn) => fn());
         });
       },
 

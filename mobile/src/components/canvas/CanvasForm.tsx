@@ -59,16 +59,18 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
 
+  const fields = data?.fields ?? [];
+
   // Initialize default values
   useEffect(() => {
     const defaults: Record<string, any> = {};
-    data.fields.forEach(field => {
+    fields.forEach(field => {
       if (field.default_value !== undefined) {
         defaults[field.name] = field.default_value;
       }
     });
     setValues(prev => ({ ...defaults, ...prev }));
-  }, [data.fields]);
+  }, [fields]);
 
   // Auto-save draft
   useEffect(() => {
@@ -106,18 +108,22 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
     if (field.validation) {
       const { min, max, pattern } = field.validation;
 
-      if (min !== undefined && typeof value === 'number' && value < min) {
+      // TextInputs produce strings — coerce numeric fields before range checks
+      const numericValue = typeof value === 'string' && value !== '' ? Number(value) : value;
+      const isNumeric = typeof numericValue === 'number' && !Number.isNaN(numericValue);
+
+      if (min !== undefined && isNumeric && numericValue < min) {
         return `${field.label} must be at least ${min}`;
       }
 
-      if (max !== undefined && typeof value === 'number' && value > max) {
+      if (max !== undefined && isNumeric && numericValue > max) {
         return `${field.label} must be at most ${max}`;
       }
 
       if (typeof value === 'string' && pattern) {
         const regex = new RegExp(pattern);
         if (!regex.test(value)) {
-          return `${field.label} format is invalid`;
+          return field.validation.message || `${field.label} format is invalid`;
         }
       }
 
@@ -139,7 +145,7 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   const validateAll = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    data.fields.forEach(field => {
+    fields.forEach(field => {
       const error = validateField(field, values[field.name]);
       if (error) {
         newErrors[field.name] = error;
@@ -148,7 +154,7 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [data.fields, values, validateField]);
+  }, [fields, values, validateField]);
 
   /**
    * Handle field value change
@@ -173,14 +179,14 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
    * Handle field blur (validate)
    */
   const handleBlur = useCallback((fieldName: string) => {
-    const field = data.fields.find(f => f.name === fieldName);
+    const field = fields.find(f => f.name === fieldName);
     if (field) {
       const error = validateField(field, values[fieldName]);
       if (error) {
         setErrors(prev => ({ ...prev, [fieldName]: error }));
       }
     }
-  }, [data.fields, values, validateField]);
+  }, [fields, values, validateField]);
 
   /**
    * Handle submit
@@ -208,7 +214,7 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
    * Calculate form progress
    */
   const calculateProgress = useCallback(() => {
-    const requiredFields = data.fields.filter(f => f.required);
+    const requiredFields = fields.filter(f => f.required);
     if (requiredFields.length === 0) return 100;
 
     const filledRequired = requiredFields.filter(
@@ -216,7 +222,7 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
     ).length;
 
     return Math.round((filledRequired / requiredFields.length) * 100);
-  }, [data.fields, values]);
+  }, [fields, values]);
 
   /**
    * Render text input
@@ -524,6 +530,10 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
     );
   };
 
+  if (!data) {
+    return null;
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -564,16 +574,17 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
         </View>
 
         {/* Fields */}
-        {data.fields.map(renderField)}
+        {fields.map(renderField)}
 
         {/* Submit button */}
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: theme.colors.primary }]}
           onPress={handleSubmit}
           disabled={submitting || loading}
+          testID="submit-button"
         >
           {submitting || loading ? (
-            <ActivityIndicator size="small" color={theme.colors.onPrimary} />
+            <ActivityIndicator size="small" color={theme.colors.onPrimary} testID="loading-indicator" />
           ) : (
             <Text style={[styles.submitButtonText, { color: theme.colors.onPrimary }]}>
               {data.submit_button_text || 'Submit'}

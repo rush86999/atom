@@ -966,7 +966,7 @@ class AutoDocumentIngestionService:
 
             result = await google_drive_service.list_files(
                 access_token=access_token,
-                page_size=settings.max_files
+                page_size=getattr(settings, "max_files", 100)
             )
 
             if result["status"] == "success":
@@ -1046,7 +1046,7 @@ class AutoDocumentIngestionService:
                 response = await client.post(
                     "https://api.dropboxapi.com/2/files/list_folder",
                     headers=headers,
-                    json={"path": "", "recursive": False, "limit": settings.max_files},
+                    json={"path": "", "recursive": False, "limit": getattr(settings, "max_files", 100)},
                     timeout=30.0
                 )
                 response.raise_for_status()

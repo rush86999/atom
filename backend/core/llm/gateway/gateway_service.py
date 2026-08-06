@@ -70,7 +70,9 @@ class GatewayService:
         overrides = parse_routing_overrides(headers or {})
         prompt = prompt_from_messages(messages)
 
-        forced_model = overrides.get("model")
+        forced_model = overrides.get("model") or (
+            model if model and model not in ("auto", "") else None
+        )
         forced_tier = overrides.get("tier")
         # intent override flows through for future ranking hooks; consumed here
         # for parity with the routing pipeline.
@@ -97,7 +99,7 @@ class GatewayService:
         else:
             routed_provider, routed_model = self._optimal()
 
-        if forced_model and forced_model not in ("auto", ""):
+        if forced_model:
             return self._resolve_provider_for_model(routed_provider, forced_model)
         return routed_provider, routed_model
 

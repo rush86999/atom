@@ -137,7 +137,8 @@ describe('Error Handling', () => {
 
       ErrorHandler.log(error);
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[NETWORK]'));
+      // log() emits a tag plus the formatted message
+      expect(consoleSpy).toHaveBeenCalledWith('[ERROR]', expect.stringContaining('[NETWORK]'));
       consoleSpy.mockRestore();
     });
   });
@@ -215,14 +216,22 @@ describe('Error Handling', () => {
       };
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      // React 18 does not rethrow event-handler errors synchronously —
+      // jsdom reports them as uncaught 'error' events on window instead.
+      // preventDefault() keeps jsdom from surfacing it as a test failure.
+      const windowErrorSpy = jest.fn((event: Event) => {
+        event.preventDefault();
+      });
+      window.addEventListener('error', windowErrorSpy);
 
       render(<button onClick={handleClick}>Click me</button>);
 
       const button = screen.getByRole('button');
-      expect(() => {
-        fireEvent.click(button);
-      }).toThrow();
+      fireEvent.click(button);
 
+      expect(windowErrorSpy).toHaveBeenCalled();
+
+      window.removeEventListener('error', windowErrorSpy);
       consoleSpy.mockRestore();
     });
   });

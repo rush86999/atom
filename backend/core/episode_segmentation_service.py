@@ -297,10 +297,17 @@ class EpisodeSegmentationService:
         ).order_by(ChatMessage.created_at.asc()).all()
 
         # Executions are linked by agent_id and time range (AgentExecution has no session_id field)
-        executions = self.db.query(AgentExecution).filter(
+        executions_query = self.db.query(AgentExecution).filter(
             AgentExecution.agent_id == agent_id,
             AgentExecution.started_at >= session.created_at
-        ).order_by(AgentExecution.started_at.asc()).all()
+        )
+        if messages:
+            last_message_time = getattr(messages[-1], "created_at", None)
+            if isinstance(last_message_time, datetime):
+                executions_query = executions_query.filter(
+                    AgentExecution.started_at <= last_message_time
+                )
+        executions = executions_query.order_by(AgentExecution.started_at.asc()).all()
 
         # 2.5. Fetch canvas and feedback context (NEW)
         canvas_audits = self._fetch_canvas_context(session_id)

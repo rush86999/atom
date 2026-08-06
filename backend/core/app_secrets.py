@@ -82,18 +82,24 @@ class SecretManager:
                     logger.warning("⚠️ SECURITY: Loaded secrets from plaintext file in production.")
 
                 # Auto-migrate to encrypted
-                if self._encryption_enabled:
-                    logger.info("Migrating secrets to encrypted storage...")
-                    self._save_secrets()
+                if self._encryption_enabled and self._save_secrets():
+                    # Only remove the plaintext file if the encrypted save
+                    # actually succeeded — deleting it on failure loses all
+                    # secrets permanently.
                     os.remove(self._secrets_file)
 
             except Exception as e:
                 logger.error(f"Failed to load secrets: {e}")
 
     def _save_secrets(self):
-        """Save secrets to file (encrypted if enabled)"""
+        """Save secrets to file (encrypted if enabled).
+
+        Returns:
+            bool: True if the secrets were persisted successfully
+        """
         try:
             if self._encryption_enabled:
+                logger.info("Migrating secrets to encrypted storage...")
                 data = json.dumps(self._secrets, indent=2).encode()
                 encrypted_data = self._fernet.encrypt(data)
 
@@ -102,14 +108,17 @@ class SecretManager:
 
                 os.chmod(self._secrets_encrypted_file, 0o600)
                 logger.info("Saved encrypted secrets to file")
+                return True
             else:
                 with open(self._secrets_file, 'w') as f:
                     json.dump(self._secrets, f, indent=2)
 
                 os.chmod(self._secrets_file, 0o600)
+                return True
 
         except Exception as e:
             logger.error(f"Failed to save secrets: {e}")
+            return False
 
     def get_secret(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """

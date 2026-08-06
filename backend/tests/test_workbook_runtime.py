@@ -119,10 +119,12 @@ class TestExcelManagerIntegration:
         assert hasattr(ExcelManager, "get_evaluated_range")
         assert hasattr(ExcelManager, "recalculate")
 
-    def test_write_cell_returns_formula_field(self, tmp_path):
+    def test_write_cell_returns_formula_field(self, tmp_path, monkeypatch):
         """write_cell now includes a 'formula' field in the response."""
         from core.office_service import ExcelManager
-        file_path = str(tmp_path / "test.xlsx")
+        monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path / "office"))
+        (tmp_path / "office").mkdir(exist_ok=True)
+        file_path = str(tmp_path / "office" / "test.xlsx")
         result = ExcelManager().write_cell(file_path, "/Sheet1/A1", "=SUM(1,2,3)", is_formula=True)
         assert result["success"] is True
         assert "formula" in result

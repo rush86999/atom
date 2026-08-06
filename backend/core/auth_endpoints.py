@@ -6,7 +6,7 @@ from typing import Optional
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
@@ -85,6 +85,12 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+def _validate_password_bytes(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 bytes when UTF-8 encoded")
+    return password
+
+
 class UserCreate(BaseModel):
     # SECURITY: email must be a well-formed address and password must meet the
     # same 8-char minimum the frontend enforces. Previously both were plain
@@ -96,12 +102,22 @@ class UserCreate(BaseModel):
     last_name: str
     role: str = "member"
 
+    @field_validator("password")
+    @classmethod
+    def _check_password_bytes(cls, v: str) -> str:
+        return _validate_password_bytes(v)
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_bytes(cls, v: str) -> str:
+        return _validate_password_bytes(v)
 
 class VerifyTokenRequest(BaseModel):
     token: str

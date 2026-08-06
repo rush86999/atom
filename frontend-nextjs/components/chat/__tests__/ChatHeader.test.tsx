@@ -273,8 +273,11 @@ describe('ChatHeader', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Enter session title');
+    // The editing input renders without a placeholder — verify the empty
+    // input is present in edit mode
+    const input = screen.getByRole('textbox');
     expect(input).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe('');
   });
 
   // Test 14: cancel button closes edit mode
@@ -357,7 +360,7 @@ describe('ChatHeader', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Enter session title');
+    const input = screen.getByRole('textbox');
     expect(input).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe('');
   });

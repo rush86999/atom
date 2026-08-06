@@ -86,9 +86,8 @@ describe('ChatTabScreen', () => {
 
       const { getByText } = render(<ChatTabScreen />);
 
-      await waitFor(() => {
-        expect(getByText('Loading conversations...')).toBeTruthy();
-      });
+      // Loading state shows on the first render, before token resolution
+      expect(getByText('Loading conversations...')).toBeTruthy();
     });
 
     it('should render conversation list when data loads', async () => {
@@ -295,19 +294,17 @@ describe('ChatTabScreen', () => {
     });
 
     it('should navigate to agents tab on FAB press', async () => {
-      const { getByText } = render(<ChatTabScreen />);
+      const { getByTestId } = render(<ChatTabScreen />);
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(screen.getByText('Test Agent')).toBeTruthy();
       });
 
-      // Find start button in empty state or FAB
-      await act(async () => {
-        // Navigate to agents tab via start new conversation
-        const startButton = getByText('Start a conversation');
-        if (startButton) {
-          fireEvent.press(startButton);
-        }
+      // Press the floating action button
+      fireEvent.press(getByTestId('fab-start-conversation'));
+
+      await waitFor(() => {
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('AgentsTab');
       });
     });
   });
@@ -315,16 +312,6 @@ describe('ChatTabScreen', () => {
   describe('Delete Conversation', () => {
     it('should show confirmation alert on delete', async () => {
       const Alert = require('react-native/Libraries/Alert/Alert').alert;
-
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-            }),
-        })
-      );
 
       const { getByText } = render(<ChatTabScreen />);
 
@@ -338,16 +325,6 @@ describe('ChatTabScreen', () => {
     });
 
     it('should remove conversation from list after successful delete', async () => {
-      (global.fetch as jest.Mock).mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-            }),
-        })
-      );
-
       const { getByText } = render(<ChatTabScreen />);
 
       await waitFor(() => {

@@ -67,8 +67,9 @@ export function deepEquals(a: unknown, b: unknown): boolean {
     return false;
   }
 
-  // Handle objects
-  if (a instanceof Object && b instanceof Object) {
+  // Handle objects (including null-prototype objects, which fail
+  // `instanceof Object` but are still comparable by key/value)
+  if (typeof a === 'object' && typeof b === 'object') {
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
 
@@ -99,7 +100,8 @@ export function deepEquals(a: unknown, b: unknown): boolean {
  * JSON roundtrip preserves data property.
  *
  * Tests that JSON.stringify → JSON.parse preserves arbitrary JSON data.
- * Uses fc.anything() for arbitrary JSON generation.
+ * Uses fc.jsonValue() for arbitrary JSON generation (undefined, NaN and
+ * other non-JSON values are excluded — JSON.stringify cannot represent them).
  *
  * @example
  * ```ts
@@ -109,7 +111,7 @@ export function deepEquals(a: unknown, b: unknown): boolean {
  * Invariant: For all JSON values, stringify → parse preserves structure
  */
 export const jsonRoundtripPreservesData = fc.property(
-  fc.anything(),
+  fc.jsonValue(),
   (data) => {
     const serialized = JSON.stringify(data);
     const deserialized = JSON.parse(serialized);
@@ -117,6 +119,22 @@ export const jsonRoundtripPreservesData = fc.property(
     return deepEquals(data, deserialized);
   }
 );
+
+/**
+ * Strip undefined-valued keys from a copy of an object.
+ *
+ * JSON.stringify omits undefined values, so the deserialized object can
+ * never contain them; comparing requires dropping them from the original.
+ */
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
 
 /**
  * Agent data roundtrip property.
@@ -129,7 +147,9 @@ export const jsonRoundtripPreservesData = fc.property(
  * fc.assert(agentDataRoundtrip);
  * ```
  *
- * Invariant: Agent data fields preserved after serialization
+ * Invariant: Agent data fields preserved after serialization.
+ * created_at is a Date → JSON serializes it to an ISO string, so it is
+ * compared by timestamp rather than by identity.
  */
 export const agentDataRoundtrip = fc.property(
   fc.record({
@@ -145,10 +165,25 @@ export const agentDataRoundtrip = fc.property(
   }),
   (agentData) => {
     const serialized = JSON.stringify(agentData);
-    const deserialized = JSON.parse(serialized);
+    const deserialized = JSON.parse(serialized) as typeof agentData;
 
-    // Verify all fields preserved
-    return deepEquals(agentData, deserialized);
+    // created_at becomes an ISO string (or null for Invalid Dates, which
+    // JSON.stringify converts to null) — compare by timestamp
+    let datePreserved: boolean;
+    if (Number.isNaN(agentData.created_at.getTime())) {
+      datePreserved = deserialized.created_at === null;
+    } else {
+      datePreserved =
+        new Date(deserialized.created_at as unknown as string).getTime() ===
+        agentData.created_at.getTime();
+    }
+
+    const originalCopy = { ...agentData } as Record<string, unknown>;
+    const deserializedCopy = { ...deserialized } as Record<string, unknown>;
+    delete originalCopy.created_at;
+    delete deserializedCopy.created_at;
+
+    return datePreserved && deepEquals(stripUndefined(originalCopy), stripUndefined(deserializedCopy));
   }
 );
 
@@ -163,14 +198,16 @@ export const agentDataRoundtrip = fc.property(
  * fc.assert(canvasDataRoundtrip);
  * ```
  *
- * Invariant: Canvas data fields and state preserved after serialization
+ * Invariant: Canvas data fields and state preserved after serialization.
+ * created_at is a Date → compared by timestamp; updated_at may be undefined
+ * (omitted by JSON.stringify) or a Date (ISO string).
  */
 export const canvasDataRoundtrip = fc.property(
   fc.record({
     id: fc.uuid(),
     type: fc.constantFrom('generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding' as const),
     state: fc.constantFrom('idle', 'presenting', 'submitted', 'closed', 'error' as const),
-    data: fc.anything(),
+    data: fc.jsonValue(),
     created_at: fc.date(),
     updated_at: fc.option(fc.date(), { nil: undefined }),
     metadata: fc.option(fc.record({
@@ -180,10 +217,40 @@ export const canvasDataRoundtrip = fc.property(
   }),
   (canvasData) => {
     const serialized = JSON.stringify(canvasData);
-    const deserialized = JSON.parse(serialized);
+    const deserialized = JSON.parse(serialized) as typeof canvasData;
 
-    // Verify all fields preserved
-    return deepEquals(canvasData, deserialized);
+    let createdPreserved: boolean;
+    if (Number.isNaN(canvasData.created_at.getTime())) {
+      createdPreserved = deserialized.created_at === null;
+    } else {
+      createdPreserved =
+        new Date(deserialized.created_at as unknown as string).getTime() ===
+        canvasData.created_at.getTime();
+    }
+
+    let updatedPreserved = true;
+    if (canvasData.updated_at !== undefined) {
+      const updatedAt = canvasData.updated_at as Date;
+      if (Number.isNaN(updatedAt.getTime())) {
+        updatedPreserved = deserialized.updated_at === null;
+      } else {
+        updatedPreserved =
+          new Date(deserialized.updated_at as unknown as string).getTime() ===
+          updatedAt.getTime();
+      }
+    } else {
+      updatedPreserved = deserialized.updated_at === undefined;
+    }
+
+    const originalCopy = { ...canvasData } as Record<string, unknown>;
+    const deserializedCopy = { ...deserialized } as Record<string, unknown>;
+    delete originalCopy.created_at;
+    delete deserializedCopy.created_at;
+    delete originalCopy.updated_at;
+    delete deserializedCopy.updated_at;
+
+    return createdPreserved && updatedPreserved &&
+      deepEquals(stripUndefined(originalCopy), stripUndefined(deserializedCopy));
   }
 );
 
@@ -201,7 +268,7 @@ export const canvasDataRoundtrip = fc.property(
  * Invariant: Array element order unchanged after serialization
  */
 export const arrayOrderPreserved = fc.property(
-  fc.array(fc.anything(), { minLength: 0, maxLength: 20 }),
+  fc.array(fc.jsonValue(), { minLength: 0, maxLength: 20 }),
   (originalArray) => {
     const serialized = JSON.stringify(originalArray);
     const deserialized = JSON.parse(serialized) as unknown[];
@@ -255,11 +322,13 @@ export const nullAndUndefinedHandling = fc.property(
       return false;
     }
 
-    // field1 (undefined) becomes null or is omitted
-    // This is expected JSON behavior
-    const field1Preserved = deserialized.field1 === null || deserialized.field1 === undefined;
+    // field1: string values must survive; undefined becomes null or is omitted
+    // (expected JSON behavior)
+    if (data.field1 === undefined) {
+      return deserialized.field1 === null || deserialized.field1 === undefined;
+    }
 
-    return field1Preserved;
+    return deserialized.field1 === data.field1;
   }
 );
 
@@ -282,7 +351,12 @@ export const dateSerialization = fc.property(
     const dataWithDate = { timestamp: originalDate };
 
     const serialized = JSON.stringify(dataWithDate);
-    const deserialized = JSON.parse(serialized) as { timestamp: string };
+    const deserialized = JSON.parse(serialized) as { timestamp: string | null };
+
+    // Invalid Dates (NaN time) stringify to null — expected JSON behavior
+    if (Number.isNaN(originalDate.getTime())) {
+      return deserialized.timestamp === null;
+    }
 
     // Verify date is converted to ISO string
     if (typeof deserialized.timestamp !== 'string') {
@@ -311,7 +385,7 @@ export const dateSerialization = fc.property(
  * Invariant: Nested object structure preserved after serialization
  */
 export const nestedObjectSerialization = fc.property(
-  fc.dictionary(fc.string(), fc.anything(), { maxKeys: 10 }),
+  fc.dictionary(fc.string(), fc.jsonValue(), { maxKeys: 10 }),
   (nestedObject) => {
     const serialized = JSON.stringify(nestedObject);
     const deserialized = JSON.parse(serialized);

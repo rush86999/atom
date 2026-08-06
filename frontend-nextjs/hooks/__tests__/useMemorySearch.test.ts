@@ -46,8 +46,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('query=test+query'),
-        expect.any(Object)
+        expect.stringContaining('query=test%20query')
       );
     });
 
@@ -64,8 +63,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('tag=important'),
-        expect.any(Object)
+        expect.stringContaining('tag=important')
       );
     });
 
@@ -82,8 +80,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('app_id=app-123'),
-        expect.any(Object)
+        expect.stringContaining('app_id=app-123')
       );
     });
 
@@ -100,8 +97,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('limit=20'),
-        expect.any(Object)
+        expect.stringContaining('limit=20')
       );
     });
 
@@ -150,8 +146,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('tag=urgent'),
-        expect.any(Object)
+        expect.stringContaining('tag=urgent')
       );
     });
 
@@ -168,8 +163,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('app_id=slack-app'),
-        expect.any(Object)
+        expect.stringContaining('app_id=slack-app')
       );
     });
 
@@ -186,8 +180,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('limit=50'),
-        expect.any(Object)
+        expect.stringContaining('limit=50')
       );
     });
 
@@ -204,8 +197,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('limit=20'),
-        expect.any(Object)
+        expect.stringContaining('limit=20')
       );
     });
   });
@@ -413,16 +405,13 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('tag=important'),
-        expect.any(Object)
+        expect.stringContaining('tag=important')
       );
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('app_id=slack'),
-        expect.any(Object)
+        expect.stringContaining('app_id=slack')
       );
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('limit=30'),
-        expect.any(Object)
+        expect.stringContaining('limit=30')
       );
     });
 
@@ -439,8 +428,7 @@ describe('useMemorySearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining(encodeURIComponent('test query with spaces')),
-        expect.any(Object)
+        expect.stringContaining(encodeURIComponent('test query with spaces'))
       );
     });
   });

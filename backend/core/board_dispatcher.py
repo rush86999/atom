@@ -13,8 +13,11 @@ from core.board_state_machine import BoardStatus
 from core.database import SessionLocal
 from core.models import AgentCanvasPresence, Canvas, Tenant
 from core.models_board import BoardTask
+from core.sync_job_queue import SyncJobQueue
 
 logger = logging.getLogger(__name__)
+
+_sync_job_queue = SyncJobQueue()
 
 
 class BoardDispatcher:
@@ -82,17 +85,10 @@ class BoardDispatcher:
         try:
             claimed = self._claim_ready_tasks(session)
             for task in claimed:
+                task_id = str(task.id)
                 try:
-                    # _dispatch_one may rollback the session on flush failure,
-                    # which detaches all ORM objects. Guard by re-fetching the
-                    # task ID from the detached instance (the id is a plain
-                    # string attribute, not a lazy-loaded relation, so it
-                    # survives detachment).
                     self._dispatch_one(session, task)
                 except Exception as e:
-                    # Accessing task.id after rollback is safe (it's a string
-                    # column already loaded, not a lazy relationship).
-                    task_id = task.id if task in session else getattr(task, 'id', 'unknown')
                     logger.exception(
                         "Failed to dispatch task %s: %s", task_id, e
                     )
@@ -107,8 +103,7 @@ class BoardDispatcher:
     # ------------------------------------------------------------------- #
     async def _acquire_lock(self) -> bool:
         try:
-            from core.sync_job_queue import job_queue
-            client = await job_queue.async_client
+            client = await _sync_job_queue.async_client
             if client is None:
                 return True
             acquired = await client.set(
@@ -121,8 +116,7 @@ class BoardDispatcher:
 
     async def _release_lock(self) -> None:
         try:
-            from core.sync_job_queue import job_queue
-            client = await job_queue.async_client
+            client = await _sync_job_queue.async_client
             if client is None:
                 return
             value = await client.get(self.LOCK_KEY)
@@ -181,16 +175,12 @@ class BoardDispatcher:
             return
 
         task.status = BoardStatus.IN_PROGRESS
+        task_id = str(task.id)
         try:
             session.flush()
         except Exception:
-            # Rollback detaches ALL ORM objects in `claimed` — subsequent
-            # iterations accessing task.canvas_id / task.assignee_agent_id
-            # raise DetachedInstanceError. After rollback, re-query the
-            # task to get a fresh attached instance, so the rest of the
-            # batch can proceed without crashing.
             session.rollback()
-            logger.warning("Flush failed for task %s, rolled back batch context", task.id)
+            logger.warning("Flush failed for task %s, rolled back batch context", task_id)
             return
 
         if task.canvas_id is not None:

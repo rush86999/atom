@@ -783,26 +783,28 @@ describe('Deep Link Param Extraction', () => {
   describe('extractDeepLinkParams', () => {
     it('should extract screen from atom:// workflow URL', () => {
       const result = extractDeepLinkParams('atom://workflow/test-workflow-123');
-      // The mock parser treats the path segment as the screen
-      expect(result.screen).toBe('test-workflow-123');
+      // Screen is the first path segment (matches the app's linking config
+      // path 'workflow/:workflowId'); the ID is an odd trailing segment, so
+      // it is not treated as a key-value param.
+      expect(result.screen).toBe('workflow');
       expect(result.params).toEqual({});
     });
 
     it('should extract screen from atom:// execution URL', () => {
       const result = extractDeepLinkParams('atom://execution/test-exec-456');
-      expect(result.screen).toBe('test-exec-456');
+      expect(result.screen).toBe('execution');
       expect(result.params).toEqual({});
     });
 
     it('should extract screen from atom:// agent URL', () => {
       const result = extractDeepLinkParams('atom://agent/test-agent-789');
-      expect(result.screen).toBe('test-agent-789');
+      expect(result.screen).toBe('agent');
       expect(result.params).toEqual({});
     });
 
     it('should extract screen from atom:// chat URL', () => {
       const result = extractDeepLinkParams('atom://chat/test-conv-999');
-      expect(result.screen).toBe('test-conv-999');
+      expect(result.screen).toBe('chat');
       expect(result.params).toEqual({});
     });
 
@@ -832,20 +834,22 @@ describe('Deep Link Param Extraction', () => {
 
     it('should handle URL-encoded parameters', () => {
       const result = extractDeepLinkParams('atom://workflow/workflow%20name%20with%20spaces');
-      // URL-encoded text is treated as a single segment
-      expect(result.screen).toBe('workflow%20name%20with%20spaces');
+      // Screen is the first segment; the encoded value is an odd trailing
+      // segment and is not treated as a key-value param.
+      expect(result.screen).toBe('workflow');
+      expect(result.params).toEqual({});
     });
 
     it('should handle URL with special characters', () => {
       const result = extractDeepLinkParams('atom://workflow/workflow-!@');
-      // Special characters are included in the segment
-      expect(result.screen).toBe('workflow-!@');
+      expect(result.screen).toBe('workflow');
+      expect(result.params).toEqual({});
     });
 
-    it('should return empty screen for URL with hostname only', () => {
-      // atom://workflows becomes http://workflows which has empty pathname
+    it('should extract screen from bare route URL', () => {
+      // atom://workflows maps to the WorkflowsList screen (path 'workflows')
       const result = extractDeepLinkParams('atom://workflows');
-      expect(result.screen).toBe('');
+      expect(result.screen).toBe('workflows');
     });
 
     it('should return empty params object for URL without parameters', () => {

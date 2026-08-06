@@ -47,6 +47,7 @@ class EntityTypeService:
             model_factory: Model factory for cache invalidation
         """
         self.db = db or SessionLocal()
+        self._owns_session = db is None
         self.validator = schema_validator or get_schema_validator()
         self.model_factory = model_factory or get_model_factory()
 
@@ -1036,8 +1037,7 @@ class EntityTypeService:
 
     def close(self):
         """Close database session if created by this service."""
-        # Only close if we created the session
-        if self.db is not None:
+        if self._owns_session and self.db is not None:
             self.db.close()
 
     def __enter__(self):

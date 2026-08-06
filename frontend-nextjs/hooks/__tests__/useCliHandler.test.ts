@@ -15,7 +15,10 @@ jest.mock('next-auth/react', () => ({
 }));
 
 // Mock @tauri-apps/plugin-cli
+// __esModule is required: the hook destructures getMatches from a dynamic
+// import(), which unwraps the default export of the mocked module
 jest.mock('@tauri-apps/plugin-cli', () => ({
+  __esModule: true,
   getMatches: jest.fn(),
 }));
 
@@ -127,7 +130,7 @@ describe('useCliHandler Hook', () => {
         expect(getMatchesMock).toHaveBeenCalled();
       });
 
-      const matches = getMatchesMock.mock.results[0].value;
+      const matches = await getMatchesMock();
       expect(matches.subcommand?.name).toBe('scan');
     });
 
@@ -199,8 +202,7 @@ describe('useCliHandler Hook', () => {
 
       await waitFor(() => {
         expect(toastMock.loading).toHaveBeenCalledWith(
-          expect.stringContaining('Scanning'),
-          expect.any(Object)
+          expect.stringContaining('Scanning')
         );
       });
     });
@@ -320,16 +322,20 @@ describe('useCliHandler Hook', () => {
     });
 
     test('handles missing getMatches gracefully', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
       getMatchesMock.mockImplementation(() => {
         throw new Error('getMatches not available');
       });
 
       renderHook(() => useCliHandler());
 
-      // Should not throw, just handle gracefully
+      // The hook's outer try/catch logs the failure without throwing
       await waitFor(() => {
-        expect(toastMock.error).toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalled();
       });
+
+      consoleSpy.mockRestore();
     });
 
     test('handles invoke errors', async () => {

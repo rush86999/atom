@@ -59,7 +59,7 @@ async def _check_hue_permission(
     Returns:
         (allowed, reason) tuple
     """
-    if not FeatureFlags.SMART_HOME_CONTROL_ENABLED:
+    if not getattr(FeatureFlags, "SMART_HOME_CONTROL_ENABLED", True):
         return False, "Smart home control is disabled via feature flag"
 
     # If no agent_id, it's a human-triggered action (allow)
@@ -287,7 +287,7 @@ async def _check_home_assistant_permission(
     Returns:
         (allowed, reason) tuple
     """
-    if not FeatureFlags.SMART_HOME_CONTROL_ENABLED:
+    if not getattr(FeatureFlags, "SMART_HOME_CONTROL_ENABLED", True):
         return False, "Smart home control is disabled via feature flag"
 
     # If no agent_id, it's a human-triggered action (allow)
@@ -511,7 +511,9 @@ def register_smarthome_tools():
     This function should be called during application startup to register
     all smart home control functions with the tool registry for agent use.
     """
-    from tools.registry import tool_registry
+    from tools.registry import get_tool_registry
+
+    tool_registry = get_tool_registry()
 
     # Register Hue tools
     tool_registry.register(

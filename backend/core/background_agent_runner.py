@@ -150,6 +150,7 @@ class BackgroundAgentRunner:
                 
                 context = {"agent_id": agent_id}
                 
+                db = None
                 try:
                     with get_db_session() as db:
                         agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
@@ -157,8 +158,6 @@ class BackgroundAgentRunner:
                             context["user_id"] = agent_record.user_id
                 except Exception as e:
                     logger.warning(f"Could not fetch agent owner context: {e}")
-                finally:
-                    db.close()
 
                 result = await execute_agent_task(agent_id, agent_def, context)
                 

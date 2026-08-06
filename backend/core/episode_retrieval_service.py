@@ -232,6 +232,18 @@ class EpisodeRetrievalService:
                     Episode.agent_id == agent_id
                 ).all()
 
+                episode_map = {e.id: e for e in episodes}
+                ranked_episodes = []
+                seen_ids = set()
+                for episode_id in episode_ids_clean:
+                    if episode_id in seen_ids:
+                        continue
+                    episode = episode_map.get(episode_id)
+                    if episode is not None:
+                        ranked_episodes.append(episode)
+                        seen_ids.add(episode_id)
+                episodes = ranked_episodes
+
             # Log access
             for episode in episodes:
                 await self._log_access(
@@ -249,7 +261,7 @@ class EpisodeRetrievalService:
             logger.error(f"Semantic retrieval failed: {e}")
             return {
                 "episodes": [],
-                "error": str(e),
+                "error": "Semantic retrieval failed",
                 "governance_check": governance_check
             }
 
@@ -688,7 +700,7 @@ class EpisodeRetrievalService:
             logger.error(f"Canvas-aware retrieval failed: {e}")
             return {
                 "episodes": [],
-                "error": str(e),
+                "error": "Canvas-aware retrieval failed",
                 "governance_check": governance_check
             }
 
@@ -824,7 +836,7 @@ class EpisodeRetrievalService:
             logger.error(f"Business data retrieval failed: {e}")
             return {
                 "episodes": [],
-                "error": str(e),
+                "error": "Business data retrieval failed",
                 "governance_check": governance_check
             }
 

@@ -189,8 +189,9 @@ class DebugInsightCache:
     def clear(self) -> None:
         """Clear all entries from cache."""
         with self._lock:
+            count = len(self._cache)
             self._cache.clear()
-            self._invalidations += len(self._cache)
+            self._invalidations += count
 
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -270,8 +271,10 @@ class DebugInsightCache:
         if severity:
             query_parts.append(severity)
 
-        query_hash = hash(":".join(query_parts))
-        return self.get(f"query:{query_hash}")
+        # Deterministic, addressable key (positional) so
+        # invalidate_component() can prefix-match by component.
+        query_key = "query:" + ":".join(query_parts)
+        return self.get(query_key)
 
     def set_insights_by_query(
         self,
@@ -301,8 +304,8 @@ class DebugInsightCache:
         if severity:
             query_parts.append(severity)
 
-        query_hash = hash(":".join(query_parts))
-        self.set(f"query:{query_hash}", insights)
+        query_key = "query:" + ":".join(query_parts)
+        self.set(query_key, insights)
 
     def get_component_state(
         self,
@@ -352,12 +355,17 @@ class DebugInsightCache:
         # Delete component state
         self.delete(f"state:{component_type}:{component_id}")
 
-        # Delete related query caches (simplified - in production, track query keys)
+        # Delete related query caches (query:<component_type>:<component_id>:...)
         with self._lock:
             keys_to_delete = [
                 key
-                for key in self._cache.keys()
-                if key.startswith(f"query:{component_type}") or key.startswith(f"query:{component_id}")
+                for key in list(self._cache.keys())
+                if key.startswith("query:")
+                and (
+                    key == f"query:{component_type}"
+                    or key.startswith(f"query:{component_type}:")
+                    or key.startswith(f"query:{component_type}:{component_id}")
+                )
             ]
 
             for key in keys_to_delete:

@@ -270,17 +270,16 @@ describe('AgentOperationTracker - Real-time Tracking Tests', () => {
 
     it('should format duration display', () => {
       const formatDuration = (ms: number): string => {
-        const seconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
 
-        if (hours > 0) {
-          return `${hours}h ${minutes % 60}m`;
-        }
-        if (minutes > 0) {
-          return `${minutes}m ${seconds % 60}s`;
-        }
-        return `${seconds}s`;
+        const parts: string[] = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0) parts.push(`${seconds}s`);
+        return parts.join(' ');
       };
 
       expect(formatDuration(5000)).toBe('5s');

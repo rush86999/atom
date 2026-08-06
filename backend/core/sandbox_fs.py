@@ -231,10 +231,10 @@ def validate_path(
     roots = policy.fs_write_roots if write else policy.fs_roots
     norm_roots = tuple(_normalize_path(r)[0] for r in roots)
     in_scope = _within_scope(resolved, norm_roots)
-    # Also check the raw requested value (handles macOS /tmp symlink case
-    # where policy was authored against the user-visible /tmp).
+    # Leniency for authoring-visible paths (e.g. macOS /tmp → /private/tmp):
+    # re-check the requested value against the roots, normalized the same way.
     if not in_scope and path_value:
-        in_scope = _within_scope(path_value, roots)
+        in_scope = _within_scope(_normalize_path(path_value, cwd=cwd)[0], norm_roots)
 
     if in_scope:
         return SandboxDecision(

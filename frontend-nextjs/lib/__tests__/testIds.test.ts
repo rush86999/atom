@@ -29,6 +29,7 @@ describe('testIds', () => {
     });
 
     it('should be frozen (immutable)', () => {
+      const original = AGENT_CHAT.INPUT;
       expect(() => {
         (AGENT_CHAT as any).INPUT = 'modified';
       }).not.toThrow();
@@ -36,6 +37,10 @@ describe('testIds', () => {
       // as const makes it readonly at type level, but runtime is different
       // This just verifies the structure exists
       expect(AGENT_CHAT.INPUT).toBeDefined();
+
+      // Restore the original value — plain objects are mutable at runtime, so
+      // the mutation above would otherwise leak into later tests.
+      (AGENT_CHAT as any).INPUT = original;
     });
 
     it('should have consistent string values', () => {

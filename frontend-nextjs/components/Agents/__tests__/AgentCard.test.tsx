@@ -2,7 +2,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { AgentCard, AgentInfo } from '../AgentCard';
+import AgentCard from '../AgentCard';
+import type { AgentInfo } from '../AgentCard';
 
 const baseAgent: AgentInfo = {
     id: 'a-1',

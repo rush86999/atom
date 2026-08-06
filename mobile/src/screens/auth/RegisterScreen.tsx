@@ -59,6 +59,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   // UI state
@@ -198,6 +200,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       email: true,
       password: true,
       confirmPassword: true,
+      terms: true,
     });
 
     if (!validateForm()) {
@@ -355,10 +358,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 ref={passwordInputRef}
                 style={styles.input}
                 placeholder="Password"
+                testID="password-input"
                 value={password}
                 onChangeText={handlePasswordChange}
                 onBlur={() => setTouched({ ...touched, password: true })}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoComplete="password-new"
                 textContentType="newPassword"
@@ -366,15 +370,28 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 onSubmitEditing={() => confirmInputRef.current?.focus()}
                 editable={!isLoading}
               />
+              <TouchableOpacity
+                testID="toggle-password-button"
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.passwordToggle}
+                disabled={isLoading}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
             </View>
             {touched.password && errors.password && (
               <Text style={styles.errorText}>{errors.password}</Text>
             )}
             {/* Password Strength Indicator */}
             {password && (
-              <View style={styles.strengthContainer}>
+              <View style={styles.strengthContainer} testID="password-strength-indicator">
                 <View style={styles.strengthBar}>
                   <View
+                    testID="strength-fill"
                     style={[
                       styles.strengthFill,
                       {
@@ -399,10 +416,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 ref={confirmInputRef}
                 style={styles.input}
                 placeholder="Confirm Password"
+                testID="confirm-password-input"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 onBlur={() => setTouched({ ...touched, confirmPassword: true })}
-                secureTextEntry
+                secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
                 autoComplete="password-new"
                 textContentType="newPassword"
@@ -410,6 +428,18 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 onSubmitEditing={handleRegister}
                 editable={!isLoading}
               />
+              <TouchableOpacity
+                testID="toggle-confirm-password-button"
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.passwordToggle}
+                disabled={isLoading}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
             </View>
             {touched.confirmPassword && errors.confirmPassword && (
               <Text style={styles.errorText}>{errors.confirmPassword}</Text>
@@ -419,6 +449,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
           {/* Terms and Conditions */}
           <View style={styles.termsContainer}>
             <TouchableOpacity
+              testID="terms-checkbox"
               style={styles.checkboxContainer}
               onPress={() => setAgreeToTerms(!agreeToTerms)}
               disabled={isLoading}
@@ -443,13 +474,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
           {/* Register Button */}
           <TouchableOpacity
+            testID="sign-up-button"
             style={[styles.registerButton, isLoading && styles.registerButtonDisabled]}
             onPress={handleRegister}
             disabled={isLoading}
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator testID="activity-indicator" color="#fff" />
             ) : (
               <Text style={styles.registerButtonText}>Create Account</Text>
             )}
@@ -472,6 +504,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   scrollContent: {
     flexGrow: 1,

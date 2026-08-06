@@ -30,6 +30,6 @@ test('debug permissions accordion', async () => {
   const labels = form.getAllByText(/Can Access/i);
   console.log('LABELS MATCHING /Can Access/i:', labels.length);
   labels.forEach(l => console.log('LABEL text:', l.textContent, 'for:', l.getAttribute('for')));
-  const webToggle = form.getByLabelText('Can Access Web');
+  const webToggle = form.getByLabelText('can Access Web');
   console.log('WEB TOGGLE FOUND:', !!webToggle);
 });

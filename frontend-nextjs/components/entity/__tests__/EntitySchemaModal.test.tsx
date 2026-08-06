@@ -11,10 +11,51 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EntitySchemaModal from '../EntitySchemaModal';
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/tests/mocks/server';
 
-const server = setupServer(
-  rest.post('/api/entity-types', (req, res, ctx) => {
+jest.mock('react-hot-toast', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    loading: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
+
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
+
+jest.mock('../MonacoSchemaEditor', () => ({
+  __esModule: true,
+  default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <textarea
+      data-testid="monaco-editor"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  ),
+}));
+
+// @rjsf pulls ESM-only deps (@x0k/json-schema-merge) that jest's CJS parser
+// cannot load — the modal renders its own form fields, so stub the Form out
+jest.mock('@rjsf/core', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock('@rjsf/validator-ajv8', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+const defaultHandlers = [
+  rest.post('*/api/entity-types', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -29,7 +70,7 @@ const server = setupServer(
     );
   }),
 
-  rest.patch('/api/entity-types/:id', (req, res, ctx) => {
+  rest.patch('*/api/entity-types/:id', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -44,7 +85,7 @@ const server = setupServer(
     );
   }),
 
-  rest.post('/api/entity-types/generate-schema', (req, res, ctx) => {
+  rest.post('*/api/entity-types/generate-schema', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -59,11 +100,15 @@ const server = setupServer(
       })
     );
   })
-);
+];
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Re-register default handlers after setup.ts's afterEach resetHandlers()
+beforeEach(() => {
+  server.use(...defaultHandlers);
+});
+
+const axiosDefault = require('axios').default;
+const hotToast = require('react-hot-toast').toast;
 
 describe('EntitySchemaModal', () => {
   const mockOnSuccess = jest.fn();
@@ -71,6 +116,9 @@ describe('EntitySchemaModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (axiosDefault.get as jest.Mock).mockResolvedValue({ data: [] });
+    (axiosDefault.post as jest.Mock).mockResolvedValue({ data: { success: true } });
+    (axiosDefault.put as jest.Mock).mockResolvedValue({ data: { success: true } });
   });
 
   // Test 1: renders modal when open
@@ -121,8 +169,7 @@ describe('EntitySchemaModal', () => {
     const descriptionInput = screen.getByLabelText(/description/i);
     fireEvent.change(descriptionInput, { target: { value: 'Customer entity' } });
 
-    const createButton = screen.getByRole('button', { name: /create/i });
-    fireEvent.click(createButton);
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
       expect(mockOnSuccess).toHaveBeenCalled();
@@ -136,7 +183,7 @@ describe('EntitySchemaModal', () => {
       slug: 'customer',
       display_name: 'Customer',
       description: 'Customer entity',
-      json_schema: { type: 'object' },
+      json_schema: { type: 'object', properties: {} },
     };
 
     render(
@@ -156,10 +203,16 @@ describe('EntitySchemaModal', () => {
     const nameInput = screen.getByLabelText(/name/i);
     fireEvent.change(nameInput, { target: { value: 'Updated Customer' } });
 
-    const updateButton = screen.getByRole('button', { name: /update/i });
-    fireEvent.click(updateButton);
+    // jsdom does not trigger submission for submit buttons that reference a
+    // form via the form="" attribute, so submit the form directly
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
+      expect(axiosDefault.put).toHaveBeenCalledWith(
+        expect.stringContaining('/api/entity-types/entity-1'),
+        expect.any(Object),
+        expect.any(Object)
+      );
       expect(mockOnSuccess).toHaveBeenCalled();
     });
   });
@@ -178,12 +231,12 @@ describe('EntitySchemaModal', () => {
     const monacoButton = screen.getByRole('button', { name: /code/i });
     fireEvent.click(monacoButton);
 
-    expect(screen.getByTestId(/monaco-editor/i)).toBeInTheDocument();
+    expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
 
     const visualButton = screen.getByRole('button', { name: /visual/i });
     fireEvent.click(visualButton);
 
-    expect(screen.getByTestId(/visual-builder/i)).toBeInTheDocument();
+    expect(screen.getByText(/editor canvas/i)).toBeInTheDocument();
   });
 
   // Test 6: validates schema before submission
@@ -197,19 +250,26 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    fireEvent.change(nameInput, { target: { value: '' } });
+    // Break the schema in the code editor — submission must be blocked with a
+    // toast error and onSuccess must NOT fire
+    fireEvent.click(screen.getByRole('button', { name: /code/i }));
+    const editor = screen.getByTestId('monaco-editor');
+    fireEvent.change(editor, { target: { value: '{ invalid json' } });
 
-    const createButton = screen.getByRole('button', { name: /create/i });
-    fireEvent.click(createButton);
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getByText(/name is required/i)).toBeInTheDocument();
+      expect(hotToast.error).toHaveBeenCalledWith(expect.stringMatching(/parse error|invalid schema/i));
     });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
   // Test 7: generates schema with AI
   test('generates schema with AI', async () => {
+    (axiosDefault.post as jest.Mock).mockResolvedValue({
+      data: { success: true, data: { type: 'object', properties: { name: { type: 'string' } } } },
+    });
+
     render(
       <EntitySchemaModal
         open={true}
@@ -219,26 +279,30 @@ describe('EntitySchemaModal', () => {
       />
     );
 
+    const nameInput = screen.getByLabelText(/display name/i);
+    fireEvent.change(nameInput, { target: { value: 'Customer' } });
     const descriptionInput = screen.getByLabelText(/description/i);
     fireEvent.change(descriptionInput, {
       target: { value: 'Customer with name and email' },
     });
 
-    const generateButton = screen.getByRole('button', { name: /generate/i });
+    const generateButton = screen.getByRole('button', { name: /ai suggest/i });
     fireEvent.click(generateButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/analyzing/i)).toBeInTheDocument();
+      expect(axiosDefault.post).toHaveBeenCalledWith(
+        expect.stringContaining('/api/entity-types/suggest-schema'),
+        expect.any(Object),
+        expect.any(Object)
+      );
+      // The suggestion opens the diff view for review
+      expect(screen.getByText(/schema diff/i)).toBeInTheDocument();
     });
   });
 
   // Test 8: handles schema generation error
   test('handles schema generation error', async () => {
-    server.use(
-      rest.post('/api/entity-types/generate-schema', (req, res, ctx) => {
-        return res(ctx.status(500));
-      })
-    );
+    (axiosDefault.post as jest.Mock).mockRejectedValue(new Error('suggest failed'));
 
     render(
       <EntitySchemaModal
@@ -249,37 +313,43 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const generateButton = screen.getByRole('button', { name: /generate/i });
+    const nameInput = screen.getByLabelText(/display name/i);
+    fireEvent.change(nameInput, { target: { value: 'Customer' } });
+
+    const generateButton = screen.getByRole('button', { name: /ai suggest/i });
     fireEvent.click(generateButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to generate/i)).toBeInTheDocument();
+      expect(hotToast.error).toHaveBeenCalledWith('Failed to get AI suggestion');
     });
   });
 
-  // Test 9: shows diff preview for updates
+  // Test 9: shows diff preview for AI suggestions
   test('shows diff preview for updates', async () => {
-    const existingEntity = {
-      id: 'entity-1',
-      slug: 'customer',
-      display_name: 'Customer',
-      json_schema: { type: 'object' },
-    };
+    (axiosDefault.post as jest.Mock).mockResolvedValue({
+      data: { success: true, data: { type: 'object', properties: { name: { type: 'string' } } } },
+    });
 
     render(
       <EntitySchemaModal
         open={true}
-        entityType={existingEntity}
         onSuccess={mockOnSuccess}
         onClose={mockOnClose}
         workspaceId="workspace-1"
       />
     );
 
-    const diffButton = screen.getByRole('button', { name: /preview/i });
-    fireEvent.click(diffButton);
+    const nameInput = screen.getByLabelText(/display name/i);
+    fireEvent.change(nameInput, { target: { value: 'Customer' } });
 
-    expect(screen.getByText(/changes/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ai suggest/i }));
+
+    // The diff view offers accept / reject actions
+    await waitFor(() => {
+      expect(screen.getByText(/schema diff/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /apply ai schema/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /keep current/i })).toBeInTheDocument();
   });
 
   // Test 10: closes modal on cancel
@@ -310,16 +380,15 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const visualButton = screen.getByRole('button', { name: /visual/i });
-    fireEvent.click(visualButton);
+    // The visual builder is the default mode; its constructor palette adds
+    // fields to the canvas
+    fireEvent.click(screen.getByRole('button', { name: /text/i }));
 
-    const addButton = screen.getByRole('button', { name: /add field/i });
-    fireEvent.click(addButton);
-
-    const fieldName = screen.getByPlaceholderText(/field name/i);
-    fireEvent.change(fieldName, { target: { value: 'phone' } });
-
-    expect(fieldName).toHaveValue('phone');
+    // The default schema already defines name + description, so the new
+    // constructor field is the third one (rendered as a field card)
+    await waitFor(() => {
+      expect(screen.getByText('Field 3')).toBeInTheDocument();
+    });
   });
 
   // Test 12: handles schema syntax error in Monaco editor
@@ -337,26 +406,22 @@ describe('EntitySchemaModal', () => {
     fireEvent.click(monacoButton);
 
     // Simulate invalid JSON
-    const editor = screen.getByTestId(/monaco-editor/i);
+    const editor = screen.getByTestId('monaco-editor');
     fireEvent.change(editor, { target: { value: '{ invalid json' } });
 
-    const createButton = screen.getByRole('button', { name: /create/i });
-    fireEvent.click(createButton);
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid schema/i)).toBeInTheDocument();
+      expect(hotToast.error).toHaveBeenCalledWith(expect.stringMatching(/parse error|invalid schema/i));
     });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
   // Test 13: displays loading state during submission
   test('displays loading state during submission', async () => {
-    server.use(
-      rest.post('/api/entity-types', (req, res, ctx) => {
-        return res(
-          ctx.delay(100),
-          ctx.json({ success: true })
-        );
-      })
+    let resolvePost: (v: unknown) => void = () => {};
+    (axiosDefault.post as jest.Mock).mockReturnValue(
+      new Promise((res) => { resolvePost = res; })
     );
 
     render(
@@ -368,16 +433,18 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    fireEvent.change(nameInput, { target: { value: 'Customer' } });
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
-    const createButton = screen.getByRole('button', { name: /create/i });
-    fireEvent.click(createButton);
+    // The submit button shows "Saving…" while the request is in flight
+    expect(screen.getByRole('button', { name: /saving/i })).toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: /loading/i })).toBeInTheDocument();
+    resolvePost({ data: { success: true } });
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalled();
+    });
   });
 
-  // Test 14: shows entity type validation errors
+  // Test 14: shows entity type validation errors — schema validation blocks submission
   test('shows entity type validation errors', async () => {
     render(
       <EntitySchemaModal
@@ -388,21 +455,22 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const slugInput = screen.getByLabelText(/slug/i);
-    fireEvent.change(slugInput, { target: { value: 'Invalid Slug!' } });
+    // A non-object root schema fails validation
+    fireEvent.click(screen.getByRole('button', { name: /code/i }));
+    const editor = screen.getByTestId('monaco-editor');
+    fireEvent.change(editor, { target: { value: '{"type": "string"}' } });
+
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid slug/i)).toBeInTheDocument();
+      expect(hotToast.error).toHaveBeenCalledWith(expect.stringMatching(/invalid schema/i));
     });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
   // Test 15: handles API error during creation
   test('handles API error during creation', async () => {
-    server.use(
-      rest.post('/api/entity-types', (req, res, ctx) => {
-        return res(ctx.status(500));
-      })
-    );
+    (axiosDefault.post as jest.Mock).mockRejectedValue(new Error('server down'));
 
     render(
       <EntitySchemaModal
@@ -413,14 +481,11 @@ describe('EntitySchemaModal', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    fireEvent.change(nameInput, { target: { value: 'Customer' } });
-
-    const createButton = screen.getByRole('button', { name: /create/i });
-    fireEvent.click(createButton);
+    fireEvent.submit(document.getElementById('entity-schema-form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to create/i)).toBeInTheDocument();
+      expect(hotToast.error).toHaveBeenCalledWith('Failed to save entity type');
     });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 });

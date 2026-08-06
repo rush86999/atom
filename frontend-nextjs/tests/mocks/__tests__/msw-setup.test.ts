@@ -6,7 +6,8 @@
  * integration tests.
  */
 
-import { server, overrideHandler, rest } from '../server';
+import { rest } from 'msw';
+import { server, overrideHandler } from '../server';
 import { agentHandlers, canvasHandlers, deviceHandlers } from '../handlers';
 import { errorHandlers } from '../errors';
 
@@ -112,12 +113,8 @@ describe('MSW Setup', function() {
 
   // Test that handlers cover all major endpoints
   test('should have handlers for all major API categories', function() {
-    // Health checks
-    expect(server.listHandlers()).toContainEqual(
-      expect.objectContaining({
-        path: '/api/health',
-      })
-    );
+    // Health checks (handlers expose their path under info.path)
+    expect(server.listHandlers().map((h) => h.info.path)).toContain('/api/health');
 
     // Verify handlers exist for each category
     const handlers = server.listHandlers();

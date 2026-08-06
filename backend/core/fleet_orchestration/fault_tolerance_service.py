@@ -101,7 +101,7 @@ class FaultToleranceService:
         alternatives = self.db.query(AgentRegistry).filter(
             AgentRegistry.category == domain,
             AgentRegistry.id.notin_(exclude_ids),
-            AgentRegistry.status == "active"  # Only active agents
+            AgentRegistry.status.in_(["intern", "supervised", "autonomous"])  # Only active maturity levels
         ).all()
 
         if not alternatives:
@@ -247,8 +247,9 @@ class FaultToleranceService:
         )
 
         # Update original link to indicate it was retried
-        failed_link.context_json = failed_link.context_json or {}
-        failed_link.context_json["retried_with_link_id"] = new_link.id
+        updated_context = dict(failed_link.context_json or {})
+        updated_context["retried_with_link_id"] = new_link.id
+        failed_link.context_json = updated_context
         self.db.commit()
 
         # Record healing event for audit
@@ -314,7 +315,8 @@ class FaultToleranceService:
             from core.models import FleetHealingEvent
 
             healing_event = FleetHealingEvent(
-                                chain_id=original_link.chain_id,
+                tenant_id="default",
+                chain_id=original_link.chain_id,
                 link_id=original_link.id,
                 trigger_type="failed_link",
                 trigger_reason="Fault tolerance retry with alternative specialist",

@@ -71,25 +71,37 @@ _DEFAULT_MASKED_FIELDS: Dict[str, Set[str]] = {
 _DEFAULT_REQUIRE_APPROVAL: Dict[str, Set[str]] = {}
 
 
+def _mask_key(key: str) -> str:
+    """Canonical masking key: lowercase with '-'/'_' separators dropped so
+    ``access_token``, ``access-token`` and ``accessToken`` interoperate."""
+    return key.strip().lower().replace("-", "").replace("_", "")
+
+
 def mask_response_fields(
     response: Any,
     masked_fields: Set[str],
 ) -> Any:
     """Recursively replace values of any key in ``masked_fields`` with '***'.
 
-    Operates on dicts and lists. Returns the input unchanged when
-    ``masked_fields`` is empty.
+    Operates on dicts and lists. Keys are matched case-insensitively so
+    providers returning ``ACCESS_TOKEN`` / ``AccessToken`` cannot leak past
+    the mask. Returns the input unchanged when ``masked_fields`` is empty.
     """
     if not masked_fields:
         return response
-    if isinstance(response, dict):
-        return {
-            k: ("***" if k in masked_fields else mask_response_fields(v, masked_fields))
-            for k, v in response.items()
-        }
-    if isinstance(response, list):
-        return [mask_response_fields(item, masked_fields) for item in response]
-    return response
+    masked_lower = {_mask_key(field) for field in masked_fields}
+
+    def _mask(node: Any) -> Any:
+        if isinstance(node, dict):
+            return {
+                k: ("***" if _mask_key(str(k)) in masked_lower else _mask(v))
+                for k, v in node.items()
+            }
+        if isinstance(node, list):
+            return [_mask(item) for item in node]
+        return node
+
+    return _mask(response)
 
 
 class Gatekeeper:
@@ -106,12 +118,29 @@ class Gatekeeper:
         #   require_approval_for (set), mutations (set).
         self._config: Dict[str, Dict[str, Any]] = {}
 
+    @staticmethod
+    def _normalize_service(service: str) -> str:
+        """Canonical service key: lowercase, stripped. Admin config and
+        dispatch call sites must agree or every policy is bypassed."""
+        return (service or "").strip().lower()
+
     def configure(self, service: str, policy: Dict[str, Any]) -> None:
         """Set/replace the policy override for a service."""
-        self._config[service] = policy
+        self._config[self._normalize_service(service)] = policy
 
     def _get(self, service: str, key: str, default: Any) -> Any:
-        cfg = self._config.get(service, {})
+        service = self._normalize_service(service)
+        cfg = self._config.get(service)
+        if cfg is None:
+            # Also match any pre-existing key differing only in case/whitespace
+            # (config written before normalization or by hand) so a policy is
+            # never silently bypassed by key-casing mismatch.
+            for stored, value in self._config.items():
+                if self._normalize_service(stored) == service:
+                    cfg = value
+                    break
+        if cfg is None:
+            cfg = {}
         if key in cfg:
             return cfg[key]
         if key == "mutations":
@@ -147,6 +176,7 @@ class Gatekeeper:
         user_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         taint_tracker: Any = None,
+        scopes: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
         """Evaluate a single outbound integration action against policy.
 
@@ -157,22 +187,42 @@ class Gatekeeper:
             taint_tracker: optional ``DataTaintTracker`` (P4). When supplied, an
                 external-bound call is blocked if restricted/confidential data
                 was observed this run (VT_PROVENANCE).
+            scopes: caller-provided OAuth scopes. When a service policy requires
+                scopes they must all be present — otherwise the call fails closed
+                (unprovable scopes are treated as missing).
         """
         params = params or {}
+        service = self._normalize_service(service)
         allowed = True
         reason = ""
 
         # 1. Rate limit (per-provider, reuses the integration-scoped limiter).
         try:
-            limited, remaining = await rate_limiter.is_rate_limited(
-                connector_id=service,
-                limit=self._get(service, "rate_limit", None),
-            )
+            rate_limit = self._get(service, "rate_limit", None)
+            if rate_limit == 0:
+                # An explicit 0 means "block all" — never fall back to the
+                # provider default limit (the underlying limiter treats 0 as
+                # absent, silently lifting the operator's block).
+                limited, remaining = True, 0
+            else:
+                limited, remaining = await rate_limiter.is_rate_limited(
+                    connector_id=service,
+                    limit=rate_limit,
+                )
             if limited:
                 allowed = False
                 reason = f"Rate limit exceeded for {service} (retry later)"
         except Exception as e:
             logger.debug("rate limit check skipped for %s: %s", service, e)
+
+        # 1a. Required scopes (fail-closed when unprovable).
+        required_scopes = set(self._get(service, "required_scopes", set()))
+        if allowed and required_scopes:
+            caller_scopes = {str(s) for s in (scopes or set())}
+            if not required_scopes.issubset(caller_scopes):
+                missing = sorted(required_scopes - caller_scopes)
+                allowed = False
+                reason = f"Missing required scopes for {service}: {missing}"
 
         # 1b. P4 data-taint gate: block external outbound when sensitive data
         # was observed this run. Emits VT_PROVENANCE.
@@ -200,6 +250,7 @@ class Gatekeeper:
         if allowed:
             require_approval = self._get(service, "require_approval_for", set())
             if action in require_approval:
+                intervention = None
                 try:
                     intervention = await intervention_service.request_intervention(
                         workspace_id=workspace_id or "default",
@@ -210,17 +261,28 @@ class Gatekeeper:
                         agent_id=agent_id,
                         user_id=user_id,
                     )
+                except Exception as e:
+                    logger.error("gatekeeper HITL escalation failed for %s.%s: %s", service, action, e)
+                if not intervention or not intervention.get("action_id"):
+                    # Fail-closed: no intervention row means the mutation can
+                    # never be reviewed — treat it as unavailable, not paused.
+                    allowed = False
+                    reason = f"Approval required but HITL unavailable: {service}.{action}"
+                else:
+                    self._write_audit(
+                        service=service,
+                        action=action,
+                        agent_id=agent_id,
+                        workspace_id=workspace_id,
+                        allowed=False,
+                        reason=f"Action requires manual review: {service}.{action}",
+                    )
                     return {
                         "allowed": False,
                         "reason": f"Action requires manual review: {service}.{action}",
                         "intervention_id": intervention.get("action_id"),
                         "paused": True,
                     }
-                except Exception as e:
-                    logger.error("gatekeeper HITL escalation failed for %s.%s: %s", service, action, e)
-                    # Fail-closed: if we can't request approval, block the mutation.
-                    allowed = False
-                    reason = f"Approval required but HITL unavailable: {service}.{action}"
 
         result: Dict[str, Any] = {"allowed": allowed}
         if not allowed:

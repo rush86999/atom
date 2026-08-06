@@ -5,6 +5,7 @@ Integration guides for connecting Atom with external platforms and services.
 ## 📚 Quick Navigation
 
 **Start Here**: [Integrations Overview](OVERVIEW.md) - Complete integration documentation
+**New**: [Third-Party App Integrations](THIRD_PARTY_INTEGRATIONS.md) - **Complete guide: 50+ native services, OAuth, governance, webhooks, Activepieces fallback, custom integration**
 
 ### Core Integrations
 - **[Overview](OVERVIEW.md)** - Integration architecture and patterns
@@ -24,20 +25,25 @@ Integration guides for connecting Atom with external platforms and services.
 
 ## 🔧 Quick Links
 
-**Supported Platforms**:
-- Slack, Teams, Discord (messaging)
-- Gmail, Outlook (email)
-- HubSpot, Salesforce (CRM)
-- Zendesk, Freshdesk (support)
-- Jira, Asana, Trello (project management)
-- 40+ business integrations
+**Supported Platforms (50+ Native + 1000+ Activepieces)**:
+- **CRM**: Salesforce, HubSpot, Zoho CRM, Pipedrive
+- **Communication**: Slack, Teams, Discord, Google Chat, Telegram, WhatsApp, Zoom
+- **Project Management**: Asana, Jira, Linear, Trello, Monday, GitLab, GitHub
+- **Storage**: Google Drive, OneDrive, Dropbox, Box, Notion
+- **Support**: Zendesk, Freshdesk, Intercom
+- **Finance**: Stripe, QuickBooks, Xero, Zoho Books
+- **Marketing**: Mailchimp, Meta Ads, Google Ads, LinkedIn Ads, Google Analytics
+- **E-Commerce**: Shopify
+- **Development**: GitHub, GitLab, Figma
 
 ## 📖 Related Documentation
 
 - **[Agent System](../agents/README.md)** - Agent integration workflows
 - **API Documentation** - REST API reference
 - **Security** - Integration security
+- **[Execution Sandbox](../guides/EXECUTION_SANDBOX.md)** - Blast-radius defense for integrations
+- **[Agent Maturity & Governance](../guides/AGENT_MATURITY_GOVERNANCE.md)** - Tier-based access control
 
 ---
 
-*Last Updated: April 12, 2026*
+*Last Updated: August 2026*

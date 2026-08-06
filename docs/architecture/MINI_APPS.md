@@ -135,6 +135,45 @@ The implementation revised the original design in these ways:
 6. **Scaffold LLM-assisted body** is flag-gated (`ATOM_MINIAAP_LLM_SCAFFOLD`),
    deterministic template by default (testable path).
 
+### Mini-app DB store — records + read bridge (Aug 2026)
+
+Mini-apps get a **host-mediated, per-instance structured data store** plus
+pre-fetched reads of existing system data. The microVM has no network/DB, so
+the host mediates everything — same trust model as `storage_ops` (the guest
+proposes, the host validates and executes).
+
+**Records (`CanvasRecord` — the app's database).** Series-scoped rows with a
+monotonic per-(canvas, series) `seq` (append order), JSON `data` payloads, and
+full CRUD. Reachable from three surfaces, all flowing through
+`core/mini_app_db_service.py` (the single enforcement point):
+
+| Surface | How |
+|---|---|
+| **MicroVM logic** | `record_ops` appended in the logic (sibling of `storage_ops`), e.g. `record_ops.append({"op": "append", "series": "chart_data", "data": {"label": "Jan", "value": 12}})`. Ops: `append` (optional client `id`), `get`, `query` (equality `filter` + `limit` 1–10000 + `order` by seq, desc default), `count`, `update` (merge), `update_many`, `delete`, `delete_series`, `clear`, `list_series`. Host validates each op (`_validate_record_op`), executes, returns `record_results` in the run result; dry-runs propose without committing; committed writes broadcast `canvas:update` (`action: mini_app_db`) |
+| **Agents** | `mini_app_db_query` (read-only; INTERN+) / `mini_app_db_write` (SUPERVISED+) — owner-gated, identity from context, same op vocabulary; auto-exposed via `/api/rpc/*` |
+| **Integrations/workflows/UI** | `/api/mini-apps/instances/{canvas_id}/records/*` (query/append/count/series/get/update/delete/delete-series) — `get_current_user` + instance check + owner-gated mutations; no microVM involved |
+
+**Read bridge — inputs pre-fetched at run start.** The host injects as globals
+before `execute_python`:
+- `records` — own-history pre-fetch for series in `manifest.db.record_queries`
+  (latest N, desc) — the app can compute over its own accumulated rows without
+  cramming them into `state`.
+- `data_sources` — `manifest.data_sources` (`documents.search`) and
+  `manifest.mcp_servers` (`{service, action, params}` — no longer a dead stub).
+  Integration calls go through `ExternalIntegrationService.execute_integration_action`
+  with credentials resolved from `IntegrationToken` (P0-encrypted, decrypted
+  host-side); only the result payload is injected — **tokens never reach the
+  guest**. Failures/unknown services are logged + skipped; results are
+  size-capped (5 MiB/source) — a bad source never crashes a run.
+
+**Config & caps.** `manifest.db = {enabled (default true), max_records_per_series
+(10000), max_record_bytes (100 KiB), record_queries: [...]}`; validated in
+`validate_manifest`. Series names must match `^[a-z0-9_]{1,64}$`. Per-run cap:
+200 ops. Kill switch: `ATOM_MINIAPP_DB_ENABLED=false` rejects all `record_ops`
+(`db_disabled`) and errors the record routes (503). v1 filters are host-side
+equality matches (SQL pushdown is a follow-up); no per-row ACLs (series-level
+only); no compaction/TTL.
+
 ---
 
 ## The MVC model

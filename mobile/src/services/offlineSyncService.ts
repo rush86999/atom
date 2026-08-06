@@ -850,6 +850,9 @@ class OfflineSyncService {
         pendingCount: 0,
         syncInProgress: false,
         consecutiveFailures: 0,
+        currentOperation: '',
+        syncProgress: 0,
+        cancelled: false,
       }
     );
   }

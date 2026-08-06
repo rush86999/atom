@@ -282,13 +282,14 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
               {/* Send Reset Link Button */}
               <TouchableOpacity
+                testID="send-reset-button"
                 style={[styles.sendButton, isLoading && styles.sendButtonDisabled]}
                 onPress={handleSendResetLink}
                 disabled={isLoading}
                 activeOpacity={0.8}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator testID="activity-indicator" color="#fff" />
                 ) : (
                   <Text style={styles.sendButtonText}>Send Reset Link</Text>
                 )}

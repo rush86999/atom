@@ -246,7 +246,7 @@ Fixed critical CI failures preventing tests from running:
 2. **Missing Dependencies**: Added `jsonschema` and `responses` packages to requirements.txt
 3. **Syntax Errors**: Fixed indentation errors in 3 core files that prevented coverage.py from parsing
 
-**See Also:** [docs/CI_FIXES.md](../archive/legacy/CI_FIXES.md) for detailed breakdown of fixes
+**See Also:** [backend/docs/CI_FIXES.md](../../backend/docs/CI_FIXES.md) for detailed breakdown of fixes
 
 ### Running CI Locally
 
@@ -429,44 +429,44 @@ systemctl start atom-backend atom-workers
 ## 📚 Documentation Resources
 
 ### Getting Started
-- [Quick Start Guide](../archive/old-guides/missing_credentials_guide.md) - Configure 117+ integrations
-- [Developer Handover](../archive/legacy/developer_handover.md) - Architecture overview & status
-- Architecture Specification - High-level system design
+- [LLM Providers Guide](../guides/LLM_PROVIDERS.md) — All providers, setup, costs
+- [OAuth Quick Setup](../guides/OAUTH_QUICK_SETUP_GUIDE.md) — 5-minute OAuth setup
+- [OAuth Setup Checklist](../guides/OAUTH_SETUP_CHECKLIST.md) — Complete OAuth configuration
+- [Architecture Overview](../architecture/README.md) — High-level system design
 
 ### Security
-- [Authentication Guide][<!-- SECURITY/AUTHENTICATION.md -->] - OAuth 2.0 and session management
-- [Data Protection][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets management
-- Compliance - GDPR, SOC2, HIPAA considerations
+- [Authentication Guide](../security/AUTHENTICATION.md) — OAuth 2.0 and session management
+- [Data Protection](../security/DATA_PROTECTION.md) — Encryption and secrets management
+- [Compliance](../security/COMPLIANCE.md) — GDPR, SOC2, HIPAA considerations
 
 ### Deployment
-- Cloud Deployment - AWS, GCP, Azure deployment
-- Production Deployment - Production checklist
-- Docker Deployment - Container deployment guide
-- Monitoring Setup - Performance monitoring
+- [Production Readiness](../operations/production-readiness.md) — Pre-flight checklist
+- [Cloud Deployment](../deployment/DEPLOYMENT_GUIDE.md) — AWS, GCP, Azure deployment
+- [Docker Deployment](../operations/personal-edition.md) — Container deployment guide
+- [Monitoring Setup](../operations/monitoring.md) — Performance monitoring
 
 ### Integration Development
-- API Integration Guide - Build custom integrations
-- Contributing Integrations - Integration contribution guide
-- BYOK LLM Integration - Multi-provider LLM setup
+- [API Integration Guide](../integrations/OVERVIEW.md) — Build custom integrations
+- [Contributing Integrations](../CONTRIBUTING_INTEGRATIONS.md) — Integration contribution guide
+- [BYOK LLM Integration](../integrations/community-skills.md) — Multi-provider LLM setup
 
-### New Features (February 2026)
-- Student Agent Training - Agent maturity system
-- Episodic Memory - Agent learning framework
-- [Agent Graduation Guide](../agents/graduation.md) - Agent promotion criteria
-- Real-Time Agent Guidance - Live operation tracking
-- Canvas & Feedback Integration - Canvas presentations in episodes
-- [Canvas AI Accessibility](../canvas/ai-accessibility.md) - Dual representation for AI agents
-- Canvas State API - JavaScript API for real-time canvas state
-- [LLM Canvas Summaries](../canvas/llm-summaries.md) - LLM-powered semantic summaries
-- [Deep Linking](../archive/legacy/DEEPLINK_IMPLEMENTATION.md) - External app integration via atom:// URLs
-- Device Capabilities - Camera, screen recording, location
+### New Features (August 2026)
+- **Execution Sandbox Layer** — Default-on blast-radius defense ([architecture/SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md))
+- **Learning LLM Router** — Feedback-based re-ranking ([architecture/LEARNING_LLM_ROUTER.md](../architecture/LEARNING_LLM_ROUTER.md))
+- **Mini-Apps** — Agent-authored stateful apps ([architecture/MINI_APPS.md](../architecture/MINI_APPS.md))
+- **Office Automation** — Word/Excel/PowerPoint co-editing ([guides/ATOM_OFFICE_AUTOMATION_GUIDE.md](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md))
+- **Canvas AI Accessibility** — Dual representation for AI agents ([canvas/ai-accessibility.md](../canvas/ai-accessibility.md))
+- **Canvas State API** — JavaScript API for real-time canvas state ([canvas/CANVAS_STATE_API.md](../canvas/CANVAS_STATE_API.md))
+- **LLM Canvas Summaries** — LLM-powered semantic summaries ([canvas/llm-summaries.md](../canvas/llm-summaries.md))
+- **Deep Linking** — External app integration via atom:// URLs ([archive/legacy/DEEPLINK_IMPLEMENTATION.md](../archive/legacy/DEEPLINK_IMPLEMENTATION.md))
+- **Device Capabilities** — Camera, screen recording, location ([guides/DEVICE_CAPABILITIES.md](../guides/DEVICE_CAPABILITIES.md))
 
 ### Workflow Automation
-- Workflow Automation Engine - Complete workflow guide
-- Workflow Intelligence - AI-powered workflow optimization
-- Workflow Monitoring - Track workflow performance
+- [Workflow Automation Engine](../integrations/OVERVIEW.md) — Complete workflow guide
+- [Workflow Intelligence](../guides/FEATURES.md) — AI-powered workflow optimization
+- [Workflow Monitoring](../operations/monitoring.md) — Track workflow performance
 
 ### Recent Implementation Status
-- [Incomplete Fixes Summary](../archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes
-- Task Queue Implementation - Background task queue
-- [Final Implementation Report](../archive/implementation/FINAL_IMPLEMENTATION_SUMMARY.md) - Complete change log
+- [Incomplete Fixes Summary](../archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) — Feb 5, 2026 fixes
+- [Task Queue Implementation](../development/setup.md) — Background task queue
+- [Final Implementation Report](../archive/implementation/FINAL_IMPLEMENTATION_SUMMARY.md) — Complete change log

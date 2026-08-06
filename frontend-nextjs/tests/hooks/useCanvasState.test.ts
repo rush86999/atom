@@ -40,19 +40,12 @@ describe('useCanvasState', () => {
 
     unsubscribeCallback = null;
 
-    // Setup mock canvas API
+    // Setup mock canvas API — empty store by default: the hook eagerly loads
+    // initial state via getState/getAllStates on mount, so a populated mock
+    // store would break the "initializes with empty state" assertions.
     mockAPI = {
-      getState: jest.fn((id: string) => ({
-        canvas_type: 'chart',
-        canvas_id: id,
-        title: `Canvas ${id}`,
-        chart_type: 'line',
-        data: { values: [1, 2, 3] }
-      })),
-      getAllStates: jest.fn(() => [
-        { canvas_id: 'canvas-1', state: { canvas_type: 'chart', chart_type: 'line', data: {} } },
-        { canvas_id: 'canvas-2', state: { canvas_type: 'markdown', content: 'test' } }
-      ]),
+      getState: jest.fn(() => null),
+      getAllStates: jest.fn(() => []),
       subscribe: jest.fn().mockImplementation((callback) => {
         unsubscribeCallback = callback as unknown as () => void;
         return jest.fn(() => { unsubscribeCallback = null; });
@@ -167,6 +160,14 @@ describe('useCanvasState', () => {
     test('getState retrieves specific canvas state', () => {
       const { result } = renderHook(() => useCanvasState());
 
+      (mockAPI.getState as jest.Mock).mockReturnValueOnce({
+        canvas_type: 'chart',
+        canvas_id: 'canvas-1',
+        title: 'Canvas canvas-1',
+        chart_type: 'line',
+        data: { values: [1, 2, 3] }
+      });
+
       const state = result.current.getState('canvas-1');
 
       expect(mockAPI.getState).toHaveBeenCalledWith('canvas-1');
@@ -191,6 +192,11 @@ describe('useCanvasState', () => {
 
     test('getAllStates retrieves all canvas states', () => {
       const { result } = renderHook(() => useCanvasState());
+
+      (mockAPI.getAllStates as jest.Mock).mockReturnValueOnce([
+        { canvas_id: 'canvas-1', state: { canvas_type: 'chart', chart_type: 'line', data: {} } },
+        { canvas_id: 'canvas-2', state: { canvas_type: 'markdown', content: 'test' } }
+      ]);
 
       const states = result.current.getAllStates();
 

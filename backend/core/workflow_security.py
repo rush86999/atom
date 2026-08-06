@@ -104,11 +104,12 @@ def _has_critical_mcp_tool(step: Dict[str, Any]) -> bool:
     """
     params = step.get("parameters") or {}
     tool_name = params.get("tool_name") or step.get("action")
+    normalized_tool = str(tool_name or "").strip().lower()
     service = (step.get("service") or str(step.get("step_type") or "")).lower()
     if service == "mcp":
-        if not tool_name or "${" in str(tool_name) or tool_name in CRITICAL_MCP_TOOLS:
+        if not tool_name or "${" in normalized_tool or normalized_tool in CRITICAL_MCP_TOOLS:
             return True
-    elif tool_name and ("${" in str(tool_name) or tool_name in CRITICAL_MCP_TOOLS):
+    elif tool_name and ("${" in normalized_tool or normalized_tool in CRITICAL_MCP_TOOLS):
         return True
     return False
 
@@ -222,7 +223,7 @@ async def require_critical_tool(user: User, tool_name: Any) -> None:
     """
     if RBACService.check_permission(user, Permission.WORKFLOW_MANAGE):
         return
-    tool = str(tool_name or "")
+    tool = str(tool_name or "").strip().lower()
     if not tool or "${" in tool or tool in CRITICAL_MCP_TOOLS:
         raise HTTPException(
             status_code=403,
@@ -288,7 +289,7 @@ def has_critical_automation_nodes(defn: Any) -> bool:
             config = getattr(node, "config", None) or {}
         if not isinstance(config, dict):
             config = {}
-        action_type = config.get("actionType")
+        action_type = str(config.get("actionType") or "").strip().lower()
         if action_type in CRITICAL_AUTOMATION_ACTION_TYPES:
             return True
     return False

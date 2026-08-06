@@ -228,29 +228,23 @@ describe('InteractiveForm - Success State Feedback', () => {
 
   test('success message auto-hides after 3 seconds', async () => {
     const mockSubmit = jest.fn().mockResolvedValue(undefined);
-    jest.useFakeTimers();
-    // user-event must advance fake timers or its internal waits deadlock
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const user = userEvent.setup();
 
     renderWithProviders(<InteractiveForm fields={fields} onSubmit={mockSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'John Doe');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
-    // Flush the resolved submit so React commits the success state
-    await act(async () => {
-      jest.advanceTimersByTime(0);
+    await waitFor(() => {
+      expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/submitted successfully/i)).toBeInTheDocument();
 
-    // Fast-forward the 3s auto-hide timer
-    await act(async () => {
-      jest.advanceTimersByTime(3000);
-    });
-    expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
+    // The success view auto-hides after the 3s timer (real timers — fake
+    // timers swallow the resolved submit's promise continuation)
+    await waitFor(() => {
+      expect(screen.queryByText(/submitted successfully/i)).not.toBeInTheDocument();
+    }, { timeout: 5000 });
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-
-    jest.useRealTimers();
   });
 });
 

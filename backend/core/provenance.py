@@ -99,9 +99,15 @@ class ProvenanceTag:
             attrs.append(f'source="{_escape_attr(self.source)}"')
         if self.timestamp:
             attrs.append(f'at="{_escape_attr(self.timestamp)}"')
+        # Escape any provenance-tag-shaped text inside the content so an
+        # untrusted chunk cannot close its own spotlight and re-open one as a
+        # trusted type (indirect-prompt-injection escape).
+        body = (self.content or "").replace(
+            "</provenance", "&lt;/provenance"
+        ).replace("<provenance", "&lt;provenance")
         return (
             f"<provenance {' '.join(attrs)}>\n"
-            f"{self.content}\n"
+            f"{body}\n"
             f"</provenance>"
         )
 

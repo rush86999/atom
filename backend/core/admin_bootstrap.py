@@ -24,9 +24,18 @@ def _write_password_to_secure_file(password: str) -> str:
 
     This keeps the plaintext password out of application logs (which are often
     shipped to centralized logging) while still letting the operator retrieve it.
+
+    Default path is anchored to the backend package (``backend/logs/``) — NOT
+    the current working directory — so the file lands where README/CLAUDE.md
+    say it will regardless of the launch cwd (the README quick start launches
+    uvicorn from the repo root; a cwd-relative default silently wrote a
+    duplicate password to ``./logs/`` while operators read the stale
+    ``backend/logs/`` copy → login 401).
     """
     path = os.getenv("ATOM_BOOTSTRAP_PASSWORD_FILE") or os.path.join(
-        os.getcwd(), "logs", "bootstrap_admin_password.txt"
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "logs",
+        "bootstrap_admin_password.txt",
     )
     try:
         parent = os.path.dirname(path)

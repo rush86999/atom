@@ -17,6 +17,19 @@ describe('NotificationService', () => {
     jest.clearAllMocks();
     notificationService._resetState();
     (global.fetch as jest.Mock).mockReset();
+    // Restore the default granted permission — an earlier test permanently
+    // rejects getPermissionsAsync, which breaks every later initialize().
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    });
+    // Same for the push token fetch — error-handling tests permanently reject it.
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({
+      type: 'expo',
+      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+    });
   });
 
   // ========================================================================

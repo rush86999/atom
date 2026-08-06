@@ -126,6 +126,8 @@ See **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** for the full guide. Most comm
 - **[Agent System](../agents/README.md)** — Learn about agents
 - **[Architecture](../architecture/README.md)** — How the pieces fit
 - **[Execution Sandbox Layer](../architecture/SANDBOX_LAYER.md)** — How blast radius is bounded
+- **[LLM Providers Guide](../guides/LLM_PROVIDERS.md)** — All providers, setup, costs
+- **[OpenCode Go Provider](../guides/OPENCODE_GO_PROVIDER.md)** — Low-cost subscription gateway
 - **[Development Setup](../development/DEVELOPMENT_SETUP.md)** — For contributors
 - **[Operations](../operations/README.md)** — Deployment and monitoring
 

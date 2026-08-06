@@ -157,15 +157,19 @@ describe('useCanvasState Hook (comprehensive)', () => {
       expect(unsubscribe).toHaveBeenCalled();
     });
 
-    it('propagates errors thrown by subscribe (real hook does not guard it)', () => {
+    it('handles subscribe errors gracefully without crashing', () => {
       mockApi.subscribe = jest.fn(() => {
         throw new Error('Subscription failed');
       });
+      mockApi.getState = jest.fn(() => null) as any;
       (window as any).atom.canvas = mockApi;
 
-      expect(() => renderHook(() => useCanvasState('canvas-1'))).toThrow(
-        'Subscription failed'
-      );
+      // The hook degrades gracefully (log, allow): a throwing subscribe()
+      // must not crash the component tree — accessors keep working
+      const { result } = renderHook(() => useCanvasState('canvas-1'));
+
+      expect(result.current.state).toBeNull();
+      expect(result.current.getAllStates()).toEqual([]);
     });
   });
 

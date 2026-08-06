@@ -75,9 +75,8 @@ describe('CommunicationHub', () => {
 
     render(<CommunicationHub {...defaultProps} onMessageSend={handleMessageSend} />);
 
-    // Component has "New Message" button
-    const newMessageButton = screen.getByText(/new message/i);
-    expect(newMessageButton).toBeInTheDocument();
+    // Component has "New Message" button (also appears in the compose heading)
+    expect(screen.getAllByText(/new message/i).length).toBeGreaterThan(0);
   });
 
   // Test 5: filters messages by platform
@@ -182,8 +181,8 @@ describe('CommunicationHub', () => {
       <CommunicationHub onConversationCreate={handleConversationCreate} />
     );
 
-    // Component has new message button
-    expect(screen.getByText(/new message/i)).toBeInTheDocument();
+    // Component has new message button (also appears in the compose heading)
+    expect(screen.getAllByText(/new message/i).length).toBeGreaterThan(0);
   });
 
   // Test 13: handles unread count
@@ -228,7 +227,7 @@ describe('CommunicationHub', () => {
     render(<CommunicationHub {...defaultProps} initialTemplates={[template]} />);
 
     // Component renders template functionality
-    expect(screen.getByText(/new message/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/new message/i).length).toBeGreaterThan(0);
   });
 
   // Test 17: filters by unread status

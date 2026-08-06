@@ -1,6 +1,7 @@
 import logging
 import json
 import asyncio
+import inspect
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import os
@@ -1102,16 +1103,6 @@ class MCPService(IntegrationService):
 
         Enhanced to handle entity-bound skill execution when context contains entity_id.
         """
-        # Check if this is an entity-bound execution
-        if context and context.get("entity_id"):
-            logger.info(
-                f"Entity-bound execution detected: tool={tool_name}, "
-                f"entity_id={context.get('entity_id')}, "
-                f"entity_type={context.get('entity_type_slug')}"
-            )
-            # Route through entity-aware execution path
-            return await self.execute_entity_tool(context, tool_name, arguments)
-
         # P2: Agent capability binding gate. Enforces per-agent tool scoping at the
         # dispatch layer so ALL callers (agent loop, workflow engine, meta-agent,
         # fleet) are gated identically — closing the gap that generic_agent.py:249
@@ -1162,6 +1153,17 @@ class MCPService(IntegrationService):
                 )
         except Exception as sandbox_err:  # pragma: no cover - fail-open
             logger.debug("sandbox gate skipped: %s", sandbox_err)
+
+        # Entity-bound execution is NOT a gate bypass: it only routes to the
+        # entity-aware execution path after the capability and sandbox gates have
+        # run, so an entity_id in context cannot disable per-agent scoping.
+        if context and context.get("entity_id"):
+            logger.info(
+                f"Entity-bound execution detected: tool={tool_name}, "
+                f"entity_id={context.get('entity_id')}, "
+                f"entity_type={context.get('entity_type_slug')}"
+            )
+            return await self.execute_entity_tool(context, tool_name, arguments)
 
         # 0. Check Ontology Action Registry first
         from core.action_registry import action_registry
@@ -1317,11 +1319,27 @@ class MCPService(IntegrationService):
             # Get the tool function and execute it
             tool_func = get_tool_registry().get_function(tool_name)
             if tool_func:
-                # Execute the tool function with arguments
+                # Execute the tool function with arguments. Context keys are only
+                # forwarded when the tool's signature accepts them (and never
+                # override explicit arguments), so untyped context splats
+                # (agent_id/tenant_id/...) can't blow up typed tools with
+                # TypeError or duplicate-key collisions.
+                kwargs = dict(arguments)
+                try:
+                    params = inspect.signature(tool_func).parameters
+                    accepts_var_kw = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in params.values()
+                    )
+                    for _k, _v in (context or {}).items():
+                        if _k not in kwargs and (accepts_var_kw or _k in params):
+                            kwargs[_k] = _v
+                except (TypeError, ValueError):
+                    pass
                 if asyncio.iscoroutinefunction(tool_func):
-                    return await tool_func(**arguments, **context)
+                    return await tool_func(**kwargs)
                 else:
-                    return tool_func(**arguments, **context)
+                    return tool_func(**kwargs)
             else:
                 raise ValueError(f"Tool {tool_name} not found in registry")
             

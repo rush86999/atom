@@ -47,7 +47,7 @@ jest.mock('expo-constants', () => ({
 }));
 
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import { DeviceProvider, useDevice } from '../../contexts/DeviceContext';
 import { WebSocketProvider, useWebSocket } from '../../contexts/WebSocketContext';
@@ -282,8 +282,13 @@ describe('Context Integration - Auth + Device', () => {
 
   test('should clear device state on logout', async () => {
     // Setup authenticated and registered state
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_device_id') return Promise.resolve(mockDeviceId);
       if (key === 'atom_device_registered') return Promise.resolve('true');
       return Promise.resolve(null);
@@ -317,23 +322,29 @@ describe('Context Integration - Auth + Device', () => {
 
     jest.clearAllMocks();
 
-    act(() => {
-      getByTestId('logoutButton').props.onPress();
-    });
+    fireEvent.press(getByTestId('logoutButton'));
 
     await waitFor(() => {
       expect(getByTestId('authStatus').props.children).toBe('not authenticated');
     });
 
     // Verify device state was cleared
+    await waitFor(() => {
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_device_registered');
+    });
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_device_id');
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_device_token');
-    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_device_registered');
   });
 
   test('should use auth token for device registration', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+      if (key === 'atom_user_data') return Promise.resolve(JSON.stringify(mockUser));
       return Promise.resolve(null);
     });
 
@@ -346,14 +357,15 @@ describe('Context Integration - Auth + Device', () => {
 
     const DeviceRegisterComponent = () => {
       const { registerDevice } = useDevice();
+      const { isAuthenticated } = useAuth();
       const [attempted, setAttempted] = React.useState(false);
 
       React.useEffect(() => {
-        if (!attempted) {
+        if (!attempted && isAuthenticated) {
           registerDevice(mockPushToken);
           setAttempted(true);
         }
-      }, [attempted]);
+      }, [attempted, isAuthenticated]);
 
       return <Text testID="ready">ready</Text>;
     };
@@ -379,8 +391,13 @@ describe('Context Integration - Auth + Device', () => {
   });
 
   test('should share user info between contexts', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_user_data') return Promise.resolve(JSON.stringify(mockUser));
       return Promise.resolve(null);
     });
@@ -415,8 +432,13 @@ describe('Context Integration - Auth + Device', () => {
     const newAccessToken = 'new_access_token_789';
 
     // Setup initial authenticated state with device registered
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_device_id') return Promise.resolve(mockDeviceId);
       if (key === 'atom_device_registered') return Promise.resolve('true');
       return Promise.resolve(null);
@@ -559,11 +581,7 @@ describe('Context Integration - Auth + Device', () => {
       }
     };
 
-    const { getByTestId } = render(
-      <DeviceProvider>
-        <Component />
-      </DeviceProvider>
-    );
+    const { getByTestId } = render(<Component />);
 
     await waitFor(() => {
       expect(getByTestId('error').props.children).toContain('useAuth must be used within an AuthProvider');
@@ -662,8 +680,13 @@ describe('Context Integration - Auth + WebSocket', () => {
 
   test('should disconnect WebSocket on logout', async () => {
     // Setup authenticated state
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_user_data') return Promise.resolve(JSON.stringify(mockUser));
       return Promise.resolve(null);
     });
@@ -693,9 +716,7 @@ describe('Context Integration - Auth + WebSocket', () => {
       expect(getByTestId('authStatus').props.children).toBe('authenticated');
     }, { timeout: 5000 });
 
-    act(() => {
-      getByTestId('logoutButton').props.onPress();
-    });
+    fireEvent.press(getByTestId('logoutButton'));
 
     await waitFor(() => {
       expect(getByTestId('authStatus').props.children).toBe('not authenticated');
@@ -871,8 +892,13 @@ describe('Context Integration - Full Three-Provider', () => {
 
   test('should handle logout across all providers', async () => {
     // Setup authenticated state
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_access_token') return Promise.resolve(mockAccessToken);
+      if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+      return Promise.resolve(null);
+    });
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
       if (key === 'atom_device_id') return Promise.resolve(mockDeviceId);
       if (key === 'atom_device_registered') return Promise.resolve('true');
       if (key === 'atom_user_data') return Promise.resolve(JSON.stringify(mockUser));
@@ -906,9 +932,7 @@ describe('Context Integration - Full Three-Provider', () => {
 
     jest.clearAllMocks();
 
-    act(() => {
-      getByTestId('logoutButton').props.onPress();
-    });
+    fireEvent.press(getByTestId('logoutButton'));
 
     await waitFor(() => {
       expect(getByTestId('authStatus').props.children).toBe('not authenticated');

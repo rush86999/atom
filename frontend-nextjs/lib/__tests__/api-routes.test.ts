@@ -92,7 +92,9 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['test'] },
       });
 
-      (global.mockFetch as jest.Mock).mockRejectedValueOnce.mockRejectedValueOnce(new Error('Network error'));
+      (global.mockFetch as jest.Mock)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockRejectedValueOnce(new Error('Network error'));
 
       await handler(req, res);
 

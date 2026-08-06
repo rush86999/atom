@@ -288,6 +288,15 @@ async def break_tie(
         text = raw
     result = _parse_llm_response(text)
 
+    # An index outside [0, len(candidates)) is a garbage response — never let
+    # it upgrade a partial match to HIGH (bypassing proposal gating).
+    if result.chosen_index >= len(candidates):
+        result = TiebreakResult(
+            chosen_index=-1,
+            rationale="LLM returned out-of-range candidate index",
+            used_llm=False,
+        )
+
     _circuit_breaker.record_success()
 
     if SELECTOR_CONFIDENCE_LLM_CACHE_ENABLED and key:

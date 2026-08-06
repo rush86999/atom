@@ -346,6 +346,8 @@ async def get_session_history(
             "count": len(formatted_messages)
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to retrieve session history: {e}", exc_info=True)
         return {
@@ -687,6 +689,8 @@ async def chat_with_agent(
         
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in chat agent: {str(e)}")
         logger.error(f"Internal error: {e}", exc_info=True)
@@ -1237,9 +1241,24 @@ async def handle_send_email(request: ChatRequest, entities: Dict[str, Any]) -> D
     }
 
 async def handle_search_emails(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
-    """Search emails"""
+    """Search emails via Gmail"""
     query = entities.get("query", "")
-    return {"success": True, "response": {"message": f"Searching for {query} in your inbox...", "actions": []}}
+    try:
+        service = GmailService()
+        messages = service.search_messages(query=query, max_results=3)
+
+        if not messages:
+            return {"success": True, "response": {"message": f"No emails found for '{query}'.", "actions": []}}
+
+        return {
+            "success": True,
+            "response": {
+                "message": f"Found {len(messages)} emails matching '{query}'.",
+                "actions": [{"type": "view_inbox", "label": "View in Gmail", "data": {"query": query}}]
+            }
+        }
+    except Exception as e:
+        return {"success": False, "response": {"message": f"Failed to search emails: {str(e)}", "actions": []}}
 
 async def handle_knowledge_query(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Answer complex relationship queries using knowledge graph"""
@@ -1263,22 +1282,6 @@ async def handle_knowledge_query(request: ChatRequest, entities: Dict[str, Any])
             "success": False,
             "response": {"message": "I encountered an error while searching your knowledge graph.", "actions": []}
         }
-    try:
-        service = GmailService()
-        messages = service.search_messages(query=query, max_results=3)
-        
-        if not messages:
-            return {"success": True, "response": {"message": f"No emails found for '{query}'.", "actions": []}}
-            
-        return {
-            "success": True,
-            "response": {
-                "message": f"Found {len(messages)} emails matching '{query}'.",
-                "actions": [{"type": "view_inbox", "label": "View in Gmail", "data": {"query": query}}]
-            }
-        }
-    except Exception as e:
-        return {"success": False, "response": {"message": f"Failed to search emails: {str(e)}", "actions": []}}
 
 async def handle_task_intent(intent: str, entities: Dict[str, Any], request: ChatRequest) -> Dict[str, Any]:
     """Handle task management intents"""
@@ -1414,7 +1417,10 @@ async def execute_generated_workflow(
 async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to follow up on emails by triggering the workflow template"""
     try:
-        from core.workflow_template_system import template_manager
+        import core.workflow_template_system as _wts
+        template_manager = getattr(_wts, "template_manager", None)
+        if template_manager is None:
+            template_manager = _wts.WorkflowTemplateManager()
 
         # Find the email_followup template
         template = template_manager.get_template("email_followup")
@@ -1448,7 +1454,10 @@ async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]
 async def handle_wellness_check(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to check user wellness/burnout and trigger mitigation workflow"""
     try:
-        from core.workflow_template_system import template_manager
+        import core.workflow_template_system as _wts
+        template_manager = getattr(_wts, "template_manager", None)
+        if template_manager is None:
+            template_manager = _wts.WorkflowTemplateManager()
         template = template_manager.get_template("burnout_protection")
         
         return {
@@ -1541,7 +1550,10 @@ async def handle_resolve_conflicts(request: ChatRequest, entities: Dict[str, Any
 async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to set a new high-level goal"""
     try:
-        from core.workflow_template_system import template_manager
+        import core.workflow_template_system as _wts
+        template_manager = getattr(_wts, "template_manager", None)
+        if template_manager is None:
+            template_manager = _wts.WorkflowTemplateManager()
 
         # Extract goal and date if possible, otherwise use defaults/mock
         goal_text = entities.get("goal_text", request.message)
@@ -1861,10 +1873,16 @@ Provide helpful, concise responses. When you need to take actions, describe what
         # Add conversation history
         if request.conversation_history:
             for msg in request.conversation_history[-10:]:  # Last 10 messages for context
-                messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", "")
-                })
+                if isinstance(msg, dict):
+                    messages.append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", "")
+                    })
+                else:
+                    messages.append({
+                        "role": getattr(msg, "role", "user"),
+                        "content": getattr(msg, "content", "")
+                    })
 
         # Add current message
         messages.append({
@@ -1874,6 +1892,12 @@ Provide helpful, concise responses. When you need to take actions, describe what
 
         # Get optimal provider for streaming
         complexity = llm_service.analyze_query_complexity(request.message, task_type="chat")
+        # analyze_query_complexity returns a QueryComplexity enum, but
+        # get_optimal_provider expects the lowercase string form — passing the
+        # enum straight through raised AttributeError ('QueryComplexity' object
+        # has no attribute 'lower'), which surfaced as a 503 on every stream.
+        if hasattr(complexity, "value"):
+            complexity = complexity.value
         try:
             provider_id, model = llm_service.get_optimal_provider(
                 complexity,

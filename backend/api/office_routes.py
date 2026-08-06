@@ -13,11 +13,24 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
-from core.office_service import OfficeService
+from core.office_service import OfficeService, _validate_office_path
 from core.office_sync_service import OfficeSyncService
 from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
+
+
+def _require_office_path(file_path: str) -> str:
+    """Contain user-supplied file_path before any OfficeService call.
+
+    Every office endpoint is an untrusted surface (authenticated users may
+    supply any path for read/write/render). Resolve against ATOM_OFFICE_DIR
+    and reject out-of-scope paths with a 400 before touching the filesystem.
+    """
+    try:
+        return _validate_office_path(file_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Every office endpoint reads/writes user-supplied file paths and document
 # content — they MUST be authenticated. Previously NONE of the 14 endpoints had
@@ -84,6 +97,7 @@ def read_excel(
     cell_path: str = Query("", description="DOM-like path or coordinate, e.g. /Sheet1/A1")
 ):
     """Read values from an Excel sheet range or coordinate."""
+    file_path = _require_office_path(file_path)
     res = office_service.excel.read_range(file_path, cell_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -93,6 +107,7 @@ def read_excel(
 @router.post("/excel")
 def write_excel(req: ExcelWriteRequest):
     """Write data or formulas to an Excel sheet coordinate."""
+    file_path = _require_office_path(req.file_path)
     res = office_service.excel.write_cell(
         file_path=req.file_path,
         cell_path=req.cell_path,
@@ -109,7 +124,8 @@ async def recalculate_excel(
     file_path: str = Query(..., description="Path to XLSX file")
 ):
     """Force recalculation of all formulas in the workbook."""
-    res = await office_service.ExcelManager.recalculate(file_path)
+    file_path = _require_office_path(file_path)
+    res = await office_service.excel.recalculate(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -123,7 +139,8 @@ async def insert_excel_rows(
     count: int = Query(1, description="Number of rows to insert")
 ):
     """Insert rows and recalculate formulas to maintain references."""
-    res = await office_service.ExcelManager.insert_rows(file_path, sheet_name, row, count)
+    file_path = _require_office_path(file_path)
+    res = await office_service.excel.insert_rows(file_path, sheet_name, row, count)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -137,7 +154,8 @@ async def insert_excel_columns(
     count: int = Query(1, description="Number of columns to insert")
 ):
     """Insert columns and recalculate formulas."""
-    res = await office_service.ExcelManager.insert_columns(file_path, sheet_name, column, count)
+    file_path = _require_office_path(file_path)
+    res = await office_service.excel.insert_columns(file_path, sheet_name, column, count)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -149,7 +167,8 @@ async def get_formula_result(
     cell_path: str = Query(..., description="DOM-like path, e.g. /Sheet1/A4")
 ):
     """Get the computed result of a formula cell (evaluates if needed)."""
-    res = await office_service.ExcelManager.get_evaluated_range(file_path, cell_path)
+    file_path = _require_office_path(file_path)
+    res = await office_service.excel.get_evaluated_range(file_path, cell_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -158,7 +177,8 @@ async def get_formula_result(
 @router.post("/excel/pivot-table")
 async def create_excel_pivot_table(req: ExcelPivotTableRequest):
     """Create a styled pivot table in the Excel workbook."""
-    res = await office_service.ExcelManager.add_pivot_table(
+    file_path = _require_office_path(req.file_path)
+    res = await office_service.excel.add_pivot_table(
         req.file_path, req.sheet_name, req.pivot_sheet_name,
         req.data_range, req.rows, req.columns, req.values
     )
@@ -170,7 +190,8 @@ async def create_excel_pivot_table(req: ExcelPivotTableRequest):
 @router.post("/excel/run-macro")
 async def run_excel_macro(req: ExcelRunMacroRequest):
     """Run an Excel VBA/Basic macro inside a sandboxed environment."""
-    res = await office_service.ExcelManager.run_excel_macro(req.file_path, req.macro_name)
+    file_path = _require_office_path(req.file_path)
+    res = await office_service.excel.run_excel_macro(file_path, req.macro_name)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -179,6 +200,7 @@ async def run_excel_macro(req: ExcelRunMacroRequest):
 @router.get("/word")
 def read_word(file_path: str = Query(..., description="Path to DOCX file")):
     """Read contents of a Word document."""
+    file_path = _require_office_path(file_path)
     res = office_service.word.read_document(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -188,6 +210,7 @@ def read_word(file_path: str = Query(..., description="Path to DOCX file")):
 @router.post("/word")
 def modify_word(req: WordModifyRequest):
     """Modify paragraphs or replace text placeholders in a Word document."""
+    file_path = _require_office_path(req.file_path)
     res = office_service.word.modify_document(
         file_path=req.file_path,
         action=req.action,
@@ -202,6 +225,7 @@ def modify_word(req: WordModifyRequest):
 @router.get("/pptx")
 def read_pptx(file_path: str = Query(..., description="Path to PPTX file")):
     """Read slides and shape contents of a PowerPoint presentation."""
+    file_path = _require_office_path(file_path)
     res = office_service.pptx.read_slides(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -211,6 +235,7 @@ def read_pptx(file_path: str = Query(..., description="Path to PPTX file")):
 @router.post("/pptx")
 def modify_pptx(req: PptxModifyRequest):
     """Modify slides or layouts in a PowerPoint presentation."""
+    file_path = _require_office_path(req.file_path)
     res = office_service.pptx.modify_slides(
         file_path=req.file_path,
         action=req.action,
@@ -228,6 +253,7 @@ def present_coedit(
     current_user: User = Depends(get_current_user),
 ):
     """Present document co-editing canvas panel via WebSocket & CanvasAudit record."""
+    file_path = _require_office_path(req.file_path)
     sync_service = OfficeSyncService(db)
     canvas_id = req.canvas_id or f"canvas_{uuid.uuid4().hex[:12]}"
     
@@ -235,14 +261,14 @@ def present_coedit(
     # client-supplied user_id forged audit records and memory ingestion.
     sync_service.broadcast_file_update(
         canvas_id=canvas_id,
-        file_path=req.file_path,
+        file_path=file_path,
         user_id=current_user.id
     )
 
     return {
         "success": True,
         "canvas_id": canvas_id,
-        "message": f"Presented co-editing canvas for {req.file_path}"
+        "message": f"Presented co-editing canvas for {file_path}"
     }
 
 

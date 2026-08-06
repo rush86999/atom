@@ -50,7 +50,7 @@ class AgentGraphRAGService:
         logger.info(f"Agent {self.agent_id} requesting GraphRAG context: {query[:50]}...")
 
         # Query GraphRAG (workspace-isolated)
-        result = self.graphrag.query(
+        result = await self.graphrag.query(
             workspace_id=self.workspace_id,
             query=query,
             mode=mode

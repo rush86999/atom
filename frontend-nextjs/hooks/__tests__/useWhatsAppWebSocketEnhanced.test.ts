@@ -149,7 +149,7 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       });
 
       await waitFor(() => {
-        expect(mockToastFnFn).toHaveBeenCalledWith(
+        expect(mockToastFn).toHaveBeenCalledWith(
           expect.objectContaining({
             title: 'Connected to WhatsApp',
             variant: 'success',
@@ -259,9 +259,9 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
         result.current.connect();
       });
 
+      // The hook logs a single prefixed message string plus optional data
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[WhatsAppWebSocket]',
-        expect.any(String),
+        expect.stringContaining('[WhatsAppWebSocket]'),
         expect.anything()
       );
 
@@ -284,8 +284,7 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[WhatsAppWebSocket]',
-        expect.stringContaining('Message received'),
+        expect.stringContaining('[WhatsAppWebSocket] Message received'),
         expect.anything()
       );
 
@@ -309,9 +308,9 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       const logCalls = consoleLogSpy.mock.calls;
       const logMessage = logCalls[logCalls.length - 1];
 
-      // Format: [WhatsAppWebSocket] message data
-      expect(logMessage[0]).toBe('[WhatsAppWebSocket]');
-      expect(typeof logMessage[1]).toBe('string');
+      // Format: "[WhatsAppWebSocket] message" + optional data
+      expect(logMessage[0]).toContain('[WhatsAppWebSocket]');
+      expect(typeof logMessage[0]).toBe('string');
       expect(logMessage.length).toBeGreaterThanOrEqual(2);
 
       consoleLogSpy.mockRestore();
@@ -471,8 +470,7 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[WhatsAppWebSocket]',
-        'Unknown message type',
+        expect.stringContaining('[WhatsAppWebSocket] Unknown message type'),
         'unknown_type'
       );
 
@@ -577,8 +575,7 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[WhatsAppWebSocket]',
-        expect.stringContaining('error'),
+        expect.stringContaining('[WhatsAppWebSocket] WebSocket error'),
         expect.anything()
       );
 

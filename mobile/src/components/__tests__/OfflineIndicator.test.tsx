@@ -22,7 +22,8 @@ import { OfflineIndicator } from '../offline/OfflineIndicator';
 import { offlineSyncService } from '../../services/offlineSyncService';
 
 // Mock dependencies
-jest.mock('react-native-vector-icons/Ionicons', () => 'Icon');
+// (react-native-vector-icons/Ionicons is mocked globally in jest.setup.js with
+// testID `icon-${name}` — no local override needed)
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useTheme: jest.fn(() => ({
@@ -105,7 +106,7 @@ describe('OfflineIndicator Component', () => {
     });
 
     test('should not render when dismissed', async () => {
-      const { getByText, queryByText } = renderWithNavigation(
+      const { getByText, queryByText, getByTestId } = renderWithNavigation(
         <OfflineIndicator onViewPendingActions={mockOnViewPendingActions} />
       );
 
@@ -113,8 +114,8 @@ describe('OfflineIndicator Component', () => {
       expect(getByText('3 Pending Changes')).toBeTruthy();
 
       // Dismiss
-      const dismissButton = getByText('3 Pending Changes').parent.parent.parent.findByProps({ testID: 'dismiss-button' });
-      fireEvent.press(dismissButton);
+      const dismissButton = getByTestId('dismiss-button');
+      fireEvent.press(dismissButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(queryByText('3 Pending Changes')).toBeNull();
@@ -122,13 +123,13 @@ describe('OfflineIndicator Component', () => {
     });
 
     test('should re-appear after 5 minutes when dismissed', async () => {
-      const { getByText, queryByText } = renderWithNavigation(
+      const { getByText, queryByText, getByTestId } = renderWithNavigation(
         <OfflineIndicator onViewPendingActions={mockOnViewPendingActions} />
       );
 
       // Dismiss
-      const dismissButton = getByText('3 Pending Changes').parent.parent.parent.findByProps({ testID: 'dismiss-button' });
-      fireEvent.press(dismissButton);
+      const dismissButton = getByTestId('dismiss-button');
+      fireEvent.press(dismissButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(queryByText('3 Pending Changes')).toBeNull();
@@ -272,7 +273,8 @@ describe('OfflineIndicator Component', () => {
 
       await waitFor(() => {
         const progressBar = getByTestId('progress-bar-fill');
-        expect(progressBar.props.style.width).toBe('50%');
+        const { StyleSheet } = require('react-native');
+        expect(StyleSheet.flatten(progressBar.props.style).width).toBe('50%');
       });
 
       // Update to 75%
@@ -286,7 +288,8 @@ describe('OfflineIndicator Component', () => {
 
       await waitFor(() => {
         const progressBar = getByTestId('progress-bar-fill');
-        expect(progressBar.props.style.width).toBe('75%');
+        const { StyleSheet } = require('react-native');
+        expect(StyleSheet.flatten(progressBar.props.style).width).toBe('75%');
       });
     });
 
@@ -407,7 +410,7 @@ describe('OfflineIndicator Component', () => {
 
       // Press retry
       const retryButton = getByText('Retry');
-      fireEvent.press(retryButton);
+      fireEvent.press(retryButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(offlineSyncService.triggerSync).toHaveBeenCalled();
@@ -440,7 +443,7 @@ describe('OfflineIndicator Component', () => {
 
       // Press retry
       const retryButton = getByText('Retry');
-      fireEvent.press(retryButton);
+      fireEvent.press(retryButton, { stopPropagation: jest.fn() });
 
       // Error should clear
       await waitFor(() => {
@@ -458,7 +461,7 @@ describe('OfflineIndicator Component', () => {
       );
 
       const syncNowButton = getByText('Sync Now');
-      fireEvent.press(syncNowButton);
+      fireEvent.press(syncNowButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(offlineSyncService.triggerSync).toHaveBeenCalled();
@@ -505,7 +508,7 @@ describe('OfflineIndicator Component', () => {
       );
 
       const syncNowButton = getByText('Sync Now');
-      fireEvent.press(syncNowButton);
+      fireEvent.press(syncNowButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(getByText('Sync Error - Tap to Retry')).toBeTruthy();
@@ -547,6 +550,14 @@ describe('OfflineIndicator Component', () => {
 
   describe('Last Sync Time', () => {
     test('should show "Just now" for recent sync', async () => {
+      (offlineSyncService.subscribe as jest.Mock).mockImplementation((callback) => {
+        callback({
+          ...mockSyncState,
+          lastSuccessfulSyncAt: new Date().toISOString(),
+        });
+        return jest.fn();
+      });
+
       const { getByText } = renderWithNavigation(
         <OfflineIndicator onViewPendingActions={mockOnViewPendingActions} />
       );
@@ -671,9 +682,7 @@ describe('OfflineIndicator Component', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(queryByTestId('animated-icon')).toBeNull();
-      });
+      expect(queryByTestId('animated-icon')).toBeNull();
     });
   });
 
@@ -686,7 +695,7 @@ describe('OfflineIndicator Component', () => {
       expect(getByText('3 Pending Changes')).toBeTruthy();
 
       const dismissButton = getByTestId('dismiss-button');
-      fireEvent.press(dismissButton);
+      fireEvent.press(dismissButton, { stopPropagation: jest.fn() });
 
       await waitFor(() => {
         expect(queryByText('3 Pending Changes')).toBeNull();
@@ -701,7 +710,7 @@ describe('OfflineIndicator Component', () => {
       );
 
       const dismissButton = getByTestId('dismiss-button');
-      fireEvent.press(dismissButton);
+      fireEvent.press(dismissButton, { stopPropagation: jest.fn() });
 
       expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5 * 60 * 1000);
 
@@ -792,7 +801,8 @@ describe('OfflineIndicator Component', () => {
       );
 
       const container = getByTestId('indicator-container');
-      expect(container.props.style.backgroundColor).toBe('#34C759');
+      const { StyleSheet } = require('react-native');
+      expect(StyleSheet.flatten(container.props.style).backgroundColor).toBe('#34C759');
     });
 
     test('should show orange when offline', async () => {
@@ -807,7 +817,8 @@ describe('OfflineIndicator Component', () => {
 
       await waitFor(() => {
         const container = getByTestId('indicator-container');
-        expect(container.props.style.backgroundColor).toBe('#FF9500');
+        const { StyleSheet } = require('react-native');
+        expect(StyleSheet.flatten(container.props.style).backgroundColor).toBe('#FF9500');
       });
     });
 
@@ -832,7 +843,8 @@ describe('OfflineIndicator Component', () => {
 
       await waitFor(() => {
         const container = getByTestId('indicator-container');
-        expect(container.props.style.backgroundColor).toBe('#007AFF');
+        const { StyleSheet } = require('react-native');
+        expect(StyleSheet.flatten(container.props.style).backgroundColor).toBe('#007AFF');
       });
     });
 
@@ -857,7 +869,8 @@ describe('OfflineIndicator Component', () => {
 
       await waitFor(() => {
         const container = getByTestId('indicator-container');
-        expect(container.props.style.backgroundColor).toBe('#FF3B30');
+        const { StyleSheet } = require('react-native');
+        expect(StyleSheet.flatten(container.props.style).backgroundColor).toBe('#FF3B30');
       });
     });
   });

@@ -75,6 +75,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
         { id: 'slack', name: 'Slack' },
         { id: 'gmail', name: 'Gmail' },
         { id: 'google-drive', name: 'Google Drive' },
+        { id: 'google-calendar', name: 'Google Calendar' },
       ];
 
       const searchIntegrations = (items: any[], query: string) => {
@@ -89,8 +90,8 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
       const results = searchIntegrations(integrations, 'google');
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe('gmail');
-      expect(results[1].id).toBe('google-drive');
+      expect(results[0].id).toBe('google-drive');
+      expect(results[1].id).toBe('google-calendar');
     });
   });
 
@@ -178,7 +179,7 @@ describe('IntegrationConnectionGuide - Setup & Configuration Tests', () => {
       const validateAPIKey = (key: string, provider: string): boolean => {
         const patterns: Record<string, RegExp> = {
           slack: /^xoxb-\d+-\d+-[\w-]+$/,
-          openai: /^sk-[\w-]{48}$/,
+          openai: /^sk-[\w.-]+$/,
           github: /^ghp_[\w]{36}$/,
         };
 

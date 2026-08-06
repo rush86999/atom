@@ -452,7 +452,9 @@ async def sonos_groups(
 
 def register_media_tools():
     """Register all media control tools with the tool registry."""
-    from tools.registry import tool_registry
+    from tools.registry import get_tool_registry
+
+    tool_registry = get_tool_registry()
 
     # Spotify tools
     tool_registry.register(

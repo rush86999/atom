@@ -1,4 +1,4 @@
-import { renderWithProviders } from 'test-utils';
+import { renderWithProviders } from './test-utils';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import React from 'react';
 import { Button } from '@/components/ui/button';

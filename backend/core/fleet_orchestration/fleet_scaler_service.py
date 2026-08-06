@@ -64,7 +64,6 @@ class ScalingOperation(BaseModel):
         return {
             "id": self.id,
             "chain_id": self.chain_id,
-            "tenant_id": self.tenant_id,
             "proposal_id": self.proposal_id,
             "operation_type": self.operation_type,
             "from_size": self.from_size,
@@ -179,7 +178,10 @@ class FleetScalerService:
         if proposal.status != ScalingProposalStatus.APPROVED:
             raise ValueError(f"Proposal {proposal_id} is not approved (status: {proposal.status})")
 
-        if datetime.now(timezone.utc) > proposal.expires_at:
+        expires_at = proposal.expires_at
+        if expires_at is not None and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at is not None and datetime.now(timezone.utc) > expires_at:
             raise ValueError(f"Proposal {proposal_id} has expired")
 
         # 2. Create scaling operation
@@ -278,11 +280,12 @@ class FleetScalerService:
         # Update blackboard with new agents
         from core.fleet_orchestration import get_distributed_blackboard
         blackboard = get_distributed_blackboard(self.db)
-        await blackboard.notify_state_update(
-            chain_id=proposal.chain_id,
-            update_type="agents_added",
-            data={"agent_ids": recruited_agents}
-        )
+        if blackboard is not None:
+            await blackboard.notify_state_update(
+                chain_id=proposal.chain_id,
+                update_type="agents_added",
+                data={"agent_ids": recruited_agents}
+            )
 
         logger.info(
             f"Expanded fleet {proposal.chain_id}: "
@@ -328,11 +331,12 @@ class FleetScalerService:
         # Update blackboard with removed agents
         from core.fleet_orchestration import get_distributed_blackboard
         blackboard = get_distributed_blackboard(self.db)
-        await blackboard.notify_state_update(
-            chain_id=proposal.chain_id,
-            update_type="agents_removed",
-            data={"agent_ids": removed_agents}
-        )
+        if blackboard is not None:
+            await blackboard.notify_state_update(
+                chain_id=proposal.chain_id,
+                update_type="agents_removed",
+                data={"agent_ids": removed_agents}
+            )
 
         logger.info(
             f"Contracted fleet {proposal.chain_id}: "
@@ -422,7 +426,7 @@ class FleetScalerService:
         from core.models import ScalingProposal as ScalingProposalModel
         pending_proposals = self.db.query(ScalingProposalModel).filter(
             ScalingProposalModel.chain_id == chain_id,
-            ScalingProposalModel.            ScalingProposalModel.status == ScalingProposalStatus.PENDING.value
+            ScalingProposalModel.status == ScalingProposalStatus.PENDING.value
         ).all()
 
         pending_list = [
@@ -436,7 +440,7 @@ class FleetScalerService:
         return {
             "chain_id": chain_id,
             "current_fleet_size": current_size,
-            "pending_proposals": [p.to_dict() for p in pending_list],
+            "pending_proposals": [p.model_dump() for p in pending_list],
             "recent_operations": [op.to_dict() for op in recent_ops],
             "last_monitored": datetime.now(timezone.utc).isoformat()
         }
@@ -624,7 +628,7 @@ class FleetScalerService:
             try:
                 # Get all active chains for tenant
                 active_chains = self.db.query(DelegationChain).filter(
-                    DelegationChain.                    DelegationChain.status == 'active'
+                    DelegationChain.status == 'active'
                 ).all()
 
                 for chain in active_chains:
@@ -644,7 +648,7 @@ class FleetScalerService:
         """
         # Get chains with active overages
         overage_chains = self.db.query(FleetOverage.chain_id).filter(
-            FleetOverage.status == "active",
+            FleetOverage.is_active == True,
             FleetOverage.expires_at > datetime.now(timezone.utc)
         ).all()
 

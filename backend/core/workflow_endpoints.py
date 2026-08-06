@@ -173,7 +173,19 @@ def _resolve_workflow_steps(workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     """Add the step-based dialect (``steps`` + ``steps_count``) to a workflow
-    dict so step-based UI consumers can render/execute node-based definitions."""
+    dict so step-based UI consumers can render/execute node-based definitions.
+
+    Also normalizes step-based "Dynamic Workflow" rows (written by the
+    agent-driven create flow with no node dialect) to the response contract:
+    ``nodes``/``connections``/``triggers``/``enabled`` are required by
+    ``WorkflowDefinition``, so a row without them 500s the whole list with
+    ResponseValidationError (the primary workflow list was broken whenever a
+    dynamic workflow existed).
+    """
+    workflow.setdefault("nodes", [])
+    workflow.setdefault("connections", [])
+    workflow.setdefault("triggers", [])
+    workflow.setdefault("enabled", True)
     steps = _resolve_workflow_steps(workflow)
     workflow["steps"] = steps
     workflow["steps_count"] = len(steps)

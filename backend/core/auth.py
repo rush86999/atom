@@ -59,8 +59,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash password using bcrypt"""
     if isinstance(password, str):
-        # Encode to bytes, truncate to 71 bytes (safe margin)
-        password = password.encode('utf-8')[:71]
+        encoded = password.encode('utf-8')
+        if len(encoded) > 72:
+            # Fail closed: bcrypt silently truncates past 72 bytes, which makes
+            # distinct long passwords collide to the same hash (entropy loss,
+            # and an old long password keeps working after a change).
+            raise ValueError("Password exceeds 72-byte bcrypt limit")
+        password = encoded
 
     # Generate salt and hash
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
@@ -327,9 +332,11 @@ def verify_biometric_signature(
         True if signature is valid, False otherwise
     """
     try:
-        # Decode signature and public key
+        # Decode signature; the public key is passed as PEM text (base64-
+        # decoding it here corrupts the DER body with the header/footer
+        # alphabet chars, so every verification failed with MalformedFraming).
         signature_bytes = base64.b64decode(signature)
-        public_key_bytes = base64.b64decode(public_key)
+        public_key_bytes = public_key.encode('utf-8')
         challenge_bytes = challenge.encode('utf-8')
 
         # Load public key

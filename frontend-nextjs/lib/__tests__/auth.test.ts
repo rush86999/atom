@@ -65,11 +65,15 @@ describe('auth.ts - NextAuth Configuration', () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
 
     expect(credentialsProvider).toBeDefined();
-    expect(credentialsProvider.name).toBe('credentials');
-    expect(credentialsProvider.credentials).toBeDefined();
-    expect(credentialsProvider.credentials.email).toBeDefined();
-    expect(credentialsProvider.credentials.password).toBeDefined();
-    expect(credentialsProvider.credentials.totp_code).toBeDefined();
+    // next-auth v4 default provider name is capitalized ("Credentials")
+    expect(credentialsProvider.name).toBe('Credentials');
+    // In next-auth 4.24.x the provider config (credentials, authorize) lives
+    // under provider.options
+    expect(credentialsProvider.options).toBeDefined();
+    expect(credentialsProvider.options.credentials).toBeDefined();
+    expect(credentialsProvider.options.credentials.email).toBeDefined();
+    expect(credentialsProvider.options.credentials.password).toBeDefined();
+    expect(credentialsProvider.options.credentials.totp_code).toBeDefined();
   });
 
   // Test 3: session strategy is JWT
@@ -80,7 +84,14 @@ describe('auth.ts - NextAuth Configuration', () => {
 
   // Test 4: JWT configuration
   test('JWT configuration should use secret from environment', () => {
-    expect(authOptions.jwt.secret).toBe('test-nextauth-secret');
+    // lib/auth.ts reads the env at module load (jwt.secret), so re-evaluate
+    // the module with the env vars set; JWT_SECRET takes precedence
+    process.env.JWT_SECRET = 'test-secret';
+    process.env.NEXTAUTH_SECRET = 'test-nextauth-secret';
+    jest.isolateModules(() => {
+      const freshModule = require('../auth');
+      expect(freshModule.authOptions.jwt.secret).toBe('test-secret');
+    });
   });
 
   // Test 5: custom pages configuration
@@ -92,7 +103,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 6: authorize function rejects missing credentials
   test('authorize should return null for missing email or password', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     // Missing both email and password
     const result1 = await authorize({ email: '', password: '' });
@@ -110,7 +121,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 7: authorize function handles successful admin login
   test('authorize should authenticate admin users successfully', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     const mockAdminUser = {
       id: 'admin-123',
@@ -147,7 +158,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 8: authorize function handles successful regular user login
   test('authorize should authenticate regular users successfully', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     const mockUser = {
       id: 'user-123',
@@ -160,7 +171,7 @@ describe('auth.ts - NextAuth Configuration', () => {
       tenant_id: null,
     };
 
-    (query as jest.Mock).mockResolvedValueOnce({ rows: [] }); // No admin
+    // Non-admin email: the app skips the admin_users query entirely
     (query as jest.Mock).mockResolvedValueOnce({ rows: [mockUser] }); // User found
 
     global.fetch = jest.fn(() =>
@@ -183,7 +194,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 9: authorize function handles 2FA required
   test('authorize should throw 2FA_REQUIRED error when two_factor_required is true', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     (query as jest.Mock).mockResolvedValue({ rows: [] });
 
@@ -206,7 +217,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 10: authorize function handles invalid 2FA code
   test('authorize should throw INVALID_2FA_CODE error for invalid 2FA', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     (query as jest.Mock).mockResolvedValue({ rows: [] });
 
@@ -310,7 +321,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 14: authorize handles tenant user with subdomain
   test('authorize should authenticate tenant users with subdomain', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     const mockTenant = {
       id: 'tenant-123',
@@ -329,14 +340,12 @@ describe('auth.ts - NextAuth Configuration', () => {
       tenant_id: 'tenant-123',
     };
 
+    // Non-admin email: the app skips the admin_users query entirely
     (query as jest.Mock)
-      .mockResolvedValueOnce({ rows: [] }) // No admin
       .mockResolvedValueOnce({ rows: [] }) // No regular user
       .mockResolvedValueOnce({ rows: [mockTenant] }) // Tenant found
-      .mockResolvedValueOnce({ rows: [mockUser] }); // User found
-
-    // Mock set_tenant_context
-    (query as jest.Mock).mockResolvedValue({});
+      .mockResolvedValueOnce({ rows: [] }) // set_tenant_context
+      .mockResolvedValueOnce({ rows: [mockUser] }); // Tenant user found
 
     global.fetch = jest.fn(() =>
       Promise.resolve({
@@ -360,7 +369,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   // Test 15: authorize returns null for inactive users
   test('authorize should return null for inactive users', async () => {
     const credentialsProvider = authOptions.providers.find((p: any) => p.id === 'credentials');
-    const authorize = credentialsProvider.authorize;
+    const authorize = credentialsProvider.options.authorize;
 
     const mockInactiveUser = {
       id: 'user-123',
@@ -369,7 +378,8 @@ describe('auth.ts - NextAuth Configuration', () => {
     };
 
     (query as jest.Mock).mockResolvedValueOnce({ rows: [] }); // No admin
-    (query as jest.Mock).mockResolvedValueOnce({ rows: [mockInactiveUser] }); // Inactive user
+    // The app's SQL filters status = 'active', so an inactive user yields no rows
+    (query as jest.Mock).mockResolvedValueOnce({ rows: [] }); // Inactive user filtered by SQL
 
     global.fetch = jest.fn(() =>
       Promise.resolve({

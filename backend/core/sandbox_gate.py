@@ -59,6 +59,39 @@ def evaluate_tool_call(
         if not tier:
             return None
 
+        # KillRun guard. A killed run must never execute another tool call.
+        # Return an enforced BLOCKED decision instead of raising
+        # KillRunAborted: dispatch callers (integrations/mcp_service) catch
+        # exceptions fail-open, which would otherwise let the killed run keep
+        # executing tools.
+        try:
+            from core import sandbox_killrun
+            from core.sandbox_killrun import KillRunAborted
+            sandbox_killrun.guard(run_id)
+        except KillRunAborted as exc:
+            from core import sandbox_audit
+            from core.sandbox_policy import BLOCKED, VT_TRIPWIRE
+            decision = SandboxDecision(
+                decision=BLOCKED,
+                phase="C",
+                violation_type=VT_TRIPWIRE,
+                violation_detail=f"run killed by sandbox: {exc}",
+                tool_name=tool_name,
+                enforced=True,
+                killrun_triggered=True,
+                metadata_json={"killrun": True, "reason": str(exc)},
+            )
+            sandbox_audit.write_violation(
+                decision,
+                tenant_id=context.get("tenant_id"),
+                workspace_id=context.get("workspace_id"),
+                agent_id=context.get("agent_id"),
+                user_id=context.get("user_id"),
+                session_id=context.get("session_id"),
+                run_id=run_id,
+            )
+            return decision
+
         issuer = PolicyIssuer()
         policy = issuer.issue(
             run_id=run_id,
@@ -66,13 +99,22 @@ def evaluate_tool_call(
             tier_at_issuance=tier,
             workspace_data_root=context.get("workspace_data_root"),
         )
-        decision = issuer.check(
-            policy=policy,
-            tool_name=tool_name,
-            args=args,
-            context=context,
-            phase="A",
-        )
+        if sandbox_config.is_sandbox_whitelist_enabled():
+            decision = issuer.check(
+                policy=policy,
+                tool_name=tool_name,
+                args=args,
+                context=context,
+                phase="A",
+            )
+        else:
+            decision = SandboxDecision(
+                decision=ALLOWED,
+                phase="A",
+                tool_name=tool_name,
+                args_hash=PolicyIssuer._hash_args(args),
+                metadata_json={"reason": "whitelist_disabled"},
+            )
 
         # Phase B: filesystem scope check.
         if decision.is_allowed and sandbox_config.is_sandbox_fs_enabled():
@@ -114,9 +156,17 @@ def evaluate_tool_call(
             if cap_decision.requires_review:
                 decision = cap_decision
 
-        # KillRun guard.
-        from core import sandbox_killrun
-        sandbox_killrun.guard(run_id)
+        # Phase D: egress allowlist (opt-in; off by default).
+        if decision.is_allowed and sandbox_config.is_sandbox_egress_enabled():
+            from core import sandbox_egress_proxy
+            egress_decision = sandbox_egress_proxy.validate(
+                policy,
+                tool_name,
+                args,
+                context=context,
+            )
+            if egress_decision.requires_review:
+                decision = egress_decision
 
         if decision.requires_review:
             write_violation(

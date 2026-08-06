@@ -93,10 +93,15 @@ jest.mock('react-native/Libraries/Alert/Alert', () => ({
   alert: jest.fn(),
 }));
 
+// Real clock captured before fake timers take over, so relative-time
+// assertions ('5m ago', '1h ago') stay deterministic.
+const MOCK_NOW = Date.now();
+
 describe('AgentListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    jest.setSystemTime(MOCK_NOW);
   });
 
   afterEach(() => {
@@ -216,11 +221,11 @@ describe('AgentListScreen', () => {
     });
 
     it('should display agent status', async () => {
-      const { getByText } = render(<AgentListScreen />);
+      const { getAllByText } = render(<AgentListScreen />);
 
       await waitFor(() => {
-        expect(getByText('online')).toBeTruthy();
-        expect(getByText('offline')).toBeTruthy();
+        expect(getAllByText('online').length).toBeGreaterThanOrEqual(1);
+        expect(getAllByText('offline').length).toBe(1);
       });
     });
 
@@ -237,8 +242,8 @@ describe('AgentListScreen', () => {
       const { getByText } = render(<AgentListScreen />);
 
       await waitFor(() => {
-        expect(getByText('5m ago')).toBeTruthy();
-        expect(getByText('1h ago')).toBeTruthy();
+        expect(getByText(/5m ago/)).toBeTruthy();
+        expect(getByText(/1h ago/)).toBeTruthy();
       });
     });
 
@@ -436,7 +441,7 @@ describe('AgentListScreen', () => {
       const filterToggle = screen.getByText('Filters');
       fireEvent.press(filterToggle);
 
-      const allFilter = screen.getByText('All');
+      const allFilter = screen.getAllByText('All')[0];
       fireEvent.press(allFilter);
 
       await waitFor(() => {
@@ -724,10 +729,10 @@ describe('AgentListScreen', () => {
 
   describe('Status Indicators', () => {
     it('should show online status with green dot', async () => {
-      const { getByText } = render(<AgentListScreen />);
+      const { getAllByText } = render(<AgentListScreen />);
 
       await waitFor(() => {
-        expect(getByText('online')).toBeTruthy();
+        expect(getAllByText('online').length).toBeGreaterThanOrEqual(1);
       });
     });
 

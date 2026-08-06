@@ -139,6 +139,29 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+# Bounded per-request timeout for provider clients (seconds). The OpenAI SDK
+# defaults to 600s; with multi-provider fallback + self-heal retries a wedged
+# provider (dead key, hanging endpoint) could hold a request — and the
+# threadpool/event loop — for many minutes (reproduced in E2E boot verify:
+# POST /api/v1/ai/nlu froze the whole server). httpx applies this as a
+# per-read timeout, so legitimately long streaming responses are unaffected.
+LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS = 120
+
+
+def _llm_request_timeout() -> float:
+    """Resolve the provider request timeout from ``ATOM_LLM_REQUEST_TIMEOUT``."""
+    raw = os.getenv("ATOM_LLM_REQUEST_TIMEOUT")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            logger.warning(
+                "Invalid ATOM_LLM_REQUEST_TIMEOUT=%r, using default %s",
+                raw,
+                LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS,
+            )
+    return LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS
+
 
 class QueryComplexity(Enum):
     """Query complexity levels for cost-based routing"""
@@ -812,6 +835,7 @@ class BYOKHandler:
                     client_kwargs = {
                         "api_key": api_key,
                         "base_url": config["base_url"],  # can be None for OpenAI
+                        "timeout": _llm_request_timeout(),
                     }
                     if provider_id == "openrouter":
                         client_kwargs["default_headers"] = {
@@ -1364,15 +1388,14 @@ class BYOKHandler:
             allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"]) if is_managed_service else "*"
             
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
+                if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
+                    return False
+
                 if allowed_list == "*" or "*" in allowed_list:
                     return True
                 
                 # Flexible matching: check if any allowed model name is part of the actual model_id
                 model_id_lower = model_id.lower()
-                
-                # Check Tool/Structured constraints (Phase 6.6) - Use pricing cache lookup
-                if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
-                    return False
 
                 return any(m.lower() in model_id_lower for m in allowed_list)
 
@@ -1381,7 +1404,7 @@ class BYOKHandler:
                     ranked_options.append((c["provider"], c["model"]))
             
             if ranked_options:
-                logger.info(f"BPC Ranking Successful for {complexity.value}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
+                logger.info(f"BPC Ranking Successful for {getattr(complexity, 'value', complexity)}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
                 return AwaitableResult(ranked_options)
                 
         except Exception as e:
@@ -1424,7 +1447,7 @@ class BYOKHandler:
                     try:
                         from core.dynamic_pricing_fetcher import get_pricing_fetcher
                         fetcher = get_pricing_fetcher()
-                        if fetcher and not fetcher._model_supports_tools(model):
+                        if fetcher and not self._model_supports_tools(model):
                             # Try to downgrade to a model that supports tools
                             if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
                                 model = "deepseek-r2"
@@ -3409,7 +3432,7 @@ class BYOKHandler:
                     logger.error(f"Failed to track LLM stream failure: {tracking_error}")
 
             # Yield final error message
-            yield f"\n\n[Error: All LLM providers failed. Last error: {str(last_error)}]"
+            yield "\n\n[Error: All LLM providers failed. Please check your API key configuration and try again.]"
         except BaseException:
             # Client disconnect / CancelledError: mark execution as failed.
             if agent_execution is not None and getattr(agent_execution, 'status', None) == "running":

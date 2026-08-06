@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MessageInput } from '../../../components/chat/MessageInput';
 
 // Mock react-native-paper
@@ -57,14 +57,19 @@ jest.mock('expo-document-picker', () => ({
       assets: [{ uri: 'file://document.pdf', name: 'document.pdf' }],
     })
   ),
-}));
+}), { virtual: true });
 
 // Mock expo-av
 jest.mock('expo-av', () => ({
   Audio: {
+    requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+    setAudioModeAsync: jest.fn(() => Promise.resolve()),
+    RECORDING_OPTIONS_PRESET_HIGH_QUALITY: {},
     Recording: jest.fn(() => ({
       prepareToRecordAsync: jest.fn(() => Promise.resolve()),
       startAsync: jest.fn(() => Promise.resolve()),
+      stopAndUnloadAsync: jest.fn(() => Promise.resolve()),
+      getURI: jest.fn(() => 'file://audio.m4a'),
       stopAsync: jest.fn(() => Promise.resolve({ uri: 'file://audio.m4a' })),
       getStatusAsync: jest.fn(() =>
         Promise.resolve({
@@ -77,7 +82,7 @@ jest.mock('expo-av', () => ({
       STATUS_GRANTED: 'granted',
     },
   },
-}));
+}), { virtual: true });
 
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
@@ -110,11 +115,15 @@ describe('MessageInput', () => {
     });
 
     it('should render send button', () => {
-      const { getByTestId } = render(
+      const { getByPlaceholderText, getByTestId } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      expect(getByTestId('icon-send')).toBeTruthy();
+      // Send button only appears once there is text
+      const input = getByPlaceholderText(/type a message/i);
+      fireEvent.changeText(input, 'Hi');
+
+      expect(getByTestId('send-button')).toBeTruthy();
     });
 
     it('should render attachment button', () => {
@@ -122,7 +131,7 @@ describe('MessageInput', () => {
         <MessageInput onSend={mockOnSend} />
       );
 
-      expect(getByTestId('icon-attachment')).toBeTruthy();
+      expect(getByTestId('attachment-button')).toBeTruthy();
     });
 
     it('should apply custom placeholder', () => {
@@ -158,8 +167,9 @@ describe('MessageInput', () => {
       const longText = 'A'.repeat(150);
       fireEvent.changeText(input, longText);
 
-      // Should truncate to max length
-      expect(input.props.value.length).toBeLessThanOrEqual(100);
+      // maxLength is enforced natively by TextInput; Jest doesn't truncate,
+      // so assert the constraint is configured
+      expect(input.props.maxLength).toBe(100);
     });
 
     it('should auto-grow input height', () => {
@@ -197,7 +207,7 @@ describe('MessageInput', () => {
       const input = getByPlaceholderText(/type a message/i);
       fireEvent.changeText(input, 'Test message');
 
-      const sendButton = getByTestId('icon-send');
+      const sendButton = getByTestId('send-button');
       fireEvent.press(sendButton);
 
       expect(mockOnSend).toHaveBeenCalledWith('Test message', []);
@@ -211,7 +221,7 @@ describe('MessageInput', () => {
       const input = getByPlaceholderText(/type a message/i);
       fireEvent.changeText(input, 'Test message');
 
-      const sendButton = getByTestId('icon-send');
+      const sendButton = getByTestId('send-button');
       fireEvent.press(sendButton);
 
       // Input should be cleared
@@ -219,13 +229,13 @@ describe('MessageInput', () => {
     });
 
     it('should not send empty message', () => {
-      const { getByTestId } = render(
+      const { queryByTestId } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const sendButton = getByTestId('icon-send');
-      fireEvent.press(sendButton);
-
+      // With empty text the send button is not rendered, so an empty
+      // message cannot be submitted
+      expect(queryByTestId('send-button')).toBeNull();
       expect(mockOnSend).not.toHaveBeenCalled();
     });
 
@@ -237,9 +247,8 @@ describe('MessageInput', () => {
       const input = getByPlaceholderText(/type a message/i);
       fireEvent.changeText(input, '   ');
 
-      const sendButton = getByTestId('icon-send');
-      fireEvent.press(sendButton);
-
+      // Whitespace-only text also hides the send button
+      expect(() => getByTestId('send-button')).toThrow();
       expect(mockOnSend).not.toHaveBeenCalled();
     });
   });
@@ -279,8 +288,8 @@ describe('MessageInput', () => {
       const agentSuggestion = getByText('Alice');
       fireEvent.press(agentSuggestion);
 
-      // Should insert agent mention
-      expect(input.props.value).toContain('@Alice');
+      // Should replace @ with the agent ID
+      expect(input.props.value).toContain('@agent-1');
     });
 
     it('should hide suggestions when space is typed after mention', () => {
@@ -309,15 +318,17 @@ describe('MessageInput', () => {
 
   describe('Attachments', () => {
     it('should show attachment menu when button is pressed', () => {
-      const { getByTestId } = render(
+      const { getByTestId, getByText } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const attachmentButton = getByTestId('icon-attachment');
+      const attachmentButton = getByTestId('attachment-button');
       fireEvent.press(attachmentButton);
 
-      // Should show attachment menu
-      expect(getByTestId('icon-attachment')).toBeTruthy();
+      // Should show attachment menu options
+      expect(getByText('Camera')).toBeTruthy();
+      expect(getByText('Gallery')).toBeTruthy();
+      expect(getByText('Document')).toBeTruthy();
     });
 
     it('should send message with attachments', async () => {
@@ -328,7 +339,7 @@ describe('MessageInput', () => {
       const input = getByPlaceholderText(/type a message/i);
       fireEvent.changeText(input, 'Check this image');
 
-      const sendButton = getByTestId('icon-send');
+      const sendButton = getByTestId('send-button');
       fireEvent.press(sendButton);
 
       expect(mockOnSend).toHaveBeenCalled();
@@ -336,41 +347,56 @@ describe('MessageInput', () => {
   });
 
   describe('Voice Input', () => {
-    it('should start recording when microphone button is pressed', () => {
+    it('should start recording when microphone button is long-pressed', async () => {
       const { getByTestId } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const micButton = getByTestId('icon-microphone');
-      fireEvent.press(micButton);
+      const micButton = getByTestId('voice-button');
+      fireEvent(micButton, 'onLongPress');
 
-      expect(getByTestId('icon-microphone')).toBeTruthy();
+      // Recording state shows the stop button with the live duration
+      await waitFor(() => {
+        expect(getByTestId('stop-button')).toBeTruthy();
+      });
     });
 
-    it('should stop recording when button is pressed again', () => {
-      const { getByTestId } = render(
+    it('should stop recording when button is pressed again', async () => {
+      const { getByTestId, waitForElementToBeRemoved } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const micButton = getByTestId('icon-microphone');
-      fireEvent.press(micButton);
-      fireEvent.press(micButton);
+      const micButton = getByTestId('voice-button');
+      fireEvent(micButton, 'onLongPress');
 
-      expect(getByTestId('icon-microphone')).toBeTruthy();
+      const stopButton = await waitFor(() => getByTestId('stop-button'));
+      fireEvent.press(stopButton);
+
+      // Stopping adds the audio attachment and returns to idle state
+      await waitFor(() => {
+        expect(getByTestId('audio-attachment')).toBeTruthy();
+      });
+      expect(() => getByTestId('stop-button')).toThrow();
     });
 
-    it('should display recording duration', () => {
+    it('should display recording duration', async () => {
       const { getByTestId, getByText } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
-      const micButton = getByTestId('icon-microphone');
-      fireEvent.press(micButton);
+      const micButton = getByTestId('voice-button');
+      fireEvent(micButton, 'onLongPress');
+
+      await waitFor(() => {
+        expect(getByTestId('stop-button')).toBeTruthy();
+      });
 
       // Advance timers to update duration
-      jest.advanceTimersByTime(5000);
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
 
-      expect(getByText(/0:05/)).toBeTruthy();
+      expect(getByText('0:05')).toBeTruthy();
     });
   });
 
@@ -385,13 +411,14 @@ describe('MessageInput', () => {
     });
 
     it('should not send when disabled', () => {
-      const { getByTestId } = render(
+      const { getByPlaceholderText, queryByTestId } = render(
         <MessageInput onSend={mockOnSend} disabled={true} />
       );
 
-      const sendButton = getByTestId('icon-send');
-      fireEvent.press(sendButton);
-
+      // Disabled input cannot be typed into, so the send button never shows
+      const input = getByPlaceholderText(/type a message/i);
+      expect(input.props.editable).toBe(false);
+      expect(queryByTestId('send-button')).toBeNull();
       expect(mockOnSend).not.toHaveBeenCalled();
     });
   });
@@ -418,8 +445,9 @@ describe('MessageInput', () => {
       const longText = 'A'.repeat(10000);
       fireEvent.changeText(input, longText);
 
-      // Should truncate to max length
-      expect(input.props.value.length).toBeLessThanOrEqual(2000);
+      // maxLength is enforced natively by TextInput; Jest doesn't truncate,
+      // so assert the constraint is configured
+      expect(input.props.maxLength).toBe(2000);
     });
 
     it('should handle special characters in text', () => {
@@ -455,7 +483,7 @@ describe('MessageInput', () => {
         <MessageInput onSend={mockOnSend} />
       );
 
-      expect(getByTestId('message-input-container')).toBeTruthy();
+      expect(getByTestId('keyboard-avoiding-view')).toBeTruthy();
     });
   });
 

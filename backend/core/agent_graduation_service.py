@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
+from core.episode_service import EpisodeService
 from core.service_factory import get_episode_service
 from core.sandbox_executor import get_sandbox_executor, get_graduation_exam_executor
 from core.models import (
@@ -130,13 +131,18 @@ class AgentGraduationService:
 
         current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
 
+        criteria = self.CRITERIA.get(target_maturity, {})
+
         # Use Ported EpisodeService for weighted readiness formula
         episode_service = get_episode_service(self.db)
+        if isinstance(episode_service, EpisodeService) and episode_service.db is not self.db:
+            episode_service = EpisodeService(self.db, tenant_api_key=None)
         readiness = episode_service.get_graduation_readiness(
             agent_id=agent_id,
             tenant_id=agent.tenant_id or "default",
             target_level=target_maturity.lower(),
-            min_episodes_override=min_episodes
+            min_episodes_override=min_episodes,
+            episode_count=max(criteria.get("min_episodes", 30), 30)
         )
         
         result = readiness.to_dict()
@@ -149,7 +155,6 @@ class AgentGraduationService:
         # 0-1 scale; scale to 0-100 for the public contract. Guard the numeric
         # reads so Mock-based callers (tests) fall back to neutral defaults
         # instead of raising TypeError on Mock arithmetic.
-        criteria = self.CRITERIA.get(target_maturity, {})
         try:
             raw_score = float(readiness.readiness_score)
             episodes_analyzed = int(readiness.episodes_analyzed)

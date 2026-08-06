@@ -31,12 +31,13 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should not render when no agents', () => {
-      const { root: container } = render(
+      const { queryByText } = render(
         <TypingIndicator visible={true} agents={[]} />
       );
 
       // Component returns null when no agents
-      expect(container).toBeTruthy();
+      expect(queryByText('Agent 1')).toBeNull();
+      expect(queryByText('is typing')).toBeNull();
     });
 
     test('should render default typing dots animation', () => {
@@ -245,30 +246,35 @@ describe('TypingIndicator Component', () => {
 
   describe('Edge Cases', () => {
     test('should handle null agents', () => {
-      const { root: container } = render(
-        <TypingIndicator visible={true} agents={null as any} />
-      );
-
-      expect(container).toBeTruthy();
+      // Should not crash with null agents
+      expect(() => {
+        const { queryByText } = render(
+          <TypingIndicator visible={true} agents={null as any} />
+        );
+        expect(queryByText('is typing')).toBeNull();
+      }).not.toThrow();
     });
 
     test('should handle undefined agents', () => {
-      const { root: container } = render(
-        <TypingIndicator visible={true} agents={undefined as any} />
-      );
-
-      expect(container).toBeTruthy();
+      // Should not crash with undefined agents
+      expect(() => {
+        const { queryByText } = render(
+          <TypingIndicator visible={true} agents={undefined as any} />
+        );
+        expect(queryByText('is typing')).toBeNull();
+      }).not.toThrow();
     });
 
     test('should handle agent with null name', () => {
-      const { root: container } = render(
-        <TypingIndicator
-          visible={true}
-          agents={[{ id: '1', name: null as any }]}
-        />
-      );
-
-      expect(container).toBeTruthy();
+      // Should not crash with a null agent name
+      expect(() => {
+        render(
+          <TypingIndicator
+            visible={true}
+            agents={[{ id: '1', name: null as any }]}
+          />
+        );
+      }).not.toThrow();
     });
 
     test('should handle agent with empty name', () => {

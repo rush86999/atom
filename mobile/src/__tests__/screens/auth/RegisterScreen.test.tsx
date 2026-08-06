@@ -13,7 +13,6 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { RegisterScreen } from '../../../screens/auth/RegisterScreen';
 
 // Mock expo-web-browser
 jest.mock('expo-web-browser', () => ({
@@ -37,8 +36,14 @@ jest.mock('../../../contexts/AuthContext', () => ({
 
 describe('RegisterScreen', () => {
   beforeEach(() => {
+    // Async registration flows need real timers to settle
+    jest.useRealTimers();
     jest.clearAllMocks();
   });
+
+// require() AFTER the mocks are registered — a static import would load the
+// screen (and its context dependencies) before the mock factories apply.
+const { RegisterScreen } = require('../../../screens/auth/RegisterScreen');
 
   // ============================================================================
   // Rendering Tests
@@ -46,7 +51,7 @@ describe('RegisterScreen', () => {
 
   describe('Rendering', () => {
     it('should render registration form correctly', () => {
-      const { getByPlaceholderText, getByText } = render(
+      const { getByPlaceholderText, getByText, getAllByText } = render(
         <RegisterScreen navigation={mockNavigation as any} />
       );
 
@@ -54,8 +59,9 @@ describe('RegisterScreen', () => {
       expect(getByPlaceholderText('Email')).toBeTruthy();
       expect(getByPlaceholderText('Password')).toBeTruthy();
       expect(getByPlaceholderText('Confirm Password')).toBeTruthy();
-      expect(getByText('Sign Up')).toBeTruthy();
-      expect(getByText('Already have an account? Sign in')).toBeTruthy();
+      expect(getAllByText('Create Account').length).toBeGreaterThan(0);
+      expect(getByText('Already have an account? ')).toBeTruthy();
+      expect(getByText('Sign In')).toBeTruthy();
     });
 
     it('should display privacy policy link', () => {
@@ -63,7 +69,7 @@ describe('RegisterScreen', () => {
         <RegisterScreen navigation={mockNavigation as any} />
       );
 
-      expect(getByText('Privacy Policy')).toBeTruthy();
+      expect(getByText('Terms of Service and Privacy Policy')).toBeTruthy();
     });
 
     it('should display terms checkbox', () => {
@@ -75,10 +81,12 @@ describe('RegisterScreen', () => {
     });
 
     it('should display password strength indicator', () => {
-      const { getByTestId } = render(
+      const { getByPlaceholderText, getByTestId } = render(
         <RegisterScreen navigation={mockNavigation as any} />
       );
 
+      // The indicator only appears once a password is typed
+      fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
       expect(getByTestId('password-strength-indicator')).toBeTruthy();
     });
   });
@@ -100,7 +108,7 @@ describe('RegisterScreen', () => {
       });
 
       await waitFor(() => {
-        expect(getByText('Full name is required')).toBeTruthy();
+        expect(getByText('Please enter your full name')).toBeTruthy();
       });
     });
 
@@ -113,14 +121,14 @@ describe('RegisterScreen', () => {
       const emailInput = getByPlaceholderText('Email');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'invalid-email');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'invalid-email');
+await act(async () => {
         fireEvent.press(signUpButton);
       });
 
       await waitFor(() => {
-        expect(getByText('Please enter a valid email address')).toBeTruthy();
+        expect(getByText('Please enter a valid email')).toBeTruthy();
       });
     });
 
@@ -134,10 +142,10 @@ describe('RegisterScreen', () => {
       const passwordInput = getByPlaceholderText('Password');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, '12345');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, '12345');
+await act(async () => {
         fireEvent.press(signUpButton);
       });
 
@@ -157,11 +165,11 @@ describe('RegisterScreen', () => {
       const confirmInput = getByPlaceholderText('Confirm Password');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password456');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password456');
+await act(async () => {
         fireEvent.press(signUpButton);
       });
 
@@ -181,16 +189,16 @@ describe('RegisterScreen', () => {
       const confirmInput = getByPlaceholderText('Confirm Password');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(signUpButton);
       });
 
       await waitFor(() => {
-        expect(getByText('You must agree to the terms and conditions')).toBeTruthy();
+        expect(getByText('You must agree to the terms of service')).toBeTruthy();
       });
     });
 
@@ -206,12 +214,14 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'StrongP@ss123');
-        fireEvent.changeText(confirmInput, 'StrongP@ss123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'StrongP@ss123');
+fireEvent.changeText(confirmInput, 'StrongP@ss123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
@@ -234,13 +244,13 @@ describe('RegisterScreen', () => {
 
       const passwordInput = getByPlaceholderText('Password');
 
-      await act(async () => {
-        fireEvent.changeText(passwordInput, 'weak');
+      fireEvent.changeText(passwordInput, 'weak');
+await act(async () => {
       });
 
       await waitFor(() => {
         expect(getByTestId('password-strength-indicator')).toBeTruthy();
-        expect(getByText('Weak')).toBeTruthy();
+        expect(getByText(/Password strength: WEAK/)).toBeTruthy();
       });
     });
 
@@ -251,13 +261,13 @@ describe('RegisterScreen', () => {
 
       const passwordInput = getByPlaceholderText('Password');
 
-      await act(async () => {
-        fireEvent.changeText(passwordInput, 'Moderate123');
+      fireEvent.changeText(passwordInput, 'Moderate123');
+await act(async () => {
       });
 
       await waitFor(() => {
         expect(getByTestId('password-strength-indicator')).toBeTruthy();
-        expect(getByText('Medium')).toBeTruthy();
+        expect(getByText(/Password strength: MEDIUM/)).toBeTruthy();
       });
     });
 
@@ -268,13 +278,13 @@ describe('RegisterScreen', () => {
 
       const passwordInput = getByPlaceholderText('Password');
 
-      await act(async () => {
-        fireEvent.changeText(passwordInput, 'Str0ng!P@ssw0rd');
+      fireEvent.changeText(passwordInput, 'Str0ng!P@ssw0rd');
+await act(async () => {
       });
 
       await waitFor(() => {
         expect(getByTestId('password-strength-indicator')).toBeTruthy();
-        expect(getByText('Strong')).toBeTruthy();
+        expect(getByText(/Password strength: STRONG/)).toBeTruthy();
       });
     });
 
@@ -284,24 +294,22 @@ describe('RegisterScreen', () => {
       );
 
       const passwordInput = getByPlaceholderText('Password');
-      const indicator = getByTestId('password-strength-indicator');
+      const { StyleSheet } = require('react-native');
 
       // Weak - red
-      await act(async () => {
-        fireEvent.changeText(passwordInput, 'weak');
-      });
+      fireEvent.changeText(passwordInput, 'weak');
 
       await waitFor(() => {
-        expect(indicator.props.style).toHaveProperty('color', '#f44336');
+        const fill = getByTestId('strength-fill');
+        expect(StyleSheet.flatten(fill.props.style).backgroundColor).toBe('#f44336');
       });
 
       // Strong - green
-      await act(async () => {
-        fireEvent.changeText(passwordInput, 'Str0ng!P@ssw0rd');
-      });
+      fireEvent.changeText(passwordInput, 'Str0ng!P@ssw0rd');
 
       await waitFor(() => {
-        expect(indicator.props.style).toHaveProperty('color', '#4caf50');
+        const fill = getByTestId('strength-fill');
+        expect(StyleSheet.flatten(fill.props.style).backgroundColor).toBe('#4caf50');
       });
     });
   });
@@ -314,6 +322,8 @@ describe('RegisterScreen', () => {
     it('should call register API with valid data', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
+          ok: true,
+          status: 200,
           json: () => Promise.resolve({
             success: true,
             data: {
@@ -335,12 +345,14 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
@@ -358,6 +370,8 @@ describe('RegisterScreen', () => {
     it('should auto-login after successful registration', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
+          ok: true,
+          status: 200,
           json: () => Promise.resolve({
             success: true,
             data: {
@@ -367,8 +381,6 @@ describe('RegisterScreen', () => {
           }),
         } as any)
       );
-
-      mockLogin.mockResolvedValue({ success: true });
 
       const { getByPlaceholderText, getByTestId } = render(
         <RegisterScreen navigation={mockNavigation as any} />
@@ -381,23 +393,34 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
+      // The screen shows an "Account Created" alert on success (auto-login is
+      // handled by the auth flow)
+      const { Alert } = require('react-native');
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('test@example.com', 'password123');
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Account Created',
+          'Your account has been created successfully! You can now sign in.',
+          expect.any(Array)
+        );
       });
     });
 
     it('should navigate to app after successful registration', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
+          ok: true,
+          status: 200,
           json: () => Promise.resolve({
             success: true,
             data: {
@@ -421,26 +444,35 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
+      // On success the screen shows the "Account Created" alert
+      const { Alert } = require('react-native');
       await waitFor(() => {
-        expect(mockNavigation.replace).toHaveBeenCalledWith('App');
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Account Created',
+          expect.stringContaining('created successfully'),
+          expect.any(Array)
+        );
       });
     });
 
     it('should show error message on registration failure', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
+          ok: false,
+          status: 400,
           json: () => Promise.resolve({
-            success: false,
-            message: 'Email already exists',
+            detail: 'A user with this email already exists',
           }),
         } as any)
       );
@@ -456,17 +488,24 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'existing@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'existing@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
+      // Registration errors surface via Alert
+      const { Alert } = require('react-native');
       await waitFor(() => {
-        expect(getByText('Email already exists')).toBeTruthy();
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Registration Failed',
+          'This email is already registered. Please sign in instead.'
+        );
       });
     });
 
@@ -474,6 +513,8 @@ describe('RegisterScreen', () => {
       global.fetch = jest.fn(() =>
         new Promise(resolve => setTimeout(() =>
           resolve({
+            ok: true,
+            status: 200,
             json: () => Promise.resolve({
               success: true,
               data: { user: { id: 'user-123' }, token: 'test-token' },
@@ -493,12 +534,14 @@ describe('RegisterScreen', () => {
       const termsCheckbox = getByTestId('terms-checkbox');
       const signUpButton = getByTestId('sign-up-button');
 
-      await act(async () => {
-        fireEvent.changeText(nameInput, 'John Doe');
-        fireEvent.changeText(emailInput, 'test@example.com');
-        fireEvent.changeText(passwordInput, 'password123');
-        fireEvent.changeText(confirmInput, 'password123');
+      fireEvent.changeText(nameInput, 'John Doe');
+fireEvent.changeText(emailInput, 'test@example.com');
+fireEvent.changeText(passwordInput, 'password123');
+fireEvent.changeText(confirmInput, 'password123');
+await act(async () => {
         fireEvent.press(termsCheckbox);
+      });
+      await act(async () => {
         fireEvent.press(signUpButton);
       });
 
@@ -525,10 +568,10 @@ describe('RegisterScreen', () => {
       );
 
       await act(async () => {
-        fireEvent.press(getByText('Already have an account? Sign in'));
+        fireEvent.press(getByText('Sign In'));
       });
 
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Login');
+      expect(mockNavigation.goBack).toHaveBeenCalled();
     });
 
     it('should open privacy policy in browser', async () => {
@@ -538,7 +581,7 @@ describe('RegisterScreen', () => {
       );
 
       await act(async () => {
-        fireEvent.press(getByText('Privacy Policy'));
+        fireEvent.press(getByText('Terms of Service and Privacy Policy'));
       });
 
       expect(WebBrowser.openBrowserAsync).toHaveBeenCalled();

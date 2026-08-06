@@ -12,11 +12,19 @@ quotes, POs, price lists, and invoices it generates.
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
-from core.office_service import OfficeService
+from core.office_service import OfficeService, _validate_office_path
 from core.office_sync_service import OfficeSyncService
 
 logger = logging.getLogger(__name__)
 office_service = OfficeService()
+
+
+def _contained_path(file_path: str) -> Optional[str]:
+    """Resolve file_path against the office dir; None if out of scope."""
+    try:
+        return _validate_office_path(file_path)
+    except ValueError:
+        return None
 
 
 async def _ingest_after_write(file_path: str, user_id: str) -> None:
@@ -83,6 +91,10 @@ async def write_excel_cell(
         is_formula: Boolean flag if the value is an Excel formula
     """
     try:
+        contained = _contained_path(file_path)
+        if contained is None:
+            return {"success": False, "error": "Access denied: file path is outside the allowed office directory"}
+        file_path = contained
         res = office_service.excel.write_cell(
             file_path=file_path,
             cell_path=cell_path,
@@ -94,7 +106,7 @@ async def write_excel_cell(
         return res
     except Exception as e:
         logger.error(f"Excel write tool failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to write Excel cell"}
 
 
 async def read_word_document(
@@ -136,6 +148,10 @@ async def modify_word_document(
         style: Optional paragraph style name
     """
     try:
+        contained = _contained_path(file_path)
+        if contained is None:
+            return {"success": False, "error": "Access denied: file path is outside the allowed office directory"}
+        file_path = contained
         options = {"style": style, "target": target}
         res = office_service.word.modify_document(
             file_path=file_path,
@@ -148,7 +164,7 @@ async def modify_word_document(
         return res
     except Exception as e:
         logger.error(f"Word modify tool failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to modify Word document"}
 
 
 async def read_pptx_slides(
@@ -190,6 +206,10 @@ async def modify_pptx_slides(
         layout_idx: Index of layout template (default: 1 for Title + Content)
     """
     try:
+        contained = _contained_path(file_path)
+        if contained is None:
+            return {"success": False, "error": "Access denied: file path is outside the allowed office directory"}
+        file_path = contained
         options = {"title": title, "content": content, "layout_idx": layout_idx}
         res = office_service.pptx.modify_slides(
             file_path=file_path,
@@ -201,7 +221,7 @@ async def modify_pptx_slides(
         return res
     except Exception as e:
         logger.error(f"PowerPoint modify tool failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to modify PowerPoint"}
 
 
 # ============================================================================
@@ -227,7 +247,7 @@ async def get_excel_formula_result(
         cell: Cell coordinate (e.g. "A4")
     """
     try:
-        return await office_service.ExcelManager.get_evaluated_range(
+        return await office_service.excel.get_evaluated_range(
             file_path, f"/{sheet_name}/{cell}"
         )
     except Exception as e:
@@ -256,7 +276,7 @@ async def insert_excel_rows(
         count: Number of rows to insert (default 1)
     """
     try:
-        result = await office_service.ExcelManager.insert_rows(
+        result = await office_service.excel.insert_rows(
             file_path, sheet_name, row, count
         )
         if result.get("success"):
@@ -285,7 +305,7 @@ async def insert_excel_columns(
         count: Number of columns to insert (default 1)
     """
     try:
-        result = await office_service.ExcelManager.insert_columns(
+        result = await office_service.excel.insert_columns(
             file_path, sheet_name, column, count
         )
         if result.get("success"):
@@ -312,7 +332,7 @@ async def recalculate_excel(
         file_path: Absolute path to the Excel file
     """
     try:
-        result = await office_service.ExcelManager.recalculate(file_path)
+        result = await office_service.excel.recalculate(file_path)
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
         return result
@@ -345,7 +365,7 @@ async def add_excel_pivot_table(
         values: Fields to aggregate with aggregation configuration (e.g. [{"field": "Sales", "function": "SUM"}])
     """
     try:
-        result = await office_service.ExcelManager.add_pivot_table(
+        result = await office_service.excel.add_pivot_table(
             file_path, sheet_name, pivot_sheet_name, data_range, rows, columns, values
         )
         if result.get("success"):
@@ -370,7 +390,7 @@ async def run_excel_macro(
         macro_name: Name of the macro Standard module subroutine to execute (e.g., 'FormatData')
     """
     try:
-        result = await office_service.ExcelManager.run_excel_macro(file_path, macro_name)
+        result = await office_service.excel.run_excel_macro(file_path, macro_name)
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
         return result

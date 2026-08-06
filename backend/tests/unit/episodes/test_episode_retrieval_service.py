@@ -483,7 +483,7 @@ class TestSemanticRetrieval:
 
         assert result["episodes"] == []
         assert "error" in result
-        assert "LanceDB connection failed" in result["error"]
+        assert "LanceDB connection failed" not in result["error"]
 
     @pytest.mark.asyncio
     async def test_semantic_retrieval_episode_fetching(self, retrieval_service, sample_episodes):

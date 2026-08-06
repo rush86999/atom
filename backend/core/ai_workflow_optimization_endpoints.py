@@ -123,7 +123,7 @@ async def create_optimization_plan(
                 "current_issues": len(plan["workflow_analysis"]["failure_points"])
             },
             "recommendations_by_type": _group_recommendations_by_type(
-                plan["workflow_analysis"]["optimization_opportunities"]
+                plan["workflow_analysis"].get("optimization_opportunities", [])
             ),
             "generated_at": plan["generated_at"]
         }
@@ -460,7 +460,7 @@ async def _execute_optimization_implementation(
         # Import required modules
         from sqlalchemy.orm import Session
 
-        from core.models import DB_SESSION_FACTORY
+        from core.database import SessionLocal as DB_SESSION_FACTORY
 
         # Create database session
         db = DB_SESSION_FACTORY()

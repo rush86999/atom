@@ -6,24 +6,28 @@ launched by the kernel via boot_args ``init=/opt/atom-guest/agent.py``. Runs
 as PID 1 (the rootfs has no init system) and must therefore tolerate being
 the init process — it never exits until the host kills the VM.
 
-Protocol (vsock command channel):
+Protocol (vsock command channel, multiplexed):
   1. Connect ``AF_VSOCK, SOCK_STREAM`` to host CID 2 on ``miniapp_port``
      (parsed from ``/proc/cmdline``; default 5050). The host side listens on
      a Unix domain socket configured in Firecracker's ``vsock`` block.
-  2. Receive one JSON line: ``{"code": str, "inputs": dict}``.
+  2. Receive one JSON line: ``{"type":"exec", "code": str, "inputs": dict}``.
   3. Execute ``code`` with ``inputs`` injected as exec globals, capturing
-     stdout/stderr.
-  4. Reply with one JSON line:
-     ``{"stdout", "stderr", "exit_code", "state_envelope"}``. The
-     ``state_envelope`` carries ``{"state", "storage_ops"}`` extracted from the
-     exec globals after the run, so mini-app state is returned over the vsock
-     reply channel (immune to the host's 64 KiB stdout cap) rather than parsed
-     out of stdout. ``state_envelope`` is omitted when no ``state`` global is
-     present (non-mini-app callers).
+     stdout/stderr. A ``fetch_integration(service, action, params)`` helper is
+     injected into globals so user code can make CONDITIONAL mid-run
+     integration calls: each call writes a
+     ``{"type":"callback","kind":"fetch_integration",...}`` line and blocks on
+     the host's ``{"type":"callback_result",...}`` reply (0..N times).
+  4. Reply with one terminal JSON line:
+     ``{"type":"final", "stdout", "stderr", "exit_code", "state_envelope"}``.
+     ``state_envelope`` carries ``{"state", "storage_ops", "record_ops"}``
+     extracted from the exec globals after the run, so mini-app state is
+     returned over the vsock reply channel (immune to the host's 64 KiB stdout
+     cap) rather than parsed out of stdout. ``state_envelope`` is omitted when
+     no ``state`` global is present (non-mini-app callers).
   5. Sleep (host tears the VM down).
 
-The guest has NO host filesystem and NO network — all storage is host-mediated
-via ``storage_ops`` parsed by the host from the envelope.
+The guest has NO host filesystem and NO network — all storage and integration
+I/O is host-mediated via ``storage_ops`` / ``record_ops`` / the callback channel.
 """
 from __future__ import annotations
 
@@ -62,11 +66,54 @@ def connect_vsock(port: int) -> socket.socket:
     return sock
 
 
-def run_code(code: str, inputs: dict) -> dict:
+def make_fetch_integration(rw_file):
+    """Build a ``fetch_integration(service, action, params)`` helper bound to a
+    bidirectional socket file object.
+
+    When called by user code mid-``exec``, it writes a callback request line
+    and BLOCKS on ``readline()`` for the host's reply. User code is already
+    blocking inside ``exec``, so this synchronous round-trip is natural. The
+    host services the request via ``ExternalIntegrationService`` (credentials
+    resolved host-side; tokens never reach the guest) and writes back the
+    result payload. Returns the ``data`` payload on success; raises
+    ``RuntimeError`` on host error/timeout so user code can react.
+    """
+
+    def fetch_integration(service: str, action: str, params: dict = None):
+        req = json.dumps({
+            "type": "callback",
+            "kind": "fetch_integration",
+            "service": str(service),
+            "action": str(action),
+            "params": params or {},
+        }) + "\n"
+        rw_file.write(req)
+        rw_file.flush()
+        reply_line = rw_file.readline()
+        if not reply_line:
+            raise RuntimeError("integration callback: host closed the channel")
+        try:
+            reply = json.loads(reply_line)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"integration callback: malformed reply ({e})")
+        if not reply.get("ok"):
+            raise RuntimeError(
+                f"integration call {service}.{action} failed: {reply.get('error', 'unknown')}"
+            )
+        return reply.get("data")
+
+    return fetch_integration
+
+
+def run_code(code: str, inputs: dict, fetch_integration=None) -> dict:
     """Execute ``code`` with ``inputs`` as globals; capture stdout/stderr.
 
     Exposed as a pure-ish function so the harness logic can be unit-tested
     without a microVM (see ``tests/test_mini_app_runtime.py``).
+
+    ``fetch_integration`` (optional callable) is injected into exec globals so
+    user code can call ``fetch_integration(service, action, params)`` to make
+    conditional mid-run integration requests over the vsock callback channel.
 
     If the executed code leaves a ``state`` global in scope, it is returned as
     a ``state_envelope`` (with any ``storage_ops`` list) so mini-app state
@@ -76,6 +123,8 @@ def run_code(code: str, inputs: dict) -> dict:
     stderr_buf = io.StringIO()
 
     g: dict = {"__name__": "__main__"}
+    if fetch_integration is not None:
+        g["fetch_integration"] = fetch_integration
     g.update(inputs or {})
 
     try:
@@ -112,6 +161,10 @@ def run_code(code: str, inputs: dict) -> dict:
             envelope = {"state": g["state"]}
             ops = g.get("storage_ops", [])
             envelope["storage_ops"] = list(ops) if isinstance(ops, list) else []
+            # record_ops: structured-data CRUD proposals (host-validated, host-
+            # executed against CanvasRecord). Mirrors storage_ops harvesting.
+            rec_ops = g.get("record_ops", [])
+            envelope["record_ops"] = list(rec_ops) if isinstance(rec_ops, list) else []
             # Serialize to verify the envelope is JSON-encodable (state may
             # contain non-serializable objects, e.g. a pandas DataFrame — in
             # that case we drop the envelope and let stdout carry a marker).
@@ -127,8 +180,12 @@ def main() -> int:
     port = parse_miniapp_port()
     sock = connect_vsock(port)
 
-    # Receive one line of JSON (the host sends exactly one command per VM).
-    line = sock.makefile("r", encoding="utf-8").readline()
+    # Bidirectional line protocol over the SAME socket: read the exec request,
+    # then (during run_code) the helper writes callback requests + reads
+    # replies on the same file object. The socket stays open until the final
+    # reply is sent — DO NOT close it early or callbacks will fail.
+    rw = sock.makefile("rw", encoding="utf-8", buffering=1)
+    line = rw.readline()
     if not line:
         sock.close()
         return 1
@@ -136,13 +193,18 @@ def main() -> int:
     try:
         msg = json.loads(line)
     except json.JSONDecodeError:
-        sock.sendall((json.dumps({"stdout": "", "stderr": "malformed request", "exit_code": 1}) + "\n").encode("utf-8"))
+        rw.write(json.dumps({"type": "final", "stdout": "", "stderr": "malformed request", "exit_code": 1}) + "\n")
+        rw.flush()
         sock.close()
         return 1
 
-    result = run_code(str(msg.get("code", "")), msg.get("inputs") or {})
-    payload = json.dumps(result) + "\n"
-    sock.sendall(payload.encode("utf-8"))
+    # Inject the callback helper so user code can call
+    # fetch_integration(service, action, params) mid-run.
+    fetch = make_fetch_integration(rw)
+    result = run_code(str(msg.get("code", "")), msg.get("inputs") or {}, fetch_integration=fetch)
+    result["type"] = "final"  # tag the terminal reply (host breaks its loop on this)
+    rw.write(json.dumps(result) + "\n")
+    rw.flush()
     sock.close()
 
     # Never exit — the host kills the VM. Sleeping keeps PID 1 alive so the

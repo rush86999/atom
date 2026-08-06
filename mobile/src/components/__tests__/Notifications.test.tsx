@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NotificationPreferencesScreen } from '../../screens/device/NotificationPreferencesScreen';
 import { notificationService } from '../../services/notificationService';
 
@@ -245,9 +245,19 @@ describe('Notifications Component', () => {
   test('test_quiet_hours_time_display', async () => {
     (notificationService.getPermissionStatus as jest.Mock).mockResolvedValue('granted');
 
-    const { getByText } = render(
+    const { getByText, UNSAFE_getAllByType } = render(
       <NotificationPreferencesScreen navigation={mockNavigation} />
     );
+
+    // Quiet hours times only show once quiet hours are enabled
+    await waitFor(() => {
+      expect(getByText('Quiet Hours')).toBeTruthy();
+    });
+
+    const { Switch } = require('react-native');
+    // Switches: notifications, 3 categories, quiet hours, badge
+    const quietHoursSwitch = UNSAFE_getAllByType(Switch)[4];
+    fireEvent(quietHoursSwitch, 'valueChange', true);
 
     await waitFor(() => {
       expect(getByText('From')).toBeTruthy();

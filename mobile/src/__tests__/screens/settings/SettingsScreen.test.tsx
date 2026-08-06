@@ -63,10 +63,12 @@ jest.mock('react-native/Libraries/Alert/Alert', () => ({
   alert: jest.fn(),
 }));
 
-// Mock the Alert export from react-native
-jest.spyOn(require('react-native'), 'Alert', 'get').mockReturnValue({
-  alert: jest.fn(),
-});
+// Mock the Alert export from react-native (the setup mock exposes it as a
+// plain property, so replace it directly rather than spying with 'get')
+jest.mock('react-native', () => ({
+  ...jest.requireActual('react-native'),
+  Alert: { alert: jest.fn() },
+}));
 
 describe('SettingsScreen', () => {
   beforeEach(() => {

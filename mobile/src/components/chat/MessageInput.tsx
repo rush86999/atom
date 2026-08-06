@@ -48,6 +48,9 @@ interface MessageInputProps {
   placeholder?: string;
 }
 
+// Stable default so the mention-filter effect deps don't change every render
+const EMPTY_AGENTS: Agent[] = [];
+
 /**
  * MessageInput Component
  *
@@ -55,7 +58,7 @@ interface MessageInputProps {
  */
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
-  agents = [],
+  agents = EMPTY_AGENTS,
   disabled = false,
   maxLength = 2000,
   placeholder = 'Type a message...',
@@ -320,6 +323,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const renderAttachment = (attachment: Attachment) => (
     <View
       key={attachment.id}
+      testID={attachment.type === 'audio' ? 'audio-attachment' : `${attachment.type}-attachment`}
       style={[styles.attachmentPreview, { backgroundColor: theme.colors.surfaceVariant }]}
     >
       {attachment.type === 'image' ? (
@@ -337,6 +341,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {attachment.name}
       </Text>
       <IconButton
+        testID="remove-attachment"
         icon="close"
         size={16}
         onPress={() => handleRemoveAttachment(attachment.id)}
@@ -369,6 +374,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <KeyboardAvoidingView
+      testID="keyboard-avoiding-view"
       style={[styles.container, { paddingBottom: insets.bottom }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
@@ -393,6 +399,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <View style={[styles.inputRow, { borderTopColor: theme.colors.outline }]}>
         {/* Attachment button */}
         <TouchableOpacity
+          testID="attachment-button"
           style={styles.iconButton}
           onPress={() => setShowAttachmentMenu(true)}
           disabled={disabled}
@@ -428,6 +435,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Recording indicator */}
         {isRecording ? (
           <TouchableOpacity
+            testID="stop-button"
             style={[styles.recordButton, { backgroundColor: theme.colors.error }]}
             onPress={handleStopRecording}
           >
@@ -439,6 +447,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             {/* Voice input button */}
             {!text.trim() && (
               <TouchableOpacity
+                testID="voice-button"
                 style={styles.iconButton}
                 onLongPress={handleStartRecording}
                 disabled={disabled}
@@ -454,6 +463,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             {/* Send button */}
             {text.trim() && (
               <TouchableOpacity
+                testID="send-button"
                 style={[styles.sendButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleSend}
                 disabled={disabled}
@@ -478,6 +488,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         onRequestClose={() => setShowAttachmentMenu(false)}
       >
         <TouchableOpacity
+          testID="modal-overlay"
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowAttachmentMenu(false)}

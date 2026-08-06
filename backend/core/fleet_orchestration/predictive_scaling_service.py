@@ -226,7 +226,7 @@ class PredictiveScalingService:
             "message": f"Breach predicted in {hours_until:.1f} hours" if hours_until < 48 else "No breach predicted within 48 hours"
         }
 
-    def generate_proactive_proposal(
+    async def generate_proactive_proposal(
         self,
         chain_id: str) -> Dict[str, Any]:
         """
@@ -273,7 +273,7 @@ class PredictiveScalingService:
                 "reason": f"Chain {chain_id} not found"
             }
 
-        current_fleet_size = self._get_fleet_size(chain_id)
+        current_fleet_size = max(1, self._get_fleet_size(chain_id))
 
         # Determine if proactive scaling is needed
         reasons = []
@@ -321,20 +321,12 @@ class PredictiveScalingService:
             # Mild: 25% increase
             proposed_size = max(current_fleet_size + 1, int(current_fleet_size * 1.25))
 
-        # Estimate cost (simplified: $0.10 per agent per hour)
-        size_increase = proposed_size - current_fleet_size
-        cost_estimate = Decimal(str(size_increase * 0.10 * 24))  # 24-hour duration
-
         # Create proposal
-        proposal = self.proposal_service.create_scaling_proposal(
+        proposal = await self.proposal_service.create_expansion_proposal(
             chain_id=chain_id,
-                        proposal_type='expansion',
-            current_fleet_size=current_fleet_size,
-            proposed_fleet_size=proposed_size,
-            reason="Proactive scaling: " + "; ".join(reasons),
-            duration_hours=24,
-            cost_estimate=float(cost_estimate),
-            is_proactive=True
+            current_size=current_fleet_size,
+            proposed_size=proposed_size,
+            reason="Proactive scaling: " + "; ".join(reasons)
         )
 
         logger.info(

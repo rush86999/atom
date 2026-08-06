@@ -86,6 +86,7 @@ class AITriggerCoordinator:
         self.workspace_id = workspace_id
         self.user_id = user_id
         self._enabled = None  # Lazy load from settings
+        self.db = None
     
     async def is_enabled(self) -> bool:
         """Check if AI auto-trigger is enabled for this user/workspace"""
@@ -366,7 +367,13 @@ class AITriggerCoordinator:
             # NEW: Maturity-Based Trigger Interception
             # ========================================================================
             # Check agent maturity and route appropriately before execution
-            interceptor = TriggerInterceptor(self.db, self.workspace_id)
+            if self.db is None:
+                from core.database import get_db_session
+
+                with get_db_session() as db:
+                    interceptor = TriggerInterceptor(db, self.workspace_id)
+            else:
+                interceptor = TriggerInterceptor(self.db, self.workspace_id)
 
             trigger_context = {
                 "action_type": "agent_message",

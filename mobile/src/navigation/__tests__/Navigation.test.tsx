@@ -39,7 +39,9 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock react-navigation/bottom-tabs
-jest.mock('@react-navigation/bottom-tabs', () => ({
+jest.mock('@react-navigation/bottom-tabs', () => {
+  const React = require('react');
+  return {
   createBottomTabNavigator: () => ({
     Navigator: ({ children, screenOptions, initialRouteName }: any) => {
       const firstChild = React.Children.toArray(children)[0] as any;
@@ -50,10 +52,13 @@ jest.mock('@react-navigation/bottom-tabs', () => ({
     },
   }),
   useBottomTabBarHeight: jest.fn(() => 50),
-}));
+  };
+});
 
 // Mock react-navigation/native-stack
-jest.mock('@react-navigation/native-stack', () => ({
+jest.mock('@react-navigation/native-stack', () => {
+  const React = require('react');
+  return {
   createNativeStackNavigator: () => ({
     Navigator: ({ children, screenOptions, initialRouteName }: any) => {
       const firstChild = React.Children.toArray(children)[0] as any;
@@ -63,7 +68,8 @@ jest.mock('@react-navigation/native-stack', () => ({
       return React.createElement(component, { name, options });
     },
   }),
-}));
+  };
+});
 
 // Mock screens
 jest.mock('../../screens/workflows/WorkflowsListScreen', () => ({

@@ -88,15 +88,24 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
 
       // Animate in
       animateIn();
-
-      // Auto-trigger biometric after short delay
-      setTimeout(() => {
-        triggerBiometric();
-      }, 500);
     };
 
     initialize();
   }, []);
+
+  // Auto-trigger biometric once availability is known (a plain setTimeout
+  // inside initialize would close over the initial isAvailable=false)
+  const didAutoTriggerRef = useRef(false);
+  useEffect(() => {
+    if (!isAvailable || didAutoTriggerRef.current) return;
+    didAutoTriggerRef.current = true;
+
+    const timer = setTimeout(() => {
+      triggerBiometric();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isAvailable, triggerBiometric]);
 
   /**
    * Animate screen elements in
@@ -276,7 +285,7 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
         ]}
       >
         {/* Biometric Icon */}
-        <View style={styles.iconContainer}>
+        <View style={styles.iconContainer} testID="biometric-icon">
           {biometricType === LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION ? (
             // Face ID icon (custom rendering)
             <View style={styles.faceIdIcon}>
@@ -299,7 +308,7 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
         {/* Loading State */}
         {isLoading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
+            <ActivityIndicator testID="activity-indicator" size="large" color="#2196F3" />
             <Text style={styles.loadingText}>Authenticating...</Text>
           </View>
         )}
@@ -314,6 +323,7 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
             {/* Retry Button (if attempts remaining) */}
             {attempts < MAX_ATTEMPTS && (
               <TouchableOpacity
+                testID="retry-button"
                 style={styles.retryButton}
                 onPress={handleRetry}
                 activeOpacity={0.8}

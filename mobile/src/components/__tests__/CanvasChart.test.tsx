@@ -19,7 +19,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ThemeProvider } from 'react-native-paper';
 import { CanvasChart, ChartData } from '../canvas/CanvasChart';
 
@@ -49,33 +49,38 @@ jest.mock('expo-sharing', () => ({
 jest.mock('victory-native', () => {
   const ActualVictory = jest.requireActual('victory-native');
   const React = require('react');
+  const { View, Text } = require('react-native');
 
   return {
     ...ActualVictory,
-    VictoryChart: ({ children, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-chart', props }, children);
+    VictoryChart: ({ children, containerComponent, ...props }: any) => {
+      return React.createElement('View', { testID: 'victory-chart', ...props },
+        containerComponent, children);
     },
     VictoryLine: ({ data, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-line', data, props });
+      return React.createElement('View', { testID: 'victory-line', data, ...props });
     },
     VictoryBar: ({ data, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-bar', data, props });
+      return React.createElement('View', { testID: 'victory-bar', data, ...props });
     },
     VictoryPie: ({ data, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-pie', data, props });
+      return React.createElement('View', { testID: 'victory-pie', data, ...props });
     },
-    VictoryAxis: () => React.createElement('View', { testID: 'victory-axis' }),
+    VictoryAxis: ({ label, ...props }: any) => {
+      return React.createElement('View', { testID: 'victory-axis', ...props },
+        label ? React.createElement(Text, null, label) : null);
+    },
     VictoryTooltip: ({ children, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-tooltip', props }, children);
+      return React.createElement('View', { testID: 'victory-tooltip', ...props }, children);
     },
     VictoryVoronoiContainer: ({ children, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-voronoi-container', props }, children);
+      return React.createElement('View', { testID: 'victory-voronoi-container', ...props }, children);
     },
     VictoryZoomContainer: ({ children, ...props }: any) => {
-      return React.createElement('View', { testID: 'victory-zoom-container', props }, children);
+      return React.createElement('View', { testID: 'victory-zoom-container', ...props }, children);
     },
     VictoryLabel: ({ text, ...props }: any) => {
-      return React.createElement('Text', { testID: 'victory-label', props }, text);
+      return React.createElement('Text', { testID: 'victory-label', ...props }, text);
     },
     VictoryTheme: {
       material: 'material',
@@ -174,7 +179,7 @@ describe('CanvasChart Component', () => {
       );
 
       const lineChart = getByTestId('victory-line');
-      expect(lineChart.props.props.style.data.stroke).toBe('#FF5722');
+      expect(lineChart.props.style.data.stroke).toBe('#FF5722');
     });
   });
 
@@ -237,10 +242,13 @@ describe('CanvasChart Component', () => {
   });
 
   describe('Touch Interactions', () => {
+    // The Voronoi touch container only renders when zoom/pan are disabled
+    const touchProps = { enableZoom: false, enablePan: false };
+
     test('should call onPointPress when point is pressed', () => {
       const mockOnPointPress = jest.fn();
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} onPointPress={mockOnPointPress} />
+        <CanvasChart data={mockLineData} onPointPress={mockOnPointPress} {...touchProps} />
       );
 
       const voronoiContainer = getByTestId('victory-voronoi-container');
@@ -252,7 +260,7 @@ describe('CanvasChart Component', () => {
 
     test('should show tooltip on point press', () => {
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} />
+        <CanvasChart data={mockLineData} {...touchProps} />
       );
 
       // Initially, no tooltip
@@ -273,7 +281,7 @@ describe('CanvasChart Component', () => {
     test('should trigger haptic feedback on point press', () => {
       const Haptics = require('expo-haptics');
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} />
+        <CanvasChart data={mockLineData} {...touchProps} />
       );
 
       const voronoiContainer = getByTestId('victory-voronoi-container');
@@ -299,7 +307,7 @@ describe('CanvasChart Component', () => {
 
     test('should disable zoom when enableZoom is false', () => {
       const { queryByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} enableZoom={false} />
+        <CanvasChart data={mockLineData} enableZoom={false} enablePan={false} />
       );
 
       expect(queryByTestId('victory-zoom-container')).toBeNull();
@@ -350,7 +358,7 @@ describe('CanvasChart Component', () => {
     test('should export data as CSV', async () => {
       const FileSystem = require('expo-file-system');
       const Sharing = require('expo-sharing');
-      FileSystem.writeStringAsync.mockResolvedValue(undefined);
+      FileSystem.writeAsStringAsync.mockResolvedValue(undefined);
 
       const { getByText } = renderWithTheme(
         <CanvasChart data={mockLineData} enableExport={true} />
@@ -360,15 +368,16 @@ describe('CanvasChart Component', () => {
       fireEvent.press(exportButton);
 
       await waitFor(() => {
-        expect(FileSystem.writeStringAsync).toHaveBeenCalled();
+        expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
         expect(Sharing.isAvailableAsync).toHaveBeenCalled();
+        expect(Sharing.shareAsync).toHaveBeenCalled();
       });
     });
 
     test('should show exporting state while exporting', async () => {
       const FileSystem = require('expo-file-system');
       let resolveExport: any;
-      FileSystem.writeStringAsync.mockImplementation(() => {
+      FileSystem.writeAsStringAsync.mockImplementation(() => {
         return new Promise((resolve) => {
           resolveExport = resolve;
         });
@@ -393,7 +402,7 @@ describe('CanvasChart Component', () => {
     test('should trigger haptic feedback on export', async () => {
       const Haptics = require('expo-haptics');
       const FileSystem = require('expo-file-system');
-      FileSystem.writeStringAsync.mockResolvedValue(undefined);
+      FileSystem.writeAsStringAsync.mockResolvedValue(undefined);
 
       const { getByText } = renderWithTheme(
         <CanvasChart data={mockLineData} enableExport={true} />
@@ -417,14 +426,13 @@ describe('CanvasChart Component', () => {
 
     test('should not export when data is empty', async () => {
       const FileSystem = require('expo-file-system');
-      const { getByText } = renderWithTheme(
+      const { queryByText } = renderWithTheme(
         <CanvasChart data={{ ...mockLineData, data: [] }} enableExport={true} />
       );
 
-      const exportButton = getByText('Export CSV');
-      fireEvent.press(exportButton);
-
-      expect(FileSystem.writeStringAsync).not.toHaveBeenCalled();
+      // Empty data short-circuits to the empty state — no toolbar renders
+      expect(queryByText('Export CSV')).toBeNull();
+      expect(FileSystem.writeAsStringAsync).not.toHaveBeenCalled();
     });
   });
 
@@ -439,7 +447,7 @@ describe('CanvasChart Component', () => {
 
     test('should hide legend when showLegend is false', () => {
       const { queryByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={false} />
+        <CanvasChart data={{ ...mockLineData, showLegend: false }} />
       );
 
       expect(queryByTestId('legend-container')).toBeNull();
@@ -551,7 +559,7 @@ describe('CanvasChart Component', () => {
         <CanvasChart data={mockLineData} portrait={true} />
       );
 
-      const chart = getByTestId('victory-chart');
+      const chart = getByTestId('chart-wrapper');
       expect(chart.props.style).toContainEqual({ height: 300 });
     });
 
@@ -560,7 +568,7 @@ describe('CanvasChart Component', () => {
         <CanvasChart data={mockLineData} portrait={false} />
       );
 
-      const chart = getByTestId('victory-chart');
+      const chart = getByTestId('chart-wrapper');
       expect(chart.props.style).toContainEqual({ height: 250 });
     });
   });
@@ -577,7 +585,7 @@ describe('CanvasChart Component', () => {
 
     test('should disable animation when animationEnabled is false', () => {
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} animationEnabled={false} />
+        <CanvasChart data={{ ...mockLineData, animationEnabled: false }} />
       );
 
       const lineChart = getByTestId('victory-line');
@@ -602,7 +610,7 @@ describe('CanvasChart Component', () => {
       );
 
       const lineChart = getByTestId('victory-line');
-      expect(lineChart.props.props.style.data.stroke).toBe('#2196F3');
+      expect(lineChart.props.style.data.stroke).toBe('#2196F3');
     });
   });
 

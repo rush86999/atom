@@ -201,6 +201,17 @@ class SecurityPolicy:
             if level_order.get(request.security_context.security_level, 0) < level_order.get(self.required_security_level, 0):
                 return False
 
+        # Check required credentials are presented
+        if self.required_credentials:
+            if not request.security_context:
+                return False
+            presented_types: Set[str] = set()
+            for vc in request.security_context.presented_credentials:
+                vc_types = vc.type if isinstance(vc.type, list) else [str(vc.type)]
+                presented_types.update(vc_types)
+            if not any(cred_type.value in presented_types for cred_type in self.required_credentials):
+                return False
+
         # Check action
         if self.allowed_actions and request.action not in self.allowed_actions:
             return False
@@ -442,10 +453,10 @@ class ZeroTrustSecurityManager:
         if not context.source_did:
             return False
 
-        # Verify DID exists
+        # Verify DID exists and is not deactivated
         if self.did_manager:
             result = self.did_manager.resolve_did(context.source_did)
-            if not result.did_document:
+            if not result.did_document or result.did_document.deactivated:
                 return False
 
         context.is_authenticated = True
@@ -472,6 +483,17 @@ class ZeroTrustSecurityManager:
         for vc in context.presented_credentials:
             if not self.vc_manager:
                 continue
+
+            # Bind the credential to the presenting identity: the credential's
+            # subject MUST be the source DID, or any known credential ID could
+            # be presented by an unrelated entity (borrowed-credential attack).
+            subject_id = vc.credential_subject.get("id") if isinstance(vc.credential_subject, dict) else None
+            if not subject_id or subject_id != context.source_did:
+                return {
+                    "valid": False,
+                    "reason": DecisionReason.INSUFFICIENT_PERMISSIONS,
+                    "message": "Credential subject does not match the source identity"
+                }
 
             result = self.vc_manager.verify_credential(
                 vc,

@@ -170,11 +170,34 @@ For the full troubleshooting guide see [`docs/getting_started/TROUBLESHOOTING.md
 
 ## What's next
 
+### 🎯 Immediate (5 min)
 - **Explore the API**: http://localhost:8001/docs (Swagger UI)
-- **Add LLM providers**: edit `backend/.env` and restart (GLM-5.2, Gemini, MiniMax, Ollama all supported)
-- **Run the test suite**: `pytest backend/tests/unit/ -v`
-- **Production setup** (PostgreSQL): see [`docs/guides/QUICKSTART.md`](../guides/QUICKSTART.md) § Production Setup
-- **Docker setup** (single-user SQLite stack): `cp .env.personal .env && docker compose -f docker-compose-personal.yml up -d --build` (Frontend :3001, Backend :8001)
+- **Try the UI**: http://localhost:3001/auth/signin (admin@example.com + password from step 3)
+
+### 🤖 Configure LLM Providers (recommended)
+| Goal | Guide |
+|------|-------|
+| **Free local LLM** (no API keys) | [Run with Ollama](run-with-ollama.md) |
+| **Lowest cost cloud** (~90% savings) | [OpenCode Go Provider](../guides/OPENCODE_GO_PROVIDER.md) |
+| **All providers comparison & setup** | [LLM Providers Guide](../guides/LLM_PROVIDERS.md) |
+| **Best quality** (OpenAI/Anthropic) | Edit `backend/.env` with keys, restart |
+
+### 🧪 Develop & Test
+- **Run unit tests**: `pytest backend/tests/unit/ -v`
+- **Run E2E tests**: `cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh && pytest -v -n 4`
+
+### 🚀 Deploy
+| Target | Guide |
+|--------|-------|
+| **Docker (Personal Edition)** | `cp .env.personal .env && docker compose -f docker-compose-personal.yml up -d --build` |
+| **Production (PostgreSQL)** | [Production Readiness](../operations/production-readiness.md) |
+| **DigitalOcean 1-click** | [Deploy to DO](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml) |
+
+### 📚 Learn the System
+- [Documentation Index](../INDEX.md) — Complete navigation
+- [Architecture Overview](../architecture/README.md) — How pieces fit
+- [Agent Systems](../agents/overview.md) — Governance, maturity, intent
+- [Canvas & Office](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Presentations, spreadsheets, co-editing
 
 ---
 

@@ -23,14 +23,20 @@ jest.mock('react-native-paper', () => ({
   Icon: 'Icon',
 }));
 
-jest.mock('react-native-markdown-display', () => 'Markdown');
+jest.mock('react-native-markdown-display', () => ({
+  Markdown: ({ children, style }: any) => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return <Text style={style}>{children}</Text>;
+  },
+}), { virtual: true });
 jest.mock('react-native-syntax-highlighter', () => ({
   Prism: 'Prism',
-}));
+}), { virtual: true });
 
 jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
   vscDarkPlus: {},
-}));
+}), { virtual: true });
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -68,7 +74,9 @@ describe('StreamingText Component', () => {
         <StreamingText text={longText} isStreaming={false} />
       );
 
-      expect(getByText(longText)).toBeTruthy();
+      // Long text is truncated to 500 chars with an ellipsis + expand affordance
+      expect(getByText(/^A{500}\.\.\.$/)).toBeTruthy();
+      expect(getByText('Show more')).toBeTruthy();
     });
   });
 
@@ -296,11 +304,12 @@ describe('StreamingText Component', () => {
   describe('Text Truncation', () => {
     test('should truncate long text when not expanded', () => {
       const longText = 'A'.repeat(600);
-      const { getByText, queryByText } = render(
+      const { getByText } = render(
         <StreamingText text={longText} isStreaming={false} />
       );
 
-      expect(getByText(/.../)).toBeTruthy();
+      expect(getByText(/^A{500}\.\.\.$/)).toBeTruthy();
+      expect(getByText('Show more')).toBeTruthy();
     });
 
     test('should show full text when expanded', () => {
@@ -339,7 +348,7 @@ describe('StreamingText Component', () => {
   describe('Progress Indicator', () => {
     test('should show progress indicator during streaming', () => {
       const { root: container } = render(
-        <StreamingText text="A".repeat(100)} isStreaming={true} />
+        <StreamingText text={"A".repeat(100)} isStreaming={true} />
       );
 
       expect(container).toBeTruthy();

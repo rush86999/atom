@@ -8,7 +8,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
-import { CanvasViewerScreen } from '../../../screens/canvas/CanvasViewerScreen';
 
 // Mock React Navigation
 const mockNavigation = {
@@ -35,6 +34,14 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('react-native-webview', () => ({
   WebView: 'WebView',
 }));
+
+// Canvas subcomponents load heavy native deps (datetimepicker); mock them
+jest.mock('@react-native-community/datetimepicker', () => ({ default: 'DateTimePicker' }), { virtual: true });
+jest.mock('../../../components/canvas/CanvasWebView', () => ({ CanvasWebView: 'CanvasWebView' }));
+jest.mock('../../../components/canvas/CanvasChart', () => ({ CanvasChart: 'CanvasChart' }));
+jest.mock('../../../components/canvas/CanvasForm', () => ({ CanvasForm: 'CanvasForm' }));
+jest.mock('../../../components/canvas/CanvasSheet', () => ({ CanvasSheet: 'CanvasSheet' }));
+jest.mock('../../../components/canvas/CanvasTerminal', () => ({ CanvasTerminal: 'CanvasTerminal' }));
 
 // Mock apiService
 const mockApiGet = jest.fn(() =>
@@ -75,7 +82,9 @@ const mockApiGet = jest.fn(() =>
 
 jest.mock('../../../services/api', () => ({
   apiService: {
-    get: jest.fn(() =>
+    // mockApiGet is configured per-test (mockResolvedValueOnce/RejectedValueOnce)
+    get: mockApiGet,
+    post: jest.fn(() =>
       Promise.resolve({
         success: true,
         data: {
@@ -119,16 +128,42 @@ jest.mock('../../../services/api', () => ({
   },
 }));
 
+// require() AFTER the mocks/data are declared — a static import would run the
+// api mock factory before mockApiGet is initialized (hoisted var).
+const { CanvasViewerScreen } = require('../../../screens/canvas/CanvasViewerScreen');
+
+
 // Mock react-native-paper
-jest.mock('react-native-paper', () => ({
-  Icon: 'Icon',
-  MD3Colors: {
-    primary50: '#2196F3',
-    secondary50: '#FF9800',
-    error50: '#f44336',
-    secondary20: '#E0E0E0',
-  },
-}));
+jest.mock('react-native-paper', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    useTheme: () => ({
+      colors: {
+        primary: '#2196F3',
+        onSurface: '#000',
+        surface: '#fff',
+        surfaceVariant: '#f5f5f5',
+        onSurfaceVariant: '#666',
+        onSurfaceDisabled: '#ccc',
+        error: '#f44336',
+        outline: '#e0e0e0',
+        secondary: '#FF9800',
+        background: '#fff',
+      },
+    }),
+    IconButton: ({ icon, onPress, ...props }: any) =>
+      React.createElement(View, { ...props, onPress, testID: `icon-btn-${icon}` }),
+    Badge: (props: any) => React.createElement(View, props),
+    Icon: 'Icon',
+    MD3Colors: {
+      primary50: '#2196F3',
+      secondary50: '#FF9800',
+      error50: '#f44336',
+      secondary20: '#E0E0E0',
+    },
+  };
+});
 
 describe('CanvasViewerScreen', () => {
   beforeEach(() => {

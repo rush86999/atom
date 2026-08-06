@@ -100,11 +100,16 @@ class _CircuitBreaker:
     async def record_failure(self) -> None:
         async with self._lock:
             self._failures += 1
-            if self._failures >= self.failure_threshold and self._opened_at is None:
-                self._opened_at = time.time()
-                logger.warning(
-                    "ActionJudge circuit opened after %d failures", self._failures
-                )
+            if self._failures >= self.failure_threshold:
+                now = time.time()
+                # Re-open when already open and the cooldown has elapsed — a
+                # failed half-open probe must put the circuit back into the
+                # open state, not leave it permanently half-open.
+                if self._opened_at is None or now - self._opened_at >= self.cooldown_seconds:
+                    self._opened_at = now
+                    logger.warning(
+                        "ActionJudge circuit opened after %d failures", self._failures
+                    )
 
     @property
     def is_open(self) -> bool:
@@ -209,6 +214,8 @@ class ActionJudge:
         if not sandbox_config.is_sandbox_judge_enabled():
             return JudgeResult(verdict=JudgeVerdict.PROCEED, rationale="judge disabled")
 
+        context = context or ""
+        provenance_context = list(provenance_context) if provenance_context else None
         cache_key = self._hash(action_description, context, provenance_context)
 
         # Cache lookup

@@ -70,6 +70,18 @@ def _compile(pattern: str) -> "re.Pattern[str]":
 # Broadened the command prefix to a group of common file-read tools.
 _CRED_READ_CMDS = r"(?:cat|head|tail|less|more|cp|od|strings|xxd|sort|tac|nl|cut|dd|base64|hexdump|bat)"
 
+# Hosts exfil-creating curl/wget calls are allowed to target (kept aligned
+# with sandbox_egress_proxy baseline LLM/provider + package-mirror hosts).
+_EXFIL_EXTERNAL_HOSTS_RE = (
+    r"api\.anthropic\.com|"
+    r"api\.openai\.com|"
+    r"generativelanguage\.googleapis\.com|"
+    r"pypi\.org|"
+    r"files\.pythonhosted\.org|"
+    r"github\.com|"
+    r"raw\.githubusercontent\.com"
+)
+
 _TRIPWIRES: Tuple[TripwirePattern, ...] = (
     # --- Credential reads (Phase C red-team primary surface) ----------
     TripwirePattern(
@@ -209,22 +221,15 @@ _TRIPWIRES: Tuple[TripwirePattern, ...] = (
     ),
 
     # --- Data exfiltration via HTTP ----------------------------------
-    # Bug #2 fix: the negative lookahead used `\b` after the host, which
-    # treats `.` as a word boundary — `api.anthropic.com.evil.com` passes.
-    # Changed to `[/\s\"']` (require a path-separator / quote / space after
-    # the allowlisted host) so subdomain lookalikes are caught.
+    # Matches libcurl/wget invocations targeting a non-allowlisted host. The
+    # host alternative also matches an allowlisted host followed by /, a quote,
+    # whitespace, or end-of-line — so `curl https://api.anthropic.com` (no
+    # trailing path) is allowed while lookalike subdomains and flagged calls
+    # (flags between the binary and URL) are caught.
     TripwirePattern(
         id="exfil_curl_to_external",
         category="EXFIL",
-        regex=_compile(r"\b(curl|wget)\s+https?://(?!("
-                       r"api\.anthropic\.com|"
-                       r"api\.openai\.com|"
-                       r"generativelanguage\.googleapis\.com|"
-                       r"pypi\.org|"
-                       r"files\.pythonhosted\.org|"
-                       r"github\.com|"
-                       r"raw\.githubusercontent\.com"
-                       r")[/\s\"'])"),
+        regex=_compile(rf"\b(curl|wget)\b[^&|;]*https?://(?!(?:{_EXFIL_EXTERNAL_HOSTS_RE})[/\\s\"']|(?:{_EXFIL_EXTERNAL_HOSTS_RE})$)"),
         description="HTTP request to non-allowlisted host (exfil)",
     ),
 )

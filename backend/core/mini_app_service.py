@@ -50,6 +50,10 @@ DEFAULT_ASSET_INJECTION_CAP = 5 * 1024 * 1024  # 5 MiB
 
 _VALID_STORAGE_BACKENDS = {"local", "cloud", "auto"}
 
+# Host pre-fetched data-source types (read bridge). Extensible: a new entry
+# only needs an injector in _inject_data_sources + a validate_manifest entry.
+_VALID_DATA_SOURCE_TYPES = {"documents.search"}
+
 
 # ===========================================================================
 # Manifest validation
@@ -109,6 +113,62 @@ def validate_manifest(manifest: Any) -> None:
     if storage.get("max_bytes_per_object") is not None:
         if not isinstance(storage.get("max_bytes_per_object"), int) or storage.get("max_bytes_per_object") <= 0:
             raise ValueError("manifest.storage.max_bytes_per_object must be an int > 0")
+
+    # Records store + read-bridge config (mini-app data layer).
+    db_cfg = manifest.get("db") or {}
+    if not isinstance(db_cfg, dict):
+        raise ValueError("manifest.db must be an object")
+    if "enabled" in db_cfg and not isinstance(db_cfg.get("enabled"), bool):
+        raise ValueError("manifest.db.enabled must be a boolean")
+    if db_cfg.get("max_records_per_series") is not None:
+        if not isinstance(db_cfg.get("max_records_per_series"), int) or db_cfg.get("max_records_per_series") <= 0:
+            raise ValueError("manifest.db.max_records_per_series must be an int > 0")
+    if db_cfg.get("max_record_bytes") is not None:
+        if not isinstance(db_cfg.get("max_record_bytes"), int) or db_cfg.get("max_record_bytes") <= 0:
+            raise ValueError("manifest.db.max_record_bytes must be an int > 0")
+    record_queries = db_cfg.get("record_queries") or []
+    if not isinstance(record_queries, list) or not all(isinstance(s, str) and s for s in record_queries):
+        raise ValueError("manifest.db.record_queries must be a list of non-empty strings")
+    from core.mini_app_db_service import SERIES_RE
+    for s in record_queries:
+        if SERIES_RE.fullmatch(s) is None:
+            raise ValueError(f"manifest.db.record_queries entry '{s}' must match {SERIES_RE.pattern}")
+
+    # Read bridge — existing system data (host pre-fetch).
+    data_sources = manifest.get("data_sources") or []
+    if not isinstance(data_sources, list):
+        raise ValueError("manifest.data_sources must be a list")
+    for ds in data_sources:
+        if not isinstance(ds, dict):
+            raise ValueError("each manifest.data_sources entry must be an object")
+        if not isinstance(ds.get("type"), str) or ds["type"] not in _VALID_DATA_SOURCE_TYPES:
+            raise ValueError(
+                f"manifest.data_sources type must be one of {sorted(_VALID_DATA_SOURCE_TYPES)}"
+            )
+
+    # integrations — host-side pre-fetch of 3rd-party integration data (NOT
+    # MCP protocol despite the legacy name; routes through
+    # ExternalIntegrationService / the Node bridge). ``mcp_servers`` is a
+    # deprecated alias kept for backward compatibility.
+    if "mcp_servers" in manifest and "integrations" not in manifest:
+        logger.warning(
+            "manifest.mcp_servers is deprecated; rename to 'integrations'. "
+            "The field routes through ExternalIntegrationService, not MCP."
+        )
+    integrations = manifest.get("integrations")
+    if integrations is None:
+        integrations = manifest.get("mcp_servers") or []
+    if not isinstance(integrations, list):
+        raise ValueError("manifest.integrations must be a list")
+    for ms in integrations:
+        if not isinstance(ms, dict):
+            raise ValueError("each manifest.integrations entry must be an object")
+        if not isinstance(ms.get("service"), str) or not ms.get("service"):
+            raise ValueError("manifest.integrations[].service must be a non-empty string")
+        if not isinstance(ms.get("action"), str) or not ms.get("action"):
+            raise ValueError("manifest.integrations[].action must be a non-empty string")
+        if ms.get("params") is not None and not isinstance(ms.get("params"), dict):
+            raise ValueError("manifest.integrations[].params must be an object")
 
     assets = manifest.get("assets", [])
     if not isinstance(assets, list) or not all(isinstance(a, str) for a in assets):
@@ -249,6 +309,15 @@ _STARTER_LOGIC = '''# Mini-app starter logic
 # To persist new state, assign `state = {...}`.
 # To read/write an asset, use the `storage_ops` list, e.g.:
 #   storage_ops.append({"op": "put", "key": "data.xlsx", "data": <bytes>, "content_type": "..."})
+# To CRUD structured rows, use the `record_ops` list, e.g.:
+#   record_ops.append({"op": "append", "series": "chart_data", "data": {"label": "Jan", "value": 12}})
+# `records` (dict of pre-fetched own-history series) and `data_sources`
+# (documents.search + integration results) are injected when the manifest
+# declares record_queries / data_sources / integrations.
+# To make a CONDITIONAL integration call mid-run (host-mediated, scope-gated),
+# call fetch_integration(service, action, params) — it blocks until the host
+# resolves the call and returns the result payload (raises RuntimeError on error):
+#   pages = fetch_integration("notion", "search", {"query": state.get("topic", "")})
 result = {}
 if isinstance(state, dict):
     result = dict(state)
@@ -266,7 +335,7 @@ def _build_starter_manifest(
     return {
         "declared_scopes": declared_scopes or ["canvas_render", "canvas_get_state"],
         "skills": [],
-        "mcp_servers": [],
+        "integrations": [],
         "entrypoint": "logic",
         "dependencies": dependencies or [],
         "base_image": base_image or "python:3.11-slim",
@@ -275,6 +344,12 @@ def _build_starter_manifest(
             "enabled": True,
             "backend": "local",
             "max_bytes_per_object": DEFAULT_ASSET_INJECTION_CAP,
+        },
+        "db": {
+            "enabled": True,
+            "max_records_per_series": 10000,
+            "max_record_bytes": 100 * 1024,
+            "record_queries": [],
         },
         "initial_state": {},
         "blueprint": {},
@@ -378,7 +453,7 @@ def _llm_scaffold(name: str, spec: Dict[str, Any]) -> Optional[str]:
 # ===========================================================================
 # Publish — snapshot the blueprint (copy-on-install)
 # ===========================================================================
-def publish(app: Any, db: Session) -> Dict[str, Any]:
+def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
     """Scan deps + verify rootfs, snapshot source canvas into the blueprint.
 
     Captures the latest ``CanvasState.state`` (or latest audit details_json) as
@@ -460,9 +535,19 @@ def publish(app: Any, db: Session) -> Dict[str, Any]:
         cleaned["initial_state"] = strip_credentials(cleaned["initial_state"])
     app.manifest = cleaned
     app.status = "published"
+    # Gap C: optionally activate public/share. Publishing publicly mints a
+    # share_token for the by-token install path. is_approved stays False until
+    # an admin approves (Gap D); public install requires both flags.
+    if public:
+        import secrets
+
+        app.is_public = True
+        if not app.share_token:
+            app.share_token = secrets.token_urlsafe(32)
     db.commit()
 
-    return {"success": True, "app_id": app.id, "version": app.version}
+    return {"success": True, "app_id": app.id, "version": app.version,
+            "is_public": bool(app.is_public), "share_token": app.share_token}
 
 
 # ===========================================================================
@@ -487,11 +572,20 @@ def install(app: Any, viewer: Any, db: Session) -> str:
     blueprint = (app.manifest or {}).get("blueprint") or {}
     initial_state = (app.manifest or {}).get("initial_state") or {}
 
+    # Gap B fix: the instance lands in the INSTALLER's tenant/workspace, not the
+    # author's. Previously this hardcoded app.tenant_id/app.workspace_id, which
+    # meant a cross-tenant install created the instance (+ all its records/
+    # assets/state) in the author's namespace — a data-ownership break.
+    instance_tenant = getattr(viewer, "tenant_id", None) or app.tenant_id
+    instance_workspace = getattr(viewer, "workspace_id", None)
+    if instance_workspace is None:
+        instance_workspace = app.workspace_id if str(viewer.id) == str(app.created_by) else None
+
     new_id = str(uuid.uuid4())
     canvas = Canvas(
         id=new_id,
-        tenant_id=app.tenant_id,
-        workspace_id=app.workspace_id,
+        tenant_id=instance_tenant,
+        workspace_id=instance_workspace,
         created_by=str(viewer.id),
         name=app.name,
         description=app.description,
@@ -522,7 +616,7 @@ def install(app: Any, viewer: Any, db: Session) -> str:
     # Re-create component installations with credentials stripped.
     for inst in blueprint.get("component_installations") or []:
         db.add(ComponentInstallation(
-            tenant_id=app.tenant_id,
+            tenant_id=instance_tenant,
             canvas_id=new_id,
             component_id=inst.get("component_id"),
             config=strip_credentials(inst.get("config")) if inst.get("config") else inst.get("config"),
@@ -533,7 +627,7 @@ def install(app: Any, viewer: Any, db: Session) -> str:
     # State store: version 1.
     db.add(CanvasState(
         canvas_id=new_id,
-        tenant_id=app.tenant_id,
+        tenant_id=instance_tenant,
         created_by=str(viewer.id),
         state=initial_state,
         version=1,
@@ -542,12 +636,28 @@ def install(app: Any, viewer: Any, db: Session) -> str:
     # Exactly one audit row.
     db.add(CanvasAudit(
         canvas_id=new_id,
-        tenant_id=app.tenant_id,
+        tenant_id=instance_tenant,
         action_type="mini_app_install",
         user_id=str(viewer.id),
         canvas_type="mini_app",
         details_json={"app_id": app.id},
     ))
+
+    # Gap F: record which version was installed so update-check can signal.
+    try:
+        from core.models import MiniAppInstallation
+
+        db.add(MiniAppInstallation(
+            app_id=app.id,
+            canvas_id=new_id,
+            tenant_id=instance_tenant,
+            installed_by=str(viewer.id),
+            installed_version=app.version,
+            installed_runtime_version=app.runtime_version or 0,
+            source="owned" if str(viewer.id) == str(app.created_by) else "marketplace",
+        ))
+    except Exception as e:  # noqa: BLE001
+        logger.debug("MiniAppInstallation write skipped: %s", e)
 
     db.commit()
     return new_id
@@ -584,7 +694,8 @@ def _wrap_source(source: str) -> str:
     epilogue = textwrap.indent(
         "import json\n"
         f'print("{_MINIAPP_STATE_MARKER}" + json.dumps({{"state": state, '
-        '"storage_ops": globals().get("storage_ops", [])}))',
+        '"storage_ops": globals().get("storage_ops", []), '
+        '"record_ops": globals().get("record_ops", [])}))',
         "    ",
     )
     return header + body + "\n" + epilogue + "\n"
@@ -619,7 +730,21 @@ def _validate_storage_op(op: Any, max_bytes: int) -> Optional[Dict[str, Any]]:
         data = op.get("data")
         if data is None:
             return None
-        if isinstance(data, str):
+        encoding = op.get("encoding")
+        if encoding == "base64":
+            # Binary-safe channel: the JSON envelope carries strings only, so
+            # binary bytes arrive base64-encoded. Decode here so the stored
+            # bytes match what the guest intended (symmetric with get, which
+            # returns base64). Invalid base64 → reject the op.
+            import base64
+
+            if not isinstance(data, str):
+                return None
+            try:
+                data = base64.b64decode(data, validate=True)
+            except (ValueError, Exception):  # noqa: BLE001
+                return None
+        elif isinstance(data, str):
             data = data.encode("utf-8")
         elif not isinstance(data, (bytes, bytearray)):
             return None
@@ -655,6 +780,248 @@ def _inject_assets(
     return out
 
 
+# ---------------------------------------------------------------------------
+# Read bridge — own-history + documents + integration pre-fetch (host-side).
+# The microVM has no network/DB; the host fetches declared sources and injects
+# the results as run inputs BEFORE execute_python. Skip-on-failure + size caps
+# guarantee a failed source never crashes the run.
+# ---------------------------------------------------------------------------
+_DEFAULT_DATA_SOURCE_CAP = 5 * 1024 * 1024  # 5 MiB serialized per source
+
+
+def _inject_record_queries(
+    manifest: Dict[str, Any],
+    db: Session,
+    canvas_id: str,
+) -> Dict[str, Any]:
+    """Pre-fetch own-history series into ``inputs["records"]`` (read bridge).
+
+    For each series in ``manifest.db.record_queries``, inject the latest
+    ``limit`` rows (default 100, desc) as ``{series: [rows]}`` so the app can
+    compute over its own accumulated history without cramming it into state.
+    """
+    from core.mini_app_db_service import query_records
+
+    db_cfg = manifest.get("db") or {}
+    limit = db_cfg.get("record_query_limit", 100)
+    out: Dict[str, Any] = {}
+    for series in db_cfg.get("record_queries") or []:
+        try:
+            out[series] = query_records(db, canvas_id, series, limit=limit, order="desc")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("record_queries pre-fetch '%s' skipped: %s", series, e)
+    return out
+
+
+async def _inject_data_sources(
+    manifest: Dict[str, Any],
+    tenant_id: str,
+    workspace_id: Optional[str],
+    agent_id: Optional[str],
+) -> Dict[str, Any]:
+    """Pre-fetch existing-system data into ``inputs["data_sources"]``.
+
+    Currently supports ``documents.search`` (over IngestedDocument /
+    KnowledgeDocument). Unknown or failing sources are logged + skipped —
+    never crash the run. Results are size-capped (5 MiB serialized).
+    """
+    out: Dict[str, Any] = {}
+    for ds in manifest.get("data_sources") or []:
+        ds_type = ds.get("type")
+        try:
+            if ds_type == "documents.search":
+                from core.action_registry import action_registry
+
+                query = (ds.get("query") or "").strip()
+                if not query:
+                    continue
+                res = await _safe_action_call(
+                    action_registry, "documents.search",
+                    {"query": query, "limit": int(ds.get("limit", 10))},
+                    {"user_id": agent_id, "workspace_id": workspace_id},
+                )
+                payload = res.get("data") if isinstance(res, dict) else None
+                if isinstance(payload, dict) and _json_bytes(payload) <= _DEFAULT_DATA_SOURCE_CAP:
+                    out.setdefault("documents", []).extend(payload.get("results") or [])
+        except Exception as e:  # noqa: BLE001
+            logger.debug("data_source %s skipped: %s", ds_type, e)
+    return out
+
+
+async def _inject_integration_sources(
+    manifest: Dict[str, Any],
+    tenant_id: str,
+    workspace_id: Optional[str],
+    agent_id: Optional[str],
+    db: Optional[Session] = None,
+) -> Dict[str, Any]:
+    """Pre-fetch integration data into ``inputs["data_sources"]``.
+
+    ``manifest.integrations`` entries ``{service, action, params}`` are host
+    pre-fetches (NOT live guest calls — the microVM has no network):
+    credentials are resolved from ``IntegrationToken`` (P0-encrypted,
+    decrypted host-side) and the call goes through
+    ``ExternalIntegrationService.execute_integration_action``. Only the result
+    payload is injected — tokens never reach the guest. Failures/unknown
+    services are logged + skipped; results are size-capped.
+
+    ``mcp_servers`` is a deprecated alias read as a fallback.
+    """
+    integrations = manifest.get("integrations")
+    if integrations is None:
+        integrations = manifest.get("mcp_servers") or []
+    out: Dict[str, Any] = {}
+    for ms in integrations:
+        service = ms.get("service")
+        action = ms.get("action")
+        if not service or not action:
+            continue
+        try:
+            creds = _resolve_integration_credentials(tenant_id, service, db=db)
+            from core.external_integration_service import ExternalIntegrationService
+
+            result = await ExternalIntegrationService().execute_integration_action(
+                integration_id=service,
+                action_id=action,
+                params=ms.get("params") or {},
+                credentials=creds or None,
+            )
+            payload = getattr(result, "data", None)
+            if payload is None and isinstance(result, dict):
+                payload = result.get("data")
+            if payload is None:
+                payload = result
+            if isinstance(payload, (dict, list)) and _json_bytes(payload) <= _DEFAULT_DATA_SOURCE_CAP:
+                out[service] = payload
+        except Exception as e:  # noqa: BLE001
+            logger.debug("mcp source %s/%s skipped: %s", service, action, e)
+    return out
+
+
+def _json_bytes(value: Any) -> int:
+    import json as _json
+
+    try:
+        return len(_json.dumps(value).encode("utf-8"))
+    except (TypeError, ValueError):
+        return _DEFAULT_DATA_SOURCE_CAP + 1
+
+
+async def _safe_action_call(
+    registry: Any,
+    name: str,
+    args: Dict[str, Any],
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Execute a registry action with a bounded timeout (read-bridge safety)."""
+    import asyncio
+
+    try:
+        return await asyncio.wait_for(
+            registry.execute_action(name, args, context), timeout=10
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.debug("action %s call failed: %s", name, e)
+        return {}
+
+
+def _resolve_integration_credentials(
+    tenant_id: str, service: str, db: Optional[Session]
+) -> Dict[str, Any]:
+    """Resolve credentials for an integration pre-fetch (host-side only).
+
+    Looks up ``IntegrationToken`` by (tenant_id, provider=service); at-rest
+    values are decrypted via the P0 token-encryption layer
+    (``decrypt_token`` — transparent plaintext fallback for legacy rows).
+    Returns ``{}`` when unconfigured (caller skips the source). The guest
+    NEVER receives this dict — only the action result.
+    """
+    try:
+        from core.models import IntegrationToken
+        from core.privsec.token_encryption import decrypt_token
+
+        def _lookup(sess: Session) -> Optional[Dict[str, Any]]:
+            row = (
+                sess.query(IntegrationToken)
+                .filter(
+                    IntegrationToken.tenant_id == tenant_id,
+                    IntegrationToken.provider == service,
+                )
+                .order_by(IntegrationToken.updated_at.desc())
+                .first()
+            )
+            if row is None:
+                return None
+            return {
+                "access_token": decrypt_token(row.access_token or ""),
+                "refresh_token": decrypt_token(row.refresh_token or "") if row.refresh_token else None,
+                "token_type": row.token_type,
+                "instance_url": row.instance_url,
+            }
+
+        if db is not None:
+            return _lookup(db) or {}
+        from core.database import get_db_session
+
+        with get_db_session() as sess:
+            return _lookup(sess) or {}
+    except Exception as e:  # noqa: BLE001
+        logger.debug("IntegrationToken resolution for %s skipped: %s", service, e)
+    return {}
+
+
+def _make_callback_handler(
+    db: Any,
+    tenant_id: str,
+    scopes: Tuple[str, ...],
+    workspace_id: Optional[str],
+    agent_id: Optional[str],
+) -> Any:
+    """Build the async callback handler passed to ``execute_python``.
+
+    Services guest ``fetch_integration`` callbacks: scope-gated, credential-
+    resolved host-side (tokens never reach the guest), size-capped, skip-on-
+    failure. Only ``integrations.<service>`` (or ``*``) in the resolved scopes
+    permits a call; otherwise the guest sees ``scope_denied`` so user code can
+    react gracefully.
+    """
+
+    async def handler(request: Dict[str, Any]) -> Dict[str, Any]:
+        kind = request.get("kind")
+        if kind != "fetch_integration":
+            return {"ok": False, "error": f"unknown callback kind: {kind}"}
+        service = str(request.get("service") or "")
+        action = str(request.get("action") or "")
+        params = request.get("params") or {}
+        # Scope gate: '*' or an explicit 'integrations.<service>' permit the call.
+        needed = f"integrations.{service}"
+        allowed = "*" in scopes or needed in scopes
+        if not allowed:
+            logger.warning("callback %s denied by scope gate (need %s)", needed, needed)
+            return {"ok": False, "error": "scope_denied"}
+        try:
+            creds = _resolve_integration_credentials(tenant_id, service, db=db)
+            from core.external_integration_service import ExternalIntegrationService
+
+            result = await ExternalIntegrationService().execute_integration_action(
+                integration_id=service, action_id=action,
+                params=params, credentials=creds or None,
+            )
+            payload = getattr(result, "data", None)
+            if payload is None and isinstance(result, dict):
+                payload = result.get("data")
+            if payload is None:
+                payload = result
+            if _json_bytes(payload) > _DEFAULT_DATA_SOURCE_CAP:
+                return {"ok": False, "error": "result_too_large"}
+            return {"ok": True, "data": payload}
+        except Exception as e:  # noqa: BLE001
+            logger.warning("callback fetch_integration %s.%s failed: %s", service, action, e)
+            return {"ok": False, "error": "failed"}
+
+    return handler
+
+
 async def run_stateful(
     canvas_id: str,
     inputs: Optional[Dict[str, Any]] = None,
@@ -680,7 +1047,7 @@ async def run_stateful(
     meaningful with ``persist=False``.
     """
     from core.canvas_logic_service import CanvasLogicService
-    from core.mini_app_storage import get_mini_app_storage
+    from core.mini_app_storage import get_max_object_bytes, get_mini_app_storage
     from core.models import Canvas, CanvasState, MiniApp, MiniAppAsset
     from core.sandbox_policy import PolicyIssuer
 
@@ -707,11 +1074,23 @@ async def run_stateful(
                 scopes = resolve_effective_scopes(manifest, viewer=viewer, tier=viewer_tier)
 
             asset_inputs = _inject_assets(manifest, canvas.tenant_id, canvas_id)
+            record_inputs = _inject_record_queries(manifest, db, canvas_id)
+            data_source_inputs = await _inject_data_sources(
+                manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id
+            )
+            mcp_inputs = await _inject_integration_sources(
+                manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id,
+                db=db,
+            )
+            data_source_inputs.update(mcp_inputs)
 
             run_inputs: Dict[str, Any] = dict(inputs or {})
             run_inputs["state"] = current_state
             run_inputs["assets"] = asset_inputs
             run_inputs["storage_ops"] = []
+            run_inputs["record_ops"] = []
+            run_inputs["records"] = record_inputs
+            run_inputs["data_sources"] = data_source_inputs
             run_inputs["mini_app_id"] = app.id
 
             namespace = f"{app.id}-{canvas_id}"[:80]
@@ -731,11 +1110,15 @@ async def run_stateful(
             wrapped = _wrap_source(source.get("source", ""))
 
             runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable
+            callback_handler = _make_callback_handler(
+                db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id
+            )
             result = await runtime.execute_python(
                 wrapped,
                 policy=policy,
                 inputs=run_inputs,
                 image=app.runtime_image,  # None → base template rootfs
+                callback_handler=callback_handler,
             )
 
             stdout = getattr(result, "stdout", "") or ""
@@ -775,13 +1158,30 @@ async def run_stateful(
 
             new_state = current_state
             op_results: List[Dict[str, Any]] = []
+            # Bug fix: storage_ops now respects the manifest storage.enabled
+            # gate (parity with record_ops' db.enabled gate) AND uses the same
+            # per-object cap as the REST upload path so an asset written via the
+            # API isn't silently dropped when written back via storage_ops.
+            storage_cfg = manifest.get("storage") or {}
+            storage_enabled = bool(storage_cfg.get("enabled", True))
             if envelope is not None:
                 new_state = envelope.get("state") or {}
-                max_bytes = (manifest.get("storage") or {}).get(
-                    "max_bytes_per_object", DEFAULT_ASSET_INJECTION_CAP
+                # Per-object cap: manifest override → global upload cap (50 MiB).
+                # Previously defaulted to DEFAULT_ASSET_INJECTION_CAP (5 MiB),
+                # which silently dropped assets the REST path accepted.
+                max_bytes = storage_cfg.get(
+                    "max_bytes_per_object", get_max_object_bytes()
                 )
                 storage = get_mini_app_storage(canvas.tenant_id, canvas_id)
                 for raw_op in envelope.get("storage_ops") or []:
+                    if not storage_enabled:
+                        op_results.append({
+                            "op": raw_op.get("op") if isinstance(raw_op, dict) else "?",
+                            "key": raw_op.get("key") if isinstance(raw_op, dict) else None,
+                            "ok": False,
+                            "error": "storage_disabled",
+                        })
+                        continue
                     valid = _validate_storage_op(raw_op, max_bytes)
                     if valid is None:
                         logger.warning("Invalid storage_op skipped: %s", raw_op)
@@ -794,6 +1194,43 @@ async def run_stateful(
                         op_results.append({
                             "op": valid["op"],
                             "key": valid["key"],
+                            "ok": True,
+                            "proposed": True,
+                        })
+
+            # Host-mediated record store (mini-app data layer): the guest
+            # proposes record_ops; the host validates and executes them against
+            # CanvasRecord rows. Disabled store / disabled manifest → every op
+            # rejected with db_disabled (fail-closed, never silently dropped).
+            record_results: List[Dict[str, Any]] = []
+            if envelope is not None:
+                from core.mini_app_db_service import (
+                    DEFAULT_MAX_RECORD_BYTES, db_store_enabled,
+                )
+
+                db_cfg = manifest.get("db") or {}
+                store_ok = db_store_enabled() and bool(db_cfg.get("enabled", True))
+                max_record_bytes = db_cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
+                for raw_op in envelope.get("record_ops") or []:
+                    if not store_ok:
+                        record_results.append({
+                            "op": raw_op.get("op") if isinstance(raw_op, dict) else "?",
+                            "ok": False,
+                            "error": "db_disabled",
+                        })
+                        continue
+                    valid = _validate_record_op(raw_op, max_record_bytes)
+                    if valid is None:
+                        logger.warning("Invalid record_op skipped: %s", raw_op)
+                        continue
+                    if persist:
+                        record_results.append(_execute_record_op(
+                            valid, db, canvas, app, created_by=user_id
+                        ))
+                    else:
+                        record_results.append({
+                            "op": valid["op"],
+                            "series": valid.get("series"),
                             "ok": True,
                             "proposed": True,
                         })
@@ -819,6 +1256,8 @@ async def run_stateful(
 
             if persist and user_id:
                 await _broadcast_state(user_id, canvas_id, new_version, new_state)
+                if record_results:
+                    await _broadcast_db(user_id, canvas_id, record_results)
 
             return {
                 "success": True,
@@ -830,6 +1269,9 @@ async def run_stateful(
                 "state": new_state,
                 "op_results": op_results,
                 "proposed_ops": op_results if not persist else [],
+                "record_results": record_results,
+                "proposed_record_ops": record_results if not persist else [],
+                "callbacks": meta.get("callbacks", []),
             }
     except RuntimeError as e:
         return {"success": False, "error": str(e)}
@@ -877,7 +1319,17 @@ def _execute_storage_op(
             data = storage.retrieve(key)
             if data is None:
                 return {"op": "get", "key": key, "ok": False, "error": "not_found"}
-            return {"op": "get", "key": key, "ok": True, "data": data.decode("utf-8", errors="replace")}
+            # Base64 so binary assets (xlsx/images/pdf) round-trip losslessly
+            # through the JSON envelope. The previous utf-8 decode corrupted
+            # non-text assets via errors="replace".
+            import base64
+
+            return {
+                "op": "get", "key": key, "ok": True,
+                "data": base64.b64encode(data).decode("ascii"),
+                "encoding": "base64",
+                "size": len(data),
+            }
         if op == "delete":
             ok = storage.delete(key)
             if ok:
@@ -893,6 +1345,156 @@ def _execute_storage_op(
         logger.warning("storage_op %s %s failed: %s", op, key, e)
         return {"op": op, "key": key, "ok": False, "error": "failed"}
     return {"op": op, "key": key, "ok": False, "error": "unknown_op"}
+
+
+def _validate_record_op(op: Any, max_record_bytes: int) -> Optional[Dict[str, Any]]:
+    """Validate one ``record_ops`` envelope entry; return None when invalid.
+
+    Mirrors ``_validate_storage_op``: unknown ops are skipped with a warning
+    (never executed, never crash the run). Series names must match the
+    ``^[a-z0-9_]{1,64}$`` allowlist; record payloads must be JSON-serializable
+    dicts within ``max_record_bytes``; filters are equality dicts of scalars.
+    """
+    from core.mini_app_db_service import validate_filter, validate_record_data, validate_series
+
+    if not isinstance(op, dict):
+        return None
+    op_type = op.get("op")
+    if op_type not in {
+        "append", "get", "query", "count", "update", "update_many",
+        "delete", "delete_series", "clear", "list_series",
+    }:
+        return None
+
+    if op_type not in {"clear", "list_series"}:
+        series = validate_series(op.get("series"))
+        if series is None:
+            return None
+    else:
+        series = None
+
+    valid: Dict[str, Any] = {"op": op_type, "series": series}
+
+    if op_type in {"append", "update", "update_many"}:
+        data = op.get("data")
+        if not validate_record_data(data, max_record_bytes):
+            return None
+        valid["data"] = data
+    if op_type == "append":
+        rid = op.get("id")
+        if rid is not None and (not isinstance(rid, str) or not rid):
+            return None
+        valid["id"] = rid
+    if op_type in {"update", "delete"}:
+        rid = op.get("id")
+        if not isinstance(rid, str) or not rid:
+            return None
+        valid["id"] = rid
+    if op_type in {"query", "count"}:
+        f = op.get("filter") or {}
+        if not validate_filter(f):
+            return None
+        valid["filter"] = f
+    if op_type == "query":
+        limit = op.get("limit", 100)
+        if not isinstance(limit, int) or not (1 <= limit <= 10000):
+            return None
+        order = op.get("order", "desc")
+        if order not in {"asc", "desc"}:
+            return None
+        valid["limit"] = limit
+        valid["order"] = order
+    if op_type == "update_many":
+        f = op.get("filter") or {}
+        if not validate_filter(f):
+            return None
+        valid["filter"] = f
+    return valid
+
+
+def _execute_record_op(
+    valid_op: Dict[str, Any],
+    db: Session,
+    canvas: Any,
+    app: Any,
+    created_by: Optional[str],
+) -> Dict[str, Any]:
+    """Execute a validated record op against the mini-app DB store."""
+    from core.mini_app_db_service import (
+        append_record, clear_records, count_records, delete_record, delete_series,
+        get_record, list_series, query_records, update_many_records, update_record,
+    )
+
+    op = valid_op["op"]
+    series = valid_op.get("series")
+    base: Dict[str, Any] = {"op": op}
+    if series is not None:
+        base["series"] = series
+    try:
+        if op == "append":
+            row = append_record(
+                db, canvas.id, canvas.tenant_id, app.id,
+                series, valid_op["data"], record_id=valid_op.get("id"),
+                created_by=created_by,
+            )
+            return {**base, "ok": True, "id": row["id"], "seq": row["seq"]}
+        if op == "get":
+            row = get_record(db, canvas.id, series, valid_op["id"])
+            if row is None:
+                return {**base, "ok": False, "error": "not_found"}
+            return {**base, "ok": True, "record": row}
+        if op == "query":
+            rows = query_records(
+                db, canvas.id, series,
+                f=valid_op.get("filter"), limit=valid_op.get("limit", 100),
+                order=valid_op.get("order", "desc"),
+            )
+            return {**base, "ok": True, "records": rows, "count": len(rows)}
+        if op == "count":
+            n = count_records(db, canvas.id, series=series, f=valid_op.get("filter"))
+            return {**base, "ok": True, "count": n}
+        if op == "update":
+            row = update_record(db, canvas.id, series, valid_op["id"], valid_op["data"])
+            if row is None:
+                return {**base, "ok": False, "error": "not_found"}
+            return {**base, "ok": True, "record": row}
+        if op == "update_many":
+            n = update_many_records(
+                db, canvas.id, series, valid_op.get("filter") or {}, valid_op["data"]
+            )
+            return {**base, "ok": True, "updated": n}
+        if op == "delete":
+            ok = delete_record(db, canvas.id, series, valid_op["id"])
+            return {**base, "ok": ok, "id": valid_op["id"], "error": None if ok else "not_found"}
+        if op == "delete_series":
+            n = delete_series(db, canvas.id, series)
+            return {**base, "ok": True, "deleted": n}
+        if op == "clear":
+            n = clear_records(db, canvas.id)
+            return {**base, "ok": True, "deleted": n}
+        if op == "list_series":
+            return {**base, "ok": True, "series": list_series(db, canvas.id)}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("record_op %s failed for %s: %s", op, canvas.id, e)
+        return {**base, "ok": False, "error": "failed"}
+    return {**base, "ok": False, "error": "unknown_op"}
+
+
+async def _broadcast_db(user_id: str, canvas_id: str, results: List[Dict[str, Any]]) -> None:
+    """Fire-and-forget WS broadcast of committed record mutations (live charts)."""
+    try:
+        from core.websockets import manager as ws_manager
+
+        await ws_manager.broadcast(f"user:{user_id}", {
+            "type": "canvas:update",
+            "data": {
+                "action": "mini_app_db",
+                "canvas_id": canvas_id,
+                "ops": results,
+            },
+        })
+    except Exception as e:  # noqa: BLE001
+        logger.debug("MiniApp db WS broadcast skipped: %s", e)
 
 
 async def _broadcast_state(user_id: str, canvas_id: str, version: int, state: Any) -> None:
@@ -1135,6 +1737,7 @@ def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
     import os
 
     from core.canvas_logic_service import CanvasLogicService
+    from core.mini_app_db_service import db_store_enabled
     from core.mini_app_runtime import get_miniapp_rootfs_dir, get_miniapp_runtime
     from core.package_dependency_scanner import PackageDependencyScanner
 
@@ -1192,4 +1795,13 @@ def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
         "rootfs": rootfs,
         "runtime": {"available": runtime_available, "reason": runtime_reason},
         "tests": {"count": len(manifest.get("tests") or [])},
+        "db": {
+            "enabled": db_store_enabled() and bool((manifest.get("db") or {}).get("enabled", True)),
+            "config": manifest.get("db") or {},
+            "record_queries": ((manifest.get("db") or {}).get("record_queries")) or [],
+            "data_sources": manifest.get("data_sources") or [],
+            "integrations": (manifest.get("integrations")
+                              if manifest.get("integrations") is not None
+                              else manifest.get("mcp_servers")) or [],
+        },
     }

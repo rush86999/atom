@@ -28,6 +28,10 @@ _JSONRPC_PARSE_ERROR = -32700
 _JSONRPC_METHOD_NOT_FOUND = -32601
 _JSONRPC_INTERNAL_ERROR = -32603
 
+# Cap on a single JSON-RPC response body — a broken or malicious server must
+# not be able to push an unbounded payload into agent context.
+_MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
 
 class MCPClientError(Exception):
     """Raised when an MCP client operation fails."""
@@ -132,9 +136,21 @@ class MCPClient:
     async def _rpc_http(self, request: Dict[str, Any]) -> Any:
         client = await self._ensure_http()
         try:
-            resp = await client.post("", json=request)
-            resp.raise_for_status()
-            envelope = resp.json()
+            async with client.stream("POST", "", json=request) as resp:
+                resp.raise_for_status()
+                chunks: List[bytes] = []
+                size = 0
+                async for chunk in resp.aiter_bytes():
+                    size += len(chunk)
+                    if size > _MAX_RESPONSE_BYTES:
+                        raise MCPClientError(
+                            f"{self.server_id}: HTTP response exceeded "
+                            f"{_MAX_RESPONSE_BYTES} bytes"
+                        )
+                    chunks.append(chunk)
+                envelope = json.loads(b"".join(chunks))
+        except MCPClientError:
+            raise
         except Exception as e:
             raise MCPClientError(f"{self.server_id}: HTTP RPC failed ({e})") from e
 

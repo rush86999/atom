@@ -148,19 +148,22 @@ class OfficeSyncService:
 
             # Push live update via WebSocket manager
             try:
-                asyncio.create_task(ws_manager.broadcast({
-                    "type": "canvas:update",
-                    "data": {
-                        "action": "update",
-                        "canvas_id": canvas_id,
-                        "canvas_type": canvas_type,
-                        "component": "office_preview",
+                asyncio.create_task(ws_manager.broadcast(
+                    f"canvas:{canvas_id}",
+                    {
+                        "type": "canvas:update",
                         "data": {
-                            "html": render_res["html"],
-                            "file_path": file_path
+                            "action": "update",
+                            "canvas_id": canvas_id,
+                            "canvas_type": canvas_type,
+                            "component": "office_preview",
+                            "data": {
+                                "html": render_res["html"],
+                                "file_path": file_path
+                            }
                         }
                     }
-                }))
+                ))
             except RuntimeError:
                 # No running loop — skip async broadcast (rare sync caller).
                 pass

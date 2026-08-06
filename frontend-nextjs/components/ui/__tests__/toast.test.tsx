@@ -1,6 +1,9 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// tests/setup.ts globally stubs ToastProvider to render only its children —
+// restore the real implementation here so toast rendering is observable
+jest.mock('@/components/ui/use-toast', () => jest.requireActual('@/components/ui/use-toast'));
 import { ToastProvider, useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 
@@ -153,7 +156,7 @@ describe('Toast Component', () => {
 
     it('auto-dismisses toast after default duration (5000ms)', async () => {
       jest.useFakeTimers();
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       setupToastTest();
 
       await user.click(screen.getByRole('button', { name: 'Default' }));
@@ -172,7 +175,9 @@ describe('Toast Component', () => {
 
     it('auto-dismisses toast after custom duration', async () => {
       jest.useFakeTimers();
-      const user = userEvent.setup();
+      // user-event v14 requires advanceTimers when fake timers are active,
+      // otherwise its internal delay timers never fire and the click hangs
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       setupToastTest();
 
       await user.click(screen.getByRole('button', { name: 'Custom Duration' }));
@@ -191,7 +196,9 @@ describe('Toast Component', () => {
 
     it('does not auto-dismiss when duration is 0', async () => {
       jest.useFakeTimers();
-      const user = userEvent.setup();
+      // user-event v14 requires advanceTimers when fake timers are active,
+      // otherwise its internal delay timers never fire and the click hangs
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       setupToastTest();
 
       await user.click(screen.getByRole('button', { name: 'No Dismiss' }));
@@ -292,9 +299,10 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Third' }));
 
       await waitFor(() => {
-        expect(screen.getByText('First')).toBeInTheDocument();
-        expect(screen.getByText('Second')).toBeInTheDocument();
-        expect(screen.getByText('Third')).toBeInTheDocument();
+        // The titles also appear on the trigger buttons — count occurrences
+        expect(screen.getAllByText('First').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('Second').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('Third').length).toBeGreaterThan(1);
       });
     });
 
@@ -330,7 +338,9 @@ describe('Toast Component', () => {
 
     it('dismisses individual toasts independently', async () => {
       jest.useFakeTimers();
-      const user = userEvent.setup();
+      // user-event v14 requires advanceTimers when fake timers are active,
+      // otherwise its internal delay timers never fire and the click hangs
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
       const TestComponent = () => {
         const { toast } = useToast();
@@ -384,6 +394,7 @@ describe('Toast Component', () => {
       );
 
       await user.click(screen.getByRole('button', { name: 'Show' }));
+      console.log('DBG body after click:', (document.body.textContent || '').replace(/\s+/g, ' ').slice(0, 120));
 
       await waitFor(() => {
         const closeButton = screen.getByLabelText('Close toast');
@@ -408,7 +419,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        const toast = screen.getByText('Important message').closest('div');
+        const toast = screen.getByText('Important message').closest('.rounded-lg');
         expect(toast).toHaveClass('border');
       });
     });
@@ -514,13 +525,16 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        expect(screen.getByText(longText)).toBeInTheDocument();
+        // The text appears in both the title and the description
+        expect(screen.getAllByText(longText).length).toBeGreaterThanOrEqual(2);
       });
     });
 
     it('handles rapid toast creation', async () => {
       jest.useFakeTimers();
-      const user = userEvent.setup();
+      // user-event v14 requires advanceTimers when fake timers are active,
+      // otherwise its internal delay timers never fire and the click hangs
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
       const TestComponent = () => {
         const { toast } = useToast();
@@ -575,7 +589,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        const toast = screen.getByText('Default').closest('div');
+        const toast = screen.getByText('Default').closest('.rounded-lg');
         expect(toast).toHaveClass('bg-white');
       });
     });
@@ -601,7 +615,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        const toast = screen.getByText('Success').closest('div');
+        const toast = screen.getByText('Success').closest('.rounded-lg');
         expect(toast).toHaveClass('bg-green-50');
       });
     });
@@ -627,7 +641,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        const toast = screen.getByText('Error').closest('div');
+        const toast = screen.getByText('Error').closest('.rounded-lg');
         expect(toast).toHaveClass('bg-red-50');
       });
     });
@@ -653,7 +667,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByRole('button', { name: 'Show' }));
 
       await waitFor(() => {
-        const toast = screen.getByText('Warning').closest('div');
+        const toast = screen.getByText('Warning').closest('.rounded-lg');
         expect(toast).toHaveClass('bg-yellow-50');
       });
     });

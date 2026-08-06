@@ -307,12 +307,16 @@ class VerifiableCredentialManager:
         # Generate ID
         credential_id = credential_id or f"urn:vc:{uuid4().hex}"
 
-        # Build credential subject
-        credential_subject = {
+        # Build credential subject. The subject "id" and "type" are fixed by
+        # the issuer parameters — caller claims must not be able to override
+        # them (subject/type spoofing at issuance).
+        credential_subject: Dict[str, Any] = {
             "id": subject_did,
             "type": credential_type.value,
-            **claims
         }
+        for claim_key, claim_value in claims.items():
+            if claim_key not in ("id", "type"):
+                credential_subject[claim_key] = claim_value
 
         # Create VC
         vc = VerifiableCredential(

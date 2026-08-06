@@ -408,9 +408,11 @@ describe('StorageService', () => {
 
   describe('singleton export', () => {
     it('should export storageService singleton', () => {
-      const { storageService: singleton } = require('../s3-storage');
-
-      expect(singleton).toBeInstanceOf(StorageService);
+      // Assert the singleton contract within the module itself (the require'd
+      // module instance can differ from the top-level import under ts-jest)
+      const mod = require('@lib/src/storage/s3-storage');
+      expect(mod.storageService).toBeDefined();
+      expect(mod.storageService).toBeInstanceOf(mod.StorageService);
     });
   });
 });

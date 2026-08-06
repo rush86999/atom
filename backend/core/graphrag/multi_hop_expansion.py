@@ -252,6 +252,7 @@ class MultiHopExpander:
                 break
 
             next_level: List[ExpansionNode] = []
+            new_paths: List[ExpansionPath] = []
             result.max_depth_reached = hop
 
             # Expand each node at current level
@@ -299,7 +300,6 @@ class MultiHopExpander:
                         "hop_level": hop
                     })
 
-                    # Extend paths
                     for path in active_paths:
                         if path.nodes[-1].id == current_node.id:
                             new_path = ExpansionPath(
@@ -309,6 +309,7 @@ class MultiHopExpander:
                                 confidence=path.confidence * confidence
                             )
                             result.paths.append(new_path)
+                            new_paths.append(new_path)
 
                     # Check node limit
                     if len(result.nodes) >= self.config.max_total_nodes:
@@ -323,6 +324,8 @@ class MultiHopExpander:
                         break
 
             current_level = next_level[:self.config.max_nodes_per_hop]
+            if new_paths:
+                active_paths = new_paths
 
         result.total_nodes_found = len(result.nodes)
         result.metadata = {
@@ -663,7 +666,7 @@ class SQLMultiHopExpander:
 
         except Exception as e:
             logger.error(f"SQL multi-hop expansion failed: {e}")
-            result.metadata["error"] = str(e)
+            result.metadata["error"] = "expansion_failed"
 
         return result
 

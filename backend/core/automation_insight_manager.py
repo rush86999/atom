@@ -98,7 +98,7 @@ class AutomationInsightManager:
                 # This is a simplified implementation
                 recent_executions = db.query(
                     WorkflowExecution.workflow_id,
-                    db.func.count(WorkflowExecution.id).label('execution_count')
+                    db.func.count(WorkflowExecution.execution_id).label('execution_count')
                 ).filter(
                     WorkflowExecution.created_at >= cutoff_date
                 ).group_by(

@@ -204,16 +204,14 @@ async def get_deeplink_audit(
     """
     query = db.query(DeepLinkAudit)
 
-    # Round 37: scope audit reads to the authenticated user. The client-supplied
-    # user_id filter previously let any user read another user's deep-link audit
-    # entries (URLs + parameters). A user_id filter for another user is ignored
-    # unless it matches the caller's own id.
-    if user_id and user_id != current_user.id:
+    # Round 37 + bughunt: audit reads are ALWAYS scoped to the authenticated
+    # user. The client-supplied user_id filter used to be applied only when
+    # provided, so leaving user_id absent while filtering by agent_id /
+    # resource_type let any user read another user's audit rows (URLs +
+    # parameters — IDOR). A user_id for another user is ignored.
+    if user_id != current_user.id:
         user_id = current_user.id
-
-    # Apply filters
-    if user_id:
-        query = query.filter(DeepLinkAudit.user_id == user_id)
+    query = query.filter(DeepLinkAudit.user_id == user_id)
     if agent_id:
         query = query.filter(DeepLinkAudit.agent_id == agent_id)
     if resource_type:

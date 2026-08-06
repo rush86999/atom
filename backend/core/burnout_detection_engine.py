@@ -3,7 +3,7 @@ Burnout Detection Engine
 Analyzes productivity and communication patterns to detect signs of overload.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
@@ -92,7 +92,8 @@ class BurnoutDetectionEngine:
             if isinstance(due_date, str):
                 due_date = datetime.fromisoformat(due_date.replace("Z", "+00:00"))
             
-            time_remaining = (due_date - datetime.now()).total_seconds() / 3600 # hours
+            now = datetime.now(timezone.utc) if due_date.tzinfo else datetime.now()
+            time_remaining = (due_date - now).total_seconds() / 3600 # hours
             progress = task.get("progress", 0)
             est_hours = task.get("estimated_hours", 5)
             remaining_work_hours = est_hours * (1 - progress)

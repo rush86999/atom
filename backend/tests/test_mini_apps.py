@@ -280,7 +280,7 @@ class TestRunStateful:
     def _fake_runtime(self, monkeypatch, state_out, ops, image_log):
         import core.mini_app_service as svc
         class FakeRuntime:
-            async def execute_python(self, code, *, policy=None, inputs=None, cwd=None, image=None):
+            async def execute_python(self, code, *, policy=None, inputs=None, cwd=None, image=None, callback_handler=None, **kwargs):
                 import json
                 image_log.append(image)
                 assert policy is not None
@@ -413,7 +413,7 @@ class TestCanvasLogicScopes:
             tool_whitelist: tuple = ()
         seen = {}
         class FakeRuntime:
-            async def execute_python(self, code, *, policy=None, inputs=None, cwd=None, image=None):
+            async def execute_python(self, code, *, policy=None, inputs=None, cwd=None, image=None, callback_handler=None, **kwargs):
                 seen["wl"] = getattr(policy, "tool_whitelist", None)
                 res = type("R", (), {"success": True, "stdout": "", "stderr": "", "exit_code": 0})()
                 return res

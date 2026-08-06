@@ -15,6 +15,7 @@ Usage:
 """
 
 import functools
+import json
 import logging
 from typing import Any, Callable, Dict, List, Optional
 from fastapi import HTTPException
@@ -274,8 +275,7 @@ def _check_governance(
 
             if agent_level >= required_level:
                 # Check cache for governance result
-                cache_key = f"governance:{agent_id}:{action_type}"
-                cached_result = cache.get(cache_key)
+                cached_result = cache.get(agent_id, action_type)
 
                 if cached_result:
                     return cached_result
@@ -289,13 +289,14 @@ def _check_governance(
                 )
 
                 # Cache the result
-                cache.set(cache_key, governance_result, ttl=60)
-
-                return {
+                result = {
                     "allowed": governance_result.allowed,
                     "agent_maturity": agent_maturity,
                     "reason": governance_result.reason if not governance_result.allowed else None
                 }
+                cache.set(agent_id, action_type, result)
+
+                return result
             else:
                 return {
                     "allowed": False,
@@ -337,16 +338,29 @@ class GovernanceAudit:
         """Log a governance check to the database"""
         try:
             from core.database import get_db_session
-            from core.models import GovernanceAuditLog
+            from core.models import AuditLog
 
             with get_db_session() as db:
-                log = GovernanceAuditLog(
-                    agent_id=agent_id,
-                    action_type=action_type,
-                    allowed=allowed,
-                    agent_maturity=agent_maturity,
-                    required_maturity=required_maturity,
-                    reason=reason
+                log = AuditLog(
+                    event_type="governance_check",
+                    security_level="HIGH" if not allowed else "NORMAL",
+                    threat_level="LOW",
+                    user_id=agent_id,
+                    action=action_type,
+                    description=(
+                        f"Governance check for agent {agent_id}: "
+                        f"action={action_type} allowed={allowed} "
+                        f"maturity={agent_maturity} required={required_maturity}"
+                    ),
+                    success=bool(allowed),
+                    error_message=reason,
+                    metadata_json=json.dumps({
+                        "agent_id": agent_id,
+                        "action_type": action_type,
+                        "agent_maturity": agent_maturity,
+                        "required_maturity": required_maturity,
+                        "reason": reason,
+                    }),
                 )
                 db.add(log)
                 db.commit()

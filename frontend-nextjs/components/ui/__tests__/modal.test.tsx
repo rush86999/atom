@@ -93,7 +93,8 @@ describe('Modal Component', () => {
         </Modal>
       );
 
-      const backdrop = screen.getByText(''); // aria-hidden div
+      // The backdrop is the aria-hidden overlay div
+      const backdrop = document.querySelector('[aria-hidden="true"]') as HTMLElement;
       await user.click(backdrop);
 
       expect(handleClose).toHaveBeenCalledTimes(1);
@@ -193,7 +194,7 @@ describe('Modal Component', () => {
           <p>Content</p>
         </Modal>
       );
-      const backdrop = screen.getByText(''); // aria-hidden div
+      const backdrop = document.querySelector('[aria-hidden="true"]');
       expect(backdrop).toHaveAttribute('aria-hidden', 'true');
     });
 
@@ -206,7 +207,9 @@ describe('Modal Component', () => {
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toContainElement(screen.getByRole('button', { name: 'Action' }));
-      expect(dialog).toContainElement(screen.getByRole('button')); // Close button
+      // The close button is icon-only (X icon), so assert via the dialog's
+      // button count
+      expect(dialog.querySelectorAll('button').length).toBeGreaterThanOrEqual(2);
     });
 
     it('close button has accessible label', () => {
@@ -383,7 +386,7 @@ describe('Modal Component', () => {
         </Modal>
       );
 
-      expect(screen.getByRole('form')).toBeInTheDocument();
+      expect(document.querySelector('form')).toBeInTheDocument();
       expect(screen.getByLabelText('Input')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
     });

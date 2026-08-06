@@ -586,7 +586,7 @@ class AlphaEvolverEngine(BaseLearningEngine):
         """Identify segments with room for optimization."""
         targets = []
         for seg in segments:
-            meta = getattr(seg, "metadata", {}) or {}
+            meta = getattr(seg, "canvas_context", None) or {}
             if meta.get("execution_seconds", 0) > 5.0:
                 targets.append(
                     {

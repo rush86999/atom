@@ -4421,6 +4421,42 @@ class CanvasState(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class CanvasRecord(Base):
+    """Structured record store for a mini-app instance canvas (host-mediated).
+
+    The app's append-friendly, series-scoped database. ``series`` is a
+    logical, app-defined namespace (e.g. ``chart_data``); ``seq`` is a
+    monotonic counter per (canvas, series) giving append order (latest = max
+    seq). ``data`` is the app-defined JSON row payload. Records are CRUD-able
+    from the microVM via ``record_ops`` (host-validated, mirroring
+    ``storage_ops``), from agents via ``mini_app_db_*`` actions, and from
+    integrations/workflows via the instance record API routes. Every row is
+    scoped by ``canvas_id`` (+ ``tenant_id``); the host derives those from the
+    canvas row, never from op payloads — cross-instance access is structurally
+    impossible.
+    """
+
+    __tablename__ = "canvas_records"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    app_id = Column(String, ForeignKey("mini_apps.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+    series = Column(String(200), nullable=False, index=True)  # app-defined namespace
+    seq = Column(Integer, nullable=False, default=0)  # monotonic per (canvas, series)
+    data = Column(JSONColumn, nullable=False, default={})  # app-defined row payload
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        # Primary query path: ordered scan of one series on one instance.
+        Index("ix_canvas_records_canvas_series_seq", "canvas_id", "series", "seq"),
+    )
+
+
 class MiniAppAsset(Base):
     """File/object attached to an instance canvas (host-mediated storage).
 
@@ -4488,11 +4524,33 @@ class MiniApp(Base):
     blueprint_canvas_id = Column(String, ForeignKey("canvases.id"), nullable=True)
     status = Column(String(20), default="draft")  # draft|published|archived
     is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)  # admin review gate for public install
     share_token = Column(String(255), unique=True, nullable=True)
     credential_metadata = Column(JSONColumn, nullable=True)  # P0 convention
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class MiniAppInstallation(Base):
+    """Tracks which app version an instance canvas was installed from.
+
+    Enables the ``update-available`` signal: compare ``installed_version`` /
+    ``installed_runtime_version`` to the app's current ``version`` /
+    ``runtime_version``. One row per instance canvas (``canvas_id`` unique).
+    """
+
+    __tablename__ = "mini_app_installations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    app_id = Column(String, ForeignKey("mini_apps.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    installed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    installed_version = Column(String(32), nullable=True)
+    installed_runtime_version = Column(Integer, nullable=True, default=0)
+    source = Column(String(20), nullable=True, default="owned")  # owned|marketplace|share_token
+    installed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 

@@ -21,13 +21,17 @@ interface TypingIndicatorProps {
   visible?: boolean;
 }
 
+// Stable default so callers omitting agents don't crash (and the effect deps
+// don't change identity on every render)
+const EMPTY_AGENTS: TypingAgent[] = [];
+
 /**
  * TypingIndicator Component
  *
  * Shows animated dots when agents are typing
  */
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
-  agents,
+  agents = EMPTY_AGENTS,
   visible = true,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -110,10 +114,10 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
     }
   }, [visible, fadeAnim, slideAnim]);
 
-  if (agents.length === 0) return null;
+  if (!agents || agents.length === 0) return null;
 
   const getAgentInitials = (name: string) => {
-    return name
+    return (name || '')
       .split(' ')
       .map((word) => word[0])
       .join('')
@@ -133,6 +137,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
 
   return (
     <Animated.View
+      testID="typing-indicator"
       style={[
         styles.container,
         {
@@ -238,7 +243,10 @@ export const CompactTypingIndicator: React.FC<{ visible?: boolean }> = ({ visibl
   }, [visible, fadeAnim, dotAnims]);
 
   return (
-    <Animated.View style={[styles.compactContainer, { opacity: fadeAnim }]}>
+    <Animated.View
+      testID="compact-typing-indicator"
+      style={[styles.compactContainer, { opacity: fadeAnim }]}
+    >
       <Animated.View
         style={[styles.compactDot, { transform: [{ translateY: dotAnims[0] }] }]}
       />

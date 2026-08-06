@@ -20,21 +20,30 @@ function useDebounce<T>(value: T, delay: number): T {
 
 function useThrottle<T>(value: T, delay: number): T {
   const [throttledValue, setThrottledValue] = useState(value);
-  const lastUpdated = useRef(Date.now());
+  const pendingRef = useRef<{ timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  // Leading-edge throttle: the first value change within the window wins;
+  // later changes are dropped until the timer fires. Timer-based (not
+  // Date.now()-based) so it works under jest fake timers.
+  useEffect(() => {
+    if (value === throttledValue) return;
+    if (pendingRef.current) return;
+
+    pendingRef.current = {
+      timer: setTimeout(() => {
+        pendingRef.current = null;
+        setThrottledValue(value);
+      }, delay),
+    };
+  }, [value, throttledValue, delay]);
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      const now = Date.now();
-      if (now - lastUpdated.current >= delay) {
-        setThrottledValue(value);
-        lastUpdated.current = now;
-      }
-    }, delay);
-
     return () => {
-      clearTimeout(handler);
+      if (pendingRef.current) {
+        clearTimeout(pendingRef.current.timer);
+      }
     };
-  }, [value, delay]);
+  }, []);
 
   return throttledValue;
 }
@@ -160,12 +169,15 @@ describe('Custom Hooks Tests', () => {
 
   describe('test_use_debounce', () => {
     it('should delay updates by specified delay', () => {
-      const { result } = renderHook(() => useDebounce('test', 500));
+      const { result, rerender } = renderHook(
+        ({ value, delay }) => useDebounce(value, delay),
+        { initialProps: { value: 'test', delay: 500 } as any }
+      );
 
       expect(result.current).toBe('test');
 
       act(() => {
-        rerenderHook(useDebounce('updated', 500));
+        rerender({ value: 'updated', delay: 500 });
       });
 
       expect(result.current).toBe('test');
@@ -207,6 +219,9 @@ describe('Custom Hooks Tests', () => {
 
       act(() => {
         rerender({ value: 'updated', delay: 0 });
+      });
+
+      act(() => {
         jest.advanceTimersByTime(0);
       });
 
@@ -221,10 +236,20 @@ describe('Custom Hooks Tests', () => {
         { initialProps: { value: 0, delay: 500 } as any }
       );
 
+      // Each re-render in its own act: React 18 batches multiple rerenders
+      // inside one act into a single commit, so effects would only see the
+      // final value and the throttle could never observe the intermediate ones.
       act(() => {
         rerender({ value: 1, delay: 500 });
+      });
+      act(() => {
         rerender({ value: 2, delay: 500 });
+      });
+      act(() => {
         rerender({ value: 3, delay: 500 });
+      });
+
+      act(() => {
         jest.advanceTimersByTime(500);
       });
 
@@ -239,6 +264,9 @@ describe('Custom Hooks Tests', () => {
 
       act(() => {
         rerender({ value: 'updated', delay: 500 });
+      });
+
+      act(() => {
         jest.advanceTimersByTime(500);
       });
 
@@ -251,10 +279,13 @@ describe('Custom Hooks Tests', () => {
         { initialProps: { value: 0, delay: 300 } as any }
       );
 
-      act(() => {
-        for (let i = 1; i <= 10; i++) {
+      for (let i = 1; i <= 10; i++) {
+        act(() => {
           rerender({ value: i, delay: 300 });
-        }
+        });
+      }
+
+      act(() => {
         jest.advanceTimersByTime(300);
       });
 

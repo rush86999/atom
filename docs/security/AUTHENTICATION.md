@@ -554,7 +554,8 @@ print(f'Expires: {payload["exp"]}')
 - DEVELOPMENT.md - Security Configuration section
 - [SECURITY/DATA_PROTECTION.md](DATA_PROTECTION.md) - Encryption and secrets
 - [SECURITY/WEBHOOK_VERIFICATION.md](WEBHOOK_VERIFICATION.md) - Webhook security
-- [missing_credentials_guide.md](../archive/old-guides/missing_credentials_guide.md) - OAuth setup for 117+ providers
+- [OAuth Quick Setup Guide](../guides/OAUTH_QUICK_SETUP_GUIDE.md) - 5-minute OAuth setup
+- [OAuth Setup Checklist](../guides/OAUTH_SETUP_CHECKLIST.md) - Complete OAuth configuration
 
 ### Implementation Files
 - `backend/core/auth.py` - Authentication functions

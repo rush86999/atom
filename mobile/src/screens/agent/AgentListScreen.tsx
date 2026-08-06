@@ -33,7 +33,7 @@ export function AgentListScreen() {
 
   // Filters
   const [maturityFilter, setMaturityFilter] = useState<AgentMaturity | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'online' | 'offline'>('online');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'online' | 'offline'>('ALL');
   const [capabilityFilter, setCapabilityFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'last_execution'>('name');
   const [showFilters, setShowFilters] = useState(false);
@@ -397,7 +397,7 @@ export function AgentListScreen() {
   function resetFilters() {
     setSearchQuery('');
     setMaturityFilter('ALL');
-    setStatusFilter('online');
+    setStatusFilter('ALL');
     setCapabilityFilter(null);
     setSortBy('name');
   }

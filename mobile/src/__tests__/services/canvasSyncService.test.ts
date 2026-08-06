@@ -38,6 +38,13 @@ jest.mock('../../services/offlineSyncService', () => ({
 describe('canvasSyncService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    // The service keeps an in-memory cache that survives across tests —
+    // clear it so each test starts from a cold cache.
+    await canvasSyncService.clearCache();
+    // Restore the default online state — a previous test may have set
+    // syncInProgress: true, which routes submits to the offline queue.
+    const { offlineSyncService } = require('../../services/offlineSyncService');
+    offlineSyncService.getSyncState.mockResolvedValue({ syncInProgress: false });
     await canvasSyncService.initialize();
   });
 
@@ -338,7 +345,8 @@ describe('canvasSyncService', () => {
 
       const result = await canvasSyncService.syncCanvases('user_1', 'device_1');
 
-      expect(result.duration).toBeGreaterThan(0);
+      // Duration is wall-clock time; with all-immmediate mocks it can be 0ms
+      expect(result.duration).toBeGreaterThanOrEqual(0);
       expect(result.synced).toBe(20);
     });
 
@@ -537,7 +545,23 @@ describe('canvasSyncService', () => {
     test('should toggle canvas favorite status', async () => {
       const { apiService } = require('../../services/api');
 
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: {
+          id: 'canvas_1',
+          title: 'Canvas 1',
+          type: 'chart',
+          data: {},
+          isFavorite: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+
       apiService.put.mockResolvedValue({ success: true });
+
+      // Seed the cache (toggleFavorite requires the canvas to be cached)
+      await canvasSyncService.getCanvas('canvas_1');
 
       // First toggle: add to favorites
       const result1 = await canvasSyncService.toggleFavorite('canvas_1', 'user_1', 'device_1');

@@ -16,6 +16,8 @@ Visual presentations and AI accessibility for agent interactions with 2026 Enhan
 - **[Feedback & Memory](feedback-memory.md)** - Feedback integration with episodes
 - **[Recording](recording.md)** - Canvas recording and replay
 
+---
+
 ## 🎨 Canvas Types
 
 1. **Markdown** - Rich text content
@@ -25,6 +27,8 @@ Visual presentations and AI accessibility for agent interactions with 2026 Enhan
 5. **Files** - File listings
 6. **Status** - Progress indicators
 7. **HTML** - Custom content
+
+---
 
 ## ✨ Key Features
 
@@ -43,143 +47,24 @@ Visual presentations and AI accessibility for agent interactions with 2026 Enhan
 - **Feedback Capture**: User feedback improves retrieval
 - **Memory Enhancement**: Canvas context in episode retrieval
 
-## 🚀 2026 Enhancement Plan Integration
+### Full CRUD Support (NEW — Aug 2026)
+- **Create**: `present_chart`, `present_markdown`, `present_form`, `present_sheet`, etc.
+- **Read**: `read_canvas` — fetch current state by ID (any canvas type)
+- **Update**: `update_canvas_content` — modify content, title (generalizes docs-only pattern to all types)
+- **Delete**: `delete_canvas` — close specific canvas by ID (audit-preserved, IDOR-guarded)
+- **List**: `list_canvases` — enumerate user's canvases with type filter, include deleted
+- **Session Isolation**: `session_id` parameter on all operations for parallel workflows
+- **Tool Registry**: All CRUD ops registered with metadata (complexity, maturity, cacheable)
 
-Canvas is integrated with all 5 phases of the Atom Enhancement Plan:
+### Integration Support (NEW — Aug 2026)
+- **Action Registry Integration**: All canvas tools auto-exposed via `core/action_registry.py` → agent MCP loop + frontend RPC (`api/rpc_routes.py`)
+- **Governance Enforced**: Maturity-gated (STUDENT+/INTERN+) via `AgentGovernanceService` at dispatch
+- **Sandbox Gate**: Every tool call flows through `integrations/mcp_service.call_tool` → `core/sandbox_gate.evaluate_tool_call` (P9 default-on)
+- **Audit Trail**: Every CRUD op writes `CanvasAudit` row (append-only, recoverable)
+- **WebSocket Broadcast**: Real-time `canvas:update` events for update/delete/list
+- **IDOR Protection**: Owner verification (`Canvas.created_by`) on read/update/delete
 
-### Phase 1: POMDP Memory Framework ✅
-- **Canvas State as Observations**: Canvas interactions form part of the observation space in POMDP memory
-- **Action Space Integration**: Canvas actions (present, submit, close) are tracked as agent actions
-- **Reward Function**: User feedback on canvases feeds into memory quality assessment
-- **Memory Consolidation**: Canvas summaries included in offline consolidation during "sleep" cycles
-
-**Example**:
-```python
-# Canvas interactions enhance POMDP memory
-from core.memory.pomdp_memory_framework import POMDPMemoryFramework
-
-pomdp = POMDPMemoryFramework()
-pomdp.define_observation_space(
-    states=["canvas_presented", "user_closed", "user_submitted"],
-    actions=["present_chart", "present_form", "present_sheet"]
-)
-
-# Canvas feedback updates memory quality
-reward = pomdp.calculate_reward(
-    canvas_type="charts",
-    user_engagement_seconds=45,
-    feedback_type="thumbs_up"
-)
-```
-
-### Phase 2: Enhanced GraphRAG ✅
-- **Canvas Content Extraction**: LLM extracts entities and relationships from canvas text
-- **Multi-Hop Query Enhancement**: GraphRAG uses canvas context for multi-hop expansion
-- **Dynamic Graph Updates**: Canvas presentations trigger incremental graph updates
-- **Community Detection**: Canvas-based entity clustering via Leiden algorithm
-
-**Example**:
-```python
-# Canvas content feeds GraphRAG
-from core.graphrag.multi_hop_expansion import MultiHopExpander
-
-expander = MultiHopExpander()
-# Extract entities from canvas presentation
-entities = expander.extract_entities_from_canvas(
-    canvas_id="canvas_123",
-    text_content="Sales data for Q1 shows upward trend in APAC region"
-)
-# Multi-hop expansion from canvas entities
-results = expander.expand_query(
-    query="Show all APAC sales presentations",
-    max_hops=3,
-    expansion_mode="cue_driven"
-)
-```
-
-### Phase 3: Learning-Based LLM Routing ✅
-- **Canvas-Aware Routing**: Canvas type and complexity inform LLM tier selection
-- **Preference Collection**: User feedback on canvas summaries trains RouteLLM model
-- **Cache Optimization**: Canvas state hashing enables predictive cache warming
-- **Cost Reduction**: 15% additional savings on canvas-related LLM calls
-
-**Example**:
-```python
-# Canvas complexity influences LLM routing
-from core.llm.routing.routellm_trainer import RouteLLMTrainer
-
-trainer = RouteLLMTrainer()
-# Collect preference data from canvas interactions
-preference = {
-    "canvas_type": "charts",
-    "complexity": "high",
-    "user_satisfaction": 5.0,
-    "model_used": "claude-3-5-sonnet"
-}
-trainer.record_preference(preference)
-```
-
-### Phase 4: Zero-Trust Federation Identity ✅
-- **Canvas Presentation Signatures**: Canvas states signed with agent DID
-- **Verifiable Credentials**: Canvas presentations include VC proofs of authorship
-- **Cross-Instance Canvas Sharing**: Federation with DID-based identity verification
-- **Credential Rotation**: Automatic 90-day credential rotation for canvas presentations
-
-**Example**:
-```python
-# Canvas presentations with DID signatures
-from core.identity.did_manager import DIDManager
-from core.identity.verifiable_credentials import VCManager
-
-did_manager = DIDManager()
-vc_manager = VCManager()
-
-# Sign canvas presentation with agent DID
-canvas_presentation = {
-    "canvas_id": "canvas_123",
-    "agent_did": "did:atom:agent_abc",
-    "signature": did_manager.sign_canvas_state(canvas_state),
-    "verifiable_credential": vc_manager.create_canvas_presentation_vc(
-        subject_did="did:atom:agent_abc",
-        canvas_type="charts",
-        timestamp=datetime.utcnow()
-    )
-}
-```
-
-### Phase 5: Enhanced Orchestration Patterns ✅
-- **Conductor Agent Integration**: Canvas state machine coordinates multi-agent workflows
-- **Workflow State Machine**: Validated canvas transitions with automatic rollback
-- **Event Bus Integration**: Canvas events trigger pub/sub workflows
-- **Template Composition**: 8 workflow composition primitives for canvas presentations
-
-**Example**:
-```python
-# Canvas workflow with Conductor Agent
-from core.orchestration.conductor_agent import ConductorAgent
-
-conductor = ConductorAgent()
-
-# Execute canvas workflow with state machine
-workflow = conductor.execute_workflow(
-    strategy="SEQUENTIAL",  # SEQUENTIAL, PARALLEL, HYBRID, ADAPTIVE, ROLLBACK_SAFE
-    steps=[
-        {"agent": "analyst", "action": "present_chart", "canvas_type": "charts"},
-        {"agent": "reviewer", "action": "approve", "condition": "user_feedback > 0.7"},
-        {"agent": "archiver", "action": "store_episode", "canvas_ids": ["canvas_123"]}
-    ],
-    state_machine={
-        "initial": "presenting",
-        "states": ["presenting", "reviewing", "approved", "rejected"],
-        "transitions": {
-            "presenting": ["reviewing"],
-            "reviewing": ["approved", "rejected"],
-            "approved": ["completed"],
-            "rejected": ["rollback"]
-        }
-    }
-)
-```
+---
 
 ## 🔧 Quick Start
 
@@ -189,6 +74,66 @@ window.atom.canvas.getState('canvas-id')
 window.atom.canvas.getAllStates()
 window.atom.canvas.subscribe((state) => console.log(state))
 ```
+
+```python
+# Full CRUD via agent tools (registered in action registry)
+from tools.registry import get_tool_registry
+
+registry = get_tool_registry()
+
+# Create
+await present_chart(user_id="user-1", chart_type="line_chart", data=[...], session_id="session-a")
+
+# Read
+await read_canvas(user_id="user-1", canvas_id="canvas-abc123")
+
+# Update
+await update_canvas_content(user_id="user-1", canvas_id="canvas-abc123", content={"data": [...]}, canvas_type="charts")
+
+# Delete
+await delete_canvas(user_id="user-1", canvas_id="canvas-abc123")
+
+# List
+await list_canvases(user_id="user-1", canvas_type="charts")
+```
+
+---
+
+## 🚀 2026 Enhancement Plan Integration
+
+Canvas is integrated with all 5 phases of the Atom Enhancement Plan:
+
+### Phase 1: POMDP Memory Framework ✅
+- **Canvas State as Observations**: Canvas interactions form part of the observation space in POMDP memory
+- **Action Space Integration**: Canvas actions (present, submit, close, **read, update, delete**) are tracked as agent actions
+- **Reward Function**: User feedback on canvases feeds into memory quality assessment
+- **Memory Consolidation**: Canvas summaries included in offline consolidation during "sleep" cycles
+
+### Phase 2: Enhanced GraphRAG ✅
+- **Canvas Content Extraction**: LLM extracts entities and relationships from canvas text
+- **Multi-Hop Query Enhancement**: GraphRAG uses canvas context for multi-hop expansion
+- **Dynamic Graph Updates**: Canvas presentations trigger incremental graph updates
+- **Community Detection**: Canvas-based entity clustering via Leiden algorithm
+
+### Phase 3: Learning-Based LLM Routing ✅
+- **Canvas-Aware Routing**: Canvas type and complexity inform LLM tier selection
+- **Preference Collection**: User feedback on canvas summaries trains RouteLLM model
+- **Cache Optimization**: Canvas state hashing enables predictive cache warming
+- **Cost Reduction**: 15% additional savings on canvas-related LLM calls
+
+### Phase 4: Zero-Trust Federation Identity ✅
+- **Canvas Presentation Signatures**: Canvas states signed with agent DID
+- **Verifiable Credentials**: Canvas presentations include VC proofs of authorship
+- **Cross-Instance Canvas Sharing**: Federation with DID-based identity verification
+- **Credential Rotation**: Automatic 90-day credential rotation for canvas presentations
+
+### Phase 5: Enhanced Orchestration Patterns ✅
+- **Conductor Agent Integration**: Canvas state machine coordinates multi-agent workflows
+- **Workflow State Machine**: Validated canvas transitions with automatic rollback
+- **Event Bus Integration**: Canvas events trigger pub/sub workflows
+- **Template Composition**: 8 workflow composition primitives for canvas presentations
+
+---
 
 ## 📖 Related Documentation
 
@@ -205,7 +150,9 @@ window.atom.canvas.subscribe((state) => console.log(state))
 - **[Episodic Memory](../intelligence/episodic-memory.md)** - Canvas in episodes
 - **[Agent System](../agents/README.md)** - Agent canvas governance
 - **[Intelligence Systems](../intelligence/README.md)** - AI capabilities
+- **[Execution Sandbox](../guides/EXECUTION_SANDBOX.md)** - Blast-radius defense for canvas tools
+- **[Agent Maturity & Governance](../guides/AGENT_MATURITY_GOVERNANCE.md)** - Tier-based access
 
 ---
 
-*Last Updated: June 18, 2026*
+*Last Updated: August 2026*

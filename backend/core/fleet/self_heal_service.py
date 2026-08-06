@@ -91,9 +91,9 @@ class SelfHealService:
 
         # Record Healing Event
         try:
-            # In Upstream, we use original_link.chain.tenant_id
+            tenant_id = getattr(getattr(original_link, "chain", None), "tenant_id", None) or "default"
             healing_event = FleetHealingEvent(
-                tenant_id=original_link.chain.tenant_id,
+                tenant_id=tenant_id,
                 chain_id=original_link.chain_id,
                 link_id=original_link.id,
                 trigger_type="failed_link" if original_link.status == "failed" else "critical_bottleneck",

@@ -157,16 +157,11 @@ class WebhookIngestionQueue:
 
         CRITICAL: Tenant_id is enforced for multi-tenant security.
         """
-        import sys
-        print(f"[FATAL_DEBUG] === process_webhook_job ENTERED === job_id={job_data.get('job_id', 'unknown')[:8]}", file=sys.stderr, flush=True)
-
         try:
             job_id = job_data.get("job_id", "unknown")
             tenant_id = job_data.get("tenant_id")
             integration_id = job_data.get("integration_id")
             payload = job_data.get("payload", {})
-
-            print(f"[FATAL_DEBUG] Parsed job_data: job_id={job_id[:8]}, tenant={tenant_id[:8] if tenant_id else None}, integration={integration_id}", file=sys.stderr, flush=True)
 
             start_time = datetime.now(timezone.utc)
 
@@ -176,10 +171,8 @@ class WebhookIngestionQueue:
                 integration_id=integration_id,
                 tenant_id=tenant_id,
             )
-        except Exception as e:
-            print(f"[FATAL_DEBUG] CRASH IN VERY FIRST BLOCK: {e}", file=sys.stderr, flush=True)
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            logger.exception("Failed to parse webhook job data")
             raise
 
         # Check quota before processing
@@ -251,7 +244,6 @@ class WebhookIngestionQueue:
                     }
 
                 workspace_id = str(workspace.id)
-                print(f"[FATAL_DEBUG] Resolved workspace_id={workspace_id[:8]} for tenant={tenant_id[:8]}", file=sys.stderr, flush=True)
 
                 # Create ingestion pipeline service with correct workspace_id AND db session
                 # CRITICAL: db parameter is required for persisting discovered_entities
@@ -440,9 +432,7 @@ class WebhookIngestionQueue:
 
         Note: This is used by background worker processes.
         """
-        import sys
         if not self.redis_client:
-            print("[FATAL_DEBUG] dequeue_job: NO REDIS CLIENT", file=sys.stderr, flush=True)
             return None
 
         try:
@@ -453,11 +443,9 @@ class WebhookIngestionQueue:
             if not job_json:
                 return None
 
-            print(f"[FATAL_DEBUG] dequeue_job: POPPED JOB, json_len={len(job_json)}", file=sys.stderr, flush=True)
             return json.loads(job_json)
 
         except (redis.RedisError, json.JSONDecodeError) as e:
-            print(f"[FATAL_DEBUG] dequeue_job ERROR: {e}", file=sys.stderr, flush=True)
             logger.warning(f"Failed to dequeue job: {e}")
             return None
 

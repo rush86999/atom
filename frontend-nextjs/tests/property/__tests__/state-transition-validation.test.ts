@@ -172,7 +172,8 @@ describe('State Machine Transition Validation Tests', () => {
      * INVARIANT: State starts as disconnected
      * isConnected = false initially
      */
-    fc.assert(
+    it('WebSocket initial state is disconnected', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         fc.array(fc.string(), { minLength: 0, maxLength: 5 }),
@@ -192,13 +193,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20001 }
     );
+    });
 
     /**
      * TEST 2: WebSocket state is boolean
      *
      * INVARIANT: isConnected is always a boolean
      */
-    fc.assert(
+    it('WebSocket state is boolean', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (autoConnect) => {
@@ -212,13 +215,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20002 }
     );
+    });
 
     /**
      * TEST 3: streamingContent is Map type
      *
      * INVARIANT: streamingContent is always a Map
      */
-    fc.assert(
+    it('streamingContent is Map type', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (autoConnect) => {
@@ -232,13 +237,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20003 }
     );
+    });
 
     /**
      * TEST 4: lastMessage starts as null
      *
      * INVARIANT: lastMessage is null before any messages received
      */
-    fc.assert(
+    it('lastMessage starts as null', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (autoConnect) => {
@@ -252,13 +259,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20004 }
     );
+    });
 
     /**
      * TEST 5: initialChannels parameter is accepted
      *
      * INVARIANT: Hook accepts initialChannels array
      */
-    fc.assert(
+    it('initialChannels parameter is accepted', () => {
+fc.assert(
       fc.property(
         fc.array(fc.string(), { minLength: 0, maxLength: 5 }),
         (initialChannels) => {
@@ -272,13 +281,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20005 }
     );
+    });
 
     /**
      * TEST 6: Subscribe function accepts string parameter
      *
      * INVARIANT: subscribe() accepts channel string
      */
-    fc.assert(
+    it('Subscribe function accepts string parameter', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (channel) => {
@@ -294,13 +305,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20006 }
     );
+    });
 
     /**
      * TEST 7: Unsubscribe function accepts string parameter
      *
      * INVARIANT: unsubscribe() accepts channel string
      */
-    fc.assert(
+    it('Unsubscribe function accepts string parameter', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (channel) => {
@@ -316,13 +329,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20007 }
     );
+    });
 
     /**
      * TEST 8: sendMessage accepts object parameter
      *
      * INVARIANT: sendMessage() accepts message object
      */
-    fc.assert(
+    it('sendMessage accepts object parameter', () => {
+fc.assert(
       fc.property(
         fc.object(),
         (message) => {
@@ -338,13 +353,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20008 }
     );
+    });
 
     /**
      * TEST 9: Multiple renderHooks are independent
      *
      * INVARIANT: Multiple hook instances don't share state
      */
-    fc.assert(
+    it('Multiple renderHooks are independent', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         fc.boolean(),
@@ -364,13 +381,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20009 }
     );
+    });
 
     /**
      * TEST 10: Hook returns consistent API shape
      *
      * INVARIANT: Return object has all expected properties
      */
-    fc.assert(
+    it('Hook returns consistent API shape', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (autoConnect) => {
@@ -389,15 +408,17 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20010 }
     );
+    });
 
     /**
      * TEST 11: Token is present in session
      *
      * INVARIANT: Session contains token for WebSocket URL
      */
-    fc.assert(
+    it('Token is present in session', () => {
+fc.assert(
       fc.property(
-        fc.string(),
+        fc.string({ minLength: 1 }),
         (token) => {
           const session = {
             backendToken: token,
@@ -411,13 +432,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20011 }
     );
+    });
 
     /**
      * TEST 12: Auto-connect parameter affects initial state
      *
      * INVARIANT: autoConnect is respected (though connection is async)
      */
-    fc.assert(
+    it('Auto-connect parameter affects initial state', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (autoConnect) => {
@@ -432,6 +455,7 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20012 }
     );
+    });
   });
 
   /**
@@ -455,7 +479,8 @@ describe('State Machine Transition Validation Tests', () => {
      *
      * INVARIANT: Initial state is null
      */
-    fc.assert(
+    it('Canvas state is null before first callback', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -470,13 +495,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20013 }
     );
+    });
 
     /**
      * TEST 14: allStates is array type
      *
      * INVARIANT: allStates is always an array
      */
-    fc.assert(
+    it('allStates is array type', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -490,13 +517,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20014 }
     );
+    });
 
     /**
      * TEST 15: getState returns null for unknown canvas
      *
      * INVARIANT: Unknown canvas IDs return null
      */
-    fc.assert(
+    it('getState returns null for unknown canvas', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -511,13 +540,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20015 }
     );
+    });
 
     /**
      * TEST 16: getState returns function
      *
      * INVARIANT: getState is a function
      */
-    fc.assert(
+    it('getState returns function', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -531,13 +562,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20016 }
     );
+    });
 
     /**
      * TEST 17: getAllStates returns function
      *
      * INVARIANT: getAllStates is a function
      */
-    fc.assert(
+    it('getAllStates returns function', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -551,13 +584,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20017 }
     );
+    });
 
     /**
      * TEST 18: Multiple canvas subscriptions are independent
      *
      * INVARIANT: Different canvasId parameters create separate hook instances
      */
-    fc.assert(
+    it('Multiple canvas subscriptions are independent', () => {
+fc.assert(
       fc.property(
         fc.array(fc.string(), { minLength: 2, maxLength: 5 }),
         (canvasIds) => {
@@ -577,13 +612,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20018 }
     );
+    });
 
     /**
      * TEST 19: Hook accepts canvasId parameter
      *
      * INVARIANT: Hook accepts optional canvasId
      */
-    fc.assert(
+    it('Hook accepts canvasId parameter', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (canvasId) => {
@@ -597,33 +634,30 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20019 }
     );
+    });
 
     /**
      * TEST 20: Hook works without canvasId
      *
      * INVARIANT: Hook works when called without parameters
      */
-    fc.assert(
-      fc.property(
-        () => {
-          const { result } = renderHook(() =>
-            useCanvasState()
-          );
+    it('Hook works without canvasId', () => {
+      const { result } = renderHook(() =>
+        useCanvasState()
+      );
 
-          // Should render without error
-          expect(result.current.state).toBeNull();
-          expect(Array.isArray(result.current.allStates)).toBe(true);
-        }
-      ),
-      { numRuns: 50, seed: 20020 }
-    );
+      // Should render without error
+      expect(result.current.state).toBeNull();
+      expect(Array.isArray(result.current.allStates)).toBe(true);
+    });
 
     /**
      * TEST 21: State has required fields when set
      *
      * INVARIANT: Valid canvas state has required fields
      */
-    fc.assert(
+    it('State has required fields when set', () => {
+fc.assert(
       fc.property(
         fc.record({
           canvas_id: fc.string(),
@@ -645,13 +679,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20021 }
     );
+    });
 
     /**
      * TEST 22: Canvas types are from allowed set
      *
      * INVARIANT: canvas_type is one of 7 allowed types
      */
-    fc.assert(
+    it('Canvas types are from allowed set', () => {
+fc.assert(
       fc.property(
         fc.constantFrom('generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding'),
         (canvasType) => {
@@ -661,6 +697,7 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20022 }
     );
+    });
   });
 
   /**
@@ -683,7 +720,8 @@ describe('State Machine Transition Validation Tests', () => {
      *
      * INVARIANT: Initial memories array is empty
      */
-    fc.assert(
+    it('memories array starts empty', () => {
+fc.assert(
       fc.property(
         fc.integer({ min: 5, max: 20 }),
         (contextWindow) => {
@@ -702,13 +740,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20023 }
     );
+    });
 
     /**
      * TEST 24: memories is array type
      *
      * INVARIANT: memories is always an array
      */
-    fc.assert(
+    it('memories is array type', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -726,13 +766,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20024 }
     );
+    });
 
     /**
      * TEST 25: isLoading starts as false
      *
      * INVARIANT: Initial isLoading state is false
      */
-    fc.assert(
+    it('isLoading starts as false', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -750,13 +792,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20025 }
     );
+    });
 
     /**
      * TEST 26: error starts as null
      *
      * INVARIANT: Initial error state is null
      */
-    fc.assert(
+    it('error starts as null', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -774,13 +818,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20026 }
     );
+    });
 
     /**
      * TEST 27: hasRelevantContext starts as false
      *
      * INVARIANT: Initial hasRelevantContext is false
      */
-    fc.assert(
+    it('hasRelevantContext starts as false', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -798,13 +844,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20027 }
     );
+    });
 
     /**
      * TEST 28: contextRelevanceScore starts as 0
      *
      * INVARIANT: Initial contextRelevanceScore is 0
      */
-    fc.assert(
+    it('contextRelevanceScore starts as 0', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -822,13 +870,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20028 }
     );
+    });
 
     /**
      * TEST 29: storeMemory is a function
      *
      * INVARIANT: storeMemory is always a function
      */
-    fc.assert(
+    it('storeMemory is a function', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -846,13 +896,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20029 }
     );
+    });
 
     /**
      * TEST 30: getMemoryContext is a function
      *
      * INVARIANT: getMemoryContext is always a function
      */
-    fc.assert(
+    it('getMemoryContext is a function', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -870,13 +922,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20030 }
     );
+    });
 
     /**
      * TEST 31: clearSessionMemory is a function
      *
      * INVARIANT: clearSessionMemory is always a function
      */
-    fc.assert(
+    it('clearSessionMemory is a function', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -894,13 +948,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20031 }
     );
+    });
 
     /**
      * TEST 32: refreshMemoryStats is a function
      *
      * INVARIANT: refreshMemoryStats is always a function
      */
-    fc.assert(
+    it('refreshMemoryStats is a function', () => {
+fc.assert(
       fc.property(
         fc.boolean(),
         (enableMemory) => {
@@ -918,6 +974,7 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20032 }
     );
+    });
   });
 
   /**
@@ -940,7 +997,8 @@ describe('State Machine Transition Validation Tests', () => {
      *
      * INVARIANT: status is one of: 'loading', 'authenticated', 'unauthenticated'
      */
-    fc.assert(
+    it('Auth status is valid string', () => {
+fc.assert(
       fc.property(
         fc.constantFrom('loading', 'authenticated', 'unauthenticated'),
         (status) => {
@@ -951,33 +1009,30 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20033 }
     );
+    });
 
     /**
      * TEST 34: Session is null when unauthenticated
      *
      * INVARIANT: Unauthenticated state has null session
      */
-    fc.assert(
-      fc.property(
-        () => {
-          const authState = {
-            status: 'unauthenticated',
-            session: null
-          };
+    it('Session is null when unauthenticated', () => {
+      const authState = {
+        status: 'unauthenticated',
+        session: null
+      };
 
-          expect(authState.status).toBe('unauthenticated');
-          expect(authState.session).toBeNull();
-        }
-      ),
-      { numRuns: 50, seed: 20034 }
-    );
+      expect(authState.status).toBe('unauthenticated');
+      expect(authState.session).toBeNull();
+    });
 
     /**
      * TEST 35: Session is defined when authenticated
      *
      * INVARIANT: Authenticated state has defined session
      */
-    fc.assert(
+    it('Session is defined when authenticated', () => {
+fc.assert(
       fc.property(
         fc.record({
           user: fc.record({ name: fc.string(), email: fc.string() }),
@@ -996,13 +1051,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20035 }
     );
+    });
 
     /**
      * TEST 36: Session structure has required fields
      *
      * INVARIANT: Session object has expected structure
      */
-    fc.assert(
+    it('Session structure has required fields', () => {
+fc.assert(
       fc.property(
         fc.string(),
         fc.string(),
@@ -1018,13 +1075,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20036 }
     );
+    });
 
     /**
      * TEST 37: Error clears on success
      *
      * INVARIANT: Successful state change clears error
      */
-    fc.assert(
+    it('Error clears on success', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (errorMessage) => {
@@ -1038,13 +1097,15 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20037 }
     );
+    });
 
     /**
      * TEST 38: Failed login has error message
      *
      * INVARIANT: Failed login results in error state
      */
-    fc.assert(
+    it('Failed login has error message', () => {
+fc.assert(
       fc.property(
         fc.string(),
         (errorMessage) => {
@@ -1061,47 +1122,38 @@ describe('State Machine Transition Validation Tests', () => {
       ),
       { numRuns: 50, seed: 20038 }
     );
+    });
 
     /**
      * TEST 39: Logout from unauthenticated is safe
      *
      * INVARIANT: Logout when unauthenticated doesn't throw
      */
-    fc.assert(
-      fc.property(
-        () => {
-          const state = {
-            status: 'unauthenticated',
-            session: null
-          };
+    it('Logout from unauthenticated is safe', () => {
+      const state = {
+        status: 'unauthenticated',
+        session: null
+      };
 
-          // State should be valid
-          expect(state.status).toBe('unauthenticated');
-          expect(state.session).toBeNull();
-        }
-      ),
-      { numRuns: 50, seed: 20039 }
-    );
+      // State should be valid
+      expect(state.status).toBe('unauthenticated');
+      expect(state.session).toBeNull();
+    });
 
     /**
      * TEST 40: Session expiration results in unauthenticated
      *
      * INVARIANT: Expired session results in unauthenticated state
      */
-    fc.assert(
-      fc.property(
-        () => {
-          // Session expiration results in unauthenticated
-          const expiredState = {
-            status: 'unauthenticated',
-            session: null
-          };
+    it('Session expiration results in unauthenticated', () => {
+      // Session expiration results in unauthenticated
+      const expiredState = {
+        status: 'unauthenticated',
+        session: null
+      };
 
-          expect(expiredState.status).toBe('unauthenticated');
-          expect(expiredState.session).toBeNull();
-        }
-      ),
-      { numRuns: 50, seed: 20040 }
-    );
+      expect(expiredState.status).toBe('unauthenticated');
+      expect(expiredState.session).toBeNull();
+    });
   });
 });

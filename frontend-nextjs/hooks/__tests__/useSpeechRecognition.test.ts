@@ -407,11 +407,13 @@ describe('useSpeechRecognition - Wake Word Mode', () => {
   test('filters transcript for "atom" keyword when enabled', () => {
     const { result } = renderHook(() => useSpeechRecognition());
 
-    const instance = getLatestRecognitionInstance();
-
     act(() => {
       result.current.setWakeWordMode(true);
     });
+
+    // The hook recreates the recognition instance when wakeWordEnabled
+    // changes, so capture the latest instance AFTER enabling wake word mode
+    const instance = getLatestRecognitionInstance();
 
     act(() => {
       if (instance?.onresult) {
@@ -708,11 +710,13 @@ describe('useSpeechRecognition - Edge Cases', () => {
   test('handles case-insensitive wake word matching', () => {
     const { result } = renderHook(() => useSpeechRecognition());
 
-    const instance = getLatestRecognitionInstance();
-
     act(() => {
       result.current.setWakeWordMode(true);
     });
+
+    // The hook recreates the recognition instance when wakeWordEnabled
+    // changes, so capture the latest instance AFTER enabling wake word mode
+    const instance = getLatestRecognitionInstance();
 
     // Test lowercase "atom"
     act(() => {

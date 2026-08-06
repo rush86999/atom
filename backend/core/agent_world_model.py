@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 from enum import Enum
 
+from sqlalchemy import func
+
 from core.models import AgentRegistry, AgentStatus, ChatMessage
 from core.lancedb_handler import LanceDBHandler, get_lancedb_handler
 from core.database import SessionLocal
@@ -422,7 +424,12 @@ class WorldModelService:
             row = results.iloc[0]
             
             # Parse metadata
-            meta = json.loads(row['metadata']) if (isinstance(row['metadata'], str) and row['metadata']) else {}
+            if isinstance(row['metadata'], dict):
+                meta = row['metadata']
+            elif isinstance(row['metadata'], str) and row['metadata']:
+                meta = json.loads(row['metadata'])
+            else:
+                meta = {}
             
             # Construct BusinessFact
             return BusinessFact(
@@ -811,7 +818,7 @@ class WorldModelService:
 
         except Exception as e:
             logger.error(f"[{audit_id}] Failed: {e}")
-            result["error"] = str(e)
+            result["error"] = "Archival with cleanup failed"
             db.rollback()
             return result
         finally:
@@ -841,7 +848,7 @@ class WorldModelService:
                 ChatMessage.conversation_id == conversation_id,
                 ChatMessage.tenant_id == self.db.workspace_id,
                 ChatMessage.metadata_json.is_not(None),
-                ChatMessage.metadata_json.op('?')('_archived')
+                func.json_extract(ChatMessage.metadata_json, '$._archived') == 1
             ).all()
 
             if not messages:
@@ -865,7 +872,7 @@ class WorldModelService:
 
         except Exception as e:
             logger.error(f"Failed to recover session {conversation_id}: {e}")
-            result["error"] = str(e)
+            result["error"] = "Session recovery failed"
             db.rollback()
             return result
         finally:
@@ -898,8 +905,7 @@ class WorldModelService:
             messages_to_delete = db.query(ChatMessage).filter(
                 ChatMessage.tenant_id == self.db.workspace_id,
                 ChatMessage.metadata_json.is_not(None),
-                ChatMessage.metadata_json.op('?')('_archived'),
-                ChatMessage.metadata_json['_archived'].astext == 'true'
+                func.json_extract(ChatMessage.metadata_json, '$._archived') == 1
             ).all()
 
             # Filter by retention date in metadata
@@ -935,7 +941,7 @@ class WorldModelService:
 
         except Exception as e:
             logger.error(f"Failed to hard delete archived sessions: {e}")
-            result["error"] = str(e)
+            result["error"] = "Hard delete of archived sessions failed"
             db.rollback()
             return result
         finally:
@@ -1820,8 +1826,8 @@ class WorldModelService:
                 episodes = db.query(AgentEpisode).filter(
                     AgentEpisode.agent_id == agent_id,
                     AgentEpisode.tenant_id == tenant_id,
-                    AgentEpisode.metadata_json["skill_type"].astext == "openclaw",
-                    AgentEpisode.metadata_json["skill_id"].astext == skill_id
+                    func.json_extract(AgentEpisode.metadata_json, '$.skill_type') == "openclaw",
+                    func.json_extract(AgentEpisode.metadata_json, '$.skill_id') == skill_id
                 ).all()
 
                 # Update stats with actual execution counts
@@ -1914,7 +1920,7 @@ class WorldModelService:
                     AgentEpisode.agent_id == agent_id,
                     AgentEpisode.tenant_id == tenant_id,
                     AgentEpisode.success == True,
-                    AgentEpisode.metadata_json["skill_type"].astext == "openclaw"
+                    func.json_extract(AgentEpisode.metadata_json, '$.skill_type') == "openclaw"
                 ).limit(limit).all()
 
                 # Extract unique skill IDs
@@ -2224,7 +2230,7 @@ class WorldModelService:
         """
         try:
             # Enhance metadata with canvas context
-            enhanced_metadata = experience.metadata or {}
+            enhanced_metadata = experience.metadata_trace or {}
             enhanced_metadata.update({
                 "canvas_types": canvas_types_used,
                 "engagement_time_seconds": engagement_time_seconds,

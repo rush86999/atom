@@ -48,15 +48,15 @@ jest.mock('@/hooks/chat/useChatInterface', () => ({
 }));
 
 // Mock child components
-jest.mock('./ChatHeader', () => ({
+jest.mock('../ChatHeader', () => ({
   ChatHeader: () => <div data-testid="chat-header">Session: New Chat</div>,
 }));
 
-jest.mock('./MessageList', () => ({
+jest.mock('../MessageList', () => ({
   MessageList: () => <div data-testid="message-list">Messages</div>,
 }));
 
-jest.mock('./ChatInput', () => ({
+jest.mock('../ChatInput', () => ({
   ChatInput: () => <div data-testid="chat-input">Input</div>,
 }));
 

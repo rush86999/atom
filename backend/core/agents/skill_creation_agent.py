@@ -230,10 +230,13 @@ class SkillCreationAgent:
 
         try:
             parsed = urlparse(url)
-            hostname = parsed.hostname or ""
+            hostname = (parsed.hostname or "").lower()
 
-            # Block private IP ranges
-            if hostname in ('localhost', '127.0.0.1', '::1'):
+            # Block localhost / loopback variants (case-insensitive) and
+            # 0.0.0.0 / [::], which route to the loopback interface on most
+            # systems. The prior comparison was case-sensitive, so
+            # "http://LOCALHOST/..." slipped through to the SSRF fetch.
+            if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "::"):
                 logger.warning(f"SSRF blocked: localhost access denied: {hostname}")
                 return False
 
@@ -242,6 +245,18 @@ class SkillCreationAgent:
             if re.match(ipv4_pattern, hostname):
                 logger.warning(f"SSRF blocked: private IPv4 address: {hostname}")
                 return False
+
+            # Block IPv6 link-local / unique-local addresses
+            if ":" in hostname:
+                try:
+                    import ipaddress
+                    if ipaddress.ip_address(hostname).is_private or \
+                       ipaddress.ip_address(hostname).is_link_local:
+                        logger.warning(f"SSRF blocked: private IPv6 address: {hostname}")
+                        return False
+                except ValueError:
+                    logger.warning(f"SSRF blocked: invalid IPv6 address: {hostname}")
+                    return False
 
             # Only allow http and https schemes
             if parsed.scheme not in ('http', 'https'):

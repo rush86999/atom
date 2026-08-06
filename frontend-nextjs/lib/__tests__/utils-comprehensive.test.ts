@@ -48,8 +48,10 @@ describe('Utils (cn function)', () => {
     });
 
     it('handles complex Tailwind conflicts', () => {
-      expect(cn('p-4 m-4', 'p-2 m-2')).toBe('m-2 p-2'); // Sorted alphabetically
-      expect(cn('flex items-center', 'grid justify-start')).toBe('grid justify-start items-center');
+      // twMerge keeps the winning class at its own position in the input
+      // order — it does NOT re-sort alphabetically
+      expect(cn('p-4 m-4', 'p-2 m-2')).toBe('p-2 m-2');
+      expect(cn('flex items-center', 'grid justify-start')).toBe('items-center grid justify-start');
     });
 
     it('preserves non-conflicting Tailwind classes', () => {
@@ -58,7 +60,7 @@ describe('Utils (cn function)', () => {
     });
 
     it('handles responsive variants', () => {
-      expect(cn('p-4', 'md:p-2')).toBe('md:p-2 p-4'); // Different breakpoints
+      expect(cn('p-4', 'md:p-2')).toBe('p-4 md:p-2'); // Different breakpoints
       expect(cn('sm:p-4', 'md:p-2')).toBe('sm:p-4 md:p-2');
     });
 
@@ -68,7 +70,7 @@ describe('Utils (cn function)', () => {
     });
 
     it('handles arbitrary values', () => {
-      expect(cn('p-[10px]', 'm-[20px]')).toBe('m-[20px] p-[10px]');
+      expect(cn('p-[10px]', 'm-[20px]')).toBe('p-[10px] m-[20px]');
       expect(cn('bg-[#123456]', 'text-[#789abc]')).toBe('bg-[#123456] text-[#789abc]');
     });
   });
@@ -108,8 +110,10 @@ describe('Utils (cn function)', () => {
 
   describe('Edge Cases', () => {
     it('handles duplicate classes', () => {
-      expect(cn('class1', 'class1')).toBe('class1'); // Deduplicated
-      expect(cn('class1 class2', 'class1')).toBe('class1 class2');
+      // twMerge only dedupes Tailwind utility conflicts — arbitrary classes
+      // are passed through as-is
+      expect(cn('class1', 'class1')).toBe('class1 class1');
+      expect(cn('class1 class2', 'class1')).toBe('class1 class2 class1');
     });
 
     it('handles whitespace variations', () => {
@@ -164,7 +168,7 @@ describe('Utils (cn function)', () => {
         isDisabled && 'disabled',
         'other-class'
       );
-      expect(classes).toBe('active base other-class');
+      expect(classes).toBe('base active other-class');
     });
 
     it('handles responsive design classes', () => {
@@ -186,7 +190,7 @@ describe('Utils (cn function)', () => {
         hasError && 'border-red-500 focus:border-red-500',
         isSuccess && 'border-green-500 focus:border-green-500'
       );
-      expect(classes).toBe('border-red-500 focus:border-red-500 input-base');
+      expect(classes).toBe('input-base border-red-500 focus:border-red-500');
     });
 
     it('handles component composition', () => {
@@ -260,7 +264,7 @@ describe('Utils (cn function)', () => {
       const base = 'p-4 m-4 bg-white';
       const override = 'p-2 m-2 bg-black';
       const classes = cn(base, override);
-      expect(classes).toBe('m-2 p-2 bg-black'); // All overridden
+      expect(classes).toBe('p-2 m-2 bg-black'); // All overridden
     });
 
     it('handles optional classes', () => {

@@ -595,6 +595,15 @@ describe('StorageService', () => {
         throw new Error('Delete failed');
       });
 
+      // cleanupOldData deletes its breakdown entries via AsyncStorage, so the
+      // MMKV delete-once above must be consumed explicitly (otherwise it
+      // leaks into later tests and breaks their deletes)
+      try {
+        mockMMKV.delete('sync_state');
+      } catch (e) {
+        // expected
+      }
+
       const freedBytes = await storageService.cleanupOldData(100);
 
       // Should still return bytes freed from successful deletes before the error
@@ -703,6 +712,10 @@ describe('StorageService', () => {
 
   describe('Clear All Storage', () => {
     test('should clear all MMKV keys', async () => {
+      // Start from a clean slate regardless of earlier tests' queued mocks
+      (global as any).__resetMmkvMock?.();
+      (global as any).__resetAsyncStorageMock?.();
+
       await storageService.setString('auth_token', 'token');
       await storageService.setString('user_id', 'user_1');
 
@@ -714,6 +727,9 @@ describe('StorageService', () => {
     });
 
     test('should clear all AsyncStorage keys', async () => {
+      (global as any).__resetMmkvMock?.();
+      (global as any).__resetAsyncStorageMock?.();
+
       await storageService.setString('preferences', '{}');
       await storageService.setString('episode_cache', '[]');
 

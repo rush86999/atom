@@ -16,12 +16,15 @@
 
 import apiClient from '@/lib/api';
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/tests/mocks/server';
 
-// MSW setup
-const server = setupServer(
+// Default handlers registered on the SHARED MSW server (see tests/mocks/server).
+// Note: handler paths must be wildcard-origin ("*/api/...") because the apiClient
+// resolves relative URLs against http://127.0.0.1:8000, and relative path masks
+// never match absolute URLs in MSW 1.x (see lib/__tests__/api/error-handling.test.ts).
+const defaultHandlers = [
   // Default test endpoint
-  rest.get('/api/test/malformed', (req, res, ctx) => {
+  rest.get('*/api/test/malformed', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ success: true, data: 'test' })
@@ -29,18 +32,18 @@ const server = setupServer(
   }),
 
   // POST endpoint
-  rest.post('/api/test/malformed', (req, res, ctx) => {
+  rest.post('*/api/test/malformed', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ success: true })
     );
   }),
-);
+];
 
-// Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Re-register default handlers after setup.ts's afterEach resetHandlers()
+beforeEach(() => {
+  server.use(...defaultHandlers);
+});
 
 // Suppress console.log for retry messages during tests
 let consoleLogSpy: any;
@@ -60,7 +63,7 @@ describe('API Malformed Response Handling', () => {
   describe('1. Invalid JSON Response', () => {
     it('should handle invalid JSON gracefully', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -80,7 +83,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle malformed JSON syntax', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -99,7 +102,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle JSON with trailing commas', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -121,7 +124,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle JSON with unquoted keys', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -139,7 +142,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle completely invalid response format', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -160,7 +163,7 @@ describe('API Malformed Response Handling', () => {
   describe('2. Empty Response Body', () => {
     it('should handle empty 200 response', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.body('')
@@ -174,7 +177,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle null response body', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(null)
@@ -188,7 +191,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle whitespace-only response', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.body('   \n\t   ')
@@ -207,7 +210,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should use default values for empty responses', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(204),
             ctx.body('')
@@ -224,7 +227,7 @@ describe('API Malformed Response Handling', () => {
   describe('3. Missing Required Fields', () => {
     it('should handle missing success field', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ data: 'test' }) // missing 'success' field
@@ -239,7 +242,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle missing data field', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ success: true }) // missing 'data' field
@@ -254,7 +257,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle completely empty object', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({})
@@ -269,7 +272,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle response with only metadata', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -290,7 +293,7 @@ describe('API Malformed Response Handling', () => {
   describe('4. Wrong Data Types', () => {
     it('should handle string instead of object', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json('just a string')
@@ -304,7 +307,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle number instead of object', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(42)
@@ -318,7 +321,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle array instead of object', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json([1, 2, 3, 4, 5])
@@ -332,7 +335,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle boolean instead of object', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(true)
@@ -346,7 +349,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle nested type mismatches', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -369,7 +372,7 @@ describe('API Malformed Response Handling', () => {
       const largeArray = Array(10000).fill({ id: 1, name: 'test', data: 'x'.repeat(100) });
 
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ data: largeArray })
@@ -389,7 +392,7 @@ describe('API Malformed Response Handling', () => {
       }
 
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(nested)
@@ -408,7 +411,7 @@ describe('API Malformed Response Handling', () => {
       }
 
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json(manyKeys)
@@ -424,7 +427,7 @@ describe('API Malformed Response Handling', () => {
   describe('6. Malformed Headers', () => {
     it('should handle invalid Content-Type', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/invalid-type'),
@@ -440,7 +443,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle missing Content-Type', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res) => {
+        rest.get('*/api/test/malformed', (req, res) => {
           return new Promise((resolve) => {
             resolve(
               new Response(
@@ -468,7 +471,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle text/plain with JSON body', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'text/plain'),
@@ -484,7 +487,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle multiple Content-Type values', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json; charset=utf-8, text/html'),
@@ -501,7 +504,7 @@ describe('API Malformed Response Handling', () => {
   describe('7. Charset Issues', () => {
     it('should handle UTF-8 charset', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json; charset=utf-8'),
@@ -516,7 +519,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle missing charset', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -531,7 +534,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle invalid charset', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json; charset=invalid-charset'),
@@ -551,7 +554,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle ASCII charset', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json; charset=ascii'),
@@ -568,7 +571,7 @@ describe('API Malformed Response Handling', () => {
   describe('8. Partial/Truncated Responses', () => {
     it('should handle truncated JSON', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -587,7 +590,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle response ending mid-string', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -605,7 +608,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should not hang waiting for more data', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.set('Content-Type', 'application/json'),
@@ -626,7 +629,7 @@ describe('API Malformed Response Handling', () => {
   describe('9. API Version Mismatch', () => {
     it('should handle missing version field', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ success: true, data: 'test' })
@@ -640,7 +643,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle unexpected API version', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -658,7 +661,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle deprecated version response', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -680,7 +683,7 @@ describe('API Malformed Response Handling', () => {
   describe('10. Null/Undefined Values in Response', () => {
     it('should handle null in required field', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -697,7 +700,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle null in data field', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -714,7 +717,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle undefined-like behavior', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
@@ -732,7 +735,7 @@ describe('API Malformed Response Handling', () => {
 
     it('should handle mixed null and valid values', async () => {
       server.use(
-        rest.get('/api/test/malformed', (req, res, ctx) => {
+        rest.get('*/api/test/malformed', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({

@@ -97,13 +97,29 @@ jest.mock('../../src/services/agentService', () => ({
 }));
 
 // Mock WebSocket context
+// Mock WebSocket context — mutable so tests can exercise the non-streaming
+// (agentService.sendMessage) path by flipping isConnected to false.
+let mockWebSocket = {
+  isConnected: true,
+  sendStreamingMessage: jest.fn(),
+  subscribeToStream: jest.fn(() => jest.fn()),
+};
+
 jest.mock('../../src/contexts/WebSocketContext', () => ({
-  useWebSocket: jest.fn(() => ({
+  useWebSocket: jest.fn(() => mockWebSocket),
+}));
+
+// These screens load data through async service mocks; the global fake
+// timers keep their promise chains from flushing, so use real timers here.
+beforeEach(() => {
+  jest.useRealTimers();
+  // Each test starts with a connected WebSocket (streaming path)
+  mockWebSocket = {
     isConnected: true,
     sendStreamingMessage: jest.fn(),
     subscribeToStream: jest.fn(() => jest.fn()),
-  })),
-}));
+  };
+});
 
 describe('AgentChatScreen - Rendering', () => {
   beforeEach(() => {
@@ -219,7 +235,7 @@ describe('AgentChatScreen - Message Sending', () => {
 
   // Test 3: Adds user message to chat
   it('should add user message to chat', async () => {
-    const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    const { getByPlaceholderText, getByText, getByTestId } = render(<AgentChatScreen />);
 
     await waitFor(() => {
       expect(getByPlaceholderText('Type a message...')).toBeTruthy();
@@ -263,6 +279,9 @@ describe('AgentChatScreen - Message Sending', () => {
   it('should handle message sending error', async () => {
     const agentService = require('../../src/services/agentService').agentService;
     agentService.sendMessage.mockRejectedValueOnce(new Error('Network error'));
+
+    // Disconnected WebSocket routes messages through agentService.sendMessage
+    mockWebSocket = { ...mockWebSocket, isConnected: false };
 
     const { getByPlaceholderText, getByTestId } = render(<AgentChatScreen />);
 
@@ -326,6 +345,32 @@ describe('AgentChatScreen - Message Display', () => {
           timestamp: new Date().toISOString(),
         },
         session_id: 'session-123',
+      },
+    });
+
+    // Disconnected WebSocket routes messages through agentService.sendMessage
+    mockWebSocket = { ...mockWebSocket, isConnected: false };
+
+    // The non-streaming reply sets the session id, which triggers a session
+    // reload — the backend returns the full history (including the message
+    // just sent), so mirror that in the mock.
+    agentService.getChatSession.mockResolvedValue({
+      success: true,
+      data: {
+        messages: [
+          {
+            id: 'msg-user',
+            role: 'user',
+            content: 'Hello',
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: 'msg-123',
+            role: 'assistant',
+            content: 'Assistant response',
+            timestamp: new Date().toISOString(),
+          },
+        ],
       },
     });
 
@@ -576,6 +621,7 @@ describe('AgentChatScreen - Error Handling', () => {
   // Test 2: Handles session loading error gracefully
   it('should handle session loading error gracefully', async () => {
     const agentService = require('../../src/services/agentService').agentService;
+    mockRoute.params = { agentId: 'agent-123', sessionId: 'session-error' };
     agentService.getChatSession.mockRejectedValueOnce(new Error('Session error'));
 
     // Should not crash
@@ -610,8 +656,10 @@ describe('AgentChatScreen - Edge Cases', () => {
 
     const { getByText } = render(<AgentChatScreen />);
 
+    // With no agent ID the screen falls back to the available agents list
+    // and auto-selects the first one
     await waitFor(() => {
-      expect(getByText('Select Agent')).toBeTruthy();
+      expect(getByText('Test Agent')).toBeTruthy();
     });
   });
 

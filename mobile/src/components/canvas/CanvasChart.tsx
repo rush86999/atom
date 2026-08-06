@@ -200,7 +200,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
     return (
       <View style={[styles.container, style]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator testID="activity-indicator" size="large" color={theme.colors.primary} />
           <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>
             Loading chart...
           </Text>
@@ -388,7 +388,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
     if (!showLegend || data.type === 'pie') return null;
 
     return (
-      <View style={styles.legendContainer}>
+      <View testID="legend-container" style={styles.legendContainer}>
         {data.data.map((point, index) => (
           <TouchableOpacity
             key={index}
@@ -421,18 +421,18 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
 
     switch (data.type) {
       case 'line':
-        return <View style={chartStyle}>{renderLineChart()}</View>;
+        return <View testID="chart-wrapper" style={chartStyle}>{renderLineChart()}</View>;
       case 'bar':
-        return <View style={chartStyle}>{renderBarChart()}</View>;
+        return <View testID="chart-wrapper" style={chartStyle}>{renderBarChart()}</View>;
       case 'pie':
-        return <View style={chartStyle}>{renderPieChart()}</View>;
+        return <View testID="chart-wrapper" style={chartStyle}>{renderPieChart()}</View>;
       default:
-        return <View style={chartStyle}>{renderLineChart()}</View>;
+        return <View testID="chart-wrapper" style={chartStyle}>{renderLineChart()}</View>;
     }
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View testID="chart-container" style={[styles.container, style]}>
       {/* Title */}
       {data.title && (
         <Text style={[styles.title, { color: theme.colors.onSurface }]}>
@@ -491,7 +491,10 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
 
       {/* Tooltip overlay */}
       {tooltipData && (
-        <View style={[styles.tooltip, { backgroundColor: theme.colors.surface }]}>
+        <View
+          testID="tooltip"
+          style={[styles.tooltip, { backgroundColor: theme.colors.surface }]}
+        >
           <Text style={[styles.tooltipText, { color: theme.colors.onSurface }]}>
             {tooltipData.label || tooltipData.x}: {tooltipData.y}
           </Text>

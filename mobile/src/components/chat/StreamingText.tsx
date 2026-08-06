@@ -56,6 +56,9 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
   maxHeight = 300,
 }) => {
   const theme = useTheme();
+  // Normalize null/undefined text so the special-card scanner and streaming
+  // effects can always operate on a string.
+  const textValue = text ?? '';
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -70,7 +73,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     const cards: SpecialCard[] = [];
 
     // Canvas mentions: [[canvas:canvas-id]]
-    const canvasMatches = text.matchAll(/\[\[canvas:([^\]]+)\]\]/g);
+    const canvasMatches = textValue.matchAll(/\[\[canvas:([^\]]+)\]\]/g);
     for (const match of canvasMatches) {
       cards.push({
         type: 'canvas',
@@ -80,7 +83,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     }
 
     // Workflow mentions: [[workflow:workflow-id]]
-    const workflowMatches = text.matchAll(/\[\[workflow:([^\]]+)\]\]/g);
+    const workflowMatches = textValue.matchAll(/\[\[workflow:([^\]]+)\]\]/g);
     for (const match of workflowMatches) {
       cards.push({
         type: 'workflow',
@@ -90,7 +93,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     }
 
     // Form mentions: [[form:form-id]]
-    const formMatches = text.matchAll(/\[\[form:([^\]]+)\]\]/g);
+    const formMatches = textValue.matchAll(/\[\[form:([^\]]+)\]\]/g);
     for (const match of formMatches) {
       cards.push({
         type: 'form',
@@ -100,7 +103,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     }
 
     setSpecialCards(cards);
-  }, [text]);
+  }, [textValue]);
 
   /**
    * Cursor blinking animation
@@ -132,8 +135,8 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
   useEffect(() => {
     if (!isStreaming) {
       // Not streaming, show full text immediately
-      setDisplayedText(text);
-      setCurrentIndex(text.length);
+      setDisplayedText(textValue);
+      setCurrentIndex(textValue.length);
 
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -146,11 +149,11 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     }
 
     // Streaming mode - animate smoothly without jitter
-    if (currentIndex < text.length) {
+    if (currentIndex < textValue.length) {
       // Use requestAnimationFrame for smooth updates
       const animationFrame = requestAnimationFrame(() => {
         const timeout = setTimeout(() => {
-          setDisplayedText(text.substring(0, currentIndex + 1));
+          setDisplayedText(textValue.substring(0, currentIndex + 1));
           setCurrentIndex(currentIndex + 1);
         }, speed);
 
@@ -158,25 +161,25 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
       });
 
       return () => cancelAnimationFrame(animationFrame);
-    } else if (currentIndex === text.length && currentIndex > 0) {
+    } else if (currentIndex === textValue.length && currentIndex > 0) {
       onComplete?.();
     }
-  }, [text, currentIndex, isStreaming, speed, fadeAnim, onComplete]);
+  }, [textValue, currentIndex, isStreaming, speed, fadeAnim, onComplete]);
 
   /**
    * Reset when text changes
    */
   useEffect(() => {
     if (!isStreaming) {
-      setDisplayedText(text);
-      setCurrentIndex(text.length);
+      setDisplayedText(textValue);
+      setCurrentIndex(textValue.length);
     } else {
-      if (text.length < currentIndex) {
+      if (textValue.length < currentIndex) {
         setDisplayedText('');
         setCurrentIndex(0);
       }
     }
-  }, [text]);
+  }, [textValue]);
 
   /**
    * Fade in animation when streaming starts
@@ -297,6 +300,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
 
   return (
     <Animated.View
+      testID="streaming-text"
       style={[
         styles.container,
         { opacity: fadeAnim },
@@ -335,7 +339,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
           ]}
         >
           {getDisplayText()}
-          {isStreaming && currentIndex < text.length && (
+          {isStreaming && currentIndex < textValue.length && (
             <Animated.Text style={[styles.cursor, { opacity: cursorAnim }]}>|</Animated.Text>
           )}
         </Text>
@@ -366,7 +370,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
                 styles.progressFill,
                 {
                   backgroundColor: theme.colors.primary,
-                  width: `${(currentIndex / text.length) * 100}%`,
+                  width: `${(currentIndex / textValue.length) * 100}%`,
                 },
               ]}
             />

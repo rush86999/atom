@@ -30,6 +30,16 @@ Comprehensive guides organized by user type and topic.
 - **[User Personas and Journeys](USER_PERSONAS_AND_JOURNEYS.md)** - User profiles
 - **[Use Cases](USE_CASES.md)** - Real-world examples
 
+### LLM & AI Guides
+- **[LLM Providers Guide](LLM_PROVIDERS.md)** — **NEW** Complete provider setup, comparison, routing
+- **[OpenCode Go Provider](OPENCODE_GO_PROVIDER.md)** — **NEW** Low-cost subscription gateway
+- **[Run with Ollama](../getting_started/run-with-ollama.md)** — Free local LLM setup
+
+### Concept Guides (Deep Dives)
+- **[Agent Maturity & Governance](AGENT_MATURITY_GOVERNANCE.md)** — Tier system, governance flow, graduation
+- **[Memory Systems](MEMORY_SYSTEMS.md)** — Three tiers, episodic memory, self-evolution
+- **[Execution Sandbox](EXECUTION_SANDBOX.md)** — 5-phase blast-radius defense, config, tripwires
+
 ### Agent Guides
 - **[Auto-Dev User Guide](AUTO_DEV_USER_GUIDE.md)** - Self-evolving agents ✨ NEW
 - **[Enterprise](ENTERPRISE)** - Enterprise deployment
@@ -38,6 +48,8 @@ Comprehensive guides organized by user type and topic.
 - **[Marketplace Quick Start](MARKETPLACE_QUICKSTART.md)** - Marketplace setup ✨ NEW
 - **[Messaging Guide](MESSAGING_GUIDE.md)** - Messaging platforms
 - **[Messaging Platforms](MESSAGING_PLATFORMS.md)** - Platform integrations
+- **[Mini-Apps User Guide](MINI_APPS_GUIDE.md)** — **NEW** Create, run, and collaborate on agent-authored mini-apps
+- **[Office Automation & Co-Editing](ATOM_OFFICE_AUTOMATION_GUIDE.md)** - Office automation and live Canvas co-editing guide ✨ NEW (July 2026)
 - **[Privacy Notice](PRIVACY_NOTICE.md)** - Privacy policy
 - **[Queen Agent User Guide](QUEEN_AGENT_USER_GUIDE.md)** - Queen Agent guide ✨ ENHANCED 2026
   - Orchestration Engine: Conductor Agent, State Machine, Event Bus

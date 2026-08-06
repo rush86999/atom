@@ -156,7 +156,10 @@ class AgentLearningEnhanced:
             return {
                 "agent_id": agent_id,
                 "total_feedback": learning_record.total_feedback or 0,
-                "positive_ratio": learning_record.success_rate or 0,
+                "positive_ratio": (
+                    learning_record.positive_feedback / learning_record.total_feedback
+                    if learning_record.total_feedback else 0
+                ),
                 "parameters": learning_record.parameters_json or {},
                 "learning_signals": [{
                     "type": "info",

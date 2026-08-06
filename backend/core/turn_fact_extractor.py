@@ -409,7 +409,7 @@ class TurnFactExtractor:
                     "fact_text": fact_text,
                     "category": category,
                     "domain": (item.get("domain") or "general").strip()[:64],
-                    "confidence": _clamp(float(item.get("confidence", 0.8)), 0.0, 1.0),
+                    "confidence": _coerce_confidence(item.get("confidence", 0.8)),
                     "tags": item.get("tags") if isinstance(item.get("tags"), list) else None,
                 }
             )
@@ -659,6 +659,15 @@ def _clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
 
+def _coerce_confidence(value: Any) -> float:
+    """Coerce an LLM-supplied confidence to [0,1]; bad values fall back to the
+    default without raising, so one malformed item cannot nuke the whole turn."""
+    try:
+        return _clamp(float(value), 0.0, 1.0)
+    except (TypeError, ValueError):
+        return 0.8
+
+
 def func_now():
     """Lazy import of timezone-aware now to avoid module-level SQLAlchemy dep."""
     from datetime import datetime, timezone
@@ -853,6 +862,7 @@ def prefetch_relevant_facts(
                 .filter(
                     TurnFact.id.in_(ids),
                     TurnFact.status == "active",
+                    TurnFact.workspace_id == workspace_id,
                 )
                 .all()
             )

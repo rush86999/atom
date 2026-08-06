@@ -222,7 +222,8 @@ class CognitiveTierService:
 
             # Calculate effective cost
             effective_cost = self.cache_router.calculate_effective_cost(
-                model, provider, estimated_tokens, cache_prob
+                model, provider, estimated_tokens,
+                cache_hit_probability=cache_prob,
             )
 
             scored_models.append((effective_cost, provider, model))
@@ -329,12 +330,14 @@ class CognitiveTierService:
 
         # Calculate effective cost
         effective_cost = self.cache_router.calculate_effective_cost(
-            model, provider, estimated_tokens, cache_prob
+            model, provider, estimated_tokens,
+            cache_hit_probability=cache_prob,
         )
 
         # Get full cost (no cache discount)
         full_cost = self.cache_router.calculate_effective_cost(
-            model, provider, estimated_tokens, 0.0
+            model, provider, estimated_tokens,
+            cache_hit_probability=0.0,
         )
 
         cache_discount = 1.0 - (effective_cost / full_cost) if full_cost > 0 else 0.0

@@ -29,24 +29,37 @@ jest.mock('react-native-paper', () => ({
   Icon: 'Icon',
   Avatar: {
     Icon: 'Avatar.Icon',
-    Text: 'Avatar.Text',
+    Text: ({ label, style }: any) => {
+      const React = require('react');
+      const { Text } = require('react-native');
+      return <Text style={style}>{label}</Text>;
+    },
     Image: 'Avatar.Image',
   },
-  Badge: 'Badge',
-  Menu: ({ visible, children, onDismiss, anchor }: any) =>
-    visible ? (
-      <>
-        {anchor}
-        {children}
-        <button onClick={onDismiss}>Close</button>
-      </>
-    ) : null,
-  Menu_Item: ({ leadingIcon, onPress, title, titleStyle }: any) => (
-    <button onClick={onPress} style={titleStyle}>
-      {leadingIcon} {title}
-    </button>
+  Badge: ({ children, style }: any) => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return <Text style={style}>{children}</Text>;
+  },
+  Menu: Object.assign(
+    ({ visible, children, anchor }: any) => (visible ? (<>{anchor}{children}</>) : null),
+    {
+      Item: ({ leadingIcon, onPress, title, titleStyle }: any) => {
+        const React = require('react');
+        const { TouchableOpacity, Text } = require('react-native');
+        return (
+          <TouchableOpacity onPress={onPress} style={titleStyle}>
+            <Text>{title}</Text>
+          </TouchableOpacity>
+        );
+      },
+    }
   ),
-  FAB: 'FAB',
+  FAB: ({ icon, style, onPress }: any) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    return <View testID="scroll-to-bottom-fab" style={style} onPress={onPress} />;
+  },
 }));
 
 jest.mock('date-fns', () => ({
@@ -56,7 +69,14 @@ jest.mock('date-fns', () => ({
   isYesterday: () => false,
 }));
 
-jest.mock('../chat/StreamingText', () => 'StreamingText');
+jest.mock('../chat/StreamingText', () => ({
+  __esModule: true,
+  default: ({ text, style }: any) => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return <Text style={style}>{text}</Text>;
+  },
+}));
 
 describe('MessageList Component', () => {
   const mockMessages = [
@@ -291,17 +311,15 @@ describe('MessageList Component', () => {
       fireEvent(messageBubble, 'onLongPress');
 
       await waitFor(() => {
-        const copyButton = getAllByText('Copy').find(el => el.props?.onClick);
-        if (copyButton) {
-          fireEvent.press(copyButton);
-          expect(onMessageCopy).toHaveBeenCalledWith('1');
-        }
+        const copyButton = getAllByText('Copy')[0];
+        fireEvent.press(copyButton);
+        expect(onMessageCopy).toHaveBeenCalledWith('1');
       });
     });
 
     test('should call onMessageFeedback when thumbs up is selected', async () => {
       const onMessageFeedback = jest.fn();
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <MessageList
           messages={[mockMessages[1]]}
           onMessageFeedback={onMessageFeedback}
@@ -312,16 +330,20 @@ describe('MessageList Component', () => {
       fireEvent(messageBubble, 'onLongPress');
 
       await waitFor(() => {
-        expect(onMessageFeedback).not.toHaveBeenCalled();
+        const thumbsUp = getAllByText('Thumbs Up')[0];
+        fireEvent.press(thumbsUp);
+        expect(onMessageFeedback).toHaveBeenCalledWith('2', 1);
       });
     });
 
     test('should call onMessageRegenerate when regenerate is selected', async () => {
       const onMessageRegenerate = jest.fn();
-      const { getByText } = render(
+      const onMessageFeedback = jest.fn();
+      const { getByText, getAllByText } = render(
         <MessageList
           messages={[mockMessages[1]]}
           onMessageRegenerate={onMessageRegenerate}
+          onMessageFeedback={onMessageFeedback}
         />
       );
 
@@ -329,13 +351,15 @@ describe('MessageList Component', () => {
       fireEvent(messageBubble, 'onLongPress');
 
       await waitFor(() => {
-        expect(onMessageRegenerate).not.toHaveBeenCalled();
+        const regenerate = getAllByText('Regenerate')[0];
+        fireEvent.press(regenerate);
+        expect(onMessageRegenerate).toHaveBeenCalledWith('2');
       });
     });
 
     test('should call onMessageDelete for user messages', async () => {
       const onMessageDelete = jest.fn();
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <MessageList
           messages={[mockMessages[0]]}
           onMessageDelete={onMessageDelete}
@@ -346,7 +370,9 @@ describe('MessageList Component', () => {
       fireEvent(messageBubble, 'onLongPress');
 
       await waitFor(() => {
-        expect(onMessageDelete).not.toHaveBeenCalled();
+        const deleteItem = getAllByText('Delete')[0];
+        fireEvent.press(deleteItem);
+        expect(onMessageDelete).toHaveBeenCalledWith('1');
       });
     });
 
@@ -423,7 +449,9 @@ describe('MessageList Component', () => {
 
   describe('Custom Components', () => {
     test('should render ListHeaderComponent', () => {
-      const Header = () => <div>Header Content</div>;
+      const React = require('react');
+      const { Text } = require('react-native');
+      const Header = () => <Text>Header Content</Text>;
       const { getByText } = render(
         <MessageList
           messages={mockMessages}
@@ -435,7 +463,9 @@ describe('MessageList Component', () => {
     });
 
     test('should render ListFooterComponent', () => {
-      const Footer = () => <div>Footer Content</div>;
+      const React = require('react');
+      const { Text } = require('react-native');
+      const Footer = () => <Text>Footer Content</Text>;
       const { getByText } = render(
         <MessageList
           messages={mockMessages}
@@ -449,7 +479,7 @@ describe('MessageList Component', () => {
 
   describe('Scroll Behavior', () => {
     test('should auto-scroll to bottom on new messages', () => {
-      const { container, rerender } = render(
+      const { root: container, rerender } = render(
         <MessageList messages={[mockMessages[0]]} />
       );
 
@@ -462,24 +492,26 @@ describe('MessageList Component', () => {
     });
 
     test('should show scroll to bottom button when scrolled up', () => {
-      const { root: container } = render(
+      const { getByTestId, queryByTestId } = render(
         <MessageList messages={mockMessages}
       />
       );
 
-      // Simulate scroll event
-      const flatList = container.querySelector('FlatList');
-      if (flatList) {
-        fireEvent.scroll(flatList, {
-          nativeEvent: {
-            contentOffset: { y: 100 },
-            contentSize: { height: 1000 },
-            layoutMeasurement: { height: 500 },
-          },
-        });
-      }
+      // Scrolled to bottom by default — no FAB yet
+      expect(queryByTestId('scroll-to-bottom-fab')).toBeNull();
 
-      expect(container).toBeTruthy();
+      // Simulate scrolling up: content offset far above the bottom
+      const flatList = getByTestId('message-list');
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 100 },
+          contentSize: { height: 1000 },
+          layoutMeasurement: { height: 500 },
+        },
+      });
+
+      // Scroll-to-bottom FAB appears
+      expect(getByTestId('scroll-to-bottom-fab')).toBeTruthy();
     });
   });
 
@@ -493,11 +525,12 @@ describe('MessageList Component', () => {
     });
 
     test('should format timestamps correctly', () => {
-      const { getByText } = render(
+      const { getAllByText } = render(
         <MessageList messages={mockMessages} />
       );
 
-      expect(getByText('5 minutes ago')).toBeTruthy();
+      // Every message starts a new sender group, so each shows a timestamp
+      expect(getAllByText('5 minutes ago').length).toBeGreaterThan(0);
     });
   });
 

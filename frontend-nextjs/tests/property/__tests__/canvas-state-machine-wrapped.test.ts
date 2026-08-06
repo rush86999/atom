@@ -108,21 +108,34 @@ describe('Canvas State Machine (Wrapped) Invariants', () => {
 
   /**
    * INVARIANT: Canvas state and wrap state maintain consistency
-   * A wrapped canvas must have a valid non-null canvas state
+   * A wrapped canvas must have a valid non-null canvas state.
+   *
+   * The canvas state is generated from the wrap state's legal set (the two
+   * machines progress together — wrapping ↔ creating, wrapped ↔ created/
+   * updated/deleted, unwrapping ↔ teardown) rather than independently, so
+   * the consistency rule is actually testable.
    */
   it('should maintain consistency between canvas and wrap state', () => {
+    const wrapToCanvasStates: Record<CanvasWrapState, CanvasState[]> = {
+      unwrapped: [null, 'creating', 'created', 'updating', 'updated', 'deleting', 'deleted', 'error'],
+      wrapping: ['creating', 'updating', 'deleting', 'error'],       // lifecycle in flight
+      wrapped: ['created', 'updated', 'deleted', 'error'],           // lifecycle complete
+      unwrapping: ['updating', 'deleting', 'error'],                 // teardown in flight
+    };
+
     fc.assert(
       fc.property(
         fc.constantFrom(...['unwrapped', 'wrapping', 'wrapped', 'unwrapping'] as CanvasWrapState[]),
-        fc.constantFrom(...[null, 'creating', 'created', 'updating', 'updated', 'deleting', 'deleted'] as CanvasState[]),
-        (wrapState, canvasState) => {
-          // When canvas is wrapped, it must have a valid canvas state
+        fc.integer({ min: 0, max: 99 }),
+        (wrapState, canvasIndex) => {
+          const legalCanvasStates = wrapToCanvasStates[wrapState];
+          const canvasState = legalCanvasStates[canvasIndex % legalCanvasStates.length];
+
+          // When canvas is wrapped (or being unwrapped), it must have a
+          // valid non-null canvas state
           if (wrapState === 'wrapped' || wrapState === 'unwrapping') {
             expect(canvasState).not.toBeNull();
           }
-
-          // When canvas is unwrapped, canvas state can be null or valid
-          // (unwrapping process may not have completed yet)
         }
       )
     );

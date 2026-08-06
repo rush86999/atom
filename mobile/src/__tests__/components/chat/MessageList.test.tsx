@@ -30,23 +30,40 @@ jest.mock('react-native-paper', () => ({
       const { Text } = require('react-native');
       return <Text style={style}>{label}</Text>;
     },
+    Icon: () => {
+      const React = require('react');
+      const { View } = require('react-native');
+      return <View />;
+    },
+    Image: () => {
+      const React = require('react');
+      const { View } = require('react-native');
+      return <View />;
+    },
   },
   Badge: ({ children, style }: any) => {
     const React = require('react');
     const { Text } = require('react-native');
     return <Text style={style}>{children}</Text>;
   },
-  Menu: {
-    Item: ({ onPress, title }: any) => {
+  Menu: Object.assign(
+    ({ children }: any) => {
       const React = require('react');
-      const { TouchableOpacity, Text } = require('react-native');
-      return (
-        <TouchableOpacity onPress={onPress}>
-          <Text>{title}</Text>
-        </TouchableOpacity>
-      );
+      const { View } = require('react-native');
+      return <View>{children}</View>;
     },
-  },
+    {
+      Item: ({ onPress, title }: any) => {
+        const React = require('react');
+        const { TouchableOpacity, Text } = require('react-native');
+        return (
+          <TouchableOpacity onPress={onPress}>
+            <Text>{title}</Text>
+          </TouchableOpacity>
+        );
+      },
+    }
+  ),
   FAB: 'FAB',
   Icon: 'Icon',
 }));
@@ -61,6 +78,7 @@ jest.mock('date-fns', () => ({
 
 // Mock StreamingText
 jest.mock('../../../components/chat/StreamingText', () => ({
+  __esModule: true,
   default: ({ text, style }: any) => {
     const React = require('react');
     const { Text } = require('react-native');
@@ -165,24 +183,25 @@ describe('MessageList', () => {
     });
 
     it('should show agent avatar for agent messages', () => {
-      const { getByText } = render(<MessageList messages={mockMessages} />);
+      const { getAllByText } = render(<MessageList messages={mockMessages} />);
 
-      // Agent name should be visible
-      expect(getByText('Test Agent')).toBeTruthy();
+      // Agent name header shows for both agent messages in the list
+      expect(getAllByText('Test Agent').length).toBe(2);
     });
   });
 
   describe('Timestamps', () => {
     it('should show timestamps for messages', () => {
-      const { getByText } = render(<MessageList messages={mockMessages} />);
+      const { getAllByText } = render(<MessageList messages={mockMessages} />);
 
-      expect(getByText('5 minutes ago')).toBeTruthy();
+      // Every message starts a new sender group, so each shows a timestamp
+      expect(getAllByText('5 minutes ago').length).toBeGreaterThan(0);
     });
 
     it('should show relative time format', () => {
-      const { getByText } = render(<MessageList messages={mockMessages} />);
+      const { getAllByText } = render(<MessageList messages={mockMessages} />);
 
-      expect(getByText(/minutes ago/)).toBeTruthy();
+      expect(getAllByText(/minutes ago/).length).toBeGreaterThan(0);
     });
   });
 
@@ -208,13 +227,26 @@ describe('MessageList', () => {
 
   describe('Agent Information', () => {
     it('should display agent name', () => {
-      const { getByText } = render(<MessageList messages={mockMessages} />);
+      const { getAllByText } = render(<MessageList messages={mockMessages} />);
 
-      expect(getByText('Test Agent')).toBeTruthy();
+      // msg-2 and msg-4 both carry the same agent name header
+      expect(getAllByText('Test Agent').length).toBe(2);
     });
 
     it('should display agent maturity badge', () => {
-      const { getByText } = render(<MessageList messages={mockMessages} />);
+      // Maturity badge renders inside the governance badge row
+      const messageWithGovernance = {
+        ...mockMessages[1],
+        governance: {
+          action_complexity: 1,
+          requires_approval: false,
+          supervised: false,
+        },
+      };
+
+      const { getByText } = render(
+        <MessageList messages={[messageWithGovernance]} />
+      );
 
       expect(getByText('AUTONOMOUS')).toBeTruthy();
     });
@@ -224,41 +256,59 @@ describe('MessageList', () => {
     it('should handle message copy callback', () => {
       const onCopy = jest.fn();
 
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <MessageList messages={mockMessages} onMessageCopy={onCopy} />
       );
 
-      expect(getByText('Hello, how are you?')).toBeTruthy();
+      // Long-press the first user message to open the action menu, then Copy
+      fireEvent(getByText('Hello, how are you?'), 'onLongPress');
+      fireEvent.press(getAllByText('Copy')[0]);
+
+      expect(onCopy).toHaveBeenCalledWith('msg-1');
     });
 
     it('should handle message feedback callback', () => {
       const onFeedback = jest.fn();
 
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <MessageList messages={mockMessages} onMessageFeedback={onFeedback} />
       );
 
-      expect(getByText('I am doing well, thank you!')).toBeTruthy();
+      fireEvent(getByText('I am doing well, thank you!'), 'onLongPress');
+      fireEvent.press(getAllByText('Thumbs Up')[0]);
+
+      expect(onFeedback).toHaveBeenCalledWith('msg-2', 1);
     });
 
     it('should handle message regenerate callback', () => {
       const onRegenerate = jest.fn();
+      const onFeedback = jest.fn();
 
-      const { getByText } = render(
-        <MessageList messages={mockMessages} onMessageRegenerate={onRegenerate} />
+      const { getByText, getAllByText } = render(
+        <MessageList
+          messages={mockMessages}
+          onMessageRegenerate={onRegenerate}
+          onMessageFeedback={onFeedback}
+        />
       );
 
-      expect(getByText('I am doing well, thank you!')).toBeTruthy();
+      fireEvent(getByText('I am doing well, thank you!'), 'onLongPress');
+      fireEvent.press(getAllByText('Regenerate')[0]);
+
+      expect(onRegenerate).toHaveBeenCalledWith('msg-2');
     });
 
     it('should handle message delete callback', () => {
       const onDelete = jest.fn();
 
-      const { getByText } = render(
+      const { getByText, getAllByText } = render(
         <MessageList messages={mockMessages} onMessageDelete={onDelete} />
       );
 
-      expect(getByText('Hello, how are you?')).toBeTruthy();
+      fireEvent(getByText('Hello, how are you?'), 'onLongPress');
+      fireEvent.press(getAllByText('Delete')[0]);
+
+      expect(onDelete).toHaveBeenCalledWith('msg-1');
     });
   });
 
@@ -282,7 +332,7 @@ describe('MessageList', () => {
         />
       );
 
-      expect(getByText('Previous Conversation')).toBeTruthy();
+      expect(getByText(/Previous Conversation/)).toBeTruthy();
     });
 
     it('should handle episode press callback', () => {
@@ -379,6 +429,7 @@ describe('MessageList', () => {
       );
 
       expect(getByText('I am doing well, thank you!')).toBeTruthy();
+      expect(getByText('HIGH')).toBeTruthy();
     });
 
     it('should display approval required badge', () => {
@@ -396,6 +447,7 @@ describe('MessageList', () => {
       );
 
       expect(getByText('I am doing well, thank you!')).toBeTruthy();
+      expect(getByText('REQUIRES APPROVAL')).toBeTruthy();
     });
   });
 
@@ -468,7 +520,7 @@ describe('MessageList', () => {
         <MessageList messages={[longMessage]} />
       );
 
-      expect(getByText(/A/)).toBeTruthy();
+      expect(getByText(/^A{5000}$/)).toBeTruthy();
     });
 
     it('should handle messages with special characters', () => {

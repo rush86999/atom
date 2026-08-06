@@ -11,6 +11,12 @@ import { validateSchema } from '@lib/src/validators/jsonSchema';
 jest.mock('axios');
 import axios from 'axios';
 
+// Keep the real validator but wrap it in a jest.fn so tests can override it
+jest.mock('@lib/src/validators/jsonSchema', () => {
+  const actual = jest.requireActual('@lib/src/validators/jsonSchema');
+  return { ...actual, validateSchema: jest.fn(actual.validateSchema) };
+});
+
 // Mock react-hot-toast
 jest.mock('react-hot-toast');
 import { toast } from 'react-hot-toast';
@@ -21,6 +27,10 @@ const mockedToast = toast as jest.Mocked<typeof toast>;
 describe('entityTypeImporter', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // jest config resetMocks: true wipes the wrapped implementation — restore it
+    (validateSchema as jest.Mock).mockImplementation(
+      jest.requireActual('@lib/src/validators/jsonSchema').validateSchema
+    );
   });
 
   describe('parseEntityTypeDefinition', () => {

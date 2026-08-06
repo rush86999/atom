@@ -208,19 +208,22 @@ class PerformanceMetricsService:
             metrics = [
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                                        metric_type="success_rate",
+                    tenant_id="default",
+                    metric_type="success_rate",
                     metric_value=result.success_rate,
                     window_start=window_start,
                     window_end=window_end),
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                                        metric_type="avg_latency",
+                    tenant_id="default",
+                    metric_type="avg_latency",
                     metric_value=result.execution_time_ms or 0,
                     window_start=window_start,
                     window_end=window_end),
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                                        metric_type="throughput",
+                    tenant_id="default",
+                    metric_type="throughput",
                     metric_value=result.total_tasks,
                     window_start=window_start,
                     window_end=window_end),

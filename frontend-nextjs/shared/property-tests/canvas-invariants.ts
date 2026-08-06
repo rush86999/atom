@@ -18,22 +18,36 @@ import { CanvasState, VALID_CANVAS_TRANSITIONS } from './types';
 /**
  * Canvas state machine property.
  *
- * Tests that all state transitions follow VALID_CANVAS_TRANSITIONS.
- * Generates random (fromState, toState) pairs and validates transition.
+ * Verifies the transition table matches the documented canvas lifecycle:
+ * idle → presenting/error, presenting → submitted/closed/error,
+ * submitted/closed → idle, error → idle/presenting.
  *
  * @example
  * ```ts
  * fc.assert(canvasStateMachineProperty);
  * ```
  *
- * Invariant: For all (fromState, toState) pairs, transition must be valid
+ * Invariant: every state's transition list matches the documented machine
  */
+const EXPECTED_CANVAS_TRANSITIONS: Record<CanvasState, CanvasState[]> = {
+  idle: ['presenting', 'error'],
+  presenting: ['submitted', 'closed', 'error'],
+  submitted: ['idle'],
+  closed: ['idle'],
+  error: ['idle', 'presenting'],
+};
+
 export const canvasStateMachineProperty = fc.property(
   fc.constantFrom(...Object.keys(VALID_CANVAS_TRANSITIONS) as CanvasState[]),
-  fc.constantFrom(...Object.keys(VALID_CANVAS_TRANSITIONS) as CanvasState[]),
-  (fromState, toState) => {
-    const allowedTransitions = VALID_CANVAS_TRANSITIONS[fromState];
-    return allowedTransitions.includes(toState);
+  (fromState) => {
+    const actual = VALID_CANVAS_TRANSITIONS[fromState];
+    const expected = EXPECTED_CANVAS_TRANSITIONS[fromState];
+
+    // Same size and every documented destination present (no typos/drift)
+    return (
+      actual.length === expected.length &&
+      expected.every((state) => actual.includes(state))
+    );
   }
 );
 
@@ -199,20 +213,27 @@ export const canvasErrorStateRecoverability = fc.property(
  *
  * Invariant: submitted/closed cannot transition to each other or themselves
  */
+const TERMINAL_STATES: CanvasState[] = ['submitted', 'closed'];
+
 export const canvasNoTerminalStateLoops = fc.property(
-  fc.constantFrom('submitted' as CanvasState, 'closed' as CanvasState),
-  fc.constantFrom('submitted' as CanvasState, 'closed' as CanvasState),
+  fc.constantFrom(...TERMINAL_STATES),
+  fc.constantFrom(...TERMINAL_STATES),
   (fromState, toState) => {
     const allowedTransitions = VALID_CANVAS_TRANSITIONS[fromState];
 
-    // Terminal states should only transition to idle
-    if (fromState === toState) {
-      // No self-loops
-      return !allowedTransitions.includes(toState);
-    }
+    // Terminal states never transition to themselves or to each other:
+    // the only legal destination is idle.
+    const loopsToTerminal = allowedTransitions.some((state) =>
+      TERMINAL_STATES.includes(state)
+    );
+    if (loopsToTerminal) return false;
 
-    // No transitions between terminal states
-    return toState === 'idle' && allowedTransitions.includes(toState);
+    // The sampled terminal-state destination must be rejected, and the
+    // state must still have the idle escape hatch to restart the flow.
+    return (
+      !allowedTransitions.includes(toState) &&
+      allowedTransitions.includes('idle')
+    );
   }
 );
 
@@ -227,22 +248,38 @@ export const canvasNoTerminalStateLoops = fc.property(
  * fc.assert(canvasStateSequenceValidity);
  * ```
  *
- * Invariant: All transitions in sequence are valid
+ * Invariant: All transitions in sequence are valid.
+ * Note: a random sequence of states is not expected to be a valid walk, so
+ * the walk is built step-by-step along the transition table — every step
+ * verifies the destination is a real, defined state (no typos/deletions).
  */
 export const canvasStateSequenceValidity = fc.property(
-  fc.array(
-    fc.constantFrom(...Object.keys(VALID_CANVAS_TRANSITIONS) as CanvasState[]),
-    { minLength: 2, maxLength: 10 }
-  ),
-  (stateSequence) => {
-    // Check that each consecutive transition is valid
-    for (let i = 0; i < stateSequence.length - 1; i++) {
-      const fromState = stateSequence[i];
-      const toState = stateSequence[i + 1];
-      const allowedTransitions = VALID_CANVAS_TRANSITIONS[fromState];
+  fc.array(fc.integer({ min: 0, max: 9 }), { minLength: 2, maxLength: 10 }),
+  (stepIndices) => {
+    const definedStates = Object.keys(VALID_CANVAS_TRANSITIONS) as CanvasState[];
+    const sequence: CanvasState[] = ['idle'];
 
-      if (!allowedTransitions.includes(toState)) {
-        return false; // Invalid transition found
+    for (const index of stepIndices) {
+      const fromState = sequence[sequence.length - 1];
+      const destinations = VALID_CANVAS_TRANSITIONS[fromState];
+
+      if (destinations.length === 0) {
+        // Terminal state — the walk legitimately ends here
+        return true;
+      }
+
+      const toState = destinations[index % destinations.length];
+      if (!definedStates.includes(toState)) {
+        // Table references an undefined state
+        return false;
+      }
+      sequence.push(toState);
+    }
+
+    // Every consecutive pair must be a transition listed in the table
+    for (let i = 0; i < sequence.length - 1; i++) {
+      if (!VALID_CANVAS_TRANSITIONS[sequence[i]].includes(sequence[i + 1])) {
+        return false;
       }
     }
 

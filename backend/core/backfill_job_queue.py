@@ -260,8 +260,18 @@ class BackfillJobQueue:
             # Flatten job data fields to top level
             **job_data,
             "progress": {k.decode(): v.decode() for k, v in progress.items()},
-            "retry_count": int(retry_count) if retry_count else 0
+            "retry_count": self._parse_retry_count(retry_count)
         }
+
+    @staticmethod
+    def _parse_retry_count(retry_count: Optional[bytes]) -> int:
+        """Parse stored retry counter, tolerating corrupt/non-numeric values."""
+        if not retry_count:
+            return 0
+        try:
+            return int(retry_count)
+        except (TypeError, ValueError):
+            return 0
 
     async def update_job_progress(
         self,

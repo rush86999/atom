@@ -425,13 +425,17 @@ class ParameterValidator:
             if value is None and param.default_value is not None:
                 value = param.default_value
 
+            # Optional parameters with no value are valid
+            if value is None:
+                return True, None
+
             # Type validation
             if param.type == ParameterType.STRING:
                 if not isinstance(value, str):
                     return False, f"{param.label} must be a string"
 
             elif param.type == ParameterType.NUMBER:
-                if not isinstance(value, (int, float)):
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
                     return False, f"{param.label} must be a number"
 
             elif param.type == ParameterType.BOOLEAN:
@@ -447,6 +451,8 @@ class ParameterValidator:
                     if value not in param.options:
                         return False, f"{param.label} must be one of: {', '.join(param.options)}"
                 else:  # MULTISELECT
+                    if not isinstance(value, list):
+                        return False, f"{param.label} must be an array"
                     if not all(v in param.options for v in value):
                         return False, f"All {param.label} values must be from: {', '.join(param.options)}"
 
@@ -471,7 +477,7 @@ class ParameterValidator:
 
         except Exception as e:
             logger.error(f"Parameter validation error: {e}")
-            return False, f"Validation failed: {str(e)}"
+            return False, "Validation failed"
 
 class ExecutionEngine:
     """Advanced workflow execution engine"""
@@ -549,6 +555,10 @@ class ExecutionEngine:
         if not state:
             raise ValueError(f"Workflow {workflow_id} not found")
 
+        # Refuse duplicate concurrent execution
+        if workflow_id in self.running_workflows:
+            raise ValueError(f"Workflow {workflow_id} is already running")
+
         workflow = AdvancedWorkflowDefinition(**state)
 
         # Validate inputs
@@ -561,6 +571,26 @@ class ExecutionEngine:
             return {
                 "status": "waiting_for_input",
                 "missing_parameters": missing_inputs,
+                "current_step": workflow.current_step
+            }
+
+        # Validate provided input types against the schema
+        validation_errors: Dict[str, str] = {}
+        for param in workflow.input_schema:
+            if param.name not in inputs:
+                continue
+            is_valid, error = ParameterValidator.validate_parameter(param, inputs[param.name])
+            if not is_valid:
+                validation_errors[param.name] = error or f"{param.label} is invalid"
+        if validation_errors:
+            workflow.state = WorkflowState.WAITING_FOR_INPUT
+            workflow.user_inputs.update(inputs)
+            self.state_manager.save_state(workflow_id, workflow.dict())
+
+            return {
+                "status": "waiting_for_input",
+                "missing_parameters": missing_inputs,
+                "validation_errors": validation_errors,
                 "current_step": workflow.current_step
             }
 
@@ -607,7 +637,12 @@ class ExecutionEngine:
         return missing
 
     def _should_show_parameter(self, param: InputParameter, inputs: Dict[str, Any]) -> bool:
-        """Check if parameter should be shown based on conditions"""
+        """Check if parameter should be shown based on conditions.
+
+        Mirrors the definition-level ``_should_show_parameter`` semantics: a
+        parameter whose trigger field is absent is hidden, so its required inputs
+        are not demanded before the trigger exists.
+        """
         if not param.show_when:
             return True
 
@@ -615,9 +650,13 @@ class ExecutionEngine:
         # Format: {"parameter_name": "value"} or {"parameter_name": {"operator": "value"}}
         for param_name, condition in param.show_when.items():
             if param_name not in inputs:
-                continue
+                return False
 
-            if isinstance(condition, dict):
+            if isinstance(condition, list):
+                # Parameter should be shown if field value is in the list
+                if inputs[param_name] not in condition:
+                    return False
+            elif isinstance(condition, dict):
                 # Complex condition
                 for operator, value in condition.items():
                     if operator == "equals" and inputs[param_name] != value:
@@ -684,6 +723,10 @@ class ExecutionEngine:
                 if state and state.get("state") == WorkflowState.PAUSED:
                     break
 
+                # Skip steps already completed before a pause/resume cycle
+                if step_id in workflow.step_results:
+                    continue
+
                 step = next(s for s in workflow.steps if s.step_id == step_id)
                 workflow.current_step = step_id
 
@@ -699,6 +742,13 @@ class ExecutionEngine:
                 # Update state
                 workflow.updated_at = datetime.now()
                 self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+                # A failed step fails the workflow
+                if result.get("status") == "error":
+                    workflow.state = WorkflowState.FAILED
+                    workflow.current_step = None
+                    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+                    return
 
             # Mark as completed
             workflow.state = WorkflowState.COMPLETED
@@ -803,7 +853,7 @@ class ExecutionEngine:
 
         return False
 
-    def resume_workflow(self, workflow_id: str, additional_inputs: Dict[str, Any] = {}) -> Dict[str, Any]:
+    def resume_workflow(self, workflow_id: str, additional_inputs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Resume paused workflow"""
         state = self.state_manager.load_state(workflow_id)
         if not state or state.get("state") != WorkflowState.PAUSED:
@@ -916,11 +966,14 @@ class AdvancedWorkflowSystem:
             "steps": [s.dict() for s in steps],
             "step_connections": step_connections,
             "input_schema": [],
-            "state": WorkflowState.DRAFT
+            "state": WorkflowState.DRAFT.value
         }
 
+        workflow = AdvancedWorkflowDefinition(**workflow_def)
+        self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
         return WorkflowResult(
-            workflow_id=workflow_def["workflow_id"],
+            workflow_id=workflow.workflow_id,
             execution_mode="parallel",
             branches=len(definition.get("parallel_branches", [])),
             created_at=datetime.now()
@@ -960,11 +1013,14 @@ class AdvancedWorkflowSystem:
             "steps": [s.dict() for s in steps],
             "step_connections": [],
             "input_schema": [],
-            "state": WorkflowState.DRAFT
+            "state": WorkflowState.DRAFT.value
         }
 
+        workflow = AdvancedWorkflowDefinition(**workflow_def)
+        self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
         return WorkflowResult(
-            workflow_id=workflow_def["workflow_id"],
+            workflow_id=workflow.workflow_id,
             execution_mode="conditional",
             conditions=len(conditions),
             created_at=datetime.now()

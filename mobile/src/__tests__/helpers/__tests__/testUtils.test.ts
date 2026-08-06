@@ -140,6 +140,12 @@ describe('testUtils', () => {
   // ========================================================================
 
   describe('Async Utilities', () => {
+    beforeEach(() => {
+      // wait() and waitForAsync() rely on real setTimeout — fake timers
+      // (enabled by jest.setup.js) would never let them resolve.
+      jest.useRealTimers();
+    });
+
     it('should wait for async callback', async () => {
       let value = 0;
 

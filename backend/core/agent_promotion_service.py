@@ -102,7 +102,7 @@ class AgentPromotionService:
 
         # Get all agents that could be promoted
         promotable_agents = self.db.query(AgentRegistry).filter(
-            AgentRegistry.status.in_(["INTERN", "SUPERVISED"])
+            AgentRegistry.status.in_([AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value])
         ).all()
 
         for agent in promotable_agents:
@@ -155,7 +155,13 @@ class AgentPromotionService:
                     "reason": f"Agent is already {agent.status}"
                 }
 
-        return self._evaluate_agent_for_promotion(agent, target_status)
+        return self._normalize_evaluation(self._evaluate_agent_for_promotion(agent, target_status))
+
+    def _normalize_evaluation(self, evaluation: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize evaluation dict to include the 'ready' alias key."""
+        result = dict(evaluation)
+        result["ready"] = result["ready_for_promotion"]
+        return result
 
     def _evaluate_agent_for_promotion(
         self,
@@ -299,16 +305,21 @@ class AgentPromotionService:
 
         # 5. Confidence score threshold
         total_criteria += 1
-        if agent.confidence_score >= PromotionCriteria.SUPERVISED_MIN_CONFIDENCE:
+        if target_status == "SUPERVISED":
+            min_confidence = PromotionCriteria.SUPERVISED_MIN_CONFIDENCE
+        else:
+            min_confidence = PromotionCriteria.AUTONOMOUS_MIN_CONFIDENCE
+
+        if agent.confidence_score >= min_confidence:
             criteria_met["confidence_score"] = (
                 f"✓ {agent.confidence_score:.2f} confidence "
-                f"(≥ {PromotionCriteria.SUPERVISED_MIN_CONFIDENCE})"
+                f"(≥ {min_confidence})"
             )
             readiness_score += 1.0
         else:
             criteria_failed["confidence_score"] = (
                 f"✗ {agent.confidence_score:.2f} confidence "
-                f"(need ≥ {PromotionCriteria.SUPERVISED_MIN_CONFIDENCE})"
+                f"(need ≥ {min_confidence})"
             )
 
         # 6. Execution success rate
@@ -394,7 +405,7 @@ class AgentPromotionService:
         # Determine path
         path = []
 
-        if current_status == "STUDENT":
+        if current_status == AgentStatus.STUDENT.value:
             # Path: STUDENT -> INTERN -> SUPERVISED -> AUTONOMOUS
             path.append({
                 "from": "STUDENT",
@@ -407,7 +418,7 @@ class AgentPromotionService:
                 ]
             })
 
-        if current_status in ["STUDENT", "INTERN"]:
+        if current_status in [AgentStatus.STUDENT.value, AgentStatus.INTERN.value]:
             # Path: INTERN -> SUPERVISED
             evaluation = self._evaluate_agent_for_promotion(agent, "SUPERVISED")
             path.append({
@@ -426,7 +437,11 @@ class AgentPromotionService:
                 "criteria_failed": evaluation["criteria_failed"]
             })
 
-        if current_status in ["STUDENT", "INTERN", "SUPERVISED"]:
+        if current_status in [
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value
+        ]:
             # Path: SUPERVISED -> AUTONOMOUS
             evaluation = self._evaluate_agent_for_promotion(agent, "AUTONOMOUS")
             path.append({

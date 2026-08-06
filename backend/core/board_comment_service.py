@@ -137,20 +137,19 @@ class BoardCommentService:
     ) -> list[AgentMessage]:
         self._get_task_scoped(board_id, task_id)
 
-        q = (
-            self.db.query(AgentMessage)
-            .filter(
-                AgentMessage.conversation_id == task_conversation_id(task_id),
-                AgentMessage.message_type == "board_comment",
-            )
-            .order_by(AgentMessage.created_at.asc())
-            .limit(min(limit, 500))
+        q = self.db.query(AgentMessage).filter(
+            AgentMessage.conversation_id == task_conversation_id(task_id),
+            AgentMessage.message_type == "board_comment",
         )
         if before_id is not None:
             cursor = self.db.query(AgentMessage).filter(AgentMessage.id == before_id).first()
             if cursor is not None:
                 q = q.filter(AgentMessage.created_at < cursor.created_at)
-        return q.all()
+        return (
+            q.order_by(AgentMessage.created_at.asc())
+            .limit(min(limit, 500))
+            .all()
+        )
 
     def build_thread_tree(self, messages: list[AgentMessage]) -> list[dict[str, Any]]:
         nodes: dict[str, dict[str, Any]] = {}

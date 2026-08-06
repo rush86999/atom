@@ -24,60 +24,95 @@
 
 import axios from 'axios';
 
-// Create a mock axios instance that we can control
+// Create a mock axios instance that we can control.
+// NOTE: jest.config.js sets `restoreMocks: true`, which wipes jest.fn()
+// implementations before EVERY test — and `apiClient` is bound to this exact
+// instance at module load (axios.create runs once), so the instance must stay
+// stable while its implementations are re-installed in beforeEach below.
 let mockRequestImpl: any;
 let mockGetImpl: any;
 let mockPostImpl: any;
 let mockPutImpl: any;
 let mockDeleteImpl: any;
 
-const mockAxiosInstance = {
-  request: jest.fn().mockImplementation(async (config: any) => {
-    if (mockRequestImpl) {
-      return mockRequestImpl(config);
-    }
+const requestHandlers: Array<{ fulfilled: any; rejected: any }> = [];
+const responseHandlers: Array<{ fulfilled: any; rejected: any }> = [];
+
+// Dispatch a config through the (real) registered interceptor chains, then to
+// the per-method mock implementation. This lets lib/api.ts's ACTUAL retry
+// interceptor run against the mocked transport — the tests exercise the real
+// exponential-backoff logic, not a copy of it.
+const dispatch = async (config: any) => {
+  let chain = Promise.resolve(config);
+  for (const handler of requestHandlers) {
+    chain = chain.then(
+      (value) => handler.fulfilled(value),
+      (error) => (handler.rejected ? handler.rejected(error) : Promise.reject(error))
+    );
+  }
+  chain = chain.then((cfg) => {
+    const method = (cfg?.method || 'get').toLowerCase();
+    if (method === 'get' && mockGetImpl) return mockGetImpl(cfg.url, cfg);
+    if (method === 'post' && mockPostImpl) return mockPostImpl(cfg.url, cfg.data, cfg);
+    if (method === 'put' && mockPutImpl) return mockPutImpl(cfg.url, cfg.data, cfg);
+    if (method === 'delete' && mockDeleteImpl) return mockDeleteImpl(cfg.url, cfg);
+    if (mockRequestImpl) return mockRequestImpl(cfg);
     return { data: {} };
-  }),
-  get: jest.fn().mockImplementation(async (url: string, config?: any) => {
-    if (mockGetImpl) {
-      return mockGetImpl(url, config);
-    }
-    return { data: {} };
-  }),
-  post: jest.fn().mockImplementation(async (url: string, data?: any, config?: any) => {
-    if (mockPostImpl) {
-      return mockPostImpl(url, data, config);
-    }
-    return { data: {} };
-  }),
-  put: jest.fn().mockImplementation(async (url: string, data?: any, config?: any) => {
-    if (mockPutImpl) {
-      return mockPutImpl(url, data, config);
-    }
-    return { data: {} };
-  }),
-  delete: jest.fn().mockImplementation(async (url: string, config?: any) => {
-    if (mockDeleteImpl) {
-      return mockDeleteImpl(url, config);
-    }
-    return { data: {} };
-  }),
-  interceptors: {
-    request: {
-      use: jest.fn(),
+  });
+  for (const handler of responseHandlers) {
+    chain = chain.then(
+      (value) => handler.fulfilled(value),
+      (error) => (handler.rejected ? handler.rejected(error) : Promise.reject(error))
+    );
+  }
+  return chain;
+};
+
+const baseConfig = (url: string, config?: any) => ({
+  ...(config || {}),
+  url,
+  headers: { ...((config || {}).headers || {}), 'Content-Type': 'application/json' },
+});
+
+// Callable instance (api.ts's retry interceptor re-invokes `apiClient(config)`)
+const mockAxiosInstance: any = async (config: any) => dispatch(config);
+mockAxiosInstance.request = async (config: any) => dispatch({ ...config, headers: {} });
+mockAxiosInstance.get = async (url: string, config?: any) => dispatch({ ...baseConfig(url, config), method: 'GET' });
+mockAxiosInstance.post = async (url: string, data?: any, config?: any) => dispatch({ ...baseConfig(url, config), method: 'POST', data });
+mockAxiosInstance.put = async (url: string, data?: any, config?: any) => dispatch({ ...baseConfig(url, config), method: 'PUT', data });
+mockAxiosInstance.delete = async (url: string, config?: any) => dispatch({ ...baseConfig(url, config), method: 'DELETE' });
+mockAxiosInstance.interceptors = {
+  request: {
+    use: (fulfilled: any, rejected: any) => {
+      requestHandlers.push({ fulfilled, rejected });
+      return requestHandlers.length;
     },
-    response: {
-      use: jest.fn(),
+  },
+  response: {
+    use: (fulfilled: any, rejected: any) => {
+      responseHandlers.push({ fulfilled, rejected });
+      return responseHandlers.length;
     },
   },
 };
 
-// Mock axios.create to return our controlled instance
+// Mock axios.create to return our controlled instance.
+// NOTE: axios sets `default: axios` on its CJS export, so a plain
+// `{...requireActual('axios')}` spread would leave the real axios under
+// `.default` — with esModuleInterop, `import axios from 'axios'` (as used in
+// lib/api.ts) would bypass the mock entirely. Override `default` explicitly.
 jest.mock('axios', () => {
   const actualAxios = jest.requireActual('axios');
+  const mockCreate = jest.fn(() => mockAxiosInstance);
   return {
     ...actualAxios,
-    create: jest.fn(() => mockAxiosInstance),
+    __esModule: true,
+    default: {
+      ...actualAxios,
+      create: mockCreate,
+      isAxiosError: actualAxios.isAxiosError,
+    },
+    create: mockCreate,
     isAxiosError: actualAxios.isAxiosError,
   };
 });
@@ -178,7 +213,9 @@ describe('API Robustness - Automatic Retry with Exponential Backoff', () => {
       throw error;
     };
 
-    // Should fail after MAX_RETRIES (3 attempts: initial + 2 retries)
+    // Should fail after MAX_RETRIES (4 attempts: initial + 3 retries — the
+    // app's retry interceptor uses maxAttempts: MAX_RETRIES, where
+    // @lifeomic/attempt counts each retry AFTER the initial request)
     try {
       await apiClient.get('/api/test/max-retries');
       fail('Should have thrown error after MAX_RETRIES');
@@ -186,8 +223,8 @@ describe('API Robustness - Automatic Retry with Exponential Backoff', () => {
       expect(error.response?.status).toBe(503);
     }
 
-    // Verify 3 attempts were made (initial + 2 retries)
-    expect(attemptCount).toBe(3);
+    // Verify attempts were capped at 1 initial + MAX_RETRIES retries
+    expect(attemptCount).toBe(4);
   }, 20000);
 });
 
@@ -385,8 +422,8 @@ describe('API Robustness - Retry Exhaustion', () => {
       expect(error.response?.data?.error).toBe('Service Unavailable');
     }
 
-    // Verify MAX_RETRIES was reached (3 attempts total)
-    expect(attemptCount).toBe(3);
+    // Verify MAX_RETRIES was reached (1 initial + 3 retries)
+    expect(attemptCount).toBe(4);
   }, 20000);
 });
 

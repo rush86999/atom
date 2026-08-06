@@ -16,7 +16,7 @@
  * - Tap to view pending actions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,6 +57,9 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
 
   // Animation for connecting state
   const [rotateAnim] = useState(new Animated.Value(0));
+  // Ref mirrors isConnecting so the subscribe callback (which is created once
+  // per effect run) never closes over a stale value.
+  const isConnectingRef = useRef(false);
 
   useEffect(() => {
     // Subscribe to sync state changes
@@ -65,15 +68,16 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       setSyncProgress(state.syncProgress);
       setHasError(state.consecutiveFailures > 2);
 
-      // Show banner if offline or has pending actions
-      const shouldShow = !isOnline || state.pendingCount > 0 || state.syncInProgress;
-      setIsVisible(shouldShow && !dismissed);
+      // Status banner is always visible unless dismissed
+      setIsVisible(!dismissed);
 
       // Start/stop connecting animation
-      if (state.syncInProgress && !isConnecting) {
+      if (state.syncInProgress && !isConnectingRef.current) {
+        isConnectingRef.current = true;
         setIsConnecting(true);
         startRotationAnimation();
-      } else if (!state.syncInProgress && isConnecting) {
+      } else if (!state.syncInProgress && isConnectingRef.current) {
+        isConnectingRef.current = false;
         setIsConnecting(false);
         stopRotationAnimation();
       }
@@ -200,6 +204,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
 
   return (
     <TouchableOpacity
+      testID="indicator-container"
       style={[
         styles.container,
         { backgroundColor: getStatusColor() },
@@ -211,7 +216,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       <View style={styles.content}>
         <View style={styles.leftContent}>
           {isConnecting ? (
-            <Animated.View style={{ transform: [{ rotate }] }}>
+            <Animated.View testID="animated-icon" style={{ transform: [{ rotate }] }}>
               <Icon name={getStatusIcon()} size={24} color="#FFFFFF" />
             </Animated.View>
           ) : (
@@ -256,6 +261,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           )}
 
           <TouchableOpacity
+            testID="dismiss-button"
             style={styles.dismissButton}
             onPress={(e) => {
               e.stopPropagation();
@@ -268,8 +274,9 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       </View>
 
       {syncState.syncInProgress && (
-        <View style={styles.progressBarContainer}>
+        <View testID="progress-bar" style={styles.progressBarContainer}>
           <View
+            testID="progress-bar-fill"
             style={[
               styles.progressBar,
               { width: `${syncProgress}%` },

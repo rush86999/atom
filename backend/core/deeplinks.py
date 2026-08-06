@@ -20,7 +20,7 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 import uuid
 from sqlalchemy.orm import Session
 
@@ -121,8 +121,8 @@ def parse_deep_link(url: str) -> DeepLink:
     # Parse URL
     try:
         parsed = urlparse(url)
-    except Exception as e:
-        raise DeepLinkParseException(f"Invalid URL format: {e}")
+    except Exception:
+        raise DeepLinkParseException("Invalid URL format")
 
     # Validate scheme
     if parsed.scheme != "atom":
@@ -156,25 +156,28 @@ def parse_deep_link(url: str) -> DeepLink:
     parameters = {}
     if parsed.query:
         try:
-            query_dict = parse_qs(parsed.query)
+            # parse_qs already percent-decodes — do NOT unquote() again or the
+            # values are double-decoded (e.g. "50%2F100" -> "50/100").
+            query_dict = parse_qs(parsed.query, keep_blank_values=True)
             # Flatten single-value parameters
             for key, values in query_dict.items():
                 if len(values) == 1:
-                    # Decode URL-encoded values
-                    parameters[key] = unquote(values[0])
+                    parameters[key] = values[0]
                 else:
                     # Keep multiple values as list
-                    parameters[key] = [unquote(v) for v in values]
+                    parameters[key] = list(values)
 
             # Parse JSON parameters
             if 'params' in parameters:
                 try:
                     parameters['params'] = json.loads(parameters['params'])
-                except json.JSONDecodeError as e:
-                    raise DeepLinkParseException(f"Invalid JSON in params parameter: {e}")
+                except json.JSONDecodeError:
+                    raise DeepLinkParseException("Invalid JSON in params parameter")
 
-        except Exception as e:
-            raise DeepLinkParseException(f"Failed to parse query parameters: {e}")
+        except DeepLinkParseException:
+            raise
+        except Exception:
+            raise DeepLinkParseException("Failed to parse query parameters")
 
     # Validate resource ID (basic format check)
     if not resource_id or not isinstance(resource_id, str):
@@ -305,7 +308,7 @@ async def execute_agent_deep_link(
         logger.error(f"Failed to execute agent deep link: {e}")
         return {
             "success": False,
-            "error": str(e)
+            "error": "Deep link agent execution failed"
         }
 
 
@@ -568,13 +571,13 @@ async def execute_deep_link(
         logger.error(f"Deep link execution failed: {e}")
         return {
             "success": False,
-            "error": str(e)
+            "error": "Invalid deep link URL"
         }
     except Exception as e:
         logger.error(f"Unexpected error executing deep link: {e}")
         return {
             "success": False,
-            "error": f"Unexpected error: {str(e)}"
+            "error": "Deep link execution failed"
         }
 
 
@@ -607,6 +610,15 @@ def generate_deep_link(
     valid_resource_types = ['agent', 'workflow', 'canvas', 'tool']
     if resource_type not in valid_resource_types:
         raise ValueError(f"Invalid resource_type: '{resource_type}'")
+
+    # Validate resource ID — mirrors parse_deep_link. An id with spaces /
+    # path separators would generate a link that can never be parsed back.
+    if (
+        not isinstance(resource_id, str)
+        or not resource_id
+        or not re.match(r'^[a-zA-Z0-9_\-]+$', resource_id)
+    ):
+        raise ValueError("Invalid resource_id")
 
     # Build URL
     url = f"atom://{resource_type}/{resource_id}"

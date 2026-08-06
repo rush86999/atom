@@ -90,10 +90,12 @@ def search_relevant_fact_ids(
         return []
 
     try:
+        safe_ws = str(workspace_id or "").replace("'", "''")
         results = handler.search(
             table_name=_TABLE_NAME,
             query=query,
             limit=limit,
+            filter_str=f"workspace_id == '{safe_ws}'" if safe_ws else None,
         )
         if not results:
             return []

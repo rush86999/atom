@@ -56,8 +56,7 @@ describe('useCommunicationSearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('query=' + encodeURIComponent('test query')),
-        expect.any(Object)
+        expect.stringContaining('query=' + encodeURIComponent('test query'))
       );
     });
 
@@ -349,8 +348,7 @@ describe('useCommunicationSearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/atom/communication/memory/search?query=test&limit=20',
-        expect.any(Object)
+        '/api/atom/communication/memory/search?query=test&limit=20'
       );
     });
 
@@ -369,8 +367,7 @@ describe('useCommunicationSearch Hook', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/atom/communication/memory/search?query=' +
           encodeURIComponent('test query with spaces') +
-          '&limit=20',
-        expect.any(Object)
+          '&limit=20'
       );
     });
 
@@ -387,8 +384,7 @@ describe('useCommunicationSearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining(encodeURIComponent('test & query + special')),
-        expect.any(Object)
+        expect.stringContaining(encodeURIComponent('test & query + special'))
       );
     });
 
@@ -405,8 +401,7 @@ describe('useCommunicationSearch Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('limit=20'),
-        expect.any(Object)
+        expect.stringContaining('limit=20')
       );
     });
   });

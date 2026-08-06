@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent } from '../../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { InteractiveForm } from '../InteractiveForm';
@@ -666,8 +666,11 @@ describe('InteractiveForm - Boundary Value Tests for String Length', () => {
 
     const input = screen.getByLabelText(/long/i);
 
+    // fireEvent.change (not user.type) — typing 10k chars through user-event
+    // exceeds the 30s jest timeout under parallel load and its leftover
+    // keystrokes corrupt subsequent tests
     const longString = 'a'.repeat(10000);
-    await user.type(input, longString);
+    fireEvent.change(input, { target: { value: longString } });
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {

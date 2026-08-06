@@ -6,6 +6,7 @@
  */
 
 import { renderWithProviders, screen } from '../../tests/test-utils';
+import React from 'react';
 import axe from '../../tests/accessibility-config';
 import {
   Select,

@@ -555,6 +555,10 @@ class LocationService {
       const data = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
       if (data) {
         this.locationHistory = JSON.parse(data);
+        // Bound the in-memory history the same way addToHistory does
+        if (this.locationHistory.length > MAX_HISTORY_ENTRIES) {
+          this.locationHistory = this.locationHistory.slice(-MAX_HISTORY_ENTRIES);
+        }
         console.log('LocationService: Location history loaded', this.locationHistory.length, 'entries');
       }
     } catch (error) {

@@ -17,10 +17,20 @@ const mockNavigation = {
   reset: jest.fn(),
 };
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => mockNavigation,
-  useFocusEffect: jest.requireActual('@react-navigation/native').useFocusEffect,
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useNavigation: () => mockNavigation,
+    // The real useFocusEffect requires a NavigationContainer context; invoke
+    // the focus callback on mount instead.
+    useFocusEffect: (callback: any) => {
+      React.useEffect(() => {
+        return callback();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+    },
+  };
+});
 
 // Mock react-native-paper
 jest.mock('react-native-paper', () => ({
@@ -45,7 +55,12 @@ jest.mock('react-native-paper', () => ({
   },
   Badge: ({ children, style }: any) => {
     const React = require('react');
-    return <React.Fragment testID="badge">{children}</React.Fragment>;
+    const { View, Text } = require('react-native');
+    return (
+      <View testID="badge" style={style}>
+        <Text>{children}</Text>
+      </View>
+    );
   },
   Searchbar: ({ onChangeText, value, style }: any) => {
     const React = require('react');
@@ -136,9 +151,17 @@ jest.mock('../../../services/chatService', () => ({
   },
 }));
 
-// Mock date-fns
+// Mock date-fns (compute distance from the real timestamp so items with
+// different last_message_time render different labels)
 jest.mock('date-fns', () => ({
-  formatDistanceToNow: (date: Date, options: any) => '5 minutes ago',
+  formatDistanceToNow: (date: Date, options: any) => {
+    const diffMs = Date.now() - date.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins} minutes ago`;
+    const hours = Math.floor(mins / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  },
 }));
 
 // Mock Alert
@@ -313,7 +336,9 @@ describe('ConversationListScreen', () => {
         expect(getByText('Test Agent 1')).toBeTruthy();
       });
 
-      fireEvent.changeText(searchInput, '');
+      // Re-query the searchbar: the element reference goes stale after the
+      // re-render and fireEvent no-ops on unmounted elements.
+      fireEvent.changeText(screen.getByTestId('searchbar'), '');
 
       await waitFor(() => {
         expect(getByText('Test Agent 2')).toBeTruthy();
@@ -362,11 +387,12 @@ describe('ConversationListScreen', () => {
         expect(getByText('Test Agent 1')).toBeTruthy();
       });
 
-      const maturityChip = screen.getByText('All Levels');
+      const maturityChip = screen.getByTestId('chip-All Levels');
       fireEvent.press(maturityChip);
 
       await waitFor(() => {
-        expect(getByText('AUTONOMOUS')).toBeTruthy();
+        expect(getByText('Test Agent 1')).toBeTruthy();
+        expect(screen.getAllByTestId('chip-AUTONOMOUS').length).toBeGreaterThan(0);
       });
     });
 
@@ -377,16 +403,14 @@ describe('ConversationListScreen', () => {
         expect(getByText('Test Agent 1')).toBeTruthy();
       });
 
-      const maturityChip = screen.getByText('All Levels');
-
       // Press to cycle: ALL -> AUTONOMOUS
-      fireEvent.press(maturityChip);
+      fireEvent.press(screen.getAllByTestId('chip-All Levels')[0]);
 
       // Press again: AUTONOMOUS -> SUPERVISED
-      fireEvent.press(screen.getByText('AUTONOMOUS'));
+      fireEvent.press(screen.getAllByTestId('chip-AUTONOMOUS')[0]);
 
       await waitFor(() => {
-        expect(getByText('SUPERVISED')).toBeTruthy();
+        expect(screen.getAllByTestId('chip-SUPERVISED').length).toBeGreaterThan(0);
       });
     });
 
@@ -397,17 +421,15 @@ describe('ConversationListScreen', () => {
         expect(getByText('Test Agent 1')).toBeTruthy();
       });
 
-      const maturityChip = screen.getByText('All Levels');
-
       // Cycle through all options
-      fireEvent.press(maturityChip); // ALL -> AUTONOMOUS
-      fireEvent.press(screen.getByText('AUTONOMOUS')); // AUTONOMOUS -> SUPERVISED
-      fireEvent.press(screen.getByText('SUPERVISED')); // SUPERVISED -> INTERN
-      fireEvent.press(screen.getByText('INTERN')); // INTERN -> STUDENT
-      fireEvent.press(screen.getByText('STUDENT')); // STUDENT -> ALL
+      fireEvent.press(screen.getAllByTestId('chip-All Levels')[0]); // ALL -> AUTONOMOUS
+      fireEvent.press(screen.getAllByTestId('chip-AUTONOMOUS')[0]); // AUTONOMOUS -> SUPERVISED
+      fireEvent.press(screen.getAllByTestId('chip-SUPERVISED')[0]); // SUPERVISED -> INTERN
+      fireEvent.press(screen.getAllByTestId('chip-INTERN')[0]); // INTERN -> STUDENT
+      fireEvent.press(screen.getAllByTestId('chip-STUDENT')[0]); // STUDENT -> ALL
 
       await waitFor(() => {
-        expect(getByText('All Levels')).toBeTruthy();
+        expect(screen.getAllByTestId('chip-All Levels').length).toBeGreaterThan(0);
       });
     });
   });

@@ -29,6 +29,7 @@ from core.auth import (
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import MobileDevice, User, UserStatus
+from core.security.auth_rate_limit import login_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -97,14 +98,16 @@ class DeviceInfoResponse(BaseModel):
 
 @router.post("/mobile/login", response_model=MobileLoginResponse)
 async def mobile_login(
-    request: MobileLoginRequest,
-    db: Session = Depends(get_db)
+    request: Request,
+    login_data: MobileLoginRequest,
+    db: Session = Depends(get_db),
 ):
     """
     Mobile login with automatic device registration.
 
     Args:
-        request: Login credentials and device information
+        request: HTTP request (for rate-limit enforcement)
+        login_data: Login credentials and device information
         db: Database session
 
     Returns:
@@ -114,13 +117,15 @@ async def mobile_login(
         401: Invalid credentials
         400: Invalid request data
     """
+    limiter = request.app.dependency_overrides.get(login_rate_limit, login_rate_limit)
+    limiter(request)
     try:
         # Authenticate user
         result = await authenticate_mobile_user(
-            email=request.email,
-            password=request.password,
-            device_token=request.device_token,
-            platform=request.platform,
+            email=login_data.email,
+            password=login_data.password,
+            device_token=login_data.device_token,
+            platform=login_data.platform,
             db=db
         )
 
@@ -131,18 +136,18 @@ async def mobile_login(
             )
 
         # Update device info if provided
-        if request.device_info and result.get("user"):
+        if login_data.device_info and result.get("user"):
             user_id = result["user"]["id"]
             device = db.query(MobileDevice).filter(
-                MobileDevice.device_token == request.device_token
+                MobileDevice.device_token == login_data.device_token
             ).first()
 
             if device:
-                device.device_info = request.device_info
+                device.device_info = login_data.device_info
                 device.last_active = datetime.now(timezone.utc)
                 db.commit()
 
-        logger.info(f"Mobile login successful for {request.email}")
+        logger.info(f"Mobile login successful for {login_data.email}")
 
         return MobileLoginResponse(**result)
 
@@ -253,6 +258,16 @@ async def authenticate_with_biometric(
             raise router.validation_error(
                 "biometric",
                 "Biometric not registered for this device"
+            )
+
+        # SECURITY: the signature must be over the challenge the server issued
+        # at registration. Previously the client-supplied challenge was used
+        # verbatim, so any captured (challenge, signature) pair replayed — the
+        # server never checked the registered challenge.
+        if not stored_challenge or request.challenge != stored_challenge:
+            raise router.validation_error(
+                "challenge",
+                "Invalid authentication challenge"
             )
 
         # Verify signature

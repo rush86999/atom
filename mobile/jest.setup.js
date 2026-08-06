@@ -133,10 +133,23 @@ jest.mock('expo-camera', () => {
 
   const isAvailableAsync = jest.fn().mockResolvedValue(true);
 
+  // Top-level takePictureAsync/recordAsync — helpers (mockExpoModules) and
+  // older tests access them on the module root, not just CameraView.
+  const takePictureAsync = jest.fn().mockResolvedValue({
+    uri: 'file:///mock/photo.jpg',
+    width: 1920,
+    height: 1080,
+  });
+  const recordAsync = jest.fn().mockResolvedValue({
+    uri: 'file:///mock/video.mp4',
+  });
+
   return {
     requestCameraPermissionsAsync,
     getCameraPermissionsAsync,
     isAvailableAsync,
+    takePictureAsync,
+    recordAsync,
     Camera: {
       Constants: {
         Type: CameraType,
@@ -161,14 +174,8 @@ jest.mock('expo-camera', () => {
       requestCameraPermissionsAsync,
       getCameraPermissionsAsync,
       isAvailableAsync,
-      takePictureAsync: jest.fn().mockResolvedValue({
-        uri: 'file:///mock/photo.jpg',
-        width: 1920,
-        height: 1080,
-      }),
-      recordAsync: jest.fn().mockResolvedValue({
-        uri: 'file:///mock/video.mp4',
-      }),
+      takePictureAsync,
+      recordAsync,
       savePhotoToLibraryAsync: jest.fn().mockResolvedValue(undefined),
     },
     CameraType,
@@ -386,6 +393,26 @@ jest.mock('expo-secure-store', () => ({
 // Export helper to reset mock store for tests
 global.__resetSecureStoreMock = () => {
   mockSecureStore.clear();
+  // Restore the default map-based implementation. Test helpers (e.g.
+  // storageTestHelpers.mockSecureStoreState) replace getItemAsync with
+  // mockImplementation(), which persists across tests and keeps serving
+  // stale values after the map is cleared.
+  const secureStoreMock = require('expo-secure-store');
+  if (typeof secureStoreMock.getItemAsync === 'function') {
+    secureStoreMock.getItemAsync.mockImplementation(async (key) => {
+      return mockSecureStore.get(key) || null;
+    });
+  }
+  if (typeof secureStoreMock.setItemAsync === 'function') {
+    secureStoreMock.setItemAsync.mockImplementation(async (key, value) => {
+      mockSecureStore.set(key, value);
+    });
+  }
+  if (typeof secureStoreMock.deleteItemAsync === 'function') {
+    secureStoreMock.deleteItemAsync.mockImplementation(async (key) => {
+      mockSecureStore.delete(key);
+    });
+  }
 };
 
 // ============================================================================
@@ -394,60 +421,112 @@ global.__resetSecureStoreMock = () => {
 
 const mockAsyncStorage = new Map();
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn().mockImplementation((key) => {
-    return Promise.resolve(mockAsyncStorage.get(key) || null);
-  }),
-  setItem: jest.fn().mockImplementation((key, value) => {
-    mockAsyncStorage.set(key, value);
-    return Promise.resolve(undefined);
-  }),
-  removeItem: jest.fn().mockImplementation((key) => {
-    mockAsyncStorage.delete(key);
-    return Promise.resolve(undefined);
-  }),
-  mergeItem: jest.fn().mockImplementation((key, value) => {
-    const existing = JSON.parse(mockAsyncStorage.get(key) || '{}');
-    const merged = { ...existing, ...JSON.parse(value) };
-    mockAsyncStorage.set(key, JSON.stringify(merged));
-    return Promise.resolve(undefined);
-  }),
-  clear: jest.fn().mockImplementation(() => {
-    mockAsyncStorage.clear();
-    return Promise.resolve(undefined);
-  }),
-  getAllKeys: jest.fn().mockImplementation(() => {
-    return Promise.resolve(Array.from(mockAsyncStorage.keys()));
-  }),
-  multiGet: jest.fn().mockImplementation((keys) => {
-    const pairs = keys.map((key) => [key, mockAsyncStorage.get(key) || null]);
-    return Promise.resolve(pairs);
-  }),
-  multiSet: jest.fn().mockImplementation((keyValuePairs) => {
-    keyValuePairs.forEach(([key, value]) => {
+jest.mock('@react-native-async-storage/async-storage', () => {
+  // NOTE: named and default exports MUST share the same jest.fn() instances.
+  // Services `import AsyncStorage from '@react-native-async-storage/async-storage'`
+  // (resolves to the `default` object here) while tests patch the named exports
+  // via `require(...)` — separate fns made mockRejectedValueOnce/mockResolvedValue
+  // patches silently no-op for whichever export the service consumed.
+  const mockFns = {
+    getItem: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockAsyncStorage.get(key) || null);
+    }),
+    setItem: jest.fn().mockImplementation((key, value) => {
       mockAsyncStorage.set(key, value);
-    });
-    return Promise.resolve(undefined);
-  }),
-  multiRemove: jest.fn().mockImplementation((keys) => {
-    keys.forEach((key) => {
+      return Promise.resolve(undefined);
+    }),
+    removeItem: jest.fn().mockImplementation((key) => {
       mockAsyncStorage.delete(key);
-    });
-    return Promise.resolve(undefined);
-  }),
-  multiMerge: jest.fn().mockImplementation((keyValuePairs) => {
-    keyValuePairs.forEach(([key, value]) => {
+      return Promise.resolve(undefined);
+    }),
+    mergeItem: jest.fn().mockImplementation((key, value) => {
       const existing = JSON.parse(mockAsyncStorage.get(key) || '{}');
       const merged = { ...existing, ...JSON.parse(value) };
       mockAsyncStorage.set(key, JSON.stringify(merged));
-    });
-    return Promise.resolve(undefined);
-  }),
-}));
+      return Promise.resolve(undefined);
+    }),
+    clear: jest.fn().mockImplementation(() => {
+      mockAsyncStorage.clear();
+      return Promise.resolve(undefined);
+    }),
+    getAllKeys: jest.fn().mockImplementation(() => {
+      return Promise.resolve(Array.from(mockAsyncStorage.keys()));
+    }),
+    multiGet: jest.fn().mockImplementation((keys) => {
+      const pairs = keys.map((key) => [key, mockAsyncStorage.get(key) || null]);
+      return Promise.resolve(pairs);
+    }),
+    multiSet: jest.fn().mockImplementation((keyValuePairs) => {
+      keyValuePairs.forEach(([key, value]) => {
+        mockAsyncStorage.set(key, value);
+      });
+      return Promise.resolve(undefined);
+    }),
+    multiRemove: jest.fn().mockImplementation((keys) => {
+      keys.forEach((key) => {
+        mockAsyncStorage.delete(key);
+      });
+      return Promise.resolve(undefined);
+    }),
+    multiMerge: jest.fn().mockImplementation((keyValuePairs) => {
+      keyValuePairs.forEach(([key, value]) => {
+        const existing = JSON.parse(mockAsyncStorage.get(key) || '{}');
+        const merged = { ...existing, ...JSON.parse(value) };
+        mockAsyncStorage.set(key, JSON.stringify(merged));
+      });
+      return Promise.resolve(undefined);
+    }),
+  };
+
+  return {
+    __esModule: true,
+    ...mockFns,
+    default: mockFns,
+  };
+});
 
 // Export helper to reset mock storage for tests
 global.__resetAsyncStorageMock = () => {
   mockAsyncStorage.clear();
+  // Restore the default map-based implementation (see __resetSecureStoreMock
+  // for why overrides persist past clearAllMocks). Some test files automock
+  // the module, so guard every method and patch both named and default
+  // exports when present.
+  const asyncStorageMock = require('@react-native-async-storage/async-storage');
+  const targets = [asyncStorageMock];
+  if (
+    asyncStorageMock.default &&
+    typeof asyncStorageMock.default.getItem === 'function'
+  ) {
+    targets.push(asyncStorageMock.default);
+  }
+  const impls = {
+    getItem: async (key) => {
+      return mockAsyncStorage.get(key) || null;
+    },
+    setItem: async (key, value) => {
+      mockAsyncStorage.set(key, value);
+      return undefined;
+    },
+    removeItem: async (key) => {
+      mockAsyncStorage.delete(key);
+      return undefined;
+    },
+    clear: async () => {
+      mockAsyncStorage.clear();
+      return undefined;
+    },
+    getAllKeys: async () => {
+      return Array.from(mockAsyncStorage.keys());
+    },
+  };
+  for (const target of targets) {
+    for (const [method, impl] of Object.entries(impls)) {
+      if (typeof target[method] === 'function') {
+        target[method].mockImplementation(impl);
+      }
+    }
+  }
 };
 
 // ============================================================================
@@ -581,6 +660,29 @@ jest.mock('react-native-mmkv', () => {
     enumerable: false,
   });
   return mockModule;
+}, { virtual: true });
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
 }, { virtual: true });
 
 // Export helper to reset mock MMKV storage for tests
@@ -753,11 +855,35 @@ jest.mock('@expo/vector-icons', () => {
   const FontAwesome = createIconSet();
 
   return {
+    __esModule: true,
     Ionicons,
     MaterialIcons,
     FontAwesome,
     default: Ionicons,
   };
+}, { virtual: true });
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
 }, { virtual: true });
 
 // react-native-paper's MaterialCommunityIcon requires the subpath
@@ -779,7 +905,75 @@ jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => {
     loadAsync: jest.fn().mockResolvedValue(undefined),
   };
 
-  return { default: Icon, MaterialCommunityIcons: Icon };
+  return { __esModule: true, default: Icon, MaterialCommunityIcons: Icon };
+}, { virtual: true });
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
+
+// jest-expo maps react-native-vector-icons/* to @expo/vector-icons/* — the
+// Ionicons subpath is imported by several components (SyncProgressModal, etc.).
+jest.mock('@expo/vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
 }, { virtual: true });
 
 // ============================================================================
@@ -832,6 +1026,60 @@ jest.mock('react-native-svg', () => ({
   Pattern: 'Pattern',
   Mask: 'Mask',
 }), { virtual: true });
+
+// ============================================================================
+// victory-native Mock (charts render through react-native-svg; light View
+// stand-ins keep Victory's shared-event machinery from crashing in Jest)
+// ============================================================================
+
+jest.mock('victory-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const MockVictory = (props) => React.createElement(View, { ...props, pointerEvents: 'none' });
+
+  return {
+    VictoryChart: MockVictory,
+    VictoryLine: MockVictory,
+    VictoryArea: MockVictory,
+    VictoryAxis: MockVictory,
+    VictoryLegend: MockVictory,
+    VictoryTooltip: MockVictory,
+    VictoryVoronoiContainer: MockVictory,
+    VictoryScatter: MockVictory,
+    VictoryBar: MockVictory,
+    VictoryPie: MockVictory,
+    VictoryLabel: MockVictory,
+    VictoryTheme: {
+      material: {},
+      grayscale: {},
+    },
+    default: {},
+  };
+}, { virtual: true });
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
 
 // ============================================================================
 // expo-sharing Mock
@@ -906,6 +1154,29 @@ jest.mock('react-native-safe-area-context', () => {
   };
 }, { virtual: true });
 
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
+
 // ============================================================================
 // Mock Timers for Async Tests
 // ============================================================================
@@ -931,6 +1202,11 @@ afterEach(() => {
   // Reset AsyncStorage mock storage
   if (global.__resetAsyncStorageMock) {
     global.__resetAsyncStorageMock();
+  }
+
+  // Reset SecureStore mock storage (secureGet migrations can write into it)
+  if (global.__resetSecureStoreMock) {
+    global.__resetSecureStoreMock();
   }
 });
 
@@ -1036,6 +1312,29 @@ jest.mock('react-native/Libraries/AppState/AppState', () => {
   };
 }, { virtual: true });
 
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
+
 // ============================================================================
 // expo-linking Mock
 // ============================================================================
@@ -1051,11 +1350,20 @@ jest.mock('expo-linking', () => ({
 
       let pathWithQuery = withoutFragment;
       let scheme = null;
+      let hostname = null;
       if (schemeMatch) {
         scheme = schemeMatch[1];
         // Everything after scheme:// is path + query (custom schemes have no
         // meaningful authority for the app's deep link routes).
         pathWithQuery = withoutFragment.slice(schemeMatch[0].length);
+        // Standard web schemes DO carry a meaningful authority — real
+        // expo-linking parses https://atom.ai/workflow/x as hostname
+        // 'atom.ai' with path '/workflow/x', so mirror that here.
+        if (scheme === 'http' || scheme === 'https') {
+          const [authority, ...rest] = pathWithQuery.split('/');
+          hostname = authority || null;
+          pathWithQuery = rest.join('/');
+        }
       }
 
       const [path, queryString = ''] = pathWithQuery.split('?');
@@ -1066,7 +1374,7 @@ jest.mock('expo-linking', () => ({
 
       return {
         path: path || null,
-        hostname: null,
+        hostname,
         scheme,
         queryParams,
         pathSegments: (path || '').split('/').filter(Boolean),

@@ -103,19 +103,28 @@ def is_tool_allowed(allowed: Tuple[str, ...], tool_name: str) -> bool:
     """Check whether ``tool_name`` is permitted under a resolved ``allowed`` set.
 
     ``("*",)`` permits anything. Otherwise membership is checked exactly.
-    Dotted action-registry names (e.g. 'documents.search') are treated as
-    unrestricted-safe: they are application-level actions layered ABOVE the tool
-    whitelist (which governs raw agent tools), so we permit them regardless of
-    the tool whitelist. Raw tools (memory_*, browser_*, etc.) are gated.
+    Dotted names are permitted ONLY when they are actually registered
+    action-registry actions (e.g. 'documents.search'): those are application-
+    level actions layered ABOVE the tool whitelist and governed by the
+    action_registry + gatekeeper (P3), not the tool floor. Unregistered dotted
+    names (e.g. tools exposed by a malicious external MCP server) must not slip
+    past the whitelist. An empty ``allowed`` set resolves to deny-all: it only
+    arises from an empty tier-floor intersection and must never widen to
+    unrestricted.
     """
-    if not allowed or allowed == UNRESTRICTED:
+    if not isinstance(tool_name, str):
+        return False
+    if allowed == UNRESTRICTED:
         return True
     if tool_name in allowed:
         return True
-    # Action-registry names (dotted) bypass the raw-tool whitelist — they are
-    # governed by the action_registry + gatekeeper (P3), not the tool floor.
     if "." in tool_name:
-        return True
+        try:
+            from core.action_registry import action_registry
+
+            return action_registry.get_action(tool_name) is not None
+        except Exception:
+            return False
     return False
 
 

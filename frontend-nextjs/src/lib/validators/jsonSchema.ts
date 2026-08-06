@@ -1,7 +1,12 @@
-import Ajv from 'ajv';
+// Use the 2020-12 flavor of ajv: the plain Ajv class only ships the draft-07
+// meta-schema, so any schema declaring $schema: draft/2019-09 or draft/2020-12
+// (e.g. the entity modal's DEFAULT_SCHEMA) failed with "no schema with key or
+// ref", which made entity-type creation impossible. Ajv2020 knows the
+// 2020-12 meta-schema (and its meta/ refs) natively.
+import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 
-const ajv = new Ajv({ allErrors: true, strict: false });
+const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
 export interface SchemaValidationResult {
@@ -13,7 +18,7 @@ export interface SchemaValidationResult {
  * Validates a JSON Schema against meta-schema and custom constraints.
  */
 export function validateSchema(schema: unknown): SchemaValidationResult {
-  if (!schema || typeof schema !== 'object') {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
     return { valid: false, errors: ['Schema must be a valid JSON object'] };
   }
 
@@ -57,8 +62,11 @@ export function validateSchema(schema: unknown): SchemaValidationResult {
     return 1 + (depths.length > 0 ? Math.max(...depths) : 0);
   };
 
+  // getDepth counts the root object AND each properties container as levels,
+  // so 10 nested property levels land at depth 22 — allow up to 10 levels
+  // (max 10 nesting levels per the error message below)
   const depth = getDepth(schema);
-  if (depth > 12) { // 10 + some buffer for root/properties level
+  if (depth > 22) {
     errors.push(`Schema depth exceeds maximum (max 10 nesting levels)`);
   }
 

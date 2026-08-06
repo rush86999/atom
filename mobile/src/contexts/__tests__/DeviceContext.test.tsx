@@ -8,8 +8,9 @@ import React from 'react';
 import { render, waitFor, act, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { DeviceProvider, useDevice } from '../DeviceContext';
-import { AuthProvider } from '../AuthContext';
+import { AuthProvider, useAuth } from '../AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import * as Camera from 'expo-camera';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
@@ -65,10 +66,32 @@ const renderWithProviders = (component: React.ReactElement) => {
 const MOCK_DEVICE_ID = 'test-device-123';
 const MOCK_PUSH_TOKEN = 'ExponentPushToken[xxx]';
 const MOCK_ACCESS_TOKEN = 'test-access-token';
+const MOCK_USER = { id: 'user_1', email: 'test@example.com', name: 'Test User' };
+
+/**
+ * Seed an authenticated session: AuthContext reads the access token and
+ * expiry from SecureStore (not AsyncStorage) and the user from AsyncStorage.
+ */
+const setupAuthenticatedState = (extraAsyncStorage: Record<string, string> = {}) => {
+  (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
+    if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
+    if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
+    return Promise.resolve(null);
+  });
+  (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+    if (key === 'atom_user_data') return Promise.resolve(JSON.stringify(MOCK_USER));
+    if (key in extraAsyncStorage) return Promise.resolve(extraAsyncStorage[key]);
+    return Promise.resolve(null);
+  });
+};
 
 // Setup
 beforeEach(() => {
   jest.clearAllMocks();
+
+  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
+  (SecureStore.setItemAsync as jest.Mock).mockResolvedValue(undefined);
+  (SecureStore.deleteItemAsync as jest.Mock).mockResolvedValue(undefined);
 
   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
@@ -171,16 +194,15 @@ describe('DeviceContext', () => {
   describe('Device Registration', () => {
     test('should register device successfully', async () => {
       let contextValue: any;
+      let authValue: any;
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
-      });
+      setupAuthenticatedState();
 
       render(
         <AuthProvider>
@@ -189,6 +211,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Auth hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(authValue.isAuthenticated).toBe(true);
+      });
 
       await act(async () => {
         const result = await contextValue.registerDevice(MOCK_PUSH_TOKEN);
@@ -202,8 +229,8 @@ describe('DeviceContext', () => {
         })
       );
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('atom_device_id', MOCK_DEVICE_ID);
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('atom_device_token', MOCK_PUSH_TOKEN);
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith('atom_device_id', MOCK_DEVICE_ID, expect.any(Object));
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith('atom_device_token', MOCK_PUSH_TOKEN, expect.any(Object));
       expect(AsyncStorage.setItem).toHaveBeenCalledWith('atom_device_registered', 'true');
     });
 
@@ -212,6 +239,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -230,16 +258,20 @@ describe('DeviceContext', () => {
       });
     });
 
-    test('should fail when no access token', async () => {
+    test('should fail when user data is missing', async () => {
       let contextValue: any;
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_access_token') return Promise.resolve(null);
+      // Authenticated (token + expiry in SecureStore) but no user data in
+      // AsyncStorage — the register gate requires both.
+      (SecureStore.getItemAsync as jest.Mock).mockImplementation((key) => {
+        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
+        if (key === 'atom_token_expiry') return Promise.resolve((Date.now() + 3600000).toString());
         return Promise.resolve(null);
       });
 
@@ -254,22 +286,21 @@ describe('DeviceContext', () => {
       await act(async () => {
         const result = await contextValue.registerDevice(MOCK_PUSH_TOKEN);
         expect(result.success).toBe(false);
-        expect(result.error).toBe('No access token');
+        expect(result.error).toBe('Not authenticated');
       });
     });
 
     test('should handle API error', async () => {
       let contextValue: any;
+      let authValue: any;
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
-      });
+      setupAuthenticatedState();
 
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
@@ -284,6 +315,10 @@ describe('DeviceContext', () => {
         </AuthProvider>
       );
 
+      await waitFor(() => {
+        expect(authValue.isAuthenticated).toBe(true);
+      });
+
       await act(async () => {
         const result = await contextValue.registerDevice(MOCK_PUSH_TOKEN);
         expect(result.success).toBe(false);
@@ -293,16 +328,15 @@ describe('DeviceContext', () => {
 
     test('should handle network error', async () => {
       let contextValue: any;
+      let authValue: any;
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
-      });
+      setupAuthenticatedState();
 
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
@@ -313,6 +347,10 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      await waitFor(() => {
+        expect(authValue.isAuthenticated).toBe(true);
+      });
 
       await act(async () => {
         const result = await contextValue.registerDevice(MOCK_PUSH_TOKEN);
@@ -328,6 +366,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -344,11 +383,16 @@ describe('DeviceContext', () => {
         </AuthProvider>
       );
 
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
+
       await act(async () => {
         await contextValue.updateDeviceToken('new-token');
       });
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('atom_device_token', 'new-token');
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith('atom_device_token', 'new-token', expect.any(Object));
     });
 
     test('should not update token when not registered', async () => {
@@ -356,6 +400,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -382,6 +427,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -390,7 +436,7 @@ describe('DeviceContext', () => {
         return Promise.resolve(null);
       });
 
-      (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Error'));
+      (SecureStore.setItemAsync as jest.Mock).mockRejectedValue(new Error('Error'));
       const spy = jest.spyOn(console, 'error').mockImplementation();
 
       render(
@@ -400,6 +446,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         await contextValue.updateDeviceToken('new-token');
@@ -416,6 +467,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -444,6 +496,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -475,6 +528,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -499,6 +553,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -530,6 +585,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -561,6 +617,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -585,6 +642,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -615,6 +673,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -646,6 +705,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -677,6 +737,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -705,6 +766,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -740,6 +802,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -764,6 +827,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -788,6 +852,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -812,6 +877,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -837,6 +903,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -859,6 +926,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -889,14 +957,13 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_device_registered') return Promise.resolve('true');
-        if (key === 'atom_device_id') return Promise.resolve(MOCK_DEVICE_ID);
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
+      setupAuthenticatedState({
+        atom_device_registered: 'true',
+        atom_device_id: MOCK_DEVICE_ID,
       });
 
       render(
@@ -906,6 +973,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         const result = await contextValue.syncDevice();
@@ -927,6 +999,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -950,6 +1023,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -967,6 +1041,11 @@ describe('DeviceContext', () => {
         </AuthProvider>
       );
 
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
+
       await act(async () => {
         const result = await contextValue.syncDevice();
         expect(result.success).toBe(false);
@@ -979,14 +1058,13 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_device_registered') return Promise.resolve('true');
-        if (key === 'atom_device_id') return Promise.resolve(MOCK_DEVICE_ID);
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
+      setupAuthenticatedState({
+        atom_device_registered: 'true',
+        atom_device_id: MOCK_DEVICE_ID,
       });
 
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -1002,6 +1080,11 @@ describe('DeviceContext', () => {
         </AuthProvider>
       );
 
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
+
       await act(async () => {
         const result = await contextValue.syncDevice();
         expect(result.success).toBe(false);
@@ -1014,14 +1097,13 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_device_registered') return Promise.resolve('true');
-        if (key === 'atom_device_id') return Promise.resolve(MOCK_DEVICE_ID);
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
+      setupAuthenticatedState({
+        atom_device_registered: 'true',
+        atom_device_id: MOCK_DEVICE_ID,
       });
 
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
@@ -1033,6 +1115,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         const result = await contextValue.syncDevice();
@@ -1048,15 +1135,14 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_device_registered') return Promise.resolve('true');
-        if (key === 'atom_device_id') return Promise.resolve(MOCK_DEVICE_ID);
-        if (key === 'atom_device_token') return Promise.resolve(MOCK_PUSH_TOKEN);
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
+      setupAuthenticatedState({
+        atom_device_registered: 'true',
+        atom_device_id: MOCK_DEVICE_ID,
+        atom_device_token: MOCK_PUSH_TOKEN,
       });
 
       render(
@@ -1066,6 +1152,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         await contextValue.unregisterDevice();
@@ -1089,6 +1180,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -1099,6 +1191,12 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Wait for hydration to settle — nothing is stored, so the device
+      // must remain unregistered.
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(false);
+      });
 
       await act(async () => {
         await contextValue.unregisterDevice();
@@ -1112,6 +1210,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
@@ -1128,6 +1227,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         await contextValue.unregisterDevice();
@@ -1145,14 +1249,13 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 
-      (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'atom_device_registered') return Promise.resolve('true');
-        if (key === 'atom_device_id') return Promise.resolve(MOCK_DEVICE_ID);
-        if (key === 'atom_access_token') return Promise.resolve(MOCK_ACCESS_TOKEN);
-        return Promise.resolve(null);
+      setupAuthenticatedState({
+        atom_device_registered: 'true',
+        atom_device_id: MOCK_DEVICE_ID,
       });
 
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
@@ -1165,6 +1268,11 @@ describe('DeviceContext', () => {
           </DeviceProvider>
         </AuthProvider>
       );
+
+      // Device state hydrates asynchronously on mount
+      await waitFor(() => {
+        expect(contextValue.deviceState.isRegistered).toBe(true);
+      });
 
       await act(async () => {
         await contextValue.unregisterDevice();
@@ -1194,6 +1302,7 @@ describe('DeviceContext', () => {
 
       const ContextCapture = () => {
         contextValue = useDevice();
+        authValue = useAuth();
         return null;
       };
 

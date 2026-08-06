@@ -234,7 +234,20 @@ class FFmpegTool(BaseTool):
         import asyncio
         coro = operations[action](input_path, output_path, **kwargs)
 
-        # Run async operation in event loop
+        # Run async operation in event loop. When invoked from inside a
+        # running event loop (the norm — agent tools are dispatched from
+        # async code), run_until_complete() would raise "This event loop is
+        # already running" and the operation would always fail. Fall back to
+        # a worker thread running its own loop in that case.
+        import concurrent.futures
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:

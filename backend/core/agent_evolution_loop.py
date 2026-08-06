@@ -668,6 +668,7 @@ class AgentEvolutionLoop:
                 generation=generation,
                 parent_agent_ids=parent_ids,
                 ancestor_count=ancestor_count,
+                evolution_type="combined",
                 performance_score=agent.confidence_score,
                 novelty_score=0.0,  # Populated by select_parent_group in future
                 combined_selection_score=agent.confidence_score * PERF_WEIGHT,

@@ -7,13 +7,10 @@ approves proposals that meet configured criteria.
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
-from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 
 from core.models import ScalingAutoApproval, ScalingProposal
 from core.database import SessionLocal
-from core.fleet_orchestration.scaling_proposal_service import ScalingProposalService
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +18,11 @@ class AutoApprovalService:
     """
     Service for evaluating and applying auto-approval rules to scaling proposals.
 
-    Supports:
-    - Rule-based auto-approval based on cost, size, and metrics thresholds
-    - Priority-based rule evaluation (lower priority number = higher priority)
-    - Chain-specific and tenant-wide rules
-    - Rule statistics tracking
+    Rules are stored in the ScalingAutoApproval table with the following
+    constraints:
+    - max_agents: Maximum proposed fleet size eligible for auto-approval
+    - max_cost_increase_percent: Maximum allowed cost increase percentage
+    - risk_threshold: Maximum risk score (0-1) for auto-approval
     """
 
     def __init__(self, db: Session = None):
@@ -33,34 +30,24 @@ class AutoApprovalService:
 
     def create_auto_approval_rule(
         self,
-        
         rule_name: str,
         created_by: str,
-        chain_id: Optional[str] = None,
         description: Optional[str] = None,
-        max_cost_per_hour: Optional[float] = None,
-        max_fleet_size: Optional[int] = None,
-        max_size_increase: Optional[int] = None,
-        min_success_rate_threshold: Optional[float] = None,
-        max_latency_threshold: Optional[int] = None,
-        priority: int = 100,
+        max_agents: int = 10,
+        max_cost_increase_percent: float = 50.0,
+        risk_threshold: float = 0.3,
         is_active: bool = True
     ) -> ScalingAutoApproval:
         """
         Create a new auto-approval rule.
 
         Args:
-            tenant_id: Any UUID
-            rule_name: Human-readable rule name
+            rule_name: Human-readable rule name (stored in description)
             created_by: User ID creating the rule
-            chain_id: Optional chain ID (NULL = applies to all chains)
             description: Optional rule description
-            max_cost_per_hour: Maximum cost per hour in USD
-            max_fleet_size: Maximum fleet size allowed
-            max_size_increase: Maximum number of agents to add
-            min_success_rate_threshold: Minimum success rate percentage
-            max_latency_threshold: Maximum latency in milliseconds
-            priority: Rule priority (lower = higher priority)
+            max_agents: Maximum proposed fleet size allowed
+            max_cost_increase_percent: Maximum cost increase percentage
+            risk_threshold: Maximum risk score (0-1)
             is_active: Whether rule is active
 
         Returns:
@@ -68,16 +55,12 @@ class AutoApprovalService:
         """
         rule = ScalingAutoApproval(
             id=str(__import__('uuid').uuid4()),
-                        chain_id=chain_id,
-            rule_name=rule_name,
-            description=description,
-            max_cost_per_hour=Decimal(str(max_cost_per_hour)) if max_cost_per_hour is not None else None,
-            max_fleet_size=max_fleet_size,
-            max_size_increase=max_size_increase,
-            min_success_rate_threshold=Decimal(str(min_success_rate_threshold)) if min_success_rate_threshold is not None else None,
-            max_latency_threshold=max_latency_threshold,
-            priority=priority,
+            tenant_id="default",
+            max_agents=max_agents,
+            max_cost_increase_percent=max_cost_increase_percent,
+            risk_threshold=risk_threshold,
             is_active=is_active,
+            description=f"{rule_name}: {description}" if description else rule_name,
             created_by=created_by
         )
 
@@ -87,42 +70,26 @@ class AutoApprovalService:
 
         logger.info(
             f"[AutoApproval] Created rule '{rule_name}' "
-            f"(chain={chain_id or 'all'})"
+            f"(max_agents={max_agents}, max_cost_increase_pct={max_cost_increase_percent})"
         )
         return rule
 
     def get_active_rules(
         self,
-        
         chain_id: Optional[str] = None
     ) -> List[ScalingAutoApproval]:
         """
-        Get all active auto-approval rules for a tenant/chain.
-
-        Rules are ordered by priority (lower number = higher priority).
-        Chain-specific rules are evaluated before tenant-wide rules.
+        Get all active auto-approval rules.
 
         Args:
-            tenant_id: Any UUID
-            chain_id: Optional chain ID
+            chain_id: Unused (rules are tenant-wide in this schema)
 
         Returns:
             List of active ScalingAutoApproval rules
         """
-        query = self.db.query(ScalingAutoApproval).filter(
-            ScalingAutoApproval.            ScalingAutoApproval.is_active == True
-        )
-
-        # Get chain-specific rules first, then tenant-wide rules
-        chain_rules = query.filter(
-            ScalingAutoApproval.chain_id == chain_id
-        ).order_by(ScalingAutoApproval.priority).all()
-
-        tenant_wide_rules = query.filter(
-            ScalingAutoApproval.chain_id.is_(None)
-        ).order_by(ScalingAutoApproval.priority).all()
-
-        return chain_rules + tenant_wide_rules
+        return self.db.query(ScalingAutoApproval).filter(
+            ScalingAutoApproval.is_active == True
+        ).order_by(ScalingAutoApproval.created_at).all()
 
     def evaluate_proposal(
         self,
@@ -139,41 +106,45 @@ class AutoApprovalService:
         Returns:
             Tuple of (is_approved, matching_rule, reason)
         """
-        rules = self.get_active_rules(
-                        chain_id=proposal.chain_id
-        )
+        rules = self.get_active_rules()
 
         if not rules:
             return False, None, "No auto-approval rules found"
 
-        # Calculate proposal metrics
-        size_increase = max(0, proposal.proposed_fleet_size - proposal.current_fleet_size)
-        cost_per_hour = float(proposal.cost_estimate) / max(1, float(proposal.duration_hours))
+        # Support both pydantic ScalingProposal and the SQLAlchemy model
+        current_size = getattr(proposal, "current_fleet_size", None)
+        if current_size is None:
+            current_size = proposal.current_agents
+        proposed_size = getattr(proposal, "proposed_fleet_size", None)
+        if proposed_size is None:
+            proposed_size = proposal.proposed_agents
 
-        # Get metrics from proposal or provided dict
-        metrics_data = metrics or (proposal.metrics_json if proposal.metrics_json else {})
-        success_rate = metrics_data.get('success_rate', 100.0)
-        avg_latency = metrics_data.get('avg_latency_ms', 0)
+        size_increase = max(0, proposed_size - current_size)
+        cost_increase_percent = (
+            (size_increase / max(1, current_size)) * 100
+        )
+        risk = float(
+            getattr(proposal, "risk_score", None)
+            or proposal.metadata.get("risk_score", 0.5)
+        )
 
-        # Evaluate each rule in priority order
         last_reason = ""
         for rule in rules:
             matches, reason = self._evaluate_rule(
                 rule=rule,
                 proposal=proposal,
-                size_increase=size_increase,
-                cost_per_hour=cost_per_hour,
-                success_rate=success_rate,
-                avg_latency=avg_latency
+                proposed_size=proposed_size,
+                cost_increase_percent=cost_increase_percent,
+                risk=risk
             )
 
             if matches:
                 logger.info(
-                    f"[AutoApproval] Proposal {proposal.id} auto-approved by rule '{rule.rule_name}': {reason}"
+                    f"[AutoApproval] Proposal {proposal.id} auto-approved by rule "
+                    f"'{rule.description}': {reason}"
                 )
                 return True, rule, reason
 
-            # Track the last rejection reason for better error messages
             last_reason = reason
 
         return False, None, last_reason if last_reason else "No matching auto-approval rules"
@@ -182,10 +153,9 @@ class AutoApprovalService:
         self,
         rule: ScalingAutoApproval,
         proposal: ScalingProposal,
-        size_increase: int,
-        cost_per_hour: float,
-        success_rate: float,
-        avg_latency: int
+        proposed_size: int,
+        cost_increase_percent: float,
+        risk: float
     ) -> Tuple[bool, str]:
         """
         Evaluate a single auto-approval rule against a proposal.
@@ -193,49 +163,39 @@ class AutoApprovalService:
         Args:
             rule: ScalingAutoApproval rule to evaluate
             proposal: ScalingProposal to check
-            size_increase: Number of agents to add
-            cost_per_hour: Estimated cost per hour
-            success_rate: Current success rate percentage
-            avg_latency: Current average latency in ms
+            proposed_size: Proposed fleet size
+            cost_increase_percent: Estimated cost increase percentage
+            risk: Proposal risk score
 
         Returns:
             Tuple of (matches_rule, reason)
         """
         reasons = []
 
-        # Check cost constraint
-        if rule.max_cost_per_hour is not None:
-            if cost_per_hour > float(rule.max_cost_per_hour):
-                return False, f"Cost per hour ${cost_per_hour:.2f} exceeds max ${float(rule.max_cost_per_hour):.2f}"
-            reasons.append(f"cost ${cost_per_hour:.2f}/hr <= ${float(rule.max_cost_per_hour):.2f}")
+        if proposed_size > rule.max_agents:
+            return False, (
+                f"Proposed size {proposed_size} exceeds max "
+                f"{rule.max_agents}"
+            )
+        reasons.append(f"size {proposed_size} <= max {rule.max_agents}")
 
-        # Check fleet size constraint
-        if rule.max_fleet_size is not None:
-            if proposal.proposed_fleet_size > rule.max_fleet_size:
-                return False, f"Proposed size {proposal.proposed_fleet_size} exceeds max {rule.max_fleet_size}"
-            reasons.append(f"size {proposal.proposed_fleet_size} <= max {rule.max_fleet_size}")
+        if cost_increase_percent > rule.max_cost_increase_percent:
+            return False, (
+                f"Cost increase {cost_increase_percent:.1f}% exceeds max "
+                f"{rule.max_cost_increase_percent:.1f}%"
+            )
+        reasons.append(
+            f"cost increase {cost_increase_percent:.1f}% <= "
+            f"{rule.max_cost_increase_percent:.1f}%"
+        )
 
-        # Check size increase constraint (for expansion only)
-        if rule.max_size_increase is not None and size_increase > 0:
-            if size_increase > rule.max_size_increase:
-                return False, f"Size increase {size_increase} exceeds max {rule.max_size_increase}"
-            reasons.append(f"increase {size_increase} <= max {rule.max_size_increase}")
+        if risk > rule.risk_threshold:
+            return False, (
+                f"Risk {risk:.2f} exceeds threshold {rule.risk_threshold:.2f}"
+            )
+        reasons.append(f"risk {risk:.2f} <= {rule.risk_threshold:.2f}")
 
-        # Check success rate constraint
-        if rule.min_success_rate_threshold is not None:
-            if success_rate < float(rule.min_success_rate_threshold):
-                return False, f"Success rate {success_rate:.1f}% below min {float(rule.min_success_rate_threshold):.1f}%"
-            reasons.append(f"success rate {success_rate:.1f}% >= min {float(rule.min_success_rate_threshold):.1f}%")
-
-        # Check latency constraint
-        if rule.max_latency_threshold is not None:
-            if avg_latency > rule.max_latency_threshold:
-                return False, f"Latency {avg_latency}ms exceeds max {rule.max_latency_threshold}ms"
-            reasons.append(f"latency {avg_latency}ms <= max {rule.max_latency_threshold}ms")
-
-        if reasons:
-            return True, "All conditions met: " + ", ".join(reasons)
-        return True, "No conditions specified (unconditional approval)"
+        return True, "All conditions met: " + ", ".join(reasons)
 
     async def auto_approve_proposal(
         self,
@@ -268,7 +228,6 @@ class AutoApprovalService:
                 "proposal": None
             }
 
-        # Only approve pending proposals
         if proposal.status != 'pending':
             return {
                 "approved": False,
@@ -277,37 +236,31 @@ class AutoApprovalService:
                 "proposal": proposal
             }
 
-        # Evaluate against rules
         is_approved, matching_rule, reason = self.evaluate_proposal(proposal, metrics)
 
         if is_approved and matching_rule:
-            # Auto-approve the proposal
             proposal.status = 'approved'
             proposal.approved_by = f"auto-approval-rule:{matching_rule.id}"
             proposal.approved_at = datetime.now(timezone.utc)
 
-            # Update rule statistics
-            matching_rule.times_applied += 1
-            matching_rule.last_applied_at = datetime.now(timezone.utc)
-
             self.db.commit()
             self.db.refresh(proposal)
-            self.db.refresh(matching_rule)
 
             logger.info(
-                f"[AutoApproval] Auto-approved proposal {proposal_id} via rule '{matching_rule.rule_name}'"
+                f"[AutoApproval] Auto-approved proposal {proposal_id} via rule "
+                f"'{matching_rule.description}'"
             )
 
             return {
                 "approved": True,
-                "rule_name": matching_rule.rule_name,
+                "rule_name": matching_rule.description,
                 "reason": reason,
                 "proposal": proposal
             }
 
         return {
             "approved": False,
-            "rule_name": matching_rule.rule_name if matching_rule else None,
+            "rule_name": matching_rule.description if matching_rule else None,
             "reason": reason,
             "proposal": proposal
         }
@@ -315,7 +268,6 @@ class AutoApprovalService:
     def update_rule(
         self,
         rule_id: str,
-        
         updates: Dict[str, Any]
     ) -> Optional[ScalingAutoApproval]:
         """
@@ -323,7 +275,6 @@ class AutoApprovalService:
 
         Args:
             rule_id: Rule UUID
-            tenant_id: Any UUID (for ownership verification)
             updates: Dict of fields to update
 
         Returns:
@@ -336,19 +287,14 @@ class AutoApprovalService:
         if not rule:
             return None
 
-        # Update allowed fields
         allowed_fields = [
-            'rule_name', 'description', 'max_cost_per_hour', 'max_fleet_size',
-            'max_size_increase', 'min_success_rate_threshold', 'max_latency_threshold',
-            'priority', 'is_active'
+            'description', 'max_agents', 'max_cost_increase_percent',
+            'risk_threshold', 'is_active'
         ]
 
         for field, value in updates.items():
             if field in allowed_fields:
-                if field in ['max_cost_per_hour', 'min_success_rate_threshold']:
-                    setattr(rule, field, Decimal(str(value)) if value is not None else None)
-                else:
-                    setattr(rule, field, value)
+                setattr(rule, field, value)
 
         self.db.commit()
         self.db.refresh(rule)
@@ -360,7 +306,6 @@ class AutoApprovalService:
 
         Args:
             rule_id: Rule UUID
-            tenant_id: Any UUID (for ownership verification)
 
         Returns:
             True if deleted, False if not found
@@ -378,12 +323,10 @@ class AutoApprovalService:
         return True
 
     def get_rule_statistics(
-        self) -> Dict[str, Any]:
+        self
+    ) -> Dict[str, Any]:
         """
-        Get auto-approval rule statistics for a tenant.
-
-        Args:
-            tenant_id: Any UUID
+        Get auto-approval rule statistics.
 
         Returns:
             Dict with rule statistics
@@ -391,21 +334,19 @@ class AutoApprovalService:
         rules = self.db.query(ScalingAutoApproval).all()
 
         active_rules = [r for r in rules if r.is_active]
-        total_applications = sum(r.times_applied for r in rules)
 
         return {
             "total_rules": len(rules),
             "active_rules": len(active_rules),
             "inactive_rules": len(rules) - len(active_rules),
-            "total_applications": total_applications,
             "rules": [
                 {
                     "id": r.id,
-                    "rule_name": r.rule_name,
+                    "rule_name": r.description,
                     "is_active": r.is_active,
-                    "priority": r.priority,
-                    "times_applied": r.times_applied,
-                    "last_applied_at": r.last_applied_at.isoformat() if r.last_applied_at else None
+                    "max_agents": r.max_agents,
+                    "max_cost_increase_percent": r.max_cost_increase_percent,
+                    "risk_threshold": r.risk_threshold
                 }
                 for r in rules
             ]

@@ -325,7 +325,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get("/workflows/marketplace/workflows/{template_id}")
+            response = await client.get(f"/workflows/marketplace/workflows/{template_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:

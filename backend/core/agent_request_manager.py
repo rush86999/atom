@@ -141,6 +141,7 @@ class AgentRequestManager:
             # Create log entry
             request_log = AgentRequestLog(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 request_id=request_id,
@@ -251,6 +252,7 @@ class AgentRequestManager:
             # Create log entry
             request_log = AgentRequestLog(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 request_id=request_id,
@@ -319,7 +321,10 @@ class AgentRequestManager:
                 ).first()
 
                 if request_log and request_log.expires_at:
-                    timeout = int((request_log.expires_at - datetime.now(timezone.utc)).total_seconds())
+                    expires_at = request_log.expires_at
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    timeout = int((expires_at - datetime.now(timezone.utc)).total_seconds())
                 else:
                     timeout = 600  # Default 10 minutes
 
@@ -384,16 +389,22 @@ class AgentRequestManager:
                 return
 
             # Check if expired
-            if request_log.expires_at and datetime.now(timezone.utc) > request_log.expires_at:
+            expires_at = request_log.expires_at
+            if expires_at is not None and expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at and datetime.now(timezone.utc) > expires_at:
                 logger.warning(f"Request {request_id} has expired")
                 return
 
             # Update log
             request_log.user_response = response
             request_log.responded_at = datetime.now(timezone.utc)
+            created_at = request_log.created_at
+            if created_at is not None and created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
             request_log.response_time_seconds = (
-                datetime.now(timezone.utc) - request_log.created_at
-            ).total_seconds()
+                datetime.now(timezone.utc) - created_at
+            ).total_seconds() if created_at else None
             self.db.commit()
 
             # Trigger event
@@ -458,7 +469,7 @@ class AgentRequestManager:
                 tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
-                canvas_id=None,
+                canvas_id="",
                 session_id=None,
                 action_type=action,
                 details_json={
@@ -474,6 +485,7 @@ class AgentRequestManager:
             self.db.commit()
         except Exception as e:
             logger.error(f"Failed to create audit: {e}")
+            self.db.rollback()
 
 
 # Singleton instance helper

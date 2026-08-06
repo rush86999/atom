@@ -101,7 +101,7 @@ describe('SearchResults', () => {
     // Check that contact entity shows company attribute
     expect(container.textContent).toContain('Acme Corp');
 
-    // Check that task entity shows status
-    expect(container.textContent).toContain('In Progress');
+    // Task entities render their due date as the subtitle
+    expect(container.textContent).toContain('Due:');
   });
 });

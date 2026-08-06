@@ -94,6 +94,17 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, []);
 
   /**
+   * Clear device registration state when the user logs out
+   */
+  useEffect(() => {
+    if (isAuthenticated) {
+      return;
+    }
+    unregisterDevice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  /**
    * Load device state from storage
    */
   const loadDeviceState = async () => {

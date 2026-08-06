@@ -171,6 +171,11 @@ describe('deviceMocks - Location Factories', () => {
 
 describe('deviceMocks - Notification Factories', () => {
   describe('createMockNotification', () => {
+    beforeEach(() => {
+      // The unique-identifier test awaits a real setImmediate
+      jest.useRealTimers();
+    });
+
     it('should create notification with default options', () => {
       const notification = createMockNotification();
 
@@ -249,6 +254,7 @@ describe('deviceMocks - Network Factories', () => {
   describe('simulateNetworkSwitch', () => {
     it('should trigger NetInfo callback with connected state', () => {
       let capturedCallback: ((state: any) => void) | null = null;
+      const listenerInvoked = jest.fn();
       const NetInfo = {
         addEventListener: jest.fn().mockImplementation((callback) => {
           capturedCallback = callback;
@@ -256,21 +262,21 @@ describe('deviceMocks - Network Factories', () => {
         }),
       };
 
-      // Manually invoke callback since simulateNetworkSwitch accesses it
-      if (capturedCallback) {
-        capturedCallback({
-          isConnected: true,
-          isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false },
-        });
-      }
+      // Register a listener the way a service (e.g. offlineSyncService) does,
+      // then let the helper drive it
+      NetInfo.addEventListener((state: any) => listenerInvoked(state));
 
-      expect(NetInfo.addEventListener).toHaveBeenCalled();
+      simulateNetworkSwitch(NetInfo, true);
+
+      expect(capturedCallback).not.toBeNull();
+      expect(listenerInvoked).toHaveBeenCalledWith(
+        expect.objectContaining({ isConnected: true })
+      );
     });
 
     it('should trigger NetInfo callback with disconnected state', () => {
       let capturedCallback: ((state: any) => void) | null = null;
+      const listenerInvoked = jest.fn();
       const NetInfo = {
         addEventListener: jest.fn().mockImplementation((callback) => {
           capturedCallback = callback;
@@ -278,17 +284,14 @@ describe('deviceMocks - Network Factories', () => {
         }),
       };
 
-      // Manually invoke callback with disconnected state
-      if (capturedCallback) {
-        capturedCallback({
-          isConnected: false,
-          isInternetReachable: false,
-          type: 'none',
-          details: undefined,
-        });
-      }
+      NetInfo.addEventListener((state: any) => listenerInvoked(state));
 
-      expect(NetInfo.addEventListener).toHaveBeenCalled();
+      simulateNetworkSwitch(NetInfo, false);
+
+      expect(capturedCallback).not.toBeNull();
+      expect(listenerInvoked).toHaveBeenCalledWith(
+        expect.objectContaining({ isConnected: false })
+      );
     });
 
     it('should handle missing addEventListener gracefully', () => {
@@ -333,6 +336,12 @@ describe('deviceMocks - Timer Utilities', () => {
 });
 
 describe('deviceMocks - Sync Utilities', () => {
+  beforeEach(() => {
+    // waitForSyncComplete/waitForSyncProgress poll with setImmediate and
+    // Date.now() — fake timers would never let them resolve or time out.
+    jest.useRealTimers();
+  });
+
   describe('waitForSyncComplete', () => {
     it('should wait for sync to complete', async () => {
       let callCount = 0;

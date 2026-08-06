@@ -60,7 +60,7 @@ export async function importEntityTypes(
     } catch (err: any) {
       errors.push({
         file: def.slug || 'unknown',
-        error: err.response?.data?.detail || err.message
+        error: err.response?.data?.detail || err.message || 'Unknown error'
       });
     }
   }

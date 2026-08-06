@@ -19,6 +19,8 @@ export function schemaToFields(schema: JSONSchema7): FieldConfig[] {
   const requiredFields = new Set(schema.required || []);
 
   return Object.entries(schema.properties).map(([name, def]: [string, any]) => {
+    // Null/undefined property definitions are tolerated (default to string)
+    def = def || {};
     const field: FieldConfig = {
       name,
       type: Array.isArray(def.type) ? def.type[0] : def.type || "string",

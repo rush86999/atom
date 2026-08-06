@@ -46,6 +46,14 @@ class IntegrationAuditLog:
             "epoch": self.timestamp
         }
 
+    def _sanitize_value(self, value: Any) -> Any:
+        """Recursively sanitize nested dicts/lists, keeping leaves intact."""
+        if isinstance(value, dict):
+            return self._sanitize_params(value)
+        if isinstance(value, list):
+            return [self._sanitize_value(v) for v in value]
+        return value
+
     def _sanitize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Sanitize sensitive parameters (passwords, tokens, etc.).
@@ -66,9 +74,9 @@ class IntegrationAuditLog:
         }
 
         for key, value in params.items():
-            if isinstance(value, dict):
-                # Recursively sanitize nested dictionaries
-                sanitized[key] = self._sanitize_params(value)
+            if isinstance(value, (dict, list)):
+                # Recursively sanitize nested dictionaries and lists
+                sanitized[key] = self._sanitize_value(value)
             elif any(sensitive in key.lower() for sensitive in sensitive_keys):
                 # Redact sensitive values (only at leaf level)
                 sanitized[key] = "***REDACTED***"

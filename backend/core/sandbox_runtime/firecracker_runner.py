@@ -191,12 +191,17 @@ class FirecrackerRuntime:
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
         image: Optional[str] = None,
+        callback_handler: Any = None,
     ) -> SandboxExecResult:
         """Boot a microVM, run ``code`` in the guest agent, capture output.
 
         ``image`` selects the rootfs drive (ext4 path). ``None`` → base
         template. ``cwd`` is accepted for protocol conformance but ignored —
         the guest has no host filesystem (all storage is host-mediated).
+
+        ``callback_handler`` (optional async callable) services mid-run guest
+        callbacks (e.g. ``fetch_integration``). None disables callbacks — guest
+        calls to ``fetch_integration`` get ``callbacks_disabled``.
         """
         if not is_available():
             return SandboxExecResult(
@@ -224,6 +229,7 @@ class FirecrackerRuntime:
             policy=policy,
             inputs=inputs,
             rootfs=rootfs,
+            callback_handler=callback_handler,
         )
 
     async def execute_command(
@@ -257,6 +263,7 @@ class FirecrackerRuntime:
         policy: Any,
         inputs: Optional[Dict[str, Any]],
         rootfs: str,
+        callback_handler: Any = None,
     ) -> SandboxExecResult:
         """Boot a microVM, exchange a vsock command, tear down.
 
@@ -306,8 +313,8 @@ class FirecrackerRuntime:
                 )
 
             try:
-                stdout_text, stderr_text, exit_code, envelope = await asyncio.wait_for(
-                    self._exchange(code, inputs or {}, vsock_path),
+                stdout_text, stderr_text, exit_code, envelope, callbacks = await asyncio.wait_for(
+                    self._exchange(code, inputs or {}, vsock_path, callback_handler),
                     timeout=overall_timeout,
                 )
             except asyncio.TimeoutError:
@@ -338,6 +345,9 @@ class FirecrackerRuntime:
             if envelope is not None:
                 # Structured state — preserved verbatim, immune to stdout cap.
                 meta["state_envelope"] = envelope
+            if callbacks:
+                # Mid-run integration calls the guest made (auditable).
+                meta["callbacks"] = callbacks
             return SandboxExecResult(
                 success=int(exit_code) == 0,
                 stdout=stdout_text[:OUTPUT_CAP],
@@ -358,16 +368,22 @@ class FirecrackerRuntime:
         code: str,
         inputs: Dict[str, Any],
         vsock_path: str,
+        callback_handler: Any = None,
     ) -> tuple:
-        """Wait for the vsock UDS socket, send ``{code, inputs}``, read reply.
+        """Wait for the vsock UDS, send exec, service callbacks, read final reply.
 
-        Returns ``(stdout, stderr, exit_code, envelope)`` where ``envelope`` is
-        the guest's structured ``{state, storage_ops}`` payload if it sent one
-        (None otherwise). Returning state over the vsock reply channel — rather
-        than parsing a ``__MINIAPP_STATE__:`` line out of stdout — sidesteps the
-        64 KiB stdout cap that would otherwise corrupt large state objects.
-        Raises ``asyncio.TimeoutError`` if the socket never appears (boot
-        timeout) or the guest never replies.
+        Returns ``(stdout, stderr, exit_code, envelope, callbacks)``. Protocol
+        is multiplexed on the single socket:
+          * Host sends ``{"type":"exec", "code", "inputs"}``.
+          * Guest may send 0..N ``{"type":"callback","kind":"fetch_integration",
+            "service","action","params"}`` lines mid-run; the host services each
+            via ``callback_handler`` (await) and writes a ``callback_result`` line.
+          * Guest sends one terminal line tagged ``"type":"final"`` (or, for
+            older agents, an untagged line treated as final).
+
+        Callback time counts against the caller's ``asyncio.wait_for`` budget
+        (no separate per-callback deadline). Raises ``asyncio.TimeoutError`` if
+        the socket never appears (boot timeout) or the guest never replies.
         """
         boot_timeout = sandbox_config.get_sandbox_vm_boot_timeout_seconds()
         deadline = time.time() + max(1, boot_timeout)
@@ -379,28 +395,75 @@ class FirecrackerRuntime:
             await asyncio.sleep(0.05)
 
         reader, writer = await asyncio.open_unix_connection(vsock_path)
+        callbacks: list = []
         try:
-            payload = json.dumps({"code": code, "inputs": inputs})
+            payload = json.dumps({"type": "exec", "code": code, "inputs": inputs})
             writer.write((payload + "\n").encode("utf-8"))
             await writer.drain()
-            line = await reader.readline()
-            if not line:
-                raise asyncio.TimeoutError("guest agent returned no response")
-            data = json.loads(line.decode("utf-8"))
-            stdout = str(data.get("stdout", ""))
-            stderr = str(data.get("stderr", ""))
-            exit_code = int(data.get("exit_code", -1))
-            # Structured state envelope (preferred over stdout parsing). May be
-            # absent for non-mini-app callers / older guest agents.
-            envelope = data.get("state_envelope")
-            if not isinstance(envelope, dict):
-                envelope = None
-            return (stdout, stderr, exit_code, envelope)
+
+            # Service the guest's lines until a terminal/final reply arrives.
+            while True:
+                line = await reader.readline()
+                if not line:
+                    raise asyncio.TimeoutError("guest agent returned no response")
+                data = json.loads(line.decode("utf-8"))
+                msg_type = data.get("type")
+
+                if msg_type == "callback":
+                    reply, log_entry = await self._service_callback(data, callback_handler)
+                    callbacks.append(log_entry)
+                    writer.write((json.dumps(reply) + "\n").encode("utf-8"))
+                    await writer.drain()
+                    continue
+
+                # Terminal (msg_type == "final") OR untagged legacy reply.
+                stdout = str(data.get("stdout", ""))
+                stderr = str(data.get("stderr", ""))
+                exit_code = int(data.get("exit_code", -1))
+                envelope = data.get("state_envelope")
+                if not isinstance(envelope, dict):
+                    envelope = None
+                return (stdout, stderr, exit_code, envelope, callbacks)
         finally:
             try:
                 writer.close()
             except Exception:  # noqa: BLE001
                 pass
+
+    async def _service_callback(self, request: Dict[str, Any], callback_handler: Any) -> tuple:
+        """Dispatch one guest callback request; return (reply_dict, log_entry).
+
+        When no handler is configured (legacy run / Docker runtime), every
+        callback fails with ``callbacks_disabled`` so user code sees a clear
+        error instead of hanging.
+        """
+        kind = request.get("kind") or "unknown"
+        cb_start = time.time()
+        if callback_handler is None:
+            reply = {"type": "callback_result", "ok": False, "error": "callbacks_disabled"}
+            log_entry = {"kind": kind, "ok": False, "error": "callbacks_disabled",
+                         "duration_ms": int((time.time() - cb_start) * 1000)}
+            return reply, log_entry
+        try:
+            result = await callback_handler(request)
+            reply = {"type": "callback_result", "ok": bool(result.get("ok", True)),
+                     "data": result.get("data")}
+            if not reply["ok"]:
+                reply["error"] = result.get("error", "failed")
+            log_entry = {
+                "kind": kind,
+                "service": request.get("service"),
+                "action": request.get("action"),
+                "ok": reply["ok"],
+                "duration_ms": int((time.time() - cb_start) * 1000),
+            }
+            return reply, log_entry
+        except Exception as e:  # noqa: BLE001
+            logger.warning("callback %s failed: %s", kind, e)
+            reply = {"type": "callback_result", "ok": False, "error": "failed"}
+            log_entry = {"kind": kind, "ok": False, "error": "failed",
+                         "duration_ms": int((time.time() - cb_start) * 1000)}
+            return reply, log_entry
 
 
 # ===========================================================================

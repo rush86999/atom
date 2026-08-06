@@ -271,6 +271,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 ref={passwordInputRef}
                 style={styles.input}
                 placeholder="Password"
+                testID="password-input"
                 value={password}
                 onChangeText={handlePasswordChange}
                 onBlur={() => setTouched({ ...touched, password: true })}
@@ -283,6 +284,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 editable={!isLoading}
               />
               <TouchableOpacity
+                testID="toggle-password-button"
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.passwordToggle}
                 disabled={isLoading}
@@ -302,6 +304,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Remember Me & Forgot Password */}
           <View style={styles.row}>
             <TouchableOpacity
+              testID="remember-me-checkbox"
               style={styles.checkboxContainer}
               onPress={() => setRememberMe(!rememberMe)}
               disabled={isLoading}
@@ -326,13 +329,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
           {/* Login Button */}
           <TouchableOpacity
+            testID="sign-in-button"
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator testID="activity-indicator" color="#fff" />
             ) : (
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
@@ -341,6 +345,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Biometric Login Button (if available) */}
           {biometricAvailable && (
             <TouchableOpacity
+              testID="biometric-button"
               style={styles.biometricButton}
               onPress={handleBiometricLogin}
               disabled={isLoading}

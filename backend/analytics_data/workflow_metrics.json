@@ -106,5 +106,14 @@
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
     "last_executed": "2026-04-26T00:39:09.704304"
+  },
+  "test-workflow-deps": {
+    "execution_count": 1,
+    "success_count": 0,
+    "failure_count": 1,
+    "total_duration_seconds": 0.055187,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-08-06T18:44:35.359950+00:00"
   }
 }

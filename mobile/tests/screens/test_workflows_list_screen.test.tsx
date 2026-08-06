@@ -14,8 +14,8 @@
  */
 
 import React from 'react';
+import { RefreshControl } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { WorkflowsListScreen } from '../../src/screens/workflows/WorkflowsListScreen';
 
 // Mock navigation
 const mockNavigation = {
@@ -79,6 +79,16 @@ jest.mock('../../src/services/workflowService', () => ({
   }),
 }));
 
+// require() AFTER the data/mocks are declared — a static import would run the
+// service mock factory before mockWorkflows is initialized (hoisted var).
+const { WorkflowsListScreen } = require('../../src/screens/workflows/WorkflowsListScreen');
+
+// These screens load data through async service mocks; the global fake
+// timers keep their promise chains from flushing, so use real timers here.
+beforeEach(() => {
+  jest.useRealTimers();
+});
+
 describe('WorkflowsListScreen - Rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -93,7 +103,7 @@ describe('WorkflowsListScreen - Rendering', () => {
 
   // Test 2: Renders workflow cards after loading
   it('should render workflow cards after loading', async () => {
-    const { getByText, queryByText } = render(<WorkflowsListScreen />);
+    const { getByText, getAllByText, queryByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
       expect(queryByText('Loading workflows...')).toBeNull();
@@ -102,7 +112,8 @@ describe('WorkflowsListScreen - Rendering', () => {
     await waitFor(() => {
       expect(getByText('Data Sync Workflow')).toBeTruthy();
       expect(getByText('Email Notifications')).toBeTruthy();
-      expect(getByText('Data Processing')).toBeTruthy();
+      // 'Data Processing' is also a category chip label
+      expect(getAllByText('Data Processing').length).toBeGreaterThan(0);
     });
   });
 
@@ -128,11 +139,12 @@ describe('WorkflowsListScreen - Rendering', () => {
 
   // Test 5: Displays workflow badges
   it('should display workflow badges', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      expect(getByText('Automation')).toBeTruthy();
-      expect(getByText('active')).toBeTruthy();
+      // 'Automation' appears on the category chip and card badges
+      expect(getAllByText('Automation').length).toBeGreaterThan(0);
+      expect(getAllByText('active').length).toBeGreaterThan(0);
     });
   });
 });
@@ -215,25 +227,27 @@ describe('WorkflowsListScreen - Category Filter', () => {
 
   // Test 1: Displays category filter
   it('should display category filter', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      expect(getByText('All')).toBeTruthy();
-      expect(getByText('Automation')).toBeTruthy();
-      expect(getByText('Integration')).toBeTruthy();
-      expect(getByText('Data Processing')).toBeTruthy();
+      expect(getAllByText('All').length).toBeGreaterThan(0);
+      // Chip labels also appear on workflow card badges
+      expect(getAllByText('Automation').length).toBeGreaterThan(0);
+      expect(getAllByText('Integration').length).toBeGreaterThan(0);
+      expect(getAllByText('Data Processing').length).toBeGreaterThan(0);
     });
   });
 
   // Test 2: Filters by category
   it('should filter by category', async () => {
-    const { getByText, queryByText } = render(<WorkflowsListScreen />);
+    const { getAllByText, getByText, queryByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      expect(getByText('All')).toBeTruthy();
+      expect(getAllByText('All').length).toBeGreaterThan(0);
     });
 
-    const automationChip = getByText('Automation');
+    // The chip row renders before the card badges in the tree
+    const automationChip = getAllByText('Automation')[0];
     fireEvent.press(automationChip);
 
     await waitFor(() => {
@@ -244,30 +258,31 @@ describe('WorkflowsListScreen - Category Filter', () => {
 
   // Test 3: Shows all workflows when All selected
   it('should show all workflows when All selected', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      expect(getByText('All')).toBeTruthy();
+      expect(getAllByText('All').length).toBeGreaterThan(0);
     });
 
     // All should be selected by default
-    expect(getByText('Data Sync Workflow')).toBeTruthy();
-    expect(getByText('Email Notifications')).toBeTruthy();
-    expect(getByText('Data Processing')).toBeTruthy();
+    expect(getAllByText('Data Sync Workflow').length).toBeGreaterThan(0);
+    expect(getAllByText('Email Notifications').length).toBeGreaterThan(0);
+    // 'Data Processing' is also a category chip label
+    expect(getAllByText('Data Processing').length).toBeGreaterThan(0);
   });
 
   // Test 4: Changes chip style when selected
   it('should change chip style when selected', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      const automationChip = getByText('Automation');
+      const automationChip = getAllByText('Automation')[0];
       fireEvent.press(automationChip);
     });
 
     // Chip should have active style
     await waitFor(() => {
-      expect(getByText('Automation')).toBeTruthy();
+      expect(getAllByText('Automation').length).toBeGreaterThan(0);
     });
   });
 });
@@ -287,15 +302,12 @@ describe('WorkflowsListScreen - Pull to Refresh', () => {
       expect(getByText('Data Sync Workflow')).toBeTruthy();
     });
 
-    // Simulate pull to refresh
+    // Trigger refresh the way RefreshControl does in the real scenario
     act(() => {
-      getWorkflows.mockClear();
-      getWorkflows.mockResolvedValueOnce({
-        workflows: mockWorkflows,
-      });
+      const refreshControl = UNSAFE_getByType(RefreshControl);
+      refreshControl.props.onRefresh();
     });
 
-    // Trigger refresh (would be done by RefreshControl in real scenario)
     await waitFor(() => {
       expect(getWorkflows).toHaveBeenCalled();
     });
@@ -335,11 +347,12 @@ describe('WorkflowsListScreen - Workflow Card', () => {
 
   // Test 2: Triggers workflow on run button press
   it('should trigger workflow on run button press', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      const runButton = getByText('Run');
-      fireEvent.press(runButton);
+      const runButton = getAllByText('Run')[0];
+      // The handler calls event.stopPropagation() like RN's gesture event
+      fireEvent.press(runButton, { stopPropagation: jest.fn() });
     });
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('WorkflowTrigger', {
@@ -492,12 +505,13 @@ describe('WorkflowsListScreen - Layout', () => {
 
   // Test 2: Scrollable list of workflows
   it('should have scrollable list of workflows', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getByText, getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
       expect(getByText('Data Sync Workflow')).toBeTruthy();
       expect(getByText('Email Notifications')).toBeTruthy();
-      expect(getByText('Data Processing')).toBeTruthy();
+      // 'Data Processing' is also a category chip label
+      expect(getAllByText('Data Processing').length).toBeGreaterThan(0);
     });
 
     // All workflows should be visible in list
@@ -615,11 +629,11 @@ describe('WorkflowsListScreen - Accessibility', () => {
 
   // Test 3: Has accessible category filters
   it('should have accessible category filters', async () => {
-    const { getByText } = render(<WorkflowsListScreen />);
+    const { getAllByText } = render(<WorkflowsListScreen />);
 
     await waitFor(() => {
-      expect(getByText('All')).toBeTruthy();
-      expect(getByText('Automation')).toBeTruthy();
+      expect(getAllByText('All').length).toBeGreaterThan(0);
+      expect(getAllByText('Automation').length).toBeGreaterThan(0);
     });
   });
 });

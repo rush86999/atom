@@ -21,8 +21,10 @@ Steps to boot, deploy, configure, and maintain Atom instances in production.
 ### 2. 🛡️ Sandbox & Security Layer
 Deterministic execution isolation, permission tiers, and code analysis boundaries.
 - [Execution Sandbox Layer](architecture/SANDBOX_LAYER.md) — FS scope, Firecracker microVMs, egress, and AST invariants
+- [Execution Sandbox Concept Guide](guides/EXECUTION_SANDBOX.md) — **NEW** Deep dive: phases, config, tripwires, audit
 - [Sandbox Policy Design](architecture/GOVERNANCE_STANDARDIZATION.md) — Detailed governance standards and enforcement rules
 - [Package Security](security/packages.md) — Vulnerability scanning and package isolation systems (PyPI, npm)
+- [Data Protection](security/DATA_PROTECTION.md) — Fernet encryption, secrets management, migration
 
 ### 3. 🧠 Memory & Routing Intelligence
 Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
@@ -32,18 +34,24 @@ Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
 - [GraphRAG](intelligence/graphrag.md) — Leiden community summaries and hybrid graph-episodic search routing
 - [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
 - [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) — Offline trace analysis, weakness mining, and auto-mutation patches
+- [Memory Systems Concept Guide](guides/MEMORY_SYSTEMS.md) — **NEW** Three-tier recall, episodic memory, self-evolution
 
 ### 4. 👥 Multi-Agent Orchestration
 Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).
 - [Meta-Agent System](agents/meta-agent.md) — Conductor parallel consensus, fleet recruitment, and cognitive routing
 - [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) — Step-by-step workflow builder guidelines
 - [Fleet Admiral](agents/fleet-admiral.md) — Orchestrating fleets for unstructured task resolution
+- [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) — **NEW** Tier system, governance flow, graduation
 
 ### 5. 🔌 Integrations & Canvas Automation
 Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
 - [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
+- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 50+ native services, OAuth, governance, webhooks, custom integration
+- [LLM Providers Guide](guides/LLM_PROVIDERS.md) — All providers, setup, costs, routing strategies
+- [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) — Low-cost subscription gateway (~90% savings)
 - [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
 - [Mini-Apps Architecture](architecture/MINI_APPS.md) — Stateful, resumable canvas apps authored by chatting with an agent (Firecracker microVM runtime)
+- [Mini-Apps User Guide](guides/MINI_APPS_GUIDE.md) — Create, run, and collaborate on mini-apps
 - [Firecracker Host Setup](deployment/FIRECRACKER_HOST_SETUP.md) — Provision the microVM runtime for mini-apps
 - [Browser Automation](integrations/browser-automation.md) — Sandboxed browser scraping and element interaction
 

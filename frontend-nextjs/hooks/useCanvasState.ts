@@ -105,19 +105,25 @@ export function useCanvasState(canvasId?: string) {
       // Track that we're trying to subscribe to this canvas
       registeredCanvases.add(canvasId);
 
-      unsubscribeRef.current = api.subscribe((newState) => {
-        if (newState) {
-          setState(newState);
-          // Clear any pending warnings for this canvas
-          registrationWarnings.delete(`${canvasId}:may not be properly registered`);
-        } else {
-          logWarningOnce(
-            canvasId,
-            `Received null state for canvas "${canvasId}". ` +
-            `Canvas may have been unmounted or failed to initialize.`
-          );
-        }
-      });
+      try {
+        unsubscribeRef.current = api.subscribe((newState) => {
+          if (newState) {
+            setState(newState);
+            // Clear any pending warnings for this canvas
+            registrationWarnings.delete(`${canvasId}:may not be properly registered`);
+          } else {
+            logWarningOnce(
+              canvasId,
+              `Received null state for canvas "${canvasId}". ` +
+              `Canvas may have been unmounted or failed to initialize.`
+            );
+          }
+        });
+      } catch (subscribeError) {
+        // Graceful degradation: a throwing subscribe() must not crash the
+        // component tree — the hook keeps working via the API accessors.
+        logWarningOnce(canvasId, `Failed to subscribe to canvas "${canvasId}".`);
+      }
 
       // Immediate state check
       const initialState = api.getState(canvasId);
@@ -125,20 +131,25 @@ export function useCanvasState(canvasId?: string) {
         setState(initialState);
       }
     } else {
-      unsubscribeRef.current = api.subscribeAll((event: CanvasStateChangeEvent) => {
-        setAllStates(prev => {
-          const existing = prev.findIndex(s => s.canvas_id === event.canvas_id);
-          if (existing >= 0) {
-            const updated = [...prev];
-            updated[existing] = { canvas_id: event.canvas_id, state: event.state };
-            return updated;
-          }
-          return [...prev, { canvas_id: event.canvas_id, state: event.state }];
-        });
+      try {
+        unsubscribeRef.current = api.subscribeAll((event: CanvasStateChangeEvent) => {
+          setAllStates(prev => {
+            const existing = prev.findIndex(s => s.canvas_id === event.canvas_id);
+            if (existing >= 0) {
+              const updated = [...prev];
+              updated[existing] = { canvas_id: event.canvas_id, state: event.state };
+              return updated;
+            }
+            return [...prev, { canvas_id: event.canvas_id, state: event.state }];
+          });
 
-        // Track canvas registration
-        registeredCanvases.add(event.canvas_id);
-      });
+          // Track canvas registration
+          registeredCanvases.add(event.canvas_id);
+        });
+      } catch (subscribeAllError) {
+        // Graceful degradation: same as the per-canvas path above.
+        logWarningOnce('*', 'Failed to subscribe to all canvases.');
+      }
 
       // Load all initial states
       const initialStates = api.getAllStates();

@@ -13,12 +13,15 @@
 
 import apiClient, { systemAPI } from '@/lib/api';
 import { rest } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/tests/mocks/server';
 
-// MSW setup
-const server = setupServer(
+// Default handlers registered on the SHARED MSW server (see tests/mocks/server).
+// Note: handler paths must be wildcard-origin ("*/api/...") because the apiClient
+// resolves relative URLs against http://127.0.0.1:8000, and relative path masks
+// never match absolute URLs in MSW 1.x (see lib/__tests__/api/error-handling.test.ts).
+const defaultHandlers = [
   // Health endpoint
-  rest.get('/api/health', (req, res, ctx) => {
+  rest.get('*/api/health', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -29,7 +32,7 @@ const server = setupServer(
   }),
 
   // Test endpoint
-  rest.get('/api/test/timeout', (req, res, ctx) => {
+  rest.get('*/api/test/timeout', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({ success: true, data: 'test' })
@@ -37,19 +40,19 @@ const server = setupServer(
   }),
 
   // POST endpoint for testing request body preservation
-  rest.post('/api/test/timeout', async (req, res, ctx) => {
+  rest.post('*/api/test/timeout', async (req, res, ctx) => {
     const body = await req.json();
     return res(
       ctx.status(200),
       ctx.json({ success: true, received: body })
     );
   }),
-);
+];
 
-// Use onUnhandledRequest: 'warn' instead of 'error' to avoid Network Error for unhandled requests
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Re-register default handlers after setup.ts's afterEach resetHandlers()
+beforeEach(() => {
+  server.use(...defaultHandlers);
+});
 
 // Mock console.error to avoid cluttering test output
 const originalError = console.error;
@@ -78,7 +81,7 @@ describe('API Timeout Handling', () => {
 
       let callCount = 0;
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           callCount++;
           // Delay response by 200ms (longer than timeout)
           return new Promise((resolve) => {
@@ -109,7 +112,7 @@ describe('API Timeout Handling', () => {
 
     it('should allow per-request timeout configuration', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({ success: true })
@@ -133,7 +136,7 @@ describe('API Timeout Handling', () => {
       };
 
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return new Promise((resolve) => {
             setTimeout(() => {
               resolve(
@@ -160,7 +163,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           if (attemptCount <= 2) {
             return res(
@@ -193,7 +196,7 @@ describe('API Timeout Handling', () => {
       const MAX_RETRIES = 3; // From api.ts
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(503),
@@ -216,7 +219,7 @@ describe('API Timeout Handling', () => {
       const attemptTimestamps: number[] = [];
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptTimestamps.push(Date.now());
           return res(
             ctx.status(503),
@@ -245,7 +248,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           if (attemptCount === 1) {
             return res(
@@ -279,7 +282,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           if (attemptCount === 1) {
             return res(
@@ -307,7 +310,7 @@ describe('API Timeout Handling', () => {
 
     it('should handle persistent 504 errors', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return res(
             ctx.status(504),
             ctx.json({ error: 'Gateway Timeout' })
@@ -329,7 +332,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(400),
@@ -352,7 +355,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(401),
@@ -375,7 +378,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(403),
@@ -397,7 +400,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(404),
@@ -421,7 +424,7 @@ describe('API Timeout Handling', () => {
       let attemptCount = 0;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(401),
@@ -442,7 +445,7 @@ describe('API Timeout Handling', () => {
 
     it('should handle 401 without token refresh in current implementation', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return res(
             ctx.status(401),
             ctx.json({ error: 'Token expired' })
@@ -465,7 +468,7 @@ describe('API Timeout Handling', () => {
       const MAX_RETRIES = 3;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           attemptCount++;
           return res(
             ctx.status(503),
@@ -487,7 +490,7 @@ describe('API Timeout Handling', () => {
 
     it('should propagate final error to caller', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({ error: 'Service Unavailable', details: 'Backend overloaded' })
@@ -506,7 +509,7 @@ describe('API Timeout Handling', () => {
 
     it('should preserve error details across retries', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res, ctx) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return res(
             ctx.status(503),
             ctx.json({
@@ -532,7 +535,7 @@ describe('API Timeout Handling', () => {
       const requestBody = { message: 'test data', value: 42 };
 
       server.use(
-        rest.post('/api/test/timeout', async (req, res, ctx) => {
+        rest.post('*/api/test/timeout', async (req, res, ctx) => {
           attemptCount++;
           const body = await req.json();
 
@@ -570,7 +573,7 @@ describe('API Timeout Handling', () => {
       };
 
       server.use(
-        rest.post('/api/test/timeout', async (req, res, ctx) => {
+        rest.post('*/api/test/timeout', async (req, res, ctx) => {
           attemptCount++;
           if (attemptCount === 1) {
             return res(
@@ -600,7 +603,7 @@ describe('API Timeout Handling', () => {
       const updateData = { id: 123, name: 'updated' };
 
       server.use(
-        rest.put('/api/test/timeout', async (req, res, ctx) => {
+        rest.put('*/api/test/timeout', async (req, res, ctx) => {
           attemptCount++;
           const body = await req.json();
 
@@ -632,7 +635,7 @@ describe('API Timeout Handling', () => {
       const patchData = { status: 'active' };
 
       server.use(
-        rest.patch('/api/test/timeout', async (req, res, ctx) => {
+        rest.patch('*/api/test/timeout', async (req, res, ctx) => {
           attemptCount++;
           const body = await req.json();
 
@@ -663,7 +666,7 @@ describe('API Timeout Handling', () => {
   describe('8. Concurrent Request Timeouts', () => {
     it('should handle multiple concurrent timeouts', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return new Promise((resolve) => {
             setTimeout(() => {
               resolve(
@@ -699,7 +702,7 @@ describe('API Timeout Handling', () => {
 
     it('should not cause memory leaks with concurrent timeouts', async () => {
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return new Promise((resolve) => {
             setTimeout(() => {
               resolve(
@@ -736,7 +739,7 @@ describe('API Timeout Handling', () => {
       let requestAborted = false;
 
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
               resolve(
@@ -772,7 +775,7 @@ describe('API Timeout Handling', () => {
       const pendingRequests = new Set<string>();
 
       server.use(
-        rest.get('/api/test/timeout', (req, res) => {
+        rest.get('*/api/test/timeout', (req, res, ctx) => {
           const requestId = `req_${Date.now()}_${Math.random()}`;
           pendingRequests.add(requestId);
 

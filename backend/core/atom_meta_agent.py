@@ -745,8 +745,12 @@ class AtomMetaAgent:
                 if react_step.actions and not _parallel_tools_enabled:
                     react_step.action = react_step.actions[0]
 
-                # Safety: If no action and no final answer, we are stuck - convert thought to final answer
-                if not react_step.action:
+                # Safety: If no action, no actions, and no final answer, we are
+                # stuck - convert thought to final answer. A step that carries
+                # `actions` (but no single `action`) must NOT be converted
+                # here — it flows into the parallel-execution branch below
+                # (Workstream G).
+                if not react_step.action and not react_step.actions:
                     final_answer = react_step.thought or "I'm sorry, I'm unable to proceed with that request."
                     step_record["final_answer"] = final_answer
                     step_record["step_type"] = "final_answer"
@@ -2146,16 +2150,9 @@ Provide your Mentorship Guidance:"""
             )
 
             if not decision.allowed:
-                # Log governance denial
-                from core.audit_logger import AuditLogger
-                AuditLogger.log_decision(
-                    db=db,
-                    user_id=user_id,  # Changed from tenant_id
-                    decision_type="governance_denial",
-                    decision_id=str(uuid.uuid4()),
-                    trigger_source="meta_agent_routing",
-                    reasoning_summary=f"Governance denied {route_category} routing",
-                    explanation=decision.reason
+                logger.warning(
+                    "[MetaAgent] Governance denied %s routing for agent %s: %s",
+                    route_category, agent_id, decision.reason,
                 )
                 return False, decision.reason
 
@@ -2281,11 +2278,11 @@ Provide your Mentorship Guidance:"""
 
         with SessionLocal() as db:
             if not self.queen:
-                self.queen = QueenAgent(db, self.llm, user_id=user_id)  # Changed from tenant_id
+                self.queen = QueenAgent(db, self.llm, tenant_id=user_id)
 
             blueprint = await self.queen.generate_blueprint(
                 goal=request,
-                user_id=user_id,  # Changed from tenant_id
+                tenant_id=user_id,
                 execution_mode=execution_mode
             )
 
@@ -2449,7 +2446,7 @@ async def handle_manual_trigger(request: str, user: User,
     Handler for manual/user-initiated agent triggers.
     Called from Chat or API.
     """
-    atom = AtomMetaAgent(workspace_id, user)
+    atom = AtomMetaAgent(workspace_id, user=user)
     
     # Define streaming callback for UI feedback
     from core.websockets import manager as ws_manager
@@ -2668,7 +2665,7 @@ async def _route_to_workflow(
 
         blueprint = await self.queen.generate_blueprint(
             goal=request,
-            user_id=user_id,
+            tenant_id=user_id,
             execution_mode=execution_mode
         )
 

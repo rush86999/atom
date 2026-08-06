@@ -1,160 +1,177 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { useState, useCallback, useRef } from 'react';
 import '@testing-library/jest-dom';
 
-// Mock the useChatInterface hook
+// Mock the useChatInterface hook.
+// Implemented as a REAL React hook (useState) so renderHook re-renders and
+// result.current reflects state changes between assertions.
 const createMockUseChatInterface = () => {
-  let state = {
-    messages: [],
-    isLoading: false,
-    error: null,
-    streamingMessage: null,
-  };
-
   return {
     useChatInterface: (options: { agentId: string; sessionId: string }) => {
-      return {
-        // State
-        messages: state.messages,
-        isLoading: state.isLoading,
-        error: state.error,
-        streamingMessage: state.streamingMessage,
+      const [messages, setMessages] = useState<any[]>([]);
+      const [isLoading, setIsLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
+      // Track the last attempted message so failed sends can be retried even
+      // though failed messages are never added to the list.
+      const lastContentRef = useRef<string | null>(null);
 
-        // Actions
-        sendMessage: async (content: string, attachments?: any[]) => {
-          state.isLoading = true;
-          state.error = null;
+      const sendMessage = useCallback(async (content: string, attachments?: any[]) => {
+        setIsLoading(true);
+        setError(null);
+        lastContentRef.current = content;
 
-          try {
-            // Simulate API call
-            const response = await fetch(`/api/agents/${options.agentId}/chat`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: options.sessionId,
-                message: content,
-                attachments,
-              }),
-            });
+        try {
+          // Simulate API call
+          const response = await fetch(`/api/agents/${options.agentId}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: options.sessionId,
+              message: content,
+              attachments,
+            }),
+          });
 
-            if (!response.ok) {
-              throw new Error('Failed to send message');
-            }
+          if (!response.ok) {
+            throw new Error('Failed to send message');
+          }
 
-            const data = await response.json();
+          const data = await response.json();
 
-            // Add user message
-            state.messages.push({
+          // Add user message + assistant response
+          const timestamp = new Date().toISOString();
+          setMessages(prev => [
+            ...prev,
+            {
               id: `msg-${Date.now()}-user`,
               role: 'user',
               content,
-              timestamp: new Date().toISOString(),
-            });
-
-            // Add assistant response
-            state.messages.push({
+              timestamp,
+            },
+            {
               id: `msg-${Date.now()}-assistant`,
               role: 'assistant',
               content: data.response,
-              timestamp: new Date().toISOString(),
-            });
+              timestamp,
+            },
+          ]);
 
-            state.isLoading = false;
-            return data;
-          } catch (error) {
-            state.isLoading = false;
-            state.error = error instanceof Error ? error.message : 'Unknown error';
-            throw error;
+          setIsLoading(false);
+          return data;
+        } catch (caughtError) {
+          setIsLoading(false);
+          setError(caughtError instanceof Error ? caughtError.message : 'Unknown error');
+          throw caughtError;
+        }
+      }, [options.agentId, options.sessionId]);
+
+      const streamMessage = useCallback(async (content: string) => {
+        setIsLoading(true);
+        setStreamingMessage('');
+        setError(null);
+
+        try {
+          // Simulate streaming API call
+          const response = await fetch(`/api/agents/${options.agentId}/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: options.sessionId,
+              message: content,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to stream message');
           }
-        },
 
-        streamMessage: async (content: string) => {
-          state.isLoading = true;
-          state.streamingMessage = '';
-          state.error = null;
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
 
-          try {
-            // Simulate streaming API call
-            const response = await fetch(`/api/agents/${options.agentId}/stream`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: options.sessionId,
-                message: content,
-              }),
-            });
+          if (!reader) {
+            throw new Error('No response body');
+          }
 
-            if (!response.ok) {
-              throw new Error('Failed to stream message');
-            }
+          let fullResponse = '';
 
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            if (!reader) {
-              throw new Error('No response body');
-            }
+            const chunk = decoder.decode(value);
+            fullResponse += chunk;
+            setStreamingMessage(fullResponse);
+          }
 
-            let fullResponse = '';
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              const chunk = decoder.decode(value);
-              fullResponse += chunk;
-              state.streamingMessage = fullResponse;
-            }
-
-            // Add to messages
-            state.messages.push({
+          // Add to messages
+          const timestamp = new Date().toISOString();
+          setMessages(prev => [
+            ...prev,
+            {
               id: `msg-${Date.now()}-user`,
               role: 'user',
               content,
-              timestamp: new Date().toISOString(),
-            });
-
-            state.messages.push({
+              timestamp,
+            },
+            {
               id: `msg-${Date.now()}-assistant`,
               role: 'assistant',
               content: fullResponse,
-              timestamp: new Date().toISOString(),
-            });
+              timestamp,
+            },
+          ]);
 
-            state.streamingMessage = null;
-            state.isLoading = false;
-          } catch (error) {
-            state.isLoading = false;
-            state.streamingMessage = null;
-            state.error = error instanceof Error ? error.message : 'Unknown error';
-            throw error;
-          }
-        },
+          setStreamingMessage(null);
+          setIsLoading(false);
+        } catch (caughtError) {
+          setIsLoading(false);
+          setStreamingMessage(null);
+          setError(caughtError instanceof Error ? caughtError.message : 'Unknown error');
+          throw caughtError;
+        }
+      }, [options.agentId, options.sessionId]);
 
-        retryMessage: async (messageId: string) => {
-          const message = state.messages.find(m => m.id === messageId);
-          if (!message) return;
+      const retryMessage = useCallback(async (messageId: string) => {
+        const message = messages.find(m => m.id === messageId);
+        const content = message ? message.content : lastContentRef.current;
+        if (content == null) return;
 
-          state.error = null;
-          return state.sendMessage(message.content);
-        },
+        setError(null);
+        return sendMessage(content);
+      }, [messages, sendMessage]);
 
-        clearMessages: () => {
-          state.messages = [];
-          state.error = null;
-        },
+      const clearMessages = useCallback(() => {
+        setMessages([]);
+        setError(null);
+      }, []);
 
-        regenerateResponse: async (messageId: string) => {
-          const messageIndex = state.messages.findIndex(m => m.id === messageId);
-          if (messageIndex === -1) return;
+      const regenerateResponse = useCallback(async (messageId: string) => {
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex === -1) return;
 
-          const userMessage = state.messages[messageIndex];
+        const userMessage = messages[messageIndex];
 
-          // Remove previous assistant response
-          state.messages = state.messages.slice(0, messageIndex + 1);
+        // Drop the previous user/assistant pair and rebuild it via sendMessage
+        setMessages(prev => prev.slice(0, messageIndex));
 
-          state.error = null;
-          return state.sendMessage(userMessage.content);
-        },
+        setError(null);
+        return sendMessage(userMessage.content);
+      }, [messages, sendMessage]);
+
+      return {
+        // State
+        messages,
+        isLoading,
+        error,
+        streamingMessage,
+
+        // Actions
+        sendMessage,
+        streamMessage,
+        retryMessage,
+        clearMessages,
+        regenerateResponse,
       };
     },
   };
@@ -187,14 +204,18 @@ describe('useChatInterface - Integration Tests', () => {
         json: () => Promise.resolve({ response: 'Hello!' }),
       });
 
-      const sendPromise = act(() =>
-        result.current.sendMessage('Test message')
-      );
+      let sendPromise: Promise<unknown>;
+      act(() => {
+        sendPromise = result.current.sendMessage('Test message');
+      });
 
       // Should be loading during send
       expect(result.current.isLoading).toBe(true);
 
-      await sendPromise;
+      // Await inside act so the post-fetch state updates are flushed
+      await act(async () => {
+        await sendPromise;
+      });
 
       // Should finish loading
       expect(result.current.isLoading).toBe(false);
@@ -427,14 +448,14 @@ describe('useChatInterface - Integration Tests', () => {
       expect(result.current.messages).toHaveLength(2);
       expect(result.current.messages[1].content).toBe('First response');
 
-      // Regenerate
+      // Regenerate — target the USER message so the assistant reply is rebuilt
       (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'Second response' }),
       });
 
       await act(() =>
-        result.current.regenerateResponse(result.current.messages[1].id)
+        result.current.regenerateResponse(result.current.messages[0].id)
       );
 
       expect(result.current.messages).toHaveLength(2);

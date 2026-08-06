@@ -554,7 +554,9 @@ export const createMockNotification = (options: MockNotificationOptions = {}) =>
     sound,
     badge,
     priority,
-    identifier: `notification-${Date.now()}`,
+    // Date.now() alone is not unique when two notifications are created in
+    // the same millisecond — add a random suffix.
+    identifier: `notification-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
     timestamp: Date.now(),
   };
 };
@@ -609,8 +611,8 @@ export const createMockPushToken = (options: MockPushTokenOptions = {}) => {
  * // NetInfo change handlers will be triggered
  */
 export const simulateNetworkSwitch = (NetInfo: any, isConnected: boolean) => {
-  const addEventListenerMock = NetInfo.addEventListener;
-  const callback = addEventListenerMock.mock.calls[0]?.[0];
+  const addEventListenerMock = NetInfo?.addEventListener;
+  const callback = addEventListenerMock?.mock?.calls?.[0]?.[0];
 
   if (callback) {
     callback({

@@ -1,7 +1,7 @@
 # Canvas System Quick Reference
 
-**Version**: 1.2.0 (February 2026)
-**Status**: Production Ready
+**Version**: 2.0.0 (August 2026)
+**Status**: Production Ready — **Full CRUD + Integration Support**
 
 ---
 
@@ -11,8 +11,9 @@
 
 ```python
 from tools.canvas_tool import present_chart, present_markdown, present_form, update_canvas
+from tools.canvas_crud_tool import read_canvas, update_canvas_content, delete_canvas, list_canvases
 
-# Present a chart
+# Present a chart (CREATE)
 await present_chart(
     user_id="user-1",
     chart_type="line_chart",
@@ -20,11 +21,30 @@ await present_chart(
     title="Sales Trend"
 )
 
-# Update chart data (NEW!)
-await update_canvas(
+# Read canvas (READ)
+await read_canvas(
+    user_id="user-1",
+    canvas_id="canvas-abc123"
+)
+
+# Update chart data (UPDATE)
+await update_canvas_content(
     user_id="user-1",
     canvas_id="canvas-abc123",
-    updates={"data": [{"x": "Jan", "y": 100}, {"x": "Feb", "y": 200}]}
+    content={"data": [{"x": "Jan", "y": 100}, {"x": "Feb", "y": 200}]},
+    canvas_type="charts"
+)
+
+# Delete canvas (DELETE)
+await delete_canvas(
+    user_id="user-1",
+    canvas_id="canvas-abc123"
+)
+
+# List canvases (LIST)
+await list_canvases(
+    user_id="user-1",
+    canvas_type="charts"
 )
 ```
 
@@ -59,7 +79,7 @@ await present_chart(
     data: List[Dict],       # Required: Chart data
     title: str = None,      # Optional: Chart title
     agent_id: str = None,   # Optional: Agent ID (for governance)
-    session_id: str = None, # Optional: Session ID (NEW!)
+    session_id: str = None, # Optional: Session ID
     **kwargs                # Additional chart options
 )
 ```
@@ -74,7 +94,7 @@ await present_markdown(
     content: str,           # Markdown content
     title: str = None,
     agent_id: str = None,
-    session_id: str = None  # NEW!
+    session_id: str = None
 )
 ```
 
@@ -88,19 +108,20 @@ await present_form(
     form_schema: Dict,      # Form schema with fields
     title: str = None,
     agent_id: str = None,
-    session_id: str = None  # NEW!
+    session_id: str = None
 )
 ```
 
 **Complexity**: 2 (MODERATE)
 **Maturity**: INTERN+
 
-### update_canvas (NEW!)
+### present_sheet
 ```python
-await update_canvas(
+await present_sheet(
     user_id: str,
-    canvas_id: str,         # Existing canvas ID
-    updates: Dict,          # Update data
+    data: List[Dict],       # Sheet data (rows)
+    columns: List[Dict],    # Column definitions
+    title: str = None,
     agent_id: str = None,
     session_id: str = None
 )
@@ -109,25 +130,90 @@ await update_canvas(
 **Complexity**: 2 (MODERATE)
 **Maturity**: INTERN+
 
-**Examples**:
+---
+
+## Canvas CRUD Functions (NEW — Aug 2026)
+
+### read_canvas
 ```python
-# Update data
-await update_canvas(user_id="user-1", canvas_id="abc", updates={"data": [...]})
-
-# Update title
-await update_canvas(user_id="user-1", canvas_id="abc", updates={"title": "New Title"})
-
-# Update multiple fields
-await update_canvas(
-    user_id="user-1",
-    canvas_id="abc",
-    updates={"title": "New", "data": [...], "color": "#FF0000"}
-)
+await read_canvas(
+    user_id: str,           # Required: User ID
+    canvas_id: str,         # Required: Canvas ID from present_* call
+) -> Dict[str, Any]
 ```
+
+Returns current content, canvas_type, title, action_type, created_at. Reads latest `CanvasAudit` row (audit trail is source of truth). IDOR-guarded (owner only).
+
+**Complexity**: 1 (LOW)
+**Maturity**: STUDENT+
+**Cacheable**: Yes (idempotent read)
+
+### update_canvas_content
+```python
+await update_canvas_content(
+    user_id: str,           # Required: User ID
+    canvas_id: str,         # Required: Canvas ID to update
+    content: Any,           # Required: New content (type depends on canvas_type)
+    canvas_type: str = "generic",  # Optional: Canvas type
+    title: str = None,      # Optional: New title
+) -> Dict[str, Any]
+```
+
+Reads latest `CanvasAudit`, merges new content, appends new audit row with `action_type="update"`. Broadcasts WS `canvas:update`. Works for ALL canvas types (generalizes docs-only pattern). IDOR-guarded.
+
+**Complexity**: 2 (MODERATE)
+**Maturity**: INTERN+
+**Dependencies**: websockets
+
+### delete_canvas
+```python
+await delete_canvas(
+    user_id: str,           # Required: User ID
+    canvas_id: str,         # Required: Canvas ID to delete
+) -> Dict[str, Any]
+```
+
+Writes `CanvasAudit` with `action_type="delete"`, broadcasts WS close. Append-only trail preserved (history recoverable). Targets specific canvas_id (unlike old close_canvas which closed ALL). IDOR-guarded.
+
+**Complexity**: 1 (LOW)
+**Maturity**: STUDENT+
+**Dependencies**: websockets
+
+### list_canvases
+```python
+await list_canvases(
+    user_id: str,                    # Required: User ID
+    canvas_type: str = None,         # Optional: Filter by type (e.g. "sheets", "email")
+    include_deleted: bool = False,   # Optional: Include deleted canvases
+) -> Dict[str, Any]
+```
+
+Returns latest state of each unique `canvas_id` from audit trail. Groups by canvas_id, takes latest per ID. Filterable by type.
+
+**Complexity**: 1 (LOW)
+**Maturity**: STUDENT+
+**Cacheable**: Yes (idempotent list)
 
 ---
 
-## Tool Registry (NEW!)
+## Tool Registry (Aug 2026 — Full CRUD Registered)
+
+All canvas tools are registered in the unified Action Registry (`core/action_registry.py`), auto-exposed to:
+- **Agent MCP loop** via `integrations/mcp_service.get_all_tools()`
+- **Frontend RPC** via `api/rpc_routes.py` (`POST /api/rpc/{action}`)
+
+### Canvas Tools Registered
+
+| Tool | Category | Complexity | Maturity | Cacheable | Description |
+|------|----------|------------|----------|-----------|-------------|
+| `present_chart` | canvas | 1 (LOW) | STUDENT+ | No | Create chart canvas |
+| `present_markdown` | canvas | 1 (LOW) | STUDENT+ | No | Create markdown canvas |
+| `present_form` | canvas | 2 (MODERATE) | INTERN+ | No | Create form canvas |
+| `present_sheet` | canvas | 2 (MODERATE) | INTERN+ | No | Create sheet canvas |
+| `read_canvas` | canvas | 1 (LOW) | STUDENT+ | **Yes** | Read canvas by ID |
+| `update_canvas_content` | canvas | 2 (MODERATE) | INTERN+ | No | Update canvas content |
+| `delete_canvas` | canvas | 1 (LOW) | STUDENT+ | No | Delete canvas by ID |
+| `list_canvases` | canvas | 1 (LOW) | STUDENT+ | **Yes** | List user's canvases |
 
 ### Discover Tools
 
@@ -180,6 +266,14 @@ GET /api/tools/stats
 GET /api/tools/categories
 ```
 
+### Integration Notes
+
+- **Governance enforced** at dispatch: `AgentGovernanceService.can_execute_action()` checks maturity + capability bindings
+- **Sandbox gate** (P9 default-on): Every call flows through `integrations/mcp_service.call_tool` → `core/sandbox_gate.evaluate_tool_call`
+- **Audit trail**: Every CRUD op writes `CanvasAudit` row (append-only, IDOR-guarded via `Canvas.created_by`)
+- **WebSocket broadcast**: Update/delete ops broadcast `canvas:update` to `user:{user_id}` channel
+- **Session isolation**: `session_id` parameter on create ops for parallel workflow channels
+
 ---
 
 ## Governance
@@ -188,8 +282,8 @@ GET /api/tools/categories
 
 | Level | Actions | Maturity Required |
 |-------|---------|-------------------|
-| 1 (LOW) | present_chart, present_markdown | STUDENT+ |
-| 2 (MODERATE) | present_form, update_canvas, browser_navigate, device_camera_snap | INTERN+ |
+| 1 (LOW) | present_chart, present_markdown, present_sheet, read_canvas, delete_canvas, list_canvases | STUDENT+ |
+| 2 (MODERATE) | present_form, update_canvas_content, browser_navigate, device_camera_snap | INTERN+ |
 | 3 (HIGH) | submit_form, device_screen_record_start, device_screen_record_stop | SUPERVISED+ |
 | 4 (CRITICAL) | device_execute_command, delete, execute | AUTONOMOUS |
 
@@ -197,10 +291,39 @@ GET /api/tools/categories
 
 | Level | Confidence | Capabilities |
 |-------|-----------|--------------|
-| STUDENT | <0.5 | Read-only (charts, markdown) |
-| INTERN | 0.5-0.7 | Streaming, form presentation, **canvas updates** |
+| STUDENT | <0.5 | Read-only (charts, markdown, sheets), read/list/delete canvases |
+| INTERN | 0.5-0.7 | Streaming, form presentation, canvas updates, canvas create |
 | SUPERVISED | 0.7-0.9 | Form submissions, screen recording |
 | AUTONOMOUS | >0.9 | Full autonomy, command execution |
+
+### Capability Bindings (P2 — Per-Agent Zero-Trust)
+
+Each agent declares `capabilities: string[]` in `AgentRegistry`. At dispatch:
+```
+effective = agent.capabilities ∩ tier_floor ∩ sandbox_policy
+```
+
+Canvas tools require capabilities:
+- `canvas_present` — create canvases
+- `canvas_read` — read_canvas, list_canvases
+- `canvas_update` — update_canvas_content
+- `canvas_delete` — delete_canvas
+- `canvas_list` — list_canvases
+
+### Sandbox Gate (P9 — Default-On)
+
+Every canvas tool call flows through:
+```
+integrations/mcp_service.call_tool
+  → core/sandbox_gate.evaluate_tool_call
+    → Phase A: Policy + Audit
+    → Phase B: Filesystem scope
+    → Phase C: Tripwires + Caps + KillRun
+    → Phase D: Firecracker microVM (optional)
+    → Phase E: Provenance + ActionJudge (opt-in)
+```
+
+Kill switch: `ATOM_SANDBOX_FORCE_ENFORCE=false` (restores shadow mode)
 
 ---
 
@@ -216,17 +339,20 @@ ws.onmessage = (event) => {
 
   switch(message.type) {
     case "canvas:update":
-      const { action, component, canvas_id, session_id, data } = message.data;
+      const { action, component, canvas_id, session_id, data, title } = message.data;
 
       if (action === "present") {
         // Present new component
         renderComponent(component, data, canvas_id);
       } else if (action === "update") {
-        // Update existing component (NEW!)
+        // Update existing component
         updateComponent(canvas_id, data);
       } else if (action === "close") {
-        // Close canvas
-        closeCanvas();
+        // Close canvas (from delete_canvas)
+        closeCanvas(canvas_id);
+      } else if (action === "delete") {
+        // Explicit delete event
+        removeCanvas(canvas_id);
       }
       break;
   }
@@ -235,10 +361,88 @@ ws.onmessage = (event) => {
 
 ### Event Types
 
-- `canvas:present` - New component presented
-- `canvas:update` - Component updated (NEW!)
-- `canvas:close` - Canvas closed
-- `canvas:delete` - Component deleted
+- `canvas:present` — New component presented
+- `canvas:update` — Component updated (content/title)
+- `canvas:close` — Canvas closed (from delete_canvas)
+- `canvas:delete` — Explicit delete (future use)
+
+### Broadcast Details
+
+| Operation | Broadcast Action | Channel | Payload |
+|-----------|------------------|---------|---------|
+| `present_*` | `"present"` | `user:{user_id}` | component, canvas_id, data, title, session_id |
+| `update_canvas_content` | `"update"` | `user:{user_id}` | component, canvas_id, data, title |
+| `delete_canvas` | `"close"` | `user:{user_id}` | canvas_id |
+
+---
+
+## Integration Support (Aug 2026)
+
+### Action Registry Integration
+
+All canvas tools are registered in the unified **Action Registry** (`core/action_registry.py`):
+
+```python
+# Auto-exposed to agent MCP loop
+from integrations.mcp_service import get_all_tools
+tools = get_all_tools()  # Includes all canvas CRUD tools
+
+# Auto-exposed to frontend RPC
+# POST /api/rpc/read_canvas
+# POST /api/rpc/update_canvas_content
+# POST /api/rpc/delete_canvas
+# POST /api/rpc/list_canvases
+```
+
+### Governance Enforcement
+
+```
+User Request
+    ↓
+AgentContextResolver (tier, caps, context)
+    ↓
+GovernanceCache (<1ms cached check)
+    ↓
+AgentGovernanceService.can_execute_action()
+    ↓
+ALLOWED → core/sandbox_gate.evaluate_tool_call → execute
+PROPOSAL → ProposalService (HITL approval)
+BLOCKED → Audit + Training data
+```
+
+### Sandbox Gate (P9 Default-On)
+
+Every canvas tool call flows through the shared sandbox gate:
+```python
+integrations/mcp_service.call_tool
+  → core/sandbox_gate.evaluate_tool_call
+```
+
+Phases enforced:
+- **A**: Policy + Audit (always)
+- **B**: Filesystem scope (`ATOM_SANDBOX_FS_ENABLED`)
+- **C**: Tripwires + Caps + KillRun (`ATOM_SANDBOX_CAPS_ENABLED`, `ATOM_SANDBOX_TRIPWIRES_ENABLED`, `ATOM_SANDBOX_WHITELIST_ENABLED`)
+- **D**: Firecracker microVM (opt-in, `ATOM_SANDBOX_RUNTIME=firecracker`)
+- **E**: Provenance + ActionJudge (opt-in, `ATOM_SANDBOX_JUDGE_ENABLED`)
+
+### Audit Trail
+
+Every CRUD operation writes a `CanvasAudit` row (append-only, recoverable):
+- **IDOR protection**: Owner verification via `Canvas.created_by`
+- **Tenant isolation**: `tenant_id` carried from latest audit row
+- **Session tracking**: `session_id` for parallel workflow isolation
+
+### Capability Requirements
+
+| Tool | Required Capability |
+|------|---------------------|
+| `present_*` | `canvas_present` |
+| `read_canvas` | `canvas_read` |
+| `list_canvases` | `canvas_list` |
+| `update_canvas_content` | `canvas_update` |
+| `delete_canvas` | `canvas_delete` |
+
+Agents declare capabilities in `AgentRegistry.capabilities`. Effective = `agent.capabilities ∩ tier_floor ∩ sandbox_policy`.
 
 ---
 

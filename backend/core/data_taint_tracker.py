@@ -40,8 +40,14 @@ _EXPLICIT_KEYWORDS: Dict[str, str] = {
 
 # PII / secret patterns -> always restricted.
 _PII_PATTERNS = [
-    # Credit card number (groups of 4 digits, optionally dash/space separated).
-    re.compile(r"\b(?:\d[ -]*?){13,16}\b"),
+    # Email address
+    re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"),
+    # US phone numbers (with separators)
+    re.compile(r"\b\d{3}[-.)]\s?\d{3}[-.]\d{4}\b"),
+    # IPv4 address (octets 0-255)
+    re.compile(
+        r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"
+    ),
     # SSN xxx-xx-xxxx
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     # Stripe-style API keys
@@ -51,6 +57,32 @@ _PII_PATTERNS = [
     # Generic long hex/base64 secrets (40+ chars) — conservative
     re.compile(r"\b(?:password|secret|api[_-]?key|token)\s*[:=]\s*[\w\-]{20,}\b", re.IGNORECASE),
 ]
+
+# Credit-card-shaped digit runs (13-16 digits, optional separators). Matched
+# separately and gated on the Luhn checksum so arbitrary order numbers,
+# timestamps, and serials are not misclassified as payment cards.
+_CC_CANDIDATE_RE = re.compile(r"\b(?:\d[ -]?){12,15}\d\b")
+
+
+def _luhn_valid(digits: str) -> bool:
+    """Standard ISO/IEC 7812 Luhn checksum over a digit string."""
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = ord(ch) - 48
+        if i % 2 == 1:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+    return total % 10 == 0
+
+
+def _is_credit_card(text: str) -> bool:
+    for match in _CC_CANDIDATE_RE.finditer(text):
+        digits = re.sub(r"\D", "", match.group(0))
+        if 13 <= len(digits) <= 16 and _luhn_valid(digits):
+            return True
+    return False
 
 
 def classify_sensitivity(text: str) -> str:
@@ -69,13 +101,16 @@ def classify_sensitivity(text: str) -> str:
     """
     if not text:
         return "internal"
-    lowered = text.lower()
 
-    # 1. PII / secrets -> restricted.
+    # 1. PII / secrets -> restricted. Credit cards first (Luhn-validated so
+    # numeric identifiers do not trip the classifier).
+    if _is_credit_card(text):
+        return "restricted"
     for pattern in _PII_PATTERNS:
         if pattern.search(text):
             return "restricted"
 
+    lowered = text.lower()
     # 2. Explicit keywords (highest wins).
     found_rank = -1
     found_label = None
@@ -148,7 +183,7 @@ class DataTaintTracker:
         Returns:
             ``{"allowed": bool, "violation_type"?: VT_PROVENANCE, "reason"?: str}``
         """
-        destination = (destination or "external").lower()
+        destination = (destination or "external").strip().lower()
         if destination == "internal":
             return {"allowed": True}
 

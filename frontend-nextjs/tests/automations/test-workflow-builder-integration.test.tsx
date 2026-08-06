@@ -12,16 +12,16 @@ const mockWorkflowApi = {
 
 describe('WorkflowBuilder - API Integration Tests', () => {
   beforeEach(() => {
-    global.fetch = jest.fn();
-    global.mockFetch = global.fetch;
     jest.clearAllMocks();
-    // Mock fetch for API calls
+    // Single fetch mock — once-only overrides (mockResolvedValueOnce etc.)
+    // must be queued on the SAME function the tests actually call
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: {} }),
       })
     ) as jest.Mock;
+    global.mockFetch = global.fetch;
   });
 
   afterEach(() => {

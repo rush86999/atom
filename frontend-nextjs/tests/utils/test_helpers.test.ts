@@ -1,7 +1,16 @@
 // Utility functions to test
 
 export function formatDate(date: Date | string, format: 'short' | 'long' | 'relative' = 'short'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  // Date-only strings ("2026-03-10") denote a calendar day — parse as LOCAL
+  // midnight so the formatted output matches the calendar date in every
+  // timezone (new Date("2026-03-10") would be UTC midnight, shifting the
+  // displayed day west of UTC).
+  let d: Date;
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    d = new Date(`${date}T00:00:00`);
+  } else {
+    d = typeof date === 'string' ? new Date(date) : date;
+  }
 
   if (isNaN(d.getTime())) {
     return 'Invalid Date';
@@ -148,7 +157,8 @@ export function mergeDeep<T extends Record<string, any>>(target: T, ...sources: 
 describe('Utility Functions Tests', () => {
   describe('test_date_formatter', () => {
     it('should format date in short format', () => {
-      const date = new Date('2026-03-10');
+      // Local-constructed date (timezone-independent calendar day)
+      const date = new Date(2026, 2, 10);
       const formatted = formatDate(date, 'short');
 
       expect(formatted).toMatch(/Mar 10, 2026/);

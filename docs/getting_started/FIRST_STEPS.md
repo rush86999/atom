@@ -25,25 +25,28 @@ default (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`).
 
 ## 2. Pick an LLM provider
 
-At least one provider key is required for the agent features to do
-anything useful. Edit `backend/.env`:
+At least one provider key is required for the agent features to do anything useful. 
 
-| Provider | Env var | Where to get a key |
-|----------|---------|-------------------|
-| OpenAI | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
-| Anthropic | `ANTHROPIC_API_KEY` | https://console.anthropic.com/ |
-| DeepSeek | `DEEPSEEK_API_KEY` | https://platform.deepseek.com/ |
-| Google Gemini | `GEMINI_API_KEY` | https://aistudio.google.com/app/apikey |
-| Zhipu GLM (5.2) | `GLM_API_KEY` | https://open.bigmodel.cn/usercenter/apikeys |
-| MiniMax | `MINIMAX_API_KEY` | https://platform.minimaxi.com/ |
-| Ollama (local, free) | `OLLAMA_BASE_URL` | https://ollama.ai (no key — local) |
+**Quick pick:**
+| Goal | Provider | Setup |
+|------|----------|-------|
+| Free, local, private | **Ollama** | `OLLAMA_BASE_URL=http://localhost:11434/v1` + `ollama pull llama3:8b` |
+| Lowest cost, high volume | **OpenCode Go** | `OPENCODE_API_KEY=sk-opencode-...` (subscription) |
+| Best quality | **OpenAI** / **Anthropic** | `OPENAI_API_KEY=sk-...` |
+| Model variety | **OpenRouter** | `OPENROUTER_API_KEY=...` |
 
-After editing, restart the server (`Ctrl+C` then re-run the launch
-command).
+**Full comparison & setup**: [LLM Providers Guide](../guides/LLM_PROVIDERS.md)
 
-**Recommendation for first-run**: Ollama is free and fully local — set
-`OLLAMA_BASE_URL=http://localhost:11434/v1` and `OLLAMA_MODEL=llama3:8b`
-after running `ollama pull llama3:8b`.
+**Minimal config** (backend/.env):
+```bash
+DATABASE_URL=sqlite:///./atom_dev.db
+SECRET_KEY=<openssl rand -base64 48>
+# ONE of these:
+OPENAI_API_KEY=sk-...                    # Cloud
+# ATOM_LOCAL_ONLY=true + OLLAMA_BASE_URL=http://localhost:11434/v1  # Local
+```
+
+After editing, restart the server (`Ctrl+C` then re-run the launch command).
 
 ## 3. Create your first agent
 
@@ -94,11 +97,26 @@ The UI gives you:
 
 ## What to read next
 
-- [**TROUBLESHOOTING.md**](./TROUBLESHOOTING.md) — when something breaks
-- [**Architecture overview**](../architecture/README.md) — how the pieces fit
-- [**Agent governance**](../agents/governance.md) — maturity tiers explained
-- [**Execution sandbox**](../architecture/SANDBOX_LAYER.md) — how blast radius is bounded
-- [`CLAUDE.md`](../../CLAUDE.md) — the engineering reference (comprehensive)
+### Core Concepts
+- [Documentation Index](../INDEX.md) — Complete navigation by topic
+- [Architecture Overview](../architecture/README.md) — How the pieces fit
+- [Agent Systems](../agents/overview.md) — Governance, maturity, intent types
+- [Execution Sandbox](../architecture/SANDBOX_LAYER.md) — How blast radius is bounded
+
+### Features
+- [LLM Providers Guide](../guides/LLM_PROVIDERS.md) — All providers, costs, routing
+- [Canvas & Office Automation](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Presentations, spreadsheets, co-editing
+- [Mini-Apps](../architecture/MINI_APPS.md) — Agent-authored stateful apps
+
+### Operations
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) — When something breaks
+- [Production Readiness](../operations/production-readiness.md) — Pre-flight checklist
+- [Monitoring](../operations/monitoring.md) — Prometheus, health checks, alerts
+
+### Reference
+- [Environment Variables](../reference/ENVIRONMENT_VARIABLES.md) — Complete reference
+- [API Overview](../api/OVERVIEW.md) — All endpoints
+- `CLAUDE.md` (repo root) — Engineering reference (comprehensive)
 
 ---
 

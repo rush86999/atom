@@ -28,10 +28,10 @@ interface AgentCardProps {
 // Used to render a lightweight progress hint on the card. For real-time
 // progress numbers, the dashboard calls GET /api/agents/:id/graduation-progress.
 const TIER_THRESHOLDS: Record<NonNullable<AgentInfo["maturity_level"]>, number> = {
-    student: 0,    // baseline; needs 10 to reach intern
-    intern: 10,
-    supervised: 25,
-    autonomous: 50,
+    student: 10,    // episodes needed to reach intern
+    intern: 25,     // episodes needed to reach supervised
+    supervised: 50, // episodes needed to reach autonomous
+    autonomous: 0,  // max tier — the badge renders "Max tier reached" instead
 };
 
 const TIER_COLORS: Record<NonNullable<AgentInfo["maturity_level"]>, string> = {

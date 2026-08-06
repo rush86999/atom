@@ -31,6 +31,7 @@ from core.llm.gateway import (
 )
 from core.llm.gateway.auth import GatewayIdentity
 from core.llm.gateway.budget_alerts import record_gateway_spend
+from core.llm.gateway.gateway_service import DEFAULT_MAX_TOKENS
 from core.llm.gateway.request_logger import estimate_cost_usd, log_gateway_request
 from core.llm.gateway.wire_formats import (
     anthropic_request_to_openai,
@@ -57,7 +58,7 @@ MAX_GATEWAY_BODY_BYTES = 64 * 1024 * 1024  # 64 MiB (R55 parity)
 # --------------------------------------------------------------------------- #
 class OpenAIChatRequest(BaseModel):
     model: Optional[str] = "auto"
-    messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]] = Field(..., min_length=1)
     temperature: float = 0.7
     max_tokens: Optional[int] = None
     stream: bool = False
@@ -70,9 +71,9 @@ class OpenAIChatRequest(BaseModel):
 
 class AnthropicMessagesRequest(BaseModel):
     model: Optional[str] = "auto"
-    messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]] = Field(..., min_length=1)
     system: Optional[Union[str, List[Dict[str, Any]]]] = None
-    max_tokens: int = 1000
+    max_tokens: int = Field(default_factory=lambda: DEFAULT_MAX_TOKENS)
     temperature: float = 0.7
     stop_sequences: Optional[List[str]] = None
     top_p: Optional[float] = None
@@ -143,12 +144,18 @@ async def chat_completions(
 ):
     require_gateway_enabled()
     service = GatewayService(identity, db)
-    max_tokens = body.max_tokens or 1000
+    max_tokens = body.max_tokens or DEFAULT_MAX_TOKENS
     try:
         provider, model = service._resolve_route(
             body.messages, body.model, dict(request.headers)
         )
     except (NoProvidersConfiguredError, ValueError) as exc:
+        await _log_and_alert(
+            identity, db, model=body.model or "auto", provider="unresolved", stream=False,
+            status_code=map_gateway_error(exc).get("_status", 500),
+            latency_ms=0,
+            request_body=body.model_dump(),
+        )
         return _error_response(exc)
     extra_kwargs: Dict[str, Any] = {}
     if body.stop is not None:
@@ -175,7 +182,7 @@ async def chat_completions(
     except (NoProvidersConfiguredError, GatewayBlockedError, AllProvidersFailedError, ValueError) as exc:
         await _log_and_alert(
             identity, db, model=model, provider=provider, stream=False,
-            status_code=exc.status_code if isinstance(exc, GatewayBlockedError) else 400,
+            status_code=map_gateway_error(exc).get("_status", 500),
             latency_ms=int((time.time() - start) * 1000),
             request_body=body.model_dump(),
         )
@@ -283,6 +290,12 @@ async def anthropic_messages(
     try:
         provider, model = service._resolve_route(messages, model, dict(request.headers))
     except (NoProvidersConfiguredError, ValueError) as exc:
+        await _log_and_alert(
+            identity, db, model=body.model or "auto", provider="unresolved", stream=False,
+            status_code=map_gateway_error(exc, anthropic=True).get("_status", 500),
+            latency_ms=0,
+            request_body=body.model_dump(),
+        )
         return _error_response(exc, anthropic=True)
     extra_kwargs: Dict[str, Any] = {}
     if openai_payload.get("stop"):
@@ -307,7 +320,7 @@ async def anthropic_messages(
     except (NoProvidersConfiguredError, GatewayBlockedError, AllProvidersFailedError, ValueError) as exc:
         await _log_and_alert(
             identity, db, model=model, provider=provider, stream=False,
-            status_code=exc.status_code if isinstance(exc, GatewayBlockedError) else 400,
+            status_code=map_gateway_error(exc, anthropic=True).get("_status", 500),
             latency_ms=int((time.time() - start) * 1000),
             request_body=body.model_dump(),
         )
