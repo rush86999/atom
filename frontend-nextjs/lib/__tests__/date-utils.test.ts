@@ -65,7 +65,7 @@ describe('Date Utilities', () => {
 
   describe('formatRelativeTime', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2024-01-15T10:00:00Z'));
+      jest.useFakeTimers().setSystemTime(new Date('2024-01-15T10:00:00Z').getTime());
     });
 
     afterEach(() => {

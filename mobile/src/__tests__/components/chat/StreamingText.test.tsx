@@ -216,7 +216,7 @@ describe('StreamingText', () => {
     it('should respect maxHeight prop', () => {
       const { getByTestId } = render(
         <StreamingText
-          text="A".repeat(1000)}
+          text="A".repeat(1000)
           maxHeight={100}
         />
       );

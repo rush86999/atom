@@ -45,16 +45,24 @@ export const createMockScreen = (screenName: string, testId: string) => {
 };
 
 /**
- * Mock all auth screens with functional components
+ * Mock all auth/workflow/agent/chat/settings screens with functional components
  *
  * Replaces string mocks (jest.mock('../Screen', () => 'Screen'))
  * with functional components that render with testIDs.
  *
- * Call this at the top of test files before rendering navigation:
+ * IMPORTANT: this function registers jest.mock factories and MUST be called
+ * BEFORE the navigator module (AppNavigator/AuthNavigator) is loaded. ES
+ * module imports are executed before the surrounding code, so navigators
+ * must be imported lazily via require() AFTER mockAllScreens() runs:
+ *
  * ```typescript
  * import { mockAllScreens } from '../helpers/navigationMocks';
  * mockAllScreens();
+ * const AppNavigator = require('../../navigation/AppNavigator').default;
  * ```
+ *
+ * Each factory returns an object keyed by the module's named export so
+ * named imports in the navigators resolve to the mock component.
  *
  * TestIDs follow pattern: {screen-name}-screen
  * - Login: 'login-screen'
@@ -63,153 +71,131 @@ export const createMockScreen = (screenName: string, testId: string) => {
  * - BiometricAuth: 'biometric-auth-screen'
  */
 export const mockAllScreens = () => {
-  // Auth screens
-  jest.mock('../../screens/auth/LoginScreen', () => {
+  const mockScreen = (screenName: string, testId: string, navigateTo?: string | string[]) => {
     const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockLoginScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'login-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'login-screen-name' }, 'Login')
+    const { View, Text, Pressable } = require('react-native');
+    const destinations = Array.isArray(navigateTo) ? navigateTo : navigateTo ? [navigateTo] : [];
+    return function MockScreen({ route, navigation }: any) {
+      // Navigation-state capture hook: tests register
+      // global.__atomNavStateCapture to receive the root navigation state
+      // (useNavigationState can't be used from outside the navigator tree).
+      React.useEffect(() => {
+        // Walk up to the root navigator (screen navigation objects expose
+        // getParent/getState but not getRootState in react-navigation 6.x)
+        let current = navigation;
+        let root = null;
+        let prev = null;
+        while (current && current !== prev) {
+          prev = current;
+          root = current;
+          current = current.getParent?.() || null;
+        }
+        const capture = () => {
+          const state = root?.getState?.();
+          const ownState = navigation?.getState?.();
+          if (typeof global.__atomNavStateCapture === 'function' && state) {
+            // The root getState() does not include nested navigator states,
+            // but the container's root state does. Rebuild that shape for the
+            // focused route (matches getRootState() semantics: lazy tabs have
+            // no nested state until visited).
+            let fullState = state;
+            if (state.type === 'tab' && ownState && ownState !== state) {
+              fullState = {
+                ...state,
+                routes: state.routes.map((r: any, i: number) =>
+                  i === state.index ? { ...r, state: ownState } : r
+                ),
+              };
+            }
+            global.__atomNavStateCapture(fullState, screenName);
+          }
+        };
+        capture();
+        const unsubscribeScreen = navigation?.addListener?.('state', capture);
+        const unsubscribeRoot = root?.addListener?.('state', capture);
+        return () => {
+          unsubscribeScreen?.();
+          unsubscribeRoot?.();
+        };
+      }, [navigation, screenName]);
+      return React.createElement(View, { testID: testId, style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: `${testId}-name` }, screenName),
+        destinations.map((dest: string) =>
+          React.createElement(
+            Pressable,
+            {
+              key: dest,
+              testID: `${testId}-nav-${dest}`,
+              onPress: () => navigation?.navigate?.(dest),
+            },
+            React.createElement(Text, null, `Go to ${dest}`)
+          )
+        )
       );
     };
-  });
+  };
 
-  jest.mock('../../screens/auth/RegisterScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockRegisterScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'register-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'register-screen-name' }, 'Register')
-      );
-    };
-  });
+  // Auth screens (with navigation buttons for auth-flow tests)
+  jest.mock('../../screens/auth/LoginScreen', () => ({
+    LoginScreen: mockScreen('Login', 'login-screen', ['Register', 'ForgotPassword', 'BiometricAuth']),
+  }));
 
-  jest.mock('../../screens/auth/ForgotPasswordScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockForgotPasswordScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'forgot-password-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'forgot-password-screen-name' }, 'ForgotPassword')
-      );
-    };
-  });
+  jest.mock('../../screens/auth/RegisterScreen', () => ({
+    RegisterScreen: mockScreen('Register', 'register-screen', 'Login'),
+  }));
 
-  jest.mock('../../screens/auth/BiometricAuthScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockBiometricAuthScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'biometric-auth-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'biometric-auth-screen-name' }, 'BiometricAuth')
-      );
-    };
-  });
+  jest.mock('../../screens/auth/ForgotPasswordScreen', () => ({
+    ForgotPasswordScreen: mockScreen('ForgotPassword', 'forgot-password-screen', 'Login'),
+  }));
+
+  jest.mock('../../screens/auth/BiometricAuthScreen', () => ({
+    BiometricAuthScreen: mockScreen('BiometricAuth', 'biometric-auth-screen'),
+  }));
 
   // Workflow screens
-  jest.mock('../../screens/workflows/WorkflowsListScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockWorkflowsListScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'workflows-list-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'workflows-list-screen-name' }, 'WorkflowsList')
-      );
-    };
-  });
+  jest.mock('../../screens/workflows/WorkflowsListScreen', () => ({
+    WorkflowsListScreen: mockScreen('WorkflowsList', 'workflows-list-screen'),
+  }));
 
-  jest.mock('../../screens/workflows/WorkflowDetailScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockWorkflowDetailScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'workflow-detail-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'workflow-detail-screen-name' }, 'WorkflowDetail')
-      );
-    };
-  });
+  jest.mock('../../screens/workflows/WorkflowDetailScreen', () => ({
+    WorkflowDetailScreen: mockScreen('WorkflowDetail', 'workflow-detail-screen'),
+  }));
 
-  jest.mock('../../screens/workflows/WorkflowTriggerScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockWorkflowTriggerScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'workflow-trigger-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'workflow-trigger-screen-name' }, 'WorkflowTrigger')
-      );
-    };
-  });
+  jest.mock('../../screens/workflows/WorkflowTriggerScreen', () => ({
+    WorkflowTriggerScreen: mockScreen('WorkflowTrigger', 'workflow-trigger-screen'),
+  }));
 
-  jest.mock('../../screens/workflows/ExecutionProgressScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockExecutionProgressScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'execution-progress-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'execution-progress-screen-name' }, 'ExecutionProgress')
-      );
-    };
-  });
+  jest.mock('../../screens/workflows/ExecutionProgressScreen', () => ({
+    ExecutionProgressScreen: mockScreen('ExecutionProgress', 'execution-progress-screen'),
+  }));
 
-  jest.mock('../../screens/workflows/WorkflowLogsScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockWorkflowLogsScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'workflow-logs-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'workflow-logs-screen-name' }, 'WorkflowLogs')
-      );
-    };
-  });
+  jest.mock('../../screens/workflows/WorkflowLogsScreen', () => ({
+    WorkflowLogsScreen: mockScreen('WorkflowLogs', 'workflow-logs-screen'),
+  }));
 
   // Analytics screens
-  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockAnalyticsDashboardScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'analytics-dashboard-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'analytics-dashboard-screen-name' }, 'AnalyticsDashboard')
-      );
-    };
-  });
+  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () => ({
+    AnalyticsDashboardScreen: mockScreen('AnalyticsDashboard', 'analytics-dashboard-screen'),
+  }));
 
   // Agent screens
-  jest.mock('../../screens/agent/AgentListScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockAgentListScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'agent-list-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'agent-list-screen-name' }, 'AgentList')
-      );
-    };
-  });
+  jest.mock('../../screens/agent/AgentListScreen', () => ({
+    AgentListScreen: mockScreen('AgentList', 'agent-list-screen'),
+  }));
 
-  jest.mock('../../screens/agent/AgentChatScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockAgentChatScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'agent-chat-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'agent-chat-screen-name' }, 'AgentChat')
-      );
-    };
-  });
+  jest.mock('../../screens/agent/AgentChatScreen', () => ({
+    AgentChatScreen: mockScreen('AgentChat', 'agent-chat-screen'),
+  }));
 
   // Chat screens (barrel export)
-  jest.mock('../../screens/chat', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return {
-      ChatTabScreen: function MockChatTabScreen({ route, navigation }: any) {
-        return React.createElement(View, { testID: 'chat-tab-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-          React.createElement(Text, { testID: 'chat-tab-screen-name' }, 'ChatTab')
-        );
-      }
-    };
-  });
+  jest.mock('../../screens/chat', () => ({
+    ChatTabScreen: mockScreen('ChatTab', 'chat-tab-screen'),
+  }));
 
   // Settings screens
-  jest.mock('../../screens/settings/SettingsScreen', () => {
-    const React = require('react');
-    const { View, Text } = require('react-native');
-    return function MockSettingsScreen({ route, navigation }: any) {
-      return React.createElement(View, { testID: 'settings-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
-        React.createElement(Text, { testID: 'settings-screen-name' }, 'Settings')
-      );
-    };
-  });
+  jest.mock('../../screens/settings/SettingsScreen', () => ({
+    SettingsScreen: mockScreen('Settings', 'settings-screen'),
+  }));
 };
 
 /**

@@ -104,6 +104,60 @@ class SafeEvaluator(ast.NodeVisitor):
         self._errors = []
         self._allow_function_calls = allow_function_calls
 
+    # Exponent cap for the ``**`` operator and whitelisted ``pow``: an
+    # expression like ``2 ** (10**18)`` would otherwise spend unbounded time
+    # and memory computing a result with ~10^18 bits (CWE-400). The cap is far
+    # beyond any legitimate business-math exponent (2**(10**6) is already a
+    # 125 KB integer). Non-constant exponents that cannot be statically proven
+    # small are left to the execution-sandbox resource caps.
+    POW_EXPONENT_CAP = 10 ** 6
+    POW_FOLD_MAX_BITS = 10 ** 6
+
+    def _fold_int(self, node) -> tuple:
+        """Best-effort static folding of an integer subexpression.
+
+        Returns ``(value, True)`` when the subtree is provably a concrete int
+        (constants, unary minus, and +,-,*,** of constant operands), else
+        ``(None, False)``. Folding refuses to compute powers beyond
+        ``POW_FOLD_MAX_BITS`` so the guard itself cannot be abused for DoS.
+        """
+        if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
+            return node.value, True
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            value, known = self._fold_int(node.operand)
+            if known and value is not None:
+                return -value, True
+            return None, False
+        if isinstance(node, ast.BinOp):
+            left, left_known = self._fold_int(node.left)
+            right, right_known = self._fold_int(node.right)
+            if not (left_known and right_known) or left is None or right is None:
+                return None, False
+            op = type(node.op)
+            value = 0
+            try:
+                if op is ast.Add:
+                    value = left + right
+                elif op is ast.Sub:
+                    value = left - right
+                elif op is ast.Mult:
+                    value = left * right
+                elif op is ast.Pow:
+                    if right < 0 or (right > 0 and right * (left.bit_length() or 1) > self.POW_FOLD_MAX_BITS):
+                        return None, False
+                    value = left ** right
+                else:
+                    return None, False
+            except Exception:
+                return None, False
+            return value, True
+        return None, False
+
+    def _pow_exponent_too_large(self, exponent_node) -> bool:
+        """True when the exponent subtree is provably a constant beyond the cap."""
+        value, known = self._fold_int(exponent_node)
+        return bool(known and value is not None and abs(value) > self.POW_EXPONENT_CAP)
+
     def validate(self, expression: str) -> bool:
         """
         Validate an expression for safe evaluation.
@@ -162,11 +216,30 @@ class SafeEvaluator(ast.NodeVisitor):
             logger.warning("SafeEval blocked: Method calls are not allowed")
             return
 
-        if func_name and func_name not in self.SAFE_FUNCTIONS:
+        if func_name is None:
+            # Block calls through subscripts/expressions (e.g. ``f[0]()``,
+            # ``('a'*0 or f[0])()``) — those reach arbitrary context callables
+            # and bypass the whitelist.
+            self._is_safe = False
+            self._errors.append("Only whitelisted functions may be called")
+            logger.warning("SafeEval blocked: Function call through subscript/expression is not allowed")
+            return
+
+        if func_name not in self.SAFE_FUNCTIONS:
             self._is_safe = False
             self._errors.append(f"Function '{func_name}' is not in the safe whitelist")
             logger.warning(f"SafeEval blocked: Function '{func_name}' is not whitelisted")
             return
+
+        # DoS guard: a whitelisted pow() with a provably-huge constant exponent
+        # (``pow(2, 10**18)``) would hang the process. Three-arg pow is modular
+        # and bounded — only the 2-arg form is checked.
+        if func_name == "pow" and len(node.args) == 2:
+            if self._pow_exponent_too_large(node.args[1]):
+                self._is_safe = False
+                self._errors.append("Exponent too large")
+                logger.warning("SafeEval blocked: pow() exponent too large")
+                return
 
         # Continue validating the arguments
         for arg in node.args:
@@ -186,6 +259,15 @@ class SafeEvaluator(ast.NodeVisitor):
         if isinstance(node, ast.Call):
             self.visit_Call(node)
             return
+
+        # DoS guard: reject ``**`` operators with provably-huge constant
+        # exponents (e.g. ``2 ** (10**18)``) at validation time.
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+            if self._pow_exponent_too_large(node.right):
+                self._is_safe = False
+                self._errors.append("Exponent too large")
+                logger.warning("SafeEval blocked: Exponent too large")
+                return
 
         # Check if this node type is allowed
         node_type = type(node)

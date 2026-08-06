@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -386,7 +387,7 @@ describe('Navigation Error Handling', () => {
       try {
         if (url.includes('atom://')) {
           const parts = url.split('://');
-          if (parts.length < 2) return null;
+          if (parts.length < 2 || !parts[1]) return null;
           const [protocol, path] = parts;
           const [entity, id] = path.split('/');
           return { protocol, entity, id };

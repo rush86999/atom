@@ -106,7 +106,7 @@ describe('MessageList Component', () => {
 
   describe('Basic Rendering', () => {
     test('should render message list', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={mockMessages} />
       );
 
@@ -190,7 +190,7 @@ describe('MessageList Component', () => {
         { ...mockMessages[1], id: '5', content: 'Second message' },
       ];
 
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={messagesFromSameSender} />
       );
 
@@ -378,7 +378,7 @@ describe('MessageList Component', () => {
 
   describe('Read Receipts', () => {
     test('should show read receipt for read user messages', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[mockMessages[0]]} />
       );
 
@@ -387,7 +387,7 @@ describe('MessageList Component', () => {
 
     test('should not show read receipt for unread messages', () => {
       const unreadMessage = { ...mockMessages[0], read: false };
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[unreadMessage]} />
       );
 
@@ -395,7 +395,7 @@ describe('MessageList Component', () => {
     });
 
     test('should not show read receipt for agent messages', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[mockMessages[1]]} />
       );
 
@@ -462,7 +462,7 @@ describe('MessageList Component', () => {
     });
 
     test('should show scroll to bottom button when scrolled up', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={mockMessages}
       />
       );
@@ -510,7 +510,7 @@ describe('MessageList Component', () => {
         timestamp: new Date(),
       };
 
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[nullMessage]} />
       );
 
@@ -525,7 +525,7 @@ describe('MessageList Component', () => {
         timestamp: new Date(),
       };
 
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[emptyMessage]} />
       );
 
@@ -541,7 +541,7 @@ describe('MessageList Component', () => {
         timestamp: new Date(),
       };
 
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[longMessage]} />
       );
 
@@ -556,7 +556,7 @@ describe('MessageList Component', () => {
         timestamp: new Date(),
       };
 
-      const { root as container } = render(
+      const { root: container } = render(
         <MessageList messages={[specialMessage]} />
       );
 

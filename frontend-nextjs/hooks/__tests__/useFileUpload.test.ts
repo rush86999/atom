@@ -58,8 +58,12 @@ describe('useFileUpload Hook', () => {
 
       const { result } = renderHook(() => useFileUpload());
 
-      const uploadPromise = act(async () => {
-        return result.current.uploadFile(mockFile);
+      let uploadPromise: Promise<unknown> | undefined;
+
+      // Flush the act scope so setIsUploading(true) is committed before we
+      // assert it (an un-awaited act would trap the update unflushed).
+      await act(async () => {
+        uploadPromise = result.current.uploadFile(mockFile);
       });
 
       // Wait for isUploading to become true
@@ -69,7 +73,9 @@ describe('useFileUpload Hook', () => {
 
       // Resolve the upload
       resolveUpload!({ data: { success: true } });
-      await uploadPromise;
+      await act(async () => {
+        await uploadPromise;
+      });
     });
 
     test('progress updates during upload', async () => {
@@ -87,9 +93,7 @@ describe('useFileUpload Hook', () => {
 
       const { result } = renderHook(() => useFileUpload());
 
-      act(() => {
-        result.current.uploadFile(mockFile);
-      });
+      const uploadPromise = result.current.uploadFile(mockFile);
 
       // Simulate progress updates
       if (progressCallback) {
@@ -105,6 +109,11 @@ describe('useFileUpload Hook', () => {
 
         expect(result.current.progress).toBe(100);
       }
+
+      // Always await the in-flight upload so no act scope is left dangling.
+      await act(async () => {
+        await uploadPromise;
+      });
     });
 
     test('isUploading becomes false after completion', async () => {
@@ -298,8 +307,11 @@ describe('useFileUpload Hook', () => {
       const mockFile = new File(['content'], 'test.txt', { type: 'text/plain' });
 
       mockApiPost.mockImplementation((url: string, formData: any) => {
-        // Verify FormData contains the file
-        expect(formData.get('file')).toBe(mockFile);
+        // Verify FormData contains the file under the 'file' key. jsdom
+        // stringifies File objects in FormData ('[object File]'), so assert
+        // the entry exists rather than object identity.
+        expect(formData).toBeInstanceOf(FormData);
+        expect(formData.has('file')).toBe(true);
         return Promise.resolve({ data: { success: true } });
       });
 

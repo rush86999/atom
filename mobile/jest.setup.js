@@ -85,6 +85,17 @@ jest.mock('react-native', () => {
 import '@testing-library/jest-native';
 
 // ============================================================================
+// Testing Library Configuration
+// ============================================================================
+
+// RNTL v12 excludes elements hidden from accessibility (e.g. react-native-paper
+// wraps icons in accessibilityElementsHidden views) from queries by default.
+// The app's screens use paper IconButtons heavily, so include hidden elements
+// in queries to keep getByTestId/getByText working across the suite.
+const { configure } = require('@testing-library/react-native');
+configure({ defaultIncludeHiddenElements: true });
+
+// ============================================================================
 // Mock Expo environment variables
 // ============================================================================
 
@@ -749,6 +760,28 @@ jest.mock('@expo/vector-icons', () => {
   };
 }, { virtual: true });
 
+// react-native-paper's MaterialCommunityIcon requires the subpath
+// '@expo/vector-icons/MaterialCommunityIcons' directly — mock it too.
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { default: Icon, MaterialCommunityIcons: Icon };
+}, { virtual: true });
+
 // ============================================================================
 // expo-haptics Mock
 // ============================================================================
@@ -821,21 +854,27 @@ jest.mock('react-native-safe-area-context', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const SafeAreaContext = React.createContext({
+  const defaultMetrics = {
     insets: { top: 0, right: 0, bottom: 0, left: 0 },
     frame: { x: 0, y: 0, width: 320, height: 640 },
-  });
+  };
+
+  // react-navigation (bottom-tabs, elements) consumes these contexts directly
+  // via SafeAreaInsetsContext.Consumer / useContext — they must be defined,
+  // otherwise rendering throws "Cannot read properties of undefined (reading
+  // 'Consumer' / '_context')".
+  const SafeAreaInsetsContext = React.createContext(defaultMetrics.insets);
+  const SafeAreaFrameContext = React.createContext(defaultMetrics.frame);
 
   const SafeAreaProvider = ({ children, initialMetrics }) => {
-    const metrics = initialMetrics || {
-      frame: { x: 0, y: 0, width: 320, height: 640 },
-      insets: { top: 0, right: 0, bottom: 0, left: 0 },
-    };
+    const metrics = initialMetrics || defaultMetrics;
 
-    return (
+    return React.createElement(
+      SafeAreaInsetsContext.Provider,
+      { value: metrics.insets },
       React.createElement(
-        SafeAreaContext.Provider,
-        { value: metrics },
+        SafeAreaFrameContext.Provider,
+        { value: metrics.frame },
         children
       )
     );
@@ -846,17 +885,21 @@ jest.mock('react-native-safe-area-context', () => {
   };
 
   const useSafeAreaInsets = () => {
-    return React.useContext(SafeAreaContext).insets;
+    return React.useContext(SafeAreaInsetsContext);
   };
 
   const useSafeAreaFrame = () => {
-    return React.useContext(SafeAreaContext).frame;
+    return React.useContext(SafeAreaFrameContext);
   };
 
   return {
     SafeAreaProvider,
     SafeAreaView,
-    SafeAreaContext,
+    SafeAreaContext: SafeAreaInsetsContext,
+    SafeAreaInsetsContext,
+    SafeAreaFrameContext,
+    initialWindowMetrics: defaultMetrics,
+    initialMetrics: defaultMetrics,
     useSafeAreaInsets,
     useSafeAreaFrame,
     default: SafeAreaProvider,
@@ -998,26 +1041,48 @@ jest.mock('react-native/Libraries/AppState/AppState', () => {
 // ============================================================================
 
 jest.mock('expo-linking', () => ({
-  parse: jest.fn((url: string) => {
+  parse: jest.fn((url) => {
     try {
-      const urlObj = new URL(url.replace('atom://', 'http://'));
+      // Parse scheme://authority/path?query#fragment without relying on
+      // WHATWG URL, which would swallow the first path segment of custom
+      // schemes (atom://auth/login would treat "auth" as the hostname).
+      const withoutFragment = url.split('#')[0];
+      const schemeMatch = withoutFragment.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//);
+
+      let pathWithQuery = withoutFragment;
+      let scheme = null;
+      if (schemeMatch) {
+        scheme = schemeMatch[1];
+        // Everything after scheme:// is path + query (custom schemes have no
+        // meaningful authority for the app's deep link routes).
+        pathWithQuery = withoutFragment.slice(schemeMatch[0].length);
+      }
+
+      const [path, queryString = ''] = pathWithQuery.split('?');
+      const queryParams = {};
+      new URLSearchParams(queryString).forEach((value, key) => {
+        queryParams[key] = value;
+      });
+
       return {
-        path: urlObj.pathname,
-        hostname: urlObj.hostname,
-        queryParams: Object.fromEntries(urlObj.searchParams.entries()),
-        pathSegments: urlObj.pathname.split('/').filter(Boolean),
+        path: path || null,
+        hostname: null,
+        scheme,
+        queryParams,
+        pathSegments: (path || '').split('/').filter(Boolean),
       };
     } catch (error) {
       // Handle malformed URLs gracefully
       return {
         path: url,
-        hostname: '',
+        hostname: null,
+        scheme: null,
         queryParams: {},
         pathSegments: [],
       };
     }
   }),
-  createURL: jest.fn((path: string) => `atom://${path}`),
+  createURL: jest.fn((path) => `atom://${path}`),
   openURL: jest.fn().mockResolvedValue(undefined),
   canOpenURL: jest.fn().mockResolvedValue(true),
   getInitialURL: jest.fn().mockResolvedValue(null),

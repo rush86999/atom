@@ -25,7 +25,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentExecution, AgentRegistry, DeepLinkAudit
+from core.models import AgentExecution, AgentRegistry, DeepLinkAudit, Workflow
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +337,15 @@ async def execute_workflow_deep_link(
     workflow_id = deeplink.resource_id
     action = deeplink.parameters.get('action', 'start')
     params = deeplink.parameters.get('params', {})
+
+    # Security: validate workflow exists (mirrors the agent executor — a
+    # nonexistent workflow must not be reported as executed).
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+    if not workflow:
+        return {
+            "success": False,
+            "error": f"Workflow '{workflow_id}' not found"
+        }
 
     # Create audit entry
     if DEEPLINK_AUDIT_ENABLED:

@@ -31,8 +31,12 @@ module.exports = {
   },
 
   // Test file patterns
+  // NOTE: the first glob previously matched ANY file under __tests__/
+  // (helpers, mocks, utils), which jest then collected as empty test suites
+  // ("Your test suite must contain at least one test" — 16 suites affected).
+  // Both globs now require a .test./.spec. extension.
   testMatch: [
-    '**/__tests__/**/*.[jt]s?(x)',
+    '**/__tests__/**/*.(test|spec).[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)'
   ],
 

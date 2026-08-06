@@ -13,7 +13,7 @@
  */
 
 import React, { createContext, useContext, useState } from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { Text, View, Button, TextInput } from 'react-native';
 
 // ============================================================================
@@ -246,13 +246,13 @@ describe('Agent Context Provider', () => {
       return <Button testID="set-agent-btn" title="Set Agent" onPress={() => setAgent('agent-123', 'Test Agent')} />;
     };
 
-    const { getByTestId } = render(
+    const { getByTestId: getBtnTestId } = render(
       <AgentProvider>
         <TestComponent />
       </AgentProvider>
     );
 
-    fireEvent.press(getByTestId('set-agent-btn'));
+    fireEvent.press(getBtnTestId('set-agent-btn'));
 
     await waitFor(() => {
       expect(getByTestId('agent-id')).toBeTruthy();
@@ -314,14 +314,20 @@ describe('Canvas Context Provider', () => {
 
     const { getByTestId } = render(
       <CanvasProvider>
+        <CanvasConsumerComponent />
         <TestComponent />
       </CanvasProvider>
     );
 
     fireEvent.press(getByTestId('set-canvas-btn'));
 
+    // The provider applies updates after a simulated async delay
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
     await waitFor(() => {
-      expect(getByTestId('canvas-id')).toBeTruthy();
+      expect(getByTestId('canvas-id').props.children).toBe('canvas-123');
     });
   });
 
@@ -486,7 +492,7 @@ describe('Context Update Propagation', () => {
   it('test_context_updates_propagate_to_consumers', async () => {
     const ParentComponent = () => {
       const { setAgent } = useAgentContext();
-      return <Button testID="update-agent" onPress={() => setAgent('agent-updated', 'Updated Agent')} />;
+      return <Button testID="update-agent" title="Update Agent" onPress={() => setAgent('agent-updated', 'Updated Agent')} />;
     };
 
     const ChildComponent = () => {
@@ -514,7 +520,7 @@ describe('Context Update Propagation', () => {
     const InnerComponent = () => {
       const { setCanvas } = useCanvasContext();
       return (
-        <Button testID="inner-update" onPress={() => setCanvas('inner-123', 'chart', {})} />
+        <Button testID="inner-update" title="Update Canvas" onPress={() => setCanvas('inner-123', 'chart', {})} />
       );
     };
 
@@ -544,12 +550,12 @@ describe('Context Update Propagation', () => {
   it('test_context_independent_updates', async () => {
     const AgentUpdater = () => {
       const { setAgent } = useAgentContext();
-      return <Button testID="update-agent" onPress={() => setAgent('agent-1', 'Agent 1')} />;
+      return <Button testID="update-agent" title="Update Agent" onPress={() => setAgent('agent-1', 'Agent 1')} />;
     };
 
     const CanvasUpdater = () => {
       const { setCanvas } = useCanvasContext();
-      return <Button testID="update-canvas" onPress={() => setCanvas('canvas-1', 'chart', {})} />;
+      return <Button testID="update-canvas" title="Update Canvas" onPress={() => setCanvas('canvas-1', 'chart', {})} />;
     };
 
     const AgentDisplay = () => {
@@ -591,14 +597,16 @@ describe('Context Update Propagation', () => {
 
 describe('Context Error Handling', () => {
   it('should throw error when using context outside provider', () => {
-    expect(() => {
-      const component = () => {
-        // @ts-expect-error - intentional error for testing
-        const { agentId } = useAgentContext();
-        return <Text>{agentId}</Text>;
-      };
+    const Component = () => {
+      // @ts-expect-error - intentional error for testing
+      const { agentId } = useAgentContext();
+      return <Text>{agentId}</Text>;
+    };
 
-      render(component());
+    // The hook must be invoked from within a component (React enforces hooks
+    // rules); rendering it without the provider throws the custom error
+    expect(() => {
+      render(<Component />);
     }).toThrow('useAgentContext must be used within AgentProvider');
   });
 
@@ -609,7 +617,7 @@ describe('Context Error Handling', () => {
         <View>
           <Text testID="agent-display">{agentId || 'No agent'}</Text>
           {error && <Text testID="error-display">{error}</Text>}
-          <Button testID="update-agent" onPress={() => setAgent('', '')} />
+          <Button testID="update-agent" title="Update Agent" onPress={() => setAgent('', '')} />
         </View>
       );
     };
@@ -636,7 +644,16 @@ describe('Context Performance', () => {
   it('should handle rapid context updates', async () => {
     const TestComponent = () => {
       const { agentId, setAgent } = useAgentContext();
-      return <Text testID="rapid-agent">{agentId || 'No agent'}</Text>;
+      return (
+        <View>
+          <Text testID="rapid-agent">{agentId || 'No agent'}</Text>
+          <Button
+            testID="rapid-update"
+            title="Rapid Update"
+            onPress={() => setAgent('rapid-agent', 'Rapid Agent')}
+          />
+        </View>
+      );
     };
 
     const { getByTestId } = render(
@@ -649,9 +666,8 @@ describe('Context Performance', () => {
 
     for (let i = 0; i < updateCount; i++) {
       act(() => {
-        // Simulate rapid updates
-        const { setAgent } = useAgentContext();
-        setAgent(`agent-${i}`, `Agent ${i}`);
+        // Simulate rapid updates via the component's own handler
+        fireEvent.press(getByTestId('rapid-update'));
       });
     }
 
@@ -663,9 +679,9 @@ describe('Context Performance', () => {
     const consumers = Array.from({ length: 10 }, (_, i) => {
       const Component = () => {
         const { agentId } = useAgentContext();
-        return <Text key={i} testID={`consumer-${i}`}>{agentId || 'None'}</Text>;
+        return <Text testID={`consumer-${i}`}>{agentId || 'None'}</Text>;
       };
-      return Component();
+      return <Component key={i} />;
     });
 
     const { getAllByTestId } = render(

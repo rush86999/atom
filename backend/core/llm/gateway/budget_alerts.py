@@ -70,7 +70,10 @@ def _resolve_recipient_id(prefer_user_id: Optional[str] = None) -> Optional[str]
       1. ``prefer_user_id`` (the gateway caller whose spend triggered the
          alert) — so the user whose budget is burning gets notified, not an
          arbitrary ``db.query(User).first()`` row.
-      2. An admin user (workspace owner).
+      2. An admin user (workspace owner) — looked up by ``role``; the User
+         model has no ``is_admin`` column (the previous attribute raised
+         AttributeError, which was swallowed, silently disabling every
+         fallback alert).
       3. None (alert skipped).
 
     The prior code fell back to ``db.query(User).first()`` (an arbitrary user)
@@ -78,7 +81,7 @@ def _resolve_recipient_id(prefer_user_id: Optional[str] = None) -> Optional[str]
     """
     try:
         from core.database import SessionLocal
-        from core.models import User
+        from core.models import User, UserRole
 
         db = SessionLocal()
         try:
@@ -86,7 +89,13 @@ def _resolve_recipient_id(prefer_user_id: Optional[str] = None) -> Optional[str]
                 user = db.query(User).filter(User.id == prefer_user_id).first()
                 if user:
                     return str(user.id)
-            user = db.query(User).filter(User.is_admin == True).first()
+            admin_roles = (
+                UserRole.SUPER_ADMIN.value,
+                UserRole.OWNER.value,
+                UserRole.ADMIN.value,
+                UserRole.WORKSPACE_ADMIN.value,
+            )
+            user = db.query(User).filter(User.role.in_(admin_roles)).first()
             return str(user.id) if user else None
         finally:
             db.close()

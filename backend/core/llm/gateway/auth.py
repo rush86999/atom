@@ -138,7 +138,12 @@ async def _resolve_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"type": "authentication_error", "code": "invalid_api_key", "message": "API key revoked"}},
         )
-    if row.expires_at is not None and row.expires_at < now:
+    # SQLite round-trips DateTime(timezone=True) as a NAIVE datetime; normalize
+    # before comparing against the aware ``now`` (was a TypeError -> 500).
+    expires_at = row.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at is not None and expires_at < now:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"type": "authentication_error", "code": "invalid_api_key", "message": "API key expired"}},

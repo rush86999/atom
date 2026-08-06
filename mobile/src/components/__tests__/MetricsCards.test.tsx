@@ -236,7 +236,7 @@ describe('MetricsCards Component', () => {
         },
       ];
 
-      const { root as container } = render(<MetricsCards data={dataWithNulls} />);
+      const { root: container } = render(<MetricsCards data={dataWithNulls} />);
 
       expect(container).toBeTruthy();
     });
@@ -302,7 +302,7 @@ describe('MetricsCards Component', () => {
 
   describe('Layout and Styling', () => {
     test('should render cards in 2-column layout', () => {
-      const { root as container } = render(<MetricsCards data={mockData} />);
+      const { root: container } = render(<MetricsCards data={mockData} />);
 
       // Verify component renders
       expect(container).toBeTruthy();
@@ -310,14 +310,14 @@ describe('MetricsCards Component', () => {
 
     test('should handle odd number of cards', () => {
       const oddData = mockData.slice(0, 3);
-      const { root as container } = render(<MetricsCards data={oddData} />);
+      const { root: container } = render(<MetricsCards data={oddData} />);
 
       expect(container).toBeTruthy();
     });
 
     test('should handle even number of cards', () => {
       const evenData = mockData.slice(0, 4);
-      const { root as container } = render(<MetricsCards data={evenData} />);
+      const { root: container } = render(<MetricsCards data={evenData} />);
 
       expect(container).toBeTruthy();
     });
@@ -334,7 +334,7 @@ describe('MetricsCards Component', () => {
         value: `${i}`,
       }));
 
-      const { root as container } = render(<MetricsCards data={manyData} />);
+      const { root: container } = render(<MetricsCards data={manyData} />);
 
       expect(container).toBeTruthy();
     });

@@ -10,6 +10,7 @@ Comprehensive test suite for deep link functionality including:
 """
 
 import uuid
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 import pytest
@@ -325,17 +326,35 @@ class TestExecuteWorkflowDeepLink:
     @pytest.mark.asyncio
     async def test_execute_workflow_success(self, db):
         """Test successful workflow deep link execution."""
-        link = parse_deep_link("atom://workflow/workflow-1?action=start")
+        # R79: the executor now validates that the workflow exists (a
+        # nonexistent workflow was previously reported as success).
+        from core.models import Tenant, Workflow
+
+        subdomain = f"dl-{uuid.uuid4().hex[:8]}"
+        tenant = Tenant(id=f"tenant-{subdomain}", name="DL", subdomain=subdomain)
+        db.add(tenant)
+        db.commit()
+        workflow_id = f"workflow-{uuid.uuid4().hex[:8]}"
+        wf = Workflow(
+            id=workflow_id,
+            name="Deep Link Flow",
+            tenant_id=tenant.id,
+            status="active",
+        )
+        db.add(wf)
+        db.commit()
+
+        link = parse_deep_link(f"atom://workflow/{workflow_id}?action=start")
         result = await execute_workflow_deep_link(link, "user-1", db)
 
         assert result["success"] is True
-        assert result["workflow_id"] == "workflow-1"
+        assert result["workflow_id"] == workflow_id
         assert result["action"] == "start"
 
         # Verify audit entry created
         audit = db.query(DeepLinkAudit).filter(
             DeepLinkAudit.resource_type == "workflow",
-            DeepLinkAudit.resource_id == "workflow-1"
+            DeepLinkAudit.resource_id == workflow_id
         ).first()
         assert audit is not None
         assert audit.status == "success"
@@ -343,8 +362,26 @@ class TestExecuteWorkflowDeepLink:
     @pytest.mark.asyncio
     async def test_execute_workflow_with_params(self, db):
         """Test workflow execution with JSON parameters."""
+        from core.models import Tenant, Workflow
+
+        subdomain = f"dl2-{uuid.uuid4().hex[:8]}"
+        tenant = Tenant(id=f"tenant-{subdomain}", name="DL2", subdomain=subdomain)
+        db.add(tenant)
+        db.commit()
+        workflow_id = f"workflow-{uuid.uuid4().hex[:8]}"
+        wf = Workflow(
+            id=workflow_id,
+            name="Deep Link Flow 2",
+            tenant_id=tenant.id,
+            status="active",
+        )
+        db.add(wf)
+        db.commit()
+
         params = {"param1": "value1", "param2": 123}
-        link = parse_deep_link(f'atom://workflow/workflow-2?action=run&params={params}')
+        link = parse_deep_link(
+            f"atom://workflow/{workflow_id}?action=run&params={json.dumps(params)}"
+        )
         result = await execute_workflow_deep_link(link, "user-1", db)
 
         assert result["success"] is True

@@ -7,6 +7,7 @@ const mockPost = jest.fn();
 const mockGet = jest.fn();
 
 jest.mock('../../api', () => ({
+  __esModule: true, // required for the default-import interop to unwrap
   default: {
     post: mockPost,
     get: mockGet,

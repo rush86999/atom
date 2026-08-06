@@ -55,7 +55,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should render empty text without crashing', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="" isStreaming={false} />
       );
 
@@ -137,7 +137,7 @@ describe('StreamingText Component', () => {
 
   describe('Markdown Rendering', () => {
     test('should render markdown when enabled', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="**Bold** and *Italic*"
           isStreaming={false}
@@ -161,7 +161,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle markdown headers', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="# Header 1\n## Header 2"
           isStreaming={false}
@@ -173,7 +173,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle markdown lists', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="- Item 1\n- Item 2"
           isStreaming={false}
@@ -185,7 +185,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle markdown links', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="[Link](https://example.com)"
           isStreaming={false}
@@ -200,7 +200,7 @@ describe('StreamingText Component', () => {
   describe('Code Block Detection', () => {
     test('should detect code blocks in text', () => {
       const textWithCode = '```javascript\nconst x = 1;\n```';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={textWithCode} isStreaming={false} />
       );
 
@@ -209,7 +209,7 @@ describe('StreamingText Component', () => {
 
     test('should render code block with language', () => {
       const codeText = '```python\ndef hello():\n    pass\n```';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={codeText} isStreaming={false} />
       );
 
@@ -219,7 +219,7 @@ describe('StreamingText Component', () => {
     test('should render multiple code blocks', () => {
       const multiCodeText =
         '```js\nconsole.log(1);\n```\nText\n```py\nprint(2)\n```';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={multiCodeText} isStreaming={false} />
       );
 
@@ -228,7 +228,7 @@ describe('StreamingText Component', () => {
 
     test('should handle code blocks without language', () => {
       const codeText = '```\ncode here\n```';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={codeText} isStreaming={false} />
       );
 
@@ -237,7 +237,7 @@ describe('StreamingText Component', () => {
 
     test('should handle inline code with markdown', () => {
       const inlineCodeText = 'This has `inline code` in it';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={inlineCodeText} isStreaming={false} enableMarkdown={true} />
       );
 
@@ -276,7 +276,7 @@ describe('StreamingText Component', () => {
     test('should detect multiple special cards', () => {
       const textWithMultiple =
         'See [[canvas:1]], [[workflow:2]], and [[form:3]]';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={textWithMultiple} isStreaming={false} />
       );
 
@@ -324,7 +324,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should respect custom maxHeight', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="Test"
           isStreaming={false}
@@ -338,7 +338,7 @@ describe('StreamingText Component', () => {
 
   describe('Progress Indicator', () => {
     test('should show progress indicator during streaming', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="A".repeat(100)} isStreaming={true} />
       );
 
@@ -346,7 +346,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should update progress as streaming advances', async () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="ABC" isStreaming={true} speed={10} />
       );
 
@@ -358,7 +358,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should not show progress when not streaming', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="Test" isStreaming={false} />
       );
 
@@ -369,7 +369,7 @@ describe('StreamingText Component', () => {
   describe('Custom Styling', () => {
     test('should apply custom container style', () => {
       const customStyle = { backgroundColor: '#f0f0f0' };
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="Test"
           isStreaming={false}
@@ -394,7 +394,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should use custom speed when streaming', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text="Test"
           isStreaming={true}
@@ -408,7 +408,7 @@ describe('StreamingText Component', () => {
 
   describe('Edge Cases', () => {
     test('should handle null text gracefully', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={null as any} isStreaming={false} />
       );
 
@@ -416,7 +416,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle undefined text gracefully', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={undefined as any} isStreaming={false} />
       );
 
@@ -443,7 +443,7 @@ describe('StreamingText Component', () => {
 
     test('should handle text with newlines', () => {
       const newlineText = 'Line 1\nLine 2\nLine 3';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={newlineText} isStreaming={false} />
       );
 
@@ -451,7 +451,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle very fast speed setting', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="Fast" isStreaming={true} speed={1} />
       );
 
@@ -459,7 +459,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should handle very slow speed setting', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="Slow" isStreaming={true} speed={1000} />
       );
 
@@ -469,7 +469,7 @@ describe('StreamingText Component', () => {
 
   describe('Cursor Animation', () => {
     test('should show cursor when streaming', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="Test" isStreaming={true} />
       );
 
@@ -477,7 +477,7 @@ describe('StreamingText Component', () => {
     });
 
     test('should not show cursor when not streaming', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text="Test" isStreaming={false} />
       );
 
@@ -489,7 +489,7 @@ describe('StreamingText Component', () => {
     test('should handle streaming with markdown and code blocks', () => {
       const complexText =
         '```js\nconsole.log("test");\n```\n\n**Bold** text';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={complexText} isStreaming={false} />
       );
 
@@ -499,7 +499,7 @@ describe('StreamingText Component', () => {
     test('should handle streaming with special cards and markdown', () => {
       const complexText =
         'Check [[canvas:123]] and **bold text**';
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText text={complexText} isStreaming={false} />
       );
 
@@ -517,7 +517,7 @@ const x = 1;
 
 More text to make it long enough to truncate: ${'A'.repeat(500)}`;
 
-      const { root as container } = render(
+      const { root: container } = render(
         <StreamingText
           text={allFeaturesText}
           isStreaming={false}

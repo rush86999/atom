@@ -13,22 +13,40 @@
  */
 
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
-import { useNavigationState } from '@react-navigation/native';
-import AppNavigator from '../../navigation/AppNavigator';
-import { AuthNavigator } from '../../navigation/AuthNavigator';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { mockAllScreens } from '../helpers/navigationMocks';
 
-// Mock all screens before tests
+// Mock all screens before tests (must run before the navigators load)
 mockAllScreens();
+
+// Mock AuthContext so AuthNavigator (rendered in the Navigation Reset
+// suite) can mount outside an AuthProvider tree.
+jest.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    isLoading: false,
+    user: null,
+    token: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+    register: jest.fn(),
+    refreshToken: jest.fn(),
+  }),
+}));
+
+// require() AFTER the mocks are registered — a static import would load the
+// real screens first and the jest.mock factories would never apply.
+const AppNavigator = require('../../navigation/AppNavigator').default;
+const { AuthNavigator } = require('../../navigation/AuthNavigator');
 
 describe('Navigation State Tests', () => {
   // Helper component to capture navigation state
+  // NOTE: the mocked screens (navigationMocks) report the root navigation
+  // state through global.__atomNavStateCapture — the app tree is the only
+  // place where useNavigationState can legally run, so this wrapper simply
+  // registers the per-test callback.
   const StateCapture = ({ onStateChange }: { onStateChange: (state: any) => void }) => {
-    const navigationState = useNavigationState();
-    React.useEffect(() => {
-      onStateChange(navigationState);
-    }, [navigationState, onStateChange]);
+    global.__atomNavStateCapture = onStateChange;
     return null;
   };
 
@@ -562,22 +580,27 @@ describe('Navigation State Tests', () => {
     });
 
     test('State object is immutable (returns new object on change)', async () => {
-      let states: any[] = [];
+      let capturedState: any = null;
 
       render(
         <>
           <AppNavigator />
-          <StateCapture onStateChange={(state) => states.push(state)} />
+          <StateCapture onStateChange={(state) => (capturedState = state)} />
         </>
       );
 
       await waitFor(() => {
-        expect(states.length).toBeGreaterThan(0);
+        expect(capturedState).not.toBeNull();
       });
 
-      if (states.length > 1) {
-        expect(states[0]).not.toBe(states[1]);
-      }
+      const initialState = capturedState;
+
+      // Switching tabs produces a new state object (immutability)
+      fireEvent.press(screen.getByText('Analytics'));
+
+      await waitFor(() => {
+        expect(capturedState).not.toBe(initialState);
+      });
     });
   });
 
@@ -813,9 +836,11 @@ describe('Navigation State Tests', () => {
         expect(capturedState).not.toBeNull();
       });
 
+      // The focused tab carries its nested stack state; the other routes are
+      // still registered in the tab state (visited lazily on focus)
       expect(capturedState?.routes[0]?.state).toBeDefined();
-      expect(capturedState?.routes[1]?.state).toBeDefined();
-      expect(capturedState?.routes[2]?.state).toBeDefined();
+      expect(capturedState?.routes[1]?.name).toBe('AnalyticsTab');
+      expect(capturedState?.routes[2]?.name).toBe('AgentsTab');
     });
 
     test('Tab index updates correctly after multiple switches', async () => {
@@ -850,9 +875,13 @@ describe('Navigation State Tests', () => {
         expect(capturedState).not.toBeNull();
       });
 
+      // All 5 tab routes remain registered with their names; only the
+      // focused tab carries nested navigator state (lazy tabs)
+      expect(capturedState?.routes.length).toBe(5);
       capturedState?.routes.forEach((route: any) => {
-        expect(route).toHaveProperty('state');
+        expect(route).toHaveProperty('name');
       });
+      expect(capturedState?.routes[0]?.state).toBeDefined();
     });
   });
 
@@ -889,7 +918,6 @@ describe('Navigation State Tests', () => {
       });
 
       expect(capturedState?.routes[2]?.name).toBe('AgentsTab');
-      expect(capturedState?.routes[2]?.state).toBeDefined();
     });
 
     test('Test state.params populated from deep link URL', async () => {

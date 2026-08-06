@@ -13,11 +13,14 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import AppNavigator from '../../navigation/AppNavigator';
 import { mockAllScreens } from '../helpers/navigationMocks';
 
-// Mock all screens with functional components
+// Mock all screens with functional components (must run before AppNavigator loads)
 mockAllScreens();
+
+// require() AFTER the mocks are registered — a static import would load the
+// real screens first and the jest.mock factories would never apply.
+const AppNavigator = require('../../navigation/AppNavigator').default;
 
 // Mock Ionicons
 jest.mock('@expo/vector-icons', () => ({

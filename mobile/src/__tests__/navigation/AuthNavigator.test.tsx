@@ -13,8 +13,6 @@
 
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { AuthNavigator } from '../../navigation/AuthNavigator';
 import { mockAllScreens, createMockAuthContext } from '../helpers/navigationMocks';
 import {
   parseDeepLinkURL,
@@ -27,26 +25,34 @@ import {
 } from '../helpers/deepLinkHelpers';
 import * as Linking from 'expo-linking';
 
-// Mock all screens with functional components
+// Mock all screens with functional components (must run before AuthNavigator loads)
 mockAllScreens();
 
-// Mock AuthContext
+// require() AFTER the mocks are registered — a static import would load the
+// real screens first and the jest.mock factories would never apply.
+const { AuthNavigator } = require('../../navigation/AuthNavigator');
+
+// Mutable auth state: AuthNavigator renders its OWN NavigationContainer, so
+// tests render <AuthNavigator /> directly (no outer container) and flip the
+// auth state per test by mutating mockAuthState before rendering.
 const mockLogin = jest.fn();
 const mockLogout = jest.fn();
 const mockRegister = jest.fn();
 const mockRefreshToken = jest.fn();
 
+let mockAuthState = {
+  isAuthenticated: false,
+  isLoading: false,
+  user: null,
+  token: null,
+  login: mockLogin,
+  logout: mockLogout,
+  register: mockRegister,
+  refreshToken: mockRefreshToken,
+};
+
 jest.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    isAuthenticated: false,
-    isLoading: false,
-    user: null,
-    token: null,
-    login: mockLogin,
-    logout: mockLogout,
-    register: mockRegister,
-    refreshToken: mockRefreshToken,
-  }),
+  useAuth: () => mockAuthState,
 }));
 
 // Mock Ionicons
@@ -57,219 +63,259 @@ jest.mock('@expo/vector-icons', () => ({
 describe('AuthNavigator - Auth Screen Rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // AuthNavigator mounts a NavigationContainer with a linking config and an
+    // async isReady gate; real timers keep waitFor/re-navigation reliable
+    // across multiple renders in this suite.
+    jest.useRealTimers();
+    mockAuthState = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      token: null,
+      login: mockLogin,
+      logout: mockLogout,
+      register: mockRegister,
+      refreshToken: mockRefreshToken,
+    };
   });
 
-  it('should render Login screen with testID', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should render Login screen with testID', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
-  });
-
-  it('should render Register screen with testID', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-
-    // Navigate to register screen
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
     });
   });
 
-  it('should render ForgotPassword screen with testID', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should render Register screen with testID', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    // AuthNavigator provides its own NavigationContainer; unauthenticated
+    // state starts on the Login screen (Register mounts only on navigation).
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-Register'));
+
+    await waitFor(() => {
+      expect(getByTestId('register-screen')).toBeTruthy();
+    });
   });
 
-  it('should render BiometricAuth screen with testID', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should render ForgotPassword screen with testID', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-ForgotPassword'));
+
+    await waitFor(() => {
+      expect(getByTestId('forgot-password-screen')).toBeTruthy();
+    });
   });
 
-  it('should verify Login screen displays correct title', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should render BiometricAuth screen with testID', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen-name')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-BiometricAuth'));
+
+    await waitFor(() => {
+      expect(getByTestId('biometric-auth-screen')).toBeTruthy();
+    });
+  });
+
+  it('should verify Login screen displays correct title', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('login-screen-name')).toBeTruthy();
+    });
     expect(getByTestId('login-screen-name').props.children).toBe('Login');
   });
 
   it('should verify Register screen displays correct title', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
     });
+
+    fireEvent.press(getByTestId('login-screen-nav-Register'));
+
+    await waitFor(() => {
+      expect(getByTestId('register-screen-name')).toBeTruthy();
+    });
+    expect(getByTestId('register-screen-name').props.children).toBe('Register');
   });
 
-  it('should verify ForgotPassword screen displays correct title', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should verify ForgotPassword screen displays correct title', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-ForgotPassword'));
+
+    await waitFor(() => {
+      expect(getByTestId('forgot-password-screen-name')).toBeTruthy();
+    });
+    expect(getByTestId('forgot-password-screen-name').props.children).toBe('ForgotPassword');
   });
 
-  it('should verify BiometricAuth screen displays correct title', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should verify BiometricAuth screen displays correct title', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-BiometricAuth'));
+
+    await waitFor(() => {
+      expect(getByTestId('biometric-auth-screen-name')).toBeTruthy();
+    });
+    expect(getByTestId('biometric-auth-screen-name').props.children).toBe('BiometricAuth');
   });
 });
 
 describe('AuthNavigator - Main App Conditional Rendering', () => {
-  it('should render auth screens when not authenticated', () => {
-    const { getByTestId, queryByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-
-    expect(getByTestId('login-screen')).toBeTruthy();
-    expect(queryByTestId('app-navigator')).toBeNull();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // See Auth Screen Rendering: NavigationContainer needs real timers
+    jest.useRealTimers();
+    mockAuthState = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      token: null,
+      login: mockLogin,
+      logout: mockLogout,
+      register: mockRegister,
+      refreshToken: mockRefreshToken,
+    };
   });
 
-  it('should render Main app screen when authenticated', () => {
-    // Mock authenticated state
-    jest.mock('../../contexts/AuthContext', () => ({
-      useAuth: () => ({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: 'test-user-123', email: 'test@example.com' },
-        token: 'test-token-abc123',
-        login: mockLogin,
-        logout: mockLogout,
-        register: mockRegister,
-        refreshToken: mockRefreshToken,
-      }),
-    }));
+  it('should render auth screens when not authenticated', async () => {
+    const { getByTestId, queryByTestId } = render(<AuthNavigator />);
 
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-
-    // Main screen should be rendered when authenticated
-    expect(getByTestId('login-screen')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+    // Main app navigator must NOT be mounted while logged out
+    expect(queryByTestId('workflows-list-screen')).toBeNull();
   });
 
-  it('should render LoadingScreen when isLoading is true', () => {
-    jest.mock('../../contexts/AuthContext', () => ({
-      useAuth: () => ({
-        isAuthenticated: false,
-        isLoading: true,
-        user: null,
-        token: null,
-        login: mockLogin,
-        logout: mockLogout,
-        register: mockRegister,
-        refreshToken: mockRefreshToken,
-      }),
-    }));
+  it('should render Main app screen when authenticated', async () => {
+    // AuthNavigator's authenticated branch renders AppNavigator, which owns
+    // its own NavigationContainer. Rendering it inside another container
+    // throws in react-navigation 6.4.x (nested containers), so render it as
+    // the root — mirroring how AppNavigator renders the authenticated app.
+    const { AppNavigator } = require('../../navigation/AppNavigator');
 
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AppNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    // Main (AppNavigator) screen should be rendered when authenticated
+    await waitFor(() => {
+      expect(getByTestId('workflows-list-screen')).toBeTruthy();
+    });
   });
 
-  it('should render LoadingScreen when isReady is false', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should render LoadingScreen when isLoading is true', async () => {
+    mockAuthState = {
+      ...mockAuthState,
+      isLoading: true,
+    };
 
-    // Initial render should show login screen
-    expect(getByTestId('login-screen')).toBeTruthy();
+    const { queryByTestId } = render(<AuthNavigator />);
+
+    // While loading, neither auth screens nor main app are shown
+    expect(queryByTestId('login-screen')).toBeNull();
+    expect(queryByTestId('workflows-list-screen')).toBeNull();
   });
 
-  it('should verify initialRouteName is Login when not authenticated', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should transition out of loading when ready', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    // Initial render is the loading gate; after isReady/login the auth
+    // screens appear
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
   });
 
-  it('should verify initialRouteName is Main when authenticated', () => {
-    jest.mock('../../contexts/AuthContext', () => ({
-      useAuth: () => ({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: 'test-user-123', email: 'test@example.com' },
-        token: 'test-token-abc123',
-        login: mockLogin,
-        logout: mockLogout,
-        register: mockRegister,
-        refreshToken: mockRefreshToken,
-      }),
-    }));
-
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-
-    expect(getByTestId('login-screen')).toBeTruthy();
-  });
-});
-
-describe('AuthNavigator - Auth Flow Navigation', () => {
-  it('should navigate from Login to Register', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+  it('should verify initialRouteName is Login when not authenticated', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
     });
   });
 
+  it('should verify initialRouteName is Main when authenticated', async () => {
+    // See "should render Main app screen when authenticated": AppNavigator is
+    // the authenticated surface and owns its own NavigationContainer.
+    const { AppNavigator } = require('../../navigation/AppNavigator');
+
+    const { getByTestId } = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('workflows-list-screen')).toBeTruthy();
+    });
+  });
+});
+
+describe('AuthNavigator - Auth Flow Navigation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // See Auth Screen Rendering: NavigationContainer needs real timers
+    jest.useRealTimers();
+    mockAuthState = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      token: null,
+      login: mockLogin,
+      logout: mockLogout,
+      register: mockRegister,
+      refreshToken: mockRefreshToken,
+    };
+  });
+
+  it('should navigate from Login to Register', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-Register'));
+
+    await waitFor(() => {
+      expect(getByTestId('register-screen')).toBeTruthy();
+    });
+  });
+
   it('should navigate from Register back to Login', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-Register'));
+    await waitFor(() => {
+      expect(getByTestId('register-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('register-screen-nav-Login'));
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
@@ -277,23 +323,32 @@ describe('AuthNavigator - Auth Flow Navigation', () => {
   });
 
   it('should navigate from Login to ForgotPassword', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
     });
+
+    fireEvent.press(getByTestId('login-screen-nav-ForgotPassword'));
+
+    await waitFor(() => {
+      expect(getByTestId('forgot-password-screen')).toBeTruthy();
+    });
   });
 
   it('should navigate from ForgotPassword back to Login', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-ForgotPassword'));
+    await waitFor(() => {
+      expect(getByTestId('forgot-password-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('forgot-password-screen-nav-Login'));
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
@@ -301,14 +356,16 @@ describe('AuthNavigator - Auth Flow Navigation', () => {
   });
 
   it('should navigate from Login to BiometricAuth', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('login-screen-nav-BiometricAuth'));
+
+    await waitFor(() => {
+      expect(getByTestId('biometric-auth-screen')).toBeTruthy();
     });
   });
 });
@@ -590,46 +647,45 @@ describe('AuthNavigator - Deep Link Validation', () => {
 });
 
 describe('AuthNavigator - Loading State', () => {
-  it('should render LoadingScreen when isReady is false', () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-
-    // Initial render before isReady state
-    expect(getByTestId('login-screen')).toBeTruthy();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // See Auth Screen Rendering: NavigationContainer needs real timers
+    jest.useRealTimers();
+    mockAuthState = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      token: null,
+      login: mockLogin,
+      logout: mockLogout,
+      register: mockRegister,
+      refreshToken: mockRefreshToken,
+    };
   });
 
-  it('should render LoadingScreen when isLoading is true', () => {
-    jest.mock('../../contexts/AuthContext', () => ({
-      useAuth: () => ({
-        isAuthenticated: false,
-        isLoading: true,
-        user: null,
-        token: null,
-        login: mockLogin,
-        logout: mockLogout,
-        register: mockRegister,
-        refreshToken: mockRefreshToken,
-      }),
-    }));
+  it('should render LoadingScreen while auth state is loading', async () => {
+    mockAuthState = {
+      ...mockAuthState,
+      isLoading: true,
+    };
 
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { queryByTestId } = render(<AuthNavigator />);
 
-    expect(getByTestId('login-screen')).toBeTruthy();
+    // Loading gate blocks both auth screens and the main app
+    expect(queryByTestId('login-screen')).toBeNull();
+    expect(queryByTestId('workflows-list-screen')).toBeNull();
+  });
+
+  it('should show login screen once loading finishes', async () => {
+    const { getByTestId } = render(<AuthNavigator />);
+
+    await waitFor(() => {
+      expect(getByTestId('login-screen')).toBeTruthy();
+    });
   });
 
   it('should transition from loading to auth screen', async () => {
-    const { getByTestId } = render(
-      <NavigationContainer>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
+    const { getByTestId } = render(<AuthNavigator />);
 
     await waitFor(() => {
       expect(getByTestId('login-screen')).toBeTruthy();

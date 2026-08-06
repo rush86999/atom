@@ -172,7 +172,7 @@ describe('AsyncStorage Tests', () => {
     expect(values).toHaveLength(3);
     expect(values[0]).toEqual(['multi_key1', 'multi_value1']);
     expect(values[1]).toEqual(['multi_key2', 'multi_value2']);
-    expect(values[2]).toEqual(['multi_key3',_multi_value3']);
+    expect(values[2]).toEqual(['multi_key3', 'multi_value3']);
   });
 
   it('test_async_storage_multi_set', async () => {
@@ -247,7 +247,7 @@ describe('AsyncStorage Tests', () => {
 
 describe('MMKV Storage Tests', () => {
   // Mock MMKV for testing since it requires native module
-  const mockMMKVStore: Record<string, string | number | boolean> = {};
+  let mockMMKVStore: Record<string, string | number | boolean> = {};
 
   beforeEach(() => {
     mockMMKVStore = {};

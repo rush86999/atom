@@ -31,7 +31,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should not render when no agents', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator visible={true} agents={[]} />
       );
 
@@ -40,7 +40,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should render default typing dots animation', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent 1' }]}
@@ -118,7 +118,7 @@ describe('TypingIndicator Component', () => {
 
   describe('Avatar Display', () => {
     test('should show agent initials in avatar', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'John Doe' }]}
@@ -129,7 +129,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle single word name', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent' }]}
@@ -140,7 +140,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle multi-word name', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent Very Long Name' }]}
@@ -153,7 +153,7 @@ describe('TypingIndicator Component', () => {
 
   describe('Animation States', () => {
     test('should animate when visible', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent 1' }]}
@@ -164,7 +164,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should stop animation when hidden', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={false}
           agents={[{ id: '1', name: 'Agent 1' }]}
@@ -245,7 +245,7 @@ describe('TypingIndicator Component', () => {
 
   describe('Edge Cases', () => {
     test('should handle null agents', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator visible={true} agents={null as any} />
       );
 
@@ -253,7 +253,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle undefined agents', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator visible={true} agents={undefined as any} />
       );
 
@@ -261,7 +261,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle agent with null name', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: null as any }]}
@@ -272,7 +272,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle agent with empty name', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: '' }]}
@@ -284,7 +284,7 @@ describe('TypingIndicator Component', () => {
 
     test('should handle very long agent names', () => {
       const longName = 'A'.repeat(100);
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: longName }]}
@@ -295,7 +295,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle agent names with special characters', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent <>&"\\' }]}
@@ -306,7 +306,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle agent with avatar_url', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent 1', avatar_url: 'http://example.com/avatar.png' }]}
@@ -373,7 +373,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle single word name', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent' }]}
@@ -384,7 +384,7 @@ describe('TypingIndicator Component', () => {
     });
 
     test('should handle name with multiple spaces', () => {
-      const { root as container } = render(
+      const { root: container } = render(
         <TypingIndicator
           visible={true}
           agents={[{ id: '1', name: 'Agent Very Long Name Here' }]}
@@ -398,13 +398,13 @@ describe('TypingIndicator Component', () => {
 
 describe('CompactTypingIndicator Component', () => {
   test('should render compact typing indicator', () => {
-    const { root as container } = render(<CompactTypingIndicator visible={true} />);
+    const { root: container } = render(<CompactTypingIndicator visible={true} />);
 
     expect(container).toBeTruthy();
   });
 
   test('should not render when visible is false', () => {
-    const { root as container } = render(<CompactTypingIndicator visible={false} />);
+    const { root: container } = render(<CompactTypingIndicator visible={false} />);
 
     expect(container).toBeTruthy();
   });
@@ -420,7 +420,7 @@ describe('CompactTypingIndicator Component', () => {
   });
 
   test('should render animated dots', () => {
-    const { root as container } = render(<CompactTypingIndicator visible={true} />);
+    const { root: container } = render(<CompactTypingIndicator visible={true} />);
 
     expect(container).toBeTruthy();
   });

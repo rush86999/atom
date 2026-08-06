@@ -115,9 +115,9 @@ const MockFormScreen = ({ onSubmit }: { onSubmit?: (data: any) => Promise<void> 
       ...prev,
       fields: {
         ...prev.fields,
-        email: { ...prev.fields.email, error: emailError },
-        password: { ...prev.fields.password, error: passwordError },
-        confirmPassword: { ...prev.fields.confirmPassword, error: confirmPasswordError },
+        email: { ...prev.fields.email, error: emailError, touched: true },
+        password: { ...prev.fields.password, error: passwordError, touched: true },
+        confirmPassword: { ...prev.fields.confirmPassword, error: confirmPasswordError, touched: true },
       },
     }));
 
