@@ -61,6 +61,7 @@ class E2BRuntime:
         policy: Any,
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
+        image: Optional[str] = None,
     ) -> SandboxExecResult:
         if not is_available():
             return SandboxExecResult(

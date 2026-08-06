@@ -3392,6 +3392,11 @@ class Canvas(Base):
     # Status
     status = Column(String(20), default="active")  # active, archived, deleted
 
+    # Mini-app linkage — set on instance canvases hydrated from a MiniApp
+    # blueprint. Null for ordinary canvases. (Mini-app state store = CanvasState;
+    # controller = CanvasLogic; view = this Canvas.)
+    mini_app_id = Column(String, ForeignKey("mini_apps.id"), nullable=True, index=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -4372,6 +4377,122 @@ class CanvasTemplate(Base):
     # Relationships
     tenant = relationship("Tenant", backref="canvas_templates")
     author = relationship("User", backref="published_templates")
+
+
+# ========================================================================
+# MINI-APPS (stateful, resumable canvas-UI apps on Firecracker microVMs)
+#
+# MVC model:
+#   * View       = Canvas (instance canvas hydrated from a MiniApp blueprint)
+#   * Controller = CanvasLogic (sandboxed one-shot per invocation; state
+#                  round-tripped via CanvasState; storage ops host-mediated)
+#   * Model      = MiniApp manifest
+#
+# Instance state lives in a dedicated CanvasState row (one per instance
+# canvas, versioned, latest-wins) — NOT the CanvasAudit trail (which stays
+# the audit/history log).
+# ========================================================================
+
+
+class CanvasState(Base):
+    """Versioned instance-state store for a mini-app canvas (state store).
+
+    One row per canvas (``canvas_id`` is unique). ``state`` is the app's
+    current persisted state; ``version`` is a monotonic counter bumped on
+    every committed run so the frontend can render "latest wins" and detect
+    concurrent-edit conflicts. This is deliberately separate from
+    ``CanvasAudit`` (which remains the append-only audit/history trail).
+    """
+
+    __tablename__ = "canvas_states"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(
+        String, ForeignKey("canvases.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+    state = Column(JSONColumn, nullable=False, default={})
+    version = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class MiniAppAsset(Base):
+    """File/object attached to an instance canvas (host-mediated storage).
+
+    The guest microVM has no host filesystem — ALL file/blob I/O from app
+    logic flows through host-mediated ``storage_ops`` and lands here (a row)
+    plus in the configured ``MiniAppStorage`` backend (local FS or S3/R2).
+    ``key`` is the logical, app-visible name (e.g. ``data.xlsx``); ``uri``
+    is the physical location (``s3://bucket/...`` or a local path).
+    """
+
+    __tablename__ = "mini_app_assets"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    key = Column(String(500), nullable=False)  # logical, app-visible name
+    uri = Column(String(1000), nullable=False)  # s3://bucket/... or local path
+    content_type = Column(String(100), nullable=True)
+    size = Column(Integer, default=0)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        # A logical key is unique per instance canvas.
+        UniqueConstraint("canvas_id", "key", name="uq_mini_app_assets_canvas_key"),
+    )
+
+
+class MiniApp(Base):
+    """Mini-app definition (the Model in the MVC triad).
+
+    ``manifest`` carries:
+    ``{declared_scopes: [...], skills: [...], mcp_servers: [...],
+       entrypoint: "logic", dependencies: ["pandas==2.2"],
+       base_image: "python:3.11-slim", assets: [key,...],
+       storage: {enabled, backend, max_bytes_per_object},
+       initial_state: {...},
+       blueprint: {content, style, logic_source, component_installations}}``
+
+    Publishing snapshots the source canvas (blueprint_canvas_id) into
+    ``manifest["blueprint"]`` (copy-on-install). ``runtime_image`` records the
+    ext4 rootfs path for the app's microVM (None → base template rootfs).
+    """
+
+    __tablename__ = "mini_apps"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+
+    # Core details
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    version = Column(String(32), default="1.0.0")
+
+    # Manifest + runtime
+    manifest = Column(JSONColumn, nullable=False, default={})
+    runtime_image = Column(String(500), nullable=True)  # ext4 rootfs path
+    runtime_version = Column(Integer, default=0)  # bumped on dependency change
+
+    # Source + lifecycle
+    blueprint_canvas_id = Column(String, ForeignKey("canvases.id"), nullable=True)
+    status = Column(String(20), default="draft")  # draft|published|archived
+    is_public = Column(Boolean, default=False)
+    share_token = Column(String(255), unique=True, nullable=True)
+    credential_metadata = Column(JSONColumn, nullable=True)  # P0 convention
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 

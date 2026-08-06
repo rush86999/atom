@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -149,6 +149,7 @@ class CanvasLogicService:
         canvas_id: str,
         inputs: Optional[Dict[str, Any]] = None,
         agent_id: Optional[str] = None,
+        scopes: Optional[Tuple[str, ...]] = None,
     ) -> Dict[str, Any]:
         """Execute the canvas's stored logic in the sandbox runtime.
 
@@ -157,6 +158,10 @@ class CanvasLogicService:
             inputs: caller-supplied inputs, exposed as module globals alongside
                 ``storage_namespace``.
             agent_id: the agent invoking the run (must be AUTONOMOUS).
+            scopes: optional tool whitelist for the issued policy. When
+                provided, the policy is issued at the AUTONOMOUS floor and its
+                ``tool_whitelist`` is replaced with ``scopes`` (viewer-tier cap
+                for mini apps). Default (None) preserves the legacy code path.
 
         Returns:
             ``{"success": bool, "stdout": str, "stderr": str, "exit_code": int}``
@@ -177,15 +182,30 @@ class CanvasLogicService:
 
         # Issue a per-canvas-scoped policy so FS writes are bounded to fs_root.
         # Falls back to a minimal policy if the issuer is unavailable.
-        try:
+        if scopes is not None:
+            # Explicit scopes (mini-app path): issue at the AUTONOMOUS floor and
+            # replace the tool whitelist with the resolved viewer-tier caps.
+            from dataclasses import replace
             from core.sandbox_policy import PolicyIssuer
-            policy = PolicyIssuer().issue(
-                tier="autonomous",
-                run_id=f"canvas-{namespace}",
-                workspace_data_root=fs_root,
-            )
-        except Exception:
-            policy = None
+            try:
+                policy = PolicyIssuer().issue(
+                    tier_at_issuance="autonomous",
+                    run_id=f"canvas-{namespace}",
+                    workspace_data_root=fs_root,
+                )
+                policy = replace(policy, tool_whitelist=tuple(scopes))
+            except Exception:
+                policy = None
+        else:
+            try:
+                from core.sandbox_policy import PolicyIssuer
+                policy = PolicyIssuer().issue(
+                    tier="autonomous",
+                    run_id=f"canvas-{namespace}",
+                    workspace_data_root=fs_root,
+                )
+            except Exception:
+                policy = None
 
         runtime = get_runtime()
         result = await runtime.execute_python(

@@ -76,6 +76,33 @@ class StorageService:
             logger.debug(f"File check failed for {key}: {e}")
             return False
 
+    def download_file(self, key: str) -> bytes:
+        """Download an object's bytes from S3/R2.
+
+        Raises the underlying botocore exception when the object is missing
+        (callers decide how to map it).
+        """
+        response = self.s3.get_object(Bucket=self.bucket, Key=key)
+        return response["Body"].read()
+
+    def delete_object(self, key: str) -> bool:
+        """Delete an object from S3/R2. Returns True on success."""
+        try:
+            self.s3.delete_object(Bucket=self.bucket, Key=key)
+            return True
+        except Exception as e:
+            logger.warning(f"S3 delete failed for {key}: {e}")
+            return False
+
+    def list_keys(self, prefix: str = "") -> list:
+        """List object keys under ``prefix`` (paginated, sorted)."""
+        keys = []
+        paginator = self.s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                keys.append(obj["Key"])
+        return sorted(keys)
+
 def get_storage_service():
     if not StorageService._instance:
         StorageService._instance = StorageService()

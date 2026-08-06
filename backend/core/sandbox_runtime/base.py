@@ -85,6 +85,7 @@ class SandboxRuntime(Protocol):
         policy: Any,
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
+        image: Optional[str] = None,
     ) -> SandboxExecResult:
         """Execute Python code inside the sandbox.
 
@@ -93,6 +94,10 @@ class SandboxRuntime(Protocol):
             policy: SandboxPolicy with max_exec_seconds / max_bytes_written caps.
             inputs: optional dict exposed as module-level globals.
             cwd: optional working directory inside the sandbox.
+            image: optional backend-specific image selector. For
+                ``FirecrackerRuntime`` this is the ext4 **rootfs path** for the
+                microVM (``None`` → the base template rootfs). Mini apps pass
+                their per-app rootfs here; the generic runtime ignores it.
         """
         ...
 
@@ -177,7 +182,7 @@ class NullRuntime:
     proceed via other means (or surface the error to the user).
     """
 
-    async def execute_python(self, code, *, policy, inputs=None, cwd=None):
+    async def execute_python(self, code, *, policy, inputs=None, cwd=None, image=None):
         return SandboxExecResult(
             success=False,
             stdout="",

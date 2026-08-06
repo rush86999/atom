@@ -48,6 +48,7 @@ class DockerRuntime:
         policy: Any,
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
+        image: Optional[str] = None,
     ) -> SandboxExecResult:
         try:
             sandbox = await self._ensure_sandbox()
@@ -59,6 +60,7 @@ class DockerRuntime:
                 inputs or {},
                 timeout,
                 mem_mb,
+                image,
             )
             return _parse_legacy_output(result)
         except Exception as e:  # noqa: BLE001

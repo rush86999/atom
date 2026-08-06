@@ -1411,6 +1411,14 @@ try:
     logger.info("✓ External MCP client config mounted at /api/mcp/servers (P6)")
 except Exception as e:  # pragma: no cover - boot resilience
     logger.error(f"Failed to mount MCP client router: {e}")
+# Mini-apps: stateful, resumable canvas-UI apps on Firecracker microVMs.
+# Declares its own /api prefix — include BARE (mirrors rpc_routes pattern).
+try:
+    from api.mini_app_routes import router as mini_app_router
+    app.include_router(mini_app_router, tags=["mini-apps"])
+    logger.info("✓ Mini-apps router mounted at /api/mini-apps")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount mini-apps router: {e}")
 if messaging_router:
     app.include_router(messaging_router, prefix="/api/v1/messaging", tags=["messaging"])
 if token_refresh_router and len(token_refresh_router.routes) > 0:
