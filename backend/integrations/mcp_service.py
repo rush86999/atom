@@ -857,7 +857,18 @@ class MCPService(IntegrationService):
         for server_id, info in self.active_servers.items():
             if server_id not in ["google-search", "local-tools"]:
                 all_tools.extend(info.get("tools", []))
-        
+
+        # Native local-tools surface (discover_connections, CRM/sales, search).
+        # These are dispatchable via call_tool, so expose them to the agent loop
+        # too; dedupe against registry/action/server tools (e.g. browser_navigate
+        # is registered in both the core registry and local-tools).
+        local_tools = await self.get_server_tools("local-tools")
+        seen_names = {t["name"] for t in all_tools}
+        for tool in local_tools:
+            if tool["name"] not in seen_names:
+                all_tools.append(tool)
+                seen_names.add(tool["name"])
+
         return all_tools
 
     async def register_integration_tools(

@@ -472,3 +472,63 @@ class TestAgentHarness:
         assert st["rootfs"] is None
         assert st["runtime"]["available"] is True
         assert st["tests"]["count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Agent-chat dispatch path — the "chat with an agent in the main chat UI" entry
+# point. The agent loop calls integrations.mcp_service.call_tool with a context
+# dict carrying user_id + agent_id; this test exercises that exact seam (not
+# action_registry directly) so a mini-app can be created from chat.
+# ---------------------------------------------------------------------------
+class TestAgentChatDispatch:
+    @pytest.mark.asyncio
+    async def test_chat_agent_scaffolds_via_mcp_service(self, patched_db):
+        from core.models import MiniApp
+
+        from integrations.mcp_service import mcp_service
+
+        SessionLocal = patched_db[1]
+        user_id = _uid("chat")
+        # Context shape the agent loop supplies on every tool call.
+        context = {"user_id": user_id, "agent_id": "agent-loop-1", "tier": "autonomous"}
+        res = await mcp_service.call_tool(
+            "mini_app_scaffold",
+            {"name": "ChatCounter", "declared_scopes": ["canvas_render"]},
+            context,
+        )
+        assert res["success"] is True
+        assert res["app_id"]
+        with SessionLocal() as s:
+            app = s.query(MiniApp).filter(MiniApp.id == res["app_id"]).first()
+            assert app is not None
+            assert app.created_by == user_id
+            assert app.status == "draft"
+
+    @pytest.mark.asyncio
+    async def test_chat_agent_missing_user_id_fails_closed(self, patched_db):
+        from integrations.mcp_service import mcp_service
+
+        res = await mcp_service.call_tool(
+            "mini_app_scaffold",
+            {"name": "NoIdentity"},
+            {"agent_id": "agent-loop-1"},  # no user_id → authoring must fail closed
+        )
+        assert res["success"] is False
+        assert "Authenticated user" in res["error"]
+
+    @pytest.mark.asyncio
+    async def test_tools_exposed_to_agent_loop(self):
+        from integrations.mcp_service import mcp_service
+
+        tools = await mcp_service.get_all_tools()
+        names = {t["name"] for t in tools}
+        for required in (
+            "mini_app_scaffold",
+            "mini_app_write_logic",
+            "mini_app_dev_run",
+            "mini_app_run_tests",
+            "mini_app_publish",
+            "mini_app_install",
+            "mini_app_run",
+        ):
+            assert required in names, f"{required} not exposed to the agent loop"

@@ -265,6 +265,29 @@ class ToolRegistry:
         """Export all tools as dictionaries."""
         return [metadata.to_dict() for metadata in self._tools.values()]
 
+    def get_simplified_tools(self) -> List[Dict[str, Any]]:
+        """Return simplified tool definitions for the agent loop / OpenAI converter.
+
+        Produces the same ``{name, description, parameters}`` shape that
+        ``integrations.mcp_service.get_all_tools`` renders for action_registry
+        tools (param name -> ``"<type> (optional)"``), so a chat agent can
+        enumerate core tools alongside ontology actions.
+        """
+        simplified = []
+        for metadata in self._tools.values():
+            parameters = {}
+            for p_name, p_info in metadata.to_dict()["parameters"].items():
+                p_type = p_info.get("type", "string")
+                if not p_info.get("required"):
+                    p_type = f"{p_type} (optional)"
+                parameters[p_name] = p_type
+            simplified.append({
+                "name": metadata.name,
+                "description": metadata.description,
+                "parameters": parameters,
+            })
+        return simplified
+
     def discover_tools(self, tool_modules: List[str] = None) -> int:
         """
         Automatically discover and register tools from modules.

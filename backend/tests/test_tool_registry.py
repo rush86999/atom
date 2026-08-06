@@ -280,6 +280,38 @@ class TestToolRegistry:
         assert stats["maturity_distribution"]["STUDENT"] == 1
         assert stats["maturity_distribution"]["INTERN"] == 1
 
+    def test_get_simplified_tools(self):
+        """Test returning simplified tool definitions for the agent loop.
+
+        ``mcp_service.get_all_tools`` depends on this method to render the
+        core ToolRegistry tools in the same ``{name, description, parameters}``
+        shape it produces for action_registry tools. It has no direct unit
+        coverage here; the agent-loop exposure test in
+        ``test_mini_app_agent_tools.py`` exercises the full seam.
+        """
+        registry = ToolRegistry()
+
+        def dummy_tool(user_id: str, data: dict = None):
+            """A dummy tool."""
+            pass
+
+        registry.register(
+            name="dummy_tool",
+            function=dummy_tool,
+            description="Dummy tool",
+            category="test",
+        )
+
+        simplified = registry.get_simplified_tools()
+
+        assert len(simplified) == 1
+        entry = simplified[0]
+        assert entry["name"] == "dummy_tool"
+        assert entry["description"] == "Dummy tool"
+        assert entry["parameters"]["user_id"] == "str"
+        # Required flag drives the (optional) marker, matching action_registry.
+        assert entry["parameters"]["data"] == "dict (optional)"
+
     def test_export_all(self):
         """Test exporting all tools as dictionaries."""
         registry = ToolRegistry()
