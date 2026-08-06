@@ -1,14 +1,138 @@
-# Mini-Apps — Design
+# Mini-Apps — Design & Implemented Architecture
 
-> **Status:** Design (not yet implemented). Last updated Aug 5, 2026.
+> **Status:** **IMPLEMENTED** (backend, Aug 2026). Last updated Aug 6, 2026.
 > **Target app class:** long-running stateful document apps — spreadsheets, docs,
 > decks — plus interactive canvases. Atom is the harness; the mini-app is a
 > document with logic.
+>
+> The sections below marked **"Implemented"** describe what shipped. The later
+> sections preserve the original design narrative; where the implementation
+> diverged from it, the divergence is called out explicitly (see
+> [Divergences from the original design](#divergences-from-the-original-design)).
 
 A mini-app is a **canvas-bound document with server-side logic and declared
 scopes**, distributed as a versioned blueprint. The platform is the harness:
 every side effect flows through the existing security chain
 (P1 registry → P3 gatekeeper → P4 taint → P9 sandbox). There is no other path.
+
+---
+
+## Implemented architecture (backend, Aug 2026)
+
+**Model (MVC):** `Canvas` = View · `CanvasLogic` (P7) = Controller, executed
+one-shot per invocation in a **Firecracker microVM** with state round-tripped
+via `CanvasState` and storage ops host-mediated · `MiniApp` manifest = Model.
+
+| Piece | Implemented as |
+|---|---|
+| **App definition** | `MiniApp` (`models.py`) — name, manifest, `blueprint_canvas_id`, `runtime_image` (ext4 rootfs), `runtime_version`, status (`draft\|published\|archived`), `is_public`, `share_token` |
+| **Instance state** | `CanvasState` (`models.py`) — **one row per instance canvas**, versioned, latest-wins. *Not* `CanvasAudit` (which stays the audit/history log) |
+| **App assets** | `MiniAppAsset` rows + `core/mini_app_storage.py` (`MiniAppStorage` — pluggable local-FS / S3-R2, path-traversal-guarded) |
+| **Runtime** | `core/mini_app_runtime.py` — **Firecracker microVM is the ONLY mini-app runtime.** `get_miniapp_runtime()` fails closed (`RuntimeError`) on non-Linux / missing `firecracker` / missing kernel / missing base rootfs template. No Docker/E2B fallback. Real boot path in `core/sandbox_runtime/firecracker_runner.py` (vsock command channel to `core/sandbox_runtime/firecracker_guest/agent.py`) |
+| **Deps** | Manifest `dependencies` → fail-closed pip-audit/Safety scan (`core/package_dependency_scanner.py`) + operator-built per-app ext4 rootfs (`scripts/build_miniapp_rootfs.sh`). `prepare_runtime` scans + verifies rootfs presence — it never auto-builds. Dep change clears `runtime_image` to force rebuild |
+| **Execution** | `core/mini_app_service.py` — `scaffold` / `syntax_check` / `publish` (snapshot blueprint + `initial_state`, `strip_credentials`) / `install` (copy-on-install, fresh id, `share_token=None`, `CanvasState` v1, exactly one `mini_app_install` audit) / `run_stateful` (state in → state out envelope, host-executed `storage_ops`, `CanvasState` upsert, WS `canvas:update` broadcast) |
+| **API** | `api/mini_app_routes.py` (12 endpoints under `/api/mini-apps`) |
+| **Ops** | `docs/deployment/FIRECRACKER_HOST_SETUP.md` (host provisioning, base template, per-app rootfs, real-boot smoke) |
+| **Migration** | `alembic/versions/20260805_mini_apps.py` (guarded `_table_exists`/`_column_exists`, hybrid SQLite/PG) |
+
+### Agent authoring harness (agent-driven coding — 13 `mini_app_*` actions)
+
+All authoring is **agent-driven**: agents running inside Atom create, author,
+test, publish, install, and run mini-apps through the unified action registry
+(`core/action_registry.py`), which auto-exposes the actions to the agent MCP
+loop (`integrations/mcp_service.get_all_tools`) and the frontend RPC surface
+(`api/rpc_routes.py`). Handlers live in `tools/mini_app_tool.py`. Every handler
+is fail-closed on identity (requester from `context`, never client-supplied)
+and owner-gated for mutations.
+
+The authoring loop (research-backed — see [Research basis](#research-basis)):
+
+```
+mini_app_status            # constraint probe: syntax, effective scopes (viewer tier ∩
+                           #   declared), dep-scan state, rootfs presence, FC availability
+mini_app_scaffold          # create draft app: source canvas + starter logic + manifest
+mini_app_write_logic       # syntax-gated save; every save checkpointed to the audit trail
+mini_app_dev_run           # dry run in the microVM — resulting state + proposed ops, NO commit
+mini_app_set_tests         # declare acceptance cases {initial_state?, inputs?, expect_state?, expect_ops?}
+mini_app_run_tests         # grade each case in the microVM — per-case pass/fail + expected-vs-actual diffs
+mini_app_logic_history     # list logic checkpoints (oldest → newest)
+mini_app_revert_logic      # restore a known-good checkpoint (revert is itself checkpointed)
+mini_app_publish           # fail-closed dep scan + rootfs gate; snapshot blueprint + initial_state
+mini_app_install           # copy-on-install: hydrate a fresh, immutable instance canvas
+mini_app_run               # stateful run of an installed instance (persists state + broadcasts)
+mini_app_get_state         # read an instance's current state + version
+mini_app_list              # list apps the user owns (or public ones)
+```
+
+The **acceptance-test loop** is the generator-evaluator feedback loop: the agent
+declares "given this state + inputs, the app must produce this state," the
+harness runs every case in the microVM (dry) and returns per-case pass/fail with
+diffs, so the agent self-corrects without a human in the loop. Logic checkpoints
+give clean-state recovery when a run/test fails.
+
+Tests: `tests/test_mini_app_agent_tools.py` (23 tests) + `tests/test_mini_apps.py`
++ `tests/test_mini_app_runtime.py` (Firecracker execution mocked — no real VM in
+CI).
+
+### User journey — creating a new mini-app
+
+**Path A — agent-driven (primary; "all coding is agent driven").** The user
+asks an agent (chat/workflow) to build a mini-app; the agent drives the loop:
+
+1. **Ask** — user: "create a counter mini-app" (or describes the app + deps).
+2. **Probe (optional)** — agent calls `mini_app_status` to learn its
+   constraints: syntax validity, effective scopes (its own tier ∩ declared),
+   dep-scan state, rootfs presence, FC availability.
+3. **Scaffold** — `mini_app_scaffold {name, declared_scopes, dependencies}`
+   → `{app_id, canvas_id, logic_source}` (starter logic the agent can read).
+4. **Iterate (the coding loop)** — `mini_app_write_logic` (syntax-gated; each
+   save checkpointed) → `mini_app_dev_run` (dry: resulting state + proposed
+   ops, **no commit**) → `mini_app_set_tests` + `mini_app_run_tests`
+   (acceptance feedback loop: per-case pass/fail + expected-vs-actual diffs) →
+   on failure `mini_app_revert_logic` back to a known-good checkpoint. Repeat.
+5. **Provision deps (only when deps declared)** — the operator runs
+   `scripts/build_miniapp_rootfs.sh <app_id>`; `mini_app_publish` fails closed
+   (dep scan must be clean AND the rootfs must exist).
+6. **Publish** — `mini_app_publish` snapshots `initial_state` + blueprint
+   (credentials stripped), `status=published`.
+7. **Install** — `mini_app_install` → a fresh, immutable instance canvas
+   (`CanvasState` v1, `share_token=None`, one `mini_app_install` audit).
+8. **Use** — the user (or the agent) runs the instance via `mini_app_run`
+   (state persists, version bumps, WS `canvas:update` live update) and reads it
+   back with `mini_app_get_state`. Assets upload post-install.
+
+**Path B — human via UI/API (secondary).** A user creates a mini-app through
+the canvas harness (Monaco `CanvasLogicPanel` — Save/Run + scaffold/dev-run
+buttons, a follow-up UI) or directly via `api/mini_app_routes.py`
+(`POST /api/mini-apps/scaffold`, `/logic`, `/dev-run`, `/publish`, `/install`).
+Same backend, same fail-closed gates.
+
+**Where the user sees it:** instance canvases render in the canvas page; runs
+broadcast live state over the WS `canvas:update` channel (`action:
+mini_app_state`).
+
+### Divergences from the original design
+
+The implementation revised the original design in these ways:
+
+1. **Instance state lives in `CanvasState`, not `CanvasAudit`.** A dedicated,
+   versioned, latest-wins row per instance canvas. `CanvasAudit` remains the
+   append-only audit/history trail.
+2. **Firecracker microVM is mandatory** — no Docker runtime for mini apps.
+   `get_miniapp_runtime()` fails closed. (The generic sandbox runtime keeps its
+   Docker fallback for non-mini-app workloads.)
+3. **Blueprint is stored in `MiniApp.manifest["blueprint"]`** (content/style/
+   `logic_source`/component configs + `initial_state`) — no separate
+   `MiniAppBlueprint` model.
+4. **Storage is host-mediated `MiniAppStorage`** (local-FS / S3-R2) with
+   `MiniAppAsset` rows — the guest has no host FS and no network. There is no
+   bound office document at `data/office/<app_id>`; assets are uploaded after
+   install.
+5. **No document-event auto-binding.** Runs are explicit (`mini_app_dev_run` /
+   `mini_app_run`), not fired by cell/paragraph edits. Event-triggered logic is
+   a follow-up.
+6. **Scaffold LLM-assisted body** is flag-gated (`ATOM_MINIAAP_LLM_SCAFFOLD`),
+   deterministic template by default (testable path).
 
 ---
 
