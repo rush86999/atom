@@ -108,7 +108,7 @@ Plus: credential-safe canvas fork & template sharing, per-canvas sandboxed Pytho
 
 Build **stateful, resumable mini-apps** — interactive spreadsheets, docs, and decks with server-side logic — by *chatting with an agent*. No hand-coding, no deployment pipeline.
 
-- **Agent-driven authoring**: ask an agent to "build me an expense-tracker app" and it scaffolds the app, writes the logic, declares acceptance tests, runs them in a hardware-virtualized sandbox, and iterates until they pass — then publishes and installs it. Thirteen `mini_app_*` agent actions power the loop — and the agent keeps operating the app **autonomously** afterward, co-editing the live instance alongside you.
+- **Agent-driven authoring**: ask an agent to "build me an expense-tracker app" and it scaffolds the app, writes the logic, declares acceptance tests, runs them in a hardware-virtualized sandbox, and iterates until they pass — then publishes and installs it. Thirteen `mini_app_*` agent actions power the loop — and the agent keeps operating the app **autonomously** afterward — co-editing the live instance alongside you through a **per-instance chat**.
 - **State that survives**: every run reads the app's state, executes, and persists the new state (versioned, latest-wins). Reopen and co-edit — the app is exactly where you left it.
 - **Firecracker microVM isolation**: each logic run executes in a microVM with a read-only rootfs, no host filesystem, and no network. Fail-closed by design — Docker is never a mini-app runtime.
 - **Declared scopes, no escalation**: an app declares what it may touch; a viewer's own tier always caps it. A SUPERVISED viewer can never wield an AUTONOMOUS author's powers.

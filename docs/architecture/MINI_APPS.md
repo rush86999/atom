@@ -188,6 +188,17 @@ composes: a canvas (UI) + a bound office doc (bytes) + a `CanvasLogic` row
    agent builds an app, then keeps operating the thing it built. Document-level
    conflict resolution (last-write-wins today; OT is an open question) is
    orthogonal to the co-editing channel — co-editing works regardless.
+1. **Every mini-app instance has a user↔agent chat interface.** Beyond the
+   rendered canvas (user) and the structured state (agent), each instance
+   carries a **per-instance conversation** binding the user to the agent
+   operating that app — the standalone-canvas side-chat co-editor pattern
+   (`/canvas` side panel) applied universally. The user instructs in natural
+   language ("add a row", "why is the total wrong?", "approve this change"); the
+   agent reads current UI + state (dual-face access), acts via
+   `mini_app_run`/asset ops, and the result lands live on the canvas and in the
+   thread. The chat is scoped to the instance's state, not global — so
+   co-editing is conversational, auditable, and grounded in the exact instance
+   being worked on.
 2. **Sandboxed Python backend per app; state is persistent + resumable (no
    background process).** Generated logic runs in `SandboxRuntime.execute_python`
    scoped to a per-app FS namespace — the `CanvasLogicService.run`
