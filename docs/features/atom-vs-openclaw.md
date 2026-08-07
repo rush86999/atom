@@ -414,7 +414,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API ✨ NEW
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries ✨ NEW
 - agents/unstructured-tasks.md - Intent classification and fleet recruitment ✨ NEW
-- STUDENT_AGENT_TRAINING_IMPLEMENTATION.md - Agent maturity system ✨ NEW
+- [AGENT_MATURITY_GOVERNANCE.md](../guides/AGENT_MATURITY_GOVERNANCE.md) - Agent maturity system ✨ NEW
 - ATOM_CLI_SKILLS_GUIDE.md - Built-in CLI skills documentation ✨ NEW
 - [agents/graduation.md](../agents/graduation.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
 - AGENT_GOVERNANCE_LEARNING_INTEGRATION.md - **Capability graduation logic (5/20/50 rule)** ✨ NEW

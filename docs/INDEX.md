@@ -72,7 +72,7 @@
 | [Unstructured Tasks](agents/unstructured-tasks.md) | Intent classification & dynamic routing | AI Engineers |
 | [Agent Guidance System](agents/guidance-system.md) | Real-time operation tracking | Users |
 | [Agent Graduation](agents/agent-graduation.md) | Promotion criteria & validation | Admins |
-| [Student Training](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | Maturity system (STUDENT→AUTONOMOUS) | Architects |
+| [Student Training](guides/AGENT_MATURITY_GOVERNANCE.md) | Maturity system (STUDENT→AUTONOMOUS) | Architects |
 
 ### 🔌 Integrations & LLM Providers
 
@@ -86,7 +86,7 @@
 | [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) | **NEW** Complete guide: 50+ native, OAuth, governance, webhooks, custom | Devs/Architects |
 | [Browser Automation](integrations/browser-automation.md) | Playwright CDP, INTERN+ required | Devs |
 | [Device Capabilities](guides/DEVICE_CAPABILITIES.md) | Camera, screen, location, exec | Devs |
-| [Deep Linking](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | `atom://` URLs for external apps | Devs |
+| [Deep Linking](architecture/DEEPLINK.md) | `atom://` URLs for external apps | Devs |
 | [Marketplace](marketplace/connection.md) | Commercial marketplace (atomagentos.com) | Enterprise |
 
 ### 🎨 Canvas & Office Automation
@@ -116,8 +116,8 @@
 
 | Document | Description | Audience |
 |----------|-------------|----------|
-| [Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md) | React Native setup | Mobile Devs |
-| [Mobile Architecture](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) | Architecture overview | Mobile Devs |
+| [Mobile Quick Start](guides/QUICKSTART.md) | React Native setup | Mobile Devs |
+| [Mobile Architecture](https://github.com/rushiparikh/projects/atom/tree/main/mobile) | React Native with Expo | Mobile Devs |
 | [Mobile Secure Storage](mobile/src/storage/secureTokenStorage.ts) | Keychain/EncryptedSharedPreferences | Mobile Devs |
 | [Frontend XSS Protection](frontend-nextjs/lib/sanitize.ts) | DOMPurify sanitization | Frontend Devs |
 
@@ -132,7 +132,7 @@
 | [Bug Discovery](testing/BUG_DISCOVERY_INFRASTRUCTURE.md) | Fuzzing, property-based, chaos | QA |
 | [Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
 | [API Standards](api/API_STANDARDS.md) | Response formats, error codes | Devs |
-| [Database Migrations](archive/legacy/DATABASE_MIGRATION_GUIDE.md) | Alembic + SQLite hybrid patterns | Devs |
+| [Database Migrations](getting_started/INSTALLATION.md) | Alembic + SQLite hybrid patterns | Devs |
 
 ### 📊 Reference
 

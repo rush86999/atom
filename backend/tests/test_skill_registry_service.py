@@ -128,14 +128,14 @@ def mock_scanner_high_risk():
 class TestSkillImportBasic:
     """Test basic skill import functionality."""
 
-    def test_import_skill_creates_record(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_creates_record(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Skill import creates SkillExecution record."""
         service = SkillRegistryService(db_session)
 
         # Mock scanner
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -152,12 +152,12 @@ class TestSkillImportBasic:
         # skill_id field contains the community skill reference
         assert skill.skill_id.startswith("community_Test Skill_")
 
-    def test_import_skill_with_raw_content(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_with_raw_content(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Import from raw_content source."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -169,12 +169,12 @@ class TestSkillImportBasic:
         ).first()
         assert skill.skill_source == "community"
 
-    def test_import_skill_parses_frontmatter(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_parses_frontmatter(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """YAML frontmatter parsed correctly."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -182,12 +182,12 @@ class TestSkillImportBasic:
         assert result["skill_name"] == "Test Skill"
         assert result["metadata"]["description"] == "A test skill"
 
-    def test_import_skill_extracts_body(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_extracts_body(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Skill body extracted and stored in input_params."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -198,12 +198,12 @@ class TestSkillImportBasic:
         ).first()
         assert "This is the skill body" in skill.input_params["skill_body"]
 
-    def test_import_skill_generates_uuid(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_generates_uuid(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """skill_id is valid UUID format."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -214,12 +214,12 @@ class TestSkillImportBasic:
         except ValueError:
             pytest.fail("skill_id is not a valid UUID")
 
-    def test_import_skill_default_status(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_default_status(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Default status based on scan result."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -235,12 +235,12 @@ class TestSkillImportBasic:
 class TestSkillImportPackages:
     """Test package extraction from skill metadata."""
 
-    def test_import_skill_extracts_python_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_extracts_python_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
         """packages field extracted from metadata."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=python_packages_skill_content
         )
@@ -249,12 +249,12 @@ class TestSkillImportPackages:
         assert "requests==2.28.0" in result["metadata"]["packages"]
         assert "pandas>=1.5.0" in result["metadata"]["packages"]
 
-    def test_import_skill_extracts_node_packages(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_extracts_node_packages(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
         """node_packages field extracted from metadata."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=npm_packages_skill_content
         )
@@ -263,24 +263,24 @@ class TestSkillImportPackages:
         assert "lodash@4.17.21" in result["metadata"]["node_packages"]
         assert "axios@^1.0.0" in result["metadata"]["node_packages"]
 
-    def test_import_skill_extracts_package_manager(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_extracts_package_manager(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
         """package_manager field extracted from metadata."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=npm_packages_skill_content
         )
 
         assert result["metadata"]["package_manager"] == "npm"
 
-    def test_import_skill_packages_stored_in_input_params(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_packages_stored_in_input_params(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
         """Packages stored in input_params."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=python_packages_skill_content
         )
@@ -292,12 +292,12 @@ class TestSkillImportPackages:
         assert skill.input_params is not None
         assert "packages" in skill.input_params
 
-    def test_import_skill_empty_packages(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_empty_packages(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Empty packages list handled correctly."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -306,12 +306,12 @@ class TestSkillImportPackages:
         packages = result["metadata"].get("packages", [])
         assert isinstance(packages, list)
 
-    def test_import_skill_multiple_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
+    async def test_import_skill_multiple_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
         """Multiple packages extracted correctly."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=python_packages_skill_content
         )
@@ -329,36 +329,36 @@ class TestSkillImportPackages:
 class TestSkillImportSecurity:
     """Test security scanning integration."""
 
-    def test_low_risk_sets_active_status(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_low_risk_sets_active_status(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """LOW risk_level sets status to Active."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
 
         assert result["status"] == "Active"
 
-    def test_high_risk_sets_untrusted_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+    async def test_high_risk_sets_untrusted_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
         """HIGH/MEDIUM risk sets Untrusted."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_high_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=high_risk_skill_content
         )
 
         assert result["status"] == "Untrusted"
 
-    def test_security_scan_result_stored(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_security_scan_result_stored(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """security_scan_result stored in record."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -366,12 +366,12 @@ class TestSkillImportSecurity:
         assert result["scan_result"]["risk_level"] == "LOW"
         assert result["scan_result"]["safe"] is True
 
-    def test_sandbox_enabled_for_python(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+    async def test_sandbox_enabled_for_python(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
         """python_code enables sandbox."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_high_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=high_risk_skill_content
         )
@@ -379,12 +379,12 @@ class TestSkillImportSecurity:
         # Python skills should have sandbox_enabled
         assert result["metadata"].get("skill_type") == "python_code"
 
-    def test_sandbox_disabled_for_prompt(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_sandbox_disabled_for_prompt(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """prompt_only disables sandbox."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             source="raw_content",
             content=low_risk_skill_content
         )
@@ -400,27 +400,23 @@ class TestSkillImportSecurity:
 class TestSkillListing:
     """Test skill listing functionality."""
 
-    def test_list_skills_all(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_list_skills_all(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """List all skills without filters."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
         # Import two skills
-        service.import_skill("raw_content", low_risk_skill_content)
-        service.import_skill("raw_content", low_risk_skill_content)
+        await service.import_skill("raw_content", low_risk_skill_content)
+        await service.import_skill("raw_content", low_risk_skill_content)
 
         skills = service.list_skills()
 
         assert len(skills) == 2
         assert all("skill_name" in s for s in skills)
 
-    def test_list_skills_by_status(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+    async def test_list_skills_by_status(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
         """Filter by status (Active, Untrusted)."""
         service = SkillRegistryService(db_session)
-
-        # Import skills with different risk levels
-        service.import_skill("raw_content", low_risk_skill_content)
-        service.import_skill("raw_content", high_risk_skill_content)
 
         # Mock scanner appropriately for each call
         call_count = [0]
@@ -428,13 +424,10 @@ class TestSkillListing:
             call_count[0] += 1
             return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
 
-        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+        service._scanner.scan_skill = AsyncMock(side_effect=side_effect)
 
-        # Re-import with proper mocking
-        db_session.query(SkillExecution).delete()
-        db_session.commit()
-        service.import_skill("raw_content", low_risk_skill_content)
-        service.import_skill("raw_content", high_risk_skill_content)
+        await service.import_skill("raw_content", low_risk_skill_content)
+        await service.import_skill("raw_content", high_risk_skill_content)
 
         active_skills = service.list_skills(status="Active")
         untrusted_skills = service.list_skills(status="Untrusted")
@@ -443,7 +436,7 @@ class TestSkillListing:
         assert all(s["status"] == "Active" for s in active_skills)
         assert all(s["status"] == "Untrusted" for s in untrusted_skills)
 
-    def test_list_skills_by_type(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+    async def test_list_skills_by_type(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
         """Filter by skill_type (prompt_only, python_code)."""
         service = SkillRegistryService(db_session)
         
@@ -452,10 +445,10 @@ class TestSkillListing:
             call_count[0] += 1
             return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
 
-        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+        service._scanner.scan_skill = AsyncMock(side_effect=side_effect)
 
-        service.import_skill("raw_content", low_risk_skill_content)
-        service.import_skill("raw_content", high_risk_skill_content)
+        await service.import_skill("raw_content", low_risk_skill_content)
+        await service.import_skill("raw_content", high_risk_skill_content)
 
         prompt_skills = service.list_skills(skill_type="prompt_only")
         python_skills = service.list_skills(skill_type="python_code")
@@ -464,14 +457,14 @@ class TestSkillListing:
         assert all(s["skill_type"] == "prompt_only" for s in prompt_skills)
         assert all(s["skill_type"] == "python_code" for s in python_skills)
 
-    def test_list_skills_limit(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_list_skills_limit(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Limit parameter respected."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
         # Import three skills
         for _ in range(3):
-            service.import_skill("raw_content", low_risk_skill_content)
+            await service.import_skill("raw_content", low_risk_skill_content)
 
         skills = service.list_skills(limit=2)
 
@@ -493,12 +486,12 @@ class TestSkillListing:
 class TestSkillRetrieval:
     """Test skill retrieval functionality."""
 
-    def test_get_skill_by_id(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_get_skill_by_id(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Retrieve skill by ID."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", low_risk_skill_content)
+        result = await service.import_skill("raw_content", low_risk_skill_content)
         skill_id = result["skill_id"]
 
         skill = service.get_skill(skill_id)
@@ -507,12 +500,12 @@ class TestSkillRetrieval:
         assert skill["skill_id"] == skill_id
         assert skill["skill_name"] == "Test Skill"
 
-    def test_get_skill_returns_full_metadata(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_get_skill_returns_full_metadata(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """All metadata fields returned."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", low_risk_skill_content)
+        result = await service.import_skill("raw_content", low_risk_skill_content)
         skill_id = result["skill_id"]
 
         skill = service.get_skill(skill_id)
@@ -532,12 +525,12 @@ class TestSkillRetrieval:
 
         assert skill is None
 
-    def test_get_skill_includes_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
+    async def test_get_skill_includes_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
         """packages field in result."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", python_packages_skill_content)
+        result = await service.import_skill("raw_content", python_packages_skill_content)
         skill_id = result["skill_id"]
 
         skill = service.get_skill(skill_id)
@@ -545,12 +538,12 @@ class TestSkillRetrieval:
         assert "packages" in skill
         assert len(skill["packages"]) == 2
 
-    def test_get_skill_includes_node_packages(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
+    async def test_get_skill_includes_node_packages(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
         """node_packages field in result."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", npm_packages_skill_content)
+        result = await service.import_skill("raw_content", npm_packages_skill_content)
         skill_id = result["skill_id"]
 
         skill = service.get_skill(skill_id)
@@ -566,7 +559,7 @@ class TestSkillRetrieval:
 class TestSkillMetadataExtraction:
     """Test metadata extraction from skills."""
 
-    def test_skill_type_detection(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+    async def test_skill_type_detection(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
         """skill_type detected correctly."""
         service = SkillRegistryService(db_session)
         
@@ -575,29 +568,29 @@ class TestSkillMetadataExtraction:
             call_count[0] += 1
             return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
 
-        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+        service._scanner.scan_skill = AsyncMock(side_effect=side_effect)
 
-        result1 = service.import_skill("raw_content", low_risk_skill_content)
-        result2 = service.import_skill("raw_content", high_risk_skill_content)
+        result1 = await service.import_skill("raw_content", low_risk_skill_content)
+        result2 = await service.import_skill("raw_content", high_risk_skill_content)
 
         assert result1["metadata"]["skill_type"] == "prompt_only"
         assert result2["metadata"]["skill_type"] == "python_code"
 
-    def test_skill_name_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_skill_name_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """name extracted from frontmatter."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", low_risk_skill_content)
+        result = await service.import_skill("raw_content", low_risk_skill_content)
 
         assert result["skill_name"] == "Test Skill"
 
-    def test_skill_body_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_skill_body_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """body content extracted."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", low_risk_skill_content)
+        result = await service.import_skill("raw_content", low_risk_skill_content)
         skill_id = result["skill_id"]
 
         skill = service.get_skill(skill_id)
@@ -606,12 +599,12 @@ class TestSkillMetadataExtraction:
         record = db_session.query(SkillExecution).filter(SkillExecution.id == skill_id).first()
         assert "This is the skill body" in record.input_params["skill_body"]
 
-    def test_skill_metadata_merge(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_skill_metadata_merge(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Additional metadata merged correctly."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill(
+        result = await service.import_skill(
             "raw_content",
             low_risk_skill_content,
             metadata={"author": "test", "version": "1.0"}
@@ -630,12 +623,12 @@ class TestSkillMetadataExtraction:
 class TestSkillPromotion:
     """Test skill promotion functionality."""
 
-    def test_promote_skill_updates_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+    async def test_promote_skill_updates_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
         """Promote Untrusted to Active."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_high_risk)
 
-        result = service.import_skill("raw_content", high_risk_skill_content)
+        result = await service.import_skill("raw_content", high_risk_skill_content)
         skill_id = result["skill_id"]
 
         # Verify initial status
@@ -652,12 +645,12 @@ class TestSkillPromotion:
         db_session.refresh(skill)
         assert skill.status == "Active"
 
-    def test_promote_already_active_returns_message(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+    async def test_promote_already_active_returns_message(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
         """Already Active skill returns message."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_low_risk)
 
-        result = service.import_skill("raw_content", low_risk_skill_content)
+        result = await service.import_skill("raw_content", low_risk_skill_content)
         skill_id = result["skill_id"]
 
         promote_result = service.promote_skill(skill_id)
@@ -671,12 +664,12 @@ class TestSkillPromotion:
         with pytest.raises(ValueError, match="Skill not found"):
             service.promote_skill("nonexistent-id")
 
-    def test_promote_returns_previous_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+    async def test_promote_returns_previous_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
         """Response includes previous_status."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_high_risk)
 
-        result = service.import_skill("raw_content", high_risk_skill_content)
+        result = await service.import_skill("raw_content", high_risk_skill_content)
         skill_id = result["skill_id"]
 
         promote_result = service.promote_skill(skill_id)
@@ -684,12 +677,12 @@ class TestSkillPromotion:
         assert "previous_status" in promote_result
         assert promote_result["previous_status"] == "Untrusted"
 
-    def test_promote_logs_info(self, db_session, high_risk_skill_content, mock_scanner_high_risk, caplog):
+    async def test_promote_logs_info(self, db_session, high_risk_skill_content, mock_scanner_high_risk, caplog):
         """Info logging on promotion."""
         service = SkillRegistryService(db_session)
-        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+        service._scanner.scan_skill = AsyncMock(return_value=mock_scanner_high_risk)
 
-        result = service.import_skill("raw_content", high_risk_skill_content)
+        result = await service.import_skill("raw_content", high_risk_skill_content)
         skill_id = result["skill_id"]
 
         with caplog.at_level("INFO"):

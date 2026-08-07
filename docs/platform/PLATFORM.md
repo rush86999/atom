@@ -7,7 +7,7 @@ Production deployment, monitoring, and platform-specific guides.
 ### Production Deployment
 - **Production Readiness** — Pre-flight checklist ([operations/production-readiness.md](../operations/production-readiness.md))
 - **Deployment Guide** — Step-by-step deployment ([deployment/DEPLOYMENT_GUIDE.md](../deployment/DEPLOYMENT_GUIDE.md))
-- **Rollback Procedure** — Emergency rollback
+- **Rollback Procedure** — Emergency rollback ([operations/rollback.md](../operations/rollback.md))
 
 ### Personal Edition
 - **Personal Edition** — Local Docker setup ([operations/personal-edition.md](../operations/personal-edition.md))
@@ -32,22 +32,22 @@ Production deployment, monitoring, and platform-specific guides.
 ## Platform-Specific
 
 ### Desktop (MenuBar App)
-- **MenuBar Guide** — MenuBar app overview ([archive/menubar/MENUBAR_GUIDE.md](../archive/menubar/MENUBAR_GUIDE.md))
+- **MenuBar Guide** — MenuBar app overview ([guides/ATOM_CLI_SKILLS_GUIDE.md](../guides/ATOM_CLI_SKILLS_GUIDE.md))
 
 ### Mobile (React Native)
-- **Mobile Quick Start** — Getting started ([archive/mobile/MOBILE_QUICK_START.md](../archive/mobile/MOBILE_QUICK_START.md))
-- **React Native Architecture** — Architecture overview ([archive/mobile/REACT_NATIVE_ARCHITECTURE.md](../archive/mobile/REACT_NATIVE_ARCHITECTURE.md))
+- **Mobile Quick Start** — Getting started ([guides/QUICKSTART.md](../guides/QUICKSTART.md))
+- **Mobile Architecture** — React Native with Expo
 
 ### Database
-- **Database Migration Guide** — Alembic migrations ([archive/legacy/DATABASE_MIGRATION_GUIDE.md](../archive/legacy/DATABASE_MIGRATION_GUIDE.md))
+- **Database Migrations** — Alembic + SQLite hybrid patterns ([getting_started/INSTALLATION.md](../getting_started/INSTALLATION.md))
 
 ## Specialized Setup
 
 ### Audio/Video
-- **FFMPEG Setup** — FFMPEG configuration ([archive/legacy/FFMPEG_SETUP.md](../archive/legacy/FFMPEG_SETUP.md))
+- **FFMPEG Setup** — FFMPEG configuration (see [deployment/DEPLOYMENT_GUIDE.md](../deployment/DEPLOYMENT_GUIDE.md))
 
 ### Authentication
-- **NextAuth Production Setup** — NextAuth configuration ([archive/oauth/nextauth_production_setup.md](../archive/oauth/nextauth_production_setup.md))
+- **NextAuth Production Setup** — NextAuth configuration (see [guides/OAUTH_SETUP_CHECKLIST.md](../guides/OAUTH_SETUP_CHECKLIST.md))
 
 ## Architecture
 
@@ -74,8 +74,8 @@ curl http://localhost:8001/health/metrics # Prometheus metrics
 | Platform | Status | Docs |
 |----------|--------|------|
 | Web | ✅ Full Support | [Deployment Guide](../deployment/DEPLOYMENT_GUIDE.md) |
-| Desktop (MenuBar) | ✅ Full Support | [MenuBar Guide](../archive/menubar/MENUBAR_GUIDE.md) |
-| Mobile (iOS/Android) | ✅ Full Support | [Mobile Quick Start](../archive/mobile/MOBILE_QUICK_START.md) |
+| Desktop (MenuBar) | ✅ Full Support | [ATOM_CLI_SKILLS_GUIDE](../guides/ATOM_CLI_SKILLS_GUIDE.md) |
+| Mobile (iOS/Android) | ✅ Full Support | [QUICKSTART](../guides/QUICKSTART.md) |
 | Personal Edition | ✅ Full Support | [Personal Edition](../operations/personal-edition.md) |
 
 ## See Also

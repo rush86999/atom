@@ -91,6 +91,7 @@ def mock_byok_manager():
     manager.get_provider_status = mock_get_provider_status
     manager.is_configured = MagicMock(return_value=True)
     manager.get_tenant_api_key = mock_get_api_key
+    manager.get_optimal_provider = MagicMock(return_value="deepseek")
 
     return manager
 
@@ -329,8 +330,16 @@ class TestPricingEndpoints:
         assert "status" in data
         assert "model_count" in data
 
-    def test_get_model_pricing(self, client):
+    @patch("core.dynamic_pricing_fetcher.get_pricing_fetcher")
+    def test_get_model_pricing(self, mock_get_pricing_fetcher, client):
         """Test getting pricing for specific model"""
+        fetcher = MagicMock()
+        fetcher.get_model_price.return_value = {
+            "input_cost_per_token": 0.0000025,
+            "output_cost_per_token": 0.00001,
+        }
+        mock_get_pricing_fetcher.return_value = fetcher
+
         response = client.get("/api/ai/pricing/model/gpt-4o")
         assert response.status_code in [200, 404]  # May not be in cache
 
@@ -339,8 +348,13 @@ class TestPricingEndpoints:
             assert "model" in data
             assert "pricing" in data
 
-    def test_estimate_request_cost(self, client):
+    @patch("core.dynamic_pricing_fetcher.get_pricing_fetcher")
+    def test_estimate_request_cost(self, mock_get_pricing_fetcher, client):
         """Test cost estimation for a request"""
+        fetcher = MagicMock()
+        fetcher.estimate_cost.return_value = 0.002
+        mock_get_pricing_fetcher.return_value = fetcher
+
         request_data = {
             "model": "gpt-4o",
             "input_tokens": 100,

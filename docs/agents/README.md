@@ -43,13 +43,13 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 | Document | Description |
 |----------|-------------|
 | [guidance-system.md](guidance-system.md) | Real-time agent operation tracking |
-| [supervision-implementation.md](../archive/legacy/supervision-implementation.md) | Supervision system implementation |
 | [fleet-admiral.md](fleet-admiral.md) | Fleet Admiral orchestration (also see root docs) |
 
 ### Training & Learning
 | Document | Description |
 |----------|-------------|
 | [marketplace.md](marketplace.md) | Agent marketplace integration |
+| [AGENT_MATURITY_GOVERNANCE.md](../guides/AGENT_MATURITY_GOVERNANCE.md) | Training workflow & maturity system |
 
 ## Agent Maturity Levels
 
@@ -105,7 +105,6 @@ See: [Fleet Admiral Documentation](fleet-admiral.md)
 - [QUEEN_AGENT.md](QUEEN_AGENT.md) - Queen Agent complete guide
 - [FLEET_ADMIRAL.md](fleet-admiral.md) - Fleet Admiral complete guide
 - [Unstructured Tasks](unstructured-tasks.md) - Intent classification system
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system
 - [ATOM_CLI_SKILLS_GUIDE.md](../guides/ATOM_CLI_SKILLS_GUIDE.md) - CLI skills
 
 ### Integration Points

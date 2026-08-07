@@ -247,9 +247,11 @@ def apar_client(mock_apar_engine):
             assert response.status_code == 200
     """
     from api.apar_routes import router
+    from core.auth import get_current_user
 
     app = FastAPI()
     app.include_router(router, prefix="/api")
+    app.dependency_overrides[get_current_user] = lambda: None
 
     # Patch apar_engine at core.apar_engine module level (where routes import from)
     with patch('core.apar_engine.apar_engine', mock_apar_engine):
