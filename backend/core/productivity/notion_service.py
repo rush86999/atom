@@ -16,7 +16,10 @@ import httpx
 
 from core.oauth_handler import OAuthHandler, NOTION_OAUTH_CONFIG
 from core.database import get_db_session
-from core.models import OAuthToken
+import json
+
+from core.models import IntegrationToken
+from core.privsec.token_encryption import decrypt_token, encrypt_token
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +81,10 @@ class NotionService:
 
         # Get OAuth token from database
         with get_db_session() as db:
-            token = db.query(OAuthToken).filter(
-                OAuthToken.user_id == self.user_id,
-                OAuthToken.provider == "notion",
-                OAuthToken.status == "active"
+            token = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == self.user_id,
+                IntegrationToken.provider == "notion",
+                IntegrationToken.status == "active"
             ).first()
 
             if not token:
@@ -97,7 +100,7 @@ class NotionService:
                     detail="Notion token expired. Please re-authorize."
                 )
 
-            return token.access_token
+            return decrypt_token(token.access_token, allow_plaintext=True)
 
     async def _make_request(
         self,
@@ -252,41 +255,50 @@ class NotionService:
         tokens = await handler.exchange_code_for_tokens(code)
 
         # Store token in database
+        from core.models import User
+
         with get_db_session() as db:
+            user = db.query(User).filter(User.id == user_id).first()
+            tenant_id = user.tenant_id if user and user.tenant_id else "default"
+
             # Check if user already has Notion token
-            existing = db.query(OAuthToken).filter(
-                OAuthToken.user_id == user_id,
-                OAuthToken.provider == "notion"
+            existing = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == user_id,
+                IntegrationToken.provider == "notion"
             ).first()
+
+            workspace_meta = {
+                key: tokens.get(key)
+                for key in ("workspace_name", "workspace_icon", "bot_id", "owner")
+                if tokens.get(key)
+            }
 
             if existing:
                 # Update existing token
-                existing.access_token = tokens["access_token"]
-                existing.scopes = [tokens.get("workspace_id")]  # Use workspace_id as scope identifier
+                existing.access_token = encrypt_token(tokens["access_token"])
                 existing.expires_at = datetime(2099, 12, 31)  # Notion tokens don't expire
                 existing.status = "active"
+                existing.tenant_id = tenant_id
 
                 # Update Notion-specific fields
                 existing.workspace_id = tokens.get("workspace_id")
-                existing.workspace_name = tokens.get("workspace_name")
-                existing.workspace_icon = tokens.get("workspace_icon")
-                existing.bot_id = tokens.get("bot_id")
-                existing.owner = tokens.get("owner")
+                existing.scope = tokens.get("workspace_id")
+                existing.instance_url = (
+                    json.dumps(workspace_meta) if workspace_meta else None
+                )
             else:
                 # Create new token
-                oauth_token = OAuthToken(
+                oauth_token = IntegrationToken(
+                    tenant_id=tenant_id,
                     user_id=user_id,
                     provider="notion",
-                    access_token=tokens["access_token"],
+                    access_token=encrypt_token(tokens["access_token"]),
                     token_type="Bearer",
-                    scopes=[tokens.get("workspace_id")],
                     expires_at=datetime(2099, 12, 31),  # Notion tokens don't expire
                     status="active",
                     workspace_id=tokens.get("workspace_id"),
-                    workspace_name=tokens.get("workspace_name"),
-                    workspace_icon=tokens.get("workspace_icon"),
-                    bot_id=tokens.get("bot_id"),
-                    owner=tokens.get("owner")
+                    scope=tokens.get("workspace_id"),
+                    instance_url=json.dumps(workspace_meta) if workspace_meta else None,
                 )
                 db.add(oauth_token)
 

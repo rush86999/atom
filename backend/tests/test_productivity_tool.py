@@ -65,7 +65,8 @@ class TestNotionService:
 
         with patch.object(NotionService, "get_oauth_handler", return_value=mock_handler), \
              patch("core.productivity.notion_service.get_db_session", return_value=MagicMock()), \
-             patch("core.productivity.notion_service.OAuthToken") as mock_token_cls:
+             patch("core.productivity.notion_service.encrypt_token", side_effect=lambda v: v), \
+             patch("core.productivity.notion_service.IntegrationToken") as mock_token_cls:
             result = await NotionService.exchange_code_for_tokens("test_code", "test_user")
 
         assert result is not None
