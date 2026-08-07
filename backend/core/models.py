@@ -1010,6 +1010,7 @@ class AgentExecution(Base):
     duration_seconds = Column(Float, default=0.0)
 
     result_summary = Column(Text, nullable=True)
+    output_summary = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     metadata_json = Column(JSONColumn, default={}) # Phase 110: Extensible tracking for complexity, etc.
 
