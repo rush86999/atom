@@ -12,12 +12,25 @@ Reference: Phase 183-01 Plan 01 Task 2 - CLI Skills Test Coverage
 """
 
 import pytest
+@pytest.fixture(autouse=True)
+def _scoped_sys_module_mocks():
+    """Scope sys.modules mocks per test (they were leaking session-wide)."""
+    import sys
+    names = ['docker', 'docker.errors']
+    saved = {n: sys.modules.pop(n, None) for n in names}
+    for n in names:
+        sys.modules[n] = MagicMock()
+    yield
+    for n, v in saved.items():
+        if v is not None:
+            sys.modules[n] = v
+            continue
+        sys.modules.pop(n, None)
+
 import sys
 from unittest.mock import patch, Mock, MagicMock
 
 # Module-level mocking for docker.errors (Phase 182 pattern)
-sys.modules['docker'] = MagicMock()
-sys.modules['docker.errors'] = MagicMock()
 
 from core.skill_adapter import CommunitySkillTool, create_community_tool
 

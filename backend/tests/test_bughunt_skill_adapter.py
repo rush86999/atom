@@ -10,6 +10,28 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Some sibling test files replace sys.modules entries with MagicMock during
+# their own tests. Preserve the pre-test state so this file's tests cannot be
+# affected by (or corrupt) that state. Do NOT re-import: a fresh module object
+# would diverge from references held by importers, silently breaking attribute
+# patches in later test files.
+@pytest.fixture(autouse=True)
+def _preserve_sys_modules_state():
+    import sys
+
+    names = (
+        "core.npm_script_analyzer",
+        "core.npm_package_installer",
+        "core.package_governance_service",
+    )
+    saved = {name: sys.modules.get(name) for name in names}
+    yield
+    for name, value in saved.items():
+        if value is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = value
+
 
 def test_analyze_package_scripts_called_with_single_arg(monkeypatch):
     import core.skill_adapter as sa

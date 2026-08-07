@@ -12,16 +12,28 @@ Tests cover:
 """
 
 import pytest
+@pytest.fixture(autouse=True)
+def _scoped_sys_module_mocks():
+    """Scope sys.modules mocks per test (they were leaking session-wide)."""
+    import sys
+    names = ['core.package_installer', 'core.npm_script_analyzer',
+             'core.npm_package_installer', 'core.package_governance_service']
+    saved = {n: sys.modules.pop(n, None) for n in names}
+    for n in names:
+        sys.modules[n] = MagicMock()
+    yield
+    for n, v in saved.items():
+        if v is not None:
+            sys.modules[n] = v
+            continue
+        sys.modules.pop(n, None)
+
 import sys
 from unittest.mock import patch, Mock, MagicMock
 
 # Module-level mocking for PackageInstaller (Phase 182 pattern)
-sys.modules['core.package_installer'] = MagicMock()
 
 # Module-level mocking for npm-related imports
-sys.modules['core.npm_script_analyzer'] = MagicMock()
-sys.modules['core.npm_package_installer'] = MagicMock()
-sys.modules['core.package_governance_service'] = MagicMock()
 
 from core.skill_adapter import CommunitySkillTool, CommunitySkillInput, create_community_tool
 
@@ -66,8 +78,8 @@ class TestCommunitySkillToolBasics:
     """Test basic CommunitySkillTool functionality."""
 
     def test_community_skill_tool_is_basetool(self, prompt_only_skill):
-        """Test that CommunitySkillTool is a LangChain BaseTool subclass."""
-        from langchain.tools import BaseTool
+        """Test that CommunitySkillTool is a BaseTool subclass."""
+        from core.skill_adapter import BaseTool
 
         tool = CommunitySkillTool(
             name=prompt_only_skill["name"],
@@ -805,8 +817,7 @@ class TestNodeJsSkillAdapter:
 
     def test_nodejs_skill_basetool(self, nodejs_skill):
         """Test that NodeJsSkillAdapter is a BaseTool."""
-        from core.skill_adapter import NodeJsSkillAdapter
-        from langchain.tools import BaseTool
+        from core.skill_adapter import NodeJsSkillAdapter, BaseTool
 
         adapter = NodeJsSkillAdapter(
             skill_id=nodejs_skill["skill_id"],
