@@ -302,3 +302,24 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | `tests/unit/test_student_training_service.py` | FIXED (test-side) | 3F/5P/16E → 24/24. Temp-SQLite fixture; BlockedTriggerContext/TrainingSession/AgentProposal fixtures rebuilt to real columns + NOT NULL fields (agent_name, agent_maturity_at_block, trigger_source, tenant_id, proposal_id, supervisor_id…); `create_training_proposal(blocked_trigger_id=)` → object arg, not-found → `pytest.raises(ValueError)`; `approve_training(approved_by=)` → `user_id=`, status `scheduled` not `in_progress`; TrainingOutcome new ctor (performance_score/supervisor_feedback/errors_count/tasks_completed/total_tasks/…) + dict result; `estimate_training_duration(scenario_type=)` → `(capability_gaps, target_maturity)`, `estimated_hours`/`confidence` fields; `_identify_capability_gaps(agent, trigger)` + `_generate_learning_objectives(agent, …)` signatures; learning-rate tests now seed real TrainingSession rows (old patch target `_get_similar_agents_training_history` was dead), slow-learner floor 0.5 clamp → `rate < 1.0`; `_select_scenario_template` returns category-mapped template (General Operations/Process Automation), not "streaming" |
 | 2026-08-07 | `tests/unit/test_agent_promotion_service.py` | FIXED (test-side) | 8P/13E → 21/21. Temp-SQLite fixture; sorted-suggestions test seeded a 2nd agent (side_effect consumed per DB candidate); patch target `get_feedback_summary` → `get_agent_feedback_summary` with real contract keys (`total_feedback`/`positive_count`/`average_rating`/`feedback_types`); result key `gaps` → `criteria_failed`; readiness_score is 0–1 fraction not 0–100; kwargs `agent_id=` assertion; time-at-level test has no service criterion → asserts criteria_failed non-empty |
 | 2026-08-07 | `tests/test_bughunt_episodes.py` | VERIFIED-OK | 9/9 still green after alignment (read-only suite) |
+
+### Round 2026-08-07 late-2 — survey-driven 8-agent wave (~1,100 tests, 9 real bugs)
+| Date | Cluster | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | api admin cluster (4 files) | FIXED | admin_routes_part1 36E→36P · admin_routes 31E→31P · part2 38P · analytics_dashboard_routes 60F→60P (auth override + raw-SQL→create_all fixtures + text() wrapping) |
+| 2026-08-07 | api agent cluster (4 files) | FIXED | agent_control_routes_fixed 53F→53P · agent_governance_routes 43F→43P+6S · control_coverage 10F→68P · guidance_routes 42P (get_super_admin/get_current_user overrides, generic-error envelope, required body 422) |
+| 2026-08-07 | core governance cluster (4 files) | FIXED | governance coverage final 19F→27P · extend 19F→51P · expand 8F+2E→25P · budget_enforcement 25F→35P (all rewritten vs b391aff8c-removed APIs) |
+| 2026-08-07 | core llm cluster (4 files) | FIXED | core/test_llm_service 35F→40P (dead-stub rewrite vs real LLMService) · byok_competitive 8F→29P · error_middleware 11F→60P · local_llm_secrets 9E→46P |
+| 2026-08-07 | unit episodes cluster (4 files) | FIXED | episode_lifecycle 26E→30P · episode_retrieval 19E→23P · student_training 16E→24P · agent_promotion 13E→21P (temp-SQLite fixtures, NOT NULL fields, AsyncMock new_callable ×17) |
+| 2026-08-07 | unit world-model cluster (4 files) | FIXED | agent_world_model 24F→38P · ai_trigger_coordinator 9F→33P · enterprise_auth 7F→42P · byok_cache_preseeding_ORIG 8E+3F→26P |
+| 2026-08-07 | root canvas cluster (5 files) | FIXED | canvas_javascript 16F→17P · context_enrichment 9F→13P · canvas_recording 8F+8E→17P · aware_retrieval 5F→6P · feedback_episode 2F→16P (69/69) |
+| 2026-08-07 | root social/asana cluster (8 files) | FIXED | agent_social_layer 15F→33P+9S · social_feed 23P · asana_project 14F→19P · asana_token 11F→11P · conflict_resolution 11F+2E→36P · atom_meta_agent 16F→33P · guidance_canvas 9F→12P · atom_cli_skills 5F→30P |
+
+Real product bugs fixed this wave (TDD): 
+- `core/enterprise_auth_service.py:135` — private_bytes missing NoEncryption → JWT key gen TypeError (HIGH); `:355` — `UserRole.{SECURITY,WORKFLOW,COMPLIANCE,AUTOMATION,INTEGRATION}_ADMIN` phantom names → verify_credentials always None, admin login broken (HIGH)
+- `core/conflict_resolution_service.py:297` — log_conflict missing tenant_id → every conflict log crashed (HIGH)
+- `integrations/asana_service.py:660` — create_project signature mismatch with its only caller → route TypeError at runtime (HIGH)
+- `core/canvas_recording_service.py:522,244` — audit canvas_id=None NOT NULL; naive/aware datetime → stop_recording never completes (HIGH ×2)
+- `tools/canvas_tool.py:996` — AUTONOMOUS uppercase-status double-check blocked canvas JS execution (MED)
+- `tools/agent_guidance_canvas_tool.py:114,224,237,447` — tenant_id NOT NULL crash masked by fake uuid; step=None into NOT NULL; logs append never persisted; audit canvas_id=None (HIGH ×4)
+- `api/admin/cache_routes.py` — NEW: module referenced by 2 test files never existed; implemented per spec (not mounted — needs admin auth first)
