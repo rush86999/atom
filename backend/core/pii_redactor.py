@@ -32,9 +32,9 @@ except ImportError:
         "Falling back to regex-only redaction."
     )
 
-# Fallback to existing regex-based redactor
-if not PRESIDIO_AVAILABLE:
-    from core.secrets_redactor import SecretsRedactor
+# Fallback to existing regex-based redactor (always imported so the runtime
+# fallback in redact() works even when Presidio is installed but fails at runtime).
+from core.secrets_redactor import SecretsRedactor
 
 
 class PIIRedactor:
@@ -90,6 +90,13 @@ class PIIRedactor:
         # Store allowlist in lowercase for case-insensitive matching
         self.allowlist = set(email.lower() for email in (allowlist or []))
         self.allowlist.update(email.lower() for email in self.DEFAULT_ALLOWLIST)
+
+        # Defensive fallback redactor: if Presidio raises at runtime (e.g. NER
+        # model load error, OOM, bad input), redact()'s except block calls
+        # _fallback_redact(), which needs this instance. Previously this was
+        # only initialized when PRESIDIO_AVAILABLE was False, so a Presidio
+        # runtime failure crashed with AttributeError instead of degrading.
+        self.fallback_redactor = SecretsRedactor(redact_pii=True)
 
         # Default entity types to detect
         self.default_entities = [

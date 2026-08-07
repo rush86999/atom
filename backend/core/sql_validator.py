@@ -56,20 +56,24 @@ class SQLValidator:
 
     def _extract_column_references(self, parsed_sql: sqlparse.sql.Statement) -> Set[str]:
         columns = set()
-        for token in parsed_sql.tokens:
-            if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == 'SELECT':
-                select_tokens = []
-                in_select = False
-                for t in parsed_sql.flatten():
-                    if t.ttype is sqlparse.tokens.Keyword and t.value.upper() == 'FROM':
-                        break
-                    if in_select:
-                        select_tokens.append(t)
-                    if t.ttype is sqlparse.tokens.Keyword and t.value.upper() == 'SELECT':
-                        in_select = True
-                column_str = ' '.join(str(t) for t in select_tokens)
-                columns.update(self._parse_column_list(column_str))
-                break
+        # NOTE: sqlparse tokenizes DML verbs (SELECT/INSERT/UPDATE/DELETE) as
+        # Token.Keyword.DML, a *subtype* of Token.Keyword. The `is` identity
+        # check does not match subtypes, so we use `in` (membership) instead.
+        # With `is`, the SELECT-list was never parsed and validate_sql_against_schema
+        # silently approved queries referencing non-existent fields.
+        if any(t.ttype in sqlparse.tokens.Keyword and t.value.upper() == 'SELECT'
+               for t in parsed_sql.tokens):
+            select_tokens = []
+            in_select = False
+            for t in parsed_sql.flatten():
+                if t.ttype in sqlparse.tokens.Keyword and t.value.upper() == 'FROM':
+                    break
+                if in_select:
+                    select_tokens.append(t)
+                if t.ttype in sqlparse.tokens.Keyword and t.value.upper() == 'SELECT':
+                    in_select = True
+            column_str = ' '.join(str(t) for t in select_tokens)
+            columns.update(self._parse_column_list(column_str))
         columns.update(self._extract_where_columns(parsed_sql))
         return columns
 
@@ -121,6 +125,10 @@ class SQLSanitizer:
         # Now blocks ANY semicolon that separates multiple statements.
         'sql_injection_semicolon': re.compile(r';', re.I),
         'sql_comment_dash': re.compile(r'--.*', re.M),
+        # MySQL / MariaDB line comment. Previously only -- and /* */ were
+        # stripped, so `#` could truncate a query and hide an injection
+        # (e.g. ``username='admin'#`` auth bypass, or ``... # UNION SELECT``).
+        'sql_comment_hash': re.compile(r'#.*', re.M),
         'sql_comment_block': re.compile(r'/\*.*?\*/', re.S),
         'union_based_injection': re.compile(r'\bUNION\s+(?:ALL\s+)?SELECT\b', re.I),
     }

@@ -166,9 +166,13 @@ class OAuthHandler:
                 
                 if response.status_code != 200:
                     logger.error(f"Token refresh failed: {response.text}")
+                    # Bug 8 (refresh path): response.text may contain access
+                    # tokens or internal provider details; do NOT leak it to
+                    # the client. (The exchange_code_for_tokens path was already
+                    # fixed for this; the refresh path was missed.)
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Failed to refresh token: {response.text}"
+                        detail=f"Failed to refresh token (HTTP {response.status_code})"
                     )
                 
                 return response.json()

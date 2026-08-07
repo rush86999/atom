@@ -65,10 +65,40 @@ def _is_blocked_ip(ip_str: str) -> bool:
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
         return True  # If it's not a valid IP, block it
+    # An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is NOT contained by any of
+    # the IPv4 blocked networks, so we must also test its embedded IPv4 form.
+    # Without this, http://[::ffff:169.254.169.254]/ bypasses the metadata
+    # block and http://[::ffff:127.0.0.1]/ bypasses loopback.
+    if getattr(ip, "ipv4_mapped", None) is not None:
+        ip = ip.ipv4_mapped
     for network in _BLOCKED_NETWORKS:
         if ip in network:
             return True
     return False
+
+
+def _normalize_ip_literal(host: str) -> "str | None":
+    """Normalize an IP literal that the OS/libc accepts but Python's
+    ``ipaddress`` does not (decimal, hex, and octal encodings of IPv4).
+
+    Examples: 2130706433 -> 127.0.0.1, 0x7f000001 -> 127.0.0.1.
+    Returns the dotted-quad form, or None if ``host`` is not such an encoding.
+    """
+    # Pure integer or hex string with no dots and all digits/hex -> try base.
+    stripped = host.lstrip("0xX") if host.lower().startswith("0x") else host
+    candidates = []
+    if host.lower().startswith("0x"):
+        candidates = [int(stripped, 16)]
+    elif "." not in host and host.isdigit():
+        candidates = [int(host, 10), int(host, 8) if host.startswith("0") else None]
+    for val in candidates:
+        if val is None or val < 0 or val > 0xFFFFFFFF:
+            continue
+        try:
+            return str(ipaddress.IPv4Address(val))
+        except (ValueError, ipaddress.AddressValueError):
+            continue
+    return None
 
 
 def validate_url(url: str, *, resolve_dns: bool = True) -> str:
@@ -101,13 +131,24 @@ def validate_url(url: str, *, resolve_dns: bool = True) -> str:
     if not hostname:
         raise SSRFError("URL has no hostname")
 
-    # Check if hostname is already an IP literal
+    # Check if hostname is already an IP literal (dotted-quad, IPv6, or an
+    # encoded form like decimal/hex that the OS resolver would accept).
     try:
         ipaddress.ip_address(hostname)
+    except ValueError:
+        # Not a canonical IP — but it may be a decimal/hex encoding of an
+        # IPv4 address (e.g. http://2130706433/ = 127.0.0.1). Normalize and
+        # re-check so resolve_dns=False callers are still protected against
+        # encoded-IP bypasses that the OS resolver would honor.
+        normalized = _normalize_ip_literal(hostname)
+        if normalized is not None and _is_blocked_ip(normalized):
+            raise SSRFError(
+                f"URL points to blocked IP address: {hostname} ({normalized})"
+            )
+        # Otherwise it's a regular hostname — resolve below.
+    else:
         if _is_blocked_ip(hostname):
             raise SSRFError(f"URL points to blocked IP address: {hostname}")
-    except ValueError:
-        pass  # Not an IP literal — it's a hostname, resolve below
 
     # DNS resolution check
     if resolve_dns:
