@@ -345,3 +345,30 @@ Real product bugs fixed this wave (TDD):
 | 2026-08-07 | `tests/test_cognitive_tier_api.py` | DEAD | Removed — routes deliberately deleted in eda17eb29 (never wired); service covered by test_cognitive_tier_e2e.py (32/32) |
 | 2026-08-07 | `frontend-nextjs/components/TaskManagement.tsx` | FIXED | Loading gate added — wrapper mounted shared TaskManagement before fetches resolved, so `useState(initialTasks)` never re-initialized and fetched tasks never displayed (tests exposed empty board); wrapper now renders a loading state until data arrives. New suite components/__tests__/TaskManagement.test.tsx 7/7 |
 | 2026-08-07 | `frontend-nextjs/components/ReasoningChainViewer.tsx` | FIXED | `useState(!chainData)` kept the loader forever when neither chainId nor chainData was provided — "No reasoning chain available" branch was unreachable dead code; loading now keys off `!!chainId && !chainData`. New suite components/__tests__/ReasoningChainViewer.test.tsx 10/10 |
+
+## Session 2026-08-07 — root stale-test wave (8 files, 19F→216P+1S)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `tests/test_byok_handler.py` | FIXED | 3F→73P: health filter threshold 0.5→0.2 (recovery-deadlock fix) — unhealthy fixtures 0.3→0.1; 'lux' provider removed → fallback order tested with 'anthropic' |
+| 2026-08-07 | `tests/test_byok_handler_extended_coverage.py` | FIXED | 2F→61P: get_ranked_providers returns AwaitableResult (seam) not list; requires_tools filter conservatively excludes unknown-capability models → SIMPLE + patched `_model_supports_tools` |
+| 2026-08-07 | `tests/test_cache_aware_routing.py` | FIXED | 3F→25P: calculate_effective_cost positional #4 is now turn_index — pass `cache_hit_probability=` keyword; ranked providers AwaitableResult |
+| 2026-08-07 | `tests/test_business_intelligence.py` | FIXED | 3F→3P+1S: extraction no longer injectable (modernized LLMService) → mock extractor boundary; + product fix below |
+| 2026-08-07 | `tests/test_atom_governance.py` | FIXED | 2F→2P: AgentRegistry rows need workspace_id="default" (governance scoped lookups); ReAct loop uses generate_structured_response → mock it |
+| 2026-08-07 | `tests/test_alert_service.py` | FIXED | 2F→30P: patched `integrations.email_routes.EmailService` (core.email_service phantom) + product fix below |
+| 2026-08-07 | `tests/test_access_control_bugs.py` | FIXED | 2F→4P: RED-phase bug-verification tests flipped to GREEN — LINE profile endpoint now auth+ownership-gated (verify the fix) |
+| 2026-08-07 | `tests/test_atom_cli_skills_simple.py` | FIXED | 2F→18P: subprocess.run call includes explicit cwd=None/env=None (sandbox Phase B) — assertions updated |
+
+Real product bugs fixed this wave (TDD):
+- `core/communication_intelligence.py:20` — `KnowledgeExtractor(ai_service)` passed ai_service into workspace_id slot (extractor ctor modernized to workspace_id/tenant_id; ai_service was a Mock in tests → garbage workspace_id in prod whenever ai_service passed) (MED)
+- `core/atom_meta_agent.py:1267` — `generate_structured_response(task_type=..., turn_index=...)` — task_type collides with LLMService's model→task_type mapping and turn_index is not a handler param → every meta-agent ReAct step crashed with TypeError (HIGH)
+- `core/alert_service.py:457,548` — phantom `core.email_service` import (module never existed) → email alert notifications always returned False; rewired to `integrations.email_routes.EmailService` with its real `(to, subject, body)` signature (HIGH)
+
+### Round 2026-08-07 late-4 — governance interlock + final mopping
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `core/workflow_engine.py` (linear step interlock) | FIXED | HIGH SECURITY: called `can_perform_action(action=)` (wrong kwarg/method) + tuple-destructured dict → TypeError every step → fail-open → governance NEVER enforced for linear workflows. Now `can_perform_action_async(action_type=)` + dict access, enforced for registry-backed agents only (system_agent exempt — no identity). 3 new TDD tests (tests/test_bughunt_wf_governance.py) + covpush governance test updated. 252 workflow tests green |
+| 2026-08-07 | `core/atom_meta_agent.py:1267` | FIXED | generate_structured_response task_type/turn_index TypeError → every meta-agent ReAct step crashed (HIGH) |
+| 2026-08-07 | `core/alert_service.py:457,548` | FIXED | phantom core.email_service import → email alerts always returned False (HIGH); rewired to integrations.email_routes.EmailService |
+| 2026-08-07 | `core/communication_intelligence.py:20` | FIXED | ai_service passed into workspace_id ctor slot (MED) |
+| 2026-08-07 | graduation cluster (5 files) | FIXED | 26F+3E→164P: agent_graduation, graduation_service, atom_agent_endpoints_unit_coverage, connection_routes_coverage, workflow_engine_transactions_coverage (Episode/SkillExecution NOT NULL, Session import, auth signatures, removed routes) |
+| 2026-08-07 | routing/byok cluster (8 files) | FIXED | 19F→216P: byok_handler root, extended_coverage, cache_aware_routing, business_intelligence, atom_governance, alert_service, access_control_bugs (RED-phase→GREEN), cli_skills_simple |
