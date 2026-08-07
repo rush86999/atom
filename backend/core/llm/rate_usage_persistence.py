@@ -129,7 +129,7 @@ class RateUsagePersistence:
             with self._lock:
                 cached = self._monthly_cache.get(cache_key)
                 if cached and time.time() - cached[0] < MONTHLY_CACHE_SECONDS:
-                    return cached[1]
+                    return dict(cached[1])
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             session = self._session_factory()
             try:

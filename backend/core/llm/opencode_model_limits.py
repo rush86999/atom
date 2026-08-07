@@ -50,7 +50,8 @@ RATE_WINDOW_SECONDS = 60
 QUOTA_PROVIDERS = ("opencode-go",)
 
 
-def weight_from_prices(input_cost_per_token: float, output_cost_per_token: float) -> float:
+def weight_from_prices(input_cost_per_token: Optional[float],
+                       output_cost_per_token: Optional[float]) -> float:
     """Derive a quota weight from per-token prices (1.0 = flash-equivalent).
 
     Unknown/zero pricing yields the default weight 1.0 so routing never

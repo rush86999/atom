@@ -20,6 +20,8 @@ OPENCODE_API_KEY=sk-opencode-...
 OPENCODE_RPM=60                 # requests/minute ceiling
 OPENCODE_TPM=2000000            # tokens/minute ceiling
 OPENCODE_MAX_CONTEXT=200000     # gateway context cap (clamps candidate models)
+OPENCODE_MONTHLY_TPM=           # opt-in monthly subscription allowance (hard-skip when exhausted)
+OPENCODE_MODEL_LIMITS=          # per-model quota weights + RPM/TPM (JSON, see below)
 
 # 4. Restart backend
 ```
@@ -49,6 +51,9 @@ OpenCode Go participates in Atom's **BPC (Best Provider Candidate)** ranking alo
 | **Latency** | Measured per-request; fed into value score |
 | **Health** | Circuit breaker + 4xx/5xx tracking |
 | **Rate headroom** | Custom RPM/TPM limits → headroom penalty when near ceiling |
+| **Per-model quota** | Weighted TPM + quota penalty — heavy models (kimi-k3, pro) burn the shared budget faster and lose ties at equal quality |
+| **Per-model limits** | Models with their own RPM/TPM are hard-skipped independently |
+| **Monthly cap** | `OPENCODE_MONTHLY_TPM` hard-skips provider once the month's allowance is consumed |
 | **Context clamp** | `OPENCODE_MAX_CONTEXT` clamps model context windows |
 | **Exhaustion** | Hard-skip when rate budget = 0 |
 
@@ -78,6 +83,8 @@ When the dynamic pricing cache is unavailable, the router uses built-in mappings
 | `OPENCODE_RPM` | `60` | Max requests/minute for your tier. Adjust to match your plan. |
 | `OPENCODE_TPM` | `2000000` | Max tokens/minute for your tier. |
 | `OPENCODE_MAX_CONTEXT` | `200000` | Max context tokens the gateway accepts. Clamps candidate models. |
+| `OPENCODE_MONTHLY_TPM` | *unset* | **Opt-in** monthly subscription allowance (tokens). When set, BPC hard-skips the provider once persisted usage for the current calendar month meets/exceeds it. Unset = no monthly gate. |
+| `OPENCODE_MODEL_LIMITS` | *unset* | **Per-model** quota weights + RPM/TPM overrides as JSON (see below). |
 
 ### Setting Limits to Match Your Plan
 
@@ -94,6 +101,81 @@ OPENCODE_MAX_CONTEXT=200000
 1. **Clamp context** — A 200K context model won't be chosen if `OPENCODE_MAX_CONTEXT=32000`
 2. **Penalize headroom** — At 80% RPM usage, OpenCode Go's value score drops, letting other providers win
 3. **Hard-skip at exhaustion** — When RPM/TPM = 0, provider is excluded entirely
+4. **Monthly cap** — `OPENCODE_MONTHLY_TPM` hard-skips the provider once the month's allowance is gone
+
+---
+
+## Per-Model Usage Levels (Quota Accounting)
+
+OpenCode Go is a **flat-rate subscription**, so every request's *marginal* cost
+is ~$0 — but not every model burns the subscription's token allowance at the
+same rate. `kimi-k3` ($3/$15 per 1M) consumes ~43x the allowance of
+`deepseek-v4-flash` ($0.14/$0.28) for the same nominal request. Atom accounts
+for this with a **quota weight** per model:
+
+| Model | Quota weight | Meaning |
+|-------|-------------|---------|
+| `deepseek-v4-flash` | 1.0 | Baseline — cheapest burn |
+| `minimax-m2.7` / `minimax-m3` | ~3.6 | |
+| `qwen3.7-plus` | ~4.8 | |
+| `kimi-k2.7-code` / `kimi-k2.6` | ~11.8 | |
+| `deepseek-v4-pro` | ~12.4 | |
+| `glm-5.1` / `glm-5.2` | ~13.8 | |
+| `qwen3.7-max` | ~23.8 | |
+| `kimi-k3` | ~42.9 | Heaviest burn — drains quota ~43x faster |
+
+Weights are derived from the gateway's per-token price table (normalized to
+`deepseek-v4-flash` = 1.0) and applied in three places:
+
+1. **Weighted provider TPM** — a `kimi-k3` request counts ~43x a
+   `deepseek-v4-flash` request against the shared `OPENCODE_TPM` window, so a
+   single heavy model can't silently drain the provider budget while the
+   request counter looks healthy.
+2. **Quota value-score penalty** — the BPC ranker multiplies a model's value
+   score by `max(0.25, weight^-0.2)`: weight 1.0 → 1.0, ~12x → ~0.61, ~43x →
+   ~0.47. This is a mild nudge that only decides ties at *equal quality* — a
+   heavy model still wins when it's meaningfully better (e.g.
+   `deepseek-v4-pro` still wins COMPLEX tasks over `deepseek-v4-flash`).
+3. **Per-model limits** — models with their own RPM/TPM are hard-skipped
+   **independently**; one exhausted model doesn't take the whole provider down.
+
+### Per-Model Overrides (`OPENCODE_MODEL_LIMITS`)
+
+Cap a notoriously quota-hungry model while leaving cheap ones unlimited:
+
+```bash
+# JSON object keyed by gateway model id
+OPENCODE_MODEL_LIMITS='{"deepseek-v4-pro": {"weight": 3.0, "rpm": 20, "tpm": 500000},
+                        "kimi-k3": {"weight": 15.0, "tpm": 200000}}'
+```
+
+- `weight` overrides the price-derived quota weight (min 1.0)
+- `rpm` / `tpm` give the model its own rate budget — it is hard-skipped when
+  exhausted, while other models on the same key keep routing
+- Models not listed keep their price-derived weight and fall back to the
+  provider-wide headroom
+
+### Monthly Subscription Allowance (`OPENCODE_MONTHLY_TPM`)
+
+The in-window RPM/TPM guards burst rates; `OPENCODE_MONTHLY_TPM` guards the
+monthly allowance. Usage is persisted per call (`rate_usage_records` table,
+fire-and-forget) and aggregated since the 1st of the current month:
+
+```bash
+# Example: 200M token monthly plan
+OPENCODE_MONTHLY_TPM=200000000
+```
+
+When the weighted monthly total reaches the limit, BPC logs
+`BPC skipped opencode-go — monthly subscription quota exhausted` and routes to
+fallback providers for the rest of the month. Unset (default) = no monthly
+gate, matching prior behavior.
+
+> **Weighted vs raw**: the persisted monthly total is *raw* tokens; the
+> in-window TPM check is *weighted* by quota weight. If you set
+> `OPENCODE_MONTHLY_TPM`, size it against your plan's raw-token allowance.
+
+---
 
 ### Verification
 
@@ -174,11 +256,14 @@ value_score *= 0.83  # Light penalty — OpenCode Go stays competitive
 ### Debug Commands
 
 ```bash
-# View rate tracker state
-curl http://localhost:8000/api/debug/rate-tracker | jq '.["opencode-go"]'
+# View per-model usage levels (weights, limits, window + monthly usage)
+curl http://localhost:8000/api/debug/opencode-usage | jq '.data'
+
+# Filter to a single model
+curl "http://localhost:8000/api/debug/opencode-usage?model=kimi-k3" | jq '.data.models'
 
 # View provider health
-curl http://localhost:8000/api/llm/providers/health | jq '.["opencode-go"]'
+curl http://localhost:8000/api/ai/providers | jq '.[] | select(.id=="opencode-go")'
 
 # Force OpenCode Go for a request
 curl -X POST http://localhost:8000/api/agent/route \
@@ -241,6 +326,12 @@ A: The gateway returns 401/403. Atom's circuit breaker marks the provider unheal
 
 **Q: Can I override the static fallback models?**  
 A: Not via config — they're hardcoded in `COST_EFFICIENT_MODELS["opencode-go"]`. The dynamic pricing fetcher (when cache is warm) uses real gateway model list.
+
+**Q: How do I stop one model from draining my subscription quota?**  
+A: Two levers: (1) `OPENCODE_MODEL_LIMITS` gives that model its own RPM/TPM so it's hard-skipped independently (e.g. `{"kimi-k3": {"tpm": 200000}}`); (2) raise its `weight` so the quota penalty deprioritizes it at equal quality (e.g. `{"kimi-k3": {"weight": 60}}`).
+
+**Q: Does quota accounting change existing routing behavior?**  
+A: Only for models with a quota weight > 1.0 at *quality parity*. The per-token price is already in the value score; the quota factor (0.25–1.0) merely breaks ties toward lighter models. All defaults preserve prior behavior: no monthly gate unless `OPENCODE_MONTHLY_TPM` is set, no per-model limits unless `OPENCODE_MODEL_LIMITS` is set.
 
 ---
 

@@ -36,7 +36,11 @@ import os
 import threading
 from collections import deque
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    from core.llm.opencode_model_limits import OpencodeModelLimits
+    from core.llm.rate_usage_persistence import RateUsagePersistence
 
 logger = __import__("logging").getLogger(__name__)
 
@@ -100,14 +104,14 @@ class ProviderRateTracker:
         self._limits: Dict[str, Dict[str, int]] = {
             k: dict(v) for k, v in PROVIDER_RATE_LIMITS.items()
         }
-        self._persistence: Any = None
-        self._model_registry: Any = None
+        self._persistence: Optional["RateUsagePersistence"] = None
+        self._model_registry: Optional["OpencodeModelLimits"] = None
 
     def set_persistence(self, persistence: Any) -> None:
         """Wire an optional usage persistence layer (monthly quota reads)."""
         self._persistence = persistence
 
-    def _registry(self) -> Any:
+    def _registry(self) -> Optional["OpencodeModelLimits"]:
         """Lazy-import the per-model limits registry (avoids import cycles)."""
         if self._model_registry is None:
             try:
@@ -152,7 +156,8 @@ class ProviderRateTracker:
         if registry is None:
             return {}
         try:
-            return registry.get_model_rate_limits(provider_id, model_id)
+            limits = registry.get_model_rate_limits(provider_id, model_id)
+            return {k: int(v) for k, v in limits.items()}
         except Exception:
             return {}
 
@@ -161,7 +166,8 @@ class ProviderRateTracker:
         if registry is None:
             return 1.0
         try:
-            return registry.get_weight(provider_id, model_id)
+            weight = registry.get_weight(provider_id, model_id)
+            return float(weight)
         except Exception:
             return 1.0
 
@@ -288,7 +294,8 @@ class ProviderRateTracker:
         if self._persistence is None:
             return None
         try:
-            return self._persistence.monthly_usage(provider_id, model_id)
+            monthly = self._persistence.monthly_usage(provider_id, model_id)
+            return dict(monthly) if monthly else None
         except Exception:
             logger.debug("Rate usage monthly read failed (non-fatal)", exc_info=True)
             return None
