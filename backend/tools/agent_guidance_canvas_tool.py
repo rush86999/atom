@@ -193,7 +193,7 @@ class AgentGuidanceSystem:
         self,
         user_id: str,
         operation_id: str,
-        step: str,
+        step: Optional[str],
         progress: Optional[int] = None,
         add_log: Optional[Dict[str, Any]] = None
     ):
