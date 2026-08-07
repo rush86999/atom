@@ -179,7 +179,10 @@ class TestUpdateExperienceFeedback:
 
     @pytest.mark.asyncio
     async def test_boost_experience_confidence(self):
-        service, _ = make_service()
+        service, handler = make_service()
+        handler.search = Mock(
+            return_value=[{"id": "exp-1", "text": "t", "metadata": {"confidence_score": 0.5}}]
+        )
         assert await service.boost_experience_confidence("exp-1", 0.2) is True
 
 
@@ -770,7 +773,7 @@ class TestRecallExperiences:
         assert result["formulas"] and result["formulas"][0]["type"] == "formula_hot"
         assert result["conversations"][0]["role"] == "user"
         assert result["business_facts"] == []
-        assert result["episodes"] == [{"id": "ep1"}]
+        assert result["episodes"] == [{"id": "ep1", "canvas_context": [], "feedback_context": []}]
 
     @pytest.mark.asyncio
     async def test_recall_formula_hot_fallback_failure(self):

@@ -279,7 +279,7 @@ class TestAgentStart:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Port already in use" in data["detail"]
+            assert "Internal error" in data["detail"]
 
     def test_start_io_error(self, agent_control_client: TestClient):
         """Test start returns 500 on IOError from start_daemon."""
@@ -291,7 +291,7 @@ class TestAgentStart:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Cannot write PID file" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 # ============================================================================
@@ -359,7 +359,7 @@ class TestAgentStop:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Unexpected error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
     def test_stop_when_already_stopped(self, agent_control_client: TestClient):
         """Test stop handles multiple stop calls gracefully (idempotency)."""
@@ -474,7 +474,7 @@ class TestAgentRestart:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Daemon error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 class TestAgentStatus:
@@ -615,7 +615,7 @@ class TestAgentStatus:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Status error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 # ============================================================================

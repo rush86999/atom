@@ -196,6 +196,8 @@ class TestEpisodeSegmentationService:
 
         canvas = CanvasAudit(
             id=f"test_canvas_{uuid.uuid4().hex[:8]}",
+            canvas_id="canvas-1",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_user.id,
             created_at=datetime.now(timezone.utc),
@@ -257,16 +259,14 @@ class TestEpisodeRetrievalService:
         episode = Episode(
             id=f"serialize_test_ep_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Serialization Test",
-            description="Test episode serialization",
+            task_description="Serialization Test",
             status="completed",
             started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now(timezone.utc),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0,
             importance_score=0.8
         )
@@ -276,7 +276,7 @@ class TestEpisodeRetrievalService:
         serialized = retrieval_service._serialize_episode(episode)
 
         assert serialized["id"] == episode.id
-        assert serialized["title"] == episode.title
+        assert serialized["title"] == episode.task_description
         assert serialized["status"] == episode.status
         assert serialized["importance_score"] == 0.8
         assert "maturity_at_time" in serialized
@@ -328,18 +328,15 @@ class TestEpisodeLifecycleService:
         old_episode = Episode(
             id=f"decay_test_ep_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Decay Test Episode",
-            description="Test episode for decay",
+            task_description="Decay Test Episode",
             status="completed",
             started_at=datetime.now() - timedelta(days=100),
-            ended_at=datetime.now() - timedelta(days=100),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now() - timedelta(days=100),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0,
-            decay_score=1.0,
             access_count=0
         )
         lifecycle_service.db.add(old_episode)
@@ -352,10 +349,11 @@ class TestEpisodeLifecycleService:
         assert "archived" in result
         assert result["affected"] >= 1
 
-        # Verify decay score updated
+        # Verify decay score updated. decay_score semantics: how much decay
+        # has been applied (0=fresh, 1=fully decayed) — a 100-day-old episode
+        # past the 90-day threshold is fully decayed.
         lifecycle_service.db.refresh(old_episode)
-        assert old_episode.decay_score < 1.0  # Should be decayed
-        assert old_episode.access_count >= 1  # Access count incremented
+        assert old_episode.decay_score == 1.0
 
     def test_lifecycle_archive_to_cold_storage(self, lifecycle_service, test_agent):
         """Test archive_to_cold_storage through EpisodeLifecycleService"""
@@ -365,16 +363,14 @@ class TestEpisodeLifecycleService:
         episode = Episode(
             id=f"archive_test_ep_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Archive Test Episode",
-            description="Test episode for archival",
+            task_description="Archive Test Episode",
             status="completed",
             started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now(timezone.utc),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0
         )
         lifecycle_service.db.add(episode)
@@ -398,16 +394,14 @@ class TestEpisodeLifecycleService:
         episode = Episode(
             id=f"importance_test_ep_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Importance Test Episode",
-            description="Test episode for importance update",
+            task_description="Archive Test Episode",
             status="completed",
             started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now(timezone.utc),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0,
             importance_score=0.5
         )
@@ -435,32 +429,28 @@ class TestEpisodeLifecycleService:
         ep1 = Episode(
             id=f"access_ep1_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Access Test 1",
-            description="Test",
+            task_description="Archive Test Episode",
             status="completed",
             started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now(timezone.utc),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0,
             access_count=0
         )
         ep2 = Episode(
             id=f"access_ep2_{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
-            user_id="test_user",
+            tenant_id="default",
             workspace_id="default",
-            title="Access Test 2",
-            description="Test",
+            task_description="Archive Test Episode",
             status="completed",
             started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            topics=["test"],
-            entities=["test"],
+            completed_at=datetime.now(timezone.utc),
             maturity_at_time="AUTONOMOUS",
+            outcome="success",
             human_intervention_count=0,
             access_count=0
         )

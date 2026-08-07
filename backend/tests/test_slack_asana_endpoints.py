@@ -158,8 +158,8 @@ class TestAsanaCreateProject:
         call_args = asana_service._make_request.call_args
         assert call_args[0][0] == "POST"
         assert call_args[0][1] == "/projects"
-        assert call_args[1]["data"]["workspace"] == "987654321"
-        assert call_args[1]["data"]["name"] == "Test Project"
+        assert call_args[1]["data"]["data"]["workspace"] == "987654321"
+        assert call_args[1]["data"]["data"]["name"] == "Test Project"
 
     @pytest.mark.asyncio
     async def test_create_project_with_notes(self):
@@ -190,7 +190,7 @@ class TestAsanaCreateProject:
         assert result["ok"] is True
         assert result["project"]["notes"] == "Q1 marketing initiatives"
         call_args = asana_service._make_request.call_args
-        assert call_args[1]["data"]["notes"] == "Q1 marketing initiatives"
+        assert call_args[1]["data"]["data"]["notes"] == "Q1 marketing initiatives"
 
     @pytest.mark.asyncio
     async def test_create_project_with_team(self):
@@ -279,9 +279,9 @@ class TestAsanaCreateProject:
         # Assert
         assert result["ok"] is True
         call_args = asana_service._make_request.call_args
-        assert call_args[1]["data"]["due_on"] == "2026-12-31"
-        assert call_args[1]["data"]["public"] is True
-        assert call_args[1]["data"]["avatar"] == "https://example.com/avatar.png"
+        assert call_args[1]["data"]["data"]["due_on"] == "2026-12-31"
+        assert call_args[1]["data"]["data"]["public"] is True
+        assert call_args[1]["data"]["data"]["avatar"] == "https://example.com/avatar.png"
 
     @pytest.mark.asyncio
     async def test_create_project_failure(self):

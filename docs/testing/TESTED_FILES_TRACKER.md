@@ -323,3 +323,14 @@ Real product bugs fixed this wave (TDD):
 - `tools/canvas_tool.py:996` — AUTONOMOUS uppercase-status double-check blocked canvas JS execution (MED)
 - `tools/agent_guidance_canvas_tool.py:114,224,237,447` — tenant_id NOT NULL crash masked by fake uuid; step=None into NOT NULL; logs append never persisted; audit canvas_id=None (HIGH ×4)
 - `api/admin/cache_routes.py` — NEW: module referenced by 2 test files never existed; implemented per spec (not mounted — needs admin auth first)
+
+### Round 2026-08-07 late-3 — tracker-gap sweep (all prior 'known remaining' items)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `tests/api/test_agent_control_routes.py` | FIXED | 5F→53P: stale str(e)-leak assertions ("Port already in use" etc.) → generic "Internal error" contract (R18-31 hardening) |
+| 2026-08-07 | `tests/test_slack_asana_endpoints.py` | FIXED | 3F→11P: create_project payload now Asana-wrapped `{"data": {...}}` — assertions drilled one level |
+| 2026-08-07 | `tests/test_xxe_bugs.py` | FIXED | 3F→4P: RED-phase bug-verification tests flipped to GREEN — assert defusedxml used (fix 4d409f163) + XXE payload rejected by safe parser |
+| 2026-08-07 | `tests/test_episode_services_comprehensive.py` | FIXED | 6F+6E→15P: CanvasAudit canvas_id/tenant_id NOT NULL, AgentEpisode stale kwargs (user_id/title/description/ended_at → tenant_id/task_description/completed_at), missing outcome NOT NULL, decay_score semantics (min(1,days/90) saturation) |
+| 2026-08-07 | `tests/test_covpush_world.py` | FIXED | 2F→99P: boost test unseeded handler; recall episodes now include canvas_context/feedback_context keys |
+| 2026-08-07 | `tests/core/phase190_coverage_batch.py` | FIXED | 24F→33P: retargeted renamed classes (HybridDataIngestion→HybridDataIngestionService, BulkOperationsProcessor→IntegrationBulkProcessor, DebugStorage→HybridDebugStorage, CrossPlatformCorrelation→CrossPlatformLink, PredictiveInsights→ResponseTimePrediction, validation_service→core.validation, workflow_parameter_validator→ParameterValidator, workflow_template_endpoints→workflow_template_routes, workflow_analytics_endpoints→analytics_dashboard_endpoints); removed archived auto_invoicer/unified_message_processor smoke tests; constructor args aligned (GenericAgent(agent_model=...), FeedbackService(db=...)) |
+| 2026-08-07 | `tests/test_cognitive_tier_api.py` | DEAD | Removed — routes deliberately deleted in eda17eb29 (never wired); service covered by test_cognitive_tier_e2e.py (32/32) |
